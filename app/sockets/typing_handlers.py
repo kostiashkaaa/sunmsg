@@ -65,6 +65,9 @@ def _handle_typing_signal_event(
         'sender_display_name': sender_display_name,
         'sender_username': sender_username,
     }
+    typing_kind = str(data.get('typing_kind') or '').strip().lower()
+    if typing_kind in {'text', 'voice'}:
+        payload['typing_kind'] = typing_kind
     if is_group_chat:
         emit_func(partner_event_name, payload, room=chat_id, include_self=False)
     elif partner and partner['public_key']:

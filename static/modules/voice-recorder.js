@@ -93,6 +93,7 @@ export function initVoiceRecorder({
     hasPendingSendAction,
     showToast,
     onComposerStopTyping,
+    onVoiceRecordingStateChange,
     sendFileMessage,
 } = {}) {
     let recorder = null;
@@ -108,6 +109,7 @@ export function initVoiceRecorder({
     let actionIconMotionSeq = 0;
     let handledTextSubmitPointer = false;
     let handledTextSubmitTimer = null;
+    let isVoiceTypingActive = false;
 
     function isSupported() {
         return typeof MediaRecorder !== 'undefined'
@@ -123,6 +125,13 @@ export function initVoiceRecorder({
             clearInterval(recordTimerHandle);
             recordTimerHandle = null;
         }
+    }
+
+    function syncVoiceTypingState(active) {
+        const next = Boolean(active);
+        if (next === isVoiceTypingActive) return;
+        isVoiceTypingActive = next;
+        onVoiceRecordingStateChange?.(next);
     }
 
     function clearComposerTransition() {
@@ -440,6 +449,7 @@ export function initVoiceRecorder({
             recorder = null;
             stopTimer();
             stopStream();
+            syncVoiceTypingState(false);
             updateButtonState();
 
             const tooShort = blob.size < 1200;
@@ -472,6 +482,7 @@ export function initVoiceRecorder({
             recordChunks = [];
             stopTimer();
             stopStream();
+            syncVoiceTypingState(false);
             updateButtonState();
         }
     }
@@ -521,10 +532,12 @@ export function initVoiceRecorder({
                 messageInput.blur();
             }
             onComposerStopTyping?.();
+            syncVoiceTypingState(true);
             startTimer();
             updateButtonState();
         } catch (_) {
             stopStream();
+            syncVoiceTypingState(false);
             showToast('\u0417\u0430\u043F\u0438\u0441\u044C \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0432 \u044D\u0442\u043E\u043C \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435.', 'danger');
             updateButtonState();
         }
@@ -540,6 +553,7 @@ export function initVoiceRecorder({
         recordChunks = [];
         stopTimer();
         stopStream();
+        syncVoiceTypingState(false);
         clearComposerTransition();
     }
 

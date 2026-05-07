@@ -21,6 +21,23 @@ const DEFAULT_AUDIO_WAVEFORM = [
     62, 82, 48, 34, 60, 76, 42, 28, 56, 72, 46, 32,
 ];
 
+function isWaveformInformative(values) {
+    const normalized = Array.isArray(values)
+        ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+        : [];
+    if (normalized.length < 8) return false;
+    let min = normalized[0];
+    let max = normalized[0];
+    const unique = new Set();
+    for (let i = 0; i < normalized.length; i += 1) {
+        const value = Math.round(normalized[i]);
+        unique.add(value);
+        if (value < min) min = value;
+        if (value > max) max = value;
+    }
+    return unique.size >= 4 && (max - min) >= 6;
+}
+
 function tr(value) {
     const api = window.SUN_I18N;
     if (api && typeof api.translateText === 'function') {
@@ -48,16 +65,16 @@ function normalizeWaveform(rawWaveform) {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value))
         .map((value) => Math.max(8, Math.min(100, Math.round(value))));
-    if (cleaned.length >= 8) return cleaned;
+    if (isWaveformInformative(cleaned)) return cleaned;
     return DEFAULT_AUDIO_WAVEFORM.slice();
 }
 
 function hasProvidedWaveform(rawWaveform) {
-    if (Array.isArray(rawWaveform)) {
-        return rawWaveform.some((value) => Number.isFinite(Number(value)));
-    }
+    if (Array.isArray(rawWaveform)) return isWaveformInformative(rawWaveform);
     if (typeof rawWaveform === 'string') {
-        return rawWaveform.includes(',') && rawWaveform.split(',').some((part) => Number.isFinite(Number(part.trim())));
+        if (!rawWaveform.includes(',')) return false;
+        const parsed = rawWaveform.split(',').map((part) => Number(part.trim()));
+        return isWaveformInformative(parsed);
     }
     return false;
 }

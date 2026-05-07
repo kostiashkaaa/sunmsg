@@ -52,18 +52,21 @@ function isGroupChatById(chatId) {
 function buildTypingPhrase(entries, { includeNames = true } = {}) {
     const list = Array.isArray(entries) ? entries : [];
     if (!list.length) return '';
+    const hasVoiceRecording = list.some((entry) => String(entry?.typing_kind || 'text') === 'voice');
+    const singleAction = hasVoiceRecording ? tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435') : tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442');
+    const pluralAction = hasVoiceRecording ? tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u044E\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435') : tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442');
     if (!includeNames) {
-        if (list.length === 1) return tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442');
-        if (list.length === 2) return tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442');
-        return `${list.length} ${tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442')}...`;
+        if (list.length === 1) return singleAction;
+        if (list.length === 2) return pluralAction;
+        return `${list.length} ${pluralAction}...`;
     }
     if (list.length === 1) {
-        return `${resolveTypingName(list[0])} ${tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442')}`;
+        return `${resolveTypingName(list[0])} ${singleAction}`;
     }
     if (list.length === 2) {
-        return `${resolveTypingName(list[0])}, ${resolveTypingName(list[1])} ${tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442')}`;
+        return `${resolveTypingName(list[0])}, ${resolveTypingName(list[1])} ${pluralAction}`;
     }
-    return `${list.length} ${tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442')}...`;
+    return `${list.length} ${pluralAction}...`;
 }
 
 function renderTypingText(text) {
@@ -183,6 +186,7 @@ function upsertTypingSignal(data, getChatId) {
         sender_user_id: data?.sender_user_id,
         sender_display_name: data?.sender_display_name,
         sender_username: data?.sender_username,
+        typing_kind: String(data?.typing_kind || 'text').trim().toLowerCase() === 'voice' ? 'voice' : 'text',
     });
     typingEntriesByChat.set(chatId, map);
 
