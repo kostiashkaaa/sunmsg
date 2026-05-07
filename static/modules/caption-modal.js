@@ -197,7 +197,7 @@ export function initCaptionModal({
         `;
     }
 
-    function renderPreview(file, totalFiles = 1) {
+    function renderPreview(file, totalFiles = 1, allFiles = []) {
         if (!previewEl) return;
         cleanupPreviewObjectUrl();
         previewEl.innerHTML = '';
@@ -225,6 +225,20 @@ export function initCaptionModal({
                 'beforeend',
                 `<span class="caption-file-count">${totalFiles}</span>`,
             );
+            const extraFiles = Array.isArray(allFiles) ? allFiles.slice(1) : [];
+            if (extraFiles.length) {
+                const visibleNames = extraFiles.slice(0, 3)
+                    .map((entry) => `<div class="caption-extra-files__item" title="${escapeHtml(entry?.name || '')}">${escapeHtml(entry?.name || '')}</div>`)
+                    .join('');
+                const hiddenCount = Math.max(0, extraFiles.length - 3);
+                const hiddenTail = hiddenCount > 0
+                    ? `<div class="caption-extra-files__item">+${hiddenCount}</div>`
+                    : '';
+                previewEl.insertAdjacentHTML(
+                    'beforeend',
+                    `<div class="caption-extra-files"><div class="caption-extra-files__label">Также прикреплено:</div>${visibleNames}${hiddenTail}</div>`,
+                );
+            }
         }
     }
 
@@ -262,7 +276,7 @@ export function initCaptionModal({
 
         const attachMode = getPendingAttachMode();
         const primaryFile = files[0];
-        renderPreview(primaryFile, files.length);
+        renderPreview(primaryFile, files.length, files);
         renderModalMeta(primaryFile, attachMode, files.length);
         if (titleEl) titleEl.textContent = resolveModalTitle(files, attachMode);
         if (hintEl) hintEl.textContent = resolveModalHint(attachMode);
