@@ -4569,7 +4569,7 @@
                 to top,
                 rgba(0,0,0,0.75),
                 rgba(0,0,0,0.4),
-                rgba(0,0,0,var(--dur-instant)),
+                rgba(0,0,0,0.12),
                 transparent
             );
         }
@@ -8386,7 +8386,7 @@
             width: calc(100% - 32px);
             margin: 10px 16px;
             padding: 12px 14px;
-            background: rgba(245, 158, 11, var(--dur-instant));
+            background: rgba(245, 158, 11, 0.12);
             border: 1px solid rgba(245, 158, 11, 0.2);
             border-radius: 12px;
             display: flex;

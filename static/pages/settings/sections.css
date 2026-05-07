@@ -714,28 +714,28 @@
             from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
             to   { opacity: 0; transform: translate3d(0, -8px, 0) scale(0.985); }
         }
-        .settings-alert.success { background: rgba(16,185,129,var(--dur-instant)); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
-        .settings-alert.danger  { background: rgba(239,68,68,var(--dur-instant));  border: 1px solid rgba(239,68,68,0.3);  color: var(--danger); }
-        .settings-alert.warning { background: rgba(245,158,11,var(--dur-instant)); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
+        .settings-alert.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+        .settings-alert.danger  { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: var(--danger); }
+        .settings-alert.warning { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
 
         /* Копировать кнопку */
-.copy-row {
+        .copy-row {
             display: flex;
             gap: 8px;
             margin-top: 10px;
             flex-wrap: wrap;
         }
 
-.settings-qr-box {
-    background: #fff;
-    padding: 16px;
-    border-radius: 16px;
-    box-shadow: var(--shadow-md);
-    display: inline-block;
-    inline-size: max-content;
-    max-width: 100%;
-    margin: 0 auto;
-}
+        .settings-qr-box {
+            background: #fff;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            display: inline-block;
+            inline-size: max-content;
+            max-width: 100%;
+            margin: 0 auto;
+        }
 
         /* Mobile */
 

@@ -1024,7 +1024,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     color: #ef4444;
 }
 .message-context-menu .menu-item.danger:hover {
-    background: rgba(239, 68, 68, var(--dur-instant));
+    background: rgba(239, 68, 68, 0.12);
 }
 .message-context-menu .menu-item i {
     font-size: 17px;

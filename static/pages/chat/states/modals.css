@@ -136,7 +136,7 @@
 
         .lightbox-btn:hover {
             transform: scale(1.06);
-            background: color-mix(in srgb, var(--accent) 22%, rgba(255,255,255,var(--dur-instant)));
+            background: color-mix(in srgb, var(--accent) 22%, rgba(255,255,255,0.12));
             border-color: color-mix(in srgb, var(--accent) 50%, transparent);
             color: #fff;
         }
@@ -173,7 +173,7 @@
 
         .lightbox-nav:hover {
             transform: scale(1.08);
-            background: color-mix(in srgb, var(--accent) 26%, rgba(255,255,255,var(--dur-instant)));
+            background: color-mix(in srgb, var(--accent) 26%, rgba(255,255,255,0.12));
             border-color: color-mix(in srgb, var(--accent) 55%, transparent);
         }
 
