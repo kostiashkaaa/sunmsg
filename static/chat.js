@@ -3254,13 +3254,20 @@ const initChatPage = async () => {
         return Number.isFinite(parsed) ? parsed : 0;
     }
 
-    function shouldApplyDraftUpdate(chatId, updatedAt) {
+    function shouldApplyDraftUpdate(chatId, updatedAt, incomingDraftText = '') {
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) return false;
         const nextMs = toDraftTimestampMs(updatedAt);
         if (!nextMs) return true;
         const prevMs = Number(lastDraftUpdatedAtByChatId.get(normalizedChatId) || 0);
-        return nextMs >= prevMs;
+        if (nextMs > prevMs) return true;
+        if (nextMs < prevMs) return false;
+
+        // CURRENT_TIMESTAMP from backend is second-precision; if two updates share
+        // the same timestamp, only treat exact text duplicates as safe/idempotent.
+        const previousSavedDraftText = normalizeDraftText(lastSavedDraftByChatId.get(normalizedChatId) || '');
+        const nextDraftText = normalizeDraftText(incomingDraftText || '');
+        return nextDraftText === previousSavedDraftText;
     }
 
     function hasMeaningfulDraft(value) {
@@ -3451,7 +3458,7 @@ const initChatPage = async () => {
         if (!chatId) return;
 
         const updatedAt = String(payload?.updated_at || '').trim();
-        if (!shouldApplyDraftUpdate(chatId, updatedAt)) return;
+        if (!shouldApplyDraftUpdate(chatId, updatedAt, payload?.has_draft ? payload?.draft_text || '' : '')) return;
 
         const previousSavedDraftText = String(lastSavedDraftByChatId.get(chatId) || '');
         const normalizedDraftText = payload?.has_draft
@@ -5954,7 +5961,10 @@ const initChatPage = async () => {
                     messageInput.value = '';
                     linkDraftBarController?.syncFromInput?.({ force: true });
                 }
-                lastSavedDraftByChatId.delete(sourceChatId);
+                // Keep local draft state in sync after send, so stale realtime draft
+                // events cannot repopulate the composer with already-sent text.
+                lastSavedDraftByChatId.set(sourceChatId, '');
+                lastDraftUpdatedAtByChatId.set(sourceChatId, Date.now());
                 void flushDraftSaveForChat(sourceChatId, '', { force: true });
                 if (String(currentChatId || '') !== sourceChatId) {
                     syncDraftPreviewForContact(sourceChatId, '', new Date().toISOString(), { showWhileActive: true });
