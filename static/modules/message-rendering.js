@@ -108,15 +108,6 @@ function buildInlineUploadProgress(filePayload, extraClass = '') {
         extraClass,
         isUploading ? 'is-uploading' : 'is-hidden',
     ].filter(Boolean).join(' ');
-    const isAudioInline = String(extraClass || '').includes('file-upload-inline--audio');
-
-    if (isAudioInline) {
-        return `
-        <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}" style="--upload-progress:${progress};">
-            <span class="file-upload-inline-audio-ring" aria-hidden="true"></span>
-            <span class="file-upload-inline-percent">${progress}%</span>
-        </div>`;
-    }
 
     return `
         <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}" style="--upload-progress:${progress};">
@@ -198,10 +189,6 @@ function bindMessageInteractiveHandlers(messageDiv) {
         toggleBtn.addEventListener('click', () => window._toggleAudioPlayer?.(toggleBtn));
     });
 
-    messageDiv.querySelectorAll('.audio-player-speed').forEach((speedBtn) => {
-        speedBtn.addEventListener('click', () => window._cycleAudioPlaybackRate?.(speedBtn));
-    });
-
     messageDiv.querySelectorAll('.audio-player-progress').forEach((rangeEl) => {
         const setSeekingState = (isSeeking) => {
             window._setAudioSeekState?.(rangeEl, Boolean(isSeeking));
@@ -250,6 +237,22 @@ function bindMessageInteractiveHandlers(messageDiv) {
         rangeEl.addEventListener('touchend', () => setSeekingState(false));
         rangeEl.addEventListener('change', () => setSeekingState(false));
         rangeEl.addEventListener('blur', () => setSeekingState(false));
+    });
+
+    messageDiv.querySelectorAll('.audio-player-wave-wrap').forEach((waveWrap) => {
+        waveWrap.addEventListener('click', (event) => {
+            if (!(event instanceof MouseEvent)) return;
+            const rangeEl = waveWrap.querySelector('.audio-player-progress');
+            if (!rangeEl) return;
+            window._seekAudioPlayerByClientX?.(rangeEl, Number(event.clientX));
+        });
+        waveWrap.addEventListener('touchstart', (event) => {
+            const touch = event.touches?.[0];
+            if (!touch) return;
+            const rangeEl = waveWrap.querySelector('.audio-player-progress');
+            if (!rangeEl) return;
+            window._seekAudioPlayerByClientX?.(rangeEl, Number(touch.clientX));
+        }, { passive: true });
     });
 }
 
@@ -549,7 +552,6 @@ function buildFileBubble(filePayload) {
                                     step="0.1"
                                     aria-label="\u041F\u043E\u0437\u0438\u0446\u0438\u044F \u0430\u0443\u0434\u0438\u043E" />
                             </div>
-                            <button class="audio-player-speed" type="button" aria-label="\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F">1x</button>
                         </div>
                     </div>
                 </div>

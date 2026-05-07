@@ -101,6 +101,37 @@
             </div>
         </div>
 
+        <div class="voice-playback-bar voice-playback-bar--hidden" id="voicePlaybackBar" aria-hidden="true">
+            <div class="voice-playback-bar__top">
+                <div class="voice-playback-bar__left">
+                    <button type="button" class="voice-playback-bar__icon-btn" id="voicePlaybackBackBtn" aria-label="Назад на 10 секунд" title="Назад на 10 секунд">
+                        <i class="bi bi-rewind-fill" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="voice-playback-bar__icon-btn" id="voicePlaybackPlayBtn" aria-label="Воспроизвести" title="Воспроизвести">
+                        <i class="bi bi-play-fill" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="voice-playback-bar__icon-btn" id="voicePlaybackForwardBtn" aria-label="Вперёд на 10 секунд" title="Вперёд на 10 секунд">
+                        <i class="bi bi-fast-forward-fill" aria-hidden="true"></i>
+                    </button>
+                    <div class="voice-playback-bar__meta">
+                        <span class="voice-playback-bar__sender" id="voicePlaybackSender">—</span>
+                        <span class="voice-playback-bar__details" id="voicePlaybackDetails">00:00 / 00:00 • —</span>
+                    </div>
+                </div>
+                <div class="voice-playback-bar__right">
+                    <input class="voice-playback-bar__volume" id="voicePlaybackVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Громкость">
+                    <button type="button" class="voice-playback-bar__speed-btn" id="voicePlaybackSpeedBtn" aria-label="Скорость 1x. Изменить">1x</button>
+                    <button type="button" class="voice-playback-bar__icon-btn" id="voicePlaybackCloseBtn" aria-label="Закрыть плеер" title="Закрыть">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="voice-playback-bar__progress-wrap">
+                <input class="voice-playback-bar__progress" id="voicePlaybackProgress" type="range" min="0" max="100" step="0.1" value="0" aria-label="Позиция голосового">
+                <span class="voice-playback-bar__progress-fill" id="voicePlaybackProgressFill" aria-hidden="true"></span>
+            </div>
+        </div>
+
         <div class="chat-empty-placeholder" id="chatPlaceholder">
             <div class="empty-state-glow"></div>
             <div class="empty-state-content">

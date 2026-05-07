@@ -384,6 +384,13 @@ export function initVoiceRecorder({
         }
 
         const attempts = [
+            {
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            },
             { audio: true },
             {
                 audio: {
