@@ -108,6 +108,15 @@ function buildInlineUploadProgress(filePayload, extraClass = '') {
         extraClass,
         isUploading ? 'is-uploading' : 'is-hidden',
     ].filter(Boolean).join(' ');
+    const isAudioInline = String(extraClass || '').includes('file-upload-inline--audio');
+
+    if (isAudioInline) {
+        return `
+        <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}" style="--upload-progress:${progress};">
+            <span class="file-upload-inline-audio-ring" aria-hidden="true"></span>
+            <span class="file-upload-inline-percent">${progress}%</span>
+        </div>`;
+    }
 
     return `
         <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}" style="--upload-progress:${progress};">

@@ -4659,6 +4659,7 @@
 
 
         .file-msg-audio-wrap {
+            position: relative;
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -4667,7 +4668,45 @@
 
 
         .file-upload-inline--audio {
-            margin-left: var(--audio-leading-offset, 46px);
+            position: absolute;
+            top: 4px;
+            right: 0;
+            width: 26px;
+            height: 26px;
+            margin-left: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: radial-gradient(circle at 30% 28%, #ff8f8f 0%, #ef4444 42%, #991b1b 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .file-upload-inline--audio .file-upload-inline-audio-ring {
+            position: absolute;
+            inset: 2px;
+            border-radius: 999px;
+            background: conic-gradient(
+                rgba(255, 255, 255, 0.96) calc(var(--upload-progress, 0) * 1%),
+                rgba(255, 255, 255, 0.28) 0
+            );
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+            mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+        }
+
+        .file-upload-inline--audio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+        }
+
+        .file-upload-inline--audio .file-upload-inline-percent {
+            display: none;
         }
 
         .bubble--audio .file-caption {

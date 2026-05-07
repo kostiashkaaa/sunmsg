@@ -19,6 +19,27 @@ function chooseVoiceRecorderMimeType(mimeCandidates) {
     return '';
 }
 
+function normalizeRecordedAudioMimeType(rawMimeType) {
+    const lower = String(rawMimeType || '').trim().toLowerCase();
+    if (!lower) return '';
+    if (lower.startsWith('video/webm')) {
+        return lower.replace(/^video\/webm/i, 'audio/webm');
+    }
+    return lower;
+}
+
+function resolveRecordedAudioExtension(rawMimeType) {
+    const normalized = normalizeRecordedAudioMimeType(rawMimeType);
+    const baseMime = normalized.split(';', 1)[0].trim();
+    if (baseMime === 'audio/ogg' || baseMime === 'audio/opus') return 'ogg';
+    if (baseMime === 'audio/wav' || baseMime === 'audio/x-wav') return 'wav';
+    if (baseMime === 'audio/mpeg' || baseMime === 'audio/mp3' || baseMime === 'audio/x-mp3') return 'mp3';
+    if (baseMime === 'audio/mp4' || baseMime === 'audio/x-m4a') return 'm4a';
+    if (baseMime === 'audio/aac' || baseMime === 'audio/x-aac') return 'aac';
+    if (baseMime === 'audio/webm') return 'webm';
+    return 'webm';
+}
+
 function getMicAccessErrorMessage(error) {
     if (!window.isSecureContext) {
         return '\u0417\u0430\u043F\u0438\u0441\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E HTTPS \u0438\u043B\u0438 localhost.';
@@ -430,8 +451,10 @@ export function initVoiceRecorder({
                 1,
                 Math.floor((Date.now() - recordStartedAt) / 1000) || 1,
             );
-            const file = new File([blob], `voice-${ts}.webm`, {
-                type: 'audio/webm',
+            const normalizedMime = normalizeRecordedAudioMimeType(blob.type || activeRecorder.mimeType);
+            const extension = resolveRecordedAudioExtension(normalizedMime);
+            const file = new File([blob], `voice-${ts}.${extension}`, {
+                type: normalizedMime || 'audio/webm',
             });
             recordChunks = [];
             await sendFileMessage(file, '', { audioDurationSeconds: recordedSeconds });
