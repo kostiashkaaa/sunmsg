@@ -6298,6 +6298,11 @@ const initChatPage = async () => {
         if (!voicePlaybackBar) return;
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
+        if (chatArea) {
+            const nextOffset = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
+            chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
+            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible && nextOffset > 0);
+        }
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
     }

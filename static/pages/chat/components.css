@@ -4145,6 +4145,15 @@
             visibility: hidden;
         }
 
+        .chat-header {
+            transition: transform var(--dur-quick) var(--ease-quick);
+            will-change: transform;
+        }
+
+        .chat-area.chat-area--voice-playback-active .chat-header {
+            transform: translateY(var(--voice-playback-offset, 0px));
+        }
+
         .voice-playback-bar__top {
             display: flex;
             align-items: center;
