@@ -1,4 +1,5 @@
 import { getCsrfToken } from '../../modules/csrf.js';
+import { showConfirmDialog } from '../../modules/confirm-dialog.js';
 import { withAppRoot } from '../../modules/app-url.js';
 import * as ChatIdb from '../../modules/chat-idb.js';
 import {
@@ -117,9 +118,15 @@ export function initSettingsPage() {
 
     const api = createSettingsApi({ withAppRoot, getCsrfToken });
 
-    const closeSettingsSurface = () => {
-        if (state.isDirty() && !window.confirm(tr('Отменить несохранённые изменения?'))) {
-            return;
+    const closeSettingsSurface = async () => {
+        if (state.isDirty()) {
+            const ok = await showConfirmDialog({
+                title: tr('Отменить несохранённые изменения?'),
+                confirmText: tr('Отменить изменения'),
+                cancelText: tr('Остаться'),
+                variant: 'warning',
+            });
+            if (!ok) return;
         }
         if (isEmbedMode) {
             closeEmbeddedSettings();
@@ -379,5 +386,6 @@ export function initSettingsPage() {
         tr,
         currentUsername,
         navigateOut,
+        showAlert,
     });
 }

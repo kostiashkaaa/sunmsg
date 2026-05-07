@@ -1,29 +1,31 @@
+import { showConfirmDialog } from '../../modules/confirm-dialog.js';
+
 export function initAccountDangerSection({
     api,
     tr,
     currentUsername,
     navigateOut,
+    showAlert,
 }) {
     const deleteAccountBtn = document.getElementById('deleteAccountBtn');
     if (!deleteAccountBtn) return;
 
     deleteAccountBtn.addEventListener('click', async () => {
-        const username = currentUsername;
-        const confirmPrompt = `${tr('ВНИМАНИЕ: Это удалит ваш аккаунт навсегда.\nВсе сообщения и данные будут стёрты.\n\nДля подтверждения введите ваше имя пользователя:')} ${username}`;
-        const confirmName = prompt(confirmPrompt);
+        const confirmed = await showConfirmDialog({
+            title: tr('Удалить аккаунт?'),
+            message: tr('ВНИМАНИЕ: Это удалит ваш аккаунт навсегда. Все сообщения и данные будут стёрты. Это действие НЕВОЗМОЖНО отменить.'),
+            confirmText: tr('Удалить навсегда'),
+            cancelText: tr('Отмена'),
+            variant: 'danger',
+        });
+        if (!confirmed) return;
 
-        if (confirmName === username) {
-            if (confirm(tr('Вы абсолютно уверены? Это действие НЕВОЗМОЖНО отменить.'))) {
-                try {
-                    await api.deleteAccount();
-                    alert(tr('Ваш аккаунт был успешно удален. Прощайте!'));
-                    navigateOut('/');
-                } catch (err) {
-                    alert(`${tr('Ошибка при удалении:')} ${tr(String(err?.message || 'Неизвестная ошибка'))}`.trim());
-                }
-            }
-        } else if (confirmName !== null) {
-            alert(tr('Имя пользователя введено неверно. Удаление отменено.'));
+        try {
+            await api.deleteAccount();
+            showAlert(tr('Ваш аккаунт был успешно удалён.'), 'success');
+            setTimeout(() => navigateOut('/'), 1200);
+        } catch (err) {
+            showAlert(`${tr('Ошибка при удалении:')} ${tr(String(err?.message || 'Неизвестная ошибка'))}`.trim(), 'danger');
         }
     });
 }

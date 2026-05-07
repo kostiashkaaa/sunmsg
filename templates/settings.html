@@ -873,6 +873,21 @@
 
 
 
+<dialog id="confirmActionModal" data-animated-dialog role="alertdialog"
+        aria-labelledby="confirmActionTitle" data-variant="danger">
+    <div class="confirm-dialog-body">
+        <div class="confirm-dialog-icon-wrap">
+            <i class="bi bi-exclamation-triangle" data-confirm-icon></i>
+        </div>
+        <h5 class="confirm-dialog-title" id="confirmActionTitle" data-confirm-title>Подтвердите действие</h5>
+        <p class="confirm-dialog-message" data-confirm-message></p>
+        <div class="confirm-dialog-actions">
+            <button type="button" class="dialog-surface-btn confirm-action-btn confirm-action-btn--cancel" data-confirm-cancel>Отмена</button>
+            <button type="button" class="dialog-danger-btn confirm-action-btn confirm-action-btn--ok" data-confirm-ok>Подтвердить</button>
+        </div>
+    </div>
+</dialog>
+
 <script src="{{ asset_url('qrcode-loader.js') }}"></script>
 <script type="module" src="{{ asset_url('pages/settings.js') }}"></script>
 </body>

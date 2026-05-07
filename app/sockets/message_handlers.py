@@ -840,6 +840,7 @@ def handle_send_message_event(
                     sender_display_name=sender_display_name,
                     sender_username=sender_username,
                     chat_id=chat_id,
+                    message_type=message_type,
                 )
             except Exception:  # noqa: BLE001
                 logger.warning('Web push notification send failed for receiver_id=%s', receiver_id)

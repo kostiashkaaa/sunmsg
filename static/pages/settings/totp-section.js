@@ -1,3 +1,5 @@
+import { showConfirmDialog } from '../../modules/confirm-dialog.js';
+
 export function initTotpSection({
     api,
     tr,
@@ -125,8 +127,14 @@ export function initTotpSection({
     }
 
     async function submitTotpAction(action, { askConfirm = false } = {}) {
-        if (askConfirm && !window.confirm(tr('Подтвердите действие.'))) {
-            return;
+        if (askConfirm) {
+            const ok = await showConfirmDialog({
+                title: tr('Подтвердите действие'),
+                confirmText: tr('Подтвердить'),
+                cancelText: tr('Отмена'),
+                variant: 'warning',
+            });
+            if (!ok) return;
         }
         setTotpButtonsDisabled(true);
         setTotpVerifyDisabled(true);

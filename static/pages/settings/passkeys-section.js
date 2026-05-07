@@ -1,3 +1,5 @@
+import { showConfirmDialog } from '../../modules/confirm-dialog.js';
+
 export function initPasskeysSection({
     api,
     tr,
@@ -174,7 +176,13 @@ export function initPasskeysSection({
     async function removePasskey(credentialId) {
         const id = String(credentialId || '').trim();
         if (!id) return;
-        if (!window.confirm(tr('Удалить этот passkey?'))) return;
+        const ok = await showConfirmDialog({
+            title: tr('Удалить этот Passkey?'),
+            confirmText: tr('Удалить'),
+            cancelText: tr('Отмена'),
+            variant: 'danger',
+        });
+        if (!ok) return;
 
         try {
             await api.deletePasskey(id);
