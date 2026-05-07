@@ -1,0 +1,1 @@
+export { initLightbox } from './lightbox/core.js';

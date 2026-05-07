@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SUN Messenger production config check daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=sunmessenger-production-config-check.service
+
+[Install]
+WantedBy=timers.target
+

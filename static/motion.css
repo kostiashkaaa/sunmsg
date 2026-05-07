@@ -1,0 +1,2533 @@
+/* ============================================================
+   MOTION LAYER v2 - Telegram Web style motion
+   Принципы:
+   • только transform + opacity (compositor-only)
+   - Standard easing: cubic-bezier(.4, 0, .2, 1)
+   • единая шкала durations: 120–560ms
+   • will-change точечно перед анимацией, снимается классом
+   • contain для изолированных слоёв
+   • prefers-reduced-motion переводит в strict-режим только на motion-level=lite
+   ============================================================ */
+
+:root {
+    /* Motion contract: single source of truth for duration / easing / distance / delay. */
+    --motion-ease-standard: cubic-bezier(.4, 0, .2, 1);
+    --motion-ease-interactive: cubic-bezier(.4, 0, .2, 1);
+    --motion-ease-enter: var(--motion-ease-standard);
+    --motion-ease-exit: var(--motion-ease-standard);
+    --motion-ease-surface: var(--motion-ease-standard);
+    --motion-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --motion-duration-instant: 120ms;
+    --motion-duration-fast: 200ms;
+    --motion-duration-base: 250ms;
+    --motion-duration-medium: 300ms;
+    --motion-duration-slow: 400ms;
+    --motion-duration-screen: 400ms;
+    --motion-duration-emphasis: 500ms;
+    --motion-duration-icon-swap: 380ms;
+    --motion-duration-crossfade: 380ms;
+    --motion-duration-ripple: 700ms;
+    --motion-duration-pop-solid: 180ms;
+    --motion-duration-pop-bouncy: 260ms;
+
+    --motion-delay-none: 0ms;
+    --motion-delay-xxs: 10ms;
+    --motion-delay-nudge: 6ms;
+    --motion-delay-xs: 20ms;
+    --motion-delay-sm: 50ms;
+    --motion-delay-md: 70ms;
+    --motion-delay-lg: 80ms;
+    --motion-delay-xl: 90ms;
+    --motion-delay-2xl: 120ms;
+    --motion-delay-3xl: 130ms;
+    --motion-delay-4xl: 140ms;
+    --motion-delay-5xl: 150ms;
+    --motion-delay-6xl: 170ms;
+    --motion-delay-7xl: 190ms;
+    --motion-delay-8xl: 210ms;
+    --motion-delay-9xl: 230ms;
+    --motion-delay-history-step: 18ms;
+    --motion-delay-search-step: 20ms;
+    --motion-stagger-start: 60ms;
+    --motion-stagger-step: 18ms;
+    --motion-list-animate-limit: 24;
+    --motion-velocity-px-per-ms: 0.16;
+
+    --motion-depth-scale-enter: 0.988;
+    --motion-depth-scale-exit: 0.992;
+    --motion-depth-shift-overlay-y: 18px;
+    --motion-depth-shift-overlay-y-exit: 10px;
+
+    --motion-choreo-overlay-backdrop-enter: var(--motion-delay-none);
+    --motion-choreo-overlay-panel-enter: var(--motion-delay-xs);
+    --motion-choreo-overlay-content-enter: var(--motion-delay-sm);
+    --motion-choreo-overlay-backdrop-exit: var(--motion-delay-none);
+    --motion-choreo-overlay-panel-exit: var(--motion-delay-none);
+
+    --motion-distance-xxs: 4px;
+    --motion-distance-xs: 6px;
+    --motion-distance-sm: 10px;
+    --motion-distance-md: 18px;
+    --motion-distance-lg: 24px;
+    --motion-distance-xl: 34px;
+    --motion-distance-section-out-compact-y: 14px;
+    --motion-distance-section-out-desktop-x: 22px;
+    --motion-distance-section-in-compact-y: 28px;
+    --motion-distance-section-in-desktop-x: 34px;
+
+    --motion-duration-section-out-compact: 240ms;
+    --motion-duration-section-out-desktop: 300ms;
+    --motion-duration-section-in-compact: 360ms;
+    --motion-duration-section-in-desktop: 500ms;
+
+    /* Legacy aliases mapped to the unified motion contract. */
+    --m-spring: var(--motion-ease-interactive);
+    --m-decel: var(--motion-ease-enter);
+    --m-accel: var(--motion-ease-exit);
+    --m-bouncy: var(--motion-ease-pop);
+
+    --m-dur-instant: var(--motion-duration-instant);
+    --m-dur-fast: var(--motion-duration-fast);
+    --m-dur-base: var(--motion-duration-base);
+    --m-dur-surface: var(--motion-duration-base);
+    --m-dur-medium: var(--motion-duration-medium);
+    --m-dur-slow: var(--motion-duration-slow);
+    --m-dur-screen: var(--motion-duration-screen);
+
+    --dur-instant: var(--motion-duration-instant);
+    --dur-quick: var(--motion-duration-fast);
+    --dur-medium: var(--motion-duration-medium);
+    --dur-slow: var(--motion-duration-slow);
+    --ease-quick: var(--motion-ease-enter);
+    --ease-spring: var(--motion-ease-surface);
+
+    --m-press-scale: 0.96;
+    --m-press-scale-soft: 0.985;
+
+    --tg-ease-standard: var(--motion-ease-standard);
+    --tg-ease-pop: var(--motion-ease-pop);
+    --tg-ease-tabs: var(--motion-ease-enter);
+    --tg-dur-drawer: var(--motion-duration-medium);
+    --tg-dur-drawer-exit: var(--motion-duration-medium);
+    --tg-dur-pop: var(--motion-duration-fast);
+    --tg-dur-composer-fast: var(--motion-duration-fast);
+    --tg-dur-icon-swap: var(--motion-duration-icon-swap);
+    --tg-dur-press: var(--motion-duration-instant);
+    --tg-dur-tabs: var(--motion-duration-fast);
+    --tg-dur-fade: var(--motion-duration-fast);
+    --tg-dur-crossfade: var(--motion-duration-crossfade);
+    --tg-dur-scrollbar: var(--motion-duration-instant);
+    --tg-dur-ripple: var(--motion-duration-ripple);
+
+    --tg3-dur-instant: var(--motion-duration-instant);
+    --tg3-dur-exit: var(--motion-duration-base);
+    --tg3-dur-panel: var(--motion-duration-medium);
+    --tg3-dur-surface: var(--motion-duration-base);
+    --tg3-dur-content: var(--motion-duration-medium);
+
+    --tg3-ease-enter: var(--motion-ease-enter);
+    --tg3-ease-exit: var(--motion-ease-exit);
+    --tg3-ease-surface: var(--motion-ease-surface);
+    --tg3-ease-pop: var(--motion-ease-pop);
+}
+
+html[data-motion-level="balanced"] {
+    --motion-duration-fast: 180ms;
+    --motion-duration-base: 220ms;
+    --motion-duration-medium: 260ms;
+    --motion-duration-slow: 340ms;
+    --motion-duration-emphasis: 420ms;
+    --motion-distance-lg: 20px;
+    --motion-distance-xl: 28px;
+    --motion-stagger-start: 40ms;
+    --motion-stagger-step: 14ms;
+    --motion-list-animate-limit: 16;
+}
+
+html[data-motion-level="lite"] {
+    --motion-duration-fast: 150ms;
+    --motion-duration-base: 180ms;
+    --motion-duration-medium: 220ms;
+    --motion-duration-slow: 280ms;
+    --motion-duration-emphasis: 320ms;
+    --motion-duration-icon-swap: 220ms;
+    --motion-duration-crossfade: 220ms;
+    --motion-delay-sm: 30ms;
+    --motion-delay-md: 40ms;
+    --motion-delay-lg: 50ms;
+    --motion-delay-xl: 60ms;
+    --motion-delay-search-step: 12ms;
+    --motion-delay-history-step: 12ms;
+    --motion-distance-sm: 8px;
+    --motion-distance-md: 12px;
+    --motion-distance-lg: 16px;
+    --motion-distance-xl: 22px;
+    --motion-stagger-start: 20ms;
+    --motion-stagger-step: 10ms;
+    --motion-list-animate-limit: 10;
+    --motion-ease-pop: var(--motion-ease-standard);
+}
+
+/* ───────────── Глобальные keyframes ───────────── */
+@keyframes m-fade-in       { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-fade-out      { from { opacity: 1; } to { opacity: 0; } }
+@keyframes m-rise-soft     { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: translate3d(0,0,0); } }
+@keyframes m-pop           { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
+@keyframes m-contact-enter { from { opacity: 0; transform: translate3d(-5px, 6px, 0) scale(0.994); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes m-group-label-enter { from { opacity: 0; transform: translate3d(0, 4px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes m-modal-in      { from { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.94); } to { opacity: 1; transform: translate3d(0,0,0) scale(1); } }
+@keyframes m-modal-out     { from { opacity: 1; transform: translate3d(0,0,0) scale(1); } to { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.95); } }
+@keyframes m-shimmer       { 0% { background-position: -360px 0; } 100% { background-position: 360px 0; } }
+
+/* ───────────── 1. Подтверждающий диалог ───────────── */
+#confirmActionModal[open] {
+    animation: m-modal-in var(--m-dur-medium) var(--m-decel) both;
+    will-change: transform, opacity;
+}
+#confirmActionModal[open]::backdrop {
+    animation: m-fade-in var(--m-dur-medium) var(--m-decel) both;
+}
+#confirmActionModal.is-closing {
+    animation: m-modal-out var(--m-dur-fast) var(--m-accel) both;
+}
+
+/* Profile drawer surface motion lives in motion-v3.css. */
+
+/* ───────────── 5. Переход между чатами ─────────────
+   Новая реализация lives in motion-v3.css. */
+
+/* Sidebar reaction — контакт пульсирует и слегка «толкается» при выборе */
+.contact-item.contact-just-activated {
+    animation: m-contact-press var(--m-dur-slow) var(--m-decel) both;
+}
+
+@keyframes m-contact-press {
+    0%   { background-color: transparent; transform: translate3d(0, 0, 0); }
+    18%  { background-color: var(--accent-light, rgba(196,148,60,0.22)); transform: translate3d(0, 0, 0); }
+    100% { background-color: transparent; transform: translate3d(0, 0, 0); }
+}
+
+/* ───────────── 6. Сообщения (B+E) ───────────── */
+.message {
+    contain: layout paint;
+}
+.message .bubble {
+    will-change: auto;
+}
+.message.msg-animate-in {
+    animation-timing-function: var(--m-spring) !important;
+    animation-duration: var(--m-dur-base) !important;
+    will-change: transform, opacity;
+}
+.message.msg-animate-in.msg-animate-self {
+    /* Своё сообщение — лёгкий overshoot */
+    animation-timing-function: var(--m-bouncy) !important;
+    animation-duration: var(--m-dur-base) !important;
+}
+.message.msg-animate-in .bubble {
+    animation: m-fade-in var(--m-dur-fast) var(--m-decel) both;
+}
+/* Самоотправленное — bubble pop с overshoot */
+.message.msg-animate-in.msg-animate-self .bubble {
+    animation: m-pop-overshoot 260ms var(--m-bouncy) both;
+    transform-origin: bottom right;
+}
+
+/* Чекмарки read — мягкий pop */
+.bubble .check-glyph,
+.message-status .check-glyph,
+.sun-check-glyph {
+    transition: transform var(--m-dur-base) var(--m-bouncy), opacity var(--m-dur-base) var(--m-decel);
+}
+
+/* Реакция-пилюля — bouncy pop при добавлении */
+.reaction-pill,
+[data-reaction-pill] {
+    transition:
+        transform var(--m-dur-base) var(--m-bouncy),
+        background-color var(--m-dur-fast) var(--m-spring),
+        color var(--m-dur-fast) var(--m-spring);
+    will-change: transform;
+}
+.reaction-pill:active,
+[data-reaction-pill]:active {
+    transform: scale(0.92);
+}
+.reaction-pill.reaction-just-added,
+[data-reaction-pill].reaction-just-added {
+    animation: m-pop var(--m-dur-medium) var(--m-bouncy) both;
+}
+/* Pop при первом появлении — без JS */
+.message-reactions.has-items > .reaction-pill {
+    animation: m-pop var(--m-dur-fast) var(--m-bouncy) both;
+}
+/* Chat page unified motion standard */
+[data-animated-dialog] {
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        transform var(--m-dur-medium) var(--m-decel);
+}
+
+.profile-loading-mask {
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        visibility 0s linear var(--m-dur-base);
+    transform: translate3d(0, 0, 0);
+}
+
+.profile-loading-mask.active {
+    transition-delay: 0s, 0s;
+}
+
+.profile-drawer.is-profile-loading .profile-scroll {
+    pointer-events: none;
+}
+
+.profile-hero {
+    min-height: 224px;
+}
+
+.profile-info-card {
+    min-height: 128px;
+}
+
+#partnerProfileDrawer.is-group-profile .profile-info-card {
+    min-height: 0;
+}
+
+.profile-media-section {
+    min-height: 210px;
+}
+
+@keyframes profileContentReveal {
+    from {
+        opacity: 0;
+        transform: translate3d(18px, 0, 0) scale(0.992);
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: blur(0);
+    }
+}
+
+.profile-drawer.profile-content-revealing .profile-hero,
+.profile-drawer.profile-content-revealing .profile-info-card,
+.profile-drawer.profile-content-revealing .profile-media-section {
+    animation: profileContentReveal var(--m-dur-slow) var(--m-decel) both;
+    will-change: transform, opacity, filter;
+}
+
+.profile-drawer.profile-content-revealing .profile-hero {
+    animation-delay: var(--motion-delay-sm);
+}
+
+.profile-drawer.profile-content-revealing .profile-info-card {
+    animation-delay: var(--motion-delay-xl);
+}
+
+.profile-drawer.profile-content-revealing .profile-media-section {
+    animation-delay: var(--motion-delay-3xl);
+}
+
+.profile-drawer.is-profile-opening .profile-loading-head,
+.profile-drawer.is-profile-opening .profile-loading-card {
+    animation: profileContentReveal var(--m-dur-slow) var(--m-decel) both;
+}
+
+.profile-drawer.is-profile-opening .profile-loading-card {
+    animation-delay: calc(var(--motion-delay-sm) + var(--motion-delay-xxs));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motion-level="lite"] .message-reactions.has-items > .reaction-pill { animation: none !important; }
+}
+
+/* Typing indicator dot bounce — уже есть свой keyframe; усиливаем easing */
+.typing-indicator,
+.typing-dots {
+    will-change: transform;
+}
+
+/* ───────────── 7. Подгрузка истории (G — shimmer) ───────────── */
+.chat-messages.is-loading-history::before {
+    content: "";
+    position: sticky;
+    top: 4px;
+    align-self: center;
+    width: 140px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--accent-glow, rgba(196,148,60,0.30)) 50%,
+        transparent 100%
+    );
+    background-size: 720px 100%;
+    animation: m-shimmer 1.2s linear infinite;
+    margin: 6px auto 4px;
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0.85;
+}
+.chat-messages .message.history-fade-in {
+    animation: m-rise-soft var(--m-dur-medium) var(--m-decel) both;
+}
+
+/* ───────────── 8. Контактные элементы (B+C) ───────────── */
+.contact-item {
+    transition:
+        background-color var(--m-dur-fast) var(--m-spring),
+        transform var(--m-dur-fast) var(--m-spring);
+    contain: layout paint;
+}
+/* will-change только во время реальной анимации — не для всех элементов
+   списка контактов одновременно (иначе постоянные compositor-layer'ы) */
+.contact-item:active {
+    will-change: transform;
+}
+.contact-item.contact-entering {
+    animation: m-contact-enter var(--m-dur-fast) var(--m-decel) both;
+    animation-delay: var(--contact-enter-delay, var(--motion-delay-none));
+    will-change: transform, opacity;
+}
+.sidebar-group-label.group-label-entering {
+    animation: m-group-label-enter var(--m-dur-fast) var(--m-decel) both;
+    will-change: transform, opacity;
+}
+.contact-item:hover { transform: translate3d(1px, 0, 0); }
+.contact-item:active { transform: scale(var(--m-press-scale-soft)) translate3d(0,0,0); }
+.contact-item.active { transform: none; }
+
+/* ───────────── 9. Кнопки + Tactile press (C) ───────────── */
+.icon-btn,
+.composer-btn,
+.header-action,
+.dialog-primary-btn,
+.dialog-secondary-btn,
+button.btn,
+.btn-primary,
+.btn-secondary,
+.send-btn,
+.attach-btn,
+.emoji-btn,
+.voice-btn,
+.sidebar-tab,
+.profile-action,
+[data-press-feedback] {
+    transition:
+        background-color var(--m-dur-fast) var(--m-spring),
+        color var(--m-dur-fast) var(--m-spring),
+        transform var(--m-dur-instant) var(--m-spring),
+        box-shadow var(--m-dur-base) var(--m-spring),
+        opacity var(--m-dur-fast) var(--m-spring);
+}
+/* will-change только на момент нажатия — не держим compositor-layer
+   постоянно для всех кнопок интерфейса */
+.icon-btn:active,
+.composer-btn:active,
+.header-action:active,
+.dialog-primary-btn:active,
+.dialog-secondary-btn:active,
+button.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.send-btn:active,
+.attach-btn:active,
+.emoji-btn:active,
+.voice-btn:active,
+.sidebar-tab:active,
+.profile-action:active,
+[data-press-feedback]:active {
+    will-change: transform;
+}
+.icon-btn:active,
+.composer-btn:active,
+.header-action:active,
+.dialog-primary-btn:active,
+.dialog-secondary-btn:active,
+button.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.send-btn:active,
+.attach-btn:active,
+.emoji-btn:active,
+.voice-btn:active,
+.sidebar-tab:active,
+.profile-action:active,
+[data-press-feedback]:active {
+    transform: scale(var(--m-press-scale));
+    transition-duration: var(--m-dur-instant);
+}
+
+/* ───────────── 10. Тосты ───────────── */
+.toast,
+.app-toast,
+[data-toast] {
+    transition:
+        opacity var(--m-dur-medium) var(--m-spring),
+        transform var(--m-dur-medium) var(--m-spring);
+    will-change: transform, opacity;
+}
+
+/* ───────────── 10b. Мобильный sidebar↔chat ───────────── */
+@media (max-width: 768px) {
+    .chat-area.mobile-open {
+        transition:
+            transform var(--m-dur-medium) var(--m-spring),
+            opacity var(--m-dur-base) var(--m-decel) !important;
+        will-change: transform, opacity;
+    }
+    .chat-area .chat-messages {
+        will-change: auto;
+    }
+    .chat-area.is-switching .chat-messages,
+    .chat-area.just-switched .chat-messages,
+    .chat-area.chat-surface-enter .chat-header,
+    .chat-area.chat-surface-enter .chat-messages,
+    .chat-area.chat-surface-enter .chat-input-area,
+    .chat-area.chat-history-reveal .chat-header,
+    .chat-area.chat-history-reveal .chat-messages,
+    .chat-area.chat-history-reveal .chat-input-area {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+    }
+    .sidebar {
+        transition: transform var(--m-dur-medium) var(--m-spring);
+        will-change: transform;
+    }
+}
+
+/* ───────────── 11. Settings секции ───────────── */
+.settings-section,
+.settings-panel {
+    transition:
+        opacity var(--m-dur-base) var(--m-spring),
+        transform var(--m-dur-base) var(--m-spring);
+    will-change: transform, opacity;
+}
+
+/* ───────────── 12. Skeleton-плейсхолдеры (G) ───────────── */
+.m-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--surface-2, rgba(0,0,0,0.04)) 0%,
+        var(--paper, rgba(255,255,255,0.6)) 50%,
+        var(--surface-2, rgba(0,0,0,0.04)) 100%
+    );
+    background-size: 720px 100%;
+    animation: m-shimmer 1.4s linear infinite;
+    border-radius: 8px;
+    color: transparent !important;
+    pointer-events: none;
+    user-select: none;
+}
+.m-skeleton-line {
+    height: 12px;
+    border-radius: 6px;
+    margin: 6px 0;
+}
+.m-skeleton-circle {
+    border-radius: 50%;
+}
+
+/* ───────────── 13. Smooth scroll (F) ───────────── */
+/* НЕ применяем к .chat-messages — там виртуализация и прямые scrollTop=N */
+.contacts-list,
+.sidebar-scroll,
+.profile-drawer-scroll,
+.settings-scroll {
+    scroll-behavior: smooth;
+}
+
+/* ───────────── 15. Sidebar items hover ripple ───────────── */
+.sidebar-tab,
+.tab-button {
+    transition:
+        background-color var(--m-dur-fast) var(--m-spring),
+        color var(--m-dur-fast) var(--m-spring),
+        transform var(--m-dur-instant) var(--m-spring);
+}
+
+/* ───────────── 16. Avatar, image lazy fade ───────────── */
+img.is-loaded,
+.avatar img,
+.contact-avatar img,
+.message-image img {
+    transition: opacity var(--m-dur-base) var(--m-decel);
+}
+
+/* ───────────── 18. Композер: input focus glow ───────────── */
+.composer,
+.message-input-wrap,
+[data-composer] {
+    transition:
+        box-shadow var(--m-dur-base) var(--m-spring),
+        border-color var(--m-dur-base) var(--m-spring),
+        background-color var(--m-dur-base) var(--m-spring);
+}
+
+/* ───────────── 20. content-visibility для невидимых сообщений ───────────── */
+/* Отключено: конфликтует с виртуализацией .chat-messages и срывает msg-animate-in
+   у только что появившихся сообщений. Виртуализация уже сама не пейнтит off-screen. */
+
+/* ───────────── 21. View Transitions API (Chrome 111+) ───────────── */
+@supports (view-transition-name: none) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: var(--m-dur-fast);
+        animation-timing-function: var(--m-spring);
+    }
+    ::view-transition-old(root) {
+        animation-name: m-fade-out;
+    }
+    ::view-transition-new(root) {
+        animation-name: m-fade-in;
+    }
+}
+
+/* ───────────── 22. Shared bubble pop keyframe ───────────── */
+@keyframes m-pop-overshoot {
+    0%   { opacity: 0; transform: scale(0.88); }
+    60%  { opacity: 1; transform: scale(1.025); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes m-solid-pop-overshoot {
+    0%   { transform: translate3d(0, -4px, 0) scale(0.985); }
+    70%  { transform: translate3d(0, 0, 0) scale(1.01); }
+    100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.reaction-picker.active,
+.context-menu.is-opening,
+.context-menu.active {
+    animation: m-pop-overshoot var(--m-dur-base) var(--m-bouncy) both;
+}
+
+.header-dropdown.is-opening,
+.header-dropdown.active {
+    animation: m-solid-pop-overshoot var(--motion-duration-pop-solid) var(--m-decel) both;
+    transform-origin: top right;
+}
+
+@keyframes m-header-dropdown-close {
+    0%   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.97); }
+}
+
+.header-dropdown.is-closing {
+    animation: m-header-dropdown-close 120ms var(--m-accel) both;
+}
+
+/* ───────────── 23. Hover только на hover-устройствах ───────────── */
+@media (hover: none) {
+    .contact-item:hover { transform: none; background-color: inherit; }
+    .icon-btn:hover,
+    .composer-btn:hover,
+    .header-action:hover,
+    .sidebar-tab:hover,
+    .profile-action:hover,
+    .btn:hover,
+    .btn-primary:hover,
+    .btn-secondary:hover {
+        transform: none;
+        background-color: inherit;
+    }
+    .message .bubble:hover,
+    .message-action:hover,
+    .reaction-pill:hover { transform: none; }
+}
+
+/* ───────────── 29. Focus-visible: keyboard accessibility ───────────── */
+.icon-btn:focus-visible,
+.composer-btn:focus-visible,
+.header-action:focus-visible,
+.dialog-primary-btn:focus-visible,
+.dialog-secondary-btn:focus-visible,
+button.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.send-btn:focus-visible,
+.attach-btn:focus-visible,
+.emoji-btn:focus-visible,
+.voice-btn:focus-visible,
+.sidebar-tab:focus-visible,
+.profile-action:focus-visible,
+.contact-item:focus-visible,
+[data-press-feedback]:focus-visible {
+    outline: 2px solid var(--accent, rgba(196,148,60,0.9));
+    outline-offset: 2px;
+    border-radius: inherit;
+}
+
+/* ───────────── 30. Overscroll-behavior: не ловим pull-to-refresh ───────────── */
+.chat-messages,
+.contacts-list,
+.sidebar-scroll,
+.profile-drawer-scroll,
+.settings-scroll {
+    overscroll-behavior: contain;
+}
+
+/* ───────────── 31. Tap-target ≥ 44px на мобильных (Apple HIG) ───────────── */
+@media (max-width: 768px) {
+    .icon-btn,
+    .composer-btn,
+    .header-action,
+    .send-btn,
+    .attach-btn,
+    .emoji-btn,
+    .voice-btn,
+    .profile-action,
+    /* .reaction-pill исключён — он не одиночная кнопка действия,
+       а компактный badge-индикатор (как в Telegram, ~22-24px). */
+    .message-action,
+    .sidebar-tab {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* ───────────── 24. Composer focus glow на GPU (transform/opacity) ───────────── */
+.composer,
+.message-input-wrap,
+[data-composer] {
+    position: relative;
+    isolation: isolate;
+}
+.composer::after,
+.message-input-wrap::after,
+[data-composer]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px var(--accent-glow, rgba(196,148,60,0.25));
+    opacity: 0;
+    transform: scale(0.985);
+    transition:
+        opacity var(--m-dur-base) var(--m-spring),
+        transform var(--m-dur-base) var(--m-spring);
+    z-index: 1;
+}
+.composer:focus-within::after,
+.message-input-wrap:focus-within::after,
+[data-composer]:focus-within::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ───────────── 25. Image async-fade ───────────── */
+.contact-avatar img,
+.message-image img,
+.avatar img,
+.lightbox-image,
+.profile-avatar img {
+    /* Изображения: пока грузятся — opacity 0; .is-loaded или [data-loaded] включает */
+    transition: opacity var(--m-dur-medium) var(--m-decel);
+}
+
+/* ───────────── 26. transition: all → конкретные свойства (override) ───────────── */
+/* Override для трёх мест в style.css/chat.css/auth.css/settings.css где remained transition: all */
+.btn,
+button.btn,
+.dialog-primary-btn,
+.dialog-secondary-btn,
+input,
+textarea,
+select {
+    transition:
+        background-color var(--m-dur-fast) var(--m-spring),
+        color var(--m-dur-fast) var(--m-spring),
+        border-color var(--m-dur-fast) var(--m-spring),
+        transform var(--m-dur-instant) var(--m-spring),
+        box-shadow var(--m-dur-base) var(--m-spring),
+        opacity var(--m-dur-fast) var(--m-spring);
+}
+
+/* ───────────── 27. Bubble hover lift (только на desktop) ─────────────
+   Транзишен НЕ включает box-shadow: на бабблах не должно быть
+   blurred-теней (это hot-path при скролле истории). */
+@media (hover: hover) {
+    .message .bubble {
+        transition:
+            transform var(--m-dur-fast) var(--m-spring),
+            background-color var(--m-dur-fast) var(--m-spring);
+    }
+}
+
+/* ───────────── 28. Sidebar item enter — stagger ───────────── */
+.contact-item.contact-fresh-render {
+    animation: m-rise-soft var(--m-dur-medium) var(--m-decel) both;
+}
+
+/* Unified motion hardening: override old scattered 0.12-0.20s transitions. */
+.header-search-wrap,
+.jump-to-new-btn,
+.chat-stage-loader,
+.profile-loading-mask,
+.drag-drop-overlay {
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        transform var(--m-dur-medium) var(--m-decel),
+        visibility 0s linear var(--m-dur-base);
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.header-search-wrap.active,
+.jump-to-new-btn.is-visible,
+.chat-stage-loader.active,
+.profile-loading-mask.active,
+.drag-drop-overlay.active {
+    transition-delay: 0s;
+}
+
+.profile-media-content.is-tab-switching > *,
+.profile-media-content.is-tab-switching .profile-media-grid-item,
+.profile-media-content.is-tab-switching .profile-file-row,
+.profile-media-content.is-tab-switching .profile-audio-row,
+.profile-media-content.is-tab-switching .profile-link-row,
+.message-reactions.is-updated {
+    animation-duration: var(--m-dur-medium);
+    animation-timing-function: var(--m-decel);
+}
+
+.profile-menu,
+.dialog-requests-section {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.985);
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        transform var(--m-dur-medium) var(--m-decel),
+        border-color var(--m-dur-base) var(--m-decel);
+}
+
+.profile-menu.open,
+.dialog-requests-section.has-requests {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+#voiceRecordCancelBtn,
+#voiceRecordSendBtn,
+.voice-record-cancel-btn,
+.voice-record-send-btn,
+.composer-row {
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        transform var(--m-dur-medium) var(--m-decel),
+        background-color var(--m-dur-fast) var(--m-decel),
+        color var(--m-dur-fast) var(--m-decel),
+        box-shadow var(--m-dur-base) var(--m-decel),
+        filter var(--m-dur-fast) var(--m-decel);
+}
+
+.menu-item,
+.dropdown-item,
+.profile-more-item,
+.profile-info-line[role="button"],
+.profile-info-trailing-btn,
+.profile-media-tab,
+.emoji-category-btn,
+.emoji-item,
+.reaction-option,
+.attach-menu-item,
+.context-menu-item,
+.message-context-menu .menu-item,
+.sidebar-tab,
+.settings-nav-item,
+.settings-row,
+.theme-preview,
+.chat-style-mode-btn,
+.chat-scale-chip,
+.palette-option,
+.request-action,
+.btn-msg-bar,
+.lightbox-btn,
+.lightbox-nav,
+.lightbox-zoom-btn {
+    transition:
+        background-color var(--m-dur-fast) var(--m-decel),
+        color var(--m-dur-fast) var(--m-decel),
+        border-color var(--m-dur-fast) var(--m-decel),
+        opacity var(--m-dur-fast) var(--m-decel),
+        transform var(--m-dur-instant) var(--m-spring),
+        box-shadow var(--m-dur-base) var(--m-decel),
+        filter var(--m-dur-fast) var(--m-decel);
+}
+
+.settings-section,
+.settings-card,
+.auth-card,
+.auth-panel,
+.auth-method-panel,
+.search-overlay__body,
+.command-palette-section,
+.empty-state-card {
+    transition:
+        opacity var(--m-dur-base) var(--m-decel),
+        transform var(--m-dur-medium) var(--m-decel),
+        visibility 0s linear var(--m-dur-base);
+}
+
+.auth-tab-content.fade-in,
+#loginKeyGroup.auth-method-entering,
+#loginTotpGroup.auth-method-entering {
+    animation-duration: var(--m-dur-medium);
+    animation-timing-function: var(--m-decel);
+}
+
+.auth-tab-content.fade-out,
+#loginKeyGroup.auth-method-leaving,
+#loginTotpGroup.auth-method-leaving {
+    animation-duration: var(--m-dur-fast);
+    animation-timing-function: var(--m-accel);
+}
+
+/* ───────────── 19. prefers-reduced-motion ───────────── */
+@media (prefers-reduced-motion: reduce) {
+    html[data-motion-level="lite"] *,
+    html[data-motion-level="lite"] *::before,
+    html[data-motion-level="lite"] *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    html[data-motion-level="lite"] .chat-area.is-switching .chat-messages,
+    html[data-motion-level="lite"] .chat-area.is-switching .chat-title {
+        opacity: 1 !important;
+    }
+}
+
+/* Desktop motion standard.
+   Использует те же 6 длительностей и 4 easing, что и мобайл — отличается
+   только направлением и амплитудой transform, потому что десктоп шире. */
+@media (min-width: 769px) {
+    .header-search-wrap,
+    #confirmActionModal {
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        will-change: transform, opacity;
+    }
+
+    .header-search-wrap {
+        transform: translate3d(0, -28px, 0) scale(0.978);
+        transition:
+            opacity var(--m-dur-medium) var(--m-decel),
+            transform var(--m-dur-medium) var(--m-spring),
+            visibility 0s linear var(--m-dur-medium);
+    }
+
+    .header-search-wrap.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translate3d(0, 0, 0) scale(1);
+        transition-delay: 0s;
+    }
+
+    #confirmActionModal[open] {
+        animation: none !important;
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        transition:
+            opacity var(--m-dur-medium) var(--m-decel),
+            transform var(--m-dur-medium) var(--m-spring);
+    }
+
+    #confirmActionModal[open]::backdrop {
+        animation: none !important;
+        transition: opacity var(--m-dur-medium) var(--m-decel);
+    }
+
+    #confirmActionModal.is-opening {
+        opacity: 0;
+        transform: translate3d(0, 18px, 0) scale(0.965);
+    }
+
+    #confirmActionModal.is-open {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    #confirmActionModal.is-closing {
+        animation: none !important;
+        opacity: 0;
+        transform: translate3d(0, 14px, 0) scale(0.975);
+        transition:
+            opacity var(--m-dur-base) var(--m-accel),
+            transform var(--m-dur-base) var(--m-accel);
+    }
+
+    .jump-to-new-btn,
+    .chat-stage-loader {
+        transition:
+            opacity var(--m-dur-medium) var(--m-decel),
+            transform var(--m-dur-medium) var(--m-spring),
+            visibility 0s linear var(--m-dur-medium);
+    }
+
+    /* Profile stagger на десктопе — сильнее, чем было, ближе к мобильной плавности */
+    .profile-drawer.profile-content-revealing .profile-hero,
+    .profile-drawer.profile-content-revealing .profile-info-card,
+    .profile-drawer.profile-content-revealing .profile-media-section {
+        animation: profileDesktopContentReveal var(--m-dur-slow) var(--m-decel) both;
+        will-change: transform, opacity;
+    }
+
+    .profile-drawer.profile-content-revealing .profile-hero {
+        animation-delay: var(--motion-delay-md);
+    }
+
+    .profile-drawer.profile-content-revealing .profile-info-card {
+        animation-delay: var(--motion-delay-5xl);
+    }
+
+    .profile-drawer.profile-content-revealing .profile-media-section {
+        animation-delay: var(--motion-delay-9xl);
+    }
+
+    .profile-drawer.is-profile-opening .profile-loading-head,
+    .profile-drawer.is-profile-opening .profile-loading-card {
+        animation: profileDesktopContentReveal var(--m-dur-slow) var(--m-decel) both;
+    }
+
+    .profile-drawer.is-profile-opening .profile-loading-head {
+        animation-delay: calc(var(--motion-delay-sm) + var(--motion-delay-xxs));
+    }
+
+    .profile-drawer.is-profile-opening .profile-loading-card {
+        animation-delay: var(--motion-delay-4xl);
+    }
+}
+
+@keyframes profileDesktopContentReveal {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 22px, 0) scale(0.988);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+/* Telegram Web motion aliases are mapped in the unified :root motion contract. */
+
+@keyframes grow-icon {
+    0% {
+        opacity: 0.8;
+        transform: scale(0.5);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes hide-icon {
+    0% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+}
+
+#messageInput {
+    transition:
+        height 0s var(--tg-ease-tabs),
+        background-color var(--tg-dur-fade) var(--tg-ease-tabs),
+        border-color var(--tg-dur-fade) var(--tg-ease-tabs),
+        box-shadow var(--tg-dur-fade) var(--tg-ease-tabs),
+        color var(--tg-dur-fade) var(--tg-ease-tabs);
+}
+
+#messageInput::placeholder {
+    transition: opacity var(--tg-dur-composer-fast) var(--tg-ease-tabs) var(--motion-delay-xxs);
+}
+
+#messageInput:not(:placeholder-shown)::placeholder {
+    opacity: 0;
+}
+
+#voiceRecordBtn > .composer-action-icon {
+    transform-origin: center;
+}
+
+#voiceRecordBtn > .composer-action-icon--entering {
+    animation: grow-icon var(--tg-dur-icon-swap) var(--tg-ease-tabs) both;
+}
+
+#voiceRecordBtn > .composer-action-icon--leaving {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    margin: auto;
+    pointer-events: none;
+    animation: hide-icon var(--tg-dur-icon-swap) var(--tg-ease-tabs) both;
+}
+
+.context-menu-item,
+.message-context-menu .menu-item {
+    transition:
+        background-color var(--tg-dur-press) var(--tg-ease-standard),
+        color var(--tg-dur-press) var(--tg-ease-standard),
+        transform var(--tg-dur-press) var(--tg-ease-standard);
+}
+
+.context-menu-item:active,
+.message-context-menu .menu-item:active {
+    transform: scale(0.96);
+}
+
+.profile-drawer.profile-content-revealing .profile-hero,
+.profile-drawer.profile-content-revealing .profile-info-card,
+.profile-drawer.profile-content-revealing .profile-media-section,
+.profile-drawer.is-profile-opening .profile-loading-head,
+.profile-drawer.is-profile-opening .profile-loading-card {
+    animation: tg-slide-fade-in var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+    filter: none;
+}
+
+.profile-drawer.profile-content-revealing .profile-hero,
+.profile-drawer.is-profile-opening .profile-loading-head {
+    animation-delay: var(--motion-delay-none);
+}
+
+.profile-drawer.profile-content-revealing .profile-info-card,
+.profile-drawer.is-profile-opening .profile-loading-card {
+    animation-delay: calc(var(--motion-delay-xs) * 2);
+}
+
+.profile-drawer.profile-content-revealing .profile-media-section {
+    animation-delay: var(--motion-delay-lg);
+}
+
+.profile-media-tab {
+    transition:
+        color var(--tg-dur-press) var(--tg-ease-tabs),
+        transform var(--tg-dur-tabs) var(--tg-ease-tabs);
+}
+
+.profile-media-tab::after {
+    background: var(--accent);
+    opacity: 0;
+    transform: scaleX(0.36);
+    transform-origin: center;
+    transition:
+        opacity var(--tg-dur-tabs) var(--tg-ease-tabs),
+        transform var(--tg-dur-tabs) var(--tg-ease-tabs);
+}
+
+.profile-media-tab.active::after {
+    opacity: 1;
+    transform: scaleX(1);
+}
+
+.profile-media-content.is-tab-switching > * {
+    animation: profileMediaTabContentIn var(--tg-dur-tabs) var(--tg-ease-tabs) both !important;
+}
+
+.profile-media-content.is-tab-switching.is-tab-switch-backward > * {
+    animation-name: profileMediaTabContentInBack !important;
+}
+
+.profile-media-content.is-tab-switching .profile-media-grid-item,
+.profile-media-content.is-tab-switching .profile-file-row,
+.profile-media-content.is-tab-switching .profile-audio-row,
+.profile-media-content.is-tab-switching .profile-link-row {
+    animation: tg-media-fade-in var(--tg-dur-fade) var(--tg-ease-tabs) both !important;
+    animation-delay: var(--motion-delay-none) !important;
+}
+
+.reaction-picker__item {
+    transition:
+        transform var(--tg-dur-press) var(--tg-ease-standard),
+        background-color var(--tg-dur-press) var(--tg-ease-standard),
+        border-color var(--tg-dur-press) var(--tg-ease-standard),
+        box-shadow var(--tg-dur-press) var(--tg-ease-standard);
+}
+
+.bubble-hover-reaction {
+    opacity: 0;
+    transform: scale(0.8);
+    transition:
+        opacity var(--tg-dur-pop) var(--tg-ease-pop),
+        transform var(--tg-dur-pop) var(--tg-ease-pop);
+    will-change: opacity, transform;
+}
+
+.bubble-hover-reaction.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.bubble-hover-reaction.backwards {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+.reaction-picker__item,
+.reaction-pill {
+    transition:
+        transform var(--tg-dur-pop) var(--tg-ease-pop),
+        background-color var(--tg-dur-press) var(--tg-ease-tabs),
+        border-color var(--tg-dur-press) var(--tg-ease-tabs),
+        box-shadow var(--tg-dur-pop) var(--tg-ease-tabs);
+}
+
+.reaction-picker__item:hover {
+    transform: translateY(-2px) scale(1.08);
+}
+
+.reaction-pill.reaction-pill--pulse,
+.message-reactions.is-updated {
+    animation: tg-pop-pulse var(--tg-dur-pop) var(--tg-ease-pop) both !important;
+}
+
+.transition.slide-fade .transition-item.active.from {
+    animation:
+        tg-fade-out-opacity var(--tg-dur-crossfade) var(--tg-ease-tabs) both,
+        tg-slide-fade-out-move var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+}
+
+.transition.slide-fade .transition-item.active.to {
+    animation:
+        tg-fade-in-opacity var(--tg-dur-crossfade) var(--tg-ease-tabs) both,
+        tg-slide-fade-in-move var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+}
+
+.profile-scroll::-webkit-scrollbar-thumb,
+.search-overlay__body::-webkit-scrollbar-thumb,
+.chat-messages::-webkit-scrollbar-thumb,
+.contacts-scroll::-webkit-scrollbar-thumb,
+#sidebarScrollArea::-webkit-scrollbar-thumb,
+.reaction-picker::-webkit-scrollbar-thumb {
+    transition: background-color var(--tg-dur-scrollbar) var(--tg-ease-tabs);
+}
+
+.tg-ripple-host {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.tg-ripple-circle {
+    position: absolute;
+    display: block;
+    flex: 0 0 auto;
+    margin: 0;
+    z-index: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--text) 18%, transparent);
+    opacity: 0.34;
+    transform: scale(0);
+    transform-origin: center;
+    animation: tg-ripple-effect var(--tg-dur-ripple) var(--tg-ease-tabs) both;
+    transition:
+        opacity var(--tg-dur-crossfade) var(--tg-ease-tabs),
+        background-color var(--tg-dur-crossfade) var(--tg-ease-tabs);
+}
+
+.tg-ripple-host > .tg-ripple-circle {
+    position: absolute !important;
+}
+
+.tg-ripple-host > :not(.tg-ripple-circle) {
+    position: relative;
+    z-index: 1;
+}
+
+/* Keep request counter pinned while ripple host class is toggled on tap. */
+.tg-ripple-host > .sidebar-requests-shortcut__count {
+    position: absolute;
+}
+
+.tg-ripple-circle.is-hiding {
+    opacity: 0;
+}
+
+/* Icon-only controls use ripple/color feedback; the glyph must stay centered. */
+.btn-icon,
+#messageForm .btn-icon,
+.voice-record-control,
+.lightbox-btn,
+.profile-meta-copy-btn,
+.profile-file-action-btn,
+.profile-audio-play-btn,
+.settings-panel-close,
+.profile-topbar-btn,
+.profile-info-trailing-btn,
+.e2e-header-indicator {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.btn-icon:hover,
+.btn-icon:active,
+#messageForm .btn-icon:hover,
+#messageForm .btn-icon:active,
+.voice-record-control:active,
+.lightbox-btn:active,
+.profile-meta-copy-btn:active,
+.profile-file-action-btn:active,
+.profile-audio-play-btn:hover,
+.profile-audio-play-btn:active,
+.settings-panel-close:active {
+    transform: none;
+}
+
+button > i[class^="bi"],
+button > i[class*=" bi-"],
+.btn-icon > i,
+.voice-record-control > i,
+.lightbox-btn > i,
+.profile-meta-copy-btn > i,
+.profile-file-action-btn > i,
+.profile-audio-play-btn > i,
+.settings-panel-close > i {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+}
+
+.btn-icon > i,
+.voice-record-control > i,
+.lightbox-btn > i,
+.profile-meta-copy-btn > i,
+.profile-file-action-btn > i,
+.profile-audio-play-btn > i,
+.settings-panel-close > i {
+    transform: none;
+}
+
+@keyframes profileMediaTabContentIn {
+    from { opacity: 0; transform: translate3d(24px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes profileMediaTabContentInBack {
+    from { opacity: 0; transform: translate3d(-24px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tg-slide-fade-in {
+    from { opacity: 0; transform: translate3d(24px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tg-media-fade-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tg-pop-pulse {
+    0% { transform: scale(1); }
+    48% { transform: scale(1.14); }
+    100% { transform: scale(1); }
+}
+
+@keyframes tg-fade-in-opacity {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes tg-fade-out-opacity {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes tg-slide-fade-in-move {
+    from { transform: translate3d(24px, 0, 0); }
+    to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tg-slide-fade-out-move {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-24px, 0, 0); }
+}
+
+@keyframes tg-ripple-effect {
+    0% {
+        opacity: 0.34;
+        transform: scale(0);
+    }
+    58% {
+        opacity: 0.18;
+        transform: scale(1.62);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motion-level="lite"] .tg-ripple-circle {
+        display: none !important;
+    }
+
+    html[data-motion-level="lite"] .profile-sheet--tg,
+    html[data-motion-level="lite"] .search-overlay,
+    html[data-motion-level="lite"] .search-overlay__tabs,
+    html[data-motion-level="lite"] .search-overlay__body,
+    html[data-motion-level="lite"] .profile-media-tab::after,
+    html[data-motion-level="lite"] .search-overlay__tab::after,
+    html[data-motion-level="lite"] .context-menu,
+    html[data-motion-level="lite"] #messageContextMenu,
+    html[data-motion-level="lite"] #contactContextMenu,
+    html[data-motion-level="lite"] .message-context-menu,
+    html[data-motion-level="lite"] .profile-more-menu,
+    html[data-motion-level="lite"] .message-scale-panel,
+    html[data-motion-level="lite"] .attach-menu,
+    html[data-motion-level="lite"] .emoji-picker,
+    html[data-motion-level="lite"] .reaction-picker,
+    html[data-motion-level="lite"] .bubble-hover-reaction,
+    html[data-motion-level="lite"] .reaction-picker__item,
+    html[data-motion-level="lite"] .reaction-pill,
+    html[data-motion-level="lite"] .reply-bar,
+    html[data-motion-level="lite"] #voiceRecordBtn > .composer-action-icon,
+    html[data-motion-level="lite"] #voiceRecordBtn > .composer-action-icon--entering,
+    html[data-motion-level="lite"] #voiceRecordBtn > .composer-action-icon--leaving {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== MERGED FROM motion-v3.css (single-source motion) ===== */
+/* ============================================================
+   MOTION LAYER v3 — Telegram Web parity, incremental.
+   This file owns new motion behavior. Legacy rules stay in
+   motion.css until their scenarios are migrated here.
+   ============================================================ */
+
+/* Migration-only layer for chat motion behavior.
+   Token source of truth: static/motion.css (:root --m-* and --tg3-* aliases).
+   Removal target for this file: 2026-09-30 after full migration into unified motion layer. */
+
+@keyframes tg3-chat-header-in {
+    from { opacity: 0; transform: translate3d(42px, 0, 0); }
+    55%  { opacity: 1; }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes tg3-chat-messages-in {
+    from { opacity: 0; transform: translate3d(46px, 0, 0) scale(0.996); }
+    42%  { opacity: 1; }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes tg3-chat-composer-in {
+    from { opacity: 0; transform: translate3d(34px, 4px, 0) scale(0.996); }
+    48%  { opacity: 1; }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes tg3-chat-row-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.998); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes tg3-search-row-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.search-overlay {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, calc(-1 * var(--motion-depth-shift-overlay-y)), 0) scale(var(--motion-depth-scale-enter));
+    transform-origin: top center;
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
+        transform var(--tg3-dur-surface) var(--tg3-ease-surface);
+}
+
+.search-overlay.is-opening {
+    pointer-events: none;
+}
+
+.search-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+.search-overlay.is-closing {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, calc(-1 * var(--motion-depth-shift-overlay-y-exit)), 0) scale(var(--motion-depth-scale-exit));
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.search-overlay__tabs,
+.search-overlay__body {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter) var(--motion-delay-lg),
+        transform var(--tg3-dur-surface) var(--tg3-ease-surface) var(--motion-delay-lg);
+}
+
+.search-overlay__body {
+    transition-delay: var(--motion-choreo-overlay-content-enter);
+}
+
+.search-overlay.is-open .search-overlay__tabs,
+.search-overlay.is-open .search-overlay__body {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+}
+
+.search-overlay.is-closing .search-overlay__tabs,
+.search-overlay.is-closing .search-overlay__body {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+    transition-delay: var(--motion-delay-none);
+    transition-duration: var(--tg3-dur-exit);
+    transition-timing-function: var(--tg3-ease-exit);
+}
+
+.search-overlay.is-open .search-overlay__panel:not([hidden]) > * {
+    animation: tg3-search-row-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+    animation-delay: var(--motion-item-delay, var(--motion-delay-xl));
+}
+
+.search-overlay__tab {
+    position: relative;
+    border-bottom-color: transparent !important;
+    transition: color var(--tg3-dur-instant) var(--tg3-ease-surface);
+}
+
+.search-overlay__tab::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--text);
+    opacity: 0;
+    transform: scaleX(0.36);
+    transform-origin: center;
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-surface),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+}
+
+.search-overlay__tab.is-active::after {
+    opacity: 1;
+    transform: scaleX(1);
+}
+
+.settings-overlay,
+.delete-chat-modal-overlay,
+.caption-modal-overlay,
+.key-restore-overlay,
+.chat-date-picker-overlay {
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
+        visibility 0s linear var(--tg3-dur-panel);
+}
+
+.settings-overlay.is-opening,
+.delete-chat-modal-overlay.is-opening,
+.caption-modal-overlay.is-opening,
+.key-restore-overlay.is-opening,
+.chat-date-picker-overlay.is-opening {
+    visibility: visible;
+    pointer-events: none;
+    transition-delay: 0s;
+}
+
+.settings-overlay.active,
+.delete-chat-modal-overlay.is-open,
+.caption-modal-overlay.is-open,
+.key-restore-overlay.is-open,
+.chat-date-picker-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+.settings-overlay.is-closing,
+.delete-chat-modal-overlay.is-closing,
+.caption-modal-overlay.is-closing,
+.key-restore-overlay.is-closing,
+.chat-date-picker-overlay.is-closing {
+    opacity: 0;
+    visibility: visible;
+    pointer-events: none;
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        visibility 0s linear var(--tg3-dur-exit);
+}
+
+.settings-overlay-backdrop,
+.chat-date-picker-overlay__backdrop {
+    transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+}
+
+.settings-overlay.active .settings-overlay-backdrop,
+.chat-date-picker-overlay.is-open .chat-date-picker-overlay__backdrop {
+    opacity: 1;
+    transition-delay: var(--motion-choreo-overlay-backdrop-enter);
+}
+
+.settings-overlay.is-closing .settings-overlay-backdrop,
+.chat-date-picker-overlay.is-closing .chat-date-picker-overlay__backdrop {
+    opacity: 0;
+    transition-delay: var(--motion-choreo-overlay-backdrop-exit);
+    transition-duration: var(--tg3-dur-exit);
+    transition-timing-function: var(--tg3-ease-exit);
+}
+
+.settings-overlay-panel {
+    opacity: 0;
+    transform: translate3d(32px, 0, 0) scale(var(--motion-depth-scale-enter));
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
+        transform var(--tg3-dur-surface) var(--tg3-ease-surface);
+}
+
+.settings-overlay.active .settings-overlay-panel {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition-delay: var(--motion-choreo-overlay-panel-enter);
+}
+
+.settings-overlay.is-closing .settings-overlay-panel {
+    opacity: 0;
+    transform: translate3d(20px, 0, 0) scale(var(--motion-depth-scale-exit));
+    transition-delay: var(--motion-choreo-overlay-panel-exit);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.delete-chat-modal-card,
+.caption-modal,
+.key-restore-modal,
+.chat-date-picker-panel {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-depth-shift-overlay-y), 0) scale(var(--motion-depth-scale-enter));
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+}
+
+.delete-chat-modal-overlay.is-open .delete-chat-modal-card,
+.caption-modal-overlay.is-open .caption-modal,
+.key-restore-overlay.is-open .key-restore-modal,
+.chat-date-picker-overlay.is-open .chat-date-picker-panel {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition-delay: var(--motion-choreo-overlay-content-enter);
+}
+
+.delete-chat-modal-overlay.is-closing .delete-chat-modal-card,
+.caption-modal-overlay.is-closing .caption-modal,
+.key-restore-overlay.is-closing .key-restore-modal,
+.chat-date-picker-overlay.is-closing .chat-date-picker-panel {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-depth-shift-overlay-y-exit), 0) scale(var(--motion-depth-scale-exit));
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.search-overlay.is-open,
+.search-overlay.is-closing,
+.search-overlay.is-open .search-overlay__tabs,
+.search-overlay.is-open .search-overlay__body,
+.settings-overlay.is-opening .settings-overlay-panel,
+.settings-overlay.active .settings-overlay-panel,
+.settings-overlay.is-closing .settings-overlay-panel,
+.delete-chat-modal-overlay.is-open .delete-chat-modal-card,
+.delete-chat-modal-overlay.is-closing .delete-chat-modal-card,
+.caption-modal-overlay.is-open .caption-modal,
+.caption-modal-overlay.is-closing .caption-modal,
+.key-restore-overlay.is-open .key-restore-modal,
+.key-restore-overlay.is-closing .key-restore-modal,
+.chat-date-picker-overlay.is-open .chat-date-picker-panel,
+.chat-date-picker-overlay.is-closing .chat-date-picker-panel {
+    will-change: opacity, transform;
+}
+
+.message-actions-bar,
+.edit-message-banner {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.985);
+    transform-origin: bottom center;
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.message-actions-bar.is-visible,
+.edit-message-banner.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition-delay: 0s;
+}
+
+.message-actions-bar.is-closing,
+.edit-message-banner.is-closing {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, 6px, 0) scale(0.99);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.reply-bar {
+    transform: translate3d(0, 8px, 0);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.reply-bar.is-visible {
+    max-height: 112px;
+    padding: 8px 16px 7px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    transition-delay: 0s;
+}
+
+.reply-bar.is-closing {
+    display: flex;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, 6px, 0);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.pinned-bar {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.985);
+    transform-origin: top center;
+    transition:
+        background-color var(--tg3-dur-instant) var(--tg3-ease-surface),
+        border-color var(--tg3-dur-instant) var(--tg3-ease-surface),
+        box-shadow var(--tg3-dur-instant) var(--tg3-ease-surface),
+        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.pinned-bar.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition-delay: 0s;
+}
+
+.pinned-bar.is-closing {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, -6px, 0) scale(0.99);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+}
+
+.message-actions-bar.is-visible,
+.message-actions-bar.is-closing,
+.edit-message-banner.is-visible,
+.edit-message-banner.is-closing,
+.reply-bar.is-visible,
+.reply-bar.is-closing,
+.pinned-bar.is-visible,
+.pinned-bar.is-closing {
+    will-change: opacity, transform;
+}
+
+#lightbox {
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
+        visibility 0s linear var(--tg3-dur-panel);
+}
+
+#lightbox.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+#lightbox.is-closing {
+    opacity: 0;
+    visibility: visible;
+    pointer-events: none;
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+        visibility 0s linear var(--tg3-dur-exit);
+}
+
+.lightbox-main {
+    transform: scale(0.985);
+    transition: transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+}
+
+#lightbox.active .lightbox-main {
+    transform: scale(1);
+}
+
+#lightbox.is-closing .lightbox-main {
+    transform: scale(0.988);
+    transition-duration: var(--tg3-dur-exit);
+    transition-timing-function: var(--tg3-ease-exit);
+}
+
+.lightbox-topbar,
+.lightbox-nav,
+.lightbox-counter {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter) var(--motion-delay-md),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface) var(--motion-delay-md);
+}
+
+.lightbox-counter {
+    transform: translate3d(-50%, 8px, 0);
+    transition-delay: var(--motion-delay-2xl);
+}
+
+#lightbox.active .lightbox-topbar,
+#lightbox.active .lightbox-nav,
+#lightbox.active .lightbox-counter {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+}
+
+#lightbox.active .lightbox-counter {
+    transform: translate3d(-50%, 0, 0);
+}
+
+#lightbox.is-closing .lightbox-topbar,
+#lightbox.is-closing .lightbox-nav,
+#lightbox.is-closing .lightbox-counter {
+    opacity: 0;
+    transition-delay: var(--motion-delay-none);
+    transition-duration: var(--tg3-dur-exit);
+    transition-timing-function: var(--tg3-ease-exit);
+}
+
+#lightbox.is-closing .lightbox-topbar,
+#lightbox.is-closing .lightbox-nav {
+    transform: translate3d(0, -6px, 0);
+}
+
+#lightbox.is-closing .lightbox-counter {
+    transform: translate3d(-50%, 6px, 0);
+}
+
+@media (hover: hover) {
+    #lightbox.active .lightbox-nav:hover {
+        transform: scale(1.08);
+    }
+}
+
+#lightbox.active .lightbox-nav:active {
+    transform: scale(0.96);
+}
+
+#lightboxImg,
+.lightbox-video-wrap {
+    opacity: 1;
+    transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+}
+
+#lightbox:not(.active) #lightboxImg,
+#lightbox:not(.active) .lightbox-video-wrap {
+    opacity: 0;
+}
+
+.lightbox-caption {
+    transform: translate3d(-50%, 8px, 0) scale(0.99);
+    transition:
+        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+}
+
+.lightbox-caption.is-visible:not(:empty) {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(-50%, 0, 0) scale(1);
+}
+
+.lightbox-zoom-panel {
+    transform: translate3d(-50%, 8px, 0) scale(0.985);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+}
+
+.lightbox-zoom-panel.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(-50%, 0, 0) scale(1);
+}
+
+.lightbox-video-controls {
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+        transform var(--tg3-dur-exit) var(--tg3-ease-surface);
+}
+
+.lightbox-video-wrap.is-idle .lightbox-video-controls {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+    pointer-events: none;
+}
+
+.lightbox-video-center-play {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+    transition:
+        opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+        transform var(--tg3-dur-exit) var(--tg3-ease-surface);
+}
+
+.lightbox-video-center-play.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(-50%, -50%, 0) scale(0.92);
+}
+
+#lightbox.active .lightbox-main,
+#lightbox.is-closing .lightbox-main,
+#lightbox.active .lightbox-topbar,
+#lightbox.active .lightbox-nav,
+#lightbox.active .lightbox-counter,
+.lightbox-caption.is-visible,
+.lightbox-zoom-panel.is-visible,
+.lightbox-video-wrap.is-idle .lightbox-video-controls,
+.lightbox-video-center-play.is-hidden {
+    will-change: opacity, transform;
+}
+
+@media (min-width: 769px) {
+    .chat-area {
+        --tg3-profile-width: min(100%, var(--chat-profile-drawer-width, 392px));
+        --tg3-profile-push-max: var(--tg3-profile-width);
+        --tg3-profile-drag-x: clamp(0px, var(--profile-drag-x, 0px), var(--tg3-profile-push-max));
+        --tg3-profile-push: 0px;
+        --tg3-profile-chat-x: 0px;
+    }
+
+    .chat-area.is-profile-drawer-open,
+    .chat-area.is-profile-drawer-closing {
+        --tg3-profile-push: calc(var(--tg3-profile-push-max) - var(--tg3-profile-drag-x));
+        --tg3-profile-chat-x: calc(-0.38 * var(--tg3-profile-push));
+    }
+
+    /* Geometry lock for desktop chat switch:
+       keep scrollbar lane stable and avoid layout-property interpolation. */
+    .chat-area .chat-messages {
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .chat-area .chat-messages {
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+    }
+
+    .chat-header .chat-title,
+    #chatTitle {
+        transition: opacity var(--tg3-dur-exit) var(--tg3-ease-surface);
+    }
+
+    .chat-area.is-switching .chat-title,
+    .chat-area.is-switching #chatTitle {
+        opacity: 0;
+    }
+
+    .chat-area.is-switching .chat-header,
+    .chat-area.is-switching .chat-messages,
+    .chat-area.is-switching .chat-input-area {
+        opacity: 0;
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+            transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        will-change: opacity, transform;
+    }
+
+    .chat-area.is-switching .chat-header {
+        transform: translate3d(-22px, 0, 0);
+    }
+
+    .chat-area.is-switching .chat-messages {
+        transform: translate3d(-34px, 0, 0) scale(0.998);
+    }
+
+    .chat-area.is-switching .chat-input-area {
+        transform: translate3d(-26px, 2px, 0) scale(0.998);
+    }
+
+    .chat-area.is-switching::before {
+        opacity: 0.55;
+        transition: opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+    }
+
+    .chat-area.chat-surface-enter .chat-header {
+        animation: tg3-chat-header-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+    }
+
+    .chat-area.chat-surface-enter .chat-messages {
+        animation: tg3-chat-messages-in var(--tg3-dur-content) var(--tg3-ease-enter) var(--motion-delay-xs) both;
+    }
+
+    .chat-area.chat-surface-enter .chat-input-area {
+        animation: tg3-chat-composer-in var(--tg3-dur-surface) var(--tg3-ease-enter) var(--motion-delay-sm) both;
+    }
+
+    .chat-area.chat-history-reveal .chat-header {
+        animation: tg3-chat-header-in var(--tg3-dur-surface) var(--tg3-ease-enter) both;
+    }
+
+    .chat-area.chat-history-reveal .chat-messages {
+        animation: none;
+    }
+
+    .chat-area.chat-history-reveal .chat-input-area {
+        animation: tg3-chat-composer-in var(--tg3-dur-surface) var(--tg3-ease-enter) calc(var(--motion-delay-sm) + var(--motion-delay-nudge)) both;
+    }
+
+    .chat-area.chat-history-reveal .chat-header,
+    .chat-area.chat-history-reveal .chat-messages,
+    .chat-area.chat-history-reveal .chat-empty-placeholder,
+    .chat-area.chat-history-reveal .e2e-pill-wrap,
+    .chat-area.chat-history-reveal .chat-input-area,
+    .chat-area.chat-history-reveal .jump-to-new-btn,
+    .chat-area.chat-history-reveal .chat-stage-loader,
+    .chat-area.chat-history-reveal .history-loading {
+        transition-property: opacity, transform !important;
+    }
+
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(-n+8) {
+        animation: tg3-chat-row-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+    }
+
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(1)  { animation-delay: var(--motion-delay-7xl); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(2)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 1); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(3)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 2); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(4)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 3); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(5)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 4); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(6)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 5); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(7)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 6); }
+    .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(8)  { animation-delay: calc(var(--motion-delay-7xl) - var(--motion-delay-history-step) * 7); }
+
+    .chat-messages.motion-list-guard .message {
+        animation: none !important;
+    }
+
+    .chat-area.chat-surface-enter .chat-header,
+    .chat-area.chat-surface-enter .chat-messages,
+    .chat-area.chat-surface-enter .chat-input-area,
+    .chat-area.chat-history-reveal .chat-header,
+    .chat-area.chat-history-reveal .chat-messages,
+    .chat-area.chat-history-reveal .chat-input-area {
+        will-change: opacity, transform;
+    }
+
+    .profile-drawer-backdrop {
+        background: rgba(15, 23, 42, 0.015);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        pointer-events: none;
+        cursor: default;
+        transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+    }
+
+    .profile-drawer {
+        pointer-events: none;
+        transition: none;
+    }
+
+    .profile-drawer.is-opening,
+    .profile-drawer.active,
+    .profile-drawer.is-closing {
+        opacity: 1;
+        pointer-events: none;
+    }
+
+    .profile-sheet--tg {
+        --profile-sheet-closed-shift: calc(100% + 12px);
+        transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
+        opacity: 0.98;
+        pointer-events: none;
+        touch-action: pan-y;
+        transition:
+            transform var(--tg3-dur-panel) var(--tg3-ease-enter),
+            opacity var(--tg3-dur-exit) var(--tg3-ease-enter);
+        will-change: auto;
+    }
+
+    .profile-drawer .profile-loading-mask,
+    .profile-drawer .profile-topbar {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .profile-drawer.active .profile-sheet--tg {
+        transform: translate3d(var(--profile-drag-x, 0px), 0, 0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .profile-drawer.is-opening .profile-sheet--tg {
+        pointer-events: auto;
+    }
+
+    .profile-drawer.is-opening .profile-sheet--tg,
+    .profile-drawer.is-profile-opening .profile-sheet--tg,
+    .profile-drawer.is-closing .profile-sheet--tg {
+        will-change: transform, opacity;
+    }
+
+    .profile-drawer.is-closing .profile-sheet--tg {
+        transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
+        opacity: 0.98;
+        transition:
+            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
+            opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+    }
+
+    .profile-sheet--tg.is-dragging {
+        transition: none !important;
+    }
+
+    .chat-area .chat-header,
+    .chat-area .chat-messages,
+    .chat-area .chat-empty-placeholder,
+    .chat-area .e2e-pill-wrap {
+        translate: 0 0;
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
+            translate var(--tg3-dur-panel) var(--tg3-ease-surface);
+    }
+
+    .chat-area .chat-input-area {
+        translate: none;
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
+            translate var(--tg3-dur-panel) var(--tg3-ease-surface);
+    }
+
+    .chat-area .jump-to-new-btn {
+        translate: 0 0;
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+            transform var(--tg3-dur-exit) var(--tg3-ease-surface),
+            translate var(--tg3-dur-exit) var(--tg3-ease-surface);
+    }
+
+    .chat-area .chat-stage-loader {
+        translate: 0 0;
+        transition:
+            opacity var(--tg3-dur-content) var(--tg3-ease-enter),
+            transform var(--tg3-dur-content) var(--tg3-ease-surface),
+            translate var(--tg3-dur-content) var(--tg3-ease-surface),
+            visibility 0s linear var(--tg3-dur-content);
+    }
+
+    .chat-area .history-loading {
+        translate: 0 0;
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
+            translate var(--tg3-dur-panel) var(--tg3-ease-surface),
+            visibility var(--tg3-dur-exit) var(--tg3-ease-surface);
+    }
+
+    .chat-area.is-profile-drawer-closing .chat-header,
+    .chat-area.is-profile-drawer-closing .chat-messages,
+    .chat-area.is-profile-drawer-closing .chat-empty-placeholder,
+    .chat-area.is-profile-drawer-closing .e2e-pill-wrap {
+        transition-duration: var(--tg3-dur-exit);
+        transition-timing-function: var(--tg3-ease-exit);
+    }
+
+    .chat-area.is-profile-drawer-closing .chat-input-area,
+    .chat-area.is-profile-drawer-closing .jump-to-new-btn,
+    .chat-area.is-profile-drawer-closing .chat-stage-loader {
+        transition-duration: var(--tg3-dur-exit);
+        transition-timing-function: var(--tg3-ease-exit);
+    }
+
+    .chat-area.is-profile-drawer-open .chat-messages,
+    .chat-area.is-profile-drawer-open .chat-empty-placeholder,
+    .chat-area.is-profile-drawer-open .e2e-pill-wrap,
+    .chat-area.is-profile-drawer-open .chat-input-area,
+    .chat-area.is-profile-drawer-open .chat-stage-loader,
+    .chat-area.is-profile-drawer-open .history-loading,
+    .chat-area.is-profile-drawer-closing .chat-messages,
+    .chat-area.is-profile-drawer-closing .chat-empty-placeholder,
+    .chat-area.is-profile-drawer-closing .e2e-pill-wrap,
+    .chat-area.is-profile-drawer-closing .chat-input-area,
+    .chat-area.is-profile-drawer-closing .chat-stage-loader,
+    .chat-area.is-profile-drawer-closing .history-loading {
+        translate: var(--tg3-profile-chat-x) 0;
+    }
+
+    .chat-area.is-profile-drawer-open .chat-header,
+    .chat-area.is-profile-drawer-open .chat-messages,
+    .chat-area.is-profile-drawer-open .chat-input-area,
+    .chat-area.is-profile-drawer-closing .chat-header,
+    .chat-area.is-profile-drawer-closing .chat-messages,
+    .chat-area.is-profile-drawer-closing .chat-input-area {
+        will-change: opacity, transform;
+    }
+
+    .chat-area.is-profile-drawer-dragging .chat-header,
+    .chat-area.is-profile-drawer-dragging .chat-messages,
+    .chat-area.is-profile-drawer-dragging .chat-input-area,
+    .chat-area.is-profile-drawer-dragging .chat-empty-placeholder,
+    .chat-area.is-profile-drawer-dragging .e2e-pill-wrap,
+    .chat-area.is-profile-drawer-dragging .jump-to-new-btn,
+    .chat-area.is-profile-drawer-dragging .chat-stage-loader,
+    .chat-area.is-profile-drawer-dragging .history-loading {
+        transition: none !important;
+    }
+
+    .header-dropdown,
+    .message-scale-panel,
+    .profile-more-menu,
+    .context-menu,
+    #messageContextMenu,
+    #contactContextMenu,
+    .message-context-menu {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translate3d(0, -8px, 0) scale(0.965);
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
+            visibility 0s linear var(--tg3-dur-panel);
+        will-change: auto;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .attach-menu,
+    .emoji-picker,
+    .reaction-picker {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translate3d(0, 8px, 0) scale(0.965);
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
+            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
+            visibility 0s linear var(--tg3-dur-panel);
+        will-change: auto;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .header-dropdown,
+    .message-scale-panel,
+    .profile-more-menu {
+        transform-origin: top right;
+    }
+
+    .context-menu,
+    #messageContextMenu,
+    #contactContextMenu,
+    .message-context-menu {
+        transform-origin: var(--m-origin-x, 50%) var(--m-origin-y, 12%);
+    }
+
+    .attach-menu {
+        transform-origin: var(--attach-menu-origin, bottom right);
+    }
+
+    .emoji-picker {
+        transform-origin: bottom left;
+    }
+
+    .reaction-picker {
+        transform-origin: var(--m-origin-x, center) var(--m-origin-y, center);
+    }
+
+    .header-dropdown.is-opening:not(.active),
+    .message-scale-panel.is-opening:not(.active),
+    .profile-more-menu.is-opening:not(.active),
+    .profile-more-menu.is-opening:not(.is-open),
+    .context-menu.is-opening:not(.is-open),
+    #messageContextMenu.is-opening:not(.is-open),
+    #contactContextMenu.is-opening:not(.is-open),
+    .message-context-menu.is-opening:not(.active),
+    .attach-menu.is-opening:not(.is-open),
+    .emoji-picker.is-opening:not(.active),
+    .emoji-picker.is-opening:not(.is-open),
+    .reaction-picker.is-opening:not(.active) {
+        opacity: 0;
+        visibility: visible;
+        pointer-events: none;
+    }
+
+    .header-dropdown.active,
+    .message-scale-panel.active,
+    .profile-more-menu.active,
+    .profile-more-menu.is-open,
+    .context-menu.is-open,
+    #messageContextMenu.is-open,
+    #contactContextMenu.is-open,
+    .message-context-menu.active,
+    .attach-menu.is-open,
+    .emoji-picker.is-open,
+    .reaction-picker.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translate3d(0, 0, 0) scale(1);
+        transition-delay: 0s;
+    }
+
+    .header-dropdown.active {
+        animation: m-solid-pop-overshoot var(--motion-duration-pop-solid) var(--m-decel) both;
+    }
+
+    .emoji-picker.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translate3d(0, 0, 0) scale(1);
+        transition-delay: 0s;
+    }
+
+    .emoji-picker.active,
+    .message-scale-panel.active,
+    .profile-more-menu.active,
+    .profile-more-menu.is-open,
+    .context-menu.is-open,
+    #messageContextMenu.is-open,
+    #contactContextMenu.is-open,
+    .message-context-menu.active,
+    .attach-menu.is-open {
+        animation: m-pop-overshoot var(--m-dur-base) var(--m-bouncy) both;
+    }
+
+    .reaction-picker.active {
+        animation: none;
+    }
+
+    .header-dropdown.is-closing,
+    .message-scale-panel.is-closing,
+    .profile-more-menu.is-closing,
+    .context-menu.is-closing,
+    #messageContextMenu.is-closing,
+    #contactContextMenu.is-closing,
+    .message-context-menu.is-closing {
+        animation: none;
+        opacity: 0;
+        visibility: visible;
+        pointer-events: none;
+        transform: translate3d(0, -6px, 0) scale(0.972);
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
+            visibility 0s linear var(--tg3-dur-exit);
+    }
+
+    .attach-menu.is-closing,
+    .emoji-picker.is-closing,
+    .reaction-picker.is-closing {
+        animation: none;
+        opacity: 0;
+        visibility: visible;
+        pointer-events: none;
+        transform: translate3d(0, 6px, 0) scale(0.972);
+        transition:
+            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
+            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
+            visibility 0s linear var(--tg3-dur-exit);
+    }
+
+    .header-dropdown.active,
+    .header-dropdown.is-opening,
+    .header-dropdown.is-closing,
+    .message-scale-panel.active,
+    .message-scale-panel.is-opening,
+    .message-scale-panel.is-closing,
+    .profile-more-menu.active,
+    .profile-more-menu.is-open,
+    .profile-more-menu.is-opening,
+    .profile-more-menu.is-closing,
+    .context-menu.is-open,
+    .context-menu.is-opening,
+    .context-menu.is-closing,
+    #messageContextMenu.is-open,
+    #messageContextMenu.is-opening,
+    #messageContextMenu.is-closing,
+    #contactContextMenu.is-open,
+    #contactContextMenu.is-opening,
+    #contactContextMenu.is-closing,
+    .message-context-menu.active,
+    .message-context-menu.is-opening,
+    .message-context-menu.is-closing,
+    .attach-menu.is-open,
+    .attach-menu.is-opening,
+    .attach-menu.is-closing,
+    .emoji-picker.active,
+    .emoji-picker.is-open,
+    .emoji-picker.is-opening,
+    .emoji-picker.is-closing,
+    .reaction-picker.active,
+    .reaction-picker.is-opening,
+    .reaction-picker.is-closing {
+        will-change: opacity, transform;
+    }
+}
+
+.motion-list-guard .contact-item.contact-entering,
+.motion-list-guard .message.msg-animate-in,
+.motion-list-guard .search-overlay__panel > * {
+    animation-duration: var(--motion-duration-fast) !important;
+    animation-delay: var(--motion-delay-none) !important;
+}
+
+.motion-debug-panel {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
+    max-height: min(50vh, 420px);
+    overflow: auto;
+    z-index: 100000;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    background: color-mix(in srgb, var(--paper) 92%, rgba(0, 0, 0, 0.42) 8%);
+    color: var(--text);
+    font: 12px/1.35 var(--font-mono);
+    white-space: pre-wrap;
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(10px);
+}
+
+@media (max-width: 768px) {
+    .profile-sheet--tg {
+        transition:
+            transform var(--tg3-dur-panel) var(--tg3-ease-enter),
+            opacity var(--tg3-dur-exit) var(--tg3-ease-enter);
+    }
+
+    .profile-drawer.is-closing .profile-sheet--tg {
+        transition:
+            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
+            opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motion-level="lite"] .profile-sheet--tg,
+    html[data-motion-level="lite"] .profile-drawer-backdrop,
+    html[data-motion-level="lite"] .chat-area .chat-header,
+    html[data-motion-level="lite"] .chat-area .chat-messages,
+    html[data-motion-level="lite"] .chat-area .chat-input-area,
+    html[data-motion-level="lite"] .chat-area .chat-empty-placeholder,
+    html[data-motion-level="lite"] .chat-area .e2e-pill-wrap,
+    html[data-motion-level="lite"] .chat-area .jump-to-new-btn,
+    html[data-motion-level="lite"] .chat-area .chat-stage-loader,
+    html[data-motion-level="lite"] .chat-area .history-loading,
+    html[data-motion-level="lite"] .header-dropdown,
+    html[data-motion-level="lite"] .message-scale-panel,
+    html[data-motion-level="lite"] .profile-more-menu,
+    html[data-motion-level="lite"] .context-menu,
+    html[data-motion-level="lite"] #messageContextMenu,
+    html[data-motion-level="lite"] #contactContextMenu,
+    html[data-motion-level="lite"] .message-context-menu,
+    html[data-motion-level="lite"] .attach-menu,
+    html[data-motion-level="lite"] .emoji-picker,
+    html[data-motion-level="lite"] .reaction-picker,
+    html[data-motion-level="lite"] .search-overlay,
+    html[data-motion-level="lite"] .search-overlay__tabs,
+    html[data-motion-level="lite"] .search-overlay__body,
+    html[data-motion-level="lite"] .search-overlay__panel:not([hidden]) > *,
+    html[data-motion-level="lite"] .search-overlay__tab::after,
+    html[data-motion-level="lite"] .settings-overlay,
+    html[data-motion-level="lite"] .settings-overlay-backdrop,
+    html[data-motion-level="lite"] .settings-overlay-panel,
+    html[data-motion-level="lite"] .delete-chat-modal-overlay,
+    html[data-motion-level="lite"] .delete-chat-modal-card,
+    html[data-motion-level="lite"] .caption-modal-overlay,
+    html[data-motion-level="lite"] .caption-modal,
+    html[data-motion-level="lite"] .key-restore-overlay,
+    html[data-motion-level="lite"] .key-restore-modal,
+    html[data-motion-level="lite"] .chat-date-picker-overlay,
+    html[data-motion-level="lite"] .chat-date-picker-overlay__backdrop,
+    html[data-motion-level="lite"] .chat-date-picker-panel,
+    html[data-motion-level="lite"] .message-actions-bar,
+    html[data-motion-level="lite"] .edit-message-banner,
+    html[data-motion-level="lite"] .reply-bar,
+    html[data-motion-level="lite"] .pinned-bar,
+    html[data-motion-level="lite"] #lightbox,
+    html[data-motion-level="lite"] .lightbox-main,
+    html[data-motion-level="lite"] .lightbox-topbar,
+    html[data-motion-level="lite"] .lightbox-nav,
+    html[data-motion-level="lite"] .lightbox-counter,
+    html[data-motion-level="lite"] #lightboxImg,
+    html[data-motion-level="lite"] .lightbox-video-wrap,
+    html[data-motion-level="lite"] .lightbox-caption,
+    html[data-motion-level="lite"] .lightbox-zoom-panel,
+    html[data-motion-level="lite"] .lightbox-video-controls,
+    html[data-motion-level="lite"] .lightbox-video-center-play {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+

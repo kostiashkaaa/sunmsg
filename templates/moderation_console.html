@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderation Console</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f4f6f8;
+            --fg: #1d2530;
+            --muted: #5b6777;
+            --line: #d7dde5;
+            --card: #ffffff;
+            --ok: #1f7a36;
+            --err: #a3322c;
+            --accent: #0f5bd8;
+        }
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+        }
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: var(--fg);
+            background: var(--card);
+            font-size: 14px;
+        }
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .metric {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .metric .label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .metric .value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .filters {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filters select, .filters input {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: var(--card);
+            color: var(--fg);
+        }
+        .table-wrap {
+            overflow: auto;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1120px;
+        }
+        th, td {
+            border-bottom: 1px solid var(--line);
+            padding: 10px 8px;
+            vertical-align: top;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .sla-timer {
+            font-weight: 600;
+        }
+        .sla-timer.sla-ok {
+            color: var(--ok);
+        }
+        .sla-timer.sla-late {
+            color: var(--err);
+        }
+        .flash {
+            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid;
+        }
+        .flash.success {
+            background: #ebf8f0;
+            border-color: #b7e5c3;
+            color: var(--ok);
+        }
+        .flash.error {
+            background: #ffefee;
+            border-color: #f3c0bc;
+            color: var(--err);
+        }
+        .inline-form {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .inline-form select, .inline-form input {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            background: #fff;
+        }
+        .inline-form button {
+            border: 1px solid var(--accent);
+            background: var(--accent);
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        @media (max-width: 900px) {
+            .metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <div class="top">
+        <h1 class="title">Moderation Console</h1>
+        <div class="actions">
+            <a class="btn" href="/chat">Back to Chat</a>
+            <a class="btn" href="/moderation/console/appeals">Appeals</a>
+            <a class="btn" href="/moderation/console/support">Support</a>
+            <a class="btn primary" href="/api/moderation/metrics">Raw Metrics JSON</a>
+            <a class="btn primary" href="/metrics/moderation">Prometheus Metrics</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <section class="metrics">
+        <article class="metric">
+            <div class="label">Queue Pending</div>
+            <div class="value">{{ metrics.queue.pending }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Queue Failed</div>
+            <div class="value">{{ metrics.queue.failed }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">TTA p95 (sec)</div>
+            <div class="value">{{ "%.1f"|format(metrics.time_to_action_p95_seconds) }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Appeal Reversal</div>
+            <div class="value">{{ "%.1f"|format(metrics.appeal_reversal_rate * 100.0) }}%</div>
+        </article>
+        <article class="metric">
+            <div class="label">Resolved Cases (24h)</div>
+            <div class="value">{{ metrics.resolved_cases }}</div>
+        </article>
+    </section>
+
+    <form class="filters" method="get" action="/moderation/console">
+        <label for="state">State</label>
+        <select id="state" name="state">
+            <option value="open" {% if state == 'open' %}selected{% endif %}>open</option>
+            <option value="closed" {% if state == 'closed' %}selected{% endif %}>closed</option>
+            <option value="auto_resolved" {% if state == 'auto_resolved' %}selected{% endif %}>auto_resolved</option>
+            <option value="" {% if state == '' %}selected{% endif %}>all</option>
+        </select>
+        <label for="limit">Limit</label>
+        <input id="limit" name="limit" type="number" value="{{ limit }}" min="1" max="200">
+        <label for="refresh">Refresh (sec)</label>
+        <input id="refresh" name="refresh" type="number" value="{{ refresh_seconds }}" min="5" max="300">
+        <button class="btn primary" type="submit">Apply</button>
+    </form>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Subject</th>
+                    <th>State</th>
+                    <th>Risk</th>
+                    <th>Reason</th>
+                    <th>Created</th>
+                    <th>SLA</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% if cases %}
+                {% for case in cases %}
+                    <tr data-created-at="{{ case.created_at }}" data-priority="{{ case.priority }}" data-sla-seconds="{{ sla_by_priority_seconds.get(case.priority, 14400) }}">
+                        <td>#{{ case.id }}</td>
+                        <td>{{ case.case_type }}</td>
+                        <td>
+                            {% set report = case.report or {} %}
+                            {% set target_type = report.target_type or case.subject_type %}
+                            {% set target_id = report.target_id or case.subject_id %}
+                            <div><strong>{{ target_type }}: {{ target_id }}</strong></div>
+                            {% if target_type == 'message' and report.message_id %}
+                                <div class="muted">message_id: {{ report.message_id }}</div>
+                            {% endif %}
+                            <div class="muted">reports: {{ case.reports_count }}</div>
+                        </td>
+                        <td>
+                            {{ case.state }}
+                            <div class="muted">p{{ case.priority }}</div>
+                        </td>
+                        <td>
+                            {{ "%.3f"|format(case.risk_score) }}
+                            <div class="muted">conf {{ "%.3f"|format(case.confidence) }}</div>
+                        </td>
+                        <td>
+                            <div>{{ case.decision_reason or '-' }}</div>
+                            {% if case.report and case.report.reason_code %}
+                                <div class="muted">report reason: {{ case.report.reason_code }}</div>
+                            {% endif %}
+                            {% if case.report and case.report.comment %}
+                                <div class="muted">comment: {{ case.report.comment }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ case.created_at }}</td>
+                        <td>
+                            {% if case.state == 'open' %}
+                                <span class="sla-timer muted">--</span>
+                            {% else %}
+                                <span class="muted">closed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if case.state == 'open' %}
+                                <form class="inline-form" method="post" action="/moderation/console/cases/{{ case.id }}/action">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <select name="action_type">
+                                        <option value="warn">warn</option>
+                                        <option value="mute_temp">mute_temp</option>
+                                        <option value="ban_temp">ban_temp</option>
+                                        <option value="ban_perma">ban_perma</option>
+                                        <option value="delete">delete</option>
+                                    </select>
+                                    <input name="reason_code" value="manual_action" maxlength="64">
+                                    <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
+                                    <input name="note" value="" maxlength="512" placeholder="note">
+                                    <button type="submit">Apply</button>
+                                </form>
+                            {% else %}
+                                <span class="muted">closed</span>
+                            {% endif %}
+                            {% if case.active_sanction %}
+                                <div class="muted">active sanction #{{ case.active_sanction.id }} ({{ case.active_sanction.action_type }})</div>
+                                {% if case.active_sanction.expires_at %}
+                                    <div class="muted">expires: {{ case.active_sanction.expires_at }}</div>
+                                {% endif %}
+                                <form class="inline-form" method="post" action="/moderation/console/sanctions/{{ case.active_sanction.id }}/lift">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input name="note" value="manual_lift" maxlength="512" placeholder="lift note">
+                                    <button type="submit">Lift restriction</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="9">No cases found.</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</main>
+<script>
+(() => {
+    const refreshSeconds = Math.max(5, Math.min(300, Number({{ refresh_seconds|int }}) || 15));
+    const rows = Array.from(document.querySelectorAll('tr[data-created-at][data-sla-seconds]'));
+
+    function parseTimestamp(raw) {
+        const text = String(raw || '').trim();
+        if (!text) return null;
+        const normalized = text.includes('T') ? text : text.replace(' ', 'T');
+        const withZone = /Z|[+-]\d{2}:\d{2}$/.test(normalized) ? normalized : `${normalized}Z`;
+        const value = Date.parse(withZone);
+        return Number.isFinite(value) ? value : null;
+    }
+
+    function formatDuration(seconds) {
+        const total = Math.abs(Math.floor(seconds));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const sign = seconds < 0 ? '-' : '';
+        return `${sign}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateTimers() {
+        const now = Date.now();
+        for (const row of rows) {
+            const timer = row.querySelector('.sla-timer');
+            if (!timer) continue;
+            const createdAt = parseTimestamp(row.dataset.createdAt || '');
+            const slaSeconds = Number(row.dataset.slaSeconds || 0);
+            if (!createdAt || !Number.isFinite(slaSeconds) || slaSeconds <= 0) {
+                timer.textContent = '--';
+                timer.className = 'sla-timer muted';
+                continue;
+            }
+            const elapsed = Math.floor((now - createdAt) / 1000);
+            const remaining = slaSeconds - elapsed;
+            timer.textContent = formatDuration(remaining);
+            timer.className = `sla-timer ${remaining >= 0 ? 'sla-ok' : 'sla-late'}`;
+        }
+    }
+
+    updateTimers();
+    window.setInterval(updateTimers, 1000);
+    window.setInterval(() => {
+        window.location.reload();
+    }, refreshSeconds * 1000);
+})();
+</script>
+</body>
+</html>

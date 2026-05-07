@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun - {% if profile %}@{{ profile.username }}{% else %}@{{ stub_username }}{% endif %}</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+    <style nonce="{{ csp_nonce }}">
+        body.user-card-page {
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: var(--auth-bg);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 68px 20px 56px;
+            overflow-x: hidden;
+            position: relative;
+            color: var(--text);
+        }
+
+        .user-card-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 460px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .user-card-brand {
+            display: grid;
+            gap: 8px;
+            animation: authSlideDown var(--dur-slow) var(--ease-quick) both;
+        }
+
+        .user-card-brand-pre {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+
+        .user-card-brand-headline {
+            margin: 0;
+            font-family: var(--font-serif);
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            line-height: 0.98;
+            letter-spacing: -0.015em;
+            font-weight: 400;
+            color: var(--text);
+        }
+
+        .user-card-surface {
+            position: relative;
+            overflow: hidden;
+            background: var(--paper);
+            border: 1px solid var(--rule);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-2);
+            padding: 26px 24px 22px;
+            animation: authSlideUp var(--dur-slow) var(--ease-quick) both 0.08s;
+        }
+
+        .user-card-surface::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 42%);
+            opacity: 0.75;
+        }
+
+        .flash-stack {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .flash {
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            padding: 9px 11px;
+            font-size: 12px;
+            line-height: 1.45;
+            background: var(--surface-2);
+            color: var(--text);
+        }
+
+        .flash.success {
+            border-color: color-mix(in srgb, var(--success) 36%, var(--border) 64%);
+            background: color-mix(in srgb, var(--success) 14%, var(--surface) 86%);
+        }
+
+        .flash.warning {
+            border-color: color-mix(in srgb, var(--warning) 36%, var(--border) 64%);
+            background: color-mix(in srgb, var(--warning) 14%, var(--surface) 86%);
+        }
+
+        .flash.danger {
+            border-color: color-mix(in srgb, var(--danger) 36%, var(--border) 64%);
+            background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
+        }
+
+        .profile-hero {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            justify-items: center;
+            text-align: center;
+            gap: 10px;
+        }
+
+        .profile-avatar {
+            width: 102px;
+            height: 102px;
+            border-radius: 50%;
+            border: 1px solid color-mix(in srgb, var(--rule) 84%, transparent 16%);
+            background: var(--accent-gradient);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--text-inv);
+            box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 24%, transparent 76%);
+        }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="0"] { background: oklch(70% 0.10 200); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="1"] { background: oklch(72% 0.09 30); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="2"] { background: oklch(70% 0.08 140); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="3"] { background: oklch(65% 0.10 280); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="4"] { background: oklch(70% 0.06 80); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="5"] { background: oklch(60% 0.09 320); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="6"] { background: oklch(68% 0.11 100); color: #fff; }
+        .profile-avatar.profile-avatar--fallback[data-avatar-tint="7"] { background: oklch(60% 0.08 250); color: #fff; }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .profile-avatar--locked {
+            background: var(--surface-2);
+            box-shadow: none;
+            border-color: var(--border);
+            color: var(--ink-mute);
+            font-size: 36px;
+        }
+
+        .profile-name {
+            margin: 0;
+            max-width: 12ch;
+            font-size: clamp(30px, 6vw, 44px);
+            line-height: 0.96;
+            letter-spacing: -0.02em;
+            text-wrap: balance;
+            color: var(--text);
+            font-family: var(--font-serif);
+            font-weight: 400;
+        }
+
+        .profile-username {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+
+        .profile-bio {
+            margin: 4px 0 0;
+            max-width: 30ch;
+            font-size: 13px;
+            line-height: 1.45;
+            color: var(--ink-soft);
+            white-space: pre-wrap;
+            word-break: break-word;
+            text-wrap: pretty;
+        }
+
+        .profile-actions {
+            position: relative;
+            z-index: 1;
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .profile-actions > * {
+            min-width: 0;
+            margin: 0;
+        }
+
+        .profile-actions--centered {
+            grid-template-columns: minmax(0, 240px);
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .profile-actions form {
+            margin: 0;
+            display: block;
+        }
+
+        .profile-btn {
+            width: 100%;
+            min-height: 50px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 14px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.2;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: transform var(--transition), background var(--transition), border-color var(--transition), opacity var(--transition);
+        }
+
+        .profile-btn-inner {
+            width: 100%;
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .profile-btn i {
+            font-size: 15px;
+            flex: 0 0 auto;
+        }
+
+        .profile-btn span {
+            display: inline-block;
+        }
+
+        .profile-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .profile-btn.primary {
+            background: var(--text);
+            border-color: var(--text);
+            color: var(--bg);
+        }
+
+        .profile-btn.primary:hover {
+            opacity: 0.88;
+        }
+
+        .profile-btn.secondary {
+            background: var(--surface-2);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .profile-btn.secondary:hover {
+            background: color-mix(in srgb, var(--surface-2) 64%, var(--surface) 36%);
+            border-color: color-mix(in srgb, var(--border) 70%, var(--ink-faint) 30%);
+        }
+
+        .profile-btn[disabled] {
+            opacity: 0.48;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .profile-footnote {
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+
+        .profile-footnote a {
+            color: var(--accent-deep);
+            text-decoration: underline;
+            text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+            text-underline-offset: 2px;
+        }
+
+        @media (max-width: 700px) {
+            .auth-corner-eyebrow {
+                left: 18px;
+                top: 18px;
+            }
+
+            body.user-card-page {
+                padding-top: 54px;
+            }
+        }
+
+        @media (max-width: 460px) {
+            .user-card-surface {
+                padding: 22px 16px 18px;
+            }
+
+            .profile-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="user-card-page">
+    {% include 'chat/_svg_icons_sprite.html' %}
+    <div class="auth-orb auth-orb-1" aria-hidden="true"></div>
+    <div class="auth-orb auth-orb-2" aria-hidden="true"></div>
+
+    <div class="auth-corner-eyebrow" aria-hidden="true">
+        <div class="auth-corner-dot"></div>
+        <span>sun</span>
+    </div>
+
+    <main class="auth-wrapper user-card-wrapper">
+        <header class="user-card-brand">
+            <p class="user-card-brand-pre">SUN Messenger</p>
+            <h1 class="user-card-brand-headline">Public Profile</h1>
+        </header>
+
+        {% if stub_reason %}
+        <section class="user-card-surface" aria-label="Private profile">
+            <div class="profile-hero">
+                <div class="profile-avatar profile-avatar--locked" aria-hidden="true">
+                    <i class="bi bi-lock"></i>
+                </div>
+                <h1 class="profile-name">@{{ stub_username }}</h1>
+                <p class="profile-bio">This profile is private.</p>
+            </div>
+
+            <div class="profile-actions profile-actions--centered">
+                <a class="profile-btn secondary" href="{{ url_for('auth.index') }}">
+                    <span class="profile-btn-inner">
+                        <i class="bi bi-grid"></i>
+                        <span>Open SUN</span>
+                    </span>
+                </a>
+            </div>
+        </section>
+
+        <div class="profile-footnote">
+            /u/{{ stub_username }}
+        </div>
+        {% else %}
+        <section class="user-card-surface" aria-label="User profile card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack" role="status" aria-live="polite">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="profile-hero">
+                <div class="profile-avatar{% if not profile.avatar_url %} profile-avatar--fallback{% endif %}"{% if not profile.avatar_url %} data-avatar-seed="{{ profile.display_name or profile.username or '?' }}"{% endif %} aria-hidden="true">
+                    {% if profile.avatar_url %}
+                        <img src="{{ profile.avatar_url }}" alt="Avatar @{{ profile.username }}">
+                    {% else %}
+                        {{ (profile.display_name or profile.username or '?')[:1]|upper }}
+                    {% endif %}
+                </div>
+                <h1 class="profile-name">{{ profile.display_name or profile.username }}</h1>
+                <p class="profile-username">@{{ profile.username }}</p>
+                {% if profile.bio %}
+                    <p class="profile-bio">{{ profile.bio }}</p>
+                {% endif %}
+            </div>
+
+            <div class="profile-actions">
+                {% if viewer.is_authenticated %}
+                    {% if viewer.user_id == profile.id %}
+                        <a class="profile-btn primary" href="{{ url_for('chat.chat_index') }}">
+                            <span class="profile-btn-inner">
+                                <i class="bi bi-chat-dots"></i>
+                                <span>Open My Chats</span>
+                            </span>
+                        </a>
+                    {% elif can_open_chat %}
+                        <a class="profile-btn primary" href="{{ url_for('chat.chat_index_by_contact_username', contact_username=profile.username) }}">
+                            <span class="profile-btn-inner">
+                                <i class="bi bi-send"></i>
+                                <span>Message</span>
+                            </span>
+                        </a>
+                    {% elif can_send_request %}
+                        <form method="post" action="{{ url_for('contacts.start_dialog_from_public_card', username=profile.username) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="profile-btn primary" type="submit">
+                                <span class="profile-btn-inner">
+                                    <i class="bi bi-person-plus"></i>
+                                    <span>Send Request</span>
+                                </span>
+                            </button>
+                        </form>
+                    {% elif block_state.blocked_by_me %}
+                        <button class="profile-btn primary" type="button" disabled>
+                            <span class="profile-btn-inner">
+                                <i class="bi bi-shield-slash"></i>
+                                <span>You blocked this user</span>
+                            </span>
+                        </button>
+                    {% elif block_state.blocked_me %}
+                        <button class="profile-btn primary" type="button" disabled>
+                            <span class="profile-btn-inner">
+                                <i class="bi bi-shield-lock"></i>
+                                <span>This user blocked you</span>
+                            </span>
+                        </button>
+                    {% else %}
+                        <button class="profile-btn primary" type="button" disabled>
+                            <span class="profile-btn-inner">
+                                <i class="bi bi-x-circle"></i>
+                                <span>Messaging unavailable</span>
+                            </span>
+                        </button>
+                    {% endif %}
+                {% else %}
+                    <a class="profile-btn primary" href="{{ url_for('auth.index') }}">
+                        <span class="profile-btn-inner">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Sign In to Message</span>
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if viewer.is_authenticated and viewer.username %}
+                    <a class="profile-btn secondary" href="{{ url_for('chat.chat_index') }}">
+                        <span class="profile-btn-inner">
+                            <i class="bi bi-grid"></i>
+                            <span>Open SUN</span>
+                        </span>
+                    </a>
+                {% else %}
+                    <a class="profile-btn secondary" href="{{ url_for('auth.index') }}">
+                        <span class="profile-btn-inner">
+                            <i class="bi bi-grid"></i>
+                            <span>Open SUN</span>
+                        </span>
+                    </a>
+                {% endif %}
+            </div>
+        </section>
+
+        <div class="profile-footnote">
+            Profile link: <a href="{{ url_for('contacts.public_user_card', username=profile.username) }}">/u/{{ profile.username }}</a>
+        </div>
+        {% endif %}
+    </main>
+    <script nonce="{{ csp_nonce }}">
+        (function () {
+            const avatar = document.querySelector('.profile-avatar.profile-avatar--fallback');
+            if (!avatar) return;
+            const seed = String(avatar.getAttribute('data-avatar-seed') || avatar.textContent || '?').trim() || '?';
+            let hash = 0;
+            for (let i = 0; i < seed.length; i += 1) {
+                hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+            }
+            avatar.setAttribute('data-avatar-tint', String(hash % 8));
+        })();
+    </script>
+</body>
+</html>

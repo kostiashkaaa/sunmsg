@@ -1,0 +1,12 @@
+[Unit]
+Description=SUN Messenger dependency vulnerability audit (pip-audit)
+After=network.target
+
+[Service]
+Type=oneshot
+User=sunmessenger
+Group=sunmessenger
+WorkingDirectory=/srv/sunmessenger/current
+EnvironmentFile=/srv/sunmessenger/shared/.env
+ExecStart=/srv/sunmessenger/venv/bin/python manage.py pip-audit --requirements requirements.txt --requirements requirements-dev.txt
+

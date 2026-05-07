@@ -1,0 +1,14 @@
+[Unit]
+Description=SUN Messenger maintenance
+After=network.target
+
+[Service]
+Type=oneshot
+User=sunmessenger
+Group=sunmessenger
+WorkingDirectory=/srv/sunmessenger/current
+EnvironmentFile=/srv/sunmessenger/shared/.env
+ExecStart=/srv/sunmessenger/venv/bin/python manage.py maintenance
+
+[Install]
+WantedBy=multi-user.target

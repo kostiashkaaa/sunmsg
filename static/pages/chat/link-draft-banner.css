@@ -1,0 +1,100 @@
+/* Composer link draft preview (Telegram-like) */
+
+.link-draft-bar {
+    display: none;
+    align-items: flex-start;
+    box-sizing: border-box;
+    padding: 0 16px;
+    gap: 10px;
+    max-height: 0;
+    opacity: 0;
+    overflow: clip;
+    pointer-events: none;
+    transform: translateY(8px);
+    transform-origin: bottom center;
+    transition:
+        opacity var(--dur-quick) var(--ease-quick),
+        transform var(--dur-quick) var(--ease-quick);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent 40%);
+    border-radius: 0;
+    margin: 0;
+    width: 100%;
+}
+
+.link-draft-bar.is-visible {
+    max-height: 74px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.link-draft-bar__line {
+    width: 3px;
+    min-height: 34px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent) 88%, #8aa2ff 12%);
+    flex-shrink: 0;
+}
+
+.link-draft-bar__icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--surface-2) 82%, transparent 18%);
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent 28%);
+    color: var(--sub-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.link-draft-bar__icon i,
+.link-draft-bar__icon .sun-icon {
+    font-size: 12px;
+    line-height: 1;
+}
+
+.link-draft-bar__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.link-draft-bar__label {
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sub-text);
+}
+
+.link-draft-bar__text {
+    display: block;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.link-draft-bar .btn-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    align-self: flex-start;
+    margin-top: 2px;
+    color: var(--sub-text);
+    background: transparent;
+    border: none;
+}
+
+
+

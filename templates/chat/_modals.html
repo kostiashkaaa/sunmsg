@@ -1,0 +1,299 @@
+<dialog id="myQrModal" class="my-qr-modal" data-animated-dialog aria-labelledby="myQrModalTitle">
+    <div class="my-qr-modal__head">
+        <h5 id="myQrModalTitle" class="my-qr-modal__title">
+            <i class="bi bi-qr-code my-qr-modal__title-icon"></i> Мой QR
+        </h5>
+        <button type="button" data-dialog-close="myQrModal" class="dialog-close-plain my-qr-modal__close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="my-qr-modal__content">
+        <div id="myQrCodeContainer" class="my-qr-modal__code"></div>
+        <div class="my-qr-modal__identity">
+            <div class="my-qr-modal__display-name">{{ current_display_name }}</div>
+            <div class="my-qr-modal__username">@{{ current_username }}</div>
+        </div>
+        <div class="my-qr-modal__hint">
+            Покажите QR собеседнику или сохраните его как изображение.
+        </div>
+        <button type="button" class="empty-state-btn-secondary" id="saveMyQrBtn">
+            <i class="bi bi-download"></i>
+            <span>Сохранить изображение</span>
+        </button>
+    </div>
+</dialog>
+
+<dialog id="deviceQrHubModal" class="my-qr-modal" data-animated-dialog aria-labelledby="deviceQrHubTitle">
+    <div class="my-qr-modal__head">
+        <h5 id="deviceQrHubTitle" class="my-qr-modal__title">
+            <i class="bi bi-phone key-transfer-title-icon"></i> Устройство готово
+        </h5>
+        <button type="button" data-dialog-close="deviceQrHubModal" class="dialog-close-plain my-qr-modal__close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="my-qr-modal__content device-qr-hub-content">
+        <p class="my-qr-modal__hint device-qr-hub-hint">Выберите действие для переноса ключа между устройствами.</p>
+        <button type="button" class="dialog-surface-btn device-qr-hub-btn" id="deviceQrHubShowBtn">
+            <i class="bi bi-qr-code"></i>
+            <span>Показать свой QR</span>
+        </button>
+        <button type="button" class="dialog-surface-btn device-qr-hub-btn" id="deviceQrHubScanBtn">
+            <i class="bi bi-qr-code-scan"></i>
+            <span>Отсканировать QR</span>
+        </button>
+    </div>
+</dialog>
+
+<dialog id="groupCreateModal" class="group-create-modal" data-animated-dialog aria-labelledby="groupCreateModalTitle">
+    <div class="group-create-modal__head">
+        <h5 id="groupCreateModalTitle" class="group-create-modal__title">
+            <i class="bi bi-people-fill"></i> Создать группу
+        </h5>
+        <button type="button" data-dialog-close="groupCreateModal" class="dialog-close-plain group-create-modal__close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="group-create-modal__content">
+        <label class="group-create-modal__label" for="groupTitleInput">Название группы</label>
+        <input id="groupTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Команда, семья, проект..." autocomplete="off">
+
+        <label class="group-create-modal__label" for="groupMemberSearchInput">Добавить участников</label>
+        <input id="groupMemberSearchInput" class="group-create-modal__input" type="text" maxlength="80" placeholder="Введите имя или @username" autocomplete="off">
+
+        <div id="groupCreateSelected" class="group-create-modal__selected" aria-live="polite"></div>
+        <div id="groupCreateSearchResults" class="group-create-modal__results" aria-live="polite"></div>
+
+        <div class="group-create-modal__actions">
+            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" data-dialog-close="groupCreateModal">Отмена</button>
+            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupCreateSubmitBtn" disabled>Создать</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="groupEditModal" class="group-create-modal" data-animated-dialog aria-labelledby="groupEditModalTitle">
+    <div class="group-create-modal__head">
+        <h5 id="groupEditModalTitle" class="group-create-modal__title">
+            <i class="bi bi-pencil-square"></i> ???????? ??????
+        </h5>
+        <button type="button" data-dialog-close="groupEditModal" class="dialog-close-plain group-create-modal__close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="group-create-modal__content">
+        <div class="group-edit-avatar-row">
+            <div id="groupEditAvatarPreview" class="group-edit-avatar-preview">?</div>
+            <div class="group-edit-avatar-actions">
+                <label for="groupEditAvatarInput" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary group-edit-avatar-btn">
+                    <i class="bi bi-camera"></i>
+                    <span>Сменить фото</span>
+                </label>
+                <input id="groupEditAvatarInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="file-attach-input--hidden">
+            </div>
+        </div>
+
+        <label class="group-create-modal__label" for="groupEditTitleInput">Название группы</label>
+        <input id="groupEditTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Обновите название..." autocomplete="off">
+
+        <label class="group-create-modal__label" for="groupEditDescriptionInput">Описание</label>
+        <textarea id="groupEditDescriptionInput" class="group-create-modal__input group-create-modal__textarea" maxlength="600" rows="3" placeholder="Описание группы"></textarea>
+
+        <div class="group-create-modal__label">Администраторы</div>
+        <div id="groupEditMembersList" class="group-edit-members-list"></div>
+
+        <div class="group-create-modal__actions">
+            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" data-dialog-close="groupEditModal">Отмена</button>
+            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupEditSubmitBtn" disabled>Сохранить</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="messageForwardModal" class="group-create-modal" data-animated-dialog aria-labelledby="messageForwardModalTitle">
+    <div class="group-create-modal__head">
+        <h5 id="messageForwardModalTitle" class="group-create-modal__title">
+            <input
+                id="messageForwardSearchInput"
+                class="message-forward-title-search"
+                type="text"
+                maxlength="120"
+                placeholder="..."
+                autocomplete="off"
+                aria-label="   "
+            >
+        </h5>
+        <button type="button" data-dialog-close="messageForwardModal" class="dialog-close-plain group-create-modal__close" aria-label="">&times;</button>
+    </div>
+    <div class="group-create-modal__content">
+        <div id="messageForwardTargets" class="group-create-modal__results" aria-live="polite"></div>
+        <button type="button" id="messageForwardSubmitBtn" hidden aria-hidden="true" tabindex="-1"> </button>
+    </div>
+</dialog>
+
+<div class="settings-overlay" id="settingsOverlay" aria-hidden="true" data-loading="true">
+    <button type="button" class="settings-overlay-backdrop" id="settingsOverlayBackdrop" aria-label="Закрыть настройки"></button>
+    <section class="settings-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settingsOverlayTitle">
+        <div class="settings-overlay-shell" id="settingsOverlayShell" aria-hidden="true">
+            <div class="settings-overlay-shell-head">
+                <div class="sun-skeleton-line settings-overlay-shell-line"></div>
+                <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+            </div>
+            <div class="settings-overlay-shell-grid">
+                <div class="settings-overlay-shell-nav">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                </div>
+                <div class="settings-overlay-shell-content">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-block"></div>
+                </div>
+            </div>
+        </div>
+        <iframe class="settings-overlay-frame" id="settingsOverlayFrame" src="about:blank" loading="lazy" title="Настройки"></iframe>
+    </section>
+</div>
+
+<dialog id="reportContentModal" class="report-content-modal" data-animated-dialog aria-labelledby="reportContentModalTitle">
+    <div class="report-content-modal__head">
+        <h5 id="reportContentModalTitle" class="report-content-modal__title">
+            <i class="bi bi-flag"></i> Пожаловаться на контент
+        </h5>
+        <button type="button" data-dialog-close="reportContentModal" class="dialog-close-plain report-content-modal__close" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="report-content-modal__content">
+        <p class="report-content-modal__target" id="reportContentTargetLabel">Цель жалобы: пользователь или сообщение не выбраны.</p>
+        <label class="report-content-modal__label" for="reportReasonSelect">Причина</label>
+        <select id="reportReasonSelect" class="report-content-modal__input">
+            <option value="spam">Спам</option>
+            <option value="abuse">Оскорбления</option>
+            <option value="scam">Мошенничество</option>
+            <option value="harassment">Преследование</option>
+            <option value="violence">Насилие</option>
+            <option value="sexual_content">Сексуальный контент</option>
+            <option value="illegal_content">Незаконный контент</option>
+            <option value="other">Другое</option>
+        </select>
+        <label class="report-content-modal__label" for="reportCommentInput">Комментарий (необязательно)</label>
+        <textarea id="reportCommentInput" class="report-content-modal__textarea" rows="3" maxlength="1000" placeholder="Добавьте детали для модераторов"></textarea>
+        <div class="report-content-modal__status" id="reportContentStatus" aria-live="polite"></div>
+        <div class="report-content-modal__actions">
+            <button type="button" class="dialog-secondary-btn" id="reportCancelBtn" data-dialog-close="reportContentModal">Отмена</button>
+            <button type="button" class="dialog-primary-btn" id="reportSubmitBtn">Отправить жалобу</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="deleteConfirmModal" class="delete-confirm-modal" data-animated-dialog role="alertdialog" aria-labelledby="deleteModalTitle">
+    <div class="delete-confirm-modal__body">
+        <div class="delete-confirm-modal__icon-wrap">
+            <i class="bi bi-trash3 delete-confirm-modal__icon"></i>
+        </div>
+        <h5 id="deleteModalTitle" class="delete-confirm-modal__title">Удалить сообщение?</h5>
+        <p id="deleteModalText" class="delete-confirm-modal__text">Это действие нельзя отменить.</p>
+
+        <div id="deleteForBothWrap" class="delete-confirm-modal__for-both delete-confirm-modal__for-both--hidden">
+            <label class="delete-checkbox-row">
+                <input type="checkbox" id="deleteForBothCheck">
+                <span id="deleteForBothLabel">Также удалить для собеседника</span>
+            </label>
+        </div>
+
+        <div class="delete-confirm-modal__actions">
+            <button type="button" id="cancelDeleteBtn" class="dialog-surface-btn delete-confirm-modal__cancel">Отмена</button>
+            <button type="button" id="confirmDeleteBtn" class="dialog-danger-btn delete-confirm-modal__confirm">Удалить</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="confirmActionModal" data-animated-dialog role="alertdialog"
+        aria-labelledby="confirmActionTitle" data-variant="danger">
+    <div class="confirm-dialog-body">
+        <div class="confirm-dialog-icon-wrap">
+            <i class="bi bi-slash-circle" data-confirm-icon></i>
+        </div>
+        <h5 class="confirm-dialog-title" id="confirmActionTitle" data-confirm-title>Подтвердите действие</h5>
+        <p class="confirm-dialog-message" data-confirm-message></p>
+        <div class="confirm-dialog-actions">
+            <button type="button" class="dialog-surface-btn confirm-action-btn confirm-action-btn--cancel" data-confirm-cancel>Отмена</button>
+            <button type="button" class="dialog-danger-btn confirm-action-btn confirm-action-btn--ok" data-confirm-ok>Подтвердить</button>
+        </div>
+    </div>
+</dialog>
+
+<div id="keyRestoreModal" class="key-restore-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Восстановление доступа" tabindex="-1">
+    <div class="key-restore-modal">
+        <div class="key-restore-header">
+            <h4><i class="bi bi-key-fill key-restore-title-icon"></i>Восстановление доступа</h4>
+            <button type="button" class="btn-icon" id="keyRestoreCloseBtn"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <p>Вставьте ваши 24 секретных слова (можно сразу всё вставить в первое поле).</p>
+        <div class="key-restore-grid" id="keyRestoreGrid"></div>
+        <div id="keyRestoreError" class="key-restore-error"></div>
+        <div class="key-restore-actions">
+            <button type="button" class="btn btn-secondary" id="keyRestoreCancelBtn">Отмена</button>
+            <button type="button" class="btn btn-secondary" id="keyRestoreImportBtn">
+                <i class="bi bi-qr-code"></i> ?????? ? ??????????
+            </button>
+            <button type="button" class="btn btn-warning" id="keyRestoreSubmitBtn">
+                <i class="bi bi-unlock-fill"></i> Расшифровать
+            </button>
+        </div>
+    </div>
+</div>
+
+<dialog id="keyTransferReceiveModal" class="my-qr-modal key-transfer-dialog" aria-labelledby="keyTransferReceiveTitle">
+    <div class="my-qr-modal__head">
+        <h5 id="keyTransferReceiveTitle" class="my-qr-modal__title">
+            <i class="bi bi-phone key-transfer-title-icon"></i> Быстрый перенос ключа
+        </h5>
+        <button type="button" class="dialog-close-plain my-qr-modal__close" data-key-transfer-close="receive" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="my-qr-modal__content key-transfer-modal-content">
+        <div id="keyTransferReceiveQr" class="my-qr-modal__code key-transfer-qr-box"></div>
+        <div id="keyTransferReceiveStatus" class="key-transfer-status">Подготовка QR...</div>
+        <p class="my-qr-modal__hint key-transfer-hint">
+            На устройстве с открытым чатом нажмите сканер и наведите камеру на этот QR.
+        </p>
+        <button type="button" class="empty-state-btn-secondary" id="keyTransferReceiveCopyBtn">
+            <i class="bi bi-clipboard"></i>
+            <span>Скопировать код</span>
+        </button>
+    </div>
+</dialog>
+
+<dialog id="keyTransferScanModal" class="my-qr-modal key-transfer-dialog" aria-labelledby="keyTransferScanTitle">
+    <div class="my-qr-modal__head">
+        <h5 id="keyTransferScanTitle" class="my-qr-modal__title">
+            <i class="bi bi-qr-code-scan key-transfer-title-icon"></i> Сканировать QR
+        </h5>
+        <button type="button" class="dialog-close-plain my-qr-modal__close" data-key-transfer-close="scan" aria-label="Закрыть">&times;</button>
+    </div>
+    <div class="my-qr-modal__content key-transfer-modal-content">
+        <div class="key-transfer-video-wrap">
+            <video id="keyTransferScanVideo" class="key-transfer-video" autoplay playsinline muted></video>
+            <div class="key-transfer-scan-roi" aria-hidden="true"></div>
+            <div id="keyTransferScanSuccess" class="key-transfer-scan-success" aria-live="polite">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                <span id="keyTransferScanSuccessText">QR-код отсканирован</span>
+            </div>
+        </div>
+        <div id="keyTransferScanStatus" class="key-transfer-status">Запрашиваем доступ к камере…</div>
+    </div>
+</dialog>
+
+<div id="captionModal" class="caption-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Подпись к файлу" tabindex="-1">
+    <div class="caption-modal">
+        <div class="caption-modal-header">
+            <div class="caption-modal-heading">
+                <span class="caption-modal-title" id="captionModalTitle">Отправить файл</span>
+                <span class="caption-modal-hint" id="captionModalHint"></span>
+            </div>
+            <button type="button" class="btn-icon caption-modal-close-btn" id="captionModalClose" aria-label="Закрыть"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="caption-modal-preview" id="captionPreview"></div>
+        <div class="caption-modal-meta" id="captionMeta"></div>
+        <div class="caption-modal-footer">
+            <textarea class="caption-input" id="captionInput" placeholder="Добавьте подпись..." rows="2"></textarea>
+            <button type="button" class="btn-send" id="captionSendBtn"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </div>
+</div>
+
+
+

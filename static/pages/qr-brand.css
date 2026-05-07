@@ -1,0 +1,42 @@
+.sun-qr-brand {
+    position: relative;
+    isolation: isolate;
+}
+
+.sun-qr-brand canvas,
+.sun-qr-brand img {
+    border-radius: 14px;
+}
+
+.sun-qr-brand__badge {
+    --badge-size: var(--sun-qr-badge-size, 72px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--badge-size);
+    height: var(--badge-size);
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 6;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.92);
+}
+
+.sun-qr-brand__core {
+    position: absolute;
+    inset: 24%;
+    border-radius: 999px;
+    background: #f4bf21;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.34),
+        0 0 12px color-mix(in srgb, #f4bf21 56%, transparent);
+}
+
+.sun-qr-brand__pulse {
+    position: absolute;
+    inset: 6%;
+    border-radius: 999px;
+    border: 2px solid color-mix(in srgb, #f4bf21 76%, #fff 24%);
+    opacity: 0.42;
+}

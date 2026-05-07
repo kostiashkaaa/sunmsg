@@ -1,0 +1,43 @@
+{% if not has_initial_contacts %}
+<div class="app-boot-overlay" id="appBootOverlay" aria-hidden="true">
+    <div class="app-boot-shell sun-surface-enter">
+        <div class="app-boot-stack">
+            <div class="app-boot-head">
+                <div class="app-boot-mark" aria-hidden="true"></div>
+                <div class="app-boot-copy">
+                    <span class="app-boot-kicker">sun messenger</span>
+                    <h1 class="app-boot-title">{{ 'Opening a quiet space.' if ui_lang == 'en' else 'Открываем тихое пространство.' }}</h1>
+                    <p class="app-boot-desc">{{ 'Checking keys, loading recent dialogs, and preparing a secure session.' if ui_lang == 'en' else 'Проверяем ключи, поднимаем последние диалоги и готовим защищённую сессию.' }}</p>
+                </div>
+            </div>
+            <div class="app-boot-status">
+                <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+                <span>{{ 'Preparing session' if ui_lang == 'en' else 'Подготавливаем сессию' }}</span>
+            </div>
+            <div class="app-boot-preview sun-loading-shimmer" aria-hidden="true">
+                <div class="app-boot-preview-top">
+                    <div class="app-boot-preview-lines">
+                        <div class="sun-skeleton-line"></div>
+                        <div class="sun-skeleton-line"></div>
+                    </div>
+                    <div class="app-boot-preview-chip">secure relay</div>
+                </div>
+                <div class="app-boot-preview-thread">
+                    <div class="app-boot-bubble sun-skeleton-block">
+                        <div class="sun-skeleton-line"></div>
+                        <div class="sun-skeleton-line"></div>
+                    </div>
+                    <div class="app-boot-bubble self sun-skeleton-block">
+                        <div class="sun-skeleton-line"></div>
+                    </div>
+                </div>
+                <div class="app-boot-meta">
+                    <span class="app-boot-meta-item">{{ 'Keys' if ui_lang == 'en' else 'Ключи' }}</span>
+                    <span class="app-boot-meta-item">{{ 'Dialogs' if ui_lang == 'en' else 'Диалоги' }}</span>
+                    <span class="app-boot-meta-item">{{ 'Interface' if ui_lang == 'en' else 'Интерфейс' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

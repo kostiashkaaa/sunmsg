@@ -1,0 +1,492 @@
+    <main class="chat-area" id="chatArea">
+        <div class="chat-wallpaper-layer" id="chatWallpaperLayer" aria-hidden="true"></div>
+
+        <div class="chat-header" id="chatHeader">
+            <button type="button" class="btn-icon ripple-target back-btn" id="backBtnMobile" aria-label="Назад">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
+            </button>
+
+            <div id="chatPartnerHeaderLink" class="header-partner-clickable" role="button" tabindex="0" aria-label="Открыть профиль собеседника">
+                <div class="contact-avatar chat-partner-avatar--hidden" id="chatPartnerAvatar"></div>
+                <div class="chat-partner-info">
+                    <div class="chat-partner-name" id="chatTitle">Выберите чат</div>
+                    <div id="chatOnlineStatus" class="chat-online-status chat-online-status--hidden"></div>
+                    <div id="typingIndicator" aria-live="polite" class="typing-indicator typing-indicator--hidden">
+                        <span class="typing-indicator-inline"><span class="typing-indicator-label">печатает</span><span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pinnedBar" class="pinned-bar pinned-bar--hidden">
+                <i class="bi bi-pin-angle-fill pinned-bar__icon"></i>
+                <div class="pinned-bar__content" id="pinnedBarContent">
+                    <span class="pinned-bar__label">Закреплённое сообщение</span>
+                    <span class="pinned-bar__text" id="pinnedBarText"></span>
+                </div>
+                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unpinBtn" title="Открепить">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                </button>
+            </div>
+
+            <div id="favoriteBar" class="pinned-bar pinned-bar--hidden">
+                <i class="bi bi-star-fill pinned-bar__icon"></i>
+                <div class="pinned-bar__content" id="favoriteBarContent">
+                    <span class="pinned-bar__label">Избранное сообщение</span>
+                    <span class="pinned-bar__text" id="favoriteBarText"></span>
+                </div>
+                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unfavoriteBtn" title="Убрать из избранного">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                </button>
+            </div>
+
+            <div class="header-actions-group header-actions-group--hidden" id="chatHeaderActions">
+                <button class="btn-icon ripple-target" id="searchChatBtn" title="Поиск сообщений">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
+                </button>
+                <div class="header-more-actions">
+                    <button class="btn-icon ripple-target" id="headerMoreBtn" title="Дополнительно">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
+                    </button>
+                    <div class="header-dropdown telegram-popup" id="headerDropdown">
+                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="searchChatMenuBtn">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg> Поиск сообщений
+                        </div>
+                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="selectMessagesMenuBtn">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-check-square"></use></svg> Выбрать сообщения
+                        </div>
+                        <div class="dropdown-item ripple-target" id="muteChatBtn" role="button" tabindex="0" aria-pressed="false">
+                            <i class="bi bi-bell"></i> <span id="muteChatBtnLabel">Отключить уведомления</span>
+                        </div>
+                        <div class="dropdown-item ripple-target" id="exportChatBtn">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-download"></use></svg> Экспортировать историю
+                        </div>
+                        <div class="dropdown-item ripple-target" id="blockChatBtn" role="button" tabindex="0">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg> <span id="blockChatBtnLabel">Заблокировать пользователя</span>
+                        </div>
+                        <div class="dropdown-item ripple-target" id="reportUserMenuBtn">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-flag"></use></svg> Пожаловаться на пользователя
+                        </div>
+                        <div class="dropdown-item ripple-target danger" id="deleteChatBtn">
+                            <i class="bi bi-trash3"></i> Удалить чат
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-search-wrap" id="headerSearchWrap">
+                <svg class="sun-icon header-search-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
+                <input type="text" id="headerSearchInput" placeholder="Поиск сообщений в этом чате...">
+                <button class="btn-icon ripple-target" id="headerSearchCalendarBtn" title="Календарь"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-calendar"></use></svg></button>
+                <button class="btn-icon ripple-target" id="closeSearchBtn"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg></button>
+            </div>
+
+            <div class="header-selection-wrap" id="headerSelectionWrap">
+                <div class="selection-count-group">
+                    <button class="btn-icon ripple-target" id="cancelSelectionBtn" title="Отменить выбор">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                    </button>
+                    <span>Выбрано: <span id="selectedCount">0</span></span>
+                </div>
+                <div class="selection-actions">
+                    <button class="btn-icon ripple-target" id="bulkDeleteBtn" title="Удалить выбранные">
+                        <svg class="sun-icon text-danger" aria-hidden="true"><use href="#sun-i-trash"></use></svg>
+                    </button>
+                    <button class="btn-icon ripple-target" id="bulkForwardBtn" title="Переслать выбранные">
+                        <i class="bi bi-forward-fill"></i>
+                    </button>
+                    <button class="btn-icon ripple-target" id="bulkCopyBtn" title="Копировать текст">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-copy"></use></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-empty-placeholder" id="chatPlaceholder">
+            <div class="empty-state-glow"></div>
+            <div class="empty-state-content">
+                <div class="empty-state-status empty-state-status--hidden" id="emptyStateStatus"></div>
+                <div class="empty-state-eyebrow" id="emptyStateEyebrow">? Добро пожаловать в sun</div>
+                <h2 class="empty-state-headline" id="emptyStateHeadline">Тихое место<br><em>для тех, кому доверяешь.</em></h2>
+                <p class="empty-state-desc" id="emptyStateDesc">
+                    Каждое сообщение защищено сквозным шифрованием.
+                    Только вы и ваш собеседник можете читать переписку.
+                </p>
+                <div class="empty-state-actions">
+                    <button class="empty-state-btn-primary" id="emptyStatePrimaryBtn" type="button">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-plus"></use></svg>
+                        <span id="emptyStatePrimaryLabel">Найти контакт</span>
+                    </button>
+                    <button class="empty-state-btn-secondary" id="emptyStateSecondaryBtn" type="button">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-qr"></use></svg>
+                        <span>Показать мой QR</span>
+                    </button>
+                </div>
+                <div class="empty-state-footer">
+                    <span>Нулевая осведомлённость</span>
+                    <span>Открытый исходный код</span>
+                    <span>Без телефона и эл. почты</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="partnerProfileDrawer" class="profile-drawer profile-drawer--tg" aria-hidden="true">
+            <button type="button" class="profile-drawer-backdrop" data-profile-close aria-label="Закрыть профиль"></button>
+
+            <section class="profile-sheet profile-sheet--tg" role="dialog" aria-modal="true" aria-labelledby="profileDisplayName">
+                <div class="profile-loading-mask" id="profileLoadingMask" aria-hidden="true">
+                    <div class="profile-loading-head">
+                        <div class="profile-loading-avatar sun-skeleton-block"></div>
+                        <div class="profile-loading-copy">
+                            <div class="sun-skeleton-line"></div>
+                            <div class="sun-skeleton-line"></div>
+                        </div>
+                    </div>
+                    <div class="profile-loading-grid">
+                        <div class="profile-loading-card sun-skeleton-block">
+                            <div class="sun-skeleton-line"></div>
+                            <div class="sun-skeleton-line"></div>
+                            <div class="sun-skeleton-line"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <header class="profile-topbar">
+                        <button type="button" class="btn-icon ripple-target profile-topbar-btn" id="closeProfileBtn" aria-label="Закрыть">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                    </button>
+                    <div class="profile-topbar-title">Информация</div>
+                    <div class="profile-topbar-more">
+                                                <button type="button" class="btn-icon ripple-target profile-topbar-btn profile-group-edit-btn profile-group-edit-btn--hidden" id="profileGroupEditBtn" aria-label="Редактировать группу" title="Редактировать группу">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-pencil"></use></svg>
+                        </button><button type="button" class="btn-icon ripple-target profile-topbar-btn" id="profileMoreBtn" aria-label="Ещё" title="Ещё" aria-haspopup="menu" aria-expanded="false">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
+                        </button>
+                        <div class="profile-more-menu telegram-popup" id="profileMoreMenu" role="menu" aria-hidden="true">
+                            <button type="button" class="profile-more-item ripple-target" data-profile-action="share" role="menuitem">
+                                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-share"></use></svg>
+                                <span>Поделиться контактом</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target" data-profile-action="copy-username" role="menuitem">
+                                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-copy"></use></svg>
+                                <span>Скопировать @username</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target" data-profile-action="message" role="menuitem">
+                                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chat"></use></svg>
+                                <span>Написать сообщение</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target" id="profileToggleMuteMenuBtn" role="menuitem">
+                                <i class="bi bi-bell" id="profileToggleMuteMenuIcon"></i>
+                                <span id="profileToggleMuteMenuLabel">&#1059;&#1074;&#1077;&#1076;&#1086;&#1084;&#1083;&#1077;&#1085;&#1080;&#1103;</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target" id="profileTogglePinMenuBtn" role="menuitem">
+                                <i class="bi bi-pin" id="profileTogglePinMenuIcon"></i>
+                                <span id="profileTogglePinMenuLabel">&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1080;&#1090;&#1100;</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target" data-profile-action="report-user" role="menuitem">
+                                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-flag"></use></svg>
+                                <span>Пожаловаться на пользователя</span>
+                            </button>
+                            <button type="button" class="profile-more-item ripple-target profile-more-item--danger" id="profileDeleteChatMenuBtn" role="menuitem">
+                                <i class="bi bi-trash3"></i>
+                                <span>&#1059;&#1076;&#1072;&#1083;&#1080;&#1090;&#1100; &#1095;&#1072;&#1090;</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="profile-scroll profile-layout" id="profileScrollArea">
+                    <div class="profile-hero">
+                        <div class="profile-hero-avatar" id="profileLargeAvatar"></div>
+                        <h2 class="profile-hero-name" id="profileDisplayName">Загрузка…</h2>
+                        <div class="profile-hero-status" id="profileLastSeen">загрузка статуса…</div>
+                    </div>
+
+                    <section class="profile-info-card" aria-label="Данные пользователя">
+                        <div class="profile-info-line" id="profileUsernameLine" data-profile-action="copy-username" role="button" tabindex="0">
+                            <span class="profile-info-icon"><i class="bi bi-at"></i></span>
+                            <div class="profile-info-text">
+                                <div class="profile-info-value" id="profileMetaUsername">@username</div>
+                                <div class="profile-info-label">Имя пользователя</div>
+                            </div>
+                        </div>
+
+                        <div class="profile-info-line profile-info-line--hidden" id="profileBioLine">
+                            <span class="profile-info-icon"><i class="bi bi-info-circle"></i></span>
+                            <div class="profile-info-text">
+                                <div class="profile-info-value profile-info-value--bio" id="profileMetaBio"></div>
+                                <div class="profile-info-label">О себе</div>
+                            </div>
+                        </div>
+
+                        <div class="profile-info-line profile-info-line--toggle" id="profileMuteRow" role="button" tabindex="0" data-profile-action="mute">
+                            <span class="profile-info-icon"><i class="bi bi-bell" id="profileMuteIcon"></i></span>
+                            <div class="profile-info-text">
+                                <div class="profile-info-value" id="profileMuteLabel">Уведомления</div>
+                            </div>
+                            <span class="profile-toggle" id="profileMuteToggle" aria-pressed="false">
+                                <span class="profile-toggle-thumb"></span>
+                            </span>
+                        </div>
+
+                        <div class="template-hidden" aria-hidden="true">
+                            <span id="profileMetaCreatedAt">—</span>
+                            <span id="profileMetaUserId">—</span>
+                        </div>
+                    </section>
+
+                    <section class="profile-group-section profile-group-section--hidden" id="profileGroupSection" aria-label="Информация о группе">
+                        <div class="profile-group-tabs" id="profileGroupTabs" role="tablist">
+                            <button type="button" class="profile-group-tab is-active" data-group-tab="members" role="tab" aria-selected="true">Участники</button>
+                            <button type="button" class="profile-group-tab" data-group-tab="media" role="tab" aria-selected="false">Медиа</button>
+                            <button type="button" class="profile-group-tab" data-group-tab="files" role="tab" aria-selected="false">Файлы</button>
+                            <button type="button" class="profile-group-tab" data-group-tab="links" role="tab" aria-selected="false">Ссылки</button>
+                        </div>
+                        <div class="profile-group-members" id="profileGroupMembers"></div>
+                    </section>
+                    <div class="profile-media-section">
+                        <div class="profile-media-tabs" id="profileMediaTabs" role="tablist">
+                        </div>
+                        <div class="profile-media-content" id="profileMediaContent" aria-live="polite">
+                        </div>
+                        <div class="profile-media-empty profile-media-empty--hidden" id="profileMediaEmpty">
+                            <i class="bi bi-folder2-open"></i>
+                            <span>Пока нет общего контента</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="template-hidden" aria-hidden="true">
+                    <span id="statPhotos">0</span>
+                    <span id="statFiles">0</span>
+                    <span id="statLinks">0</span>
+                    <span class="profile-online-dot" id="profileOnlineDot"></span>
+                </div>
+            </section>
+        </div>
+
+        <div class="e2e-indicator e2e-indicator--hidden" id="e2eIndicator" aria-hidden="true"></div>
+
+        <div class="e2e-pill-wrap e2e-pill-wrap--hidden" id="e2ePillWrap">
+            <span class="e2e-pill" id="e2ePill">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-check"></use></svg>
+                <span>Сквозное шифрование</span>
+            </span>
+        </div>
+
+        <div class="chat-messages chat-messages--hidden" id="chatMessages"></div>
+        <div class="history-loading" id="historyLoading" role="status" aria-live="polite">
+            <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+            <span>Загрузка истории...</span>
+        </div>
+        <div class="drag-drop-overlay" id="dragDropOverlay">
+            <div class="drag-drop-overlay__inner">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-upload-file"></use></svg>
+                <span>Перетащите файл сюда, чтобы отправить</span>
+            </div>
+        </div>
+
+        <div class="chat-input-area chat-input-area--hidden" id="chatInputArea">
+            <div id="chatBlockNotice">
+                <span id="chatBlockNoticeText"></span>
+                <button type="button" id="chatUnblockBtn">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-unlock"></use></svg> Разблокировать
+                </button>
+            </div>
+            <div class="message-actions-bar message-actions-bar--hidden" id="messageActionsBar">
+                <div class="message-actions-bar__text">
+                    <strong id="messageActionsTitle">Действия с сообщением</strong>
+                    <span id="messageActionsPreview"></span>
+                </div>
+                <div class="message-actions-bar__buttons">
+                    <button type="button" class="btn-msg-bar" id="barCopyBtn">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-copy"></use></svg>
+                        <span>Копировать</span>
+                    </button>
+                    <button type="button" class="btn-msg-bar" id="barEditBtn">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-pencil"></use></svg>
+                        <span>Редактировать</span>
+                    </button>
+                    <button type="button" class="btn-msg-bar" id="barSelectBtn" title="Выбрать несколько">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-check-square"></use></svg>
+                        <span>Выбрать</span>
+                    </button>
+                    <button type="button" class="btn-msg-bar danger" id="barDeleteBtn">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-trash"></use></svg>
+                        <span>Удалить</span>
+                    </button>
+                    <button type="button" class="btn-msg-bar" id="barCancelBtn">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        <span>Закрыть</span>
+                    </button>
+                </div>
+            </div>
+            <div class="composer-row" id="composerRow">
+                <div class="composer-transition-overlay" id="composerVoiceOverlay" aria-hidden="true"></div>
+                <form id="messageForm">
+                    <div class="reply-bar reply-bar--hidden" id="replyBar">
+                        <div class="reply-bar__line"></div>
+                        <div class="reply-bar__content">
+                            <span class="reply-bar__label" id="replyBarLabel">Ответ</span>
+                            <span class="reply-bar__text" id="replyBarText"></span>
+                        </div>
+                        <button type="button" class="btn-icon ripple-target" id="cancelReplyBtn" title="Отменить ответ">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </div>
+                    <div class="link-draft-bar link-draft-bar--hidden" id="forwardDraftBar" aria-hidden="true">
+                        <span class="link-draft-bar__line" aria-hidden="true"></span>
+                        <span class="link-draft-bar__icon" aria-hidden="true"><i class="bi bi-forward-fill"></i></span>
+                        <span class="link-draft-bar__content">
+                            <span class="link-draft-bar__label" id="forwardDraftLabel">Переслать сообщение</span>
+                            <span class="link-draft-bar__text" id="forwardDraftText"></span>
+                        </span>
+                        <button type="button" class="btn-icon ripple-target" id="cancelForwardDraftBtn" title="Отменить пересылку">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </div>
+                    <div class="link-draft-bar link-draft-bar--hidden" id="linkDraftBar" aria-hidden="true">
+                        <span class="link-draft-bar__line" aria-hidden="true"></span>
+                        <span class="link-draft-bar__icon" aria-hidden="true"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-link"></use></svg></span>
+                        <span class="link-draft-bar__content">
+                            <span class="link-draft-bar__label" id="linkDraftLabel">Ссылка</span>
+                            <span class="link-draft-bar__text" id="linkDraftText"></span>
+                        </span>
+                        <button type="button" class="btn-icon ripple-target" id="cancelLinkDraftBtn" title="Скрыть превью ссылки">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </div>
+                    <div class="edit-message-banner edit-message-banner--hidden" id="editMessageBanner">
+                        <div class="edit-message-banner__text">
+                            <strong>Редактирование сообщения</strong>
+                            <span>Подтвердите изменения или отмените редактирование</span>
+                        </div>
+                        <button type="button" class="btn-icon ripple-target" id="cancelEditBtn" title="Отменить редактирование">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </div>
+                    <div class="composer-controls">
+                        <button type="button" class="btn-icon ripple-target" id="emojiBtn" title="Эмодзи" aria-label="Эмодзи">
+                            <i class="bi bi-emoji-smile"></i>
+                        </button>
+                        <input type="file" id="fileAttachInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" />
+                        <textarea id="messageInput" placeholder="Сообщение..." autocomplete="off" rows="1" disabled></textarea>
+                        <span class="voice-record-meta" id="voiceRecordMeta" aria-hidden="true">
+                            <span id="voiceRecordTimer">00:00</span>
+                            <span class="voice-record-dot" aria-hidden="true"></span>
+                        </span>
+                        <button type="button" class="btn-icon ripple-target btn-attach" id="attachBtn" title="Прикрепить" aria-label="Прикрепить" aria-haspopup="menu" aria-expanded="false">
+                            <i class="bi bi-paperclip"></i>
+                        </button>
+                        <div id="attachMenu" class="attach-menu telegram-popup" aria-hidden="true" role="menu">
+                            <button type="button" class="attach-menu-item ripple-target" data-attach-mode="media" role="menuitem">
+                                <span class="attach-menu-item__icon"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-image"></use></svg></span>
+                                <span class="attach-menu-item__text">Фото или видео</span>
+                            </button>
+                            <button type="button" class="attach-menu-item ripple-target" data-attach-mode="file" role="menuitem">
+                                <span class="attach-menu-item__icon"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg></span>
+                                <span class="attach-menu-item__text">Файл</span>
+                            </button>
+                        </div>
+                        <button type="submit" class="btn-icon ripple-target composer-send-btn" id="sendMessageBtn" disabled aria-hidden="true" tabindex="-1" title="Отправить сообщение" aria-label="Отправить сообщение">
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </form>
+                <button type="button" class="voice-record-control" id="voiceRecordCancelBtn" title="Отменить запись" aria-label="Отменить запись" aria-hidden="true">
+                    <i class="bi bi-trash-fill"></i>
+                </button>
+                <button type="button" class="jump-to-new-btn" id="jumpToNewMessagesBtn" aria-hidden="true" tabindex="-1">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-down-circle"></use></svg>
+                    <span>К новым сообщениям</span>
+                    <span class="jump-to-new-count jump-to-new-count--hidden" id="jumpToNewMessagesCount">0</span>
+                </button>
+                <div class="voice-record-action-stack" id="voiceRecordActionStack">
+                    <button type="button" class="btn-icon ripple-target" id="voiceRecordBtn" title="Записать голосовое" aria-label="Записать голосовое" disabled>
+                        <i class="bi bi-mic-fill"></i>
+                    </button>
+                    <button type="button" class="voice-record-control" id="voiceRecordSendBtn" title="Отправить голосовое" aria-label="Отправить голосовое" aria-hidden="true">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+                <div class="voice-record-composer" id="voiceRecordComposer" aria-hidden="true" hidden>
+                    <div class="voice-record-shell"></div>
+                </div>
+            </div>
+
+            <div class="emoji-picker" id="emojiPicker">
+                <div class="emoji-picker-header" id="emojiCategories">
+                    <button type="button" class="emoji-category-btn active" data-cat="frequent" title="Часто используемые">&#x1F551;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="peoples" title="Люди">&#x1F60A;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="nature" title="Природа">&#x1F331;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="food" title="Еда">&#x1F34E;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="activity" title="Спорт">&#x26BD;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="travel" title="Путешествия">&#x2708;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="objects" title="Предметы">&#x1F4A1;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="symbols" title="Символы">&#x2764;</button>
+                    <button type="button" class="emoji-category-btn" data-cat="flags" title="Флаги">&#x1F3C1;</button>
+                </div>
+                <div class="emoji-list" id="emojiList">
+                </div>
+            </div>
+        </div>
+    </main>
+<div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
+
+<div id="lightbox">
+    <div class="lightbox-topbar">
+        <div class="lightbox-meta">
+            <div class="lightbox-sender" id="lightboxSender"></div>
+            <div class="lightbox-datetime" id="lightboxDatetime"></div>
+        </div>
+        <div class="lightbox-top-actions">
+            <button class="lightbox-btn" id="lightboxZoomToggle" type="button" aria-label="Масштаб">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
+            </button>
+            <button class="lightbox-btn lightbox-close" id="lightboxClose" type="button" aria-label="Закрыть">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+            </button>
+        </div>
+    </div>
+    <div class="lightbox-stage-wrap" id="lightboxStageWrap">
+        <div class="lightbox-stage" id="lightboxStage">
+            <button class="lightbox-nav lightbox-prev" id="lightboxPrev" type="button" aria-label="Предыдущее изображение">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <div class="lightbox-main" id="lightboxMain">
+                <div class="lightbox-image-wrapper" id="lightboxImageWrap">
+                    <img id="lightboxImg" src="" alt="Предпросмотр">
+                </div>
+                <div class="lightbox-video-wrap" id="lightboxVideoWrap">
+                    <video id="lightboxVideo" class="lightbox-video" playsinline preload="metadata"></video>
+                    <button class="lightbox-video-center-play" id="lightboxVideoCenterPlay" type="button" aria-label="Воспроизвести видео">
+                        <i class="bi bi-play-fill"></i>
+                    </button>
+                    <div class="lightbox-video-controls" id="lightboxVideoControls">
+                        <button class="lightbox-video-btn" id="lightboxVideoPlayToggle" type="button" aria-label="Воспроизвести или поставить на паузу">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                        <input class="lightbox-video-progress" id="lightboxVideoProgress" type="range" min="0" max="1000" step="1" value="0" aria-label="Прогресс видео">
+                        <span class="lightbox-video-time" id="lightboxVideoTime">00:00 / 00:00</span>
+                        <input class="lightbox-video-volume" id="lightboxVideoVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Громкость">
+                        <button class="lightbox-video-btn" id="lightboxVideoFullscreen" type="button" aria-label="Полноэкранный режим">
+                            <i class="bi bi-arrows-fullscreen"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button class="lightbox-nav lightbox-next" id="lightboxNext" type="button" aria-label="Следующее изображение">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+    <div class="lightbox-caption overlay-caption" id="lightboxCaption"></div>
+    <div class="lightbox-counter" id="lightboxCounter"></div>
+    <div class="lightbox-zoom-panel" id="lightboxZoomPanel">
+        <button class="lightbox-zoom-btn" id="lightboxZoomOut" type="button" aria-label="Уменьшить"><i class="bi bi-dash-lg"></i></button>
+        <input class="lightbox-zoom-slider" id="lightboxZoomRange" type="range" min="1" max="4" step="0.05" value="1" aria-label="Уровень масштаба">
+        <button class="lightbox-zoom-btn" id="lightboxZoomIn" type="button" aria-label="Увеличить"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-plus"></use></svg></button>
+        <span class="lightbox-zoom-value" id="lightboxZoomValue">100%</span>
+    </div>
+</div>
+
+

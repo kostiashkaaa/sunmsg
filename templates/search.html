@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sun">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <style nonce="{{ csp_nonce }}">
+        :root {
+            --color-primary: oklch(68% 0.14 65);
+            --color-primary-content: #16140e;
+            --color-secondary: oklch(74% 0.12 70);
+            --color-base-100: #f0f4f7;
+            --color-base-200: #ffffff;
+            --color-base-300: #e5e7eb;
+            --color-base-content: #111827;
+            --radius-btn: 8px;
+            --radius-box: 12px;
+        }
+
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: clamp(16px, 4vw, 40px) clamp(12px, 4vw, 20px);
+            padding-bottom: calc(clamp(16px, 4vw, 40px) + env(safe-area-inset-bottom, 0px));
+        }
+
+        .search-card {
+            width: 100%;
+            max-width: 560px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: clamp(16px, 3.6vw, 32px);
+            box-shadow: var(--shadow-md);
+            animation: slideUp var(--dur-slow) var(--ease-quick) both;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.96); }
+            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 11px 13px 11px 40px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .search-btn {
+            padding: 11px 20px;
+            background: var(--accent-gradient);
+            color: #fff;
+            font-family: var(--font);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+            box-shadow: 0 2px 12px var(--accent-glow);
+        }
+        .search-btn:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .u-flex { display: flex; }
+        .u-flex-col { display: flex; flex-direction: column; }
+        .u-items-center { align-items: center; }
+        .u-gap-2 { gap: 8px; }
+        .u-gap-3 { gap: 12px; }
+        .u-mb-5 { margin-bottom: 20px; }
+        .u-mb-6 { margin-bottom: 24px; }
+        .u-min-w-0 { min-width: 0; }
+        .search-form-row { align-items: stretch; }
+        .search-result-main { flex: 1; min-width: 0; }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            transition: background var(--transition), border-color var(--transition);
+        }
+        .result-item:hover {
+            background: var(--contact-hover);
+            border-color: var(--accent-glow);
+        }
+
+        .result-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .result-avatar[data-avatar-tint="0"] { background: oklch(70% 0.10 200); }
+        .result-avatar[data-avatar-tint="1"] { background: oklch(72% 0.09 30); }
+        .result-avatar[data-avatar-tint="2"] { background: oklch(70% 0.08 140); }
+        .result-avatar[data-avatar-tint="3"] { background: oklch(65% 0.10 280); }
+        .result-avatar[data-avatar-tint="4"] { background: oklch(70% 0.06 80); }
+        .result-avatar[data-avatar-tint="5"] { background: oklch(60% 0.09 320); }
+        .result-avatar[data-avatar-tint="6"] { background: oklch(68% 0.11 100); }
+        .result-avatar[data-avatar-tint="7"] { background: oklch(60% 0.08 250); }
+
+        .add-btn {
+            padding: 7px 14px;
+            background: var(--accent-gradient);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity var(--transition), transform var(--transition);
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+        .add-btn:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+        .add-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: var(--sub-text);
+            text-decoration: none;
+            padding: 7px 0;
+            transition: color var(--transition);
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px 0 16px;
+            color: var(--sub-text);
+            font-size: 0.9rem;
+        }
+        .empty-state i { font-size: 2.5rem; color: var(--text-muted); display: block; margin-bottom: 10px; }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            min-width: 240px;
+            max-width: 340px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-lg);
+            font-size: 0.85rem;
+            animation: toastIn var(--dur-medium) var(--ease-quick) both;
+            cursor: pointer;
+        }
+        .toast-success { border-left: 3px solid var(--success); }
+        .toast-error   { border-left: 3px solid var(--danger); }
+        .toast-success i { color: var(--success); }
+        .toast-error   i { color: var(--danger); }
+        .toast-check-wrap { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--success); }
+        .toast-check-wrap .sun-check-glyph { width: 14px; height: 14px; }
+        .toast-out { animation: toastOut var(--dur-quick) var(--ease-quick) forwards; }
+        @keyframes toastIn  { from { opacity: 0; transform: translate3d(34px, 0, 0) scale(0.94); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+        @keyframes toastOut { to   { opacity: 0; transform: translate3d(26px, 0, 0) scale(0.95); } }
+
+        @media (max-width: 768px) {
+            body {
+                padding-top: calc(12px + env(safe-area-inset-top, 0px));
+            }
+            .search-card {
+                max-width: none;
+                border-radius: 16px;
+            }
+            .search-form-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .search-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .result-item {
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .result-item .add-btn {
+                align-self: center;
+            }
+            .toast-container {
+                left: 12px;
+                right: 12px;
+                top: calc(10px + env(safe-area-inset-top, 0px));
+            }
+            .toast {
+                min-width: 0;
+                max-width: none;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .result-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .result-item .add-btn {
+                width: 100%;
+            }
+            .empty-state {
+                padding-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body data-ui-language="{{ ui_language|default('ru') }}">
+{% include 'chat/_svg_icons_sprite.html' %}
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="search-card">
+    <div class="u-flex u-items-center u-gap-3 u-mb-6">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--accent-gradient);
+                    display:flex;align-items:center;justify-content:center;
+                    box-shadow:0 4px 14px var(--accent-glow);flex-shrink:0;">
+            <i class="bi bi-person-search" style="color:#fff;font-size:1.2rem;"></i>
+        </div>
+        <div>
+            <div style="font-size:1.05rem;font-weight:700;color:var(--text);">Поиск пользователей</div>
+            <div style="font-size:0.75rem;color:var(--sub-text);">Найдите людей по имени или @username</div>
+        </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('contacts.search') }}" class="u-mb-5">
+        <div class="u-flex u-gap-2 search-form-row">
+            <div style="position:relative;flex:1;">
+                <i class="bi bi-search"
+                   style="position:absolute;left:13px;top:50%;transform:translateY(-50%);
+                          color:var(--text-muted);font-size:0.95rem;pointer-events:none;"></i>
+                <input type="text"
+                       class="search-input"
+                       name="q"
+                       placeholder="Введите @username или имя"
+                       value="{{ query }}"
+                       required
+                       autofocus>
+            </div>
+            <button type="submit" class="search-btn">
+                <i class="bi bi-search me-1"></i> Найти
+            </button>
+        </div>
+    </form>
+
+    {% if results %}
+    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;
+                color:var(--sub-text);margin-bottom:10px;">
+        <span>Найдено:</span> <span>{{ results|length }}</span>
+    </div>
+    <div class="u-flex-col u-gap-2" id="resultsList">
+        {% for user in results %}
+        <div class="result-item" id="item-{{ user.userId }}">
+            <div class="u-flex u-items-center u-gap-3 u-min-w-0 search-result-main">
+                <div class="result-avatar" data-avatar-seed="{{ user.display_name or user.username or '?' }}">{{ user.display_name[0]|upper }}</div>
+                <div class="u-min-w-0">
+                    <div style="font-size:0.9rem;font-weight:600;color:var(--text);
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {{ user.display_name }}
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--sub-text);">@{{ user.username }}</div>
+                </div>
+            </div>
+            <button class="add-btn"
+                    id="btn-{{ user.userId }}"
+                    data-user-id="{{ user.userId }}"
+                    data-display-name="{{ user.display_name }}">
+                <i class="bi bi-person-plus-fill"></i> Добавить
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif query %}
+    <div class="empty-state">
+        <i class="bi bi-person-x"></i>
+        <span>Пользователь</span> «{{ query }}» <span>не найден</span>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+        <a href="{{ url_for('chat.chat_index') }}" class="back-link">
+            <i class="bi bi-arrow-left"></i> Вернуться в чат
+        </a>
+    </div>
+</div>
+
+<script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function tr(value) {
+        const api = window.SUN_I18N;
+        if (api && typeof api.translateText === 'function') {
+            return api.translateText(value);
+        }
+        return String(value || '');
+    }
+
+    function applyAvatarTints() {
+        const avatars = document.querySelectorAll('.result-avatar');
+        avatars.forEach((avatar) => {
+            const seed = String(
+                avatar.getAttribute('data-avatar-seed')
+                || avatar.textContent
+                || '?'
+            ).trim() || '?';
+            let hash = 0;
+            for (let i = 0; i < seed.length; i += 1) {
+                hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+            }
+            avatar.setAttribute('data-avatar-tint', String(hash % 8));
+        });
+    }
+    applyAvatarTints();
+
+    (function () {
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+        if (window.InterfaceTheme) window.InterfaceTheme.applyCurrentTheme();
+    })();
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const iconMap = { error: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
+        const successIcon = '<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span>';
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        const icon = type === 'success' ? document.createElement('span') : document.createElement('i');
+        if (type === 'success') {
+            icon.innerHTML = successIcon;
+            icon.className = 'toast-check-wrap';
+        } else {
+            icon.className = `bi ${iconMap[type] || iconMap.info}`;
+        }
+        const text = document.createElement('span');
+        text.textContent = String(message || '');
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        container.appendChild(toast);
+        toast.addEventListener('click', () => removeToast(toast));
+        setTimeout(() => removeToast(toast), 4000);
+    }
+    function removeToast(toast) {
+        toast.classList.add('toast-out');
+        setTimeout(() => toast.remove(), 220);
+    }
+
+    async function sendRequest(userId, displayName, btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;"></span>';
+
+        try {
+            const res = await fetch('{{ url_for("contacts.send_request_route") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ contact_user_id: userId })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                btn.innerHTML = `<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span> ${tr('Отправлено')}`;
+                btn.style.background = 'var(--success)';
+                btn.style.boxShadow = 'none';
+                showToast(`${tr('Запрос отправлен пользователю')} ${displayName}`.trim(), 'success');
+            } else {
+                throw new Error(data.error || tr('Ошибка'));
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-person-plus-fill"></i> ${tr('Добавить')}`;
+            showToast(err.message, 'error');
+        }
+    }
+
+    document.getElementById('resultsList')?.addEventListener('click', function (event) {
+        const btn = event.target.closest('.add-btn');
+        if (!btn) return;
+        const userId = btn.getAttribute('data-user-id');
+        const displayName = btn.getAttribute('data-display-name') || '';
+        if (!userId) return;
+        sendRequest(userId, displayName, btn);
+    });
+</script>
+<style nonce="{{ csp_nonce }}">
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .me-1 { margin-right: 4px; }
+</style>
+</body>
+</html>

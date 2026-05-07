@@ -1,0 +1,252 @@
+from datetime import datetime, timezone
+
+from flask import current_app
+from flask import session
+from flask_socketio import emit
+
+from app.db_backend import DatabaseError
+from app.database import (
+    ensure_chat_exists,
+    ensure_chat_pins_multiple_support,
+    get_db_connection,
+)
+from app.extensions import socketio
+from app.services.blocking import (
+    build_block_state,
+    normalize_block_state,
+)
+from app.services.chat_members import get_chat_type
+from app.services.crypto import is_valid_chat_id, looks_like_ciphertext
+from app.services import moderation as moderation_service
+from app.services.group_authorization import authorize_group_action
+from app.services.presence import count_connected
+from app.services.reactions import (
+    fetch_reactions_map,
+    sanitize_reaction_emoji,
+)
+from app.services.web_push import send_chat_message_push
+from app.sockets.message_handlers import (
+    handle_delete_messages_event,
+    handle_edit_message_event,
+    handle_send_message_event,
+)
+from app.sockets.pin_handlers import (
+    handle_pin_message_event,
+    handle_unpin_message_event,
+)
+from app.sockets.favorite_handlers import (
+    handle_favorite_message_event,
+    handle_unfavorite_message_event,
+)
+from app.sockets.reaction_handlers import handle_toggle_reaction_event
+
+from . import context as ctx
+
+
+def _can_group_action(conn, actor_user_id: int, chat_id: str, action: str) -> bool:
+    decision = authorize_group_action(
+        conn,
+        actor_user_id=int(actor_user_id),
+        chat_id=str(chat_id),
+        action=str(action),
+    )
+    return bool(decision.allowed)
+
+
+def _can_group_action_with_message(conn, actor_user_id: int, chat_id: str, action: str):
+    decision = authorize_group_action(
+        conn,
+        actor_user_id=int(actor_user_id),
+        chat_id=str(chat_id),
+        action=str(action),
+    )
+    if decision.allowed:
+        return True, ''
+    return False, decision.message or 'Insufficient role for this action.'
+
+
+@socketio.on('edit_message')
+@ctx.authenticated_only
+def handle_edit_message(data):
+    handle_edit_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        positive_int_func=ctx._positive_int,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        sanitize_message_type_func=ctx._sanitize_message_type,
+        is_valid_chat_id_func=is_valid_chat_id,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        parse_db_utc_timestamp_func=ctx._parse_db_utc_timestamp,
+        utc_now_func=lambda: datetime.now(timezone.utc),
+        message_edit_window_seconds=ctx._MESSAGE_EDIT_WINDOW_SECONDS,
+        max_message_edits=ctx._MAX_MESSAGE_EDITS,
+        logger=ctx.logger,
+        normalize_request_id_func=ctx._normalize_request_id,
+    )
+
+
+@socketio.on('delete_messages')
+@ctx.authenticated_only
+def handle_delete_messages(data):
+    handle_delete_messages_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        positive_int_func=ctx._positive_int,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        is_valid_chat_id_func=is_valid_chat_id,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        logger=ctx.logger,
+        database_error_cls=DatabaseError,
+        authorize_group_action_func=_can_group_action,
+        normalize_request_id_func=ctx._normalize_request_id,
+    )
+
+
+@socketio.on('toggle_reaction')
+@ctx.authenticated_only
+def handle_toggle_reaction(data):
+    handle_toggle_reaction_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        positive_int_func=ctx._positive_int,
+        sanitize_reaction_emoji_func=sanitize_reaction_emoji,
+        normalize_request_id_func=ctx._normalize_request_id,
+        is_valid_chat_id_func=is_valid_chat_id,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        fetch_reactions_map_func=fetch_reactions_map,
+        emit_func=emit,
+        utc_now_iso_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds'),
+        logger=ctx.logger,
+        database_error_cls=DatabaseError,
+    )
+
+
+@socketio.on('send_message')
+@ctx.authenticated_only
+def handle_send_message(data):
+    handle_send_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        is_valid_chat_id_func=is_valid_chat_id,
+        get_db_connection_func=get_db_connection,
+        count_connected_func=count_connected,
+        build_block_state_func=build_block_state,
+        normalize_block_state_func=normalize_block_state,
+        sanitize_message_type_func=ctx._sanitize_message_type,
+        positive_int_func=ctx._positive_int,
+        ensure_chat_exists_func=ensure_chat_exists,
+        looks_like_ciphertext_func=looks_like_ciphertext,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        utc_now_text_func=lambda: datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        logger=ctx.logger,
+        database_error_cls=DatabaseError,
+        send_web_push_notification_func=send_chat_message_push,
+        moderation_user_restriction_func=moderation_service.active_user_restriction,
+        moderation_public_link_check_func=lambda message_text: moderation_service.evaluate_public_links(
+            message_text,
+            blocked_domains=moderation_service.parse_csv(
+                str(current_app.config.get('MODERATION_BLOCKED_PUBLIC_DOMAINS') or '').strip()
+            ),
+        ),
+        group_restriction_lookup_func=moderation_service.active_group_restriction,
+        normalize_request_id_func=ctx._normalize_request_id,
+    )
+
+
+@socketio.on('pin_message')
+@ctx.authenticated_only
+def handle_pin_message(data):
+    handle_pin_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        ensure_chat_pins_multiple_support_func=ensure_chat_pins_multiple_support,
+        positive_int_func=ctx._positive_int,
+        is_valid_chat_id_func=is_valid_chat_id,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        utc_now_z_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+        get_chat_type_func=get_chat_type,
+        authorize_group_action_func=_can_group_action_with_message,
+    )
+
+
+@socketio.on('unpin_message')
+@ctx.authenticated_only
+def handle_unpin_message(data):
+    handle_unpin_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        ensure_chat_pins_multiple_support_func=ensure_chat_pins_multiple_support,
+        positive_int_func=ctx._positive_int,
+        is_valid_chat_id_func=is_valid_chat_id,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        get_chat_type_func=get_chat_type,
+        authorize_group_action_func=_can_group_action_with_message,
+    )
+
+
+@socketio.on('favorite_message')
+@ctx.authenticated_only
+def handle_favorite_message(data):
+    handle_favorite_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        positive_int_func=ctx._positive_int,
+        is_valid_chat_id_func=is_valid_chat_id,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+        utc_now_z_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+    )
+
+
+@socketio.on('unfavorite_message')
+@ctx.authenticated_only
+def handle_unfavorite_message(data):
+    handle_unfavorite_message_event(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        positive_int_func=ctx._positive_int,
+        is_valid_chat_id_func=is_valid_chat_id,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        chat_partner_state_func=ctx._chat_partner_state,
+        emit_blocked_error_func=ctx._emit_blocked_error,
+        emit_func=emit,
+    )

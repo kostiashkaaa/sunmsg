@@ -1,0 +1,369 @@
+async function decryptReplyPreview({
+    data,
+    currentUserPublicKey,
+    privateKeyPem,
+    decryptForDisplay,
+} = {}) {
+    if (!data?.reply_to_id || !data?.reply_message) return '';
+
+    try {
+        const replyIsSelf = data.reply_sender_pub === currentUserPublicKey;
+        return await decryptForDisplay(privateKeyPem, data.reply_message, replyIsSelf);
+    } catch (_) {
+        return '\u{1F512}';
+    }
+}
+
+function buildIncomingMessageState({
+    data,
+    isSelf,
+    decryptedMessage,
+    replyText,
+    currentUserPublicKey,
+    otherSenderLabel = '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
+    normalizeMessageReactions,
+    isEncryptedPayload,
+} = {}) {
+    const hasReactionPayload = Array.isArray(data?.reactions) && data.reactions.length > 0;
+    return {
+        id: data.id,
+        sender: isSelf ? 'self' : 'other',
+        senderUserId: Number(data.sender_user_id) || null,
+        senderPublicKey: String(data.sender_public_key || '').trim(),
+        senderDisplayName: String(data.sender_display_name || '').trim(),
+        senderUsername: String(data.sender_username || '').trim(),
+        senderAvatarUrl: String(data.sender_avatar_url || '').trim(),
+        message: decryptedMessage,
+        encrypted: isEncryptedPayload(data.message),
+        is_read: Boolean(data.is_read),
+        read_at: String(data.read_at || '').trim() || null,
+        is_delivered: Boolean(data.is_delivered),
+        voice_listened_by_partner: Boolean(data.voice_listened_by_partner),
+        created_at: data.created_at,
+        replyToId: data.reply_to_id || null,
+        replyToText: replyText,
+        replyToSender: data.reply_sender_pub === currentUserPublicKey
+            ? '\u0412\u044B'
+            : otherSenderLabel,
+        forwardFromName: String(data.forward_from_name || '').trim(),
+        forwardFromUserId: Number(data.forward_from_user_id) || null,
+        ...(hasReactionPayload ? { reactions: normalizeMessageReactions(data.reactions) } : {}),
+    };
+}
+
+export function registerIncomingMessageSocketHandlers({
+    socket,
+    isBlockedChat,
+    getCurrentChatId,
+    currentUserPublicKey,
+    getPrivateKeyPem,
+    decryptForDisplay,
+    getChatState,
+    findMessageIndex,
+    cancelPendingTimeout,
+    normalizeChatMessageOrder,
+    updateActiveContactLastMessage,
+    isChatNearBottom,
+    isWindowActiveForUnreadHandling,
+    getCurrentChatScrollTop,
+    getCurrentChatScrollHeight,
+    appendMessage,
+    isEncryptedPayload,
+    normalizeMessageReactions,
+    getCurrentPartnerDisplayName,
+    markCurrentChatSeenIfPossible,
+    setKeepChatPinnedToBottom,
+    incrementOpenChatUnreadCount,
+    updateJumpToNewMessagesButton,
+    setContactUnreadBadge,
+    upsertChatMessage,
+    updateSidebarForOtherChat,
+    showToast,
+    updateMessageContent,
+    rerenderCurrentChat,
+    resolveMessageElement,
+    getMessageKey,
+    confirmPendingMessageDom,
+    loadContacts,
+    isChatMuted = () => false,
+    enrichVisualMediaMessage,
+    notifyIncomingMessage,
+    onIncomingRawMessage,
+    prewarmMessageLinkPreview,
+} = {}) {
+    socket.on('receive_message', async (data) => {
+        try {
+        if (isBlockedChat(data.chat_id)) return;
+        if (typeof onIncomingRawMessage === 'function') {
+            onIncomingRawMessage({
+                chatId: data.chat_id,
+                rawMessage: data,
+            });
+        }
+
+        const currentChatId = getCurrentChatId();
+        const normalizedCurrentChatId = String(currentChatId || '');
+        const normalizedIncomingChatId = String(data?.chat_id || '');
+        const privateKeyPem = getPrivateKeyPem();
+
+        if (normalizedIncomingChatId === normalizedCurrentChatId) {
+            const isSelf = data.sender_public_key === currentUserPublicKey;
+            const wasNearBottom = isChatNearBottom();
+            const previousScrollTop = getCurrentChatScrollTop();
+            const rawDecryptedMessage = await decryptForDisplay(privateKeyPem, data.message, isSelf);
+            const decryptedMessage = typeof enrichVisualMediaMessage === 'function'
+                ? await enrichVisualMediaMessage(rawDecryptedMessage)
+                : rawDecryptedMessage;
+            if (typeof prewarmMessageLinkPreview === 'function') {
+                await prewarmMessageLinkPreview(decryptedMessage, { delayMs: 0, awaitReady: true });
+            }
+            const replyText = await decryptReplyPreview({
+                data,
+                currentUserPublicKey,
+                privateKeyPem,
+                decryptForDisplay,
+            });
+            const incomingMessageState = buildIncomingMessageState({
+                data,
+                isSelf,
+                decryptedMessage,
+                replyText,
+                currentUserPublicKey,
+                otherSenderLabel: getCurrentPartnerDisplayName(),
+                normalizeMessageReactions,
+                isEncryptedPayload,
+            });
+
+            if (isSelf && data.client_id) {
+                const state = getChatState(currentChatId);
+                const pendingIdx = findMessageIndex(state, (msg) => msg.clientId === data.client_id);
+                if (pendingIdx >= 0) {
+                    cancelPendingTimeout?.(data.client_id);
+                    const previousMessage = state.messages[pendingIdx];
+                    const previousKey = typeof getMessageKey === 'function'
+                        ? getMessageKey(previousMessage)
+                        : null;
+                    const confirmedMessage = {
+                        ...previousMessage,
+                        ...incomingMessageState,
+                        id: data.id,
+                        pending: false,
+                        failed: false,
+                        clientId: null,
+                        created_at: data.created_at || previousMessage.created_at,
+                    };
+                    state.messages[pendingIdx] = confirmedMessage;
+                    normalizeChatMessageOrder?.(state);
+                    const nextKey = typeof getMessageKey === 'function'
+                        ? getMessageKey(confirmedMessage)
+                        : null;
+                    if (previousKey && nextKey && previousKey !== nextKey) {
+                        const cachedHeight = state.messageHeights?.get(previousKey);
+                        if (Number.isFinite(cachedHeight) && cachedHeight > 0) {
+                            state.messageHeights.delete(previousKey);
+                            state.messageHeights.set(nextKey, cachedHeight);
+                        }
+                        if (state.renderedKeys?.has(previousKey)) {
+                            state.renderedKeys.delete(previousKey);
+                            state.renderedKeys.add(nextKey);
+                        }
+                    }
+
+                    const patched = confirmPendingMessageDom?.({
+                        clientId: data.client_id,
+                        messageId: data.id,
+                        message: confirmedMessage,
+                    });
+                    if (!patched) {
+                        rerenderCurrentChat?.();
+                    }
+                    updateActiveContactLastMessage(
+                        decryptedMessage,
+                        isSelf,
+                        {
+                            is_read: Boolean(data.is_read),
+                            is_delivered: Boolean(data.is_delivered),
+                        },
+                        data.created_at,
+                    );
+                    return;
+                }
+            }
+
+            if (isSelf) {
+                const state = getChatState(currentChatId);
+                const existingIdx = findMessageIndex(state, (msg) => Number(msg.id) === Number(data.id));
+                if (existingIdx >= 0) {
+                    state.messages[existingIdx] = {
+                        ...state.messages[existingIdx],
+                        ...incomingMessageState,
+                        pending: false,
+                        failed: false,
+                        clientId: null,
+                    };
+                    normalizeChatMessageOrder?.(state);
+                    updateActiveContactLastMessage(
+                        decryptedMessage,
+                        isSelf,
+                        {
+                            is_read: Boolean(data.is_read),
+                            is_delivered: Boolean(data.is_delivered),
+                        },
+                        data.created_at,
+                    );
+                    return;
+                }
+            }
+
+            const canTreatAsSeenNow = !isSelf && wasNearBottom && isWindowActiveForUnreadHandling();
+            const shouldAutoScroll = isSelf || canTreatAsSeenNow;
+            const previousScrollHeight = getCurrentChatScrollHeight();
+            appendMessage(
+                incomingMessageState,
+                {
+                    renderOptions: shouldAutoScroll
+                        ? { scrollToBottom: true }
+                        : { preserveHeightDelta: true, previousScrollTop, previousScrollHeight },
+                },
+            );
+
+            if (shouldAutoScroll) {
+                setKeepChatPinnedToBottom(true);
+                if (!isSelf) markCurrentChatSeenIfPossible();
+            } else if (!isSelf) {
+                incrementOpenChatUnreadCount();
+                updateJumpToNewMessagesButton();
+                setContactUnreadBadge(currentChatId);
+            }
+
+            updateActiveContactLastMessage(
+                decryptedMessage,
+                isSelf,
+                {
+                    is_read: Boolean(data.is_read),
+                    is_delivered: Boolean(data.is_delivered),
+                },
+                data.created_at,
+            );
+            if (!isSelf && !isChatMuted(data.chat_id)) {
+                notifyIncomingMessage?.({
+                    chatId: data.chat_id,
+                    message: decryptedMessage,
+                    isCurrentChat: true,
+                    isSelf: false,
+                    shouldIncrementUnread: !canTreatAsSeenNow,
+                });
+            }
+            return;
+        }
+
+        const isSelfOther = data.sender_public_key === currentUserPublicKey;
+        const rawDecryptedOtherMessage = await decryptForDisplay(privateKeyPem, data.message, isSelfOther);
+        const decryptedMessage = typeof enrichVisualMediaMessage === 'function'
+            ? await enrichVisualMediaMessage(rawDecryptedOtherMessage)
+            : rawDecryptedOtherMessage;
+        if (typeof prewarmMessageLinkPreview === 'function') {
+            await prewarmMessageLinkPreview(decryptedMessage, { delayMs: 0, awaitReady: true });
+        }
+        const replyText = await decryptReplyPreview({
+            data,
+            currentUserPublicKey,
+            privateKeyPem,
+            decryptForDisplay,
+        });
+        const incomingMessageForOtherChat = buildIncomingMessageState({
+            data,
+            isSelf: isSelfOther,
+            decryptedMessage,
+            replyText,
+            currentUserPublicKey,
+            normalizeMessageReactions,
+            isEncryptedPayload,
+        });
+        const otherState = getChatState(data.chat_id);
+        if (otherState.initialized) {
+            const canConfirmPending = isSelfOther && Boolean(data.client_id);
+            if (canConfirmPending) {
+                const pendingIdx = findMessageIndex(otherState, (msg) => msg.clientId === data.client_id);
+                if (pendingIdx >= 0) {
+                    cancelPendingTimeout?.(data.client_id);
+                    const previousMessage = otherState.messages[pendingIdx];
+                    otherState.messages[pendingIdx] = {
+                        ...previousMessage,
+                        ...incomingMessageForOtherChat,
+                        id: data.id,
+                        pending: false,
+                        failed: false,
+                        clientId: null,
+                        created_at: data.created_at || previousMessage.created_at,
+                    };
+                    normalizeChatMessageOrder?.(otherState);
+                } else {
+                    upsertChatMessage(data.chat_id, incomingMessageForOtherChat);
+                }
+            } else {
+                upsertChatMessage(data.chat_id, incomingMessageForOtherChat);
+            }
+        }
+
+        updateSidebarForOtherChat(
+            data.chat_id,
+            decryptedMessage,
+            isSelfOther,
+            data.created_at,
+            {
+                is_read: Boolean(data.is_read),
+                is_delivered: Boolean(data.is_delivered),
+            },
+        );
+        if (!isSelfOther && !isChatMuted(data.chat_id)) {
+            if (typeof notifyIncomingMessage === 'function') {
+                notifyIncomingMessage({
+                    chatId: data.chat_id,
+                    message: decryptedMessage,
+                    isCurrentChat: false,
+                    isSelf: false,
+                    shouldIncrementUnread: true,
+                });
+            } else {
+                showToast('\u041D\u043E\u0432\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435', 'info');
+            }
+        }
+        } catch (err) {
+            showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F', 'danger');
+        }
+    });
+
+    socket.on('message_edited', async (data) => {
+        try {
+        if (isBlockedChat(data.chat_id)) return;
+
+        const state = getChatState(data.chat_id);
+        const msgIndex = findMessageIndex(state, (msg) => Number(msg.id) === Number(data.msg_id));
+        if (msgIndex >= 0) {
+            const stateMessage = state.messages[msgIndex];
+            const privateKeyPem = getPrivateKeyPem();
+            const isSelf = stateMessage.sender === 'self';
+            const rawDecrypted = await decryptForDisplay(privateKeyPem, data.new_content, isSelf);
+            const decrypted = typeof enrichVisualMediaMessage === 'function'
+                ? await enrichVisualMediaMessage(rawDecrypted)
+                : rawDecrypted;
+            state.messages[msgIndex] = {
+                ...stateMessage,
+                message: decrypted,
+                is_edited: true,
+            };
+
+            const msgDiv = resolveMessageElement(data.msg_id);
+            if (msgDiv) {
+                updateMessageContent(msgDiv, decrypted);
+            } else if (String(data?.chat_id || '') === String(getCurrentChatId() || '')) {
+                rerenderCurrentChat();
+            }
+        }
+        loadContacts();
+        } catch (err) {
+            showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F', 'danger');
+        }
+    });
+}

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Console</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f4f6f8;
+            --fg: #1d2530;
+            --muted: #5b6777;
+            --line: #d7dde5;
+            --card: #ffffff;
+            --ok: #1f7a36;
+            --err: #a3322c;
+            --accent: #0f5bd8;
+        }
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+        }
+        .wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: var(--fg);
+            background: var(--card);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .flash {
+            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid;
+        }
+        .flash.success {
+            background: #ebf8f0;
+            border-color: #b7e5c3;
+            color: var(--ok);
+        }
+        .flash.error {
+            background: #ffefee;
+            border-color: #f3c0bc;
+            color: var(--err);
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .metric {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .metric .label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .metric .value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .section {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .section h2 {
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+        .filters, .inline-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filters select, .filters input, .inline-form select, .inline-form input, .inline-form textarea {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            background: #fff;
+            color: var(--fg);
+            font-family: inherit;
+        }
+        .inline-form textarea {
+            min-height: 44px;
+        }
+        .table-wrap {
+            overflow: auto;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+        th, td {
+            border-bottom: 1px solid var(--line);
+            padding: 10px 8px;
+            vertical-align: top;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .user-summary-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .user-summary-chip {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 2px 7px;
+            font-size: 11px;
+            background: #f8fafc;
+        }
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .history-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px;
+            background: #fbfdff;
+        }
+        .history-card-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .history-item {
+            font-size: 12px;
+            line-height: 1.35;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed #e5e9ef;
+            padding-bottom: 5px;
+        }
+        .history-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        @media (max-width: 960px) {
+            .metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .history-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <div class="top">
+        <h1 class="title">Support Console</h1>
+        <div class="actions">
+            <a class="btn" href="/moderation/console">Cases</a>
+            <a class="btn" href="/moderation/console/appeals">Appeals</a>
+            <a class="btn" href="/chat">Back to chat</a>
+            <a class="btn primary" href="/api/support/requests">Support API</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <section class="metrics">
+        <article class="metric">
+            <div class="label">Queue Pending</div>
+            <div class="value">{{ metrics.queue.pending }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Queue Failed</div>
+            <div class="value">{{ metrics.queue.failed }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Resolved Cases (24h)</div>
+            <div class="value">{{ metrics.resolved_cases }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Appeals Resolved (24h)</div>
+            <div class="value">{{ metrics.appeals_resolved }}</div>
+        </article>
+    </section>
+
+    <section class="section">
+        <h2>User Actions</h2>
+        <form class="filters" method="get" action="/moderation/console/support">
+            <label for="user_query">User</label>
+            <input id="user_query" name="user_query" value="{{ lookup_query }}" placeholder="id, username, display name" maxlength="120">
+            <button class="btn primary" type="submit">Lookup</button>
+        </form>
+        {% if users %}
+            <div class="table-wrap" style="margin-top:10px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>History</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>
+                                <div><strong>#{{ user.id }} @{{ user.username }}</strong></div>
+                                <div class="muted">{{ user.display_name }}</div>
+                            </td>
+                            <td>
+                                {% if user.active_restriction_type %}
+                                    <div><strong>{{ user.active_restriction_type }}</strong></div>
+                                    {% if user.active_restriction_expires_at %}
+                                        <div class="muted">expires: {{ user.active_restriction_expires_at }}</div>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="muted">no active restriction</span>
+                                {% endif %}
+                                {% if user.moderation_summary %}
+                                    <div class="user-summary-chips">
+                                        <span class="user-summary-chip">sanctions: {{ user.moderation_summary.sanctions_total }}</span>
+                                        <span class="user-summary-chip">active: {{ user.moderation_summary.active_sanctions_total }}</span>
+                                        <span class="user-summary-chip">appeals: {{ user.moderation_summary.appeals_total }}</span>
+                                        <span class="user-summary-chip">support: {{ user.moderation_summary.support_requests_total }}</span>
+                                        <span class="user-summary-chip">support_open: {{ user.moderation_summary.support_requests_open_total }}</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="history-grid">
+                                    <div class="history-card">
+                                        <div class="history-card-title">Recent Sanctions</div>
+                                        {% if user.recent_sanctions %}
+                                            {% for item in user.recent_sanctions %}
+                                                <div class="history-item">
+                                                    <div><strong>#{{ item.id }} {{ item.action_type }}</strong> · {{ item.status }}</div>
+                                                    <div class="muted">{{ item.reason_code }}</div>
+                                                    <div class="muted">{{ item.created_at }}</div>
+                                                    {% if item.expires_at %}
+                                                        <div class="muted">expires: {{ item.expires_at }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="muted">No sanctions</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="history-card">
+                                        <div class="history-card-title">Recent Appeals</div>
+                                        {% if user.recent_appeals %}
+                                            {% for item in user.recent_appeals %}
+                                                <div class="history-item">
+                                                    <div><strong>#{{ item.id }} {{ item.state }}</strong></div>
+                                                    <div class="muted">sanction #{{ item.sanction_id }} {{ item.sanction_action_type }}</div>
+                                                    <div class="muted">{{ item.created_at }}</div>
+                                                    {% if item.resolution_note %}
+                                                        <div class="muted">{{ item.resolution_note }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="muted">No appeals</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="history-card">
+                                        <div class="history-card-title">Recent Support Requests</div>
+                                        {% if user.recent_support_requests %}
+                                            {% for item in user.recent_support_requests %}
+                                                <div class="history-item">
+                                                    <div><strong>#{{ item.id }} {{ item.status }}</strong> · {{ item.category }}</div>
+                                                    <div class="muted">{{ item.subject }}</div>
+                                                    <div class="muted">{{ item.created_at }}</div>
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="muted">No support requests</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/action">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
+                                    <select name="action_type">
+                                        <option value="warn">warn</option>
+                                        <option value="mute_temp">mute_temp</option>
+                                        <option value="ban_temp">ban_temp</option>
+                                        <option value="ban_perma">ban_perma</option>
+                                    </select>
+                                    <input name="reason_code" value="manual_action" maxlength="64">
+                                    <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
+                                    <input name="note" maxlength="512" placeholder="note">
+                                    <button class="btn primary" type="submit">Apply</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif lookup_query %}
+            <p class="muted" style="margin-top:10px;">No users found for "{{ lookup_query }}".</p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <h2>Support Requests</h2>
+        <form class="filters" method="get" action="/moderation/console/support">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="open" {% if status == 'open' %}selected{% endif %}>open</option>
+                <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>in_progress</option>
+                <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>resolved</option>
+                <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>rejected</option>
+                <option value="closed" {% if status == 'closed' %}selected{% endif %}>closed</option>
+                <option value="" {% if status == '' %}selected{% endif %}>all</option>
+            </select>
+            <label for="category">Category</label>
+            <select id="category" name="category">
+                <option value="" {% if category == '' %}selected{% endif %}>all</option>
+                <option value="bug" {% if category == 'bug' %}selected{% endif %}>bug</option>
+                <option value="performance" {% if category == 'performance' %}selected{% endif %}>performance</option>
+                <option value="registration" {% if category == 'registration' %}selected{% endif %}>registration</option>
+                <option value="login" {% if category == 'login' %}selected{% endif %}>login</option>
+                <option value="access" {% if category == 'access' %}selected{% endif %}>access</option>
+                <option value="feature" {% if category == 'feature' %}selected{% endif %}>feature</option>
+                <option value="security" {% if category == 'security' %}selected{% endif %}>security</option>
+                <option value="other" {% if category == 'other' %}selected{% endif %}>other</option>
+            </select>
+            <label for="limit">Limit</label>
+            <input id="limit" name="limit" type="number" min="1" max="200" value="{{ limit }}">
+            <label for="refresh">Refresh (sec)</label>
+            <input id="refresh" name="refresh" type="number" min="5" max="300" value="{{ refresh_seconds }}">
+            <button class="btn primary" type="submit">Apply</button>
+        </form>
+
+        <div class="table-wrap" style="margin-top:10px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Requester</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                        <th>Resolve</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if requests %}
+                    {% for item in requests %}
+                        <tr>
+                            <td>#{{ item.id }}</td>
+                            <td>
+                                {% if item.created_by_user_id %}
+                                    <div><strong>#{{ item.created_by_user_id }}</strong></div>
+                                    {% if item.linked_username %}
+                                        <div class="muted">@{{ item.linked_username }} {{ item.linked_display_name }}</div>
+                                    {% endif %}
+                                {% elif item.created_by_username %}
+                                    <div><strong>@{{ item.created_by_username }}</strong></div>
+                                {% else %}
+                                    <span class="muted">guest</span>
+                                {% endif %}
+                                {% if item.contact_email %}
+                                    <div class="muted">{{ item.contact_email }}</div>
+                                {% endif %}
+                                {% if item.contact_handle %}
+                                    <div class="muted">{{ item.contact_handle }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div><strong>{{ item.category }}</strong></div>
+                                <div class="muted">{{ item.source_page }}</div>
+                                <div class="muted">p{{ item.priority }}</div>
+                            </td>
+                            <td>
+                                <div><strong>{{ item.subject }}</strong></div>
+                                <div class="muted">{{ item.body }}</div>
+                            </td>
+                            <td>
+                                <div><strong>{{ item.status }}</strong></div>
+                                <div class="muted">created: {{ item.created_at }}</div>
+                                {% if item.resolved_at %}
+                                    <div class="muted">resolved: {{ item.resolved_at }}</div>
+                                {% endif %}
+                                {% if item.resolution_note %}
+                                    <div class="muted">{{ item.resolution_note }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form class="inline-form" method="post" action="/moderation/console/support/{{ item.id }}/resolve">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <select name="status">
+                                        <option value="in_progress">in_progress</option>
+                                        <option value="resolved">resolved</option>
+                                        <option value="rejected">rejected</option>
+                                        <option value="closed">closed</option>
+                                    </select>
+                                    <textarea name="resolution_note" maxlength="2000" placeholder="resolution note"></textarea>
+                                    <button class="btn primary" type="submit">Update</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="6">No support requests found.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+<script>
+(() => {
+    const refreshSeconds = Math.max(5, Math.min(300, Number({{ refresh_seconds|int }}) || 20));
+    window.setInterval(() => window.location.reload(), refreshSeconds * 1000);
+})();
+</script>
+</body>
+</html>

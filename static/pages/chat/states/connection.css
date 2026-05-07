@@ -1,0 +1,634 @@
+/* chat states split: connection.css (from legacy states.css lines 778-1410) */
+
+        .history-loading.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+
+        .chat-date-picker-overlay.is-opening,
+        .chat-date-picker-overlay.is-open,
+        .chat-date-picker-overlay.is-closing {
+            display: flex;
+        }
+
+
+        .chat-date-picker-overlay.is-opening {
+            visibility: visible;
+            pointer-events: none;
+            transition-delay: 0s;
+        }
+
+
+        .chat-date-picker-overlay.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition-delay: 0s;
+        }
+
+
+        .chat-date-picker-overlay.is-open .chat-date-picker-overlay__backdrop {
+            opacity: 1;
+        }
+
+
+        .chat-date-picker-overlay.is-open .chat-date-picker-panel {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+
+
+        .chat-date-picker-overlay.is-closing {
+            opacity: 0;
+            visibility: visible;
+            pointer-events: none;
+        }
+
+
+        .chat-date-picker-overlay.is-closing .chat-date-picker-overlay__backdrop {
+            opacity: 0;
+        }
+
+
+        .chat-date-picker-overlay.is-closing .chat-date-picker-panel {
+            opacity: 0;
+            transform: translate3d(0, 16px, 0) scale(0.95);
+        }
+
+
+        .chat-date-picker-panel__month-btn:hover {
+            transform: translateY(-1px);
+            border-color: color-mix(in srgb, var(--accent) 48%, var(--border) 52%);
+            background: color-mix(in srgb, var(--accent) 14%, var(--surface-2) 86%);
+        }
+
+
+        .chat-date-picker-panel__day:hover {
+            border-color: color-mix(in srgb, var(--accent) 40%, var(--border) 60%);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            transform: translateY(-1px);
+        }
+
+
+        .chat-date-picker-panel__day.is-today {
+            border-color: color-mix(in srgb, var(--accent) 32%, var(--border) 68%);
+        }
+
+
+        .chat-date-picker-panel__day.has-messages::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 5px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            transform: translateX(-50%);
+            background: color-mix(in srgb, var(--accent) 86%, #ffffff 14%);
+            opacity: 0.92;
+        }
+
+
+        .chat-date-picker-panel__day.is-selected {
+            background: color-mix(in srgb, var(--accent) 84%, #8a7bff 16%);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 6px 14px rgba(46, 110, 255, 0.24);
+        }
+
+
+        .chat-date-picker-panel__day.is-empty {
+            visibility: hidden;
+            pointer-events: none;
+            border: none;
+        }
+
+
+        .chat-date-picker-panel__action:hover {
+            color: var(--text);
+            background: color-mix(in srgb, var(--surface-2) 72%, transparent 28%);
+        }
+
+
+        .chat-date-picker-panel__action:disabled {
+            opacity: 0.62;
+            cursor: not-allowed;
+            background: transparent;
+        }
+
+
+        #composerRow.is-voice-recording { gap: 6px; }
+
+
+        .composer-row.is-voice-entering .composer-transition-overlay {
+            animation: none;
+        }
+
+
+        .composer-row.is-voice-exiting .composer-transition-overlay {
+            animation: none;
+        }
+
+
+        #messageForm:hover {
+            background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+            border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+        }
+
+
+        #messageForm:focus-within {
+            border-color: color-mix(in srgb, var(--accent) 48%, var(--border) 52%);
+            box-shadow: none;
+            transform: translateY(-1px);
+        }
+
+
+        #chatUnblockBtn:hover { filter: brightness(1.07); }
+
+
+        #messageForm .btn-icon:hover {
+            color: var(--text);
+            background: color-mix(in srgb, var(--contact-hover) 88%, transparent);
+            transform: translateY(-1px);
+        }
+
+
+        #messageForm .btn-icon:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-glow) 70%, transparent);
+        }
+
+
+        #messageForm .btn-icon:active { transform: scale(0.94); }
+
+
+        #messageForm .btn-attach:hover {
+            color: var(--text);
+            background: var(--contact-hover);
+        }
+
+
+        .attach-menu.is-opening {
+            visibility: visible;
+            pointer-events: none;
+            transition-delay: 0s;
+        }
+
+
+        .attach-menu.is-open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            visibility: visible;
+            pointer-events: auto;
+            transition-delay: 0s;
+        }
+
+
+        .attach-menu-item:hover {
+            background: color-mix(in srgb, var(--contact-hover) 88%, transparent);
+        }
+
+
+        .attach-menu-item:active {
+            transform: scale(0.985);
+        }
+
+
+        #voiceRecordBtn.is-send-state i {
+            font-size: 18px;
+        }
+
+
+        #voiceRecordBtn:hover {
+            color: #fff;
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+
+
+        #voiceRecordBtn:focus-visible {
+            outline: none;
+            box-shadow:
+                0 0 0 2px color-mix(in srgb, var(--accent-glow) 78%, transparent),
+                0 8px 20px color-mix(in srgb, var(--accent) 26%, transparent);
+        }
+
+
+        #voiceRecordBtn:active {
+            transform: scale(0.96);
+        }
+
+
+        #voiceRecordBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            filter: saturate(0.74);
+        }
+
+
+        #composerRow.is-voice-recording #messageForm {
+            border-color: color-mix(in srgb, var(--accent) 34%, var(--border) 66%);
+            box-shadow: none;
+            transform: none;
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+            max-width: none;
+            margin: 0;
+            opacity: 1;
+            pointer-events: auto;
+            overflow: visible;
+        }
+
+
+        #composerRow.is-voice-recording .composer-controls {
+            opacity: 1;
+            pointer-events: auto;
+            transform: none;
+            padding-right: 8px;
+        }
+
+
+        #composerRow.is-voice-recording #messageInput {
+            pointer-events: none;
+            user-select: none;
+            caret-color: transparent;
+            opacity: 0.86;
+            padding-right: 0;
+        }
+
+
+        #composerRow.is-voice-recording #attachBtn,
+        #composerRow.is-voice-recording #sendMessageBtn {
+            width: 0 !important;
+            min-width: 0 !important;
+            flex: 0 0 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-width: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+        }
+
+
+        #composerRow.is-voice-recording #voiceRecordBtn {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transition: none !important;
+        }
+
+
+        #composerRow.is-voice-recording #emojiBtn {
+            opacity: 0.74;
+            pointer-events: none;
+            cursor: default;
+            filter: saturate(0.35);
+        }
+
+
+        #composerRow.is-voice-recording ~ #emojiPicker {
+            display: none !important;
+        }
+
+
+#composerRow.is-voice-recording #voiceRecordCancelBtn {
+            display: inline-flex;
+            width: var(--composer-action-size);
+            min-width: var(--composer-action-size);
+            flex: 0 0 var(--composer-action-size);
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) scale(1);
+            pointer-events: auto;
+    transition:
+        opacity var(--dur-quick) var(--ease-quick) 0.06s,
+        transform var(--dur-medium) var(--ease-quick) 0.06s,
+        background var(--dur-quick) var(--ease-quick),
+                box-shadow var(--dur-quick) var(--ease-quick),
+                color var(--dur-quick) var(--ease-quick);
+        }
+
+
+        #composerRow.is-voice-recording #voiceRecordSendBtn {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: scale(1);
+            box-shadow:
+                0 8px 20px color-mix(in srgb, var(--accent) 24%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        }
+
+
+        #composerRow.is-voice-recording #voiceRecordCancelBtn,
+        #composerRow.is-voice-recording #voiceRecordSendBtn {
+            pointer-events: auto;
+        }
+
+
+        #composerRow.is-voice-recording .voice-record-meta {
+            max-width: 148px;
+            opacity: 1;
+            transform: translateX(0);
+            margin-right: 10px;
+        }
+
+
+        .voice-record-control:hover {
+            opacity: 0.88;
+            box-shadow: var(--shadow-1);
+        }
+
+
+        .voice-record-control:active { transform: scale(0.95); }
+
+
+        .voice-record-control:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            filter: none;
+            box-shadow: var(--shadow-md);
+        }
+
+
+        #voiceRecordCancelBtn:hover {
+            color: #ff8590;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(255, 255, 255, 0.08) 0%,
+                    rgba(255, 255, 255, 0.03) 100%
+                ),
+                color-mix(in srgb, var(--surface-2) 60%, #3a2024 40%);
+            transform: translateY(-1px);
+        }
+
+
+        #voiceRecordCancelBtn:focus-visible {
+            outline: none;
+            box-shadow:
+                0 0 0 2px rgba(241, 83, 100, 0.55),
+                0 8px 20px rgba(241, 83, 100, 0.18);
+        }
+
+
+        #voiceRecordSendBtn:hover {
+            opacity: 1;
+            filter: brightness(1.04);
+            box-shadow:
+                0 14px 30px color-mix(in srgb, var(--accent) 22%, transparent),
+                0 4px 12px rgba(20,16,8,0.16);
+        }
+
+
+        #voiceRecordSendBtn:focus-visible {
+            outline: none;
+            box-shadow:
+                0 0 0 2px color-mix(in srgb, var(--accent-glow) 70%, transparent),
+                0 14px 30px color-mix(in srgb, var(--accent) 22%, transparent),
+                0 4px 12px rgba(20,16,8,0.16);
+        }
+
+
+        #voiceRecordSendBtn:active {
+            transform: scale(0.96);
+        }
+
+
+        #voiceRecordSendBtn:disabled {
+            opacity: 0.45;
+            filter: none;
+            box-shadow: none;
+        }
+
+
+        #messageInput:hover {
+            background: transparent;
+        }
+
+
+        #messageInput:focus {
+            background: transparent;
+            box-shadow: none;
+        }
+
+
+
+        .btn-icon:hover { 
+            background: var(--contact-hover); 
+            color: var(--text); 
+            transform: translateY(-1px);
+        }
+
+
+
+        .btn-icon:active {
+            transform: scale(0.95);
+        }
+
+
+        .e2e-header-indicator:hover,
+        .e2e-header-indicator[aria-pressed="true"] {
+            background: var(--contact-hover);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+
+
+        .header-dropdown.is-opening,
+        .header-dropdown.active,
+        .header-dropdown.is-closing {
+            display: block;
+        }
+
+
+        .header-dropdown.is-opening {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: none;
+        }
+
+
+        .header-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translate3d(0, 0, 0) scale(1);
+            transition-delay: 0s;
+        }
+
+
+        .header-dropdown.is-closing {
+            opacity: 0;
+            visibility: visible;
+            pointer-events: none;
+            transform: translate3d(0, -6px, 0) scale(0.97);
+        }
+
+
+
+        .header-dropdown .dropdown-item:hover {
+            background: var(--contact-hover);
+        }
+
+
+
+        .header-dropdown .dropdown-item.danger {
+            color: var(--danger);
+        }
+
+
+        .message-scale-panel.is-opening,
+        .message-scale-panel.active,
+        .message-scale-panel.is-closing {
+            display: block;
+        }
+
+
+        .message-scale-panel.is-opening {
+            visibility: visible;
+            pointer-events: none;
+        }
+
+
+        .message-scale-panel.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translate3d(0, 0, 0) scale(1);
+            transition-delay: 0s;
+        }
+
+
+        .message-scale-panel.is-closing {
+            opacity: 0;
+            visibility: visible;
+            pointer-events: none;
+            transform: translate3d(0, -6px, 0) scale(0.96);
+        }
+
+
+        .message-scale-option:hover {
+            border-color: color-mix(in srgb, var(--accent) 38%, var(--border) 62%);
+            transform: translateY(-1px);
+        }
+
+
+        .message-scale-option.active {
+            border-color: color-mix(in srgb, var(--accent) 62%, var(--border) 38%);
+            background: color-mix(in srgb, var(--accent-light) 78%, transparent);
+        }
+
+
+        .header-search-wrap.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+
+        .emoji-picker.active {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translate3d(0, 0, 0) scale(1);
+            transition:
+                opacity var(--dur-quick) var(--ease-quick),
+                transform var(--dur-quick) var(--ease-quick),
+                visibility 0s linear 0s;
+        }
+
+
+        .emoji-category-btn:hover {
+            background: color-mix(in srgb, var(--contact-hover) 90%, transparent);
+            border-color: color-mix(in srgb, var(--border) 72%, transparent);
+            transform: translateY(-1px);
+        }
+
+
+        .emoji-category-btn.active {
+            background: color-mix(in srgb, var(--accent-glow) 44%, var(--surface) 56%);
+            border-color: color-mix(in srgb, var(--accent) 44%, var(--border) 56%);
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--accent-glow) 44%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            transform: translateY(0);
+        }
+
+
+        .emoji-item:hover {
+            background: color-mix(in srgb, var(--contact-hover) 88%, transparent);
+            border-color: color-mix(in srgb, var(--border) 58%, transparent);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            transform: translateY(-1px) scale(1.08);
+            z-index: 2;
+        }
+
+
+        .emoji-item:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+            outline-offset: -2px;
+        }
+
+
+        .modal-body .form-control:focus { border-color: var(--accent); box-shadow: none; }
+
+
+        .btn-add-user:hover { opacity: 0.85; }
+
+
+        .btn-add-user:disabled { background: var(--border); color: var(--sub-text); cursor: default; }
+
+
+        .pinned-bar:hover {
+            background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft) 16%);
+            border-color: color-mix(in srgb, var(--accent) 26%, var(--border) 74%);
+            box-shadow: var(--shadow-2);
+        }
+
+
+        .pinned-bar__close:hover { opacity: 1; }
+
+
+        .typing-indicator-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: inherit;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.07em;
+            font-style: normal;
+            font-weight: 600;
+            line-height: 1.1;
+        }
+
+
+        .typing-indicator-label {
+            white-space: nowrap;
+        }
+
+
+        #typingIndicator .typing-indicator-inline {
+            font-size: 11px;
+            line-height: 1.25;
+            color: color-mix(in srgb, var(--text) 72%, var(--accent) 28%);
+            text-shadow: var(--text-shadow-glow-accent);
+        }
+
+
+        .contact-last-msg .typing-indicator-inline {
+            letter-spacing: 0.04em;
+            color: color-mix(in srgb, var(--success) 22%, var(--accent) 78%);
+        }
+
+

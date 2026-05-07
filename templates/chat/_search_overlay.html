@@ -1,0 +1,53 @@
+<aside id="newChatModal"
+       class="search-overlay"
+       aria-hidden="true"
+       aria-labelledby="newChatModalTitle"
+       data-search-overlay
+       hidden>
+    <h5 id="newChatModalTitle" class="visually-hidden">Поиск</h5>
+    <div class="search-overlay__tabs" role="tablist" aria-label="Категории поиска">
+        <button type="button" class="search-overlay__tab is-active" role="tab" data-search-tab="chats" aria-selected="true">Чаты</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="contacts" aria-selected="false">Контакты</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="actions" aria-selected="false">Действия</button>
+    </div>
+    <div class="search-overlay__body">
+        <input type="text" id="searchUserInput" class="visually-hidden" tabindex="-1" aria-hidden="true">
+
+        <section class="search-overlay__panel" data-search-panel="actions" hidden>
+            <div class="command-palette-actions" id="commandPaletteActions">
+                <button type="button" class="command-palette-action" data-palette-action="contact">
+                    <i class="bi bi-person-plus"></i> Найти контакт
+                </button>                <button type="button" class="command-palette-action" data-palette-action="group">
+                    <i class="bi bi-people"></i> Создать группу
+                </button>
+                <button type="button" class="command-palette-action" data-palette-action="qr">
+                    <i class="bi bi-qr-code"></i> Мой QR
+                </button>
+                <button type="button" class="command-palette-action" data-palette-action="settings">
+                    <i class="bi bi-gear"></i> Настройки
+                </button>
+                <button type="button" class="command-palette-action" data-palette-action="theme">
+                    <i class="bi bi-circle-half"></i> Сменить тему
+                </button>
+            </div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="chats">
+            <div class="command-palette-section command-palette-section--hidden" id="paletteLocalSection">
+                <div class="command-palette-section-title">Ваши чаты</div>
+                <div id="paletteLocalResults"></div>
+            </div>
+            <div class="search-overlay__hint" data-search-hint="chats">
+                Введите имя, @username или вставьте публичный ключ.
+            </div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="contacts" hidden>
+            <div class="command-palette-section">
+                <div class="command-palette-section-title">Публичный каталог</div>
+                <div id="searchUserResults" aria-live="polite" aria-atomic="false"></div>
+            </div>
+        </section>
+    </div>
+</aside>
+

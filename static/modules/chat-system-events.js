@@ -1,0 +1,305 @@
+import { STANDARD_SINGLE_CHECK_UI_HTML } from './check-glyph.js';
+import { applyFallbackAvatarTint } from './utils.js';
+
+function getInitials(value) {
+    return String(value || '?')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((word) => word[0] || '')
+        .join('')
+        .toUpperCase() || '?';
+}
+
+function tr(value) {
+    const api = window.SUN_I18N;
+    if (api && typeof api.translateText === 'function') {
+        return api.translateText(value);
+    }
+    return String(value ?? '');
+}
+
+function buildDialogRequestItemHtml(data, escapeHtml) {
+    const displayName = data.sender_display_name || data.sender_username || '';
+    const username = data.sender_username || '';
+    const avatar = data.sender_avatar || '';
+    const initials = getInitials(displayName || username);
+    const avatarHtml = avatar
+        ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : escapeHtml(initials);
+
+    return `
+        <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${avatarHtml}</div>
+        <div class="req-info">
+            <div class="req-name">${escapeHtml(displayName)}</div>
+            <div class="req-username">@${escapeHtml(username)}</div>
+        </div>
+        <div class="req-actions">
+            <button class="req-btn accept" data-key="${escapeHtml(data.sender_public_key)}"><span class="req-btn-label">Принять</span></button>
+            <button class="req-btn decline" data-key="${escapeHtml(data.sender_public_key)}"><span class="req-btn-label">Отклонить</span></button>
+        </div>
+    `;
+}
+
+function findDialogRequestActionButtonBySenderKey(dialogRequestsList, senderPublicKey) {
+    if (!dialogRequestsList) return null;
+    const normalizedSenderKey = String(senderPublicKey || '');
+    if (!normalizedSenderKey) return null;
+
+    const actionButtons = dialogRequestsList.querySelectorAll('.req-btn[data-key]');
+    for (const button of actionButtons) {
+        if (String(button.getAttribute('data-key') || '') === normalizedSenderKey) {
+            return button;
+        }
+    }
+    return null;
+}
+
+export function registerSystemSocketHandlers({
+    socket,
+    escapeHtml,
+    loadContacts,
+    getCurrentChatId,
+    closeChatUI,
+    showToast,
+    resolveContactItemByChatId,
+    hideSidebarTyping,
+    chatStates,
+    chatScrollPositions,
+    dialogRequestsList,
+    dialogRequestsSection,
+    updateDialogRequestsBadge,
+    clearPendingReactionOp,
+    applyChatBlockState,
+    updateContact,
+    sortContactsList,
+    getCurrentBlockState,
+    resolveContactItemByPublicKey,
+    getCurrentContactPublicKey,
+    getCurrentContactId,
+    getChatState,
+    normalizeBlockState,
+    emitSocket,
+    hideTyping,
+    isDialogRequestsMuted = () => false,
+    dropChatCache,
+    onChatDraftUpdated = null,
+    refreshCurrentGroupProfileIfVisible = null,
+} = {}) {
+    socket.on('chat_deleted', (data) => {
+        const deletedChatId = String(data?.chat_id || '');
+        if (!deletedChatId) {
+            loadContacts();
+            return;
+        }
+
+        const wasCurrent = String(getCurrentChatId() || '') === deletedChatId;
+        if (wasCurrent) {
+            closeChatUI();
+            showToast(tr('\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A \u0443\u0434\u0430\u043B\u0438\u043B \u044D\u0442\u043E\u0442 \u0447\u0430\u0442'), 'warning');
+        }
+
+        const staleItem = resolveContactItemByChatId(deletedChatId);
+        if (staleItem) {
+            staleItem.remove();
+        }
+        hideSidebarTyping(deletedChatId);
+        chatStates.delete(deletedChatId);
+        chatScrollPositions.delete(deletedChatId);
+        dropChatCache?.(deletedChatId);
+        loadContacts();
+    });
+
+    socket.on('new_dialog_request', (data) => {
+        const senderDisplayName = String(data?.sender_display_name || data?.sender_username || '').trim() || '?';
+        if (!isDialogRequestsMuted()) {
+            showToast(
+                `${tr('\u041D\u043E\u0432\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u043D\u0430 \u0434\u0438\u0430\u043B\u043E\u0433 \u043E\u0442')} ${senderDisplayName}`,
+                'warning',
+                { scopeKey: 'dialog-request' },
+            );
+        }
+        if (!dialogRequestsList || !dialogRequestsSection) return;
+
+        const existingButton = findDialogRequestActionButtonBySenderKey(
+            dialogRequestsList,
+            data?.sender_public_key,
+        );
+        if (existingButton) existingButton.closest('.request-item')?.remove();
+
+        const item = document.createElement('div');
+        item.className = 'request-item';
+        item.innerHTML = buildDialogRequestItemHtml(data, escapeHtml).trim();
+        applyFallbackAvatarTint(
+            item.querySelector('.contact-avatar'),
+            data?.sender_display_name || data?.sender_username || '?',
+        );
+        dialogRequestsList.appendChild(item);
+        dialogRequestsSection.classList.add('has-requests');
+        updateDialogRequestsBadge();
+    });
+
+    socket.on('error', (data) => {
+        const requestId = String(data?.request_id || '').trim();
+        if (requestId) {
+            clearPendingReactionOp(requestId);
+            return;
+        }
+        if (data?.code === 'FORBIDDEN_BLOCKED') {
+            applyChatBlockState(
+                {
+                    blocked_by_me: Boolean(data?.blocked_by_me),
+                    blocked_me: Boolean(data?.blocked_me),
+                },
+                { syncChatRoom: true },
+            );
+            return;
+        }
+        const messageText = String(data?.message || '').trim().toLowerCase();
+        if (
+            messageText === 'message not found.'
+            || messageText === 'invalid reaction payload.'
+            || messageText === 'failed to update reaction.'
+        ) {
+            return;
+        }
+    });
+
+    socket.on('dialog_request_updated', (data) => {
+        const btn = findDialogRequestActionButtonBySenderKey(
+            dialogRequestsList,
+            data?.sender_public_key,
+        );
+        const item = btn?.closest('.request-item');
+        if (item) item.remove();
+        updateDialogRequestsBadge();
+    });
+
+    socket.on('chat_created', (data) => {
+        if (!data.contact) return;
+        window.closeCommandPalette?.();
+        updateContact(data.contact).finally(() => {
+            sortContactsList();
+            Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+        });
+        showToast(tr('\u0421\u043E\u0437\u0434\u0430\u043D \u043D\u043E\u0432\u044B\u0439 \u0447\u0430\u0442'), 'success');
+    });
+
+    socket.on('group_chat_created', (data) => {
+        const chatId = String(data?.chat_id || '').trim();
+        if (chatId) {
+            Promise.resolve(updateContact({
+                chatId,
+                is_group: true,
+                members_count: Number(data?.members_count || 0),
+                display_name: String(data?.chat_name || 'Group chat').trim(),
+                username: '',
+                public_key: '',
+                avatar_url: String(data?.chat_avatar_url || '').trim(),
+                group_description: String(data?.chat_description || '').trim(),
+                last_message: '',
+                last_message_time: null,
+                unreadCount: 0,
+                last_sender_id: null,
+                last_message_is_read: false,
+                last_message_is_delivered: false,
+                blocked_by_me: false,
+                blocked_me: false,
+                is_pinned: false,
+                pin_order: 0,
+                has_draft: false,
+                draft_text: '',
+                draft_updated_at: null,
+            })).finally(() => {
+                sortContactsList?.();
+            });
+        }
+        Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+    });
+
+    socket.on('group_members_added', () => {
+        Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+        refreshCurrentGroupProfileIfVisible?.();
+    });
+
+    socket.on('group_chat_updated', () => {
+        Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+        refreshCurrentGroupProfileIfVisible?.();
+    });
+
+    socket.on('group_members_updated', () => {
+        Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+        refreshCurrentGroupProfileIfVisible?.();
+    });
+
+    socket.on('group_member_sanctioned', () => {
+        Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
+        refreshCurrentGroupProfileIfVisible?.();
+    });
+
+    socket.on('you_are_blocked', (data) => {
+        const blockerKey = String(data?.blocker_public_key || '');
+        const contactItem = resolveContactItemByPublicKey(blockerKey);
+        if (contactItem) {
+            contactItem.setAttribute('data-blocked-me', '1');
+            contactItem.querySelector('.status-dot')?.classList.remove('online');
+        }
+
+        if (
+            blockerKey === getCurrentContactPublicKey()
+            || (data.chat_id && String(data.chat_id) === String(getCurrentChatId()))
+        ) {
+            const currentBlockState = getCurrentBlockState();
+            applyChatBlockState(
+                {
+                    blocked_by_me: currentBlockState.blocked_by_me,
+                    blocked_me: true,
+                },
+                { syncChatRoom: true },
+            );
+            showToast(tr('\u0412\u044B \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D\u044B'), 'warning');
+        }
+    });
+
+    socket.on('chat_block_state', (data) => {
+        const chatId = data?.chat_id;
+        if (chatId) {
+            const item = resolveContactItemByChatId(chatId);
+            if (item) {
+                item.setAttribute('data-blocked-by-me', data.blocked_by_me ? '1' : '0');
+                item.setAttribute('data-blocked-me', data.blocked_me ? '1' : '0');
+                const dot = item.querySelector('.status-dot');
+                const isBlocked = Boolean(data.blocked_by_me || data.blocked_me);
+                if (dot && isBlocked) dot.classList.remove('online');
+            }
+            const state = getChatState(chatId);
+            state.blockState = normalizeBlockState(data);
+        }
+        loadContacts();
+
+        const sameChat = chatId && String(chatId) === String(getCurrentChatId());
+        const samePartner = data?.partner_user_id
+            && String(data.partner_user_id) === String(getCurrentContactId());
+        if (sameChat || samePartner) {
+            applyChatBlockState(data, { syncChatRoom: true });
+        }
+    });
+
+    socket.on('force_leave_chat', (data) => {
+        if (!data?.chat_id) return;
+        if (String(data.chat_id) !== String(getCurrentChatId())) return;
+        emitSocket('leave', { chat_id: getCurrentChatId() });
+        if (typeof hideTyping === 'function') hideTyping();
+    });
+
+    socket.on('chat_draft_updated', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof onChatDraftUpdated === 'function') {
+            onChatDraftUpdated(data);
+            return;
+        }
+        loadContacts();
+    });
+}
+
+

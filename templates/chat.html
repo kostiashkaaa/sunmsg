@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+{% include 'chat/_head.html' %}
+<body
+    data-current-user-public-key="{{ current_public_key }}"
+    data-current-display-name="{{ current_display_name }}"
+    data-current-username="{{ current_username }}"
+    data-current-user-id="{{ session['user_id'] }}"
+    data-current-avatar-url="{{ current_avatar_url or '' }}"
+    data-initial-chat-contact-username="{{ initial_chat_contact_username or '' }}"
+    data-ui-language="{{ ui_language|default('ru') }}"
+>
+{% include 'chat/_svg_icons_sprite.html' %}
+{% set ui_lang = ui_language|default('ru') %}
+{% set has_initial_contacts = (initial_contacts|length) > 0 %}
+{% include 'chat/_boot_overlay.html' %}
+<div class="app">
+{% include 'chat/_sidebar.html' %}
+{% include 'chat/_chat_area.html' %}
+</div>
+{% include 'chat/_search_overlay.html' %}
+{% include 'chat/_modals.html' %}
+{% include 'chat/_context_menus.html' %}
+{% include 'chat/_scripts.html' %}
+</body>
+</html>

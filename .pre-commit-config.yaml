@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: text-encoding-guard
+        name: Text Encoding Guard
+        entry: python scripts/check_text_encoding.py
+        language: system
+        pass_filenames: false

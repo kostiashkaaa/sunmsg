@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun — Trust Center</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/trust.css') }}">
+    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
+        'page': 'trust',
+        'user': {
+            'uiLanguage': ui_language|default('ru'),
+        },
+        'app': {
+            'root': request.script_root or '',
+        },
+    } | tojson }}</script>
+    <script src="{{ asset_url('bootstrap.js') }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+</head>
+<body class="trust-page-body" data-ui-language="{{ ui_language|default('ru') }}">
+    <div class="trust-page-wrap">
+        <header class="trust-page-head">
+            <div class="trust-page-head-copy">
+                <div class="trust-page-eyebrow">{{ ui_copy.eyebrow }}</div>
+                <h1 class="trust-page-title">{{ ui_copy.title }}</h1>
+                <p class="trust-page-subtitle">{{ ui_copy.subtitle }}</p>
+            </div>
+            <a href="{{ url_for('auth.index') }}" class="trust-back-link">{{ ui_copy.back }}</a>
+        </header>
+
+        <div class="trust-page-layout">
+            <aside class="trust-nav-card" aria-label="{{ ui_copy.nav_title }}">
+                <div class="trust-nav-title">{{ ui_copy.nav_title }}</div>
+                <nav class="trust-nav-list">
+                    {% for doc in nav_docs %}
+                        {% if doc.slug == 'privacy' %}
+                            {% set doc_href = url_for('auth.privacy_policy') %}
+                        {% elif doc.slug == 'terms' %}
+                            {% set doc_href = url_for('auth.terms_of_service') %}
+                        {% elif doc.slug == 'faq' %}
+                            {% set doc_href = url_for('auth.security_faq') %}
+                        {% else %}
+                            {% set doc_href = url_for('auth.about_project') %}
+                        {% endif %}
+                        <a href="{{ doc_href }}" class="trust-nav-link {% if doc.slug == current_slug %}is-active{% endif %}">
+                            <span class="trust-nav-link-title">{{ doc.title }}</span>
+                            <span class="trust-nav-link-sub">{{ doc.summary }}</span>
+                        </a>
+                    {% endfor %}
+                </nav>
+            </aside>
+
+            <article class="trust-doc-card">
+                <header class="trust-doc-head">
+                    <h2>{{ current_doc.title }}</h2>
+                    <p>{{ current_doc.summary }}</p>
+                    <span class="trust-doc-updated">{{ ui_copy.updated }}: {{ updated_at }}</span>
+                </header>
+
+                {% for section in current_doc.sections %}
+                    <section class="trust-doc-section">
+                        <h3>{{ section.heading }}</h3>
+                        <ul>
+                            {% for point in section.points %}
+                                <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endfor %}
+            </article>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SUN Messenger pip-audit weekly
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+Unit=sunmessenger-pip-audit.service
+
+[Install]
+WantedBy=timers.target
+

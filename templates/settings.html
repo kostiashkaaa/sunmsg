@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
+        'page': 'settings',
+        'user': {
+            'currentUserId': session['user_id'],
+            'currentUsername': current_username,
+            'currentDisplayName': current_display_name,
+            'uiLanguage': ui_language|default('ru'),
+            'embedMode': embed_mode,
+        },
+        'app': {
+            'root': request.script_root or '',
+        },
+        'assets': {
+            'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),
+        },
+    } | tojson }}</script>
+    <script src="{{ asset_url('bootstrap.js') }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
+    <script src="{{ asset_url('chat-appearance.js') }}"></script>
+    <script src="{{ asset_url('crypto.js') }}"></script>
+    <script src="{{ asset_url('mnemonic.js') }}"></script>
+    <script type="module" src="{{ asset_url('modules/auth-fetch.js') }}"></script>
+    <script src="{{ asset_url('modules/device-key.js') }}"></script>
+    <script src="{{ asset_url('modules/private-key-session-bridge.js') }}"></script>
+    <script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ asset_url('pages/settings.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
+</head>
+<body
+    class="settings-loading {% if embed_mode %}settings-embed-mode{% endif %}"
+    data-embed-mode="{{ 'true' if embed_mode else 'false' }}"
+    data-current-user-id="{{ session['user_id'] }}"
+    data-current-username="{{ current_username }}"
+    data-ui-language="{{ ui_language|default('ru') }}"
+>
+{% include 'chat/_svg_icons_sprite.html' %}
+
+<div class="settings-scene">
+<div class="settings-scene-behind" aria-hidden="true"></div>
+<div class="settings-layout">
+    <div class="settings-page-loader" id="settingsPageLoader" aria-hidden="true">
+        <div class="settings-page-loader-head">
+            <div class="sun-skeleton-line" style="width: 180px; height: 16px;"></div>
+            <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+        </div>
+        <div class="settings-page-loader-grid">
+            <div class="settings-page-loader-nav">
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+            </div>
+            <div class="settings-page-loader-content">
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-line"></div>
+                <div class="sun-skeleton-block"></div>
+            </div>
+        </div>
+    </div>
+
+    <header class="settings-panel-head">
+        <button type="button" class="settings-panel-close" id="settingsPanelCloseBtn" aria-label="Закрыть">
+            <i class="bi bi-x-lg"></i>
+        </button>
+        <div class="settings-panel-head-copy">
+            <div class="settings-panel-pre">Настройки</div>
+            <div class="settings-panel-title" id="settingsPanelTitle">Профиль и приватность</div>
+        </div>
+        <span class="settings-panel-esc" id="settingsPanelEscHint">Esc · закрыть</span>
+    </header>
+
+    <div class="settings-panel-body">
+
+    <nav class="settings-nav" id="settingsNav">
+        <div class="settings-search-wrap">
+            <input
+                id="settingsSearchInput"
+                class="settings-search-input"
+                type="search"
+                placeholder="Поиск настроек"
+                autocomplete="off"
+                spellcheck="false"
+            >
+        </div>
+        <button
+            type="button"
+            class="settings-nav-toggle"
+            id="settingsNavToggle"
+            aria-expanded="false"
+            aria-controls="settingsNavList"
+        >
+            <span class="settings-nav-toggle-kicker">Раздел</span>
+            <span class="settings-nav-toggle-label" id="settingsNavToggleLabel">Профиль</span>
+            <i class="bi bi-chevron-down settings-nav-toggle-icon" aria-hidden="true"></i>
+        </button>
+        <div class="settings-nav-list" id="settingsNavList">
+            <a href="#profile" class="nav-item" data-section="profile">
+                Профиль
+            </a>
+            <a href="#privacy" class="nav-item" data-section="privacy">
+                Приватность
+            </a>
+            <a href="#keys" class="nav-item" data-section="keys">
+                Безопасность
+            </a>
+            <a href="#notifications" class="nav-item" data-section="notifications">
+                Уведомления
+            </a>
+
+            <hr class="nav-divider">
+
+            <a href="#appearance" class="nav-item" data-section="appearance">
+                Внешний вид
+            </a>
+
+            <a href="#chat-style" class="nav-item" data-section="chat-style">
+                Обои
+            </a>
+            <a href="#account" class="nav-item" data-section="account">
+                Устройства
+            </a>
+            <a href="#support" class="nav-item" data-section="support">
+                Support
+            </a>
+
+            <hr class="nav-divider">
+
+            <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="nav-item danger" data-logout-trigger>
+                    Выйти
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="settings-content">
+
+        <div id="settingsAlert" style="display:none;"></div>
+
+        <section id="section-profile" class="settings-profile-section">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-person-circle"></i>
+                    <h3>Профиль</h3>
+                </div>
+                <div class="settings-avatar-row">
+                    <div class="settings-avatar-edit-wrap">
+                        <div class="avatar-preview" id="avatarPreview">?</div>
+                        <label for="avatarFileInput" id="avatarUploadLabel" class="settings-avatar-edit-btn" aria-label="Изменить фото" title="Изменить фото">
+                            <i class="bi bi-camera" aria-hidden="true"></i>
+                        </label>
+                    </div>
+                    <div class="settings-avatar-meta">
+                        <div class="settings-avatar-name" id="previewName">{{ current_display_name }}</div>
+                        <div class="settings-avatar-username">@{{ current_username }}</div>
+                        <div class="settings-avatar-actions">
+                            <input type="file" id="avatarFileInput" accept="image/*" hidden>
+                            <p id="avatarUploadStatus" style="font-size:12px;color:var(--accent);display:none;"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-inline-fields">
+                    <label class="settings-field">
+                        <span class="settings-field-label">Отображаемое имя</span>
+                        <input type="text" class="settings-input settings-field-input" id="displayName" value="{{ current_display_name }}" placeholder="Ваше имя" maxlength="50">
+                        <span class="settings-field-hint">Как вас видят другие пользователи</span>
+                    </label>
+                    <label class="settings-field">
+                        <span class="settings-field-label">Имя пользователя</span>
+                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username }}" placeholder="username" maxlength="50" pattern="[a-z0-9_]+">
+                        <span class="settings-field-hint">Используется для поиска и ссылок</span>
+                    </label>
+                </div>
+
+                <div class="settings-inline-fields">
+                    <label class="settings-field" style="grid-column: 1 / -1;">
+                        <span class="settings-field-label">О себе</span>
+                        <textarea class="settings-input settings-field-input" id="bioInput" rows="2" maxlength="280" placeholder="Несколько слов о себе (до 280 символов)" style="resize:vertical;min-height:60px;font-family:inherit;"></textarea>
+                        <span class="settings-field-hint">Видно собеседникам в вашем профиле. <span id="bioCounter" style="opacity:0.7;">0/280</span></span>
+                    </label>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="section-privacy" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <h3>Видимость</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Публичный профиль</div>
+                        <div class="settings-row-desc">Другие пользователи могут найти вас по имени</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="isPublicSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Скрыть онлайн статус</div>
+                        <div class="settings-row-desc">Другие не увидят когда вы были в сети</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="hideOnlineStatusSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автоотклонение запросов</div>
+                        <div class="settings-row-desc">Автоматически отклонять входящие запросы на чат</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="autoDeclineSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Приглушить запросы</div>
+                        <div class="settings-row-desc">Новые запросы будут попадать только во вкладку запросов, без всплывающих уведомлений</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="muteDialogRequestsSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Видимость фотографии</div>
+                        <div class="settings-row-desc">Кто может видеть вашу аватарку</div>
+                    </div>
+                    <select id="avatarVisibilitySelect" class="settings-select settings-select-control">
+                        <option value="all">Всем</option>
+                        <option value="contacts">Только контактам</option>
+                        <option value="nobody">Никому</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-check"></i>
+                    <h3>Прозрачность и документы</h3>
+                </div>
+                <p class="settings-body-copy settings-trust-intro">
+                    Здесь собраны юридические документы и открытое описание модели приватности SUN Messenger.
+                </p>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Политика конфиденциальности</div>
+                        <div class="settings-row-desc">Что мы храним, что не видим, и как управлять данными</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.privacy_policy') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Пользовательское соглашение</div>
+                        <div class="settings-row-desc">Правила использования сервиса, ответственность и ограничения</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.terms_of_service') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">FAQ по анонимности и безопасности</div>
+                        <div class="settings-row-desc">Быстрые ответы по защите аккаунта и приватности</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.security_faq') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">О проекте и модель приватности</div>
+                        <div class="settings-row-desc">Публичное описание принципов, угроз и архитектурных решений</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.about_project') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+            </div>
+
+        </section>
+
+                <section id="section-notifications" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-bell"></i>
+                    <h3>Push-уведомления</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Разрешение браузера</div>
+                        <div class="settings-row-desc" id="pushPermissionState">Проверка...</div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Подписка на push</div>
+                        <div class="settings-row-desc" id="pushSubscriptionState">Проверка...</div>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Действия</div>
+                        <div class="settings-row-desc">Включите или отключите push для этого браузера.</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings primary" id="enablePushBtn">Включить</button>
+                        <button type="button" class="btn-settings secondary" id="disablePushBtn">Отключить</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-keys" style="display:none;">
+            <div class="settings-card" id="e2eStatusCard" style="border-left: 4px solid var(--warning); display:none;">
+                <div style="display:flex; gap:16px; align-items:center;">
+                    <div style="font-size:24px; color:var(--warning);"><i class="bi bi-shield-slash"></i></div>
+                    <div>
+                        <div style="font-weight:600; color:var(--text);">История заблокирована</div>
+                        <div style="font-size:13px; color:var(--sub-text);">
+                            Вы вошли через Authenticator, поэтому сообщения не могут быть расшифрованы. 
+                            Введите ваши 24 слова ниже, чтобы активировать доступ.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card" id="mnemonicUnlockCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-unlock"></i>
+                    <h3>Активировать историю (24 слова)</h3>
+                </div>
+                <p style="font-size:13px; color:var(--sub-text);">
+                    Введите ваши секретные 24 слова, чтобы восстановить доступ к зашифрованным сообщениям на этом устройстве.
+                </p>
+                <div class="mnemonic-grid" id="mnemonicInputGrid">
+                </div>
+                <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                    <button class="btn-settings primary" id="activateDecryptionBtn">
+                        <i class="bi bi-key-fill"></i> Активировать доступ
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card" id="totpSettingsCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-lock"></i>
+                    <h3>Двухфакторная аутентификация (TOTP)</h3>
+                </div>
+                <div class="totp-settings-body">
+                    <div class="settings-row settings-row-borderless totp-status-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">Состояние</div>
+                            <div class="settings-row-desc" id="totpStatusText">Проверка...</div>
+                            <div class="settings-row-desc totp-enabled-at" id="totpEnabledAtText" style="display:none;"></div>
+                        </div>
+                        <div class="settings-action-cluster totp-actions">
+                            <button type="button" class="btn-settings primary" id="totpEnableBtn">Включить</button>
+                            <button type="button" class="btn-settings secondary" id="totpRegenerateBtn" style="display:none;">Перевыпустить</button>
+                            <button type="button" class="btn-settings danger-btn" id="totpDisableBtn" style="display:none;">Выключить</button>
+                        </div>
+                    </div>
+                    <div class="totp-setup-panel" id="totpSetupPanel" style="display:none;">
+                        <div class="totp-setup-grid">
+                            <div class="totp-qr-box" id="totpSettingsQrContainer"></div>
+                            <div class="totp-setup-copy">
+                                <div class="settings-row-label">Секретный ключ</div>
+                                <div class="totp-secret-box" id="totpSettingsSecret"></div>
+                                <div class="settings-row-desc">Отсканируйте QR в Authenticator или введите ключ вручную.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="totp-verify-panel" id="totpVerifyPanel" style="display:none;">
+                        <label for="totpVerifyCode" class="settings-row-label">Код подтверждения</label>
+                        <div class="totp-verify-controls">
+                            <input
+                                type="text"
+                                id="totpVerifyCode"
+                                class="settings-input totp-verify-input"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                maxlength="6"
+                                placeholder="000000"
+                            >
+                            <button type="button" class="btn-settings primary" id="totpVerifyBtn">Подтвердить</button>
+                        </div>
+                        <div class="settings-row-desc">Введите 6-значный код из Authenticator, чтобы завершить подключение.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card" id="passkeySettingsCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-key"></i>
+                    <h3>Passkey (WebAuthn/FIDO2)</h3>
+                </div>
+                <div class="passkey-settings-body">
+                    <p class="passkey-settings-copy">
+                        Вход по Passkey (биометрия/системный ключ) без ввода 24 слов. Рекомендуется привязать минимум два устройства.
+                    </p>
+                    <div class="settings-action-cluster passkey-actions">
+                        <button type="button" class="btn-settings primary" id="passkeyAddBtn">Добавить Passkey</button>
+                    </div>
+                    <div id="passkeyUnsupportedNote" class="settings-row-desc" style="display:none;">
+                        Этот браузер не поддерживает WebAuthn/Passkey.
+                    </div>
+                    <div id="passkeyList" class="passkey-list"></div>
+                </div>
+            </div>
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-lock"></i>
+                    <h3>Публичный ключ (E2E)</h3>
+                </div>
+                <p style="font-size:13px;color:var(--sub-text);margin-bottom:12px;">
+                    Это ваш публичный ключ. Делитесь им с теми, кто хочет написать вам напрямую через публичный ключ.
+                </p>
+                <textarea class="key-textarea" rows="7" readonly id="publicKeyTextarea">{{ public_key_pem }}</textarea>
+                <div class="copy-row">
+                    <button class="btn-settings secondary settings-icon-action" id="copyPublicKeyBtn" type="button" aria-label="Скопировать ключ" title="Скопировать ключ">
+                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-qr-code"></i>
+                    <h3>QR-код для добавления контакта</h3>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+                    <p style="font-size:13px;color:var(--sub-text);text-align:center;margin:0;">
+                        Покажите этот QR-код — собеседник отсканирует и добавит вас в контакты автоматически.
+                    </p>
+                    <div id="qrCodeContainer" style="
+                        background:#fff; padding:16px; border-radius:16px;
+                        box-shadow: var(--shadow-md);
+                        display:inline-block;
+                    "></div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+                        <button class="btn-settings secondary settings-icon-action" id="downloadQrBtn" type="button" aria-label="Скачать PNG" title="Скачать PNG">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn-settings secondary settings-icon-action" id="copyQrPublicKeyBtn" type="button" aria-label="Скопировать ключ" title="Скопировать ключ">
+                            <i class="bi bi-share" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <p style="font-size:11px;color:var(--sub-text);text-align:center;margin:0;">
+                        Ваш @{{ current_username }} · QR содержит полный публичный ключ
+                    </p>
+                </div>
+            </div>
+
+            {% if private_key_pem %}
+            <div class="settings-card">
+                <div class="settings-card-header" style="background:rgba(245,158,11,0.08);">
+                    <i class="bi bi-exclamation-triangle" style="color:var(--warning);"></i>
+                    <h3>Новый приватный ключ</h3>
+                </div>
+                <div class="settings-alert warning">
+                    <i class="bi bi-exclamation-circle"></i>
+                    Сохраните этот ключ немедленно в безопасном месте. Он будет показан <strong>только один раз</strong>.
+                </div>
+                <textarea class="key-textarea" rows="7" readonly id="privateKeyTextarea">{{ private_key_pem }}</textarea>
+                <div class="copy-row">
+                    <button class="btn-settings danger-btn settings-icon-action" id="copyPrivateKeyBtn" type="button" aria-label="Скопировать приватный ключ" title="Скопировать приватный ключ">
+                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <section id="section-appearance" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-moon-stars"></i>
+                    <h3>Тема оформления</h3>
+                </div>
+
+                <div class="theme-preview-row">
+                    <div class="theme-preview" id="themeLight" data-theme-choice="light" role="button" tabindex="0">
+                        <div class="theme-preview-inner theme-preview-light">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Светлая</div>
+                    </div>
+                    <div class="theme-preview" id="themeDark" data-theme-choice="dark" role="button" tabindex="0">
+                        <div class="theme-preview-inner theme-preview-dark">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Тёмная</div>
+                    </div>
+                </div>
+
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Тёмный режим</div>
+                        <div class="settings-row-desc">Переключить сейчас</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="darkModeSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Цвет интерфейса</div>
+                        <div class="settings-row-desc" id="interfaceAccentScope">Сейчас настраивается: светлая тема</div>
+                    </div>
+                    <div class="interface-accent-controls">
+                        <input type="color" id="interfaceAccentColor" class="chat-style-color-input" value="#c58a22">
+                        <button type="button" class="btn-settings secondary settings-icon-action interface-accent-btn" id="interfaceAccentResetThemeBtn" aria-label="Сбросить тему" title="Сбросить тему">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-actions settings-row-borderless">
+                    <button type="button" class="btn-settings danger-btn settings-icon-action interface-accent-btn" id="interfaceAccentResetAllBtn" aria-label="Сбросить все цвета" title="Сбросить все цвета">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-translate"></i>
+                    <h3>Язык интерфейса</h3>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Язык интерфейса</div>
+                        <div class="settings-row-desc">Применится после повторного входа</div>
+                    </div>
+                    <select id="languageSelect" class="settings-select settings-select-control">
+                        <option value="ru">Русский</option>
+                        <option value="en">Английский</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-download"></i>
+                    <h3>Резервная копия настроек</h3>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Экспорт / импорт</div>
+                        <div class="settings-row-desc">Перенос персонализации и приватности между устройствами.</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings secondary" id="settingsExportBtn">Экспорт JSON</button>
+                        <label for="settingsImportInput" class="btn-settings secondary">Импорт JSON</label>
+                        <input type="file" id="settingsImportInput" accept="application/json,.json" hidden>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-chat-style" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-chat-square-text"></i>
+                    <h3>Фон переписки</h3>
+                </div>
+
+                <div class="chat-style-block">
+                    <div class="chat-style-mode-row" id="chatStyleModeRow">
+                        <button type="button" class="chat-style-mode-btn" data-mode="default">Стандартный</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="preset">Пресеты</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="color">Цвет</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="gradient">Градиент</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="custom">Своя картинка</button>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="preset" id="chatPresetPanel">
+                        <div class="chat-style-subtitle">Готовые пресеты</div>
+                        <div id="chatPresetGroups"></div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="color" id="chatColorPanel">
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatColorPicker">Цвет фона</label>
+                            <input type="color" id="chatColorPicker" class="chat-style-color-input" value="#e9edf3">
+                        </div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="gradient" id="chatGradientPanel">
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatGradientColorA">Начало</label>
+                            <input type="color" id="chatGradientColorA" class="chat-style-color-input" value="#f5f7fb">
+                        </div>
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatGradientColorB">Конец</label>
+                            <input type="color" id="chatGradientColorB" class="chat-style-color-input" value="#e4ebf3">
+                        </div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="custom" id="chatCustomPanel">
+                        <div class="chat-style-upload-row">
+                            <label for="chatCustomImageInput" class="btn-settings secondary" style="cursor:pointer;">
+                                <i class="bi bi-upload"></i> Загрузить картинку
+                            </label>
+                            <input type="file" id="chatCustomImageInput" accept="image/*" style="display:none;">
+                            <span id="chatCustomImageMeta" class="chat-style-meta">Файл не выбран</span>
+                        </div>
+                        <div class="chat-style-slider-grid">
+                            <label class="chat-style-slider">
+                                <span>Затемнение</span>
+                                <input type="range" id="chatCustomDarken" min="0" max="70" value="8">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Blur</span>
+                                <input type="range" id="chatCustomBlur" min="0" max="18" value="0">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Прозрачность фона</span>
+                                <input type="range" id="chatCustomOpacity" min="20" max="100" value="100">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Масштаб</span>
+                                <input type="range" id="chatCustomScale" min="30" max="240" value="100">
+                            </label>
+                        </div>
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatCustomPosition">Позиционирование</label>
+                            <select id="chatCustomPosition" class="settings-input chat-style-select settings-select-control">
+                                <option value="center center">Центр</option>
+                                <option value="top center">Сверху</option>
+                                <option value="bottom center">Снизу</option>
+                                <option value="center left">Слева</option>
+                                <option value="center right">Справа</option>
+                            </select>
+                        </div>
+                        <label class="chat-style-check">
+                            <input type="checkbox" id="chatCustomRepeat">
+                            <span>Повторять изображение</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Прозрачность пузырей</div>
+                        <div class="settings-row-desc">Отдельно для читаемости поверх фона</div>
+                    </div>
+                    <input type="range" id="chatBubbleOpacity" min="35" max="100" value="90">
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Масштаб сообщений</div>
+                        <div class="settings-row-desc">Размер пузырей и текста в переписке</div>
+                    </div>
+                    <div class="chat-scale-controls">
+                        <div class="chat-scale-presets" id="chatMessageScalePresets">
+                            <button type="button" class="chat-scale-chip" data-scale="0.9">90%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1">100%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1.15">115%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1.3">130%</button>
+                        </div>
+                        <div class="chat-scale-slider-row">
+                            <input type="range" id="chatMessageScaleRange" min="0.9" max="1.3" step="0.01" value="1">
+                            <span class="chat-scale-value" id="chatMessageScaleValue">100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row settings-row-info-only">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Предпросмотр</div>
+                        <div class="settings-row-desc">Применяется сразу без перезагрузки</div>
+                    </div>
+                </div>
+                <div class="chat-preview-wrap">
+                    <div id="chatAppearancePreview" class="chat-appearance-preview" data-chat-contrast="normal">
+                        <div class="chat-appearance-preview__msg other">
+                            <div class="bubble">Пример входящего сообщения</div>
+                        </div>
+                        <div class="chat-appearance-preview__msg self">
+                            <div class="bubble">Пример исходящего сообщения</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Действия</div>
+                        <div class="settings-row-desc">Сброс оформления для активной или обеих тем</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings secondary settings-icon-action" id="chatClearBackgroundBtn" aria-label="Убрать фон" title="Убрать фон">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn-settings danger-btn settings-icon-action" id="chatResetAppearanceBtn" aria-label="Сбросить оформление" title="Сбросить оформление">
+                            <i class="bi bi-trash3" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-account" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <h3>Активные сессии</h3>
+                </div>
+                <div class="session-device-list" id="sessionDevicesList">
+                    <div class="session-device-empty">Загружаем активные сессии…</div>
+                </div>
+                <div class="settings-save-row settings-save-row-spaced">
+                    <button class="btn-settings secondary" id="signOutOtherSessionsBtn" type="button">
+                        <i class="bi bi-box-arrow-right"></i> Выйти на остальных устройствах
+                    </button>
+                </div>
+            </div>
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-exclamation-octagon"></i>
+                    <h3 class="settings-danger-title">Опасная зона</h3>
+                </div>
+                <div class="settings-danger-panel">
+                    <p class="settings-danger-heading">Удаление вашего аккаунта</p>
+                    <p class="settings-body-copy settings-danger-copy">
+                        Это действие необратимо. Все ваши сообщения, контакты, аватары и ключи будут удалены с сервера без возможности восстановления.
+                    </p>
+                    <button class="btn-settings danger-btn settings-danger-action" id="deleteAccountBtn">
+                        <i class="bi bi-trash3"></i> Удалить аккаунт навсегда
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-support" style="display:none;">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-life-preserver"></i>
+                    <h3>Поддержка и обратная связь</h3>
+                </div>
+                <p class="settings-body-copy">
+                    Отправьте баг-репорт или вопрос. Обращение попадет в модераторскую панель без доступа к переписке.
+                </p>
+                <form id="settingsSupportForm" class="settings-inline-fields">
+                    <label class="settings-field">
+                        <span class="settings-field-label">Категория</span>
+                        <select id="settingsSupportCategory" class="settings-input settings-field-input">
+                            <option value="bug">bug</option>
+                            <option value="performance">performance</option>
+                            <option value="feature">feature</option>
+                            <option value="security">security</option>
+                            <option value="other">other</option>
+                        </select>
+                    </label>
+                    <label class="settings-field">
+                        <span class="settings-field-label">Контакт (необязательно)</span>
+                        <input type="text" class="settings-input settings-field-input" id="settingsSupportContact" maxlength="120" placeholder="@telegram, email">
+                    </label>
+                    <label class="settings-field" style="grid-column: 1 / -1;">
+                        <span class="settings-field-label">Тема</span>
+                        <input type="text" class="settings-input settings-field-input" id="settingsSupportSubject" maxlength="160" placeholder="Кратко о проблеме">
+                    </label>
+                    <label class="settings-field" style="grid-column: 1 / -1;">
+                        <span class="settings-field-label">Описание</span>
+                        <textarea class="settings-input settings-field-input" id="settingsSupportBody" rows="5" maxlength="8000" placeholder="Шаги, ожидаемый результат, фактический результат"></textarea>
+                    </label>
+                </form>
+                <div class="settings-save-row settings-save-row-spaced">
+                    <button type="button" class="btn-settings secondary" id="settingsSupportOpenPageBtn">
+                        <i class="bi bi-box-arrow-up-right"></i> Открыть полную форму
+                    </button>
+                    <button type="button" class="btn-settings" id="settingsSupportSubmitBtn">
+                        <i class="bi bi-send"></i> Отправить в поддержку
+                    </button>
+                </div>
+                <p id="settingsSupportStatus" class="settings-body-copy" style="margin-top:8px;"></p>
+            </div>
+        </section>
+
+    </main>
+    <button type="button" class="settings-floating-save" id="settingsFloatingSaveBtn" aria-label="Сохранить изменения" title="Сохранить изменения" hidden>
+        <span class="settings-floating-save-spinner" aria-hidden="true"></span>
+        <span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span>
+    </button>
+</div>
+</div>
+</div>
+
+<div class="avatar-editor" id="avatarEditor" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="avatarEditorTitle">
+    <div class="avatar-editor-stage">
+        <div class="avatar-editor-viewport" id="avatarEditorViewport">
+            <canvas class="avatar-editor-canvas" id="avatarEditorCanvas"></canvas>
+            <div class="avatar-editor-crop-frame" aria-hidden="true">
+                <span class="avatar-editor-crop-handle is-top-left"></span>
+                <span class="avatar-editor-crop-handle is-top-right"></span>
+                <span class="avatar-editor-crop-handle is-bottom-left"></span>
+                <span class="avatar-editor-crop-handle is-bottom-right"></span>
+            </div>
+        </div>
+        <div class="avatar-editor-zoom">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorRotateLeft" aria-label="Повернуть влево">
+                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            </button>
+            <input type="range" id="avatarEditorZoom" min="1" max="4" step="0.01" value="1" aria-label="Масштаб фото">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorRotateRight" aria-label="Повернуть вправо">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    <aside class="avatar-editor-panel">
+        <header class="avatar-editor-header">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorClose" aria-label="Закрыть">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <div class="avatar-editor-title" id="avatarEditorTitle">Изменить фото</div>
+            <button type="button" class="avatar-editor-done" id="avatarEditorDone">Готово</button>
+        </header>
+
+        <div class="avatar-editor-tabs" aria-label="Инструменты">
+            <button type="button" class="avatar-editor-tab is-active" aria-label="Обрезка">
+                <i class="bi bi-crop" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="avatar-editor-tab" id="avatarEditorReset" aria-label="Сбросить">
+                <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <section class="avatar-editor-section">
+            <div class="avatar-editor-section-title">Соотношение сторон</div>
+            <div class="avatar-editor-ratio is-selected">
+                <i class="bi bi-square" aria-hidden="true"></i>
+                <span>Квадрат</span>
+            </div>
+        </section>
+    </aside>
+</div>
+
+
+
+<script src="{{ asset_url('qrcode-loader.js') }}"></script>
+<script type="module" src="{{ asset_url('pages/settings.js') }}"></script>
+</body>
+</html>
+

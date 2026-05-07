@@ -1,0 +1,5 @@
+/* Обёртка: подключает legacy style.css в каскадный слой `base`,
+   чтобы layered-правила из pages/chat/*.css корректно его переопределяли.
+   Используется только на странице чата (см. templates/chat/_head.html). */
+@layer base, layout, components, states, responsive;
+@import url("./style.css") layer(base);

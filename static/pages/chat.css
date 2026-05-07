@@ -1,0 +1,7 @@
+/* chat.css is an import aggregator. Keep only imports here. */
+@import url('./chat/layout.css');
+@import url('./chat/components.css');
+@import url('./chat/link-draft-banner.css');
+@import url('./chat/link-preview.css');
+@import url('./chat/states.css');
+@import url('./chat/responsive.css');

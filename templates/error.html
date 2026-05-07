@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sun">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="description" content="SUN Messenger — страница ошибки {{ status_code }}">
+    <title>sun · {{ status_code }}</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/error.css') }}">
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
+    <script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+</head>
+<body class="error-page-body" data-ui-language="{{ ui_language|default('ru') }}">
+    {% include 'chat/_svg_icons_sprite.html' %}
+    <div class="error-page-orb error-page-orb-1" aria-hidden="true"></div>
+    <div class="error-page-orb error-page-orb-2" aria-hidden="true"></div>
+
+    <div class="error-page-corner">
+        <div class="error-page-corner-dot"></div>
+        <span>sun</span>
+    </div>
+
+    <main class="error-page-shell">
+        <section class="error-page-panel sun-surface-enter">
+            <div class="error-page-topline">
+                <span class="error-page-code">error {{ status_code }}</span>
+                <span class="error-page-request">{{ request_method }} {{ request_path }}</span>
+            </div>
+
+            <div class="error-page-icon" aria-hidden="true">
+                <i class="bi {{ icon }}"></i>
+            </div>
+
+            <div class="error-page-copy">
+                <p class="error-page-eyebrow">SUN Messenger</p>
+                <h1>{{ title }}</h1>
+                <p class="error-page-description">{{ description }}</p>
+            </div>
+
+            {% if detail %}
+            <div class="error-page-detail">
+                <span>Детали</span>
+                <strong>{{ detail }}</strong>
+            </div>
+            {% endif %}
+
+            <div class="error-page-actions">
+                <a href="{{ primary_href }}" class="error-page-btn error-page-btn-primary">
+                    <i class="bi bi-arrow-left-circle"></i>
+                    <span>{{ primary_label }}</span>
+                </a>
+                <button type="button" id="reloadPageBtn" class="error-page-btn error-page-btn-secondary">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    <span>Обновить страницу</span>
+                </button>
+            </div>
+
+            <div class="error-page-footer">
+                <span>secure transport</span>
+                <span>single design system</span>
+                <span>{{ status_code }}</span>
+            </div>
+        </section>
+    </main>
+    <script nonce="{{ csp_nonce }}">
+        document.getElementById('reloadPageBtn')?.addEventListener('click', () => window.location.reload());
+    </script>
+</body>
+</html>

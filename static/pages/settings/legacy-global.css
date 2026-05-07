@@ -1,0 +1,49 @@
+/* normalized: removed mojibake comment */
+.settings-page-body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg);
+    overflow-y: auto;
+}
+
+/* Settings card shared styles via CSS only (settings.html has own inline structure) */
+.settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.settings-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 0 12px;
+    margin: 0 0 16px;
+    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--rule) 34%, transparent);
+    color: var(--text);
+}
+.settings-card-header i {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+.settings-card-header h3 {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text);
+}

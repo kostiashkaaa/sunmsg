@@ -1,0 +1,177 @@
+/* chat states split: selection.css (from legacy states.css lines 2104-2280) */
+
+/* Selection wash behind messages without moving bubbles. */
+        .chat-messages.selecting .message.selected {
+            background-color: transparent;
+        }
+
+        .chat-messages.selecting .message.selected:has(+ .message.selected) {
+            margin-bottom: 0;
+            padding-bottom: var(--message-row-gap, var(--chat-message-gap, 4px));
+        }
+
+        .chat-messages.selecting .message.selected::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 0;
+            background: rgba(224, 173, 68, 0.14);
+            pointer-events: none;
+        }
+
+        :root[data-chat-contrast="high"] .chat-messages.selecting .message.selected {
+            background-color: transparent;
+        }
+
+        :root[data-chat-contrast="high"] .chat-messages.selecting .message.selected::before {
+            background: rgba(224, 173, 68, 0.18);
+        }
+
+
+        .chat-messages.selecting .message.selected .message-row-track::before {
+            content: "";
+            background: var(--accent);
+            border-color: #ffffff;
+            color: #ffffff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.2 5.2L4 8L8.8 2.2' fill='none' stroke='%23ffffff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: calc(var(--selection-marker-size, 20px) - 8px) calc(var(--selection-marker-size, 20px) - 8px);
+            box-shadow:
+                0 1px 4px rgba(2, 8, 23, 0.24),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.68);
+        }
+
+
+
+        /* Custom Checkbox for Modal */
+        .custom-control-input:checked ~ .custom-control-label::before {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+
+        .context-menu.is-opening {
+            visibility: visible;
+            pointer-events: none;
+        }
+
+
+        .context-menu.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+
+        .context-menu-item:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+
+        .context-menu-item.danger { color: #f87171; }
+
+
+        .context-menu-item.danger:hover { background: #ef4444; color: #fff; }
+
+
+        .contact-item[data-favorite="1"] .contact-name {
+            letter-spacing: -0.004em;
+        }
+
+
+        .contact-item[data-pinned="1"]::before {
+            opacity: 0.9;
+            transform: translateY(-50%) scaleY(1);
+        }
+
+
+        .reaction-picker.is-opening,
+        .reaction-picker.active,
+        .reaction-picker.is-closing {
+            display: inline-flex;
+        }
+
+
+        .reaction-picker.is-opening {
+            pointer-events: none;
+        }
+
+
+        .reaction-picker.active {
+            animation: m-pop-overshoot var(--m-dur-fast) var(--m-bouncy) both;
+        }
+
+
+        .reaction-picker__item:hover {
+            transform: translateY(-2px) scale(1.08);
+            background: color-mix(in srgb, var(--accent-light) 74%, transparent);
+        }
+
+
+        .reaction-picker__item:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-glow) 75%, transparent);
+        }
+
+
+        .search-clear-btn:hover {
+            opacity: 1;
+            background: color-mix(in srgb, var(--sub-text) 24%, transparent);
+            color: var(--text);
+        }
+
+
+        .search-overlay.is-open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+
+        .search-overlay.is-open .search-overlay__tabs,
+        .search-overlay.is-open .search-overlay__body {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+
+        .sidebar.has-search-overlay #sidebarScrollArea,
+        .sidebar.has-search-overlay .dialog-requests-section,
+        .sidebar.has-search-overlay .e2e-lock-alert {
+            opacity: 0.35;
+            filter: blur(1px);
+            pointer-events: none;
+        }
+
+        .sidebar.has-search-overlay .sidebar-tabs {
+            opacity: 0.4;
+            pointer-events: none;
+            transition: opacity var(--dur-quick) var(--ease-quick);
+        }
+
+
+
+        /* Сайдбар во время открытого overlay — скрываем у tabs визуально, чтобы
+           overlay сидел плотно под top-card. Top-card остаётся: поле поиска там. */
+        .sidebar.has-search-overlay .sidebar-tabs {
+            visibility: hidden;
+        }
+
+
+        .search-overlay__tab:hover:not(.is-active) {
+            color: var(--text);
+        }
+
+
+        .search-overlay__tab.is-active {
+            color: var(--text);
+            border-bottom-color: var(--text);
+            background: transparent;
+        }
+

@@ -1,0 +1,65 @@
+:root {
+    --sun-icon-stroke: 1.85;
+}
+
+.sun-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: middle;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: var(--sun-icon-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    shape-rendering: geometricPrecision;
+}
+
+.sun-icon-host {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.sun-icon--filled {
+    fill: currentColor;
+    stroke: none;
+}
+
+.btn-icon .sun-icon {
+    width: 1em;
+    height: 1em;
+}
+
+#messageForm .btn-icon .sun-icon {
+    transition: transform 0.16s var(--ease-quick);
+}
+
+.e2e-pill .sun-icon {
+    width: 11px;
+    height: 11px;
+    color: var(--good);
+}
+
+.jump-to-new-btn .sun-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.lightbox-btn .sun-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.profile-more-item .sun-icon {
+    width: 15px;
+    height: 15px;
+    color: var(--sub-text);
+}
+
+.profile-more-item:hover .sun-icon {
+    color: var(--accent);
+}

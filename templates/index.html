@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sun">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="description" content="SUN Messenger — безопасный мессенджер с end-to-end шифрованием">
+    <title>sun</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
+        'page': 'auth',
+        'user': {
+            'uiLanguage': ui_language|default('ru'),
+        },
+        'app': {
+            'root': request.script_root or '',
+        },
+        'assets': {
+            'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),
+        },
+    } | tojson }}</script>
+    <script src="{{ asset_url('bootstrap.js') }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
+    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
+    <script src="{{ asset_url('pages/chat-theme-boot.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/auth.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
+</head>
+
+<body id="authBody" class="auth-page-body" data-ui-language="{{ ui_language|default('ru') }}">
+    {% include 'chat/_svg_icons_sprite.html' %}
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-toast-container" id="toastContainer"></div>
+
+    <div class="auth-corner-eyebrow">
+        <div class="auth-corner-dot"></div>
+        <span>sun</span>
+    </div>
+    <div class="auth-language-switch" id="authLanguageSwitch" role="group" aria-label="Язык интерфейса">
+        <button type="button" class="auth-language-btn" data-lang="ru" aria-pressed="false">RU</button>
+        <button type="button" class="auth-language-btn" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+
+    <main class="auth-wrapper">
+        <div class="auth-brand">
+            <div class="auth-brand-pre">End-to-end &bull; Zero knowledge</div>
+            <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-tabs auth-tabs--auth" role="tablist">
+                <button class="auth-tab-btn active" id="tab-login-btn" role="tab"
+                        aria-selected="true">
+                    Войти
+                </button>
+                <button class="auth-tab-btn" id="tab-register-btn" role="tab"
+                        aria-selected="false">
+                    Создать аккаунт
+                </button>
+            </div>
+
+            <div class="tab-panel active" id="panel-login" role="tabpanel">
+
+                <div class="auth-method-switcher">
+                    <button class="auth-method-btn active" id="methodQrBtn"
+                            type="button">
+                        <i class="bi bi-qr-code-scan"></i> QR вход
+                    </button>
+                    <button class="auth-method-btn" id="methodKeyBtn"
+                            type="button">
+                        <i class="bi bi-shield-lock"></i> 24 слова (Mnemonic)
+                    </button>
+                </div>
+
+                <form id="ajaxLoginForm">
+
+                    <div class="auth-form-group" id="loginQrGroup">
+                        <div class="auth-qr-login-card">
+                            <div id="loginQrCodeContainer" class="auth-qr-login-code">
+                                <div id="loginQrRing" class="auth-qr-login-ring" aria-hidden="true">
+                                    <svg viewBox="0 0 110 110" focusable="false">
+                                        <circle class="auth-qr-login-ring-track" cx="55" cy="55" r="50"></circle>
+                                        <circle class="auth-qr-login-ring-progress" cx="55" cy="55" r="50"></circle>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div id="loginQrStatus" class="auth-qr-login-status" aria-live="polite" hidden></div>
+                        </div>
+                    </div>
+
+                    <div class="auth-form-group" id="loginKeyGroup" style="display:none;">
+                        <label class="auth-label" for="login_username">Имя пользователя</label>
+                        <div class="auth-input-wrap" style="margin-bottom:10px;">
+                            <input type="text" class="auth-input" id="login_username"
+                                   placeholder="your_username" autocomplete="username"
+                                   pattern="[a-z0-9_]+" maxlength="50">
+                            <i class="bi bi-at auth-input-icon"></i>
+                        </div>
+                        <label class="auth-label">24 слова (Mnemonic)</label>
+                        <div class="mnemonic-grid" id="mnemonicInputGrid">
+                        </div>
+                    </div>
+
+                    <div class="auth-form-group" id="loginTotpGroup" style="display:none;">
+                        <label class="auth-label" for="login_totp_code">Код из Authenticator</label>
+                        <div class="auth-input-wrap">
+                            <input type="text" class="auth-input totp-input" id="login_totp_code"
+                                   placeholder="000000" maxlength="6" inputmode="numeric"
+                                   autocomplete="one-time-code">
+                        </div>
+                        <p class="auth-totp-help">
+                            Откройте Google или Microsoft Authenticator &rarr; введите 6-значный код
+                        </p>
+                    </div>
+
+                    <label class="auth-trust-row">
+                        <input type="checkbox" id="rememberDeviceCheckbox" class="auth-trust-checkbox">
+                        <span class="auth-trust-box"><span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span></span>
+                        <span>Запомнить это устройство на 30 дней</span>
+                    </label>
+
+                    <button type="submit" class="auth-btn auth-btn-primary" id="loginSubmitBtn">
+                        <span id="loginBtnText">Войти</span>
+                        <span class="auth-btn-arrow">&rarr;</span>
+                    </button>
+                    <button type="button" class="auth-btn auth-btn-secondary auth-passkey-btn" id="passkeyLoginBtn">
+                        <i class="bi bi-fingerprint"></i>&nbsp; Passkey sign-in
+                    </button>
+                </form>
+            </div>
+
+            <div class="tab-panel" id="panel-register" role="tabpanel">
+                <form id="ajaxRegisterForm">
+                    <div class="auth-form-group">
+                        <label class="auth-label" for="reg_username">Имя пользователя</label>
+                        <div class="auth-input-wrap">
+                            <input type="text" class="auth-input" id="reg_username"
+                                   placeholder="your_username" autocomplete="username"
+                                   pattern="[a-z0-9_]+" maxlength="50" required>
+                            <i class="bi bi-at auth-input-icon"></i>
+                        </div>
+                        <div id="reg_username_hint" style="font-size:11px;color:var(--sub-text);margin-top:4px;display:none;">
+                            Допустимые символы: a-z, 0-9, _
+                        </div>
+                    </div>
+                    <div class="auth-form-group">
+                        <label class="auth-label" for="reg_display_name">Отображаемое имя</label>
+                        <div class="auth-input-wrap">
+                            <input type="text" class="auth-input" id="reg_display_name"
+                                   placeholder="Ваше имя" maxlength="50" required>
+                            <i class="bi bi-person-badge auth-input-icon"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="auth-btn auth-btn-primary" id="registerSubmitBtn">
+                        <span id="registerBtnText">Создать аккаунт</span>
+                        <span class="auth-btn-arrow">&rarr;</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="auth-key-box" id="keyResultBox">
+
+            <div class="auth-key-box-header">
+                <div class="auth-key-box-icon"><i class="bi bi-shield-lock"></i></div>
+                <div>
+                    <div class="auth-key-box-title">Шаг 1 &mdash; Сохраните 24 слова</div>
+                    <div class="auth-key-box-sub">Это ЕДИНСТВЕННЫЙ способ восстановить доступ и историю</div>
+                </div>
+            </div>
+            <div class="auth-form-group auth-private-key-group">
+                <textarea id="privateKeyContent" class="auth-input mono" rows="4" 
+                          readonly></textarea>
+            </div>
+            <button type="button" class="auth-btn auth-btn-secondary auth-copy-key-btn" id="copyPrivateKeyBtn">
+                <i class="bi bi-clipboard"></i> Скопировать 24 слова
+            </button>
+
+            <div class="qr-divider">
+                <div class="auth-key-box-header auth-key-box-header--qr">
+                    <div class="auth-key-box-icon accent"><i class="bi bi-phone"></i></div>
+                    <div>
+                        <div class="auth-key-box-title">Шаг 2 &mdash; Подключите Authenticator</div>
+                        <div class="auth-key-box-sub">Для входа по 6-значному коду с телефона</div>
+                    </div>
+                </div>
+                <div class="auth-totp-layout">
+                    <div id="totpQrContainer" class="auth-totp-qr"></div>
+                    <div class="auth-totp-copy">
+                        <p class="qr-instructions">
+                            1. Откройте <strong>Google Authenticator</strong>
+                               или <strong>Microsoft Authenticator</strong><br>
+                            2. Нажмите <strong>"+"</strong> и отсканируйте QR-код<br>
+                            3. Наведите камеру на код слева<br>
+                            4. SUN Messenger появится в списке
+                        </p>
+                        <p class="auth-totp-manual-label">
+                            Или введите секрет вручную:
+                        </p>
+                        <div class="totp-secret-box" id="totpSecretDisplay"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-key-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <p>Сохраните ключ и настройте Authenticator &mdash; это два независимых способа войти. Сервер не хранит пароли.</p>
+            </div>
+        </div>
+
+        <div class="auth-footer">
+            <span>Сервер не видит сообщения</span>
+            <span>Zero knowledge</span>
+            <span>v1.0</span>
+        </div>
+        <nav class="auth-legal-links" aria-label="Юридическая информация">
+            <a href="{{ url_for('auth.privacy_policy') }}">Privacy Policy</a>
+            <a href="{{ url_for('auth.terms_of_service') }}">Terms of Service</a>
+            <a href="{{ url_for('auth.security_faq') }}">FAQ Security</a>
+            <a href="{{ url_for('auth.about_project') }}">О проекте</a>
+        </nav>
+
+        <details class="auth-feedback-dock" id="authSupportBox">
+            <summary class="auth-feedback-summary">
+                <i class="bi bi-life-preserver"></i>
+                <span>Feedback</span>
+            </summary>
+            <div class="auth-feedback-panel">
+                <div class="auth-support-grid">
+                    <select id="authSupportCategory" class="auth-input auth-support-input">
+                        <option value="registration">Registration</option>
+                        <option value="login">Login</option>
+                        <option value="access">Account access</option>
+                        <option value="bug">Bug</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <input type="text" id="authSupportContact" class="auth-input auth-support-input" maxlength="120" placeholder="Contact (email/@username)">
+                    <input type="text" id="authSupportSubject" class="auth-input auth-support-input auth-support-input-full" maxlength="160" placeholder="Request subject">
+                    <textarea id="authSupportBody" class="auth-input auth-support-input auth-support-input-full" rows="3" maxlength="8000" placeholder="Describe the problem briefly"></textarea>
+                </div>
+                <div class="auth-support-actions">
+                    <button type="button" class="auth-btn auth-btn-secondary" id="authSupportSubmitBtn">Send request</button>
+                </div>
+                <div class="auth-support-status" id="authSupportStatus" aria-live="polite"></div>
+            </div>
+        </details>
+
+    </main>
+
+    <div class="auth-success-overlay" id="authSuccessOverlay" aria-hidden="true" role="status">
+        <div class="auth-success-card">
+            <div class="auth-success-avatar-wrap">
+                <img id="authSuccessAvatar" class="auth-success-avatar" alt="" style="display:none;">
+                <div id="authSuccessAvatarFallback" class="auth-success-avatar-fallback"></div>
+                <div class="auth-success-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M5 12.5L10 17.5L19 7.5"></path>
+                    </svg>
+                </div>
+            </div>
+            <h2 class="auth-success-display-name" id="authSuccessDisplayName"></h2>
+            <p class="auth-success-username" id="authSuccessUsername"></p>
+            <p class="auth-success-greeting" id="authSuccessGreeting">Добро пожаловать в тихую сеть.</p>
+        </div>
+    </div>
+
+    <button id="themeToggleBtn" class="auth-theme-toggle-btn" title="Переключить тему">
+        <i class="bi bi-moon-stars" id="themeIcon"></i>
+    </button>
+
+<script src="{{ asset_url('qrcode-loader.js') }}"></script>
+    <script src="{{ asset_url('crypto.js') }}"></script>
+    <script src="{{ asset_url('mnemonic.js') }}"></script>
+<script type="module" src="{{ asset_url('modules/auth-fetch.js') }}"></script>
+<script src="{{ asset_url('modules/device-key.js') }}"></script>
+<script src="{{ asset_url('modules/private-key-session-bridge.js') }}"></script>
+<script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+
+<script type="module" src="{{ asset_url('pages/auth.js') }}"></script>
+</body>
+</html>

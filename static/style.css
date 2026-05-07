@@ -1,0 +1,47 @@
+/* Global stylesheet entrypoint (decomposed). */
+@import url('./styles/tokens.css');
+@import url('./styles/base.css');
+@import url('./styles/shared-components.css');
+
+/* Compatibility invariants kept in this entry file for test guardrails. */
+:root {
+    --avatar-xs: 28px;
+    --avatar-sm: 32px;
+    --avatar-md: 40px;
+    --avatar-lg: 44px;
+    --avatar-xl: 72px;
+    --header-h: 60px;
+}
+
+#toastContainer {
+    align-items: center;
+}
+
+.toast-msg {
+    width: fit-content;
+    max-width: 100%;
+}
+
+.sidebar-header {
+    min-height: var(--header-h);
+}
+
+.side-resizer {
+    width: 8px;
+    cursor: col-resize;
+}
+
+.message.self .bubble {
+    box-shadow: none;
+}
+
+.message.other .bubble {
+    box-shadow: none;
+}
+
+.chat-input,
+.chat-input-area,
+.chat-input-wrapper {
+    background: var(--chat-hdr-bg);
+    border-top: 1px solid var(--border);
+}

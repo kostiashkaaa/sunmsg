@@ -1,0 +1,50 @@
+<head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sun">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual">
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style-base-layer.css') }}">
+    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
+        'page': 'chat',
+        'user': {
+            'currentUserPublicKey': current_public_key,
+            'currentDisplayName': current_display_name,
+            'currentUsername': current_username,
+            'currentUserId': session['user_id'],
+            'currentAvatarUrl': current_avatar_url or '',
+            'initialChatContactUsername': initial_chat_contact_username or '',
+            'uiLanguage': ui_language|default('ru'),
+            'muteDialogRequests': mute_dialog_requests|default(false),
+        },
+        'socketio': socketio_client_config,
+        'app': {
+            'root': request.script_root or '',
+            'webPush': web_push_bootstrap_payload|default({'enabled': false, 'publicKey': ''}),
+        },
+        'assets': {
+            'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),
+        },
+    } | tojson }}</script>
+    <script src="{{ asset_url('bootstrap.js') }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
+    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
+    <script src="{{ asset_url('pages/chat-theme-boot.js') }}"></script>
+
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/layout.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/components.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/link-draft-banner.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/link-preview.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/states.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/chat/responsive.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
+</head>
