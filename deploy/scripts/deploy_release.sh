@@ -27,10 +27,31 @@ if [[ ! -f "$ARTIFACT_FILE" ]]; then
 fi
 
 ensure_venv() {
-  if [[ -x "$VENV_BIN/python" ]]; then
+  local venv_python="$VENV_BIN/python"
+
+  if [[ ! -x "$venv_python" ]]; then
+    python3 -m venv "$BASE_DIR/venv"
+  fi
+
+  if "$venv_python" -m pip --version >/dev/null 2>&1; then
     return
   fi
+
+  # Recover broken virtualenvs created without pip.
+  "$venv_python" -m ensurepip --upgrade >/dev/null 2>&1 || true
+
+  if "$venv_python" -m pip --version >/dev/null 2>&1; then
+    return
+  fi
+
+  rm -rf "$BASE_DIR/venv"
   python3 -m venv "$BASE_DIR/venv"
+
+  if ! "$venv_python" -m pip --version >/dev/null 2>&1; then
+    echo "Failed to initialize pip in $BASE_DIR/venv." >&2
+    echo "Install python3-venv and python3-pip, then retry deploy." >&2
+    exit 4
+  fi
 }
 
 run_systemctl() {
