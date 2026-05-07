@@ -176,6 +176,15 @@ def _mark_push_send_failure(conn, *, subscription_id: int, deactivate: bool) -> 
     )
 
 
+_PUSH_BODY_BY_TYPE: dict[str, str] = {
+    'voice': '🎤 Голосовое сообщение',
+    'image': '🖼 Фото',
+    'video': '🎬 Видео',
+    'file': '📎 Файл',
+    'sticker': '🖼 Стикер',
+}
+
+
 def send_chat_message_push(
     *,
     receiver_user_id: int,
@@ -183,6 +192,7 @@ def send_chat_message_push(
     sender_display_name: str,
     sender_username: str,
     chat_id: str,
+    message_type: str = 'text',
 ) -> dict[str, int]:
     cfg = web_push_config()
     if not cfg['enabled']:
@@ -219,7 +229,7 @@ def send_chat_message_push(
         payload = json.dumps(
             {
                 'title': title,
-                'body': 'Новое сообщение',
+                'body': _PUSH_BODY_BY_TYPE.get(str(message_type or '').strip(), 'Новое сообщение'),
                 'url': '/chat',
                 'chat_id': str(chat_id or '').strip(),
                 'tag': f'chat:{str(chat_id or "").strip()}',
@@ -241,7 +251,7 @@ def send_chat_message_push(
                     data=payload,
                     vapid_private_key=cfg['private_key'],
                     vapid_claims={'sub': cfg['subject']},
-                    ttl=60,
+                    ttl=3_600,
                 )
                 _mark_push_send_success(conn, subscription_id=item['id'])
                 sent += 1

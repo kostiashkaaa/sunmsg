@@ -1175,5 +1175,115 @@ select.settings-select-control:focus-visible {
     border-left: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
 }
 
+/* ── Confirm-диалог для settings-страницы ── */
+.dialog-surface-btn,
+.dialog-danger-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform var(--dur-quick) var(--ease-quick),
+                background-color var(--dur-quick) var(--ease-quick),
+                border-color var(--dur-quick) var(--ease-quick),
+                color var(--dur-quick) var(--ease-quick);
+}
+.dialog-surface-btn {
+    border-color: color-mix(in srgb, var(--border) 76%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, #f3f4f6 6%);
+    color: var(--text);
+}
+.dialog-danger-btn {
+    border-color: color-mix(in srgb, var(--danger, #ef4444) 52%, transparent);
+    background: linear-gradient(140deg,
+        color-mix(in srgb, var(--danger, #ef4444) 86%, #ffffff 14%),
+        color-mix(in srgb, var(--danger, #ef4444) 68%, #7f1d1d 32%));
+    color: #fff;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--danger, #ef4444) 35%, transparent);
+}
+.dialog-surface-btn:active,
+.dialog-danger-btn:active { transform: translateY(1px) scale(0.985); }
+.dialog-surface-btn:focus-visible,
+.dialog-danger-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline-offset: 2px;
+}
+.dialog-surface-btn:disabled,
+.dialog-danger-btn:disabled {
+    opacity: 0.56;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+#confirmActionModal {
+    border: none;
+    border-radius: 18px;
+    padding: 0;
+    background: var(--overlay-menu-bg, var(--surface));
+    color: var(--text);
+    box-shadow: var(--shadow-lg);
+    max-width: 360px;
+    width: 90vw;
+    outline: none;
+}
+#confirmActionModal::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+}
+#confirmActionModal[data-variant="danger"] .confirm-dialog-icon-wrap,
+#confirmActionModal[data-variant="warning"] .confirm-dialog-icon-wrap {
+    background: color-mix(in srgb, var(--danger, #ef4444) 14%, transparent);
+    color: var(--danger, #ef4444);
+}
+.confirm-dialog-body {
+    padding: 26px 26px 22px;
+    text-align: center;
+}
+.confirm-dialog-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 1.7rem;
+}
+.confirm-dialog-title {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.confirm-dialog-message {
+    margin: 0 0 20px;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    color: var(--sub-text);
+}
+.confirm-dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+.confirm-dialog-actions > button {
+    flex: 1;
+    padding: 10px 0;
+    font-size: 0.875rem;
+}
+
 
 

@@ -1,3 +1,5 @@
+import { showConfirmDialog } from '../../modules/confirm-dialog.js';
+
 export function initDevicesSection({
     api,
     tr,
@@ -82,7 +84,13 @@ export function initDevicesSection({
         const familyId = btn.getAttribute('data-family-id');
         const isCurrent = btn.getAttribute('data-current') === '1';
         if (!familyId) return;
-        if (!window.confirm(tr(isCurrent ? 'Выйти с этого устройства?' : 'Завершить эту сессию?'))) return;
+        const ok = await showConfirmDialog({
+            title: tr(isCurrent ? 'Выйти с этого устройства?' : 'Завершить эту сессию?'),
+            confirmText: tr(isCurrent ? 'Выйти' : 'Завершить'),
+            cancelText: tr('Отмена'),
+            variant: 'danger',
+        });
+        if (!ok) return;
 
         btn.disabled = true;
         try {
@@ -101,7 +109,13 @@ export function initDevicesSection({
     });
 
     signOutOtherSessionsBtn?.addEventListener('click', async function () {
-        if (!window.confirm(tr('Завершить все остальные активные сессии?'))) return;
+        const ok = await showConfirmDialog({
+            title: tr('Завершить все остальные активные сессии?'),
+            confirmText: tr('Завершить все'),
+            cancelText: tr('Отмена'),
+            variant: 'danger',
+        });
+        if (!ok) return;
         this.disabled = true;
         try {
             await api.revokeOtherSessionDevices();
