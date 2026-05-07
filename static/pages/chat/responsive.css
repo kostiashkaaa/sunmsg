@@ -1583,10 +1583,6 @@
         margin-top: 2px;
     }
 
-    .chat-area.is-profile-drawer-open .chat-header,
-    .chat-area.is-profile-drawer-dragging .chat-header {
-        margin-right: var(--chat-profile-drawer-width);
-    }
 }
 
 

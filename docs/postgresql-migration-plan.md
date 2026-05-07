@@ -33,7 +33,7 @@ The production host must expose:
 
 - `pg_dump`
 - `pg_restore`
-- `clamscan`
+- `clamdscan` (preferred) or `clamscan`
 
 If they are not on `PATH`, set `PG_DUMP_PATH`, `PG_RESTORE_PATH`, or `CHAT_MEDIA_AV_COMMAND` with absolute executable paths.
 

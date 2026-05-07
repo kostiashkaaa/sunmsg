@@ -42,7 +42,7 @@ PROXY_FIX_X_PREFIX=0
 CHAT_MEDIA_CACHE_MAX_AGE_SECONDS=3600
 CHAT_MEDIA_AV_SCAN_ENABLED=1
 CHAT_MEDIA_AV_FAIL_CLOSED=1
-CHAT_MEDIA_AV_COMMAND=clamscan --no-summary --infected --stdout {path}
+CHAT_MEDIA_AV_COMMAND=clamdscan --fdpass --no-summary {path} || clamscan --no-summary --infected --stdout {path}
 ```
 
 Генерация секретов:
@@ -87,8 +87,8 @@ source /srv/sunmessenger/venv/bin/activate
 Проверить системные утилиты для PostgreSQL backups и AV scan:
 
 ```bash
-sudo apt-get install -y postgresql-client clamav
-which pg_dump pg_restore clamscan
+sudo apt-get install -y postgresql-client clamav clamav-daemon
+which pg_dump pg_restore clamdscan clamscan
 ```
 
 Обновить зависимости:

@@ -70,7 +70,10 @@ class BaseConfig:
     CHAT_MEDIA_AV_SCAN_ENABLED = False
     CHAT_MEDIA_AV_FAIL_CLOSED = False
     CHAT_MEDIA_AV_TIMEOUT_SECONDS = 20
-    CHAT_MEDIA_AV_COMMAND = 'clamscan --no-summary --infected --stdout'
+    CHAT_MEDIA_AV_COMMAND = (
+        'clamdscan --fdpass --no-summary {path} || '
+        'clamscan --no-summary --infected --stdout {path}'
+    )
     RATELIMIT_DEFAULT = '300 per minute'
     RATELIMIT_APPLICATION = '5000 per minute'
     SOCKET_CONNECT_IP_LIMIT = 180

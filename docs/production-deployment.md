@@ -44,7 +44,7 @@ PROXY_FIX_X_PROTO=1
 CHAT_MEDIA_AV_SCAN_ENABLED=1
 CHAT_MEDIA_AV_FAIL_CLOSED=1
 CHAT_MEDIA_AV_TIMEOUT_SECONDS=20
-CHAT_MEDIA_AV_COMMAND=clamscan --no-summary --infected --stdout {path}
+CHAT_MEDIA_AV_COMMAND=clamdscan --fdpass --no-summary {path} || clamscan --no-summary --infected --stdout {path}
 WEB_PUSH_ENABLED=1
 WEB_PUSH_VAPID_PUBLIC_KEY=<base64url-public-key>
 WEB_PUSH_VAPID_PRIVATE_KEY=<base64url-private-key>
@@ -56,8 +56,8 @@ If `RATELIMIT_STORAGE_URI` or `SOCKETIO_MESSAGE_QUEUE` are omitted, the app now 
 Install and expose these system tools before running production maintenance:
 
 ```bash
-sudo apt-get install -y postgresql-client clamav
-which pg_dump pg_restore clamscan
+sudo apt-get install -y postgresql-client clamav clamav-daemon
+which pg_dump pg_restore clamdscan clamscan
 ```
 
 If they are not on `PATH`, set `PG_DUMP_PATH`, `PG_RESTORE_PATH`, or `CHAT_MEDIA_AV_COMMAND` with absolute executable paths.

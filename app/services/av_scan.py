@@ -21,6 +21,16 @@ class AVScanResult:
     output: str
 
 
+def _split_command_templates(command_template: str) -> list[str]:
+    raw = str(command_template or '').strip()
+    if not raw:
+        raise AVScanError('CHAT_MEDIA_AV_COMMAND is empty.')
+    parts = [part.strip() for part in raw.split('||') if part.strip()]
+    if not parts:
+        raise AVScanError('CHAT_MEDIA_AV_COMMAND cannot be parsed.')
+    return parts
+
+
 def _build_scan_command(command_template: str, file_path: str) -> list[str]:
     template = str(command_template or '').strip()
     if not template:
@@ -43,6 +53,13 @@ def _build_scan_command(command_template: str, file_path: str) -> list[str]:
     return resolved
 
 
+def _build_scan_commands(command_template: str, file_path: str) -> list[list[str]]:
+    commands: list[list[str]] = []
+    for template in _split_command_templates(command_template):
+        commands.append(_build_scan_command(template, file_path))
+    return commands
+
+
 def _extract_signature(scan_output: str) -> str:
     for raw_line in str(scan_output or '').splitlines():
         line = raw_line.strip()
@@ -58,21 +75,33 @@ def _extract_signature(scan_output: str) -> str:
 
 
 def validate_scan_command(command_template: str) -> list[str]:
-    """Validate scanner command syntax and executable availability."""
-    command = _build_scan_command(command_template, os.devnull)
-    executable = str(command[0] or '').strip()
-    if not executable:
-        raise AVScanError('Antivirus scanner executable is not configured.')
+    """Validate scanner command syntax and executable availability.
 
-    if os.path.isabs(executable):
-        if not os.path.exists(executable):
-            raise AVScanError(f'Antivirus scanner executable not found: {executable}')
-        return command
+    Supports fallback chains split by ``||`` and returns the first
+    resolvable command.
+    """
+    commands = _build_scan_commands(command_template, os.devnull)
+    unavailable: list[str] = []
 
-    resolved = shutil.which(executable)
-    if not resolved:
-        raise AVScanError(f'Antivirus scanner executable not found in PATH: {executable}')
-    return command
+    for command in commands:
+        executable = str(command[0] or '').strip()
+        if not executable:
+            unavailable.append('empty executable')
+            continue
+
+        if os.path.isabs(executable):
+            if os.path.exists(executable):
+                return command
+            unavailable.append(f'not found: {executable}')
+            continue
+
+        resolved = shutil.which(executable)
+        if resolved:
+            return command
+        unavailable.append(f'not found in PATH: {executable}')
+
+    details = '; '.join(unavailable) if unavailable else 'no usable scanner commands'
+    raise AVScanError(f'Antivirus scanner executable not found ({details}).')
 
 
 def scan_file(
@@ -81,39 +110,46 @@ def scan_file(
     command_template: str,
     timeout_seconds: int = 20,
 ) -> AVScanResult:
-    command = _build_scan_command(command_template, file_path)
+    commands = _build_scan_commands(command_template, file_path)
     timeout = max(1, int(timeout_seconds or 1))
+    errors: list[str] = []
 
-    try:
-        completed = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise AVScanError(f'Antivirus scan timed out after {timeout}s.') from exc
-    except OSError as exc:
-        raise AVScanError(f'Failed to execute antivirus scanner: {exc}') from exc
+    for command in commands:
+        executable = str(command[0] or '').strip() or '<unknown>'
+        try:
+            completed = subprocess.run(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            errors.append(f'{executable}: timed out after {timeout}s')
+            continue
+        except OSError as exc:
+            errors.append(f'{executable}: failed to execute ({exc})')
+            continue
 
-    output_parts = []
-    if completed.stdout:
-        output_parts.append(str(completed.stdout).strip())
-    if completed.stderr:
-        output_parts.append(str(completed.stderr).strip())
-    output = '\n'.join(part for part in output_parts if part)
+        output_parts = []
+        if completed.stdout:
+            output_parts.append(str(completed.stdout).strip())
+        if completed.stderr:
+            output_parts.append(str(completed.stderr).strip())
+        output = '\n'.join(part for part in output_parts if part)
 
-    if completed.returncode == 0:
-        return AVScanResult(infected=False, signature='', output=output)
+        if completed.returncode == 0:
+            return AVScanResult(infected=False, signature='', output=output)
 
-    if completed.returncode == 1:
-        signature = _extract_signature(output)
-        return AVScanResult(infected=True, signature=signature, output=output)
+        if completed.returncode == 1:
+            signature = _extract_signature(output)
+            return AVScanResult(infected=True, signature=signature, output=output)
 
-    raise AVScanError(
-        f'Antivirus scanner failed with exit code {completed.returncode}.'
-    )
+        errors.append(f'{executable}: exit code {completed.returncode}')
+
+    if errors:
+        raise AVScanError(f'Antivirus scanner failed ({"; ".join(errors)}).')
+    raise AVScanError('Antivirus scanner failed: no scanner commands configured.')

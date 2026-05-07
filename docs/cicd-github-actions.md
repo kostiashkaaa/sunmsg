@@ -56,7 +56,7 @@ Ensure production dependencies are installed and available in `PATH`:
 
 - `pg_dump`
 - `pg_restore`
-- `clamscan`
+- `clamdscan` (preferred), with `clamscan` as fallback
 
 ## Release flow
 
