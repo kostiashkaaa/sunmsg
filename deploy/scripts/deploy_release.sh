@@ -20,6 +20,7 @@ VENV_BIN="$BASE_DIR/venv/bin"
 RELEASE_DIR="$RELEASES_DIR/$SHA"
 ARTIFACT_FILE="$ARTIFACTS_DIR/$SHA/release.tar.gz"
 BACKUP_DIR="$SHARED_DIR/backups"
+ENV_FILE="$SHARED_DIR/.env"
 
 if [[ ! -f "$ARTIFACT_FILE" ]]; then
   echo "Release archive not found: $ARTIFACT_FILE" >&2
@@ -83,6 +84,12 @@ ensure_venv
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARTIFACT_FILE" -C "$RELEASE_DIR"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Environment file not found: $ENV_FILE" >&2
+  exit 5
+fi
+ln -sfn "$ENV_FILE" "$RELEASE_DIR/.env"
 
 cd "$RELEASE_DIR"
 "$VENV_BIN/python" -m pip install -r requirements-production.txt
