@@ -166,9 +166,13 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             event.preventDefault();
             const text = (event.clipboardData || window.clipboardData).getData('text');
             const words = text.trim().split(/\s+/);
-            const inputs = mnemonicGrid.querySelectorAll('input');
+            const inputs = Array.from(mnemonicGrid.querySelectorAll('input'));
+            const targetInput = event.target instanceof HTMLInputElement ? event.target : null;
+            const targetIndex = targetInput ? inputs.indexOf(targetInput) : 0;
+            const startIndex = targetIndex >= 0 ? targetIndex : 0;
             words.forEach((word, idx) => {
-                if (inputs[idx]) inputs[idx].value = word.toLowerCase();
+                const input = inputs[startIndex + idx];
+                if (input) input.value = word.toLowerCase();
             });
         });
     }
