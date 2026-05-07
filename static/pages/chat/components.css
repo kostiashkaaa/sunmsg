@@ -5040,10 +5040,8 @@
         .audio-wave-layer {
             position: absolute;
             inset: 0;
-            display: grid;
-            grid-auto-flow: column;
-            grid-auto-columns: minmax(3px, 1fr);
-            align-items: end;
+            display: flex;
+            align-items: flex-end;
             gap: 2px;
             pointer-events: none;
             user-select: none;
@@ -5061,7 +5059,8 @@
 
         .audio-wave-bar {
             display: block;
-            width: 100%;
+            flex: 1 1 0;
+            min-width: 2px;
             height: calc(var(--wave-h, 50) * 1%);
             min-height: 3px;
             border-radius: 999px;

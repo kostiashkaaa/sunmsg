@@ -6403,13 +6403,16 @@ const initChatPage = async () => {
             const end = Math.min(channelData.length, Math.floor((barIndex + 1) * samplesPerBar));
             const span = Math.max(0, end - start);
             const stride = Math.max(1, Math.floor(span / 240));
-            let peak = 0;
+            let energy = 0;
+            let samples = 0;
             for (let i = start; i < end; i += stride) {
-                const abs = Math.abs(channelData[i] || 0);
-                if (abs > peak) peak = abs;
+                const sample = channelData[i] || 0;
+                energy += sample * sample;
+                samples += 1;
             }
-            raw[barIndex] = peak;
-            if (peak > globalPeak) globalPeak = peak;
+            const rms = samples > 0 ? Math.sqrt(energy / samples) : 0;
+            raw[barIndex] = rms;
+            if (rms > globalPeak) globalPeak = rms;
         }
 
         if (!(globalPeak > 0.000001)) return null;
