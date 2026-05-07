@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="SUN Messenger — ошибка 502">
+    <title>sun · 502</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <link rel="icon" href="/static/icons/favicon-32x32.png" type="image/png">
+    <link rel="stylesheet" href="/static/vendor/fonts.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/pages/error.css">
+    <script src="/static/interface-theme.js"></script>
+    <style>
+        .error-page-status-badge {
+            min-width: 60px;
+            height: 44px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 18px;
+            letter-spacing: 0.12em;
+            color: var(--accent-deep);
+            border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+            background: color-mix(in srgb, var(--paper) 72%, transparent);
+        }
+    </style>
+</head>
+<body class="error-page-body">
+    <div class="error-page-orb error-page-orb-1" aria-hidden="true"></div>
+    <div class="error-page-orb error-page-orb-2" aria-hidden="true"></div>
+
+    <div class="error-page-corner">
+        <div class="error-page-corner-dot"></div>
+        <span>sun</span>
+    </div>
+
+    <main class="error-page-shell">
+        <section class="error-page-panel sun-surface-enter">
+            <div class="error-page-topline">
+                <span class="error-page-code">error 502</span>
+                <span class="error-page-request">gateway / upstream</span>
+            </div>
+
+            <div class="error-page-icon" aria-hidden="true">
+                <span class="error-page-status-badge">502</span>
+            </div>
+
+            <div class="error-page-copy">
+                <p class="error-page-eyebrow">SUN Messenger</p>
+                <h1>Шлюз временно недоступен</h1>
+                <p class="error-page-description">
+                    Сервер не смог получить ответ от приложения. Обычно это кратковременный сбой во время перезапуска.
+                </p>
+            </div>
+
+            <div class="error-page-detail">
+                <span>Что можно сделать</span>
+                <strong>Обновите страницу через несколько секунд. Если ошибка повторяется, откройте главную страницу.</strong>
+            </div>
+
+            <div class="error-page-actions">
+                <a href="/" class="error-page-btn error-page-btn-primary">
+                    <span>На главную</span>
+                </a>
+                <button type="button" id="reloadPageBtn" class="error-page-btn error-page-btn-secondary">
+                    <span>Обновить страницу</span>
+                </button>
+            </div>
+
+            <div class="error-page-footer">
+                <span>защищённый транспорт</span>
+                <span>единая дизайн-система</span>
+                <span>502</span>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.getElementById("reloadPageBtn")?.addEventListener("click", () => window.location.reload());
+    </script>
+</body>
+</html>
