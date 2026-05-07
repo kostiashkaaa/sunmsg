@@ -6298,16 +6298,8 @@ const initChatPage = async () => {
         if (!voicePlaybackBar) return;
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
-        const beforeTop = chatMessages?.getBoundingClientRect?.().top ?? 0;
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
-        if (chatMessages) {
-            const afterTop = chatMessages.getBoundingClientRect().top;
-            const delta = afterTop - beforeTop;
-            if (Math.abs(delta) > 0.5) {
-                chatMessages.scrollTop += delta;
-            }
-        }
     }
 
     function clearActiveVoicePlaybackAudio(options = {}) {
