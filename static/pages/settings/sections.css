@@ -719,12 +719,23 @@
         .settings-alert.warning { background: rgba(245,158,11,var(--dur-instant)); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
 
         /* Копировать кнопку */
-        .copy-row {
+.copy-row {
             display: flex;
             gap: 8px;
             margin-top: 10px;
             flex-wrap: wrap;
         }
+
+.settings-qr-box {
+    background: #fff;
+    padding: 16px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    display: inline-block;
+    inline-size: max-content;
+    max-width: 100%;
+    margin: 0 auto;
+}
 
         /* Mobile */
 

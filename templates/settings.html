@@ -467,11 +467,7 @@
                     <p style="font-size:13px;color:var(--sub-text);text-align:center;margin:0;">
                         Покажите этот QR-код — собеседник отсканирует и добавит вас в контакты автоматически.
                     </p>
-                    <div id="qrCodeContainer" style="
-                        background:#fff; padding:16px; border-radius:16px;
-                        box-shadow: var(--shadow-md);
-                        display:inline-block;
-                    "></div>
+                    <div id="qrCodeContainer" class="settings-qr-box"></div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
                         <button class="btn-settings secondary settings-icon-action" id="downloadQrBtn" type="button" aria-label="Скачать PNG" title="Скачать PNG">
                             <i class="bi bi-download" aria-hidden="true"></i>
@@ -881,4 +877,3 @@
 <script type="module" src="{{ asset_url('pages/settings.js') }}"></script>
 </body>
 </html>
-
