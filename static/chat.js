@@ -6430,7 +6430,7 @@ const initChatPage = async () => {
             if (value < min) min = value;
             if (value > max) max = value;
         }
-        return unique.size >= 4 && (max - min) >= 6;
+        return unique.size >= 10 && (max - min) >= 18;
     }
 
     function hasProvidedWaveformPayload(rawWaveform) {
