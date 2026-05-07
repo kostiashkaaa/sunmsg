@@ -26,6 +26,13 @@ if [[ ! -f "$ARTIFACT_FILE" ]]; then
   exit 3
 fi
 
+ensure_venv() {
+  if [[ -x "$VENV_BIN/python" ]]; then
+    return
+  fi
+  python3 -m venv "$BASE_DIR/venv"
+}
+
 run_systemctl() {
   if [[ "$(id -u)" -eq 0 ]]; then
     systemctl "$@"
@@ -50,12 +57,14 @@ rollback() {
 trap rollback ERR
 
 mkdir -p "$RELEASES_DIR" "$ARTIFACTS_DIR/$SHA" "$BACKUP_DIR"
+ensure_venv
+"$VENV_BIN/python" -m pip install --upgrade pip
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARTIFACT_FILE" -C "$RELEASE_DIR"
 
 cd "$RELEASE_DIR"
-"$VENV_BIN/pip" install -r requirements-production.txt
+"$VENV_BIN/python" -m pip install -r requirements-production.txt
 "$VENV_BIN/python" manage.py production-config-check --env production
 "$VENV_BIN/python" manage.py security-check --env production
 "$VENV_BIN/python" manage.py maintenance --env production --backup-dir "$BACKUP_DIR"
