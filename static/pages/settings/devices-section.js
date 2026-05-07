@@ -75,7 +75,9 @@ export function initDevicesSection({
     }
 
     sessionDevicesListEl?.addEventListener('click', async (event) => {
-        const btn = event.target.closest('.session-revoke-btn');
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const btn = target.closest('.session-revoke-btn');
         if (!btn) return;
         const familyId = btn.getAttribute('data-family-id');
         const isCurrent = btn.getAttribute('data-current') === '1';

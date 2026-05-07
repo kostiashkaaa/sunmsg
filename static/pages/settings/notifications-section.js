@@ -84,7 +84,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
 
             setButtonsState({
                 canEnable: permission !== 'denied' && !subscription,
-                canDisable: Boolean(subscription),
+                canDisable: true,
             });
         } catch (_err) {
             permissionEl.textContent = tr('Ошибка');

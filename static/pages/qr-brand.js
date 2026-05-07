@@ -93,6 +93,15 @@ export function applySunQrBrand(container, options = {}) {
     if (!qrNode) return false;
 
     const qrSize = resolveQrSize(qrNode);
+    // Keep the QR visual box deterministic so the center badge is aligned
+    // to the actual QR area even when renderer output applies fluid sizing.
+    if (qrSize > 0) {
+        qrNode.style.width = `${qrSize}px`;
+        qrNode.style.height = `${qrSize}px`;
+        qrNode.style.display = 'block';
+        qrNode.style.maxWidth = 'none';
+        qrNode.style.margin = '0 auto';
+    }
     const ratio = clamp(Number(options.logoRatio) || DEFAULT_RATIO, 0.2, 0.3);
     const badgeSize = clamp(Math.round(qrSize * ratio) || DEFAULT_SIZE, MIN_SIZE, MAX_SIZE);
 
