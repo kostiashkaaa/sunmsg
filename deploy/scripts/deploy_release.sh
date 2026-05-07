@@ -67,6 +67,35 @@ run_systemctl() {
   fi
 }
 
+reset_presence_state() {
+  "$VENV_BIN/python" - <<'PY'
+from app.config import load_environment
+from app.database import get_db_connection
+from app.services.presence import configure_presence
+
+load_environment()
+redis_client = configure_presence()
+if redis_client is not None:
+    keys = list(redis_client.scan_iter("presence:conn:*")) + list(redis_client.scan_iter("presence:act:*"))
+    if keys:
+        redis_client.delete(*keys)
+
+conn = get_db_connection()
+try:
+    conn.execute(
+        """
+        UPDATE users
+        SET is_online = 0,
+            last_seen = COALESCE(last_seen, CURRENT_TIMESTAMP)
+        WHERE is_online = 1
+        """
+    )
+    conn.commit()
+finally:
+    conn.close()
+PY
+}
+
 sync_avatar_storage() {
   mkdir -p "$SHARED_AVATARS_DIR"
 
@@ -156,6 +185,7 @@ if [[ -L "$CURRENT_LINK" ]]; then
 fi
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
+reset_presence_state
 run_systemctl restart sunmessenger-web.service
 run_systemctl restart sunmessenger-scheduler.service
 
