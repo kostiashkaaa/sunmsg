@@ -47,6 +47,19 @@ def api_session_devices():
 
     has_current_device = any(bool(device.get('is_current')) for device in devices)
     if not has_current_device:
+        ip_candidates = (
+            request.headers.get('CF-Connecting-IP'),
+            request.headers.get('True-Client-IP'),
+            request.headers.get('X-Real-IP'),
+            (request.headers.get('X-Forwarded-For') or '').split(',')[0],
+            request.remote_addr,
+        )
+        current_ip = ''
+        for value in ip_candidates:
+            parsed = str(value or '').strip()
+            if parsed:
+                current_ip = parsed[:64]
+                break
         devices.append(
             {
                 'family_id': '',
@@ -54,7 +67,7 @@ def api_session_devices():
                 'last_used_at': now,
                 'expires_at': now,
                 'user_agent': (request.headers.get('User-Agent') or '')[:255],
-                'ip': (request.headers.get('X-Forwarded-For', request.remote_addr or '') or '').split(',')[0].strip()[:64],
+                'ip': current_ip,
                 'is_current': True,
                 'persistent': False,
             }

@@ -31,7 +31,19 @@ def _hash(token: str) -> str:
 
 def _client_meta() -> tuple[str, str]:
     ua = (request.headers.get('User-Agent') or '')[:255]
-    ip = (request.headers.get('X-Forwarded-For', request.remote_addr or '') or '').split(',')[0].strip()[:64]
+    candidates = (
+        request.headers.get('CF-Connecting-IP'),
+        request.headers.get('True-Client-IP'),
+        request.headers.get('X-Real-IP'),
+        (request.headers.get('X-Forwarded-For') or '').split(',')[0],
+        request.remote_addr,
+    )
+    ip = ''
+    for value in candidates:
+        current = str(value or '').strip()
+        if current:
+            ip = current[:64]
+            break
     return ua, ip
 
 
@@ -200,4 +212,3 @@ def clear_refresh_cookie(response, *, secure: bool = False) -> None:
         samesite='Lax',
         path=REFRESH_COOKIE_PATH,
     )
-

@@ -535,10 +535,9 @@ def _login_success_response(user_id: int, *, remember: bool):
     payload = {'success': True}
     session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    if remember:
-        raw, _exp = issue_refresh_token(user_id)
-        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-        set_refresh_cookie(response, raw, secure=secure)
+    raw, _exp = issue_refresh_token(user_id)
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(response, raw, secure=secure)
     return response
 
 
