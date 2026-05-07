@@ -86,7 +86,10 @@ try:
         """
         UPDATE users
         SET is_online = 0,
-            last_seen = COALESCE(last_seen, CURRENT_TIMESTAMP)
+            last_seen = COALESCE(
+                last_seen,
+                to_char(timezone('UTC', CURRENT_TIMESTAMP), 'YYYY-MM-DD HH24:MI:SS')
+            )
         WHERE is_online = 1
         """
     )
