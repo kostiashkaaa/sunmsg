@@ -51,8 +51,12 @@ def register_client():
         return jsonify({'success': False, 'error': 'Все поля обязательны.'}), 400
     if not register_challenge or not register_signature:
         return jsonify({'success': False, 'error': 'Не подтверждено владение приватным ключом.'}), 400
+    if len(username) < 2:
+        return jsonify({'success': False, 'error': 'Никнейм должен содержать не менее 2 символов.'}), 400
     if len(username) > USERNAME_MAX_LENGTH:
         return jsonify({'success': False, 'error': 'Никнейм не должен превышать 50 символов.'}), 400
+    if not display_name:
+        return jsonify({'success': False, 'error': 'Отображаемое имя не может быть пустым.'}), 400
     if len(display_name) > DISPLAY_NAME_MAX_LENGTH:
         return jsonify({'success': False, 'error': 'Отображаемое имя не должно превышать 50 символов.'}), 400
 
