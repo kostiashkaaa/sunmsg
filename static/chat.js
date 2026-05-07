@@ -8311,7 +8311,7 @@ const initChatPage = async () => {
                 .trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
                 
             const avatarHtml = user.avatar_url
-                ? `<img src="${escapeHtml(user.avatar_url)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+                ? `<div class="contact-avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;"><img class="contact-avatar__img" src="${escapeHtml(user.avatar_url)}"></div>`
                 : `<div class="contact-avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;">${escapeHtml(initials)}</div>`;
 
             listItem.className = 'command-palette-result';
