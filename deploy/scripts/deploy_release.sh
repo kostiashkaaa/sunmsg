@@ -105,6 +105,19 @@ ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 run_systemctl restart sunmessenger-web.service
 run_systemctl restart sunmessenger-scheduler.service
 
-curl -fsS -H "Host: sun.445231.xyz" "http://127.0.0.1:8000/" >/dev/null
+health_ok=0
+for _ in $(seq 1 30); do
+  if curl -fsS -H "Host: sun.445231.xyz" "http://127.0.0.1:8000/" >/dev/null; then
+    health_ok=1
+    break
+  fi
+  sleep 1
+done
+
+if [[ "$health_ok" -ne 1 ]]; then
+  echo "Health check failed: http://127.0.0.1:8000/" >&2
+  run_systemctl status sunmessenger-web.service --no-pager -l || true
+  exit 7
+fi
 
 echo "Deploy complete: sha=$SHA env=$TARGET_ENV"
