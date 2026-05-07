@@ -1373,7 +1373,7 @@
 
     .auth-qr-login-code {
         width: min(100%, 300px);
-        min-height: 0;
+        min-height: 336px;
     }
 
     #loginQrGroup .auth-qr-login-code canvas,
