@@ -40,7 +40,7 @@ jobs:
 
       - name: Build release archive
         run: |
-          tar -czf release.tar.gz \
+          tar -czf /tmp/release.tar.gz \
             --exclude=.git \
             --exclude=.github \
             --exclude=.venv \
@@ -50,7 +50,9 @@ jobs:
             --exclude=.tmp_* \
             --exclude=storage/backups \
             --exclude=storage/chat_media \
+            --exclude=release.tar.gz \
             .
+          cp /tmp/release.tar.gz ./release.tar.gz
 
       - name: Upload release archive
         uses: appleboy/scp-action@v0.1.7
