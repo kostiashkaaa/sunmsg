@@ -72,6 +72,7 @@ def test_upload_chat_media_blocks_infected_file(monkeypatch, tmp_path):
             'CHAT_MEDIA_AV_SCAN_ENABLED': True,
             'CHAT_MEDIA_AV_FAIL_CLOSED': True,
             'CHAT_MEDIA_AV_COMMAND': 'scanner --scan {path}',
+            'CHAT_MEDIA_AV_SCAN_EXTENSIONS': ('txt',),
         },
     )
     monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
@@ -120,6 +121,7 @@ def test_upload_chat_media_fail_closed_on_scanner_error(monkeypatch, tmp_path):
             'CHAT_MEDIA_AV_SCAN_ENABLED': True,
             'CHAT_MEDIA_AV_FAIL_CLOSED': True,
             'CHAT_MEDIA_AV_COMMAND': 'scanner --scan {path}',
+            'CHAT_MEDIA_AV_SCAN_EXTENSIONS': ('txt',),
         },
     )
     monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
@@ -164,6 +166,7 @@ def test_upload_chat_media_fail_open_on_scanner_error(monkeypatch, tmp_path):
             'CHAT_MEDIA_AV_SCAN_ENABLED': True,
             'CHAT_MEDIA_AV_FAIL_CLOSED': False,
             'CHAT_MEDIA_AV_COMMAND': 'scanner --scan {path}',
+            'CHAT_MEDIA_AV_SCAN_EXTENSIONS': ('txt',),
         },
     )
     monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
@@ -197,3 +200,44 @@ def test_upload_chat_media_fail_open_on_scanner_error(monkeypatch, tmp_path):
 
     assert media_row['original_name'] == 'note.txt'
     assert (media_dir / media_row['storage_name']).exists()
+
+
+def test_upload_chat_media_skips_av_for_audio_when_extension_not_in_scope(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-media-av-skip-audio.db'
+    media_dir = tmp_path / 'chat_media_av_skip_audio'
+    media_dir.mkdir()
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app(
+        'testing',
+        overrides={
+            'DATABASE_PATH': str(db_path),
+            'CHAT_MEDIA_AV_SCAN_ENABLED': True,
+            'CHAT_MEDIA_AV_FAIL_CLOSED': True,
+            'CHAT_MEDIA_AV_COMMAND': 'scanner --scan {path}',
+            'CHAT_MEDIA_AV_SCAN_EXTENSIONS': ('zip', 'rar', '7z'),
+        },
+    )
+    monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
+
+    def _raise_scan_error(*args, **kwargs):
+        raise AVScanError('scanner should not be called for audio')
+
+    monkeypatch.setattr(chat_routes, 'scan_file', _raise_scan_error)
+
+    chat_id = generate_chat_id('pk-1', 'pk-2')
+    _seed_chat_participants(db_path, chat_id)
+    client = _authed_client(app, 1, 'pk-1')
+
+    response = client.post(
+        '/upload_chat_media',
+        data={
+            'chat_id': chat_id,
+            'file': (BytesIO(b'OggSfakevoicepayload'), 'voice.ogg', 'audio/ogg'),
+        },
+        content_type='multipart/form-data',
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload['success'] is True

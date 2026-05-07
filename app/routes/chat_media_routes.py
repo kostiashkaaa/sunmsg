@@ -107,6 +107,7 @@ def register_chat_media_routes(
                 av_fail_closed=bool(current_app.config.get('CHAT_MEDIA_AV_FAIL_CLOSED', False)),
                 av_command_template=str(current_app.config.get('CHAT_MEDIA_AV_COMMAND') or ''),
                 av_timeout_seconds=int(current_app.config.get('CHAT_MEDIA_AV_TIMEOUT_SECONDS', 20) or 20),
+                av_scan_extensions=current_app.config.get('CHAT_MEDIA_AV_SCAN_EXTENSIONS') or (),
             )
             if result['status'] == 'forbidden':
                 return jsonify({'success': False, 'error': result['error']}), result.get('code', 403)
@@ -212,4 +213,3 @@ def register_chat_media_routes(
         if result['status'] == 'not_found':
             return jsonify({'success': False}), 404
         return jsonify({'success': True, 'avatar_url': result['avatar_url']})
-

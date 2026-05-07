@@ -43,6 +43,7 @@ CHAT_MEDIA_CACHE_MAX_AGE_SECONDS=3600
 CHAT_MEDIA_AV_SCAN_ENABLED=1
 CHAT_MEDIA_AV_FAIL_CLOSED=1
 CHAT_MEDIA_AV_COMMAND=clamdscan --fdpass --no-summary {path} || clamscan --no-summary --infected --stdout {path}
+CHAT_MEDIA_AV_SCAN_EXTENSIONS=zip,rar,7z
 ```
 
 Генерация секретов:

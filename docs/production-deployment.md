@@ -45,6 +45,7 @@ CHAT_MEDIA_AV_SCAN_ENABLED=1
 CHAT_MEDIA_AV_FAIL_CLOSED=1
 CHAT_MEDIA_AV_TIMEOUT_SECONDS=20
 CHAT_MEDIA_AV_COMMAND=clamdscan --fdpass --no-summary {path} || clamscan --no-summary --infected --stdout {path}
+CHAT_MEDIA_AV_SCAN_EXTENSIONS=zip,rar,7z
 WEB_PUSH_ENABLED=1
 WEB_PUSH_VAPID_PUBLIC_KEY=<base64url-public-key>
 WEB_PUSH_VAPID_PRIVATE_KEY=<base64url-private-key>

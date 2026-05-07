@@ -13,6 +13,24 @@ def delete_file_quietly(path: str) -> None:
         pass
 
 
+def _normalize_scan_extensions(raw_extensions) -> set[str]:
+    if raw_extensions is None:
+        return set()
+    if isinstance(raw_extensions, str):
+        values = raw_extensions.split(',')
+    else:
+        try:
+            values = list(raw_extensions)
+        except TypeError:
+            values = [raw_extensions]
+    normalized = set()
+    for value in values:
+        token = str(value or '').strip().lower()
+        if token:
+            normalized.add(token)
+    return normalized
+
+
 def upload_avatar_for_user(
     conn,
     *,
@@ -101,6 +119,7 @@ def upload_chat_media_for_user(
     av_fail_closed: bool,
     av_command_template: str,
     av_timeout_seconds: int,
+    av_scan_extensions,
 ):
     partner = get_chat_partner_func(conn, user_id, chat_id)
     if not partner:
@@ -140,7 +159,9 @@ def upload_chat_media_for_user(
     path = os.path.join(chat_media_folder, safe_name)
     uploaded_file.save(path)
 
-    if av_scan_enabled:
+    scan_extensions = _normalize_scan_extensions(av_scan_extensions)
+    should_scan_this_file = av_scan_enabled and ext in scan_extensions
+    if should_scan_this_file:
         try:
             av_result = scan_file_func(
                 path,
@@ -278,4 +299,3 @@ def resolve_avatar_for_viewer(
         return {'status': 'not_found'}
 
     return {'status': 'ok', 'avatar_url': get_safe_avatar_url_func(user, viewer_id)}
-

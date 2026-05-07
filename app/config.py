@@ -43,6 +43,13 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_csv(name: str, default: str) -> tuple[str, ...]:
+    raw = os.environ.get(name)
+    source = raw if raw is not None else default
+    parts = [part.strip().lower() for part in str(source or '').split(',')]
+    return tuple(part for part in parts if part)
+
+
 class BaseConfig:
     ENV_NAME = 'development'
     DEBUG = False
@@ -74,6 +81,7 @@ class BaseConfig:
         'clamdscan --fdpass --no-summary {path} || '
         'clamscan --no-summary --infected --stdout {path}'
     )
+    CHAT_MEDIA_AV_SCAN_EXTENSIONS = 'zip,rar,7z'
     RATELIMIT_DEFAULT = '300 per minute'
     RATELIMIT_APPLICATION = '5000 per minute'
     SOCKET_CONNECT_IP_LIMIT = 180
@@ -178,6 +186,10 @@ class BaseConfig:
                 os.environ.get('CHAT_MEDIA_AV_COMMAND', cls.CHAT_MEDIA_AV_COMMAND)
                 or ''
             ).strip(),
+            'CHAT_MEDIA_AV_SCAN_EXTENSIONS': _env_csv(
+                'CHAT_MEDIA_AV_SCAN_EXTENSIONS',
+                cls.CHAT_MEDIA_AV_SCAN_EXTENSIONS,
+            ),
             'DATABASE_URL': database_url,
             'TEST_DATABASE_URL': test_database_url,
             'DATABASE_BACKEND': 'postgres',
