@@ -21,6 +21,10 @@ RELEASE_DIR="$RELEASES_DIR/$SHA"
 ARTIFACT_FILE="$ARTIFACTS_DIR/$SHA/release.tar.gz"
 BACKUP_DIR="$SHARED_DIR/backups"
 ENV_FILE="$SHARED_DIR/.env"
+SHARED_AVATARS_DIR="$SHARED_DIR/avatars"
+SHARED_CHAT_MEDIA_DIR="$SHARED_DIR/chat_media"
+APP_USER="sunmessenger"
+APP_GROUP="sunmessenger"
 
 if [[ ! -f "$ARTIFACT_FILE" ]]; then
   echo "Release archive not found: $ARTIFACT_FILE" >&2
@@ -63,6 +67,54 @@ run_systemctl() {
   fi
 }
 
+sync_avatar_storage() {
+  mkdir -p "$SHARED_AVATARS_DIR"
+
+  if [[ -L "$CURRENT_LINK" ]]; then
+    local current_target
+    current_target="$(readlink -f "$CURRENT_LINK" || true)"
+    if [[ -n "$current_target" && -d "$current_target/static/avatars" ]]; then
+      cp -a "$current_target/static/avatars/." "$SHARED_AVATARS_DIR/" || true
+    fi
+  fi
+
+  if [[ -d "$RELEASE_DIR/static/avatars" ]]; then
+    cp -a "$RELEASE_DIR/static/avatars/." "$SHARED_AVATARS_DIR/" || true
+    rm -rf "$RELEASE_DIR/static/avatars"
+  fi
+
+  mkdir -p "$RELEASE_DIR/static"
+  ln -sfn "$SHARED_AVATARS_DIR" "$RELEASE_DIR/static/avatars"
+
+  if id "$APP_USER" >/dev/null 2>&1; then
+    chown -R "$APP_USER:$APP_GROUP" "$SHARED_AVATARS_DIR" || true
+  fi
+}
+
+sync_chat_media_storage() {
+  mkdir -p "$SHARED_CHAT_MEDIA_DIR"
+
+  if [[ -L "$CURRENT_LINK" ]]; then
+    local current_target
+    current_target="$(readlink -f "$CURRENT_LINK" || true)"
+    if [[ -n "$current_target" && -d "$current_target/storage/chat_media" ]]; then
+      cp -a "$current_target/storage/chat_media/." "$SHARED_CHAT_MEDIA_DIR/" || true
+    fi
+  fi
+
+  if [[ -d "$RELEASE_DIR/storage/chat_media" ]]; then
+    cp -a "$RELEASE_DIR/storage/chat_media/." "$SHARED_CHAT_MEDIA_DIR/" || true
+    rm -rf "$RELEASE_DIR/storage/chat_media"
+  fi
+
+  mkdir -p "$RELEASE_DIR/storage"
+  ln -sfn "$SHARED_CHAT_MEDIA_DIR" "$RELEASE_DIR/storage/chat_media"
+
+  if id "$APP_USER" >/dev/null 2>&1; then
+    chown -R "$APP_USER:$APP_GROUP" "$SHARED_CHAT_MEDIA_DIR" || true
+  fi
+}
+
 old_target=""
 if [[ -L "$CURRENT_LINK" ]]; then
   old_target="$(readlink -f "$CURRENT_LINK" || true)"
@@ -84,6 +136,8 @@ ensure_venv
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARTIFACT_FILE" -C "$RELEASE_DIR"
+sync_avatar_storage
+sync_chat_media_storage
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Environment file not found: $ENV_FILE" >&2
