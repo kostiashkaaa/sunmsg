@@ -18,7 +18,7 @@ import { showToast, initDialogRequests, sendDialogRequest } from './modules/dial
 import { activateFocusTrap, deactivateFocusTrap } from './modules/focus-trap.js';
 import { showDeleteChatDialog } from './modules/delete-chat.js';
 import { initProfileDrawer, parseUtcDate as _parseUtcDate, formatLastSeenText as _formatLastSeenText, formatRegistrationDate as _formatRegistrationDate, renderProfileHeader as _renderProfileHeader, renderProfileStats as _renderProfileStats, renderProfileMeta as _renderProfileMeta, renderProfileBio as _renderProfileBio, renderPartnerProfile as _renderPartnerProfile, handleProfileAction as _handleProfileAction } from './modules/profile-drawer.js';
-import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js?v=20260501d';
+import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js?v=20260508b';
 import { renderMessageLinkPreview } from './modules/message-link-preview.js';
 import { getChatState as _getChatState, createChatState as _createChatState, getMessageKey as _getMessageKey, findMessageIndex as _findMessageIndex, findMessageById as _findMessageById, compareChatMessages as _compareChatMessages, normalizeChatMessageOrder as _normalizeChatMessageOrder, upsertChatMessage as _upsertChatMessage, prependChatMessages as _prependChatMessages, removeChatMessages as _removeChatMessages, setChatMessages as _setChatMessages, estimateMessageHeight as _estimateMessageHeight, CHAT_DEFAULT_MESSAGE_HEIGHT as _CHAT_DEFAULT_MESSAGE_HEIGHT } from './modules/chat-state.js';
 import { REACTION_PICKER_EMOJIS as _REACTION_PICKER_EMOJIS, normalizeReactionReactor as _normalizeReactionReactor, getReactionReactorKey as _getReactionReactorKey, normalizeReactionReactors as _normalizeReactionReactors, isCurrentUserReactionReactor as _isCurrentUserReactionReactor, buildCurrentUserReactionReactor as _buildCurrentUserReactionReactor, buildReactionReactorInitials as _buildReactionReactorInitials, buildReactionReactorsHtml as _buildReactionReactorsHtml, normalizeMessageReactions as _normalizeMessageReactions, areMessageReactionsEqual as _areMessageReactionsEqual, getReactionMessageKey as _getReactionMessageKey, computeOptimisticReactions as _computeOptimisticReactions, buildMessageReactionsHtml as _buildMessageReactionsHtml } from './modules/reactions.js?v=20260501a';
@@ -6385,7 +6385,10 @@ const initChatPage = async () => {
 
     function buildAudioWaveBarsHtml(values) {
         return values
-            .map((height, index) => `<span class="audio-wave-bar" style="--wave-h:${height}" data-wave-index="${index}"></span>`)
+            .map((height, index) => {
+                const safeHeight = Math.max(8, Math.min(100, Math.round(Number(height) || 50)));
+                return `<span class="audio-wave-bar audio-wave-bar--h${safeHeight}" data-wave-index="${index}"></span>`;
+            })
             .join('');
     }
 

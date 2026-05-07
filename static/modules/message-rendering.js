@@ -81,7 +81,10 @@ function hasProvidedWaveform(rawWaveform) {
 
 function buildWaveBarsHtml(values) {
     return values
-        .map((height, index) => `<span class="audio-wave-bar" style="--wave-h:${height}" data-wave-index="${index}"></span>`)
+        .map((height, index) => {
+            const safeHeight = Math.max(8, Math.min(100, Math.round(Number(height) || 50)));
+            return `<span class="audio-wave-bar audio-wave-bar--h${safeHeight}" data-wave-index="${index}"></span>`;
+        })
         .join('');
 }
 
