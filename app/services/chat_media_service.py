@@ -135,9 +135,8 @@ def upload_chat_media_for_user(
     if not uploaded_file or not uploaded_file.filename:
         return {'status': 'invalid', 'error': 'Файл не найден.', 'code': 400}
 
-    from werkzeug.utils import secure_filename
-
-    filename = secure_filename(uploaded_file.filename)
+    raw_filename = str(uploaded_file.filename or '').strip().replace('\x00', '')
+    filename = os.path.basename(raw_filename.replace('\\', '/'))
     if not filename or '.' not in filename:
         return {'status': 'invalid', 'error': 'Неподдерживаемое имя файла.', 'code': 400}
 
