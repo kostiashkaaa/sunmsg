@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moderation Console</title>
+    <title>Консоль модерации</title>
     <style>
         :root {
             color-scheme: light;
@@ -180,13 +180,13 @@
 <body>
 <main class="wrap">
     <div class="top">
-        <h1 class="title">Moderation Console</h1>
+        <h1 class="title">Консоль модерации</h1>
         <div class="actions">
-            <a class="btn" href="/chat">Back to Chat</a>
-            <a class="btn" href="/moderation/console/appeals">Appeals</a>
-            <a class="btn" href="/moderation/console/support">Support</a>
-            <a class="btn primary" href="/api/moderation/metrics">Raw Metrics JSON</a>
-            <a class="btn primary" href="/metrics/moderation">Prometheus Metrics</a>
+            <a class="btn" href="/chat">Назад в чат</a>
+            <a class="btn" href="/moderation/console/appeals">Апелляции</a>
+            <a class="btn" href="/moderation/console/support">Поддержка</a>
+            <a class="btn primary" href="/api/moderation/metrics">Метрики JSON</a>
+            <a class="btn primary" href="/metrics/moderation">Метрики Prometheus</a>
         </div>
     </div>
 
@@ -200,11 +200,11 @@
 
     <section class="metrics">
         <article class="metric">
-            <div class="label">Queue Pending</div>
+            <div class="label">В очереди</div>
             <div class="value">{{ metrics.queue.pending }}</div>
         </article>
         <article class="metric">
-            <div class="label">Queue Failed</div>
+            <div class="label">Сбоев в очереди</div>
             <div class="value">{{ metrics.queue.failed }}</div>
         </article>
         <article class="metric">
@@ -212,28 +212,28 @@
             <div class="value">{{ "%.1f"|format(metrics.time_to_action_p95_seconds) }}</div>
         </article>
         <article class="metric">
-            <div class="label">Appeal Reversal</div>
+            <div class="label">Отмены по апелляциям</div>
             <div class="value">{{ "%.1f"|format(metrics.appeal_reversal_rate * 100.0) }}%</div>
         </article>
         <article class="metric">
-            <div class="label">Resolved Cases (24h)</div>
+            <div class="label">Решённые кейсы (24ч)</div>
             <div class="value">{{ metrics.resolved_cases }}</div>
         </article>
     </section>
 
     <form class="filters" method="get" action="/moderation/console">
-        <label for="state">State</label>
+        <label for="state">Состояние</label>
         <select id="state" name="state">
-            <option value="open" {% if state == 'open' %}selected{% endif %}>open</option>
-            <option value="closed" {% if state == 'closed' %}selected{% endif %}>closed</option>
-            <option value="auto_resolved" {% if state == 'auto_resolved' %}selected{% endif %}>auto_resolved</option>
-            <option value="" {% if state == '' %}selected{% endif %}>all</option>
+            <option value="open" {% if state == 'open' %}selected{% endif %}>открыто</option>
+            <option value="closed" {% if state == 'closed' %}selected{% endif %}>закрыто</option>
+            <option value="auto_resolved" {% if state == 'auto_resolved' %}selected{% endif %}>авто-решено</option>
+            <option value="" {% if state == '' %}selected{% endif %}>все</option>
         </select>
-        <label for="limit">Limit</label>
+        <label for="limit">Лимит</label>
         <input id="limit" name="limit" type="number" value="{{ limit }}" min="1" max="200">
-        <label for="refresh">Refresh (sec)</label>
+        <label for="refresh">Обновление (сек)</label>
         <input id="refresh" name="refresh" type="number" value="{{ refresh_seconds }}" min="5" max="300">
-        <button class="btn primary" type="submit">Apply</button>
+        <button class="btn primary" type="submit">Применить</button>
     </form>
 
     <div class="table-wrap">
@@ -241,14 +241,14 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Type</th>
-                    <th>Subject</th>
-                    <th>State</th>
-                    <th>Risk</th>
-                    <th>Reason</th>
-                    <th>Created</th>
+                    <th>Тип</th>
+                    <th>Объект</th>
+                    <th>Состояние</th>
+                    <th>Риск</th>
+                    <th>Причина</th>
+                    <th>Создан</th>
                     <th>SLA</th>
-                    <th>Action</th>
+                    <th>Действие</th>
                 </tr>
             </thead>
             <tbody>
@@ -265,7 +265,7 @@
                             {% if target_type == 'message' and report.message_id %}
                                 <div class="muted">message_id: {{ report.message_id }}</div>
                             {% endif %}
-                            <div class="muted">reports: {{ case.reports_count }}</div>
+                            <div class="muted">жалоб: {{ case.reports_count }}</div>
                         </td>
                         <td>
                             {{ case.state }}
@@ -273,15 +273,15 @@
                         </td>
                         <td>
                             {{ "%.3f"|format(case.risk_score) }}
-                            <div class="muted">conf {{ "%.3f"|format(case.confidence) }}</div>
+                            <div class="muted">достоверность {{ "%.3f"|format(case.confidence) }}</div>
                         </td>
                         <td>
                             <div>{{ case.decision_reason or '-' }}</div>
                             {% if case.report and case.report.reason_code %}
-                                <div class="muted">report reason: {{ case.report.reason_code }}</div>
+                                <div class="muted">код жалобы: {{ case.report.reason_code }}</div>
                             {% endif %}
                             {% if case.report and case.report.comment %}
-                                <div class="muted">comment: {{ case.report.comment }}</div>
+                                <div class="muted">комментарий: {{ case.report.comment }}</div>
                             {% endif %}
                         </td>
                         <td>{{ case.created_at }}</td>
@@ -289,7 +289,7 @@
                             {% if case.state == 'open' %}
                                 <span class="sla-timer muted">--</span>
                             {% else %}
-                                <span class="muted">closed</span>
+                                <span class="muted">закрыто</span>
                             {% endif %}
                         </td>
                         <td>
@@ -297,36 +297,36 @@
                                 <form class="inline-form" method="post" action="/moderation/console/cases/{{ case.id }}/action">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="action_type">
-                                        <option value="warn">warn</option>
-                                        <option value="mute_temp">mute_temp</option>
-                                        <option value="ban_temp">ban_temp</option>
-                                        <option value="ban_perma">ban_perma</option>
-                                        <option value="delete">delete</option>
+                                        <option value="warn">предупреждение</option>
+                                        <option value="mute_temp">временный мут</option>
+                                        <option value="ban_temp">временный бан</option>
+                                        <option value="ban_perma">постоянный бан</option>
+                                        <option value="delete">удаление</option>
                                     </select>
                                     <input name="reason_code" value="manual_action" maxlength="64">
                                     <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
-                                    <input name="note" value="" maxlength="512" placeholder="note">
-                                    <button type="submit">Apply</button>
+                                    <input name="note" value="" maxlength="512" placeholder="заметка">
+                                    <button type="submit">Применить</button>
                                 </form>
                             {% else %}
-                                <span class="muted">closed</span>
+                                <span class="muted">закрыто</span>
                             {% endif %}
                             {% if case.active_sanction %}
-                                <div class="muted">active sanction #{{ case.active_sanction.id }} ({{ case.active_sanction.action_type }})</div>
+                                <div class="muted">активная санкция #{{ case.active_sanction.id }} ({{ case.active_sanction.action_type }})</div>
                                 {% if case.active_sanction.expires_at %}
-                                    <div class="muted">expires: {{ case.active_sanction.expires_at }}</div>
+                                    <div class="muted">истекает: {{ case.active_sanction.expires_at }}</div>
                                 {% endif %}
                                 <form class="inline-form" method="post" action="/moderation/console/sanctions/{{ case.active_sanction.id }}/lift">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input name="note" value="manual_lift" maxlength="512" placeholder="lift note">
-                                    <button type="submit">Lift restriction</button>
+                                    <input name="note" value="manual_lift" maxlength="512" placeholder="причина снятия">
+                                    <button type="submit">Снять ограничение</button>
                                 </form>
                             {% endif %}
                         </td>
                     </tr>
                 {% endfor %}
             {% else %}
-                <tr><td colspan="9">No cases found.</td></tr>
+                <tr><td colspan="9">Кейсы не найдены.</td></tr>
             {% endif %}
             </tbody>
         </table>

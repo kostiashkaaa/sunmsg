@@ -5,7 +5,7 @@
             <div class="app-boot-head">
                 <div class="app-boot-mark" aria-hidden="true"></div>
                 <div class="app-boot-copy">
-                    <span class="app-boot-kicker">sun messenger</span>
+                    <span class="app-boot-kicker">{{ 'sun messenger' if ui_lang == 'en' else 'sun мессенджер' }}</span>
                     <h1 class="app-boot-title">{{ 'Opening a quiet space.' if ui_lang == 'en' else 'Открываем тихое пространство.' }}</h1>
                     <p class="app-boot-desc">{{ 'Checking keys, loading recent dialogs, and preparing a secure session.' if ui_lang == 'en' else 'Проверяем ключи, поднимаем последние диалоги и готовим защищённую сессию.' }}</p>
                 </div>
@@ -20,7 +20,7 @@
                         <div class="sun-skeleton-line"></div>
                         <div class="sun-skeleton-line"></div>
                     </div>
-                    <div class="app-boot-preview-chip">secure relay</div>
+                    <div class="app-boot-preview-chip">{{ 'secure relay' if ui_lang == 'en' else 'защищённый релей' }}</div>
                 </div>
                 <div class="app-boot-preview-thread">
                     <div class="app-boot-bubble sun-skeleton-block">

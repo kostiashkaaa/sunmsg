@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Support Feedback</title>
+    <title>Поддержка и обратная связь</title>
     <style>
         :root {
             color-scheme: light;
@@ -122,8 +122,8 @@
 <body>
 <main class="wrap">
     <div class="top">
-        <h1 class="title">Support & Feedback</h1>
-        <a class="btn" href="{{ '/chat' if user_id else '/' }}">{{ 'Back to chat' if user_id else 'Back to login' }}</a>
+        <h1 class="title">Поддержка и обратная связь</h1>
+        <a class="btn" href="{{ '/chat' if user_id else '/' }}">{{ 'В чат' if user_id else 'Ко входу' }}</a>
     </div>
 
     <div class="card">
@@ -133,46 +133,46 @@
         <form id="supportFeedbackForm">
             <div class="grid">
                 <div class="field">
-                    <label for="supportCategory">Category</label>
+                    <label for="supportCategory">Категория</label>
                     <select id="supportCategory" name="category">
-                        <option value="bug">bug</option>
-                        <option value="performance">performance</option>
-                        <option value="registration">registration</option>
-                        <option value="login">login</option>
-                        <option value="access">access</option>
-                        <option value="feature">feature</option>
-                        <option value="security">security</option>
-                        <option value="other">other</option>
+                        <option value="bug">Ошибка</option>
+                        <option value="performance">Производительность</option>
+                        <option value="registration">Регистрация</option>
+                        <option value="login">Вход</option>
+                        <option value="access">Доступ</option>
+                        <option value="feature">Функция</option>
+                        <option value="security">Безопасность</option>
+                        <option value="other">Другое</option>
                     </select>
                 </div>
                 <div class="field">
-                    <label for="supportSource">Source</label>
+                    <label for="supportSource">Источник</label>
                     <input id="supportSource" name="source_page" value="support_page" maxlength="64">
                 </div>
                 <div class="field">
-                    <label for="supportUsername">Username</label>
+                    <label for="supportUsername">Имя пользователя</label>
                     <input id="supportUsername" name="username" value="{{ username or '' }}" maxlength="120" {% if user_id %}readonly{% endif %}>
                 </div>
                 <div class="field">
-                    <label for="supportEmail">Email</label>
+                    <label for="supportEmail">Эл. почта</label>
                     <input id="supportEmail" name="contact_email" maxlength="200" placeholder="name@example.com">
                 </div>
                 <div class="field full">
-                    <label for="supportHandle">Contact handle</label>
-                    <input id="supportHandle" name="contact_handle" maxlength="120" placeholder="@telegram / @username / other contact">
+                    <label for="supportHandle">Контакт для связи</label>
+                    <input id="supportHandle" name="contact_handle" maxlength="120" placeholder="@telegram / @username / другой контакт">
                 </div>
                 <div class="field full">
-                    <label for="supportSubject">Subject</label>
+                    <label for="supportSubject">Тема</label>
                     <input id="supportSubject" name="subject" maxlength="160" required>
                 </div>
                 <div class="field full">
-                    <label for="supportBody">Details</label>
+                    <label for="supportBody">Подробности</label>
                     <textarea id="supportBody" name="message" maxlength="8000" required></textarea>
                 </div>
             </div>
             <div class="status" id="supportStatus" aria-live="polite"></div>
             <div class="actions">
-                <button type="submit" class="btn primary" id="supportSubmitBtn">Send</button>
+                <button type="submit" class="btn primary" id="supportSubmitBtn">Отправить</button>
             </div>
         </form>
     </div>
@@ -191,7 +191,7 @@
         event.preventDefault();
         if (!submitBtn) return;
         submitBtn.disabled = true;
-        setStatus('Sending...');
+        setStatus('Отправка...');
         const payload = Object.fromEntries(new FormData(form).entries());
         try {
             const response = await fetch('/api/support/requests', {
@@ -205,17 +205,17 @@
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok || !data.success) {
-                setStatus(data.error || 'Request failed', 'err');
+                setStatus(data.error || 'Не удалось отправить запрос', 'err');
                 return;
             }
-            setStatus(`Request sent (id #${data.request_id})`, 'ok');
+            setStatus(`Запрос отправлен (id #${data.request_id})`, 'ok');
             form.reset();
             document.getElementById('supportSource').value = 'support_page';
             if ({{ 'true' if user_id else 'false' }}) {
                 document.getElementById('supportUsername').value = {{ (username or '')|tojson }};
             }
         } catch (_) {
-            setStatus('Network error', 'err');
+            setStatus('Сетевая ошибка', 'err');
         } finally {
             submitBtn.disabled = false;
         }

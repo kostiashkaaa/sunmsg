@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ session.get('ui_language', 'ru') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -336,24 +336,24 @@
     <main class="auth-wrapper user-card-wrapper">
         <header class="user-card-brand">
             <p class="user-card-brand-pre">SUN Messenger</p>
-            <h1 class="user-card-brand-headline">Public Profile</h1>
+            <h1 class="user-card-brand-headline">Публичный профиль</h1>
         </header>
 
         {% if stub_reason %}
-        <section class="user-card-surface" aria-label="Private profile">
+        <section class="user-card-surface" aria-label="Закрытый профиль">
             <div class="profile-hero">
                 <div class="profile-avatar profile-avatar--locked" aria-hidden="true">
                     <i class="bi bi-lock"></i>
                 </div>
                 <h1 class="profile-name">@{{ stub_username }}</h1>
-                <p class="profile-bio">This profile is private.</p>
+                <p class="profile-bio">Этот профиль закрыт.</p>
             </div>
 
             <div class="profile-actions profile-actions--centered">
                 <a class="profile-btn secondary" href="{{ url_for('auth.index') }}">
                     <span class="profile-btn-inner">
                         <i class="bi bi-grid"></i>
-                        <span>Open SUN</span>
+                        <span>Открыть SUN</span>
                     </span>
                 </a>
             </div>
@@ -363,7 +363,7 @@
             /u/{{ stub_username }}
         </div>
         {% else %}
-        <section class="user-card-surface" aria-label="User profile card">
+        <section class="user-card-surface" aria-label="Карточка профиля пользователя">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     <div class="flash-stack" role="status" aria-live="polite">
@@ -377,7 +377,7 @@
             <div class="profile-hero">
                 <div class="profile-avatar{% if not profile.avatar_url %} profile-avatar--fallback{% endif %}"{% if not profile.avatar_url %} data-avatar-seed="{{ profile.display_name or profile.username or '?' }}"{% endif %} aria-hidden="true">
                     {% if profile.avatar_url %}
-                        <img src="{{ profile.avatar_url }}" alt="Avatar @{{ profile.username }}">
+                        <img src="{{ profile.avatar_url }}" alt="Аватар @{{ profile.username }}">
                     {% else %}
                         {{ (profile.display_name or profile.username or '?')[:1]|upper }}
                     {% endif %}
@@ -395,14 +395,14 @@
                         <a class="profile-btn primary" href="{{ url_for('chat.chat_index') }}">
                             <span class="profile-btn-inner">
                                 <i class="bi bi-chat-dots"></i>
-                                <span>Open My Chats</span>
+                                <span>Открыть мои чаты</span>
                             </span>
                         </a>
                     {% elif can_open_chat %}
                         <a class="profile-btn primary" href="{{ url_for('chat.chat_index_by_contact_username', contact_username=profile.username) }}">
                             <span class="profile-btn-inner">
                                 <i class="bi bi-send"></i>
-                                <span>Message</span>
+                                <span>Написать</span>
                             </span>
                         </a>
                     {% elif can_send_request %}
@@ -411,7 +411,7 @@
                             <button class="profile-btn primary" type="submit">
                                 <span class="profile-btn-inner">
                                     <i class="bi bi-person-plus"></i>
-                                    <span>Send Request</span>
+                                    <span>Отправить запрос</span>
                                 </span>
                             </button>
                         </form>
@@ -419,21 +419,21 @@
                         <button class="profile-btn primary" type="button" disabled>
                             <span class="profile-btn-inner">
                                 <i class="bi bi-shield-slash"></i>
-                                <span>You blocked this user</span>
+                                <span>Вы заблокировали этого пользователя</span>
                             </span>
                         </button>
                     {% elif block_state.blocked_me %}
                         <button class="profile-btn primary" type="button" disabled>
                             <span class="profile-btn-inner">
                                 <i class="bi bi-shield-lock"></i>
-                                <span>This user blocked you</span>
+                                <span>Этот пользователь заблокировал вас</span>
                             </span>
                         </button>
                     {% else %}
                         <button class="profile-btn primary" type="button" disabled>
                             <span class="profile-btn-inner">
                                 <i class="bi bi-x-circle"></i>
-                                <span>Messaging unavailable</span>
+                                <span>Переписка недоступна</span>
                             </span>
                         </button>
                     {% endif %}
@@ -441,7 +441,7 @@
                     <a class="profile-btn primary" href="{{ url_for('auth.index') }}">
                         <span class="profile-btn-inner">
                             <i class="bi bi-box-arrow-in-right"></i>
-                            <span>Sign In to Message</span>
+                            <span>Войдите, чтобы написать</span>
                         </span>
                     </a>
                 {% endif %}
@@ -450,14 +450,14 @@
                     <a class="profile-btn secondary" href="{{ url_for('chat.chat_index') }}">
                         <span class="profile-btn-inner">
                             <i class="bi bi-grid"></i>
-                            <span>Open SUN</span>
+                            <span>Открыть SUN</span>
                         </span>
                     </a>
                 {% else %}
                     <a class="profile-btn secondary" href="{{ url_for('auth.index') }}">
                         <span class="profile-btn-inner">
                             <i class="bi bi-grid"></i>
-                            <span>Open SUN</span>
+                            <span>Открыть SUN</span>
                         </span>
                     </a>
                 {% endif %}
@@ -465,7 +465,7 @@
         </section>
 
         <div class="profile-footnote">
-            Profile link: <a href="{{ url_for('contacts.public_user_card', username=profile.username) }}">/u/{{ profile.username }}</a>
+            Ссылка на профиль: <a href="{{ url_for('contacts.public_user_card', username=profile.username) }}">/u/{{ profile.username }}</a>
         </div>
         {% endif %}
     </main>

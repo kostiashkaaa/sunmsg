@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moderation Appeals Console</title>
+    <title>Консоль апелляций модерации</title>
     <style>
         :root {
             color-scheme: light;
@@ -171,13 +171,13 @@
 <body>
 <main class="wrap">
     <div class="top">
-        <h1 class="title">Appeals Console</h1>
+        <h1 class="title">Консоль апелляций</h1>
         <div class="actions">
-            <a class="btn" href="/moderation/console">Cases</a>
-            <a class="btn" href="/moderation/console/support">Support</a>
-            <a class="btn" href="/chat">Back to Chat</a>
-            <a class="btn primary" href="/api/moderation/appeals">Raw Appeals JSON</a>
-            <a class="btn primary" href="/metrics/moderation">Prometheus Metrics</a>
+            <a class="btn" href="/moderation/console">Кейсы</a>
+            <a class="btn" href="/moderation/console/support">Поддержка</a>
+            <a class="btn" href="/chat">Назад в чат</a>
+            <a class="btn primary" href="/api/moderation/appeals">Апелляции JSON</a>
+            <a class="btn primary" href="/metrics/moderation">Метрики Prometheus</a>
         </div>
     </div>
 
@@ -191,37 +191,37 @@
 
     <section class="metrics">
         <article class="metric">
-            <div class="label">Appeals Resolved (24h)</div>
+            <div class="label">Решённые апелляции (24ч)</div>
             <div class="value">{{ metrics.appeals_resolved }}</div>
         </article>
         <article class="metric">
-            <div class="label">Appeals Reversed (24h)</div>
+            <div class="label">Отменённые апелляции (24ч)</div>
             <div class="value">{{ metrics.appeals_reversed }}</div>
         </article>
         <article class="metric">
-            <div class="label">Reversal Rate</div>
+            <div class="label">Доля отмен</div>
             <div class="value">{{ "%.1f"|format(metrics.appeal_reversal_rate * 100.0) }}%</div>
         </article>
         <article class="metric">
-            <div class="label">Queue Pending</div>
+            <div class="label">В очереди</div>
             <div class="value">{{ metrics.queue.pending }}</div>
         </article>
     </section>
 
     <form class="filters" method="get" action="/moderation/console/appeals">
-        <label for="state">State</label>
+        <label for="state">Состояние</label>
         <select id="state" name="state">
-            <option value="submitted" {% if state == 'submitted' %}selected{% endif %}>submitted</option>
-            <option value="in_review" {% if state == 'in_review' %}selected{% endif %}>in_review</option>
-            <option value="upheld" {% if state == 'upheld' %}selected{% endif %}>upheld</option>
-            <option value="reversed" {% if state == 'reversed' %}selected{% endif %}>reversed</option>
-            <option value="" {% if state == '' %}selected{% endif %}>all</option>
+            <option value="submitted" {% if state == 'submitted' %}selected{% endif %}>отправлена</option>
+            <option value="in_review" {% if state == 'in_review' %}selected{% endif %}>на проверке</option>
+            <option value="upheld" {% if state == 'upheld' %}selected{% endif %}>подтверждена</option>
+            <option value="reversed" {% if state == 'reversed' %}selected{% endif %}>отменена</option>
+            <option value="" {% if state == '' %}selected{% endif %}>все</option>
         </select>
-        <label for="limit">Limit</label>
+        <label for="limit">Лимит</label>
         <input id="limit" name="limit" type="number" value="{{ limit }}" min="1" max="200">
-        <label for="refresh">Refresh (sec)</label>
+        <label for="refresh">Обновление (сек)</label>
         <input id="refresh" name="refresh" type="number" value="{{ refresh_seconds }}" min="5" max="300">
-        <button class="btn primary" type="submit">Apply</button>
+        <button class="btn primary" type="submit">Применить</button>
     </form>
 
     <div class="table-wrap">
@@ -229,12 +229,12 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>User</th>
-                    <th>Sanction</th>
-                    <th>Appeal Text</th>
-                    <th>State</th>
-                    <th>Created</th>
-                    <th>Resolve</th>
+                    <th>Пользователь</th>
+                    <th>Санкция</th>
+                    <th>Текст апелляции</th>
+                    <th>Состояние</th>
+                    <th>Создана</th>
+                    <th>Решение</th>
                 </tr>
             </thead>
             <tbody>
@@ -251,7 +251,7 @@
                         <td>
                             {{ appeal.state }}
                             {% if appeal.reviewer_user_id %}
-                                <div class="muted">reviewer: {{ appeal.reviewer_user_id }}</div>
+                                <div class="muted">модератор: {{ appeal.reviewer_user_id }}</div>
                             {% endif %}
                             {% if appeal.resolution_note %}
                                 <div class="muted">{{ appeal.resolution_note }}</div>
@@ -263,20 +263,20 @@
                                 <form class="inline-form" method="post" action="/moderation/console/appeals/{{ appeal.id }}/resolve">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="resolution">
-                                        <option value="upheld">upheld</option>
-                                        <option value="reversed">reversed</option>
+                                        <option value="upheld">подтвердить санкцию</option>
+                                        <option value="reversed">отменить санкцию</option>
                                     </select>
-                                    <input name="resolution_note" value="" maxlength="2000" placeholder="resolution note">
-                                    <button type="submit">Resolve</button>
+                                    <input name="resolution_note" value="" maxlength="2000" placeholder="заметка по решению">
+                                    <button type="submit">Принять</button>
                                 </form>
                             {% else %}
-                                <span class="muted">resolved</span>
+                                <span class="muted">решено</span>
                             {% endif %}
                         </td>
                     </tr>
                 {% endfor %}
             {% else %}
-                <tr><td colspan="7">No appeals found.</td></tr>
+                <tr><td colspan="7">Апелляции не найдены.</td></tr>
             {% endif %}
             </tbody>
         </table>

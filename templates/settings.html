@@ -140,7 +140,7 @@
                 Устройства
             </a>
             <a href="#support" class="nav-item" data-section="support">
-                Support
+                Поддержка
             </a>
 
             <hr class="nav-divider">
@@ -189,7 +189,7 @@
                     </label>
                     <label class="settings-field">
                         <span class="settings-field-label">Имя пользователя</span>
-                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username }}" placeholder="username" maxlength="50" pattern="[a-z0-9_]+">
+                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username }}" placeholder="имя_пользователя" maxlength="50" pattern="[a-z0-9_]+">
                         <span class="settings-field-hint">Используется для поиска и ссылок</span>
                     </label>
                 </div>
@@ -353,7 +353,7 @@
                     <div>
                         <div style="font-weight:600; color:var(--text);">История заблокирована</div>
                         <div style="font-size:13px; color:var(--sub-text);">
-                            Вы вошли через Authenticator, поэтому сообщения не могут быть расшифрованы. 
+                            Вы вошли через приложение-аутентификатор, поэтому сообщения не могут быть расшифрованы. 
                             Введите ваши 24 слова ниже, чтобы активировать доступ.
                         </div>
                     </div>
@@ -401,7 +401,7 @@
                             <div class="totp-setup-copy">
                                 <div class="settings-row-label">Секретный ключ</div>
                                 <div class="totp-secret-box" id="totpSettingsSecret"></div>
-                                <div class="settings-row-desc">Отсканируйте QR в Authenticator или введите ключ вручную.</div>
+                                <div class="settings-row-desc">Отсканируйте QR в приложении-аутентификаторе или введите ключ вручную.</div>
                             </div>
                         </div>
                     </div>
@@ -419,7 +419,7 @@
                             >
                             <button type="button" class="btn-settings primary" id="totpVerifyBtn">Подтвердить</button>
                         </div>
-                        <div class="settings-row-desc">Введите 6-значный код из Authenticator, чтобы завершить подключение.</div>
+                        <div class="settings-row-desc">Введите 6-значный код из приложения-аутентификатора, чтобы завершить подключение.</div>
                     </div>
                 </div>
             </div>
@@ -434,7 +434,7 @@
                         Вход по Passkey (биометрия/системный ключ) без ввода 24 слов. Рекомендуется привязать минимум два устройства.
                     </p>
                     <div class="settings-action-cluster passkey-actions">
-                        <button type="button" class="btn-settings primary" id="passkeyAddBtn">Добавить Passkey</button>
+                        <button type="button" class="btn-settings primary" id="passkeyAddBtn">Добавить passkey</button>
                     </div>
                     <div id="passkeyUnsupportedNote" class="settings-row-desc" style="display:none;">
                         Этот браузер не поддерживает WebAuthn/Passkey.
@@ -589,8 +589,8 @@
                         <div class="settings-row-desc">Перенос персонализации и приватности между устройствами.</div>
                     </div>
                     <div class="settings-action-cluster">
-                        <button type="button" class="btn-settings secondary" id="settingsExportBtn">Экспорт JSON</button>
-                        <label for="settingsImportInput" class="btn-settings secondary">Импорт JSON</label>
+                        <button type="button" class="btn-settings secondary" id="settingsExportBtn">Экспорт в JSON</button>
+                        <label for="settingsImportInput" class="btn-settings secondary">Импорт из JSON</label>
                         <input type="file" id="settingsImportInput" accept="application/json,.json" hidden>
                     </div>
                 </div>
@@ -650,7 +650,7 @@
                                 <input type="range" id="chatCustomDarken" min="0" max="70" value="8">
                             </label>
                             <label class="chat-style-slider">
-                                <span>Blur</span>
+                                <span>Размытие</span>
                                 <input type="range" id="chatCustomBlur" min="0" max="18" value="0">
                             </label>
                             <label class="chat-style-slider">
@@ -784,16 +784,16 @@
                     <label class="settings-field">
                         <span class="settings-field-label">Категория</span>
                         <select id="settingsSupportCategory" class="settings-input settings-field-input">
-                            <option value="bug">bug</option>
-                            <option value="performance">performance</option>
-                            <option value="feature">feature</option>
-                            <option value="security">security</option>
-                            <option value="other">other</option>
+                            <option value="bug">ошибка</option>
+                            <option value="performance">производительность</option>
+                            <option value="feature">функция</option>
+                            <option value="security">безопасность</option>
+                            <option value="other">другое</option>
                         </select>
                     </label>
                     <label class="settings-field">
                         <span class="settings-field-label">Контакт (необязательно)</span>
-                        <input type="text" class="settings-input settings-field-input" id="settingsSupportContact" maxlength="120" placeholder="@telegram, email">
+                        <input type="text" class="settings-input settings-field-input" id="settingsSupportContact" maxlength="120" placeholder="@telegram, email или другой контакт">
                     </label>
                     <label class="settings-field" style="grid-column: 1 / -1;">
                         <span class="settings-field-label">Тема</span>

@@ -55,7 +55,7 @@
 
     <main class="auth-wrapper">
         <div class="auth-brand">
-            <div class="auth-brand-pre">End-to-end &bull; Zero knowledge</div>
+            <div class="auth-brand-pre">Сквозное шифрование &bull; Нулевое знание</div>
             <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
         </div>
 
@@ -80,7 +80,7 @@
                     </button>
                     <button class="auth-method-btn" id="methodKeyBtn"
                             type="button">
-                        <i class="bi bi-shield-lock"></i> 24 слова (Mnemonic)
+                        <i class="bi bi-shield-lock"></i> 24 слова (мнемоническая фраза)
                     </button>
                 </div>
 
@@ -104,24 +104,24 @@
                         <label class="auth-label" for="login_username">Имя пользователя</label>
                         <div class="auth-input-wrap" style="margin-bottom:10px;">
                             <input type="text" class="auth-input" id="login_username"
-                                   placeholder="your_username" autocomplete="username"
+                                   placeholder="ваш_username" autocomplete="username"
                                    pattern="[a-z0-9_]+" maxlength="50">
                             <i class="bi bi-at auth-input-icon"></i>
                         </div>
-                        <label class="auth-label">24 слова (Mnemonic)</label>
+                        <label class="auth-label">24 слова (мнемоническая фраза)</label>
                         <div class="mnemonic-grid" id="mnemonicInputGrid">
                         </div>
                     </div>
 
                     <div class="auth-form-group" id="loginTotpGroup" style="display:none;">
-                        <label class="auth-label" for="login_totp_code">Код из Authenticator</label>
+                        <label class="auth-label" for="login_totp_code">Код из приложения-аутентификатора</label>
                         <div class="auth-input-wrap">
                             <input type="text" class="auth-input totp-input" id="login_totp_code"
                                    placeholder="000000" maxlength="6" inputmode="numeric"
                                    autocomplete="one-time-code">
                         </div>
                         <p class="auth-totp-help">
-                            Откройте Google или Microsoft Authenticator &rarr; введите 6-значный код
+                            Откройте Google Authenticator или Microsoft Authenticator &rarr; введите 6-значный код
                         </p>
                     </div>
 
@@ -136,7 +136,7 @@
                         <span class="auth-btn-arrow">&rarr;</span>
                     </button>
                     <button type="button" class="auth-btn auth-btn-secondary auth-passkey-btn" id="passkeyLoginBtn">
-                        <i class="bi bi-fingerprint"></i>&nbsp; Passkey sign-in
+                        <i class="bi bi-fingerprint"></i>&nbsp; Вход по Passkey
                     </button>
                 </form>
             </div>
@@ -147,7 +147,7 @@
                         <label class="auth-label" for="reg_username">Имя пользователя</label>
                         <div class="auth-input-wrap">
                             <input type="text" class="auth-input" id="reg_username"
-                                   placeholder="your_username" autocomplete="username"
+                                   placeholder="ваш_username" autocomplete="username"
                                    pattern="[a-z0-9_]+" maxlength="50" required>
                             <i class="bi bi-at auth-input-icon"></i>
                         </div>
@@ -192,7 +192,7 @@
                 <div class="auth-key-box-header auth-key-box-header--qr">
                     <div class="auth-key-box-icon accent"><i class="bi bi-phone"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Шаг 2 &mdash; Подключите Authenticator</div>
+                        <div class="auth-key-box-title">Шаг 2 &mdash; Подключите приложение-аутентификатор</div>
                         <div class="auth-key-box-sub">Для входа по 6-значному коду с телефона</div>
                     </div>
                 </div>
@@ -216,42 +216,42 @@
 
             <div class="auth-key-warning">
                 <i class="bi bi-exclamation-triangle-fill"></i>
-                <p>Сохраните ключ и настройте Authenticator &mdash; это два независимых способа войти. Сервер не хранит пароли.</p>
+                <p>Сохраните ключ и настройте приложение-аутентификатор &mdash; это два независимых способа войти. Сервер не хранит пароли.</p>
             </div>
         </div>
 
         <div class="auth-footer">
             <span>Сервер не видит сообщения</span>
-            <span>Zero knowledge</span>
+            <span>Нулевое знание</span>
             <span>v1.0</span>
         </div>
         <nav class="auth-legal-links" aria-label="Юридическая информация">
-            <a href="{{ url_for('auth.privacy_policy') }}">Privacy Policy</a>
-            <a href="{{ url_for('auth.terms_of_service') }}">Terms of Service</a>
-            <a href="{{ url_for('auth.security_faq') }}">FAQ Security</a>
+            <a href="{{ url_for('auth.privacy_policy') }}">Политика конфиденциальности</a>
+            <a href="{{ url_for('auth.terms_of_service') }}">Пользовательское соглашение</a>
+            <a href="{{ url_for('auth.security_faq') }}">FAQ по безопасности</a>
             <a href="{{ url_for('auth.about_project') }}">О проекте</a>
         </nav>
 
         <details class="auth-feedback-dock" id="authSupportBox">
             <summary class="auth-feedback-summary">
                 <i class="bi bi-life-preserver"></i>
-                <span>Feedback</span>
+                <span>Обратная связь</span>
             </summary>
             <div class="auth-feedback-panel">
                 <div class="auth-support-grid">
                     <select id="authSupportCategory" class="auth-input auth-support-input">
-                        <option value="registration">Registration</option>
-                        <option value="login">Login</option>
-                        <option value="access">Account access</option>
-                        <option value="bug">Bug</option>
-                        <option value="other">Other</option>
+                        <option value="registration">Регистрация</option>
+                        <option value="login">Вход</option>
+                        <option value="access">Доступ к аккаунту</option>
+                        <option value="bug">Ошибка</option>
+                        <option value="other">Другое</option>
                     </select>
-                    <input type="text" id="authSupportContact" class="auth-input auth-support-input" maxlength="120" placeholder="Contact (email/@username)">
-                    <input type="text" id="authSupportSubject" class="auth-input auth-support-input auth-support-input-full" maxlength="160" placeholder="Request subject">
-                    <textarea id="authSupportBody" class="auth-input auth-support-input auth-support-input-full" rows="3" maxlength="8000" placeholder="Describe the problem briefly"></textarea>
+                    <input type="text" id="authSupportContact" class="auth-input auth-support-input" maxlength="120" placeholder="Контакт (email/@username)">
+                    <input type="text" id="authSupportSubject" class="auth-input auth-support-input auth-support-input-full" maxlength="160" placeholder="Тема обращения">
+                    <textarea id="authSupportBody" class="auth-input auth-support-input auth-support-input-full" rows="3" maxlength="8000" placeholder="Кратко опишите проблему"></textarea>
                 </div>
                 <div class="auth-support-actions">
-                    <button type="button" class="auth-btn auth-btn-secondary" id="authSupportSubmitBtn">Send request</button>
+                    <button type="button" class="auth-btn auth-btn-secondary" id="authSupportSubmitBtn">Отправить обращение</button>
                 </div>
                 <div class="auth-support-status" id="authSupportStatus" aria-live="polite"></div>
             </div>

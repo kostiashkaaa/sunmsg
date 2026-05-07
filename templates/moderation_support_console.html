@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Support Console</title>
+    <title>Консоль поддержки</title>
     <style>
         :root {
             color-scheme: light;
@@ -209,12 +209,12 @@
 <body>
 <main class="wrap">
     <div class="top">
-        <h1 class="title">Support Console</h1>
+        <h1 class="title">Консоль поддержки</h1>
         <div class="actions">
-            <a class="btn" href="/moderation/console">Cases</a>
-            <a class="btn" href="/moderation/console/appeals">Appeals</a>
-            <a class="btn" href="/chat">Back to chat</a>
-            <a class="btn primary" href="/api/support/requests">Support API</a>
+            <a class="btn" href="/moderation/console">Кейсы</a>
+            <a class="btn" href="/moderation/console/appeals">Апелляции</a>
+            <a class="btn" href="/chat">Назад в чат</a>
+            <a class="btn primary" href="/api/support/requests">API поддержки</a>
         </div>
     </div>
 
@@ -228,39 +228,39 @@
 
     <section class="metrics">
         <article class="metric">
-            <div class="label">Queue Pending</div>
+            <div class="label">В очереди</div>
             <div class="value">{{ metrics.queue.pending }}</div>
         </article>
         <article class="metric">
-            <div class="label">Queue Failed</div>
+            <div class="label">Сбоев в очереди</div>
             <div class="value">{{ metrics.queue.failed }}</div>
         </article>
         <article class="metric">
-            <div class="label">Resolved Cases (24h)</div>
+            <div class="label">Решённые кейсы (24ч)</div>
             <div class="value">{{ metrics.resolved_cases }}</div>
         </article>
         <article class="metric">
-            <div class="label">Appeals Resolved (24h)</div>
+            <div class="label">Решённые апелляции (24ч)</div>
             <div class="value">{{ metrics.appeals_resolved }}</div>
         </article>
     </section>
 
     <section class="section">
-        <h2>User Actions</h2>
+        <h2>Действия над пользователями</h2>
         <form class="filters" method="get" action="/moderation/console/support">
-            <label for="user_query">User</label>
-            <input id="user_query" name="user_query" value="{{ lookup_query }}" placeholder="id, username, display name" maxlength="120">
-            <button class="btn primary" type="submit">Lookup</button>
+            <label for="user_query">Пользователь</label>
+            <input id="user_query" name="user_query" value="{{ lookup_query }}" placeholder="id, username, отображаемое имя" maxlength="120">
+            <button class="btn primary" type="submit">Найти</button>
         </form>
         {% if users %}
             <div class="table-wrap" style="margin-top:10px;">
                 <table>
                     <thead>
                         <tr>
-                            <th>User</th>
-                            <th>Status</th>
-                            <th>History</th>
-                            <th>Action</th>
+                            <th>Пользователь</th>
+                            <th>Статус</th>
+                            <th>История</th>
+                            <th>Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -274,25 +274,25 @@
                                 {% if user.active_restriction_type %}
                                     <div><strong>{{ user.active_restriction_type }}</strong></div>
                                     {% if user.active_restriction_expires_at %}
-                                        <div class="muted">expires: {{ user.active_restriction_expires_at }}</div>
+                                        <div class="muted">истекает: {{ user.active_restriction_expires_at }}</div>
                                     {% endif %}
                                 {% else %}
-                                    <span class="muted">no active restriction</span>
+                                    <span class="muted">нет активных ограничений</span>
                                 {% endif %}
                                 {% if user.moderation_summary %}
                                     <div class="user-summary-chips">
-                                        <span class="user-summary-chip">sanctions: {{ user.moderation_summary.sanctions_total }}</span>
-                                        <span class="user-summary-chip">active: {{ user.moderation_summary.active_sanctions_total }}</span>
-                                        <span class="user-summary-chip">appeals: {{ user.moderation_summary.appeals_total }}</span>
-                                        <span class="user-summary-chip">support: {{ user.moderation_summary.support_requests_total }}</span>
-                                        <span class="user-summary-chip">support_open: {{ user.moderation_summary.support_requests_open_total }}</span>
+                                        <span class="user-summary-chip">санкций: {{ user.moderation_summary.sanctions_total }}</span>
+                                        <span class="user-summary-chip">активных: {{ user.moderation_summary.active_sanctions_total }}</span>
+                                        <span class="user-summary-chip">апелляций: {{ user.moderation_summary.appeals_total }}</span>
+                                        <span class="user-summary-chip">обращений: {{ user.moderation_summary.support_requests_total }}</span>
+                                        <span class="user-summary-chip">открыто: {{ user.moderation_summary.support_requests_open_total }}</span>
                                     </div>
                                 {% endif %}
                             </td>
                             <td>
                                 <div class="history-grid">
                                     <div class="history-card">
-                                        <div class="history-card-title">Recent Sanctions</div>
+                                        <div class="history-card-title">Последние санкции</div>
                                         {% if user.recent_sanctions %}
                                             {% for item in user.recent_sanctions %}
                                                 <div class="history-item">
@@ -300,21 +300,21 @@
                                                     <div class="muted">{{ item.reason_code }}</div>
                                                     <div class="muted">{{ item.created_at }}</div>
                                                     {% if item.expires_at %}
-                                                        <div class="muted">expires: {{ item.expires_at }}</div>
+                                                        <div class="muted">истекает: {{ item.expires_at }}</div>
                                                     {% endif %}
                                                 </div>
                                             {% endfor %}
                                         {% else %}
-                                            <div class="muted">No sanctions</div>
+                                            <div class="muted">Нет санкций</div>
                                         {% endif %}
                                     </div>
                                     <div class="history-card">
-                                        <div class="history-card-title">Recent Appeals</div>
+                                        <div class="history-card-title">Последние апелляции</div>
                                         {% if user.recent_appeals %}
                                             {% for item in user.recent_appeals %}
                                                 <div class="history-item">
                                                     <div><strong>#{{ item.id }} {{ item.state }}</strong></div>
-                                                    <div class="muted">sanction #{{ item.sanction_id }} {{ item.sanction_action_type }}</div>
+                                                    <div class="muted">санкция #{{ item.sanction_id }} {{ item.sanction_action_type }}</div>
                                                     <div class="muted">{{ item.created_at }}</div>
                                                     {% if item.resolution_note %}
                                                         <div class="muted">{{ item.resolution_note }}</div>
@@ -322,11 +322,11 @@
                                                 </div>
                                             {% endfor %}
                                         {% else %}
-                                            <div class="muted">No appeals</div>
+                                            <div class="muted">Нет апелляций</div>
                                         {% endif %}
                                     </div>
                                     <div class="history-card">
-                                        <div class="history-card-title">Recent Support Requests</div>
+                                        <div class="history-card-title">Последние обращения</div>
                                         {% if user.recent_support_requests %}
                                             {% for item in user.recent_support_requests %}
                                                 <div class="history-item">
@@ -336,7 +336,7 @@
                                                 </div>
                                             {% endfor %}
                                         {% else %}
-                                            <div class="muted">No support requests</div>
+                                            <div class="muted">Нет обращений</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -346,15 +346,15 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
                                     <select name="action_type">
-                                        <option value="warn">warn</option>
-                                        <option value="mute_temp">mute_temp</option>
-                                        <option value="ban_temp">ban_temp</option>
-                                        <option value="ban_perma">ban_perma</option>
+                                        <option value="warn">предупреждение</option>
+                                        <option value="mute_temp">временный мут</option>
+                                        <option value="ban_temp">временный бан</option>
+                                        <option value="ban_perma">постоянный бан</option>
                                     </select>
                                     <input name="reason_code" value="manual_action" maxlength="64">
                                     <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
-                                    <input name="note" maxlength="512" placeholder="note">
-                                    <button class="btn primary" type="submit">Apply</button>
+                                    <input name="note" maxlength="512" placeholder="заметка">
+                                    <button class="btn primary" type="submit">Применить</button>
                                 </form>
                             </td>
                         </tr>
@@ -363,39 +363,39 @@
                 </table>
             </div>
         {% elif lookup_query %}
-            <p class="muted" style="margin-top:10px;">No users found for "{{ lookup_query }}".</p>
+            <p class="muted" style="margin-top:10px;">Пользователи по запросу "{{ lookup_query }}" не найдены.</p>
         {% endif %}
     </section>
 
     <section class="section">
-        <h2>Support Requests</h2>
+        <h2>Обращения в поддержку</h2>
         <form class="filters" method="get" action="/moderation/console/support">
-            <label for="status">Status</label>
+            <label for="status">Статус</label>
             <select id="status" name="status">
-                <option value="open" {% if status == 'open' %}selected{% endif %}>open</option>
-                <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>in_progress</option>
-                <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>resolved</option>
-                <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>rejected</option>
-                <option value="closed" {% if status == 'closed' %}selected{% endif %}>closed</option>
-                <option value="" {% if status == '' %}selected{% endif %}>all</option>
+                <option value="open" {% if status == 'open' %}selected{% endif %}>открыто</option>
+                <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>в работе</option>
+                <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>решено</option>
+                <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>отклонено</option>
+                <option value="closed" {% if status == 'closed' %}selected{% endif %}>закрыто</option>
+                <option value="" {% if status == '' %}selected{% endif %}>все</option>
             </select>
-            <label for="category">Category</label>
+            <label for="category">Категория</label>
             <select id="category" name="category">
-                <option value="" {% if category == '' %}selected{% endif %}>all</option>
-                <option value="bug" {% if category == 'bug' %}selected{% endif %}>bug</option>
-                <option value="performance" {% if category == 'performance' %}selected{% endif %}>performance</option>
-                <option value="registration" {% if category == 'registration' %}selected{% endif %}>registration</option>
-                <option value="login" {% if category == 'login' %}selected{% endif %}>login</option>
-                <option value="access" {% if category == 'access' %}selected{% endif %}>access</option>
-                <option value="feature" {% if category == 'feature' %}selected{% endif %}>feature</option>
-                <option value="security" {% if category == 'security' %}selected{% endif %}>security</option>
-                <option value="other" {% if category == 'other' %}selected{% endif %}>other</option>
+                <option value="" {% if category == '' %}selected{% endif %}>все</option>
+                <option value="bug" {% if category == 'bug' %}selected{% endif %}>ошибка</option>
+                <option value="performance" {% if category == 'performance' %}selected{% endif %}>производительность</option>
+                <option value="registration" {% if category == 'registration' %}selected{% endif %}>регистрация</option>
+                <option value="login" {% if category == 'login' %}selected{% endif %}>вход</option>
+                <option value="access" {% if category == 'access' %}selected{% endif %}>доступ</option>
+                <option value="feature" {% if category == 'feature' %}selected{% endif %}>функция</option>
+                <option value="security" {% if category == 'security' %}selected{% endif %}>безопасность</option>
+                <option value="other" {% if category == 'other' %}selected{% endif %}>другое</option>
             </select>
-            <label for="limit">Limit</label>
+            <label for="limit">Лимит</label>
             <input id="limit" name="limit" type="number" min="1" max="200" value="{{ limit }}">
-            <label for="refresh">Refresh (sec)</label>
+            <label for="refresh">Обновление (сек)</label>
             <input id="refresh" name="refresh" type="number" min="5" max="300" value="{{ refresh_seconds }}">
-            <button class="btn primary" type="submit">Apply</button>
+            <button class="btn primary" type="submit">Применить</button>
         </form>
 
         <div class="table-wrap" style="margin-top:10px;">
@@ -403,11 +403,11 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Requester</th>
-                        <th>Type</th>
-                        <th>Message</th>
-                        <th>Status</th>
-                        <th>Resolve</th>
+                        <th>Заявитель</th>
+                        <th>Тип</th>
+                        <th>Сообщение</th>
+                        <th>Статус</th>
+                        <th>Обработать</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -424,7 +424,7 @@
                                 {% elif item.created_by_username %}
                                     <div><strong>@{{ item.created_by_username }}</strong></div>
                                 {% else %}
-                                    <span class="muted">guest</span>
+                                    <span class="muted">гость</span>
                                 {% endif %}
                                 {% if item.contact_email %}
                                     <div class="muted">{{ item.contact_email }}</div>
@@ -436,7 +436,7 @@
                             <td>
                                 <div><strong>{{ item.category }}</strong></div>
                                 <div class="muted">{{ item.source_page }}</div>
-                                <div class="muted">p{{ item.priority }}</div>
+                                <div class="muted">приоритет p{{ item.priority }}</div>
                             </td>
                             <td>
                                 <div><strong>{{ item.subject }}</strong></div>
@@ -444,9 +444,9 @@
                             </td>
                             <td>
                                 <div><strong>{{ item.status }}</strong></div>
-                                <div class="muted">created: {{ item.created_at }}</div>
+                                <div class="muted">создано: {{ item.created_at }}</div>
                                 {% if item.resolved_at %}
-                                    <div class="muted">resolved: {{ item.resolved_at }}</div>
+                                    <div class="muted">решено: {{ item.resolved_at }}</div>
                                 {% endif %}
                                 {% if item.resolution_note %}
                                     <div class="muted">{{ item.resolution_note }}</div>
@@ -456,19 +456,19 @@
                                 <form class="inline-form" method="post" action="/moderation/console/support/{{ item.id }}/resolve">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="status">
-                                        <option value="in_progress">in_progress</option>
-                                        <option value="resolved">resolved</option>
-                                        <option value="rejected">rejected</option>
-                                        <option value="closed">closed</option>
+                                        <option value="in_progress">в работе</option>
+                                        <option value="resolved">решено</option>
+                                        <option value="rejected">отклонено</option>
+                                        <option value="closed">закрыто</option>
                                     </select>
-                                    <textarea name="resolution_note" maxlength="2000" placeholder="resolution note"></textarea>
-                                    <button class="btn primary" type="submit">Update</button>
+                                    <textarea name="resolution_note" maxlength="2000" placeholder="заметка по решению"></textarea>
+                                    <button class="btn primary" type="submit">Обновить</button>
                                 </form>
                             </td>
                         </tr>
                     {% endfor %}
                 {% else %}
-                    <tr><td colspan="6">No support requests found.</td></tr>
+                    <tr><td colspan="6">Обращения не найдены.</td></tr>
                 {% endif %}
                 </tbody>
             </table>
