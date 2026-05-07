@@ -367,11 +367,14 @@
         gap: 8px;
         overflow-x: auto;
         scrollbar-width: none;
-        padding-bottom: 2px;
+        padding: 6px;
         max-height: none;
         opacity: 1;
         pointer-events: auto;
         margin-top: 0;
+        border: 1px solid color-mix(in srgb, var(--rule) 72%, transparent);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--paper) 78%, transparent);
     }
 
     .settings-nav-list::-webkit-scrollbar {
@@ -428,99 +431,54 @@
     }
 
     .settings-nav-toggle {
-        width: 100%;
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        gap: 10px;
-        padding: 7px 9px;
-        border: 1px solid var(--rule);
-        border-radius: 12px;
-        background: var(--paper);
-        color: var(--text);
-        font-family: inherit;
-    }
-
-    .settings-nav-toggle-kicker {
-        font-family: var(--font-mono);
-        font-size: 8px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--ink-mute);
-    }
-
-    .settings-nav-toggle-label {
-        min-width: 0;
-        text-align: left;
-        font-size: 12px;
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .settings-nav-toggle-icon {
-        font-size: 12px;
-        transition: transform var(--dur-quick) var(--ease-spring);
-    }
-
-    .settings-nav.mobile-open .settings-nav-toggle-icon {
-        transform: rotate(180deg);
+        display: none;
     }
 
     .settings-nav-list {
-        flex-direction: column;
+        flex-direction: row;
+        align-items: center;
         flex-wrap: nowrap;
-        gap: 6px;
-        overflow: hidden;
-        max-height: 0;
-        opacity: 0;
-        pointer-events: none;
-        padding: 0;
-        margin-top: 0;
-        transform: translateY(-8px) scaleY(0.96);
-        transform-origin: top center;
-        filter: blur(1px);
-    transition:
-        opacity var(--dur-quick) var(--ease-quick),
-        transform var(--dur-medium) var(--ease-spring),
-        filter var(--dur-medium) var(--ease-quick);
-}
-
-    .settings-nav.mobile-open .settings-nav-list {
-        max-height: 440px;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+        max-height: none;
         opacity: 1;
         pointer-events: auto;
-        margin-top: 10px;
-        transform: translateY(0) scaleY(1);
-        filter: blur(0);
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        padding: 6px;
+        margin-top: 0;
+        border: 1px solid color-mix(in srgb, var(--rule) 72%, transparent);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--paper) 78%, transparent);
+        transform: none;
+        filter: none;
     }
 
     .settings-nav .nav-divider {
-        display: block;
-        width: 100%;
-        margin: 4px 0;
+        display: none;
     }
 
     .settings-nav-list .nav-item,
     .settings-nav-list .settings-logout-form,
     .settings-nav-list .settings-logout-form .nav-item {
-        width: 100%;
+        width: auto;
+        flex: 0 0 auto;
     }
 
     .settings-nav-list .nav-item {
         justify-content: flex-start;
-        border-radius: 10px;
-        min-height: 40px;
-        padding: 10px 12px;
-        background: color-mix(in srgb, var(--paper) 82%, transparent);
-        border: 1px solid color-mix(in srgb, var(--rule) 72%, transparent);
+        border-radius: 999px;
+        min-height: 36px;
+        padding: 8px 14px;
+        background: transparent;
+        border: 1px solid transparent;
     }
 
     .settings-nav-list .nav-item.active {
-        box-shadow: inset 2px 0 0 var(--text);
+        box-shadow: none;
+        border-color: var(--text);
     }
 
     .settings-row {

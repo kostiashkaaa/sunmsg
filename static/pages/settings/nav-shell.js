@@ -20,6 +20,7 @@ export function initSettingsNavShell({
     const settingsNavEl = document.getElementById('settingsNav');
     const settingsNavToggleEl = document.getElementById('settingsNavToggle');
     const settingsNavToggleLabelEl = document.getElementById('settingsNavToggleLabel');
+    const settingsNavListEl = document.getElementById('settingsNavList');
     const settingsSearchInputEl = document.getElementById('settingsSearchInput');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
@@ -78,6 +79,21 @@ export function initSettingsNavShell({
         if (!isCompactNav()) {
             setMobileNavOpen(false);
         }
+    }
+
+    function bindDesktopHorizontalWheelScroll() {
+        if (!settingsNavListEl) return;
+        settingsNavListEl.addEventListener('wheel', (event) => {
+            if (isCompactNav()) return;
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+            const maxScrollLeft = settingsNavListEl.scrollWidth - settingsNavListEl.clientWidth;
+            if (maxScrollLeft <= 1) return;
+            const atLeftEdge = settingsNavListEl.scrollLeft <= 0;
+            const atRightEdge = settingsNavListEl.scrollLeft >= (maxScrollLeft - 1);
+            if ((event.deltaY < 0 && atLeftEdge) || (event.deltaY > 0 && atRightEdge)) return;
+            event.preventDefault();
+            settingsNavListEl.scrollLeft += event.deltaY;
+        }, { passive: false });
     }
 
     sections.forEach((section) => {
@@ -368,6 +384,7 @@ export function initSettingsNavShell({
             setMobileNavOpen(!mobileNavOpen);
         });
     }
+    bindDesktopHorizontalWheelScroll();
 
     if (typeof compactNavMedia.addEventListener === 'function') {
         compactNavMedia.addEventListener('change', syncCompactNavState);
