@@ -519,6 +519,10 @@
                 padding: 14px;
                 gap: 10px;
             }
+            .caption-options-menu {
+                min-width: min(224px, calc(100vw - 28px));
+                max-width: calc(100vw - 28px);
+            }
             .caption-modal-title {
                 font-size: 17px;
             }
@@ -562,6 +566,11 @@
             .caption-modal-footer .btn-send {
                 width: 100%;
                 border-radius: 11px;
+            }
+            .caption-options-menu {
+                right: -6px;
+                min-width: min(216px, calc(100vw - 22px));
+                max-width: calc(100vw - 22px);
             }
         }
 

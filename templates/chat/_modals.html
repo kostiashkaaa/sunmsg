@@ -284,7 +284,24 @@
                 <span class="caption-modal-title" id="captionModalTitle">Отправить файл</span>
                 <span class="caption-modal-hint" id="captionModalHint"></span>
             </div>
-            <button type="button" class="btn-icon caption-modal-close-btn" id="captionModalClose" aria-label="Закрыть"><i class="bi bi-x-lg"></i></button>
+            <div class="caption-modal-header-actions">
+                <div class="caption-modal-options-wrap">
+                    <button type="button" class="btn-icon caption-modal-more-btn" id="captionModalMoreBtn" aria-label="Actions" aria-haspopup="menu" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <div id="captionOptionsMenu" class="caption-options-menu telegram-popup" aria-hidden="true" role="menu">
+                        <button type="button" class="attach-menu-item ripple-target" id="captionAddBtn" role="menuitem">
+                            <span class="attach-menu-item__icon"><i class="bi bi-plus-circle"></i></span>
+                            <span class="attach-menu-item__text" id="captionAddLabel">Add</span>
+                        </button>
+                        <button type="button" class="attach-menu-item ripple-target" id="captionToggleCompressionBtn" role="menuitem">
+                            <span class="attach-menu-item__icon"><i class="bi bi-file-earmark-arrow-up"></i></span>
+                            <span class="attach-menu-item__text" id="captionCompressionLabel">Send without compression</span>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" class="btn-icon caption-modal-close-btn" id="captionModalClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
         </div>
         <div class="caption-modal-preview" id="captionPreview"></div>
         <div class="caption-modal-meta" id="captionMeta"></div>
@@ -293,6 +310,7 @@
             <button type="button" class="btn-send" id="captionSendBtn"><i class="bi bi-send-fill"></i></button>
         </div>
     </div>
+    <input type="file" id="captionAddInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" />
 </div>
 
 

@@ -69,7 +69,7 @@ import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-acti
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
-import { initCaptionModal } from './modules/caption-modal.js?v=20260430g';
+import { initCaptionModal } from './modules/caption-modal.js?v=20260508a';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
 import { initMessageSelection } from './modules/message-selection.js';
 import { initMessageContextMenu } from './modules/message-context-menu.js';
@@ -1718,6 +1718,7 @@ const initChatPage = async () => {
         hasPendingSendAction: () => hasPendingForwardDraftForCurrentChat(),
         showToast,
         onComposerStopTyping,
+        onVoiceRecordingStateChange: onVoiceRecordingPresenceChange,
         sendFileMessage: (file, caption = '', options = {}) => sendFileMessage(file, caption, options),
     });
 
@@ -4786,6 +4787,21 @@ const initChatPage = async () => {
         lastTypingEmitAt = 0;
     }
 
+    function onVoiceRecordingPresenceChange(isRecording) {
+        if (!currentChatId || isChatBlocked()) return;
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+            typingTimeout = null;
+        }
+        if (isRecording) {
+            emitSocket('typing', { chat_id: currentChatId, typing_kind: 'voice' });
+            lastTypingEmitAt = Date.now();
+            return;
+        }
+        emitSocket('stop_typing', { chat_id: currentChatId, typing_kind: 'voice' });
+        lastTypingEmitAt = 0;
+    }
+
     _initComposer({
         messageInput,
         messageForm,
@@ -6280,8 +6296,18 @@ const initChatPage = async () => {
 
     function setVoicePlaybackBarVisible(isVisible) {
         if (!voicePlaybackBar) return;
+        const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
+        if (currentlyVisible === isVisible) return;
+        const beforeTop = chatMessages?.getBoundingClientRect?.().top ?? 0;
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+        if (chatMessages) {
+            const afterTop = chatMessages.getBoundingClientRect().top;
+            const delta = afterTop - beforeTop;
+            if (Math.abs(delta) > 0.5) {
+                chatMessages.scrollTop += delta;
+            }
+        }
     }
 
     function clearActiveVoicePlaybackAudio(options = {}) {
@@ -6323,6 +6349,10 @@ const initChatPage = async () => {
             clearActiveVoicePlaybackAudio();
             return;
         }
+        if (activeAudio.ended) {
+            clearActiveVoicePlaybackAudio();
+            return;
+        }
         setVoicePlaybackBarVisible(true);
         const { durationLabel } = resolveAudioPlayerElements(activeAudio);
         const knownDuration = resolveKnownAudioDuration(activeAudio, durationLabel);
@@ -6342,9 +6372,9 @@ const initChatPage = async () => {
         voicePlaybackDetails.textContent = `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
-        const playIcon = voicePlaybackPlayBtn.querySelector('i');
-        if (playIcon) {
-            playIcon.className = isPlaying ? 'bi bi-pause-fill' : 'bi bi-play-fill';
+        const playIconUse = voicePlaybackPlayBtn.querySelector('use');
+        if (playIconUse) {
+            playIconUse.setAttribute('href', isPlaying ? '#sun-i-pause' : '#sun-i-play');
         }
         voicePlaybackPlayBtn.setAttribute('aria-label', isPlaying ? 'Пауза' : 'Воспроизвести');
         voicePlaybackPlayBtn.setAttribute('title', isPlaying ? 'Пауза' : 'Воспроизвести');
@@ -6389,12 +6419,31 @@ const initChatPage = async () => {
         return raw.map((value) => Math.max(8, Math.min(100, Math.round((value / globalPeak) * 100))));
     }
 
+    function isWaveformPayloadInformative(values) {
+        const normalized = Array.isArray(values)
+            ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+            : [];
+        if (normalized.length < 8) return false;
+        let min = normalized[0];
+        let max = normalized[0];
+        const unique = new Set();
+        for (let i = 0; i < normalized.length; i += 1) {
+            const value = Math.round(normalized[i]);
+            unique.add(value);
+            if (value < min) min = value;
+            if (value > max) max = value;
+        }
+        return unique.size >= 4 && (max - min) >= 6;
+    }
+
     function hasProvidedWaveformPayload(rawWaveform) {
         if (Array.isArray(rawWaveform)) {
-            return rawWaveform.some((value) => Number.isFinite(Number(value)));
+            return isWaveformPayloadInformative(rawWaveform);
         }
         if (typeof rawWaveform === 'string') {
-            return rawWaveform.includes(',') && rawWaveform.split(',').some((part) => Number.isFinite(Number(part.trim())));
+            if (!rawWaveform.includes(',')) return false;
+            const parsed = rawWaveform.split(',').map((part) => Number(part.trim()));
+            return isWaveformPayloadInformative(parsed);
         }
         return false;
     }
@@ -6691,6 +6740,9 @@ const initChatPage = async () => {
 
     window._onAudioPlayerState = function(audioEl) {
         if (!audioEl) return;
+        if (audioEl.ended && resolveActiveVoicePlaybackAudio() === audioEl) {
+            clearActiveVoicePlaybackAudio();
+        }
         if (!audioEl.paused && !audioEl.ended) {
             startAudioPlayerUiLoop(audioEl);
         } else {
@@ -6845,17 +6897,33 @@ const initChatPage = async () => {
         syncVoicePlaybackBar(audio);
     }
 
-    function seekActiveVoicePlaybackByDelta(deltaSeconds) {
-        const audio = resolveActiveVoicePlaybackAudio();
-        if (!audio) return;
-        const { durationLabel } = resolveAudioPlayerElements(audio);
-        const knownDuration = resolveKnownAudioDuration(audio, durationLabel);
-        if (!Number.isFinite(knownDuration) || knownDuration <= 0) return;
-        const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
-        const nextTime = Math.max(0, Math.min(knownDuration, current + Number(deltaSeconds || 0)));
-        audio.currentTime = nextTime;
-        syncAudioPlayerUi(audio);
-        syncVoicePlaybackBar(audio);
+    function findAdjacentVoiceAudio(sourceAudio, direction = 1) {
+        const messageEl = resolveAudioMessageElement(sourceAudio);
+        if (!messageEl) return null;
+        let node = messageEl;
+        const step = direction >= 0 ? 'nextElementSibling' : 'previousElementSibling';
+        while (node && node[step]) {
+            node = node[step];
+            if (!(node instanceof HTMLElement)) continue;
+            const candidate = node.querySelector('.file-msg-audio-el');
+            if (candidate instanceof HTMLAudioElement) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    function advanceToNextVoicePlayback() {
+        const current = resolveActiveVoicePlaybackAudio();
+        if (!current) return;
+        const targetAudio = findAdjacentVoiceAudio(current, 1);
+        if (!targetAudio) {
+            clearActiveVoicePlaybackAudio({ pause: true });
+            return;
+        }
+        const targetToggle = targetAudio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
+        if (!targetToggle) return;
+        window._toggleAudioPlayer(targetToggle);
     }
 
     if (voicePlaybackPlayBtn) {
@@ -6869,11 +6937,11 @@ const initChatPage = async () => {
     }
 
     if (voicePlaybackBackBtn) {
-        voicePlaybackBackBtn.addEventListener('click', () => seekActiveVoicePlaybackByDelta(-10));
+        voicePlaybackBackBtn.addEventListener('click', () => advanceToNextVoicePlayback());
     }
 
     if (voicePlaybackForwardBtn) {
-        voicePlaybackForwardBtn.addEventListener('click', () => seekActiveVoicePlaybackByDelta(10));
+        voicePlaybackForwardBtn.addEventListener('click', () => advanceToNextVoicePlayback());
     }
 
     if (voicePlaybackSpeedBtn) {
@@ -7035,6 +7103,22 @@ const initChatPage = async () => {
         return value === ATTACH_MODE_MEDIA ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
     }
 
+    function isVisualAttachCandidate(file) {
+        const mime = String(file?.type || '').toLowerCase();
+        if (mime.startsWith('image/') || mime.startsWith('video/')) return true;
+        const name = String(file?.name || '').toLowerCase();
+        return /\.(png|jpe?g|webp|gif|bmp|svg|heic|heif|avif|mp4|mov|m4v|avi|mkv|webm|ogv)$/i.test(name);
+    }
+
+    function resolveAttachModeForFile(file, preferredMode = null) {
+        const normalizedPreferredMode = preferredMode === null || preferredMode === undefined
+            ? null
+            : resolveAttachMode(preferredMode);
+        if (normalizedPreferredMode === ATTACH_MODE_MEDIA) return ATTACH_MODE_MEDIA;
+        if (normalizedPreferredMode === ATTACH_MODE_FILE) return ATTACH_MODE_FILE;
+        return isVisualAttachCandidate(file) ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
+    }
+
     function setAttachMenuOpen(open) {
         attachMenuController.setOpen(open);
     }
@@ -7149,22 +7233,23 @@ const initChatPage = async () => {
     }
     updateVoiceRecordButtonState();
 
-    async function handleFileUpload(file, { allowCaption = true, attachMode = ATTACH_MODE_FILE } = {}) {
+    async function handleFileUpload(file, { allowCaption = true, attachMode = null } = {}) {
         if (isChatBlocked()) {
             showToast(getChatBlockNoticeText(currentBlockState), 'warning');
             return;
         }
         if (!file) return;
-        if (attachMode !== ATTACH_MODE_MEDIA && file.size > MAX_CHAT_MEDIA_SIZE) {
+        const normalizedAttachMode = resolveAttachModeForFile(file, attachMode);
+        if (normalizedAttachMode !== ATTACH_MODE_MEDIA && file.size > MAX_CHAT_MEDIA_SIZE) {
             showToast(`\u0424\u0430\u0439\u043B "${file.name}" \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441. ${Math.round(MAX_CHAT_MEDIA_SIZE / (1024 * 1024))} \u041C\u0411.`, 'danger');
             return;
         }
         if (allowCaption) {
-            showCaptionModal(file, { attachMode });
+            showCaptionModal(file, { attachMode: normalizedAttachMode });
             return;
         }
         try {
-            await sendFileMessage(file, '', { attachMode });
+            await sendFileMessage(file, '', { attachMode: normalizedAttachMode });
         } catch (err) {
             showToast(err.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0444\u0430\u0439\u043B\u0430.', 'danger');
         }

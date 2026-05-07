@@ -4118,25 +4118,34 @@
         }
 
         .voice-playback-bar {
+            position: sticky;
+            top: var(--vv-top-offset, 0px);
+            z-index: 4;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin: 0 12px 8px;
-            padding: 8px 10px 9px;
-            border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-            border-radius: 14px;
-            background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
-            box-shadow: var(--shadow-1);
+            gap: 6px;
+            margin: 0;
+            padding: 7px 12px 8px;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+            background: color-mix(in srgb, var(--chat-hdr) 96%, transparent 4%);
+            backdrop-filter: blur(14px) saturate(118%);
+            -webkit-backdrop-filter: blur(14px) saturate(118%);
             opacity: 1;
+            max-height: 120px;
             transform: translateY(0);
-            transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick);
+            transform-origin: top center;
+            transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick), max-height var(--dur-quick) var(--ease-quick), padding var(--dur-quick) var(--ease-quick);
         }
 
         .voice-playback-bar--hidden {
             opacity: 0;
-            transform: translateY(-8px);
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-bottom-color: transparent;
+            transform: translateY(-10px);
             pointer-events: none;
-            display: none;
+            overflow: hidden;
         }
 
         .voice-playback-bar__top {
@@ -4183,27 +4192,33 @@
         }
 
         .voice-playback-bar__icon-btn {
-            width: 30px;
-            height: 30px;
-            border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-            border-radius: 10px;
-            background: color-mix(in srgb, var(--surface) 88%, #ffffff 12%);
-            color: var(--text);
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--sub-text);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             flex: 0 0 auto;
-            transition: transform var(--dur-instant) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+            transition: transform var(--dur-instant) var(--ease-quick), color var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick);
+            -webkit-tap-highlight-color: transparent;
         }
 
         .voice-playback-bar__icon-btn:active {
             transform: scale(0.97);
         }
 
-        .voice-playback-bar__icon-btn i {
-            font-size: 15px;
-            line-height: 1;
+        .voice-playback-bar__icon-btn:hover {
+            background: color-mix(in srgb, var(--sub-text) 12%, transparent);
+            color: var(--text);
+        }
+
+        .voice-playback-bar__icon-btn .sun-icon {
+            width: 18px;
+            height: 18px;
         }
 
         .voice-playback-bar__volume {
@@ -4215,17 +4230,24 @@
 
         .voice-playback-bar__speed-btn {
             min-width: 42px;
-            height: 30px;
+            height: 28px;
             border-radius: 999px;
             border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-            background: color-mix(in srgb, currentColor 10%, transparent);
-            color: var(--text);
+            background: transparent;
+            color: var(--sub-text);
             font-size: 12px;
             line-height: 1;
             font-weight: 600;
             font-variant-numeric: tabular-nums;
-            padding: 0 10px;
+            padding: 0 9px;
             cursor: pointer;
+            transition: color var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick);
+        }
+
+        .voice-playback-bar__speed-btn:hover {
+            color: var(--text);
+            border-color: color-mix(in srgb, currentColor 32%, transparent);
+            background: color-mix(in srgb, var(--sub-text) 10%, transparent);
         }
 
         .voice-playback-bar__progress-wrap {
@@ -6780,6 +6802,20 @@
         }
 
 
+        .caption-modal-header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+
+        .caption-modal-options-wrap {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+
         .caption-modal-heading {
             min-width: 0;
             display: flex;
@@ -6811,6 +6847,56 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+
+
+        .caption-modal-more-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+
+        .caption-options-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 224px;
+            max-width: min(320px, calc(100vw - 24px));
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--border) 76%, transparent 24%);
+            background: color-mix(in srgb, var(--surface) 93%, #0d1321 7%);
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: grid;
+            gap: 4px;
+            opacity: 0;
+            transform: translateY(10px) scale(0.96);
+            transform-origin: top right;
+            visibility: hidden;
+            pointer-events: none;
+            transition:
+                opacity var(--m-dur-base, var(--dur-medium)) var(--m-decel, var(--ease-quick)),
+                transform var(--m-dur-medium, var(--dur-slow)) var(--m-decel, var(--ease-spring)),
+                visibility 0s linear var(--m-dur-base, var(--dur-medium));
+            z-index: 14;
+        }
+
+
+        .caption-options-menu.is-open,
+        .caption-options-menu.active,
+        .caption-options-menu.is-opening {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            visibility: visible;
+            pointer-events: auto;
+            transition-delay: 0s, 0s, 0s;
         }
 
 
@@ -6868,6 +6954,27 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+
+        .caption-file-count {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+            background: color-mix(in srgb, var(--accent) 74%, #1e293b 26%);
+            border: 1px solid color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.44) 66%);
+            box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 26%, transparent);
         }
 
 
@@ -7949,9 +8056,7 @@
             .chat-input-area { --composer-action-size: 42px; }
             .chat-header { padding: 7px 10px; gap: 6px; }
             .voice-playback-bar {
-                margin-left: 8px;
-                margin-right: 8px;
-                padding: 7px 8px 8px;
+                padding: 6px 8px 7px;
                 gap: 7px;
             }
             .voice-playback-bar__volume {
