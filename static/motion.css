@@ -1965,7 +1965,7 @@ button > i[class*=" bi-"],
     .chat-area.is-profile-drawer-open,
     .chat-area.is-profile-drawer-closing {
         --tg3-profile-push: calc(var(--tg3-profile-push-max) - var(--tg3-profile-drag-x));
-        --tg3-profile-chat-x: calc(-0.38 * var(--tg3-profile-push));
+        --tg3-profile-chat-x: 0px;
     }
 
     /* Geometry lock for desktop chat switch:
