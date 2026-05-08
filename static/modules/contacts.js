@@ -225,7 +225,7 @@ export function buildContactItemHtml(contact, currentChatId) {
         </div>
         <div class="contact-last-msg-row">
             <span class="contact-last-msg">${lastMessageHtml}</span>
-            <span class="unread-badge" style="${unread ? '' : 'display:none'}">${unread ? unreadText : ''}</span>
+            <span class="unread-badge${unread ? '' : ' unread-badge--hidden'}">${unread ? unreadText : ''}</span>
         </div>
     </div>
 </div>`;
