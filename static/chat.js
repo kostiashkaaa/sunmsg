@@ -5981,7 +5981,7 @@ const initChatPage = async () => {
             return `
                 <div class="command-palette-result">
                     <div class="command-palette-result-meta">
-                        <div class="contact-avatar"${avatarTintAttr} style="width:40px;height:40px;flex-shrink:0;">${avatarHtml}</div>
+                        <div class="contact-avatar command-palette-result-avatar"${avatarTintAttr}>${avatarHtml}</div>
                         <div class="command-palette-result-copy">
                             <strong>${name}</strong>
                             <span>${sub}</span>
