@@ -6307,13 +6307,9 @@ const initChatPage = async () => {
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
         if (chatArea) {
-            // На мобиле бар плавает над composer'ом — оффсет для шапки не нужен.
-            const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
-            const nextOffset = (!isMobileView && isVisible)
-                ? Math.ceil(voicePlaybackBar.offsetHeight || 0)
-                : 0;
+            const nextOffset = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
             chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
-            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible);
+            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible && nextOffset > 0);
         }
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
@@ -6374,11 +6370,7 @@ const initChatPage = async () => {
         const currentLabel = formatAudioPlayerTime(Math.floor(current));
         const durationLabelText = formatAudioPlayerTime(Math.floor(knownDuration));
         const timeLabel = resolveVoicePlaybackTimeLabel(activeAudio);
-        // На мобиле — без даты сообщения, чтобы не переполнять компактный бар
-        const isCompactBar = typeof window !== 'undefined' && window.innerWidth <= 480;
-        voicePlaybackDetails.textContent = isCompactBar
-            ? `${currentLabel} / ${durationLabelText}`
-            : `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
+        voicePlaybackDetails.textContent = `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
         const playIconUse = voicePlaybackPlayBtn.querySelector('use');
