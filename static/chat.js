@@ -6306,13 +6306,28 @@ const initChatPage = async () => {
         if (!voicePlaybackBar) return;
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
-        if (chatArea) {
-            const nextOffset = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
-            chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
-            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible && nextOffset > 0);
-        }
+        // Сначала меняем visibility, чтобы offsetHeight корректно считался
+        // (у скрытого через --hidden класса visibility:hidden и высота 0).
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+        if (chatArea) {
+            // Читаем высоту уже видимого бара — иначе класс
+            // chat-area--voice-playback-active не применится и шапка не сдвинется.
+            const measuredHeight = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
+            // На случай если высота ещё 0 (первый кадр) — фолбэк ~64px,
+            // потом скорректируем после следующего frame.
+            const nextOffset = isVisible ? (measuredHeight || 64) : 0;
+            chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
+            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible);
+            if (isVisible) {
+                requestAnimationFrame(() => {
+                    const real = Math.ceil(voicePlaybackBar.offsetHeight || 0);
+                    if (real > 0 && real !== nextOffset) {
+                        chatArea.style.setProperty('--voice-playback-offset', `${real}px`);
+                    }
+                });
+            }
+        }
     }
 
     function clearActiveVoicePlaybackAudio(options = {}) {
