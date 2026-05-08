@@ -6304,9 +6304,13 @@ const initChatPage = async () => {
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
         if (chatArea) {
-            const nextOffset = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
+            // На мобиле бар плавает над composer'ом — оффсет для шапки не нужен.
+            const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
+            const nextOffset = (!isMobileView && isVisible)
+                ? Math.ceil(voicePlaybackBar.offsetHeight || 0)
+                : 0;
             chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
-            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible && nextOffset > 0);
+            chatArea.classList.toggle('chat-area--voice-playback-active', isVisible);
         }
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
@@ -6351,10 +6355,8 @@ const initChatPage = async () => {
             clearActiveVoicePlaybackAudio();
             return;
         }
-        if (activeAudio.ended) {
-            clearActiveVoicePlaybackAudio();
-            return;
-        }
+        // Если трек закончился — бар оставляем видимым в состоянии «paused/replay»,
+        // чтобы пользователь мог тут же повторить или переключить трек.
         setVoicePlaybackBarVisible(true);
         const { durationLabel } = resolveAudioPlayerElements(activeAudio);
         const knownDuration = resolveKnownAudioDuration(activeAudio, durationLabel);
@@ -6371,7 +6373,11 @@ const initChatPage = async () => {
         const currentLabel = formatAudioPlayerTime(Math.floor(current));
         const durationLabelText = formatAudioPlayerTime(Math.floor(knownDuration));
         const timeLabel = resolveVoicePlaybackTimeLabel(activeAudio);
-        voicePlaybackDetails.textContent = `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
+        // На мобиле — без даты сообщения, чтобы не переполнять компактный бар
+        const isCompactBar = typeof window !== 'undefined' && window.innerWidth <= 480;
+        voicePlaybackDetails.textContent = isCompactBar
+            ? `${currentLabel} / ${durationLabelText}`
+            : `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
         const playIconUse = voicePlaybackPlayBtn.querySelector('use');
@@ -6748,8 +6754,11 @@ const initChatPage = async () => {
 
     window._onAudioPlayerState = function(audioEl) {
         if (!audioEl) return;
-        if (audioEl.ended && resolveActiveVoicePlaybackAudio() === audioEl) {
-            clearActiveVoicePlaybackAudio();
+        // При завершении трека сбрасываем currentTime и держим бар активным,
+        // чтобы повторное play() сработало без закрытия/переоткрытия плеера.
+        if (audioEl.ended) {
+            try { audioEl.currentTime = 0; } catch (_) {}
+            audioEl.dataset.playRequested = '0';
         }
         if (!audioEl.paused && !audioEl.ended) {
             startAudioPlayerUiLoop(audioEl);
@@ -6757,6 +6766,10 @@ const initChatPage = async () => {
             stopAudioPlayerUiLoop(audioEl);
         }
         scheduleAudioPlayerUiSync(audioEl);
+        // Синхронизируем верхний бар, если он отображает именно этот audio.
+        if (resolveActiveVoicePlaybackAudio() === audioEl) {
+            syncVoicePlaybackBar(audioEl);
+        }
     };
 
     window._setAudioSeekState = function(rangeEl, isSeeking) {
@@ -6873,12 +6886,19 @@ const initChatPage = async () => {
             });
             reportVoiceListened(audio);
             audio.dataset.playRequested = '1';
-            // \u0421\u0431\u0440\u043E\u0441 \u043F\u043E\u0437\u0438\u0446\u0438\u0438 \u0438 mute, \u0435\u0441\u043B\u0438 \u0442\u0440\u0435\u043A \u0443\u0436\u0435 \u0434\u043E\u0438\u0433\u0440\u0430\u043D \u2014 \u0438\u043D\u0430\u0447\u0435 \u043D\u0430 iOS \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play() \u0438\u0434\u0451\u0442 \u0431\u0435\u0437 \u0437\u0432\u0443\u043A\u0430
+            // \u041D\u0430 iOS/Android \u043F\u043E\u0441\u043B\u0435 `ended` \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play() \u0443\u0445\u043E\u0434\u0438\u0442 \u0432 \u0442\u0438\u0448\u0438\u043D\u0443 \u0438\u043B\u0438 \u0432\u043E\u043E\u0431\u0449\u0435
+            // \u043D\u0435 \u0437\u0430\u043F\u0443\u0441\u043A\u0430\u0435\u0442\u0441\u044F, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E MediaElement \u0434\u0435\u0440\u0436\u0438\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u00AB\u0434\u043E\u0438\u0433\u0440\u0430\u043D\u00BB.
+            // \u041D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u043F\u0443\u0442\u044C: pause -> currentTime=0 -> load() -> play(). load() \u0437\u0430\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u0442
+            // \u0434\u0432\u0438\u0436\u043E\u043A \u043F\u0435\u0440\u0435\u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0434\u0435\u043A\u043E\u0434\u0435\u0440 \u0438 \u0441\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u043B\u0430\u0433 ended.
             try {
                 if (audio.muted) audio.muted = false;
                 const dur = Number(audio.duration);
-                if (audio.ended || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= dur - 0.05)) {
-                    audio.currentTime = 0;
+                const atEnd = audio.ended
+                    || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= dur - 0.05);
+                if (atEnd) {
+                    try { audio.pause(); } catch (_) {}
+                    try { audio.currentTime = 0; } catch (_) {}
+                    try { audio.load(); } catch (_) {}
                 }
             } catch (_) {}
             audio.playbackRate = getPreferredAudioPlaybackRate();
@@ -6886,11 +6906,22 @@ const initChatPage = async () => {
             setActiveVoicePlaybackAudio(audio);
             scheduleAudioPlayerUiSync(audio);
             try {
-                await audio.play();
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                    await playPromise;
+                }
             } catch (_) {
-                audio.dataset.playRequested = '0';
-                stopAudioPlayerUiLoop(audio);
-                showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
+                // \u041F\u043E\u0432\u0442\u043E\u0440\u043D\u0430\u044F \u043F\u043E\u043F\u044B\u0442\u043A\u0430 \u043F\u043E\u0441\u043B\u0435 load() \u2014 \u043D\u0430 \u043D\u0435\u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0434\u0432\u0438\u0436\u043A\u0430\u0445 \u043F\u0435\u0440\u0432\u044B\u0439 play()
+                // \u043F\u043E\u0441\u043B\u0435 load() \u043E\u0442\u0431\u0438\u0432\u0430\u0435\u0442\u0441\u044F AbortError, \u043D\u043E \u0432\u0442\u043E\u0440\u043E\u0439 \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u0442.
+                try {
+                    audio.currentTime = 0;
+                    audio.load();
+                    await audio.play();
+                } catch (__) {
+                    audio.dataset.playRequested = '0';
+                    stopAudioPlayerUiLoop(audio);
+                    showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
+                }
             }
         } else {
             audio.dataset.playRequested = '0';
@@ -6929,16 +6960,30 @@ const initChatPage = async () => {
         return null;
     }
 
-    function advanceToNextVoicePlayback() {
+    function jumpToAdjacentVoicePlayback(direction = 1) {
         const current = resolveActiveVoicePlaybackAudio();
         if (!current) return;
-        const targetAudio = findAdjacentVoiceAudio(current, 1);
+        const targetAudio = findAdjacentVoiceAudio(current, direction);
         if (!targetAudio) {
-            clearActiveVoicePlaybackAudio({ pause: true });
+            // Нет соседнего голосового — на forward завершаем сессию,
+            // на back просто перематываем текущее на начало.
+            if (direction >= 0) {
+                clearActiveVoicePlaybackAudio({ pause: true });
+            } else {
+                try { current.currentTime = 0; } catch (_) {}
+                syncAudioPlayerUi(current);
+                syncVoicePlaybackBar(current);
+            }
             return;
         }
+        // Останавливаем текущее и запускаем соседнее.
+        try { current.pause(); } catch (_) {}
+        current.dataset.playRequested = '0';
         const targetToggle = targetAudio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
         if (!targetToggle) return;
+        // Прокручиваем сообщение в зону видимости.
+        const messageEl = resolveAudioMessageElement(targetAudio);
+        try { messageEl?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }); } catch (_) {}
         window._toggleAudioPlayer(targetToggle);
     }
 
@@ -6953,11 +6998,11 @@ const initChatPage = async () => {
     }
 
     if (voicePlaybackBackBtn) {
-        voicePlaybackBackBtn.addEventListener('click', () => advanceToNextVoicePlayback());
+        voicePlaybackBackBtn.addEventListener('click', () => jumpToAdjacentVoicePlayback(-1));
     }
 
     if (voicePlaybackForwardBtn) {
-        voicePlaybackForwardBtn.addEventListener('click', () => advanceToNextVoicePlayback());
+        voicePlaybackForwardBtn.addEventListener('click', () => jumpToAdjacentVoicePlayback(1));
     }
 
     if (voicePlaybackSpeedBtn) {
