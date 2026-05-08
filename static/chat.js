@@ -6682,26 +6682,59 @@ const initChatPage = async () => {
         if (!audioEl) return;
         const pendingId = audioUiPlaybackLoopByElement.get(audioEl);
         if (pendingId != null) {
-            clearInterval(pendingId);
+            cancelAnimationFrame(pendingId);
             audioUiPlaybackLoopByElement.delete(audioEl);
+        }
+    }
+
+    // Лёгкий тик для прогресса во время воспроизведения: пишем ТОЛЬКО
+    // две CSS-переменные (--audio-played-percent на волне, --voice-playback-progress
+    // на верхнем баре). Никаких setAttribute / classList / textContent — это
+    // и вызывает «дёрганье» бабла на мобиле из-за reflow.
+    function tickAudioProgressOnly(audioEl) {
+        const player = audioEl.closest?.('.file-msg-audio-player');
+        const wave = player?.querySelector('.audio-player-wave');
+        const dur = Number(audioEl.duration);
+        let percent = 0;
+        if (Number.isFinite(dur) && dur > 0) {
+            percent = Math.max(0, Math.min(100, (audioEl.currentTime / dur) * 100));
+        } else {
+            const fallback = Number(audioEl.dataset?.durationSeconds || 0);
+            if (Number.isFinite(fallback) && fallback > 0) {
+                percent = Math.max(0, Math.min(100, (audioEl.currentTime / fallback) * 100));
+            }
+        }
+        if (wave) {
+            wave.style.setProperty('--audio-played-percent', String(percent));
+        }
+        if (resolveActiveVoicePlaybackAudio() === audioEl && voicePlaybackProgress) {
+            const isSeeking = voicePlaybackProgress.dataset?.seeking === '1';
+            if (!isSeeking) {
+                voicePlaybackProgress.value = String(percent);
+                voicePlaybackProgressFill?.style.setProperty('--voice-playback-progress', String(percent));
+            }
         }
     }
 
     function startAudioPlayerUiLoop(audioEl) {
         if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) return;
         stopAudioPlayerUiLoop(audioEl);
-        // Используем setInterval с шагом ~120ms: audio.currentTime на iOS
-        // обновляется раз в ~250ms, чаще опрашивать бессмысленно. Плавность
-        // даёт CSS-transition на played-layer и progress-fill.
-        const intervalId = setInterval(() => {
+        // 60fps — но обновляем только две CSS-переменные. Reflow не происходит,
+        // только композитный пересчёт clip-path/transform — дешёвая операция
+        // даже на iPhone. Полный syncAudioPlayerUi вызываем только на play/
+        // pause/ended (через _onAudioPlayerState).
+        const tick = () => {
             if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) {
                 stopAudioPlayerUiLoop(audioEl);
                 syncAudioPlayerUi(audioEl);
                 return;
             }
-            syncAudioPlayerUi(audioEl);
-        }, 120);
-        audioUiPlaybackLoopByElement.set(audioEl, intervalId);
+            tickAudioProgressOnly(audioEl);
+            const frameId = requestAnimationFrame(tick);
+            audioUiPlaybackLoopByElement.set(audioEl, frameId);
+        };
+        const firstFrameId = requestAnimationFrame(tick);
+        audioUiPlaybackLoopByElement.set(audioEl, firstFrameId);
     }
 
     function scheduleAudioPlayerUiSync(audioEl) {
