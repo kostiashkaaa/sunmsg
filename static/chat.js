@@ -128,6 +128,8 @@ import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
 import { createMediaHydrationController } from './modules/media-hydration.js?v=20260502a';
 import { createChatMessageMutations } from './modules/chat-message-mutations.js';
 import { initChatMediaRuntime, formatAudioPlayerTime, hasProvidedWaveformPayload } from './modules/chat-media-runtime.js';
+import { createChatForwardFlow } from './modules/chat-forward-flow.js';
+import { createChatDraftsController } from './modules/chat-drafts.js';
 import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
@@ -187,12 +189,6 @@ const initChatPage = async () => {
     });
     let currentChatId = null;
     let currentContactId = null;
-    let chatDraftSaveTimer = 0;
-    let chatDraftSaveTargetChatId = '';
-    let chatDraftSaveQueuedText = '';
-    let activeDraftLoadRequestId = 0;
-    const lastSavedDraftByChatId = new Map();
-    const lastDraftUpdatedAtByChatId = new Map();
     let currentBlockState = { is_blocked: false, blocked_by_me: false, blocked_me: false };
     const CURRENT_USER_ID = String(
         bootstrapUser.currentUserId
@@ -259,9 +255,32 @@ const initChatPage = async () => {
     let pendingForcedChatRerenderOptions = null;
     let reportSubmitInFlight = false;
     let reportModalTarget = null;
-    let forwardModalActionInFlight = false;
-    const forwardSourceMessageIds = new Set();
-    const forwardComposerDraftByChatId = new Map();
+
+    // Forward (\u043F\u0435\u0440\u0435\u0441\u044B\u043B\u043A\u0430) \u2014 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0438\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 \u0432\u0441\u0435\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u0435\u0439.
+    // var-\u0445\u043E\u0439\u0441\u0442: \u0434\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043E\u0431\u0451\u0440\u0442\u043A\u0438 \u0432\u0438\u0434\u044F\u0442 undefined \u0438 \u043D\u0435 \u043F\u0430\u0434\u0430\u044E\u0442.
+    var forwardController;
+    function openForwardModal(...args) { return forwardController?.openForwardModal(...args); }
+    function getForwardComposerDraftForChat(chatId) { return forwardController?.getForwardComposerDraftForChat(chatId) || null; }
+    function hasPendingForwardDraftForCurrentChat() { return Boolean(forwardController?.hasPendingForwardDraftForCurrentChat()); }
+    function syncForwardDraftBarForCurrentChat() { return forwardController?.syncForwardDraftBarForCurrentChat(); }
+    function clearForwardComposerDraft(chatId) { return forwardController?.clearForwardComposerDraft(chatId); }
+    function setForwardComposerDraft(chatId, sourceMessages) { return forwardController?.setForwardComposerDraft(chatId, sourceMessages); }
+    function resolveForwardSourceMessages(messageIds) { return forwardController?.resolveForwardSourceMessages(messageIds) || []; }
+    function resolveForwardContactRows() { return forwardController?.resolveForwardContactRows() || []; }
+    function forwardMessagesToTargets(sourceMessages, targetRows) { return forwardController.forwardMessagesToTargets(sourceMessages, targetRows); }
+
+    // Drafts controller — initialised below после всех зависимостей.
+    var draftsController;
+    function scheduleCurrentChatDraftSave(...args) { return draftsController?.scheduleCurrentChatDraftSave(...args); }
+    function flushDraftSaveForChat(...args) { return draftsController?.flushDraftSaveForChat(...args); }
+    function loadDraftForChat(...args) { return draftsController?.loadDraftForChat(...args); }
+    function prefillComposerDraftFromContactItem(...args) { return draftsController?.prefillComposerDraftFromContactItem(...args); }
+    function handleRealtimeChatDraftUpdated(...args) { return draftsController?.handleRealtimeChatDraftUpdated(...args); }
+    function syncDraftPreviewForContact(...args) { return draftsController?.syncDraftPreviewForContact(...args); }
+    function applyComposerDraftText(...args) { return draftsController?.applyComposerDraftText(...args); }
+    function hasMeaningfulDraft(value) { return Boolean(draftsController?.hasMeaningfulDraft(value)); }
+    function clearLocalDraftStateForChat(chatId) { return draftsController?.clearLocalDraftStateForChat(chatId); }
+
     // \u042D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430
     const sidebar      = document.getElementById('sidebar');
     const contactsList = document.getElementById('contactsList');
@@ -598,449 +617,6 @@ const initChatPage = async () => {
         reportModalTarget = null;
         resetReportModalForm();
     });
-    const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file']);
-
-    function resolveForwardContactRows() {
-        if (!contactsList) return [];
-        const rows = [];
-        const items = Array.from(contactsList.querySelectorAll('.contact-item[data-chat-id]'));
-        const currentUserIdText = String(CURRENT_USER_ID || '').trim();
-        items.forEach((item, orderIndex) => {
-            const chatId = String(item.getAttribute('data-chat-id') || '').trim();
-            if (!chatId) return;
-            const displayName = String(item.querySelector('.contact-name')?.textContent || '').trim()
-                || String(item.getAttribute('data-contact-username') || '').trim()
-                || chatId;
-            const username = String(item.getAttribute('data-contact-username') || '').trim();
-            const publicKey = String(item.getAttribute('data-public-key') || '').trim();
-            const contactId = String(item.getAttribute('data-contact-id') || '').trim();
-            const isGroup = String(item.getAttribute('data-is-group') || '') === '1';
-            const isSaved = Boolean(currentUserIdText && contactId && contactId === currentUserIdText);
-            const isPinned = String(item.getAttribute('data-pinned') || '') === '1';
-            const pinOrderRaw = Number.parseInt(String(item.getAttribute('data-pin-order') || ''), 10);
-            const pinOrder = Number.isFinite(pinOrderRaw) ? pinOrderRaw : null;
-            const membersCount = Math.max(0, Number(item.getAttribute('data-members-count') || 0) || 0);
-            const isOnline = Boolean(item.querySelector('.contact-avatar .status-dot.online'));
-            const lastSeenRaw = String(item.getAttribute('data-last-seen') || '').trim();
-            const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarClone = sourceAvatarEl?.cloneNode(true);
-            avatarClone?.querySelector('.status-dot')?.remove();
-            const avatarHtml = String(avatarClone?.innerHTML || '').trim() || '?';
-            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
-            const statusText = isSaved
-                ? 'сохранённые сообщения'
-                : (isGroup
-                    ? formatGroupMembersCountLabel(membersCount)
-                    : (isOnline
-                        ? 'в сети'
-                        : (lastSeenRaw ? formatLastSeenText(lastSeenRaw) : 'был(а) недавно')));
-            rows.push({
-                chatId,
-                displayName,
-                username,
-                publicKey,
-                isGroup,
-                isSaved,
-                isPinned,
-                pinOrder,
-                orderIndex,
-                avatarHtml,
-                avatarTint,
-                statusText,
-            });
-        });
-        return rows;
-    }
-
-    function inferForwardMessageType(messageType, plainText) {
-        const normalizedType = String(messageType || '').trim().toLowerCase();
-        if (FORWARD_ALLOWED_MESSAGE_TYPES.has(normalizedType)) {
-            return normalizedType;
-        }
-        const filePayload = parseSunFilePayload(plainText);
-        if (filePayload) {
-            const mime = String(filePayload.mime || '').trim().toLowerCase();
-            if (mime.startsWith('image/')) return 'photo';
-            if (mime.startsWith('video/')) return 'video';
-            if (mime.startsWith('audio/')) return 'audio';
-            return 'file';
-        }
-        if (/((https?:\/\/|www\.)[^\s<]+)/i.test(String(plainText || ''))) {
-            return 'link';
-        }
-        return 'text';
-    }
-
-    function resolveForwardSourceMessages(messageIds) {
-        const sourceChatId = String(currentChatId || '').trim();
-        if (!sourceChatId) return [];
-        const resolved = [];
-        messageIds.forEach((rawId) => {
-            const numericId = Number.parseInt(String(rawId || ''), 10);
-            if (!Number.isFinite(numericId) || numericId <= 0) return;
-            const element = document.querySelector(`.message[data-msg-id="${numericId}"]`);
-            const stateMessage = findMessageById(sourceChatId, numericId);
-            const plainText = String(element?.getAttribute('data-message-content') || stateMessage?.message || '').trim();
-            if (!plainText) return;
-            const messageType = inferForwardMessageType(stateMessage?.message_type, plainText);
-            const sourceForwardName = String(stateMessage?.forwardFromName || stateMessage?.forward_from_name || '').trim();
-            const sourceSenderName = String(
-                stateMessage?.senderDisplayName
-                || stateMessage?.sender_display_name
-                || (stateMessage?.sender === 'self' ? (currentDisplayName || currentUsername || 'Вы') : '')
-                || '',
-            ).trim();
-            const forwardFromName = sourceForwardName || sourceSenderName;
-            const sourceForwardUserId = Number(stateMessage?.forwardFromUserId || stateMessage?.forward_from_user_id);
-            const sourceSenderUserId = Number(stateMessage?.senderUserId || stateMessage?.sender_user_id);
-            const forwardFromUserId = Number.isFinite(sourceForwardUserId) && sourceForwardUserId > 0
-                ? sourceForwardUserId
-                : (Number.isFinite(sourceSenderUserId) && sourceSenderUserId > 0 ? sourceSenderUserId : null);
-            resolved.push({
-                messageId: numericId,
-                plainText,
-                messageType,
-                forwardFromName,
-                forwardFromUserId,
-            });
-        });
-        return resolved;
-    }
-
-    function normalizeForwardDraftMessageCountLabel(count) {
-        const safeCount = Math.max(0, Number(count) || 0);
-        const mod10 = safeCount % 10;
-        const mod100 = safeCount % 100;
-        if (mod10 === 1 && mod100 !== 11) return `${safeCount} сообщение`;
-        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${safeCount} сообщения`;
-        return `${safeCount} сообщений`;
-    }
-
-    function buildForwardDraftPreviewText(sourceMessages) {
-        if (!Array.isArray(sourceMessages) || !sourceMessages.length) return '';
-        const firstLine = String(sourceMessages[0]?.plainText || '').replace(/\s+/g, ' ').trim();
-        if (!firstLine) return '';
-        if (firstLine.length <= 140) return firstLine;
-        return `${firstLine.slice(0, 140).trimEnd()}...`;
-    }
-
-    function showForwardDraftBar() {
-        if (!forwardDraftBar) return;
-        forwardDraftBar.classList.remove('link-draft-bar--hidden', 'is-closing');
-        forwardDraftBar.style.display = 'flex';
-        forwardDraftBar.setAttribute('aria-hidden', 'false');
-        requestAnimationFrame(() => forwardDraftBar.classList.add('is-visible'));
-    }
-
-    function hideForwardDraftBar() {
-        if (!forwardDraftBar) return;
-        forwardDraftBar.classList.remove('is-visible');
-        forwardDraftBar.classList.add('is-closing');
-        forwardDraftBar.setAttribute('aria-hidden', 'true');
-        waitForMotionEnd(forwardDraftBar, 220).then(() => {
-            if (forwardDraftBar.classList.contains('is-visible')) return;
-            forwardDraftBar.classList.add('link-draft-bar--hidden');
-            forwardDraftBar.classList.remove('is-closing');
-            forwardDraftBar.style.display = 'none';
-        });
-    }
-
-    function getForwardComposerDraftForChat(chatId) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return null;
-        return forwardComposerDraftByChatId.get(normalizedChatId) || null;
-    }
-
-    function hasPendingForwardDraftForCurrentChat() {
-        return Boolean(getForwardComposerDraftForChat(currentChatId));
-    }
-
-    function syncForwardDraftBarForCurrentChat() {
-        const draft = getForwardComposerDraftForChat(currentChatId);
-        if (!draft) {
-            hideForwardDraftBar();
-            updateVoiceRecordButtonState();
-            return;
-        }
-        if (forwardDraftLabel) {
-            forwardDraftLabel.textContent = `Переслать ${normalizeForwardDraftMessageCountLabel(draft.messages.length)}`;
-        }
-        if (forwardDraftText) {
-            forwardDraftText.textContent = buildForwardDraftPreviewText(draft.messages);
-            applyEmojiGraphics(forwardDraftText);
-        }
-        showForwardDraftBar();
-        updateVoiceRecordButtonState();
-    }
-
-    function clearForwardComposerDraft(chatId) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return;
-        forwardComposerDraftByChatId.delete(normalizedChatId);
-        syncForwardDraftBarForCurrentChat();
-    }
-
-    function setForwardComposerDraft(chatId, sourceMessages) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId || !Array.isArray(sourceMessages) || !sourceMessages.length) return;
-        const normalizedMessages = sourceMessages.map((message) => ({
-            messageId: Number(message?.messageId) || 0,
-            plainText: String(message?.plainText || ''),
-            messageType: inferForwardMessageType(message?.messageType, message?.plainText),
-            forwardFromName: String(message?.forwardFromName || '').trim(),
-            forwardFromUserId: Number(message?.forwardFromUserId) || null,
-        })).filter((message) => message.messageId > 0 && message.plainText.trim());
-        if (!normalizedMessages.length) return;
-        forwardComposerDraftByChatId.set(normalizedChatId, {
-            targetChatId: normalizedChatId,
-            messages: normalizedMessages,
-            createdAt: Date.now(),
-        });
-        syncForwardDraftBarForCurrentChat();
-    }
-
-    function updateForwardModalState() {
-        if (messageForwardSearchInput) {
-            messageForwardSearchInput.disabled = forwardModalActionInFlight;
-        }
-        if (messageForwardSubmitBtn) {
-            messageForwardSubmitBtn.disabled = true;
-            messageForwardSubmitBtn.textContent = forwardModalActionInFlight ? 'Пересылка...' : 'Выберите чат';
-        }
-    }
-
-    function renderForwardSelectedInfo() {
-        if (!messageForwardSelectedInfo) return;
-        messageForwardSelectedInfo.textContent = `Выбрано сообщений: ${forwardSourceMessageIds.size}.`;
-    }
-
-    function renderForwardTargets() {
-        if (!messageForwardTargets) return;
-        const query = String(messageForwardSearchInput?.value || '').trim().toLowerCase();
-        const rows = resolveForwardContactRows().filter((row) => {
-            if (!query) return true;
-            return row.displayName.toLowerCase().includes(query)
-                || row.username.toLowerCase().includes(query)
-                || row.chatId.toLowerCase().includes(query)
-                || String(row.statusText || '').toLowerCase().includes(query);
-        });
-        if (!rows.length) {
-            messageForwardTargets.innerHTML = '<p class="forward-targets-empty">Чаты не найдены.</p>';
-            return;
-        }
-
-        const isPinnedRow = (row) => row.isSaved || row.isPinned;
-        const pinnedRows = rows.filter(isPinnedRow);
-        const recentRows = rows.filter((row) => !isPinnedRow(row));
-        const sortBySidebarOrder = (left, right) => {
-            const leftPinned = isPinnedRow(left);
-            const rightPinned = isPinnedRow(right);
-            if (leftPinned && rightPinned) {
-                if (left.isSaved !== right.isSaved) return left.isSaved ? -1 : 1;
-                const leftPinOrder = Number.isFinite(left.pinOrder) ? left.pinOrder : Number.MAX_SAFE_INTEGER;
-                const rightPinOrder = Number.isFinite(right.pinOrder) ? right.pinOrder : Number.MAX_SAFE_INTEGER;
-                if (leftPinOrder !== rightPinOrder) return leftPinOrder - rightPinOrder;
-            }
-            return left.orderIndex - right.orderIndex;
-        };
-        pinnedRows.sort(sortBySidebarOrder);
-        recentRows.sort(sortBySidebarOrder);
-
-        const renderRow = (row) => {
-            const avatarTintAttr = row.avatarTint
-                ? ` data-avatar-tint="${escapeHtml(row.avatarTint)}"`
-                : '';
-            return `
-                <button
-                    type="button"
-                    class="group-create-result-item forward-target-row"
-                    data-forward-target-chat-id="${escapeHtml(row.chatId)}"
-                >
-                    <span class="forward-target-avatar"${avatarTintAttr}>${row.avatarHtml}</span>
-                    <span class="forward-target-copy">
-                        <span class="group-create-result-name forward-target-name">${escapeHtml(row.displayName)}</span>
-                        <span class="group-create-result-username forward-target-status">${escapeHtml(row.statusText)}</span>
-                    </span>
-                </button>
-            `;
-        };
-        const renderSection = (title, sectionRows) => {
-            if (!sectionRows.length) return '';
-            return `
-                <section class="forward-target-section">
-                    <h6 class="forward-target-section-title">${escapeHtml(title)}</h6>
-                    <div class="forward-target-section-items">${sectionRows.map(renderRow).join('')}</div>
-                </section>
-            `;
-        };
-
-        if (query) {
-            messageForwardTargets.innerHTML = rows.map(renderRow).join('');
-        } else {
-            messageForwardTargets.innerHTML = `${renderSection('Закреплённые', pinnedRows)}${renderSection('Недавние', recentRows)}`;
-        }
-
-        messageForwardTargets.querySelectorAll('.forward-target-avatar').forEach((avatarEl) => {
-            if (!(avatarEl instanceof HTMLElement)) return;
-            if (avatarEl.querySelector('img')) return;
-            const name = String(avatarEl.closest('.forward-target-row')?.querySelector('.forward-target-name')?.textContent || '').trim();
-            applyFallbackAvatarTint(avatarEl, name);
-        });
-    }
-
-    function resetForwardModalState() {
-        forwardModalActionInFlight = false;
-        forwardSourceMessageIds.clear();
-        if (messageForwardSearchInput) messageForwardSearchInput.value = '';
-        renderForwardSelectedInfo();
-        renderForwardTargets();
-        updateForwardModalState();
-    }
-
-    function openForwardModal(messageIds) {
-        if (!messageForwardModal) return;
-        forwardSourceMessageIds.clear();
-        (Array.isArray(messageIds) ? messageIds : [messageIds]).forEach((rawId) => {
-            const numericId = Number.parseInt(String(rawId || ''), 10);
-            if (!Number.isFinite(numericId) || numericId <= 0) return;
-            forwardSourceMessageIds.add(String(numericId));
-        });
-        forwardModalActionInFlight = false;
-        if (messageForwardSearchInput) messageForwardSearchInput.value = '';
-        renderForwardSelectedInfo();
-        renderForwardTargets();
-        updateForwardModalState();
-        openAnimatedDialog(messageForwardModal, { focusTarget: messageForwardSearchInput || messageForwardSubmitBtn });
-    }
-
-    async function encryptForForwardTarget(contactRow, plainText) {
-        if (contactRow.isGroup) {
-            return plainText;
-        }
-        const publicKey = String(contactRow.publicKey || '').trim();
-        if (!publicKey) {
-            throw new Error(`Не найден ключ шифрования для чата ${contactRow.displayName}.`);
-        }
-        if (!getPrivateKeyPem()) {
-            throw new Error('Нет приватного ключа. Войдите заново с вашим ключом.');
-        }
-        if (!currentUserPublicKey) {
-            throw new Error('Не найден ваш публичный ключ. Обновите страницу и войдите заново.');
-        }
-        return window.e2e.encryptMessageE2E(publicKey, currentUserPublicKey, plainText);
-    }
-
-    async function forwardMessagesToTargets(sourceMessages, targetRows) {
-        let sentCount = 0;
-        for (const targetRow of targetRows) {
-            for (const sourceMessage of sourceMessages) {
-                const encryptedPayload = await encryptForForwardTarget(targetRow, sourceMessage.plainText);
-                const emitted = emitSocket('send_message', {
-                    message: encryptedPayload,
-                    chat_id: targetRow.chatId,
-                    message_type: sourceMessage.messageType,
-                    client_id: crypto.randomUUID(),
-                    reply_to_id: null,
-                    forward_from_name: String(sourceMessage.forwardFromName || '').trim() || null,
-                    forward_from_user_id: Number(sourceMessage.forwardFromUserId) || null,
-                }, { requireConnected: true });
-                if (!emitted) {
-                    throw new Error('Связь с сервером ещё не восстановилась. Повторите пересылку через пару секунд.');
-                }
-                sentCount += 1;
-            }
-        }
-        return sentCount;
-    }
-
-    async function openTargetChatWithForwardDraft(chatId, sourceMessages) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId || !sourceMessages.length) return;
-        setForwardComposerDraft(normalizedChatId, sourceMessages);
-        closeAnimatedDialog(messageForwardModal);
-        if (messageSelectionController.isSelectionMode()) {
-            toggleSelectionMode(false);
-        }
-        await openChatByIdWhenReady(normalizedChatId);
-        syncForwardDraftBarForCurrentChat();
-        scheduleComposerFocus({ force: true });
-    }
-
-    async function handleForwardTargetSelection(chatId) {
-        if (forwardModalActionInFlight) return;
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return;
-        const sourceMessages = resolveForwardSourceMessages(Array.from(forwardSourceMessageIds));
-        if (!sourceMessages.length) {
-            showToast('Не удалось подготовить сообщения для пересылки.', 'warning');
-            return;
-        }
-        const contactByChatId = new Map(resolveForwardContactRows().map((row) => [row.chatId, row]));
-        const targetRow = contactByChatId.get(normalizedChatId);
-        if (!targetRow) {
-            showToast('Чат не найден. Обновите список контактов.', 'warning');
-            return;
-        }
-
-        if (targetRow.isSaved) {
-            forwardModalActionInFlight = true;
-            updateForwardModalState();
-            try {
-                const sentCount = await forwardMessagesToTargets(sourceMessages, [targetRow]);
-                showToast(`Переслано сообщений: ${sentCount}.`, 'success');
-                closeAnimatedDialog(messageForwardModal);
-                if (messageSelectionController.isSelectionMode()) {
-                    toggleSelectionMode(false);
-                }
-            } catch (error) {
-                showToast(getErrorMessage(error, 'Не удалось переслать сообщения.'), 'danger');
-            } finally {
-                forwardModalActionInFlight = false;
-                updateForwardModalState();
-            }
-            return;
-        }
-
-        await openTargetChatWithForwardDraft(normalizedChatId, sourceMessages);
-    }
-
-    messageForwardTargets?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-forward-target-chat-id]');
-        if (!(button instanceof HTMLElement)) return;
-        const chatId = String(button.getAttribute('data-forward-target-chat-id') || '').trim();
-        if (!chatId) return;
-        void handleForwardTargetSelection(chatId);
-    });
-
-    messageForwardSearchInput?.addEventListener('input', () => {
-        renderForwardTargets();
-    });
-
-    messageForwardSearchInput?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const firstTarget = messageForwardTargets?.querySelector('[data-forward-target-chat-id]');
-        if (!(firstTarget instanceof HTMLElement)) return;
-        const chatId = String(firstTarget.getAttribute('data-forward-target-chat-id') || '').trim();
-        if (!chatId) return;
-        void handleForwardTargetSelection(chatId);
-    });
-
-    messageForwardSubmitBtn?.addEventListener('click', () => {
-        const firstTarget = messageForwardTargets?.querySelector('[data-forward-target-chat-id]');
-        if (!(firstTarget instanceof HTMLElement)) return;
-        const chatId = String(firstTarget.getAttribute('data-forward-target-chat-id') || '').trim();
-        if (!chatId) return;
-        void handleForwardTargetSelection(chatId);
-    });
-
-    messageForwardModal?.addEventListener('close', () => {
-        resetForwardModalState();
-    });
-    cancelForwardDraftBtn?.addEventListener('click', () => {
-        clearForwardComposerDraft(currentChatId);
-        scheduleComposerFocus({ force: true });
-    });
     let applyActiveMessageSearchFilterImpl = () => {};
     let emojiPickerInitPromise = null;
     let messageSearchInitPromise = null;
@@ -1238,7 +814,6 @@ const initChatPage = async () => {
     const APP_BOOT_OVERLAY_FALLBACK_DELAY_MS = 450;
     const TYPING_EMIT_INTERVAL_MS = 1200;
     const CONTACTS_RELOAD_DEBOUNCE_MS = 180;
-    const CHAT_DRAFT_SAVE_DEBOUNCE_MS = 700;
     const PINNED_CHATS_LIMIT = 5;
     const CHAT_DAY_SEPARATOR_HEIGHT = 34;
     const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
@@ -3108,6 +2683,41 @@ const initChatPage = async () => {
             hideContextMenu();
         },
     });
+
+    forwardController = createChatForwardFlow({
+        contactsList,
+        forwardDraftBar,
+        forwardDraftLabel,
+        forwardDraftText,
+        cancelForwardDraftBtn,
+        messageForwardModal,
+        messageForwardSearchInput,
+        messageForwardSubmitBtn,
+        messageForwardSelectedInfo,
+        messageForwardTargets,
+        getCurrentChatId: () => currentChatId,
+        getCurrentDisplayName: () => currentDisplayName,
+        getCurrentUsername: () => currentUsername,
+        getCurrentUserPublicKey: () => currentUserPublicKey,
+        getCurrentUserId: () => CURRENT_USER_ID,
+        getPrivateKeyPem,
+        formatGroupMembersCountLabel,
+        formatLastSeenText,
+        parseSunFilePayload,
+        findMessageById,
+        waitForMotionEnd,
+        applyFallbackAvatarTint,
+        updateVoiceRecordButtonState,
+        emitSocket,
+        openAnimatedDialog,
+        closeAnimatedDialog,
+        getMessageSelectionController: () => messageSelectionController,
+        toggleSelectionMode: (on) => toggleSelectionMode(on),
+        openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
+        scheduleComposerFocus,
+        showToast,
+        getErrorMessage,
+    });
     let messageContextMenuController = null;
     messageContextMenuController = initMessageContextMenu({
         menuEl: contextMenu,
@@ -3198,6 +2808,22 @@ const initChatPage = async () => {
         resizeComposerInput,
         scheduleComposerFocus,
     });
+
+    draftsController = createChatDraftsController({
+        messageInput,
+        getCurrentChatId: () => currentChatId,
+        getIsEditingMessageId: () => isEditingMessageId,
+        isChatBlocked,
+        getCurrentUserId: () => CURRENT_USER_ID,
+        withAppRoot,
+        getCsrfToken,
+        resizeComposerInput,
+        updateVoiceRecordButtonState,
+        getLinkDraftBarController: () => linkDraftBarController,
+        resolveContactItemByChatId,
+        updateActiveContactLastMessage: _updateActiveContactLastMessage,
+        sortContactsList,
+    });
     const pinnedBarController = initPinnedBar({
         barEl: document.getElementById('pinnedBar'),
         labelEl: document.querySelector('#pinnedBar .pinned-bar__label'),
@@ -3255,242 +2881,6 @@ const initChatPage = async () => {
         });
     }
 
-    function normalizeDraftText(value) {
-        return String(value ?? '').replace(/\r\n/g, '\n');
-    }
-
-    function toDraftTimestampMs(value) {
-        const raw = String(value || '').trim();
-        if (!raw) return 0;
-        const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
-        const parsed = Date.parse(normalized);
-        return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function shouldApplyDraftUpdate(chatId, updatedAt, incomingDraftText = '') {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return false;
-        const nextMs = toDraftTimestampMs(updatedAt);
-        if (!nextMs) return true;
-        const prevMs = Number(lastDraftUpdatedAtByChatId.get(normalizedChatId) || 0);
-        if (nextMs > prevMs) return true;
-        if (nextMs < prevMs) return false;
-
-        // CURRENT_TIMESTAMP from backend is second-precision; if two updates share
-        // the same timestamp, only treat exact text duplicates as safe/idempotent.
-        const previousSavedDraftText = normalizeDraftText(lastSavedDraftByChatId.get(normalizedChatId) || '');
-        const nextDraftText = normalizeDraftText(incomingDraftText || '');
-        return nextDraftText === previousSavedDraftText;
-    }
-
-    function hasMeaningfulDraft(value) {
-        return Boolean(normalizeDraftText(value).trim());
-    }
-
-    function applyComposerDraftText(value) {
-        if (!messageInput) return;
-        const normalized = normalizeDraftText(value);
-        if (messageInput.value === normalized) return;
-        messageInput.value = normalized;
-        linkDraftBarController?.syncFromInput?.({ force: true });
-        resizeComposerInput();
-        updateVoiceRecordButtonState();
-    }
-
-    function syncDraftPreviewForContact(chatId, draftText, updatedAt = '', options = {}) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return;
-
-        const showWhileActive = options?.showWhileActive === true;
-        if (!showWhileActive && normalizedChatId === String(currentChatId || '')) {
-            return;
-        }
-
-        const contactItem = resolveContactItemByChatId(normalizedChatId);
-        if (!contactItem) return;
-
-        const normalizedDraft = normalizeDraftText(draftText);
-        const hasDraft = hasMeaningfulDraft(normalizedDraft);
-        if (hasDraft) {
-            _updateActiveContactLastMessage(
-                contactItem,
-                normalizedDraft,
-                false,
-                { pending: false, is_read: false, is_delivered: false },
-                updatedAt || new Date().toISOString(),
-                {
-                    isDraft: true,
-                    draftText: normalizedDraft,
-                },
-            );
-        } else if (contactItem.getAttribute('data-has-draft') === '1') {
-            const rawMessage = String(contactItem.getAttribute('data-raw-last-message') || '');
-            const rawTimestamp = String(
-                contactItem.getAttribute('data-raw-last-message-time')
-                || contactItem.getAttribute('data-last-message-time')
-                || '',
-            ).trim();
-            const lastSenderId = String(contactItem.getAttribute('data-last-sender-id') || '').trim();
-            const isSelf = Boolean(lastSenderId) && lastSenderId === String(CURRENT_USER_ID);
-            const isRead = contactItem.getAttribute('data-last-message-is-read') === '1';
-            const isDelivered = contactItem.getAttribute('data-last-message-is-delivered') === '1';
-            _updateActiveContactLastMessage(
-                contactItem,
-                rawMessage,
-                isSelf,
-                { is_read: isRead, is_delivered: isDelivered },
-                rawTimestamp || null,
-                { isDraft: false },
-            );
-        }
-
-        sortContactsList();
-    }
-
-    async function saveDraftForChat(chatId, draftText, { force = false } = {}) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return null;
-
-        const normalizedDraft = normalizeDraftText(draftText);
-        const nextSavedText = hasMeaningfulDraft(normalizedDraft) ? normalizedDraft : '';
-        if (!force && lastSavedDraftByChatId.get(normalizedChatId) === nextSavedText) {
-            return null;
-        }
-
-        try {
-            const response = await fetch(withAppRoot('/save_chat_draft'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({
-                    chat_id: normalizedChatId,
-                    draft_text: normalizedDraft,
-                }),
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.success) return null;
-
-            const savedText = payload.has_draft ? normalizeDraftText(payload.draft_text || '') : '';
-            const savedUpdatedAt = String(payload.updated_at || '').trim();
-            lastSavedDraftByChatId.set(normalizedChatId, savedText);
-            if (savedUpdatedAt) {
-                lastDraftUpdatedAtByChatId.set(normalizedChatId, toDraftTimestampMs(savedUpdatedAt));
-            }
-            syncDraftPreviewForContact(normalizedChatId, savedText, savedUpdatedAt, { showWhileActive: true });
-            return payload;
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function scheduleCurrentChatDraftSave({ immediate = false, force = false } = {}) {
-        if (!currentChatId || !messageInput || isEditingMessageId || isChatBlocked()) return;
-
-        if (immediate) {
-            if (chatDraftSaveTimer) {
-                clearTimeout(chatDraftSaveTimer);
-                chatDraftSaveTimer = 0;
-            }
-            chatDraftSaveTargetChatId = '';
-            chatDraftSaveQueuedText = '';
-            void saveDraftForChat(currentChatId, messageInput.value, { force });
-            return;
-        }
-
-        chatDraftSaveTargetChatId = String(currentChatId);
-        chatDraftSaveQueuedText = String(messageInput.value || '');
-        if (chatDraftSaveTimer) {
-            clearTimeout(chatDraftSaveTimer);
-        }
-        chatDraftSaveTimer = window.setTimeout(() => {
-            const targetChatId = chatDraftSaveTargetChatId;
-            const queuedText = chatDraftSaveQueuedText;
-            chatDraftSaveTimer = 0;
-            chatDraftSaveTargetChatId = '';
-            chatDraftSaveQueuedText = '';
-            if (!targetChatId) return;
-            void saveDraftForChat(targetChatId, queuedText, { force });
-        }, CHAT_DRAFT_SAVE_DEBOUNCE_MS);
-    }
-
-    function flushDraftSaveForChat(chatId, draftText, { force = false } = {}) {
-        if (chatDraftSaveTimer) {
-            clearTimeout(chatDraftSaveTimer);
-            chatDraftSaveTimer = 0;
-        }
-        chatDraftSaveTargetChatId = '';
-        chatDraftSaveQueuedText = '';
-        return saveDraftForChat(chatId, draftText, { force });
-    }
-
-    function prefillComposerDraftFromContactItem(contactItem) {
-        if (!contactItem) return;
-        const hasDraft = contactItem.getAttribute('data-has-draft') === '1';
-        const draftText = String(contactItem.getAttribute('data-draft-text') || '');
-        applyComposerDraftText(hasDraft ? draftText : '');
-    }
-
-    async function loadDraftForChat(chatId, { fallbackContactItem = null } = {}) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId || String(normalizedChatId) !== String(currentChatId)) return;
-
-        const requestId = ++activeDraftLoadRequestId;
-        const beforeRequestValue = String(messageInput?.value || '');
-        try {
-            const response = await fetch(
-                withAppRoot(`/get_chat_draft?chat_id=${encodeURIComponent(normalizedChatId)}`),
-            );
-            const payload = await response.json();
-            if (!response.ok || !payload?.success) return;
-            if (requestId !== activeDraftLoadRequestId) return;
-            if (String(currentChatId) !== normalizedChatId) return;
-            const currentValue = String(messageInput?.value || '');
-            if (currentValue !== beforeRequestValue && document.activeElement === messageInput) {
-                return;
-            }
-
-            const draftText = payload.has_draft ? normalizeDraftText(payload.draft_text || '') : '';
-            const draftUpdatedAt = String(payload.updated_at || '');
-            lastSavedDraftByChatId.set(normalizedChatId, draftText);
-            if (draftUpdatedAt) {
-                lastDraftUpdatedAtByChatId.set(normalizedChatId, toDraftTimestampMs(draftUpdatedAt));
-            }
-            syncDraftPreviewForContact(normalizedChatId, draftText, draftUpdatedAt);
-            applyComposerDraftText(draftText);
-        } catch (_) {
-            if (requestId !== activeDraftLoadRequestId) return;
-            if (String(currentChatId) !== normalizedChatId) return;
-            prefillComposerDraftFromContactItem(fallbackContactItem || resolveContactItemByChatId(normalizedChatId));
-        }
-    }
-
-    function handleRealtimeChatDraftUpdated(payload) {
-        const chatId = String(payload?.chat_id || '').trim();
-        if (!chatId) return;
-
-        const updatedAt = String(payload?.updated_at || '').trim();
-        if (!shouldApplyDraftUpdate(chatId, updatedAt, payload?.has_draft ? payload?.draft_text || '' : '')) return;
-
-        const previousSavedDraftText = String(lastSavedDraftByChatId.get(chatId) || '');
-        const normalizedDraftText = payload?.has_draft
-            ? normalizeDraftText(payload?.draft_text || '')
-            : '';
-        lastSavedDraftByChatId.set(chatId, normalizedDraftText);
-        if (updatedAt) {
-            lastDraftUpdatedAtByChatId.set(chatId, toDraftTimestampMs(updatedAt));
-        }
-        syncDraftPreviewForContact(chatId, normalizedDraftText, updatedAt);
-
-        if (String(chatId) !== String(currentChatId)) return;
-
-        const isComposerFocused = document.activeElement === messageInput;
-        const currentValue = normalizeDraftText(messageInput?.value || '');
-        const hasUnsavedLocalChanges = currentValue !== previousSavedDraftText;
-        if (isComposerFocused && hasUnsavedLocalChanges) return;
-        applyComposerDraftText(normalizedDraftText);
-    }
 
     function isBlockedChat(chatId) {
         if (!chatId) return false;
@@ -5996,8 +5386,7 @@ const initChatPage = async () => {
                 }
                 // Keep local draft state in sync after send, so stale realtime draft
                 // events cannot repopulate the composer with already-sent text.
-                lastSavedDraftByChatId.set(sourceChatId, '');
-                lastDraftUpdatedAtByChatId.set(sourceChatId, Date.now());
+                clearLocalDraftStateForChat(sourceChatId);
                 void flushDraftSaveForChat(sourceChatId, '', { force: true });
                 if (String(currentChatId || '') !== sourceChatId) {
                     syncDraftPreviewForContact(sourceChatId, '', new Date().toISOString(), { showWhileActive: true });
