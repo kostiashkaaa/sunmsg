@@ -6253,6 +6253,9 @@ const initChatPage = async () => {
     function normalizeAudioVolume(value) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return 1;
+        // Не позволяем «случайному» 0 (слайдер мог уйти в 0 от тапа промазав)
+        // тихо отключать звук во всех будущих сессиях. Минимум 0.05 — слышно.
+        if (numeric < 0.05) return 1;
         return Math.max(0, Math.min(1, numeric));
     }
 
@@ -6877,60 +6880,23 @@ const initChatPage = async () => {
         syncVoicePlaybackBar();
     };
 
-    function rebuildAudioElement(audio) {
-        // \u041D\u0430 iOS/Android \u043F\u043E\u0441\u043B\u0435 `ended` \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play() \u0433\u0430\u0440\u0430\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E \u0438\u0434\u0451\u0442 \u0431\u0435\u0437 \u0437\u0432\u0443\u043A\u0430,
-        // \u0434\u0430\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 pause/currentTime=0/load(). \u0415\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u043D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u2014
-        // \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u0442\u044C \u044D\u043B\u0435\u043C\u0435\u043D\u0442 \u0441 \u0442\u0435\u043C \u0436\u0435 src/data-src/duration \u0438 \u043F\u043E\u0434\u043C\u0435\u043D\u0438\u0442\u044C \u0432 DOM.
-        const player = audio?.closest?.('.file-msg-audio-player');
-        if (!player) return audio;
-        const dataSrc = String(audio.getAttribute('data-src') || '').trim();
-        const src = String(audio.getAttribute('src') || '').trim();
-        const durSeconds = String(audio.dataset.durationSeconds || '').trim();
-        const fresh = document.createElement('audio');
-        fresh.className = audio.className;
-        if (dataSrc) fresh.setAttribute('data-src', dataSrc);
-        if (durSeconds) fresh.dataset.durationSeconds = durSeconds;
-        fresh.preload = 'metadata';
-        if (src) fresh.setAttribute('src', src);
-        // \u041F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F
-        try { fresh.volume = audio.volume; } catch (_) {}
-        try { fresh.playbackRate = audio.playbackRate; } catch (_) {}
-        // \u041F\u043E\u0434\u0432\u0435\u0448\u0438\u0432\u0430\u0435\u043C \u0442\u0435 \u0436\u0435 \u0441\u043B\u0443\u0448\u0430\u0442\u0435\u043B\u0438, \u0447\u0442\u043E \u0443 \u0431\u0430\u0431\u043B\u0430
-        fresh.addEventListener('loadedmetadata', () => window._onAudioPlayerMeta?.(fresh));
-        fresh.addEventListener('timeupdate', () => window._onAudioPlayerTime?.(fresh));
-        fresh.addEventListener('play', () => window._onAudioPlayerState?.(fresh));
-        fresh.addEventListener('pause', () => window._onAudioPlayerState?.(fresh));
-        fresh.addEventListener('ended', () => window._onAudioPlayerState?.(fresh));
-        try { window._initAudioPlayerState?.(fresh); } catch (_) {}
-        try { audio.pause(); } catch (_) {}
-        try { audio.removeAttribute('src'); audio.load(); } catch (_) {}
-        try { audio.replaceWith(fresh); } catch (_) {
-            audio.parentNode?.insertBefore(fresh, audio);
-            audio.parentNode?.removeChild(audio);
-        }
-        return fresh;
-    }
-
-    window._toggleAudioPlayer = async function(toggleBtn) {
-        let { audio } = resolveAudioPlayerElements(toggleBtn);
+    window._toggleAudioPlayer = function(toggleBtn) {
+        // \u0412\u0410\u0416\u041D\u041E: \u0442\u0435\u043B\u043E \u044D\u0442\u043E\u0439 \u0444\u0443\u043D\u043A\u0446\u0438\u0438 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u043C \u0434\u043E audio.play(),
+        // \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E iOS Safari \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u0447\u0442\u043E\u0431\u044B play() \u0432\u044B\u0437\u044B\u0432\u0430\u043B\u0441\u044F \u043F\u0440\u044F\u043C\u043E \u0438\u0437 user gesture
+        // (click). \u041B\u044E\u0431\u043E\u0439 await/Promise \u043B\u043E\u043C\u0430\u0435\u0442 \u00AB\u0436\u0435\u0441\u0442\u00BB \u2014 \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play \u0437\u0432\u0443\u0447\u0438\u0442 \u0431\u0435\u0437 \u0437\u0432\u0443\u043A\u0430
+        // \u0438\u043B\u0438 \u043E\u0442\u0431\u0438\u0432\u0430\u0435\u0442\u0441\u044F AbortError.
+        const { audio } = resolveAudioPlayerElements(toggleBtn);
         if (!audio) return;
+
         if (audio.paused) {
             ensureMediaElementHydrated(audio, { force: true });
             if (!audio.getAttribute('src')) {
                 showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
                 return;
             }
-            // \u0415\u0441\u043B\u0438 \u0442\u0440\u0435\u043A \u0443\u0436\u0435 \u0434\u043E\u0438\u0433\u0440\u0430\u043D \u2014 \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u0451\u043C <audio> \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E.
-            // \u042D\u0442\u043E \u0435\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u043D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0437\u0432\u0443\u043A \u043D\u0430 iOS.
-            const dur = Number(audio.duration);
-            const atEnd = audio.ended
-                || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= Math.max(0, dur - 0.05));
-            if (atEnd) {
-                const wasActive = resolveActiveVoicePlaybackAudio() === audio;
-                audio = rebuildAudioElement(audio);
-                if (wasActive) activeVoicePlaybackAudioEl = audio;
-            }
             void ensureGeneratedAudioWaveform(audio);
+
+            // \u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C \u0432\u0441\u0435 \u043E\u0441\u0442\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u0443\u0434\u0438\u043E \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u043E.
             const all = document.querySelectorAll('.file-msg-audio-el');
             all.forEach((candidate) => {
                 if (candidate !== audio) {
@@ -6940,26 +6906,50 @@ const initChatPage = async () => {
                     scheduleAudioPlayerUiSync(candidate);
                 }
             });
+
             reportVoiceListened(audio);
+
+            // \u0421\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0435\u043C \u043F\u043E\u0437\u0438\u0446\u0438\u044E, \u0435\u0441\u043B\u0438 \u0442\u0440\u0435\u043A \u0431\u044B\u043B \u0434\u043E\u0438\u0433\u0440\u0430\u043D. \u041D\u0430 iOS \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E
+            // \u0414\u041E play(), \u0438\u043D\u0430\u0447\u0435 \u044D\u043B\u0435\u043C\u0435\u043D\u0442 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0432 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0438 \u00ABended\u00BB \u0438 play() \u043C\u043E\u043B\u0447\u0438\u0442.
+            const dur = Number(audio.duration);
+            const atEnd = audio.ended
+                || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= Math.max(0, dur - 0.05));
+            if (atEnd) {
+                try { audio.currentTime = 0; } catch (_) {}
+            }
+
+            // \u041F\u0440\u0438\u043D\u0443\u0434\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u00AB\u0440\u0430\u0437\u043C\u0443\u0447\u0438\u0432\u0430\u0435\u043C\u00BB \u2014 \u043D\u0430 iOS audio.muted \u043C\u043E\u0433 \u0437\u0430\u0441\u0442\u0440\u044F\u0442\u044C true
+            // \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F \u0432\u043A\u043B\u0430\u0434\u043E\u043A/silent-\u0440\u0435\u0436\u0438\u043C\u0430.
+            try { audio.muted = false; } catch (_) {}
+            try { audio.volume = 1; } catch (_) {}
+
             audio.dataset.playRequested = '1';
-            try { if (audio.muted) audio.muted = false; } catch (_) {}
             audio.playbackRate = getPreferredAudioPlaybackRate();
-            applyPreferredVolumeToAudio(audio);
             setActiveVoicePlaybackAudio(audio);
             scheduleAudioPlayerUiSync(audio);
+
+            // \u0421\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0439 \u0432\u044B\u0437\u043E\u0432 play() \u2014 \u043A\u0440\u0438\u0442\u0438\u0447\u043D\u043E \u0434\u043B\u044F iOS user-gesture \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430.
+            let playPromise;
             try {
-                const playPromise = audio.play();
-                if (playPromise && typeof playPromise.then === 'function') {
-                    await playPromise;
-                }
-            } catch (_) {
+                playPromise = audio.play();
+            } catch (err) {
                 audio.dataset.playRequested = '0';
                 stopAudioPlayerUiLoop(audio);
                 showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
             }
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch((err) => {
+                    // AbortError \u0432\u043E\u0437\u043D\u0438\u043A\u0430\u0435\u0442 \u043A\u043E\u0433\u0434\u0430 play() \u043F\u0440\u0435\u0440\u0432\u0430\u043D pause()/load().
+                    // \u042D\u0442\u043E \u043D\u043E\u0440\u043C\u0430\u043B\u044C\u043D\u043E \u2014 \u041D\u0415 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u043C \u0442\u043E\u0441\u0442.
+                    if (err && (err.name === 'AbortError' || err.code === 20)) return;
+                    audio.dataset.playRequested = '0';
+                    stopAudioPlayerUiLoop(audio);
+                    showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
+                });
+            }
         } else {
             audio.dataset.playRequested = '0';
-            audio.pause();
+            try { audio.pause(); } catch (_) {}
             stopAudioPlayerUiLoop(audio);
         }
         syncAudioPlayerUi(audio);

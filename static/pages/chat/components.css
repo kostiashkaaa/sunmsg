@@ -9136,32 +9136,51 @@
     }
 
     /* ─── Компактные аудио-баблы ─── */
+    /* Жёстко ограничиваем размер контейнера, иначе .message-stack
+       (--chat-bubble-max-width = 448px) распирает бабл на всю ширину. */
+    .message-stack:has(.bubble--audio) {
+        max-width: min(72%, 280px) !important;
+    }
     .bubble--audio {
-        max-width: min(74%, 320px);
+        max-width: 100%;
     }
     .bubble--audio .file-msg-audio-player {
         gap: 8px;
+        min-width: 0;
     }
     .bubble--audio .audio-player-toggle {
         width: 34px;
         height: 34px;
+        flex-shrink: 0;
     }
     .bubble--audio .audio-player-toggle i {
         font-size: 16px;
     }
+    .bubble--audio .audio-player-info {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
     .bubble--audio .audio-player-wave-wrap {
         height: 20px;
+        min-width: 0;
     }
     .bubble--audio .audio-player-wave {
         height: 18px;
+    }
+    /* Сжимаем волну: уменьшаем расстояние между палочками */
+    .bubble--audio .audio-wave-layer {
+        gap: 1.4px;
+    }
+    .bubble--audio .audio-wave-bar {
+        min-width: 1.6px;
     }
     .bubble--audio .audio-message-body {
         padding-bottom: calc(12px * var(--chat-message-scale));
     }
     /* На совсем узких экранах ужмём ещё */
     @media (max-width: 380px) {
-        .bubble--audio {
-            max-width: 88%;
+        .message-stack:has(.bubble--audio) {
+            max-width: 86% !important;
         }
     }
 }
