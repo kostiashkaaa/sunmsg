@@ -4290,14 +4290,7 @@
             background: var(--accent);
             transform-origin: left center;
             transform: scaleX(calc(var(--voice-playback-progress, 0) / 100));
-            /* Плавно подтягиваем заполнение между обновлениями audio.currentTime
-               (которые на iOS приходят раз в ~250 мс). */
-            transition: transform 220ms linear;
             will-change: transform;
-        }
-        .voice-playback-bar__progress[data-seeking="1"] ~ .voice-playback-bar__progress-fill::before,
-        .voice-playback-bar.is-seeking .voice-playback-bar__progress-fill::before {
-            transition: none;
         }
 
         .voice-playback-bar__progress {
@@ -5074,13 +5067,6 @@
     overflow: hidden;
     will-change: clip-path;
     clip-path: inset(0 calc(100% - (var(--audio-played-percent, 0) * 1%)) 0 0);
-    /* Плавная отрисовка прогресса между обновлениями audio.currentTime
-       (которые приходят раз в ~250 мс на iOS). Linear, чтобы не было
-       «дёрганья» к концу интервала. */
-    transition: clip-path 220ms linear;
-}
-.audio-wave-layer--played.is-seeking,
-.is-seeking .audio-wave-layer--played {
     transition: none;
 }
 
