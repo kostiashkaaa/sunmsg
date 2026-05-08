@@ -6590,6 +6590,10 @@ const initChatPage = async () => {
         if (knownDuration > 0) {
             try {
                 audio.currentTime = (percent / 100) * knownDuration;
+                // Сбрасываем базу интерполяции, чтобы прогресс не «дёрнулся» назад
+                if (typeof captureAudioInterpolationBase === 'function') {
+                    captureAudioInterpolationBase(audio);
+                }
             } catch (_) {}
         } else {
             try { audio.load(); } catch (_) {}
@@ -6703,22 +6707,49 @@ const initChatPage = async () => {
     }
 
     // Лёгкий тик для прогресса во время воспроизведения: пишем ТОЛЬКО
-    // две CSS-переменные (--audio-played-percent на волне, --voice-playback-progress
-    // на верхнем баре). Никаких setAttribute / classList / textContent — это
-    // и вызывает «дёрганье» бабла на мобиле из-за reflow.
+    // две CSS-переменные. Никаких setAttribute/classList/textContent.
+    // Используем интерполяцию: audio.currentTime на iOS обновляется
+    // ~4 раза в секунду, поэтому между его обновлениями экстраполируем
+    // позицию по performance.now(). Так ползунок движется плавно на 60fps,
+    // не дожидаясь следующего timeupdate.
+    function resolveAudioDurationFor(audioEl) {
+        const dur = Number(audioEl.duration);
+        if (Number.isFinite(dur) && dur > 0) return dur;
+        const fallback = Number(audioEl.dataset?.durationSeconds || 0);
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+    }
+
+    function captureAudioInterpolationBase(audioEl) {
+        audioEl._sunPlayBaseTime = Number(audioEl.currentTime) || 0;
+        audioEl._sunPlayBasePerf = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    }
+
+    function getInterpolatedAudioPercent(audioEl) {
+        const duration = resolveAudioDurationFor(audioEl);
+        if (duration <= 0) return 0;
+        const realCurrent = Number(audioEl.currentTime) || 0;
+        const baseCurrent = Number(audioEl._sunPlayBaseTime);
+        const basePerf = Number(audioEl._sunPlayBasePerf);
+        let displayCurrent = realCurrent;
+        if (Number.isFinite(baseCurrent) && Number.isFinite(basePerf) && !audioEl.paused && !audioEl.ended) {
+            // Если audio.currentTime обновился — пересинхронизируем базу.
+            if (Math.abs(realCurrent - baseCurrent) > 0.06) {
+                captureAudioInterpolationBase(audioEl);
+                displayCurrent = realCurrent;
+            } else {
+                const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+                const rate = Number(audioEl.playbackRate) || 1;
+                const elapsed = Math.max(0, (now - basePerf) / 1000) * rate;
+                displayCurrent = Math.min(duration, baseCurrent + elapsed);
+            }
+        }
+        return Math.max(0, Math.min(100, (displayCurrent / duration) * 100));
+    }
+
     function tickAudioProgressOnly(audioEl) {
         const player = audioEl.closest?.('.file-msg-audio-player');
         const wave = player?.querySelector('.audio-player-wave');
-        const dur = Number(audioEl.duration);
-        let percent = 0;
-        if (Number.isFinite(dur) && dur > 0) {
-            percent = Math.max(0, Math.min(100, (audioEl.currentTime / dur) * 100));
-        } else {
-            const fallback = Number(audioEl.dataset?.durationSeconds || 0);
-            if (Number.isFinite(fallback) && fallback > 0) {
-                percent = Math.max(0, Math.min(100, (audioEl.currentTime / fallback) * 100));
-            }
-        }
+        const percent = getInterpolatedAudioPercent(audioEl);
         if (wave) {
             wave.style.setProperty('--audio-played-percent', String(percent));
         }
@@ -6734,10 +6765,8 @@ const initChatPage = async () => {
     function startAudioPlayerUiLoop(audioEl) {
         if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) return;
         stopAudioPlayerUiLoop(audioEl);
-        // 60fps — но обновляем только две CSS-переменные. Reflow не происходит,
-        // только композитный пересчёт clip-path/transform — дешёвая операция
-        // даже на iPhone. Полный syncAudioPlayerUi вызываем только на play/
-        // pause/ended (через _onAudioPlayerState).
+        captureAudioInterpolationBase(audioEl);
+        // 60fps. Reflow нет — только запись CSS-переменных.
         const tick = () => {
             if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) {
                 stopAudioPlayerUiLoop(audioEl);
@@ -7004,6 +7033,7 @@ const initChatPage = async () => {
         if (!Number.isFinite(knownDuration) || knownDuration <= 0) return;
         const safePercent = clampAudioSeekPercent(percent);
         audio.currentTime = (safePercent / 100) * knownDuration;
+        captureAudioInterpolationBase(audio);
         syncAudioPlayerUi(audio);
         syncVoicePlaybackBar(audio);
     }
