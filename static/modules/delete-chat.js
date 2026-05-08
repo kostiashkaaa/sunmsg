@@ -7,6 +7,22 @@ import { getCsrfToken } from './csrf.js';
 import { closeAnimatedOverlay, openAnimatedOverlay } from './chat-shell-ui.js';
 import { withAppRoot } from './app-url.js';
 
+const LEAVE_GROUP_ERROR_MAP = {
+    'Transfer ownership before leaving the group.':
+        'Передайте права владельца другому участнику, прежде чем покинуть группу.',
+    'Group chat not found.': 'Группа не найдена.',
+    'Forbidden.': 'Недостаточно прав.',
+    'Authorization required.': 'Требуется авторизация.',
+    'Invalid payload.': 'Некорректный запрос.',
+    'chat_id is required.': 'Не указан идентификатор чата.',
+};
+
+function localizeLeaveGroupError(rawError) {
+    const text = typeof rawError === 'string' ? rawError.trim() : '';
+    if (text && LEAVE_GROUP_ERROR_MAP[text]) return LEAVE_GROUP_ERROR_MAP[text];
+    return getErrorMessage(rawError);
+}
+
 function buildModalContent({ isGroup = false } = {}) {
     const title = isGroup ? '\u041F\u043E\u043A\u0438\u043D\u0443\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443' : '\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0447\u0430\u0442';
     const text = isGroup
@@ -59,7 +75,10 @@ function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = fal
             }
             return;
         }
-        showToast(`\u041E\u0448\u0438\u0431\u043A\u0430: ${getErrorMessage(response.error)}`, 'danger');
+        const message = isGroup
+            ? localizeLeaveGroupError(response.error)
+            : getErrorMessage(response.error);
+        showToast(`\u041E\u0448\u0438\u0431\u043A\u0430: ${message}`, 'danger');
     }).catch(() => {
         showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430', 'danger');
     });
