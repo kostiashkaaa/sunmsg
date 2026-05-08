@@ -114,7 +114,7 @@ function buildMediaStatusOverlay(filePayload) {
     const isUploading = Boolean(filePayload?.uploading);
     const progress = clampUploadProgress(filePayload?.upload_progress);
     return `
-        <div class="media-status-overlay${isUploading ? ' is-uploading' : ''}" data-upload-progress="${progress}" style="--upload-progress:${progress};" aria-hidden="true">
+        <div class="media-status-overlay${isUploading ? ' is-uploading' : ''}" data-upload-progress="${progress}" aria-hidden="true">
             <span class="media-status-ring"></span>
             <span class="media-status-value">${isUploading ? `${progress}%` : ''}</span>
         </div>`;
@@ -130,7 +130,7 @@ function buildInlineUploadProgress(filePayload, extraClass = '') {
     ].filter(Boolean).join(' ');
 
     return `
-        <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}" style="--upload-progress:${progress};">
+        <div class="${classes}" data-file-upload-inline="1" data-upload-progress="${progress}">
             <div class="file-upload-inline-row">
                 <span class="file-upload-inline-label">${escapeHtml(tr('\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430'))}</span>
                 <span class="file-upload-inline-percent">${progress}%</span>
@@ -456,6 +456,33 @@ function resolveGroupSenderColor(msg) {
     return GROUP_SENDER_COLORS[Math.abs(hash) % GROUP_SENDER_COLORS.length];
 }
 
+function applyCspSafeMessageStyles(messageDiv) {
+    if (!messageDiv) return;
+
+    messageDiv.querySelectorAll('[data-upload-progress]').forEach((el) => {
+        const progress = clampUploadProgress(el.getAttribute('data-upload-progress'));
+        el.style.setProperty('--upload-progress', String(progress));
+    });
+
+    messageDiv.querySelectorAll('[data-media-aspect-ratio]').forEach((el) => {
+        const ratio = String(el.getAttribute('data-media-aspect-ratio') || '').trim();
+        if (!ratio) return;
+        el.style.setProperty('--media-aspect-ratio', ratio);
+    });
+
+    messageDiv.querySelectorAll('[data-message-sender-color]').forEach((el) => {
+        const color = String(el.getAttribute('data-message-sender-color') || '').trim();
+        if (!color) return;
+        el.style.setProperty('--message-sender-color', color);
+    });
+
+    messageDiv.querySelectorAll('[data-bg-image]').forEach((el) => {
+        const imageUrl = String(el.getAttribute('data-bg-image') || '').trim();
+        if (!imageUrl) return;
+        el.style.setProperty('background-image', `url("${imageUrl}")`);
+    });
+}
+
 // ?? Day separator ?????????????????????????????????????????????????????????????
 
 export function formatDaySeparatorLabel(rawValue) {
@@ -510,9 +537,9 @@ function buildFileBubble(filePayload) {
         bubbleClass += ' bubble--image';
         if (caption) bubbleClass += ' bubble--image-has-caption';
         content = `
-            <div class="background-layer" style="background-image:url('${safeImg}');"></div>
+            <div class="background-layer" data-bg-image="${safeImg}"></div>
             <div class="image-wrapper file-msg-media-trigger"
-                 style="--media-aspect-ratio:${aspectRatio};"
+                 data-media-aspect-ratio="${aspectRatio}"
                  data-media-kind="image"
                  data-caption="${escapeHtml(caption)}">
                 ${buildMediaStatusOverlay(filePayload)}
@@ -527,7 +554,7 @@ function buildFileBubble(filePayload) {
         if (caption) bubbleClass += ' bubble--video-has-caption';
         content = `
             <div class="video-preview file-msg-media-trigger"
-                 style="--media-aspect-ratio:${aspectRatio};"
+                 data-media-aspect-ratio="${aspectRatio}"
                  data-media-kind="video"
                  data-media-src="${escapeHtml(safeUri)}"
                  data-caption="${escapeHtml(caption)}">
@@ -692,7 +719,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     ));
     const senderColor = showSenderLabel ? resolveGroupSenderColor(msg) : '';
     const senderLabelHtml = showSenderLabel
-        ? `<div class="message-sender-label" style="--message-sender-color:${senderColor};">${senderLabel}</div>`
+        ? `<div class="message-sender-label" data-message-sender-color="${senderColor}">${senderLabel}</div>`
         : '';
     const isPinned = typeof isPinnedMessage === 'function' ? isPinnedMessage(msg) : Boolean(msg.is_pinned);
     const isFavorite = typeof isFavoriteMessage === 'function' ? isFavoriteMessage(msg) : Boolean(msg.is_favorite);
@@ -834,6 +861,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                 ${reactionsOutsideHtml}
             </div>
         </div>`;
+    applyCspSafeMessageStyles(messageDiv);
 
     if (!filePayload) {
         const textEl = messageDiv.querySelector('.message-text');
