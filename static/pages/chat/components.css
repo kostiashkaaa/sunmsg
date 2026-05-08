@@ -9025,38 +9025,10 @@
 }
 
 /* ─────────── Voice playback bar — mobile (<=768px) ───────────
-   Бар переезжает ВНИЗ над composer, увеличены touch-цели,
-   слайдер громкости скрыт (есть аппаратные кнопки).
-   Опускается вниз вместе с открывающейся клавиатурой. */
+   Сохраняем десктопное поведение: бар выезжает СВЕРХУ и сдвигает
+   шапку чата вниз. Меняем только размеры под сенсорный ввод и убираем
+   слайдер громкости (на мобиле есть аппаратные кнопки). */
 @media (max-width: 768px) {
-    /* Бар такой же как на десктопе (full-bleed полоса с blur),
-       только закреплён снизу на мобиле и компактнее по размерам. */
-    .voice-playback-bar {
-        position: fixed;
-        top: auto;
-        left: 0;
-        right: 0;
-        bottom: calc(
-            var(--floating-composer-reserve, 72px)
-            + env(safe-area-inset-bottom, 0px)
-        );
-        z-index: 1003;
-        border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-        border-bottom: none;
-        border-radius: 0;
-    }
-    /* Прячем jump-to-new-btn пока бар активен — он рисовался поверх кнопок */
-    .chat-area.chat-area--voice-playback-active .jump-to-new-btn {
-        opacity: 0 !important;
-        pointer-events: none !important;
-        visibility: hidden !important;
-    }
-    .voice-playback-bar--hidden {
-        opacity: 0;
-        transform: translateY(20px);
-        pointer-events: none;
-        visibility: hidden;
-    }
     .voice-playback-bar__top {
         gap: 8px;
     }
@@ -9070,20 +9042,20 @@
         flex: 0 0 auto;
     }
     .voice-playback-bar__icon-btn {
-        width: 38px;
-        height: 38px;
-        border-radius: 12px;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
     }
     .voice-playback-bar__icon-btn .sun-icon {
-        width: 20px;
-        height: 20px;
+        width: 19px;
+        height: 19px;
     }
     .voice-playback-bar__play-btn {
         background: color-mix(in srgb, var(--accent) 16%, transparent);
         color: var(--text);
     }
     .voice-playback-bar__meta {
-        margin-left: 6px;
+        margin-left: 4px;
         gap: 1px;
         flex: 1 1 auto;
         min-width: 0;
@@ -9100,37 +9072,19 @@
         display: none;
     }
     .voice-playback-bar__speed-btn {
-        min-width: 44px;
-        height: 32px;
+        min-width: 42px;
+        height: 30px;
         font-size: 12px;
     }
     .voice-playback-bar__progress-wrap {
-        height: 18px;
+        height: 16px;
     }
-    /* При открытой клавиатуре прячем бар за нижний край */
-    html.mobile-keyboard-active .voice-playback-bar {
-        opacity: 0;
-        pointer-events: none;
-        visibility: hidden;
-        transform: translateY(60px);
-    }
-    /* На мобиле header не сдвигается под бар — бар внизу */
-    .chat-area.chat-area--voice-playback-active .chat-header {
-        transform: none;
-    }
-    /* Резервируем место под voice-bar в ленте сообщений */
-    .chat-area.chat-area--voice-playback-active:not(.emoji-sheet-open) .chat-messages {
-        padding-bottom: calc(
-            var(--floating-composer-reserve, 72px)
-            + 80px
-            + env(safe-area-inset-bottom, 0px)
-        );
-    }
-    html.mobile-keyboard-active .chat-area.chat-area--voice-playback-active .chat-messages {
-        padding-bottom: calc(
-            var(--floating-composer-reserve, 72px)
-            + env(safe-area-inset-bottom, 0px)
-        );
+    /* Скрываем jump-to-new-btn пока бар активен — он рисовался
+       поверх кнопок воспроизведения. */
+    .chat-area.chat-area--voice-playback-active .jump-to-new-btn {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
     }
 
     /* ─── Скрываем аватарку слева — даём текстам больше ширины ─── */
