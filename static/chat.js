@@ -6680,9 +6680,9 @@ const initChatPage = async () => {
 
     function stopAudioPlayerUiLoop(audioEl) {
         if (!audioEl) return;
-        const pendingFrame = audioUiPlaybackLoopByElement.get(audioEl);
-        if (pendingFrame != null) {
-            cancelAnimationFrame(pendingFrame);
+        const pendingId = audioUiPlaybackLoopByElement.get(audioEl);
+        if (pendingId != null) {
+            clearInterval(pendingId);
             audioUiPlaybackLoopByElement.delete(audioEl);
         }
     }
@@ -6690,18 +6690,18 @@ const initChatPage = async () => {
     function startAudioPlayerUiLoop(audioEl) {
         if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) return;
         stopAudioPlayerUiLoop(audioEl);
-        const tick = () => {
+        // Используем setInterval с шагом ~120ms: audio.currentTime на iOS
+        // обновляется раз в ~250ms, чаще опрашивать бессмысленно. Плавность
+        // даёт CSS-transition на played-layer и progress-fill.
+        const intervalId = setInterval(() => {
             if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) {
-                audioUiPlaybackLoopByElement.delete(audioEl);
+                stopAudioPlayerUiLoop(audioEl);
                 syncAudioPlayerUi(audioEl);
                 return;
             }
             syncAudioPlayerUi(audioEl);
-            const frameId = requestAnimationFrame(tick);
-            audioUiPlaybackLoopByElement.set(audioEl, frameId);
-        };
-        const firstFrameId = requestAnimationFrame(tick);
-        audioUiPlaybackLoopByElement.set(audioEl, firstFrameId);
+        }, 120);
+        audioUiPlaybackLoopByElement.set(audioEl, intervalId);
     }
 
     function scheduleAudioPlayerUiSync(audioEl) {
