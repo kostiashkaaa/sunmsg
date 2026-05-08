@@ -4252,7 +4252,7 @@ const initChatPage = async () => {
                         const img = avatarEl.querySelector('img');
                         if (img) {
                             partnerAvatar.removeAttribute('data-avatar-tint');
-                            partnerAvatar.innerHTML = `<img src="${escapeHtml(img.getAttribute('src'))}" alt="\u0410\u0432\u0430\u0442\u0430\u0440 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                            partnerAvatar.innerHTML = `<img class="contact-avatar__img" src="${escapeHtml(img.getAttribute('src'))}" alt="\u0410\u0432\u0430\u0442\u0430\u0440 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430">`;
                         } else {
                             // \u0415\u0441\u043B\u0438 \u043D\u0435\u0442 \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438, \u0431\u0435\u0440\u0435\u043C \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u044B
                             partnerAvatar.textContent = avatarEl.firstChild.textContent.trim();
