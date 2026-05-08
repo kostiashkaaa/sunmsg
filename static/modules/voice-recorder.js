@@ -452,7 +452,10 @@ export function initVoiceRecorder({
             syncVoiceTypingState(false);
             updateButtonState();
 
-            const tooShort = blob.size < 1200;
+            const elapsedMs = Math.max(0, Date.now() - recordStartedAt);
+            // \u041E\u0442\u0441\u0435\u043A\u0430\u0435\u043C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u0432\u0441\u0435\u043C \u00AB\u0441\u043B\u0443\u0447\u0430\u0439\u043D\u044B\u0435\u00BB \u0442\u0430\u043F\u044B (<300 \u043C\u0441) \u2014 \u043D\u0435 \u0440\u0430\u0437\u043C\u0435\u0440,
+            // \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E opus \u043D\u0430 \u043F\u0435\u0440\u0432\u044B\u0445 \u0441\u0435\u043A\u0443\u043D\u0434\u0430\u0445 \u043C\u043E\u0436\u0435\u0442 \u0432\u044B\u0434\u0430\u0432\u0430\u0442\u044C <1 KB.
+            const tooShort = elapsedMs < 300 || blob.size < 200;
             const canceled = reason === 'cancel';
             const shouldSend = reason === 'send' || reason === 'max-duration';
             if (canceled || !shouldSend || tooShort) {
