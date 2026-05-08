@@ -7032,12 +7032,31 @@ const initChatPage = async () => {
     }
 
     if (voicePlaybackProgress) {
-        voicePlaybackProgress.addEventListener('pointerdown', () => {
+        const seekToClientX = (clientX) => {
+            const rect = voicePlaybackProgress.getBoundingClientRect();
+            if (!Number.isFinite(rect.width) || rect.width <= 0) return;
+            const localX = Number(clientX) - rect.left;
+            const percent = clampAudioSeekPercent((localX / rect.width) * 100);
+            voicePlaybackProgress.value = String(percent);
+            seekActiveVoicePlaybackByPercent(percent);
+        };
+        voicePlaybackProgress.addEventListener('pointerdown', (event) => {
             voicePlaybackProgress.dataset.seeking = '1';
+            // Немедленный seek по координате тапа — иначе на iOS/Android приходится
+            // именно тянуть, простой тап в новую позицию не двигает аудио.
+            if (Number.isFinite(event?.clientX)) seekToClientX(event.clientX);
+            try { voicePlaybackProgress.setPointerCapture?.(event.pointerId); } catch (_) {}
         });
-        voicePlaybackProgress.addEventListener('pointerup', () => {
+        voicePlaybackProgress.addEventListener('pointermove', (event) => {
+            if (voicePlaybackProgress.dataset.seeking !== '1') return;
+            if (Number.isFinite(event?.clientX)) seekToClientX(event.clientX);
+        });
+        const endProgressSeek = () => {
             voicePlaybackProgress.dataset.seeking = '0';
-        });
+        };
+        voicePlaybackProgress.addEventListener('pointerup', endProgressSeek);
+        voicePlaybackProgress.addEventListener('pointercancel', endProgressSeek);
+        voicePlaybackProgress.addEventListener('lostpointercapture', endProgressSeek);
         voicePlaybackProgress.addEventListener('input', () => {
             seekActiveVoicePlaybackByPercent(Number(voicePlaybackProgress.value) || 0);
         });
