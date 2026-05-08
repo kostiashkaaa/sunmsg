@@ -127,7 +127,7 @@ import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js?v=20
 import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
 import { createMediaHydrationController } from './modules/media-hydration.js?v=20260502a';
 import { createChatMessageMutations } from './modules/chat-message-mutations.js';
-import { initChatMediaRuntime } from './modules/chat-media-runtime.js';
+import { initChatMediaRuntime, formatAudioPlayerTime, hasProvidedWaveformPayload } from './modules/chat-media-runtime.js';
 import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';

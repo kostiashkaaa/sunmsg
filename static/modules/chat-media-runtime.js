@@ -1,3 +1,39 @@
+export function formatAudioPlayerTime(totalSeconds) {
+    const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
+    const mins = Math.floor(safe / 60);
+    const secs = Math.floor(safe % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function isWaveformPayloadInformative(values) {
+    const normalized = Array.isArray(values)
+        ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+        : [];
+    if (normalized.length < 8) return false;
+    let min = normalized[0];
+    let max = normalized[0];
+    const unique = new Set();
+    for (let i = 0; i < normalized.length; i += 1) {
+        const value = Math.round(normalized[i]);
+        unique.add(value);
+        if (value < min) min = value;
+        if (value > max) max = value;
+    }
+    return unique.size >= 10 && (max - min) >= 18;
+}
+
+export function hasProvidedWaveformPayload(rawWaveform) {
+    if (Array.isArray(rawWaveform)) {
+        return isWaveformPayloadInformative(rawWaveform);
+    }
+    if (typeof rawWaveform === 'string') {
+        if (!rawWaveform.includes(',')) return false;
+        const parsed = rawWaveform.split(',').map((part) => Number(part.trim()));
+        return isWaveformPayloadInformative(parsed);
+    }
+    return false;
+}
+
 export function initChatMediaRuntime(deps = {}) {
     const {
         formatMediaDuration,
@@ -65,13 +101,6 @@ export function initChatMediaRuntime(deps = {}) {
         videoEl.currentTime = 0;
         videoEl.pause();
     };
-
-    function formatAudioPlayerTime(totalSeconds) {
-        const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
-        const mins = Math.floor(safe / 60);
-        const secs = Math.floor(safe % 60);
-        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }
 
     function resolveAudioMessageElement(sourceEl) {
         if (!sourceEl) return null;
@@ -360,34 +389,6 @@ export function initChatMediaRuntime(deps = {}) {
         return raw.map((value) => Math.max(8, Math.min(100, Math.round((value / globalPeak) * 100))));
     }
 
-    function isWaveformPayloadInformative(values) {
-        const normalized = Array.isArray(values)
-            ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
-            : [];
-        if (normalized.length < 8) return false;
-        let min = normalized[0];
-        let max = normalized[0];
-        const unique = new Set();
-        for (let i = 0; i < normalized.length; i += 1) {
-            const value = Math.round(normalized[i]);
-            unique.add(value);
-            if (value < min) min = value;
-            if (value > max) max = value;
-        }
-        return unique.size >= 10 && (max - min) >= 18;
-    }
-
-    function hasProvidedWaveformPayload(rawWaveform) {
-        if (Array.isArray(rawWaveform)) {
-            return isWaveformPayloadInformative(rawWaveform);
-        }
-        if (typeof rawWaveform === 'string') {
-            if (!rawWaveform.includes(',')) return false;
-            const parsed = rawWaveform.split(',').map((part) => Number(part.trim()));
-            return isWaveformPayloadInformative(parsed);
-        }
-        return false;
-    }
 
     async function decodeAudioWaveformBySource(sourceUrl, barsCount = AUDIO_WAVEFORM_BARS_COUNT) {
         const src = String(sourceUrl || '').trim();
