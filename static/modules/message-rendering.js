@@ -588,7 +588,6 @@ function buildFileBubble(filePayload) {
                     </div>
                 </div>
                 ${captionHtml}
-                ${buildInlineUploadProgress(filePayload, 'file-upload-inline--audio')}
             </div>`;
     } else {
         const fname = filePayload.name || '\u0424\u0430\u0439\u043b';
