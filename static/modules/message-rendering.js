@@ -206,6 +206,16 @@ function bindMessageInteractiveHandlers(messageDiv) {
     });
 
     messageDiv.querySelectorAll('.audio-player-toggle').forEach((toggleBtn) => {
+        // Не даём кнопке забирать фокус — иначе на iOS клавиатура
+        // (если был активен composer textarea) закроется при тапе play.
+        const preventFocusSteal = (event) => {
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput && document.activeElement === messageInput) {
+                event.preventDefault();
+            }
+        };
+        toggleBtn.addEventListener('mousedown', preventFocusSteal);
+        toggleBtn.addEventListener('pointerdown', preventFocusSteal);
         toggleBtn.addEventListener('click', () => window._toggleAudioPlayer?.(toggleBtn));
     });
 

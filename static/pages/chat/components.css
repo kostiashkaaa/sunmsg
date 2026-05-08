@@ -4276,13 +4276,28 @@
             right: 0;
             height: 3px;
             border-radius: 999px;
-            background: linear-gradient(
-                90deg,
-                var(--accent) 0 calc(var(--voice-playback-progress, 0) * 1%),
-                color-mix(in srgb, var(--sub-text) 20%, transparent) calc(var(--voice-playback-progress, 0) * 1%),
-                color-mix(in srgb, var(--sub-text) 20%, transparent) 100%
-            );
+            background: color-mix(in srgb, var(--sub-text) 20%, transparent);
             pointer-events: none;
+            overflow: hidden;
+        }
+        .voice-playback-bar__progress-fill::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            background: var(--accent);
+            transform-origin: left center;
+            transform: scaleX(calc(var(--voice-playback-progress, 0) / 100));
+            /* Плавно подтягиваем заполнение между обновлениями audio.currentTime
+               (которые на iOS приходят раз в ~250 мс). */
+            transition: transform 220ms linear;
+            will-change: transform;
+        }
+        .voice-playback-bar__progress[data-seeking="1"] ~ .voice-playback-bar__progress-fill::before,
+        .voice-playback-bar.is-seeking .voice-playback-bar__progress-fill::before {
+            transition: none;
         }
 
         .voice-playback-bar__progress {
@@ -5059,6 +5074,13 @@
     overflow: hidden;
     will-change: clip-path;
     clip-path: inset(0 calc(100% - (var(--audio-played-percent, 0) * 1%)) 0 0);
+    /* Плавная отрисовка прогресса между обновлениями audio.currentTime
+       (которые приходят раз в ~250 мс на iOS). Linear, чтобы не было
+       «дёрганья» к концу интервала. */
+    transition: clip-path 220ms linear;
+}
+.audio-wave-layer--played.is-seeking,
+.is-seeking .audio-wave-layer--played {
     transition: none;
 }
 
@@ -9029,6 +9051,16 @@
    шапку чата вниз. Меняем только размеры под сенсорный ввод и убираем
    слайдер громкости (на мобиле есть аппаратные кнопки). */
 @media (max-width: 768px) {
+    /* На мобиле приклеиваем бар к верху visualViewport, чтобы при
+       открытой клавиатуре он не уезжал за вместе с chat-area scroll. */
+    .voice-playback-bar {
+        position: fixed;
+        top: var(--vv-top-offset, 0px);
+        left: var(--vv-left-offset, 0px);
+        right: auto;
+        width: var(--app-vw, 100vw);
+        z-index: 1003;
+    }
     .voice-playback-bar__top {
         gap: 8px;
     }
