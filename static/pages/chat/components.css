@@ -8209,119 +8209,6 @@
             .chat-messages .file-msg-audio-player {
                 -webkit-touch-callout: none;
             }
-            /* На мобиле voice-bar переезжает ВНИЗ — над composer'ом.
-               Убирает перекрытие шапки, opens/закрывается вместе с клавиатурой,
-               и сами кнопки становятся крупнее под палец. */
-            .voice-playback-bar {
-                position: fixed;
-                top: auto;
-                left: 0;
-                right: 0;
-                bottom: calc(
-                    var(--floating-composer-reserve, 72px)
-                    + var(--mobile-keyboard-layout-inset, 0px)
-                    + env(safe-area-inset-bottom, 0px)
-                    + 6px
-                );
-                z-index: 1003;
-                padding: 8px 10px 10px;
-                gap: 8px;
-                border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-                border-bottom: none;
-                border-radius: 16px 16px 0 0;
-                box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
-            }
-            .voice-playback-bar--hidden {
-                transform: translateY(12px);
-            }
-            .voice-playback-bar__top {
-                gap: 8px;
-            }
-            .voice-playback-bar__left {
-                gap: 2px;
-                flex: 1 1 auto;
-                min-width: 0;
-            }
-            .voice-playback-bar__right {
-                gap: 6px;
-                flex: 0 0 auto;
-            }
-            .voice-playback-bar__icon-btn {
-                width: 38px;
-                height: 38px;
-                border-radius: 12px;
-            }
-            .voice-playback-bar__icon-btn .sun-icon {
-                width: 20px;
-                height: 20px;
-            }
-            .voice-playback-bar__play-btn {
-                background: color-mix(in srgb, var(--accent) 16%, transparent);
-                color: var(--text);
-            }
-            .voice-playback-bar__meta {
-                margin-left: 6px;
-                gap: 1px;
-                flex: 1 1 auto;
-                min-width: 0;
-            }
-            .voice-playback-bar__sender {
-                font-size: 12.5px;
-            }
-            .voice-playback-bar__details {
-                font-size: 11px;
-                max-width: 100%;
-            }
-            /* Слайдер громкости — лишний на мобиле, есть аппаратные кнопки */
-            .voice-playback-bar__volume {
-                display: none;
-            }
-            .voice-playback-bar__speed-btn {
-                min-width: 44px;
-                height: 32px;
-                font-size: 12px;
-            }
-            .voice-playback-bar__progress-wrap {
-                height: 18px;
-            }
-            .voice-playback-bar__progress {
-                height: 100%;
-            }
-            .voice-playback-bar__progress::-webkit-slider-thumb {
-                width: 16px;
-                height: 16px;
-                margin-top: 1px;
-            }
-            .voice-playback-bar__progress::-moz-range-thumb {
-                width: 16px;
-                height: 16px;
-            }
-            /* Бар полностью убирается за нижний край при открытой клавиатуре */
-            html.mobile-keyboard-active .voice-playback-bar {
-                opacity: 0;
-                pointer-events: none;
-                visibility: hidden;
-                transform: translateY(40px);
-            }
-            /* На мобиле header не сдвигается под бар — бар внизу */
-            .chat-area.chat-area--voice-playback-active .chat-header {
-                transform: none;
-            }
-            /* Освобождаем место под voice-bar в ленте сообщений на мобиле */
-            .chat-area.chat-area--voice-playback-active:not(.emoji-sheet-open) .chat-messages {
-                padding-bottom: calc(
-                    var(--floating-composer-reserve, 72px)
-                    + 76px
-                    + env(safe-area-inset-bottom, 0px)
-                );
-            }
-            html.mobile-keyboard-active .chat-area.chat-area--voice-playback-active .chat-messages {
-                padding-bottom: calc(
-                    var(--floating-composer-reserve, 72px)
-                    + var(--mobile-keyboard-layout-inset, 0px)
-                    + env(safe-area-inset-bottom, 0px)
-                );
-            }
             /* Компактные аудио-сообщения на мобиле */
             .bubble--audio {
                 max-width: min(78%, 360px);
@@ -9158,4 +9045,110 @@
 #partnerProfileDrawer.is-saved-messages-profile .profile-hero-status {
     color: var(--sub-text);
     opacity: 0.95;
+}
+
+/* ─────────── Voice playback bar — mobile (<=768px) ───────────
+   Бар переезжает ВНИЗ над composer, увеличены touch-цели,
+   слайдер громкости скрыт (есть аппаратные кнопки).
+   Опускается вниз вместе с открывающейся клавиатурой. */
+@media (max-width: 768px) {
+    .voice-playback-bar {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: calc(
+            var(--floating-composer-reserve, 72px)
+            + env(safe-area-inset-bottom, 0px)
+            + 6px
+        );
+        z-index: 1003;
+        padding: 8px 10px 10px;
+        gap: 8px;
+        border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+        border-bottom: none;
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
+    }
+    .voice-playback-bar--hidden {
+        opacity: 0;
+        transform: translateY(20px);
+        pointer-events: none;
+        visibility: hidden;
+    }
+    .voice-playback-bar__top {
+        gap: 8px;
+    }
+    .voice-playback-bar__left {
+        gap: 2px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .voice-playback-bar__right {
+        gap: 6px;
+        flex: 0 0 auto;
+    }
+    .voice-playback-bar__icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+    }
+    .voice-playback-bar__icon-btn .sun-icon {
+        width: 20px;
+        height: 20px;
+    }
+    .voice-playback-bar__play-btn {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--text);
+    }
+    .voice-playback-bar__meta {
+        margin-left: 6px;
+        gap: 1px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .voice-playback-bar__sender {
+        font-size: 12.5px;
+    }
+    .voice-playback-bar__details {
+        font-size: 11px;
+        max-width: 100%;
+    }
+    /* Слайдер громкости лишний на мобиле — есть аппаратные кнопки */
+    .voice-playback-bar__volume {
+        display: none;
+    }
+    .voice-playback-bar__speed-btn {
+        min-width: 44px;
+        height: 32px;
+        font-size: 12px;
+    }
+    .voice-playback-bar__progress-wrap {
+        height: 18px;
+    }
+    /* При открытой клавиатуре прячем бар за нижний край */
+    html.mobile-keyboard-active .voice-playback-bar {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
+        transform: translateY(60px);
+    }
+    /* На мобиле header не сдвигается под бар — бар внизу */
+    .chat-area.chat-area--voice-playback-active .chat-header {
+        transform: none;
+    }
+    /* Резервируем место под voice-bar в ленте сообщений */
+    .chat-area.chat-area--voice-playback-active:not(.emoji-sheet-open) .chat-messages {
+        padding-bottom: calc(
+            var(--floating-composer-reserve, 72px)
+            + 80px
+            + env(safe-area-inset-bottom, 0px)
+        );
+    }
+    html.mobile-keyboard-active .chat-area.chat-area--voice-playback-active .chat-messages {
+        padding-bottom: calc(
+            var(--floating-composer-reserve, 72px)
+            + env(safe-area-inset-bottom, 0px)
+        );
+    }
 }

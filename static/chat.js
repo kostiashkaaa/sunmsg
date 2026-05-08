@@ -6355,8 +6355,6 @@ const initChatPage = async () => {
             clearActiveVoicePlaybackAudio();
             return;
         }
-        // Если трек закончился — бар оставляем видимым в состоянии «paused/replay»,
-        // чтобы пользователь мог тут же повторить или переключить трек.
         setVoicePlaybackBarVisible(true);
         const { durationLabel } = resolveAudioPlayerElements(activeAudio);
         const knownDuration = resolveKnownAudioDuration(activeAudio, durationLabel);
@@ -6754,10 +6752,7 @@ const initChatPage = async () => {
 
     window._onAudioPlayerState = function(audioEl) {
         if (!audioEl) return;
-        // При завершении трека сбрасываем currentTime и держим бар активным,
-        // чтобы повторное play() сработало без закрытия/переоткрытия плеера.
         if (audioEl.ended) {
-            try { audioEl.currentTime = 0; } catch (_) {}
             audioEl.dataset.playRequested = '0';
         }
         if (!audioEl.paused && !audioEl.ended) {
@@ -6766,7 +6761,24 @@ const initChatPage = async () => {
             stopAudioPlayerUiLoop(audioEl);
         }
         scheduleAudioPlayerUiSync(audioEl);
-        // Синхронизируем верхний бар, если он отображает именно этот audio.
+
+        // Trigger autoplay/close logic on `ended` once.
+        if (audioEl.ended && resolveActiveVoicePlaybackAudio() === audioEl) {
+            const next = findAdjacentVoiceAudio(audioEl, 1);
+            if (next) {
+                // Авто-переход на следующее голосовое (Telegram-style).
+                const nextToggle = next.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
+                if (nextToggle) {
+                    const messageEl = resolveAudioMessageElement(next);
+                    try { messageEl?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+                    window._toggleAudioPlayer(nextToggle);
+                    return;
+                }
+            }
+            // Соседнего голосового нет — закрываем плеер.
+            clearActiveVoicePlaybackAudio();
+            return;
+        }
         if (resolveActiveVoicePlaybackAudio() === audioEl) {
             syncVoicePlaybackBar(audioEl);
         }
@@ -6865,16 +6877,60 @@ const initChatPage = async () => {
         syncVoicePlaybackBar();
     };
 
+    function rebuildAudioElement(audio) {
+        // \u041D\u0430 iOS/Android \u043F\u043E\u0441\u043B\u0435 `ended` \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play() \u0433\u0430\u0440\u0430\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E \u0438\u0434\u0451\u0442 \u0431\u0435\u0437 \u0437\u0432\u0443\u043A\u0430,
+        // \u0434\u0430\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 pause/currentTime=0/load(). \u0415\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u043D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u2014
+        // \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u0442\u044C \u044D\u043B\u0435\u043C\u0435\u043D\u0442 \u0441 \u0442\u0435\u043C \u0436\u0435 src/data-src/duration \u0438 \u043F\u043E\u0434\u043C\u0435\u043D\u0438\u0442\u044C \u0432 DOM.
+        const player = audio?.closest?.('.file-msg-audio-player');
+        if (!player) return audio;
+        const dataSrc = String(audio.getAttribute('data-src') || '').trim();
+        const src = String(audio.getAttribute('src') || '').trim();
+        const durSeconds = String(audio.dataset.durationSeconds || '').trim();
+        const fresh = document.createElement('audio');
+        fresh.className = audio.className;
+        if (dataSrc) fresh.setAttribute('data-src', dataSrc);
+        if (durSeconds) fresh.dataset.durationSeconds = durSeconds;
+        fresh.preload = 'metadata';
+        if (src) fresh.setAttribute('src', src);
+        // \u041F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F
+        try { fresh.volume = audio.volume; } catch (_) {}
+        try { fresh.playbackRate = audio.playbackRate; } catch (_) {}
+        // \u041F\u043E\u0434\u0432\u0435\u0448\u0438\u0432\u0430\u0435\u043C \u0442\u0435 \u0436\u0435 \u0441\u043B\u0443\u0448\u0430\u0442\u0435\u043B\u0438, \u0447\u0442\u043E \u0443 \u0431\u0430\u0431\u043B\u0430
+        fresh.addEventListener('loadedmetadata', () => window._onAudioPlayerMeta?.(fresh));
+        fresh.addEventListener('timeupdate', () => window._onAudioPlayerTime?.(fresh));
+        fresh.addEventListener('play', () => window._onAudioPlayerState?.(fresh));
+        fresh.addEventListener('pause', () => window._onAudioPlayerState?.(fresh));
+        fresh.addEventListener('ended', () => window._onAudioPlayerState?.(fresh));
+        try { window._initAudioPlayerState?.(fresh); } catch (_) {}
+        try { audio.pause(); } catch (_) {}
+        try { audio.removeAttribute('src'); audio.load(); } catch (_) {}
+        try { audio.replaceWith(fresh); } catch (_) {
+            audio.parentNode?.insertBefore(fresh, audio);
+            audio.parentNode?.removeChild(audio);
+        }
+        return fresh;
+    }
+
     window._toggleAudioPlayer = async function(toggleBtn) {
-        const { audio } = resolveAudioPlayerElements(toggleBtn);
+        let { audio } = resolveAudioPlayerElements(toggleBtn);
         if (!audio) return;
         if (audio.paused) {
             ensureMediaElementHydrated(audio, { force: true });
-            void ensureGeneratedAudioWaveform(audio);
             if (!audio.getAttribute('src')) {
                 showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
                 return;
             }
+            // \u0415\u0441\u043B\u0438 \u0442\u0440\u0435\u043A \u0443\u0436\u0435 \u0434\u043E\u0438\u0433\u0440\u0430\u043D \u2014 \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u0451\u043C <audio> \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E.
+            // \u042D\u0442\u043E \u0435\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u043D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0437\u0432\u0443\u043A \u043D\u0430 iOS.
+            const dur = Number(audio.duration);
+            const atEnd = audio.ended
+                || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= Math.max(0, dur - 0.05));
+            if (atEnd) {
+                const wasActive = resolveActiveVoicePlaybackAudio() === audio;
+                audio = rebuildAudioElement(audio);
+                if (wasActive) activeVoicePlaybackAudioEl = audio;
+            }
+            void ensureGeneratedAudioWaveform(audio);
             const all = document.querySelectorAll('.file-msg-audio-el');
             all.forEach((candidate) => {
                 if (candidate !== audio) {
@@ -6886,21 +6942,7 @@ const initChatPage = async () => {
             });
             reportVoiceListened(audio);
             audio.dataset.playRequested = '1';
-            // \u041D\u0430 iOS/Android \u043F\u043E\u0441\u043B\u0435 `ended` \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 play() \u0443\u0445\u043E\u0434\u0438\u0442 \u0432 \u0442\u0438\u0448\u0438\u043D\u0443 \u0438\u043B\u0438 \u0432\u043E\u043E\u0431\u0449\u0435
-            // \u043D\u0435 \u0437\u0430\u043F\u0443\u0441\u043A\u0430\u0435\u0442\u0441\u044F, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E MediaElement \u0434\u0435\u0440\u0436\u0438\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u00AB\u0434\u043E\u0438\u0433\u0440\u0430\u043D\u00BB.
-            // \u041D\u0430\u0434\u0451\u0436\u043D\u044B\u0439 \u043F\u0443\u0442\u044C: pause -> currentTime=0 -> load() -> play(). load() \u0437\u0430\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u0442
-            // \u0434\u0432\u0438\u0436\u043E\u043A \u043F\u0435\u0440\u0435\u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0434\u0435\u043A\u043E\u0434\u0435\u0440 \u0438 \u0441\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0444\u043B\u0430\u0433 ended.
-            try {
-                if (audio.muted) audio.muted = false;
-                const dur = Number(audio.duration);
-                const atEnd = audio.ended
-                    || (Number.isFinite(dur) && dur > 0 && audio.currentTime >= dur - 0.05);
-                if (atEnd) {
-                    try { audio.pause(); } catch (_) {}
-                    try { audio.currentTime = 0; } catch (_) {}
-                    try { audio.load(); } catch (_) {}
-                }
-            } catch (_) {}
+            try { if (audio.muted) audio.muted = false; } catch (_) {}
             audio.playbackRate = getPreferredAudioPlaybackRate();
             applyPreferredVolumeToAudio(audio);
             setActiveVoicePlaybackAudio(audio);
@@ -6911,17 +6953,9 @@ const initChatPage = async () => {
                     await playPromise;
                 }
             } catch (_) {
-                // \u041F\u043E\u0432\u0442\u043E\u0440\u043D\u0430\u044F \u043F\u043E\u043F\u044B\u0442\u043A\u0430 \u043F\u043E\u0441\u043B\u0435 load() \u2014 \u043D\u0430 \u043D\u0435\u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0434\u0432\u0438\u0436\u043A\u0430\u0445 \u043F\u0435\u0440\u0432\u044B\u0439 play()
-                // \u043F\u043E\u0441\u043B\u0435 load() \u043E\u0442\u0431\u0438\u0432\u0430\u0435\u0442\u0441\u044F AbortError, \u043D\u043E \u0432\u0442\u043E\u0440\u043E\u0439 \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u0442.
-                try {
-                    audio.currentTime = 0;
-                    audio.load();
-                    await audio.play();
-                } catch (__) {
-                    audio.dataset.playRequested = '0';
-                    stopAudioPlayerUiLoop(audio);
-                    showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
-                }
+                audio.dataset.playRequested = '0';
+                stopAudioPlayerUiLoop(audio);
+                showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
             }
         } else {
             audio.dataset.playRequested = '0';
