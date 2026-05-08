@@ -69,7 +69,13 @@ function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = fal
             onDeleted?.();
             onReload?.();
             if (isGroup) {
-                showToast('\u0412\u044B \u043F\u043E\u043A\u0438\u043D\u0443\u043B\u0438 \u0433\u0440\u0443\u043F\u043F\u0443', 'success');
+                if (response.group_disbanded) {
+                    showToast('\u0413\u0440\u0443\u043F\u043F\u0430 \u0443\u0434\u0430\u043B\u0435\u043D\u0430', 'success');
+                } else if (response.new_owner_user_id) {
+                    showToast('\u0412\u044B \u043F\u043E\u043A\u0438\u043D\u0443\u043B\u0438 \u0433\u0440\u0443\u043F\u043F\u0443. \u041F\u0440\u0430\u0432\u0430 \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0430 \u043F\u0435\u0440\u0435\u0434\u0430\u043D\u044B \u0434\u0440\u0443\u0433\u043E\u043C\u0443 \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0443.', 'success');
+                } else {
+                    showToast('\u0412\u044B \u043F\u043E\u043A\u0438\u043D\u0443\u043B\u0438 \u0433\u0440\u0443\u043F\u043F\u0443', 'success');
+                }
             } else {
                 showToast(mode === 'for_both' ? '\u0427\u0430\u0442 \u0443\u0434\u0430\u043B\u0435\u043D \u0443 \u043E\u0431\u043E\u0438\u0445' : '\u0427\u0430\u0442 \u0443\u0434\u0430\u043B\u0435\u043D', 'success');
             }
