@@ -9,6 +9,7 @@ from app.services.chat_members import (
     get_chat_type,
     get_group_member_role,
     is_chat_member,
+    list_chat_member_public_keys,
     normalize_group_role,
 )
 from app.services.group_authorization import (
@@ -159,6 +160,8 @@ def register_chat_group_membership_routes(
                 return jsonify({'success': False, 'error': 'Forbidden.'}), 403
 
             role = get_group_member_role(conn, user_id, chat_id) or 'member'
+            transferred_owner_id: int | None = None
+
             if role == 'owner':
                 owners_row = conn.execute(
                     '''
@@ -169,8 +172,71 @@ def register_chat_group_membership_routes(
                     (chat_id,),
                 ).fetchone()
                 owners_count = int(owners_row['owners_count'] or 0) if owners_row else 0
+
+                # Если уходящий — единственный owner, нужно либо передать
+                # ownership наследнику (admin → moderator → member, по
+                # joined_at ASC), либо распустить группу, если он один.
                 if owners_count <= 1:
-                    return jsonify({'success': False, 'error': 'Transfer ownership before leaving the group.'}), 400
+                    members_total_row = conn.execute(
+                        'SELECT COUNT(*) AS members_count FROM chat_members WHERE chat_id = ?',
+                        (chat_id,),
+                    ).fetchone()
+                    members_total = int(members_total_row['members_count'] or 0) if members_total_row else 0
+
+                    if members_total <= 1:
+                        # Owner один в группе — распускаем чат целиком.
+                        member_pubkeys = [
+                            str(row['public_key'] or '')
+                            for row in list_chat_member_public_keys(conn, chat_id)
+                            if row and row['public_key']
+                        ]
+                        conn.execute('DELETE FROM messages WHERE chat_id = ?', (chat_id,))
+                        conn.execute('DELETE FROM chat_members WHERE chat_id = ?', (chat_id,))
+                        conn.execute('DELETE FROM contacts WHERE chat_id = ?', (chat_id,))
+                        conn.execute('DELETE FROM chats WHERE chat_id = ?', (chat_id,))
+                        conn.commit()
+
+                        deleted_payload = {'chat_id': chat_id}
+                        socketio_emit_func('chat_deleted', deleted_payload, room=chat_id)
+                        for pubkey in member_pubkeys:
+                            socketio_emit_func('chat_deleted', deleted_payload, room=pubkey)
+
+                        return jsonify({
+                            'success': True,
+                            'chat_id': chat_id,
+                            'left_user_id': user_id,
+                            'group_disbanded': True,
+                        }), 200
+
+                    # Иначе — выбираем преемника по приоритету ролей,
+                    # внутри роли — самый «давний» участник.
+                    successor_row = conn.execute(
+                        '''
+                        SELECT user_id
+                        FROM chat_members
+                        WHERE chat_id = ? AND user_id != ?
+                        ORDER BY
+                            CASE role
+                                WHEN 'admin' THEN 0
+                                WHEN 'moderator' THEN 1
+                                ELSE 2
+                            END,
+                            joined_at ASC,
+                            user_id ASC
+                        LIMIT 1
+                        ''',
+                        (chat_id, user_id),
+                    ).fetchone()
+                    if successor_row and successor_row['user_id']:
+                        transferred_owner_id = int(successor_row['user_id'])
+                        conn.execute(
+                            '''
+                            UPDATE chat_members
+                            SET role = 'owner'
+                            WHERE chat_id = ? AND user_id = ?
+                            ''',
+                            (chat_id, transferred_owner_id),
+                        )
 
             remove_group_member_with_cleanup(conn, chat_id=chat_id, user_id=user_id)
             conn.commit()
@@ -179,6 +245,8 @@ def register_chat_group_membership_routes(
                 'chat_id': chat_id,
                 'left_user_id': user_id,
             }
+            if transferred_owner_id:
+                payload['new_owner_user_id'] = transferred_owner_id
             emit_group_event(
                 conn,
                 chat_id=chat_id,
