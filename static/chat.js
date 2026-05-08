@@ -179,7 +179,7 @@ const initChatPage = async () => {
     wireSocketLifecycleHandlers({
         socket,
         reportActivity,
-        syncChatConnectionStatus: () => syncChatConnectionStatus(),
+        syncChatConnectionStatus: () => syncChatConnectionStatus?.(),
         getCurrentChatId: () => currentChatId,
         isChatBlocked: () => isChatBlocked(),
         joinChatRoom: (chatId) => joinChatRoom(chatId),
@@ -486,15 +486,7 @@ const initChatPage = async () => {
         openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
     });
 
-    initChatClipboardAndDrop({
-        messageInput,
-        chatArea,
-        dragDropOverlay,
-        handleFileUpload: (file, options) => handleFileUpload(file, options),
-        isProfileDrawerOpen: () => isProfileDrawerOpen(),
-        getCurrentChatId: () => currentChatId,
-        showToast,
-    });
+    // initChatClipboardAndDrop вызывается ниже, после объявления dragDropOverlay.
 
     const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
     initKeyboardShortcuts();
@@ -659,6 +651,17 @@ const initChatPage = async () => {
         showToast,
     });
     const dragDropOverlay = document.getElementById('dragDropOverlay');
+
+    initChatClipboardAndDrop({
+        messageInput,
+        chatArea,
+        dragDropOverlay,
+        handleFileUpload: (file, options) => handleFileUpload(file, options),
+        isProfileDrawerOpen: () => isProfileDrawerOpen(),
+        getCurrentChatId: () => currentChatId,
+        showToast,
+    });
+
     const jumpToNewMessagesBtn = document.getElementById('jumpToNewMessagesBtn');
     const jumpToNewMessagesCount = document.getElementById('jumpToNewMessagesCount');
     const jumpToNewMessagesIcon = jumpToNewMessagesBtn?.querySelector('i');
@@ -981,7 +984,13 @@ const initChatPage = async () => {
         getPresenceState: () => onlineStatusController.getState(),
         baseUpdateOnlineStatusUI: (...args) => baseUpdateOnlineStatusUI(...args),
     });
-    const { setChatHeaderStatus, syncChatConnectionStatus } = chatConnectionStatusPresenter;
+    // var-hoist: realtime-orchestrator может вызвать syncChatConnectionStatus
+    // на socket-connect раньше, чем initChatPage дойдёт до этой строки.
+    // eslint-disable-next-line no-var
+    var setChatHeaderStatus;
+    // eslint-disable-next-line no-var
+    var syncChatConnectionStatus;
+    ({ setChatHeaderStatus, syncChatConnectionStatus } = chatConnectionStatusPresenter);
 
     const contactsSidebarController = initChatContactsSidebar({
         contactsList,
