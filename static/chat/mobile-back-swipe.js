@@ -26,7 +26,8 @@ export function initMobileBackSwipe(options = {}) {
         if (!(target instanceof Element)) return false;
         return !target.closest(
             '#messageForm,.chat-input-area button,.chat-input-area input,.chat-input-area textarea,' +
-            '.context-menu,.emoji-picker,.reaction-picker,[role="dialog"],[data-profile-close],#partnerProfileDrawer',
+            '.context-menu,.emoji-picker,.reaction-picker,[role="dialog"],[data-profile-close],#partnerProfileDrawer,' +
+            '.voice-playback-bar,#lightbox,.audio-player-progress,.audio-player-toggle,.audio-player-wave-wrap',
         );
     }
 

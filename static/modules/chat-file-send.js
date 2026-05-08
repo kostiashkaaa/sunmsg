@@ -56,17 +56,17 @@ export async function sendFileMessageFlow({
     const category = forceDocumentVisual ? 'file' : sourceCategory;
     const msgType = getMessageTypeByCategory(category);
     const providedAudioDuration = Number(options?.audioDurationSeconds);
+    // Для голосовых сначала используем длительность от рекордера и не ждём декода
+    // waveform — иначе на iOS Safari (webm/opus не декодируется) сообщение появлялось
+    // с большой задержкой и казалось «потерянным».
     const audioDurationSeconds = sourceCategory === 'audio'
-        ? await probeAudioDurationSeconds(
-            uploadFile,
-            Number.isFinite(providedAudioDuration) && providedAudioDuration > 0
-                ? providedAudioDuration
-                : null,
-        )
+        ? (Number.isFinite(providedAudioDuration) && providedAudioDuration > 0
+            ? Math.max(1, Math.floor(providedAudioDuration))
+            : await probeAudioDurationSeconds(uploadFile, null))
         : null;
-    const audioWaveform = sourceCategory === 'audio'
-        ? await buildAudioWaveformPeaks(uploadFile, 48)
-        : null;
+    const audioWaveformPromise = sourceCategory === 'audio'
+        ? buildAudioWaveformPeaks(uploadFile, 48).catch(() => null)
+        : Promise.resolve(null);
     const previewUrl = URL.createObjectURL(uploadFile);
     const visualMeta = (sourceCategory === 'image' || sourceCategory === 'video')
         ? await probeVisualMediaMetadata(uploadFile, { category: sourceCategory, objectUrl: previewUrl })
@@ -92,9 +92,6 @@ export async function sendFileMessageFlow({
         upload_progress: 0,
         ...(Number.isFinite(audioDurationSeconds) && audioDurationSeconds > 0
             ? { duration_seconds: Math.max(1, Math.floor(audioDurationSeconds)) }
-            : {}),
-        ...(Array.isArray(audioWaveform) && audioWaveform.length
-            ? { waveform: audioWaveform }
             : {}),
         ...(visualMeta || {}),
     };
@@ -125,13 +122,16 @@ export async function sendFileMessageFlow({
 
     setSendingState(true);
     try {
-        const uploaded = await uploadChatMedia(uploadFile, {
-            chatId: currentChatId || '',
-            csrfToken: getCsrfToken(),
-            onProgress: (percent) => {
-                updatePendingFileUploadProgress?.(clientId, percent);
-            },
-        });
+        const [uploaded, audioWaveform] = await Promise.all([
+            uploadChatMedia(uploadFile, {
+                chatId: currentChatId || '',
+                csrfToken: getCsrfToken(),
+                onProgress: (percent) => {
+                    updatePendingFileUploadProgress?.(clientId, percent);
+                },
+            }),
+            audioWaveformPromise,
+        ]);
 
         let payloadMime = String(uploaded?.mime || uploadFile.type || 'application/octet-stream').toLowerCase();
         if (sourceCategory === 'audio' && !payloadMime.startsWith('audio/')) {

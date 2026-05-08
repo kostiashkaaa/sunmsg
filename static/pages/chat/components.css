@@ -8200,6 +8200,15 @@
             .chat-area { --chat-bubble-max-width: min(88%, 520px); }
             .chat-input-area { --composer-action-size: 42px; }
             .chat-header { padding: 7px 10px; gap: 6px; }
+            /* Подавляем системный «коллаут» iOS на сообщениях/медиа,
+               чтобы наш long-press запускал контекстное меню без конфликтов */
+            .chat-messages .message,
+            .chat-messages .bubble,
+            .chat-messages .file-msg-img,
+            .chat-messages .file-msg-video-preview,
+            .chat-messages .file-msg-audio-player {
+                -webkit-touch-callout: none;
+            }
             .voice-playback-bar {
                 padding: 6px 8px 7px;
                 gap: 7px;
@@ -8209,6 +8218,39 @@
             }
             .voice-playback-bar__details {
                 max-width: 142px;
+            }
+            /* Скрываем плавающий voice-bar когда открыта мобильная клавиатура — он перекрывает контент */
+            html.mobile-keyboard-active .voice-playback-bar {
+                opacity: 0;
+                pointer-events: none;
+                visibility: hidden;
+                transform: translateY(-10px);
+            }
+            html.mobile-keyboard-active .chat-area.chat-area--voice-playback-active .chat-header {
+                transform: translateY(0);
+            }
+            /* Компактные аудио-сообщения на мобиле */
+            .bubble--audio {
+                max-width: min(78%, 360px);
+            }
+            .bubble--audio .file-msg-audio-player {
+                gap: 8px;
+            }
+            .bubble--audio .audio-player-toggle {
+                width: 34px;
+                height: 34px;
+            }
+            .bubble--audio .audio-player-toggle i {
+                font-size: 16px;
+            }
+            .bubble--audio .audio-player-wave-wrap {
+                height: 20px;
+            }
+            .bubble--audio .audio-player-wave {
+                height: 18px;
+            }
+            .bubble--audio .audio-message-body {
+                padding-bottom: calc(12px * var(--chat-message-scale));
             }
             .header-actions-group { gap: 0; }
             .btn-icon { padding: 7px; font-size: 19px; }
