@@ -130,6 +130,8 @@ import { createChatMessageMutations } from './modules/chat-message-mutations.js'
 import { initChatMediaRuntime, formatAudioPlayerTime, hasProvidedWaveformPayload } from './modules/chat-media-runtime.js';
 import { createChatForwardFlow } from './modules/chat-forward-flow.js';
 import { createChatDraftsController } from './modules/chat-drafts.js';
+import { createChatReportFlow } from './modules/chat-report-flow.js';
+import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
@@ -253,8 +255,6 @@ const initChatPage = async () => {
     let pendingForcedChatRerenderFrame = 0;
     let pendingForcedChatRerenderChatId = '';
     let pendingForcedChatRerenderOptions = null;
-    let reportSubmitInFlight = false;
-    let reportModalTarget = null;
 
     // Forward (\u043F\u0435\u0440\u0435\u0441\u044B\u043B\u043A\u0430) \u2014 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0438\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 \u0432\u0441\u0435\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u0435\u0439.
     // var-\u0445\u043E\u0439\u0441\u0442: \u0434\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043E\u0431\u0451\u0440\u0442\u043A\u0438 \u0432\u0438\u0434\u044F\u0442 undefined \u0438 \u043D\u0435 \u043F\u0430\u0434\u0430\u044E\u0442.
@@ -280,6 +280,23 @@ const initChatPage = async () => {
     function applyComposerDraftText(...args) { return draftsController?.applyComposerDraftText(...args); }
     function hasMeaningfulDraft(value) { return Boolean(draftsController?.hasMeaningfulDraft(value)); }
     function clearLocalDraftStateForChat(chatId) { return draftsController?.clearLocalDraftStateForChat(chatId); }
+
+    // Report flow controller — initialised below.
+    var reportController;
+    function openReportModal(target) { return reportController?.openReportModal(target); }
+
+    // Visual media meta enrichment controller — initialised below.
+    var mediaMetaController;
+    function enrichVisualMediaMessageText(messageText) {
+        return mediaMetaController
+            ? mediaMetaController.enrichVisualMediaMessageText(messageText)
+            : Promise.resolve(messageText);
+    }
+    function enrichDecodedMessagesVisualMeta(messages) {
+        return mediaMetaController
+            ? mediaMetaController.enrichDecodedMessagesVisualMeta(messages)
+            : Promise.resolve(Array.isArray(messages) ? messages : []);
+    }
 
     // \u042D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430
     const sidebar      = document.getElementById('sidebar');
@@ -425,6 +442,26 @@ const initChatPage = async () => {
     const reportContentStatus = document.getElementById('reportContentStatus');
     const reportSubmitBtn = document.getElementById('reportSubmitBtn');
     const reportCancelBtn = document.getElementById('reportCancelBtn');
+
+    reportController = createChatReportFlow({
+        reportContentModal,
+        reportContentTargetLabel,
+        reportReasonSelect,
+        reportCommentInput,
+        reportContentStatus,
+        reportSubmitBtn,
+        reportCancelBtn,
+        withAppRoot,
+        getCsrfToken,
+        openAnimatedDialog,
+        closeAnimatedDialog,
+        showToast,
+    });
+
+    mediaMetaController = createChatMediaMetaController({
+        buildPendingMediaDimensions: (...args) => buildPendingMediaDimensions(...args),
+    });
+
     const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
     initKeyboardShortcuts();
     initSidebarBrandQuickActions({
@@ -443,180 +480,6 @@ const initChatPage = async () => {
         }
         window.setTimeout(callback, 0);
     };
-    function waitMs(durationMs) {
-        return new Promise((resolve) => {
-            window.setTimeout(resolve, Math.max(0, Number(durationMs) || 0));
-        });
-    }
-    function createIdempotencyKey() {
-        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-            return window.crypto.randomUUID();
-        }
-        const entropy = Math.random().toString(36).slice(2);
-        return `mrep-${Date.now()}-${entropy}`;
-    }
-    function setReportStatus(text, tone = 'info') {
-        if (!reportContentStatus) return;
-        reportContentStatus.textContent = String(text || '');
-        reportContentStatus.dataset.tone = String(tone || 'info');
-    }
-    function resetReportModalForm() {
-        if (reportReasonSelect) {
-            reportReasonSelect.value = 'spam';
-        }
-        if (reportCommentInput) {
-            reportCommentInput.value = '';
-        }
-        setReportStatus('');
-        reportSubmitInFlight = false;
-        if (reportSubmitBtn) {
-            reportSubmitBtn.disabled = false;
-        }
-    }
-    function describeReportTarget(target = null) {
-        if (!target) return 'Report target is not selected.';
-        if (target.targetType === 'message') {
-            const safeMessageId = String(target.messageId || target.targetId || '').trim();
-            const preview = String(target.preview || '').trim();
-            if (preview) {
-                return `Report target: message #${safeMessageId || target.targetId}. "${preview}"`;
-            }
-            return `Report target: message #${target.targetId}.`;
-        }
-        if (target.targetType === 'user') {
-            const safeUserId = String(target.targetId || '').trim();
-            const username = String(target.username || '').trim();
-            if (username) {
-                return `Report target: user #${safeUserId} (@${username}).`;
-            }
-            const display = String(target.displayName || '').trim();
-            if (display) {
-                return `Report target: user #${safeUserId} (${display}).`;
-            }
-            return `Report target: user #${target.targetId}.`;
-        }
-        return `Report target: ${target.targetType || 'unknown'} #${target.targetId}`;
-    }
-    async function pollReportStatus(reportId, { maxAttempts = 5, intervalMs = 1500 } = {}) {
-        const safeReportId = Number.parseInt(reportId, 10);
-        if (!Number.isFinite(safeReportId) || safeReportId <= 0) return null;
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            if (attempt > 0) {
-                await waitMs(intervalMs);
-            }
-            try {
-                const response = await fetch(withAppRoot(`/api/moderation/reports/${safeReportId}`), {
-                    method: 'GET',
-                    headers: { Accept: 'application/json' },
-                });
-                const payload = await response.json();
-                if (!response.ok || !payload?.success) continue;
-                const status = String(payload.status || '').toLowerCase();
-                if (status === 'closed') {
-                    return payload;
-                }
-                if (status === 'triaged') {
-                    return payload;
-                }
-            } catch (_) {}
-        }
-        return null;
-    }
-    function openReportModal(target) {
-        if (!reportContentModal) return;
-        reportModalTarget = target || null;
-        if (reportContentTargetLabel) {
-            reportContentTargetLabel.textContent = describeReportTarget(reportModalTarget);
-        }
-        resetReportModalForm();
-        openAnimatedDialog(reportContentModal, { focusTarget: reportReasonSelect || reportCommentInput });
-    }
-    async function submitReportFromModal() {
-        if (reportSubmitInFlight) return;
-        if (!reportModalTarget?.targetType || !reportModalTarget?.targetId) {
-            setReportStatus('Cannot submit report: target is missing.', 'error');
-            return;
-        }
-        reportSubmitInFlight = true;
-        if (reportSubmitBtn) {
-            reportSubmitBtn.disabled = true;
-        }
-        setReportStatus('Sending report...', 'info');
-        const idempotencyKey = createIdempotencyKey();
-        const reasonCode = String(reportReasonSelect?.value || 'abuse').trim().toLowerCase() || 'abuse';
-        const comment = String(reportCommentInput?.value || '').trim();
-        const payload = {
-            target_type: String(reportModalTarget.targetType),
-            target_id: String(reportModalTarget.targetId),
-            reason_code: reasonCode,
-            comment,
-            client_event_id: idempotencyKey,
-        };
-        if (Number.isFinite(Number(reportModalTarget.messageId)) && Number(reportModalTarget.messageId) > 0) {
-            payload.message_id = Number(reportModalTarget.messageId);
-        }
-        try {
-            const response = await fetch(withAppRoot('/api/moderation/reports'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                    'Idempotency-Key': idempotencyKey,
-                },
-                body: JSON.stringify(payload),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data?.success) {
-                const errorCode = String(data?.error || '').trim();
-                if (errorCode === 'idempotency_key_required') {
-                    setReportStatus('Повтор не выполнен: требуется ключ идемпотентности.', 'error');
-                } else if (errorCode === 'invalid_target') {
-                    setReportStatus('Цель жалобы указана некорректно.', 'error');
-                } else {
-                    setReportStatus('Не удалось отправить жалобу. Попробуйте ещё раз.', 'error');
-                }
-                return;
-            }
-            setReportStatus('Жалоба принята. Проверяем статус...', 'success');
-            const resolved = await pollReportStatus(data.report_id, { maxAttempts: 6, intervalMs: 1500 });
-            if (resolved) {
-                const status = String(resolved.status || '').toLowerCase();
-                if (status === 'closed') {
-                    setReportStatus('Жалоба автоматически закрыта.', 'success');
-                } else if (status === 'triaged') {
-                    setReportStatus('Жалоба передана на проверку модератору.', 'success');
-                } else {
-                    setReportStatus('Жалоба получена.', 'success');
-                }
-            } else {
-                setReportStatus('Жалоба получена и поставлена в очередь.', 'success');
-            }
-            showToast('Жалоба отправлена.', 'success');
-            window.setTimeout(() => {
-                if (!reportContentModal?.open) return;
-                closeAnimatedDialog(reportContentModal);
-            }, 650);
-        } catch (_) {
-            setReportStatus('Сетевая ошибка при отправке жалобы.', 'error');
-        } finally {
-            reportSubmitInFlight = false;
-            if (reportSubmitBtn) {
-                reportSubmitBtn.disabled = false;
-            }
-        }
-    }
-    reportSubmitBtn?.addEventListener('click', () => {
-        void submitReportFromModal();
-    });
-    reportCancelBtn?.addEventListener('click', () => {
-        reportModalTarget = null;
-        resetReportModalForm();
-    });
-    reportContentModal?.addEventListener('close', () => {
-        reportModalTarget = null;
-        resetReportModalForm();
-    });
     let applyActiveMessageSearchFilterImpl = () => {};
     let emojiPickerInitPromise = null;
     let messageSearchInitPromise = null;
@@ -803,8 +666,6 @@ const initChatPage = async () => {
     const CHAT_VIRTUALIZATION_MIN_MESSAGES = 220;
     const CHAT_DEFAULT_MESSAGE_HEIGHT = 88;
     const CHAT_DECRYPT_CONCURRENCY = 6;
-    const CHAT_MEDIA_META_PROBE_CONCURRENCY = 4;
-    const CHAT_MEDIA_META_PROBE_TIMEOUT_MS = 1800;
     const CHAT_DECRYPT_WORKER_TIMEOUT_MS = 30000;
     const CHAT_BOTTOM_INERTIA_MIN_MS = 120;
     const CHAT_BOTTOM_INERTIA_MAX_MS = 520;
@@ -831,160 +692,6 @@ const initChatPage = async () => {
         setIntervalFn: (handler, delay) => window.setInterval(handler, delay),
         clearIntervalFn: (timerId) => window.clearInterval(timerId),
     });
-    const mediaMetaProbeInFlight = new Map();
-    const mediaMetaBySource = new Map();
-    const mutePreferences = createChatMutePreferences({
-        storage: window.localStorage,
-        muteChatStorageKey: MUTE_CHAT_STORAGE_KEY,
-        muteDialogRequestsStorageKey: MUTE_DIALOG_REQUESTS_STORAGE_KEY,
-        bootstrapMuteDialogRequests: Boolean(bootstrapUser.muteDialogRequests),
-    });
-    const { ensureMediaElementHydrated, disconnectLazyMediaHydrationObserver, registerMediaElementsForLazyHydration } = createMediaHydrationController({ root: chatMessages });
-    function normalizeMediaMetaSourceKey(source) {
-        const raw = String(source || '').trim();
-        if (!raw) return '';
-        if (raw.startsWith('blob:')) return '';
-        if (raw.startsWith('data:')) return '';
-        try {
-            const parsed = new URL(raw, window.location.origin);
-            if (parsed.origin === window.location.origin) {
-                return `${parsed.pathname}${parsed.search}`;
-            }
-            return parsed.href;
-        } catch (_) {
-            return raw;
-        }
-    }
-    function hasVisualPreviewMeta(filePayload) {
-        const width = Number(filePayload?.preview_width);
-        const height = Number(filePayload?.preview_height);
-        const ratio = Number(filePayload?.preview_aspect_ratio);
-        if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
-            return true;
-        }
-        return Number.isFinite(ratio) && ratio > 0;
-    }
-    function resolveVisualMediaKind(filePayload) {
-        const mime = String(filePayload?.mime || '').toLowerCase();
-        if (mime.startsWith('image/')) return 'image';
-        if (mime.startsWith('video/')) return 'video';
-        return '';
-    }
-    function probeVisualMediaMetaBySource(source, kind) {
-        const safeSource = String(source || '').trim();
-        if (!safeSource || (kind !== 'image' && kind !== 'video')) {
-            return Promise.resolve(null);
-        }
-        const baseKey = normalizeMediaMetaSourceKey(safeSource);
-        const cacheKey = baseKey ? `${kind}:${baseKey}` : '';
-        if (cacheKey) {
-            const cached = mediaMetaBySource.get(cacheKey);
-            if (cached) {
-                return Promise.resolve(cached);
-            }
-        }
-        if (cacheKey) {
-            const inFlight = mediaMetaProbeInFlight.get(cacheKey);
-            if (inFlight) {
-                return inFlight;
-            }
-        }
-        const probePromise = new Promise((resolve) => {
-            let settled = false;
-            let timeoutId = 0;
-            let videoEl = null;
-            let imageEl = null;
-            const finish = (meta) => {
-                if (settled) return;
-                settled = true;
-                if (timeoutId) {
-                    window.clearTimeout(timeoutId);
-                    timeoutId = 0;
-                }
-                if (videoEl) {
-                    try {
-                        videoEl.pause();
-                        videoEl.removeAttribute('src');
-                        videoEl.load();
-                    } catch (_) {}
-                    videoEl = null;
-                }
-                imageEl = null;
-                if (meta) {
-                    if (cacheKey) {
-                        mediaMetaBySource.set(cacheKey, meta);
-                    }
-                }
-                resolve(meta || null);
-            };
-            timeoutId = window.setTimeout(() => finish(null), CHAT_MEDIA_META_PROBE_TIMEOUT_MS);
-            if (kind === 'image') {
-                imageEl = new Image();
-                imageEl.onload = () => {
-                    const meta = buildPendingMediaDimensions(imageEl.naturalWidth, imageEl.naturalHeight);
-                    finish(meta);
-                };
-                imageEl.onerror = () => finish(null);
-                imageEl.src = safeSource;
-                return;
-            }
-            videoEl = document.createElement('video');
-            const tryResolve = () => {
-                const meta = buildPendingMediaDimensions(videoEl.videoWidth, videoEl.videoHeight);
-                if (meta) finish(meta);
-            };
-            videoEl.preload = 'metadata';
-            videoEl.muted = true;
-            videoEl.playsInline = true;
-            videoEl.onloadedmetadata = tryResolve;
-            videoEl.onloadeddata = tryResolve;
-            videoEl.ondurationchange = tryResolve;
-            videoEl.onresize = tryResolve;
-            videoEl.onerror = () => finish(null);
-            videoEl.src = safeSource;
-            try {
-                videoEl.load();
-            } catch (_) {}
-        }).finally(() => {
-            if (cacheKey) {
-                mediaMetaProbeInFlight.delete(cacheKey);
-            }
-        });
-        if (cacheKey) {
-            mediaMetaProbeInFlight.set(cacheKey, probePromise);
-        }
-        return probePromise;
-    }
-    async function enrichVisualMediaMessageText(messageText) {
-        if (typeof messageText !== 'string' || !messageText) return messageText;
-        const filePayload = parseSunFilePayload(messageText);
-        if (!filePayload) return messageText;
-        const mediaKind = resolveVisualMediaKind(filePayload);
-        if (!mediaKind || hasVisualPreviewMeta(filePayload)) {
-            return messageText;
-        }
-        const mediaSrc = sanitizeFileUri(filePayload.data, { imageOnlyData: mediaKind === 'image' });
-        if (!mediaSrc || mediaSrc === '#') return messageText;
-        const meta = await probeVisualMediaMetaBySource(mediaSrc, mediaKind);
-        if (!meta) return messageText;
-        try {
-            return JSON.stringify({ ...filePayload, ...meta });
-        } catch (_) {
-            return messageText;
-        }
-    }
-    async function enrichDecodedMessagesVisualMeta(messages) {
-        const list = Array.isArray(messages) ? messages : [];
-        if (!list.length) return [];
-        return mapWithConcurrency(list, CHAT_MEDIA_META_PROBE_CONCURRENCY, async (messageState) => {
-            const nextMessage = await enrichVisualMediaMessageText(messageState?.message);
-            if (nextMessage === messageState?.message) return messageState;
-            return {
-                ...messageState,
-                message: nextMessage,
-            };
-        });
-    }
     function getMutedChatIds() {
         return mutePreferences.getMutedChatIds();
     }
