@@ -58,7 +58,7 @@
 <div class="settings-layout">
     <div class="settings-page-loader" id="settingsPageLoader" aria-hidden="true">
         <div class="settings-page-loader-head">
-            <div class="sun-skeleton-line" style="width: 180px; height: 16px;"></div>
+            <div class="sun-skeleton-line settings-skeleton-line--hero"></div>
             <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
         </div>
         <div class="settings-page-loader-grid">
@@ -156,7 +156,7 @@
 
     <main class="settings-content">
 
-        <div id="settingsAlert" style="display:none;"></div>
+        <div id="settingsAlert" class="settings-hidden"></div>
 
         <section id="section-profile" class="settings-profile-section">
             <div class="settings-card">
@@ -176,7 +176,7 @@
                         <div class="settings-avatar-username">@{{ current_username }}</div>
                         <div class="settings-avatar-actions">
                             <input type="file" id="avatarFileInput" accept="image/*" hidden>
-                            <p id="avatarUploadStatus" style="font-size:12px;color:var(--accent);display:none;"></p>
+                            <p id="avatarUploadStatus" class="settings-avatar-upload-status settings-hidden"></p>
                         </div>
                     </div>
                 </div>
@@ -195,17 +195,17 @@
                 </div>
 
                 <div class="settings-inline-fields">
-                    <label class="settings-field" style="grid-column: 1 / -1;">
+                    <label class="settings-field settings-field--full">
                         <span class="settings-field-label">О себе</span>
-                        <textarea class="settings-input settings-field-input" id="bioInput" rows="2" maxlength="280" placeholder="Несколько слов о себе (до 280 символов)" style="resize:vertical;min-height:60px;font-family:inherit;"></textarea>
-                        <span class="settings-field-hint">Видно собеседникам в вашем профиле. <span id="bioCounter" style="opacity:0.7;">0/280</span></span>
+                        <textarea class="settings-input settings-field-input settings-bio-input" id="bioInput" rows="2" maxlength="280" placeholder="Несколько слов о себе (до 280 символов)"></textarea>
+                        <span class="settings-field-hint">Видно собеседникам в вашем профиле. <span id="bioCounter" class="settings-bio-counter">0/280</span></span>
                     </label>
                 </div>
 
             </div>
         </section>
 
-        <section id="section-privacy" style="display:none;">
+        <section id="section-privacy" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <h3>Видимость</h3>
@@ -315,7 +315,7 @@
 
         </section>
 
-                <section id="section-notifications" style="display:none;">
+                <section id="section-notifications" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-bell"></i>
@@ -346,13 +346,13 @@
             </div>
         </section>
 
-        <section id="section-keys" style="display:none;">
-            <div class="settings-card" id="e2eStatusCard" style="border-left: 4px solid var(--warning); display:none;">
-                <div style="display:flex; gap:16px; align-items:center;">
-                    <div style="font-size:24px; color:var(--warning);"><i class="bi bi-shield-slash"></i></div>
+        <section id="section-keys" class="settings-hidden">
+            <div class="settings-card settings-e2e-status-card settings-hidden" id="e2eStatusCard">
+                <div class="settings-e2e-status-row">
+                    <div class="settings-e2e-status-icon"><i class="bi bi-shield-slash"></i></div>
                     <div>
-                        <div style="font-weight:600; color:var(--text);">История заблокирована</div>
-                        <div style="font-size:13px; color:var(--sub-text);">
+                        <div class="settings-e2e-status-title">История заблокирована</div>
+                        <div class="settings-e2e-status-copy">
                             Вы вошли через приложение-аутентификатор, поэтому сообщения не могут быть расшифрованы. 
                             Введите ваши 24 слова ниже, чтобы активировать доступ.
                         </div>
@@ -365,12 +365,12 @@
                     <i class="bi bi-unlock"></i>
                     <h3>Активировать историю (24 слова)</h3>
                 </div>
-                <p style="font-size:13px; color:var(--sub-text);">
+                <p class="settings-copy-muted-sm">
                     Введите ваши секретные 24 слова, чтобы восстановить доступ к зашифрованным сообщениям на этом устройстве.
                 </p>
                 <div class="mnemonic-grid" id="mnemonicInputGrid">
                 </div>
-                <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                <div class="settings-actions-end">
                     <button class="btn-settings primary" id="activateDecryptionBtn">
                         <i class="bi bi-key-fill"></i> Активировать доступ
                     </button>
@@ -387,15 +387,15 @@
                         <div class="settings-row-info">
                             <div class="settings-row-label">Состояние</div>
                             <div class="settings-row-desc" id="totpStatusText">Проверка...</div>
-                            <div class="settings-row-desc totp-enabled-at" id="totpEnabledAtText" style="display:none;"></div>
+                            <div class="settings-row-desc totp-enabled-at settings-hidden" id="totpEnabledAtText"></div>
                         </div>
                         <div class="settings-action-cluster totp-actions">
                             <button type="button" class="btn-settings primary" id="totpEnableBtn">Включить</button>
-                            <button type="button" class="btn-settings secondary" id="totpRegenerateBtn" style="display:none;">Перевыпустить</button>
-                            <button type="button" class="btn-settings danger-btn" id="totpDisableBtn" style="display:none;">Выключить</button>
+                            <button type="button" class="btn-settings secondary settings-hidden" id="totpRegenerateBtn">Перевыпустить</button>
+                            <button type="button" class="btn-settings danger-btn settings-hidden" id="totpDisableBtn">Выключить</button>
                         </div>
                     </div>
-                    <div class="totp-setup-panel" id="totpSetupPanel" style="display:none;">
+                    <div class="totp-setup-panel settings-hidden" id="totpSetupPanel">
                         <div class="totp-setup-grid">
                             <div class="totp-qr-box" id="totpSettingsQrContainer"></div>
                             <div class="totp-setup-copy">
@@ -405,7 +405,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="totp-verify-panel" id="totpVerifyPanel" style="display:none;">
+                    <div class="totp-verify-panel settings-hidden" id="totpVerifyPanel">
                         <label for="totpVerifyCode" class="settings-row-label">Код подтверждения</label>
                         <div class="totp-verify-controls">
                             <input
@@ -436,7 +436,7 @@
                     <div class="settings-action-cluster passkey-actions">
                         <button type="button" class="btn-settings primary" id="passkeyAddBtn">Добавить passkey</button>
                     </div>
-                    <div id="passkeyUnsupportedNote" class="settings-row-desc" style="display:none;">
+                    <div id="passkeyUnsupportedNote" class="settings-row-desc settings-hidden">
                         Этот браузер не поддерживает WebAuthn/Passkey.
                     </div>
                     <div id="passkeyList" class="passkey-list"></div>
@@ -447,7 +447,7 @@
                     <i class="bi bi-shield-lock"></i>
                     <h3>Публичный ключ (E2E)</h3>
                 </div>
-                <p style="font-size:13px;color:var(--sub-text);margin-bottom:12px;">
+                <p class="settings-copy-muted-sm settings-copy-margin-bottom">
                     Это ваш публичный ключ. Делитесь им с теми, кто хочет написать вам напрямую через публичный ключ.
                 </p>
                 <textarea class="key-textarea" rows="7" readonly id="publicKeyTextarea">{{ public_key_pem }}</textarea>
@@ -463,12 +463,12 @@
                     <i class="bi bi-qr-code"></i>
                     <h3>QR-код для добавления контакта</h3>
                 </div>
-                <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
-                    <p style="font-size:13px;color:var(--sub-text);text-align:center;margin:0;">
+                <div class="settings-qr-stack">
+                    <p class="settings-copy-muted-sm settings-copy-center settings-copy-no-margin">
                         Покажите этот QR-код — собеседник отсканирует и добавит вас в контакты автоматически.
                     </p>
                     <div id="qrCodeContainer" class="settings-qr-box"></div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+                    <div class="settings-qr-actions">
                         <button class="btn-settings secondary settings-icon-action" id="downloadQrBtn" type="button" aria-label="Скачать PNG" title="Скачать PNG">
                             <i class="bi bi-download" aria-hidden="true"></i>
                         </button>
@@ -476,7 +476,7 @@
                             <i class="bi bi-share" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <p style="font-size:11px;color:var(--sub-text);text-align:center;margin:0;">
+                    <p class="settings-copy-muted-xs settings-copy-center settings-copy-no-margin">
                         <span>Ваш @</span><span data-no-i18n="1">{{ current_username }}</span><span> · QR содержит полный публичный ключ</span>
                     </p>
                 </div>
@@ -484,8 +484,8 @@
 
             {% if private_key_pem %}
             <div class="settings-card">
-                <div class="settings-card-header" style="background:rgba(245,158,11,0.08);">
-                    <i class="bi bi-exclamation-triangle" style="color:var(--warning);"></i>
+                <div class="settings-card-header settings-card-header-warning">
+                    <i class="bi bi-exclamation-triangle settings-warning-icon"></i>
                     <h3>Новый приватный ключ</h3>
                 </div>
                 <div class="settings-alert warning">
@@ -502,7 +502,7 @@
             {% endif %}
         </section>
 
-        <section id="section-appearance" style="display:none;">
+        <section id="section-appearance" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-moon-stars"></i>
@@ -593,7 +593,7 @@
             </div>
         </section>
 
-        <section id="section-chat-style" style="display:none;">
+        <section id="section-chat-style" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-chat-square-text"></i>
@@ -634,10 +634,10 @@
 
                     <div class="chat-style-panel" data-panel="custom" id="chatCustomPanel">
                         <div class="chat-style-upload-row">
-                            <label for="chatCustomImageInput" class="btn-settings secondary" style="cursor:pointer;">
+                            <label for="chatCustomImageInput" class="btn-settings secondary settings-cursor-pointer">
                                 <i class="bi bi-upload"></i> Загрузить картинку
                             </label>
-                            <input type="file" id="chatCustomImageInput" accept="image/*" style="display:none;">
+                            <input type="file" id="chatCustomImageInput" accept="image/*" hidden>
                             <span id="chatCustomImageMeta" class="chat-style-meta">Файл не выбран</span>
                         </div>
                         <div class="chat-style-slider-grid">
@@ -736,7 +736,7 @@
             </div>
         </section>
 
-        <section id="section-account" style="display:none;">
+        <section id="section-account" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <h3>Активные сессии</h3>
@@ -767,7 +767,7 @@
             </div>
         </section>
 
-        <section id="section-support" style="display:none;">
+        <section id="section-support" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-life-preserver"></i>
@@ -791,11 +791,11 @@
                         <span class="settings-field-label">Контакт (необязательно)</span>
                         <input type="text" class="settings-input settings-field-input" id="settingsSupportContact" maxlength="120" placeholder="@telegram, email или другой контакт">
                     </label>
-                    <label class="settings-field" style="grid-column: 1 / -1;">
+                    <label class="settings-field settings-field--full">
                         <span class="settings-field-label">Тема</span>
                         <input type="text" class="settings-input settings-field-input" id="settingsSupportSubject" maxlength="160" placeholder="Кратко о проблеме">
                     </label>
-                    <label class="settings-field" style="grid-column: 1 / -1;">
+                    <label class="settings-field settings-field--full">
                         <span class="settings-field-label">Описание</span>
                         <textarea class="settings-input settings-field-input" id="settingsSupportBody" rows="5" maxlength="8000" placeholder="Шаги, ожидаемый результат, фактический результат"></textarea>
                     </label>
@@ -808,7 +808,7 @@
                         <i class="bi bi-send"></i> Отправить в поддержку
                     </button>
                 </div>
-                <p id="settingsSupportStatus" class="settings-body-copy" style="margin-top:8px;"></p>
+                <p id="settingsSupportStatus" class="settings-body-copy settings-support-status"></p>
             </div>
         </section>
 

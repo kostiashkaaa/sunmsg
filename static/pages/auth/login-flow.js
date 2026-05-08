@@ -28,7 +28,7 @@ export function initLoginFlow({
         group.dataset.motionSeq = String(seq);
         group.classList.remove('auth-method-entering', 'auth-method-leaving');
         if (visible) {
-            group.style.display = '';
+            group.style.display = 'block';
             requestAnimationFrame(() => {
                 if (group.dataset.motionSeq !== String(seq)) return;
                 group.classList.add('auth-method-entering');

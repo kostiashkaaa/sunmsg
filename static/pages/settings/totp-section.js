@@ -38,7 +38,7 @@ export function initTotpSection({
 
     function toggleTotpVerifyPanel(visible) {
         if (!totpVerifyPanel) return;
-        totpVerifyPanel.style.display = visible ? '' : 'none';
+        totpVerifyPanel.style.display = visible ? 'block' : 'none';
         if (!visible && totpVerifyCodeInput) {
             totpVerifyCodeInput.value = '';
         }
@@ -69,16 +69,16 @@ export function initTotpSection({
         if (totpEnabledAtTextEl) {
             if (isEnabled) {
                 totpEnabledAtTextEl.textContent = `${tr('Подключено:')} ${formatUiTimestamp(enabledAtRaw)}`;
-                totpEnabledAtTextEl.style.display = '';
+                totpEnabledAtTextEl.style.display = 'block';
             } else {
                 totpEnabledAtTextEl.textContent = '';
                 totpEnabledAtTextEl.style.display = 'none';
             }
         }
 
-        if (totpEnableBtn) totpEnableBtn.style.display = isEnabled ? 'none' : '';
-        if (totpDisableBtn) totpDisableBtn.style.display = isEnabled ? '' : 'none';
-        if (totpRegenerateBtn) totpRegenerateBtn.style.display = isEnabled ? '' : 'none';
+        if (totpEnableBtn) totpEnableBtn.style.display = isEnabled ? 'none' : 'inline-block';
+        if (totpDisableBtn) totpDisableBtn.style.display = isEnabled ? 'inline-block' : 'none';
+        if (totpRegenerateBtn) totpRegenerateBtn.style.display = isEnabled ? 'inline-block' : 'none';
         toggleTotpVerifyPanel(!!setupPending);
     }
 
@@ -91,7 +91,7 @@ export function initTotpSection({
             return;
         }
         totpSettingsSecret.textContent = secretText;
-        totpSetupPanel.style.display = '';
+        totpSetupPanel.style.display = 'block';
         totpSettingsQrContainer.replaceChildren();
         try {
             await window.ensureQrCodeLibrary();

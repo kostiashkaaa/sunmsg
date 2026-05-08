@@ -219,7 +219,7 @@ export function initThemeSection({
             });
         }
 
-        function swatchStyle(preset) {
+        function swatchCssDeclarations(preset) {
             if (preset.mode === 'color') return `background:${preset.color};`;
             if (preset.mode === 'gradient') return `background:${preset.gradient};`;
             if (preset.mode === 'pattern') {
@@ -231,15 +231,45 @@ export function initThemeSection({
             return '';
         }
 
+        function readCspNonce() {
+            const nonceHost = document.querySelector('script[nonce],style[nonce]');
+            return nonceHost?.nonce || nonceHost?.getAttribute('nonce') || '';
+        }
+
+        function ensurePresetSwatchStyles(groups) {
+            const styleId = 'chatPresetSwatchStyles';
+            const css = [];
+            groups.forEach((group) => {
+                (group.items || []).forEach((item) => {
+                    const presetId = String(item.id || '').trim();
+                    if (!presetId) return;
+                    const safeId = presetId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                    css.push(`.preset-swatch[data-preset-id="${safeId}"]{${swatchCssDeclarations(item)}}`);
+                });
+            });
+            let styleEl = document.getElementById(styleId);
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = styleId;
+                const nonce = readCspNonce();
+                if (nonce) {
+                    styleEl.setAttribute('nonce', nonce);
+                }
+                document.head.appendChild(styleEl);
+            }
+            styleEl.textContent = css.join('\n');
+        }
+
         function renderPresetGroups() {
             const groups = chatAppearanceApi.getPresetGroups();
+            ensurePresetSwatchStyles(groups);
             presetGroupsEl.innerHTML = groups.map((group) => `
                 <div class="preset-group">
                     <div class="preset-group-title">${group.name}</div>
                     <div class="preset-grid">
                         ${group.items.map((item) => `
                             <button type="button" class="preset-btn" data-preset-id="${item.id}">
-                                <div class="preset-swatch" style="${swatchStyle(item)}"></div>
+                                <div class="preset-swatch" data-preset-id="${item.id}"></div>
                                 <div class="preset-name">${item.name}</div>
                             </button>
                         `).join('')}

@@ -185,7 +185,7 @@ export function initSettingsPage() {
         alert.appendChild(document.createTextNode(' '));
         alert.appendChild(textEl);
         el.replaceChildren(alert);
-        el.style.display = '';
+        el.style.display = 'block';
         setTimeout(() => {
             alert.classList.add('is-hiding');
             waitForMotionEnd(alert, 230).then(() => {

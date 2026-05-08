@@ -223,11 +223,11 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (!headline) return;
         if (tab === 'register') {
             headline.innerHTML = 'Создайте тихое место.'
-                + '<br><em style="color: var(--ink-soft);">Для тех, кому доверяете.</em>';
+                + '<br><em class="auth-brand-headline-em">Для тех, кому доверяете.</em>';
             return;
         }
         headline.innerHTML = 'Добро пожаловать'
-            + '<br><em style="color: var(--ink-soft);">в тихую сеть.</em>';
+            + '<br><em class="auth-brand-headline-em">в тихую сеть.</em>';
     }
 
     document.getElementById('tab-login-btn')?.addEventListener('click', () => switchTab('login'));

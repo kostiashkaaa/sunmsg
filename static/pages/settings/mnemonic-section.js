@@ -15,7 +15,7 @@ export function initMnemonicSection({
         if (!mnemonicUnlockCard || !e2eStatusCard) return;
         const unlocked = hasRuntimePrivateKey({ isEmbedMode });
         mnemonicUnlockCard.style.display = unlocked ? 'none' : '';
-        e2eStatusCard.style.display = unlocked ? 'none' : '';
+        e2eStatusCard.style.display = unlocked ? 'none' : 'block';
     };
 
     if (!mnemonicGrid) {
