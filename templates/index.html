@@ -100,9 +100,9 @@
                         </div>
                     </div>
 
-                    <div class="auth-form-group" id="loginKeyGroup" style="display:none;">
+                    <div class="auth-form-group" id="loginKeyGroup">
                         <label class="auth-label" for="login_username">Имя пользователя</label>
-                        <div class="auth-input-wrap" style="margin-bottom:10px;">
+                        <div class="auth-input-wrap auth-input-wrap-compact">
                             <input type="text" class="auth-input" id="login_username"
                                    placeholder="ваш_username" autocomplete="username"
                                    pattern="[a-z0-9_]+" maxlength="50">
@@ -113,7 +113,7 @@
                         </div>
                     </div>
 
-                    <div class="auth-form-group" id="loginTotpGroup" style="display:none;">
+                    <div class="auth-form-group" id="loginTotpGroup">
                         <label class="auth-label" for="login_totp_code">Код из приложения-аутентификатора</label>
                         <div class="auth-input-wrap">
                             <input type="text" class="auth-input totp-input" id="login_totp_code"
@@ -151,7 +151,7 @@
                                    pattern="[a-z0-9_]+" maxlength="50" required>
                             <i class="bi bi-at auth-input-icon"></i>
                         </div>
-                        <div id="reg_username_hint" style="font-size:11px;color:var(--sub-text);margin-top:4px;display:none;">
+                        <div id="reg_username_hint" class="auth-username-hint">
                             Допустимые символы: a-z, 0-9, _
                         </div>
                     </div>
@@ -262,7 +262,7 @@
     <div class="auth-success-overlay" id="authSuccessOverlay" aria-hidden="true" role="status">
         <div class="auth-success-card">
             <div class="auth-success-avatar-wrap">
-                <img id="authSuccessAvatar" class="auth-success-avatar" alt="" style="display:none;">
+                <img id="authSuccessAvatar" class="auth-success-avatar" alt="">
                 <div id="authSuccessAvatarFallback" class="auth-success-avatar-fallback"></div>
                 <div class="auth-success-check" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">

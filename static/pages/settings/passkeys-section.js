@@ -196,7 +196,7 @@ export function initPasskeysSection({
     if (!supportsPasskeys()) {
         passkeyAddBtn.disabled = true;
         if (passkeyUnsupportedNoteEl) {
-            passkeyUnsupportedNoteEl.style.display = '';
+            passkeyUnsupportedNoteEl.style.display = 'block';
         }
     } else if (passkeyUnsupportedNoteEl) {
         passkeyUnsupportedNoteEl.style.display = 'none';
@@ -215,4 +215,3 @@ export function initPasskeysSection({
         loadPasskeys,
     };
 }
-

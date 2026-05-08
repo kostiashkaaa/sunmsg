@@ -11,7 +11,7 @@ export function createAvatarUploadController({
     function setAvatarUploadStatus(message, color = 'var(--accent)') {
         const statusEl = document.getElementById('avatarUploadStatus');
         if (!statusEl) return null;
-        statusEl.style.display = '';
+        statusEl.style.display = 'block';
         statusEl.textContent = tr(message);
         statusEl.style.color = color;
         return statusEl;

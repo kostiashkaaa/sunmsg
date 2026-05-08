@@ -101,6 +101,10 @@
         #loginTotpGroup {
             transform-origin: top center;
         }
+        #loginKeyGroup,
+        #loginTotpGroup {
+            display: none;
+        }
         #loginQrGroup.auth-method-entering,
         #loginKeyGroup.auth-method-entering,
         #loginTotpGroup.auth-method-entering {
@@ -553,6 +557,7 @@
             border: 3px solid color-mix(in srgb, var(--accent, #d4a253) 50%, transparent);
             box-shadow: var(--shadow-md);
         }
+        #authSuccessAvatar:not([src]) { display: none; }
 
         .auth-success-avatar-fallback {
             width: 100%;
@@ -846,6 +851,13 @@
     margin-bottom: 7px;
 }
 .auth-input-wrap { position: relative; }
+.auth-input-wrap-compact { margin-bottom: 10px; }
+.auth-username-hint {
+    font-size: 11px;
+    color: var(--sub-text);
+    margin-top: 4px;
+    display: none;
+}
 .auth-input-icon {
     position: absolute;
     left: 13px;
