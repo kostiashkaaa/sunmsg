@@ -69,8 +69,12 @@ export function createVisualViewportCssSyncer({
         const viewportBaseHeight = stableMobileViewportHeight || layoutViewportHeight;
         const visibleBottom = Math.max(0, vvTop + vvHeight);
         const rawComposerBottomInset = Math.max(0, viewportBaseHeight - visibleBottom);
+        // Не привязываемся к isComposerActive — на iOS тап по play-кнопке
+        // временно снимает фокус с textarea, и если бы условие требовало
+        // composer-focus, мы бы «разжимали» chat-area пока клавиатура
+        // ещё открыта, и UI прыгал бы. Достаточно факта, что
+        // visualViewport реально меньше базового — значит клава поднята.
         const hasKeyboardViewport = isTouchViewport
-            && isComposerActive
             && viewportBaseHeight > 0
             && (rawComposerBottomInset > 80 || vvHeight < viewportBaseHeight * 0.82);
         const keyboardInset = hasKeyboardViewport ? rawComposerBottomInset : 0;

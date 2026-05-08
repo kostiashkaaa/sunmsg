@@ -9037,15 +9037,12 @@
    шапку чата вниз. Меняем только размеры под сенсорный ввод и убираем
    слайдер громкости (на мобиле есть аппаратные кнопки). */
 @media (max-width: 768px) {
-    /* На мобиле приклеиваем бар к верху visualViewport, чтобы при
-       открытой клавиатуре он не уезжал за вместе с chat-area scroll. */
+    /* Бар остаётся position: absolute (как на десктопе), но без
+       --vv-top-offset: на iOS этот оффсет может стать отрицательным
+       при открытой клавиатуре и уводит бар за верхний край видимой
+       области. На мобиле всегда top: 0 от chat-area. */
     .voice-playback-bar {
-        position: fixed;
-        top: var(--vv-top-offset, 0px);
-        left: var(--vv-left-offset, 0px);
-        right: auto;
-        width: var(--app-vw, 100vw);
-        z-index: 1003;
+        top: 0 !important;
     }
     .voice-playback-bar__top {
         gap: 8px;
