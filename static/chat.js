@@ -132,6 +132,8 @@ import { createChatForwardFlow } from './modules/chat-forward-flow.js';
 import { createChatDraftsController } from './modules/chat-drafts.js';
 import { createChatReportFlow } from './modules/chat-report-flow.js';
 import { createChatMediaMetaController } from './modules/chat-media-meta.js';
+import { createChatGroupCreateController } from './modules/chat-group-create.js';
+import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
 import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
@@ -284,6 +286,10 @@ const initChatPage = async () => {
     // Report flow controller — initialised below.
     var reportController;
     function openReportModal(target) { return reportController?.openReportModal(target); }
+
+    // Group create controller — initialised below.
+    var groupCreateController;
+    function openGroupCreateModal() { return groupCreateController?.openGroupCreateModal(); }
 
     // Visual media meta enrichment controller — initialised below.
     var mediaMetaController;
@@ -460,6 +466,34 @@ const initChatPage = async () => {
 
     mediaMetaController = createChatMediaMetaController({
         buildPendingMediaDimensions: (...args) => buildPendingMediaDimensions(...args),
+    });
+
+    groupCreateController = createChatGroupCreateController({
+        groupCreateModal,
+        groupTitleInput,
+        groupMemberSearchInput,
+        groupCreateSelected,
+        groupCreateSearchResults,
+        groupCreateSubmitBtn,
+        withAppRoot,
+        getCsrfToken,
+        openAnimatedDialog,
+        closeAnimatedDialog,
+        showToast,
+        normalizeSearchUser: (user) => normalizeSearchUser(user),
+        buildSearchResultsLoaderHtml: () => buildSearchResultsLoaderHtml(),
+        loadContacts: (options) => loadContacts(options),
+        openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
+    });
+
+    initChatClipboardAndDrop({
+        messageInput,
+        chatArea,
+        dragDropOverlay,
+        handleFileUpload: (file, options) => handleFileUpload(file, options),
+        isProfileDrawerOpen: () => isProfileDrawerOpen(),
+        getCurrentChatId: () => currentChatId,
+        showToast,
     });
 
     const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
@@ -5989,10 +6023,6 @@ const initChatPage = async () => {
         `;
     }
 
-    const groupCreateMembers = new Map();
-    let groupCreateSearchRequestSeq = 0;
-    let groupCreateSubmitting = false;
-
     function normalizeSearchUser(user) {
         if (!user || typeof user !== 'object') return null;
         const parsedId = Number.parseInt(user.userId ?? user.user_id, 10);
@@ -6008,105 +6038,6 @@ const initChatPage = async () => {
         };
     }
 
-    function updateGroupCreateSubmitState() {
-        if (!groupCreateSubmitBtn) return;
-        const titleLength = String(groupTitleInput?.value || '').trim().length;
-        const canSubmit = !groupCreateSubmitting && titleLength >= 2 && titleLength <= 120 && groupCreateMembers.size > 0;
-        groupCreateSubmitBtn.disabled = !canSubmit;
-        groupCreateSubmitBtn.textContent = groupCreateSubmitting ? 'Создание...' : 'Создать';
-    }
-
-    function renderGroupCreateSelectedMembers() {
-        if (!groupCreateSelected) return;
-        const selected = Array.from(groupCreateMembers.values());
-        if (!selected.length) {
-            groupCreateSelected.innerHTML = '<span class="group-create-result-username">Участники пока не выбраны.</span>';
-            return;
-        }
-
-        groupCreateSelected.innerHTML = selected
-            .map((member) => `
-                <span class="group-create-member-chip">
-                    <span>${escapeHtml(member.display_name)}</span>
-                    <button type="button" data-group-remove-member-id="${member.user_id}" aria-label="Удалить участника">&times;</button>
-                </span>
-            `)
-            .join('');
-    }
-
-    function renderGroupCreateSearchResults(users) {
-        if (!groupCreateSearchResults) return;
-        const normalizedUsers = Array.isArray(users)
-            ? users.map(normalizeSearchUser).filter(Boolean).filter((entry) => !groupCreateMembers.has(entry.user_id))
-            : [];
-
-        if (!normalizedUsers.length) {
-            groupCreateSearchResults.innerHTML = '<p class="text-center">Пользователи не найдены.</p>';
-            return;
-        }
-
-        groupCreateSearchResults.innerHTML = normalizedUsers
-            .map((user) => `
-                <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}">
-                    <span>
-                        <span class="group-create-result-name">${escapeHtml(user.display_name)}</span><br>
-                        <span class="group-create-result-username">@${escapeHtml(user.username || 'неизвестно')}</span>
-                    </span>
-                    <span class="group-create-result-username">Добавить</span>
-                </button>
-            `)
-            .join('');
-    }
-
-    function resetGroupCreateModal() {
-        groupCreateMembers.clear();
-        groupCreateSearchRequestSeq += 1;
-        groupCreateSubmitting = false;
-        if (groupTitleInput) groupTitleInput.value = '';
-        if (groupMemberSearchInput) groupMemberSearchInput.value = '';
-        if (groupCreateSearchResults) groupCreateSearchResults.innerHTML = '';
-        renderGroupCreateSelectedMembers();
-        updateGroupCreateSubmitState();
-    }
-
-    function openGroupCreateModal() {
-        if (!groupCreateModal) return;
-        resetGroupCreateModal();
-        openAnimatedDialog(groupCreateModal, { focusTarget: groupTitleInput || groupMemberSearchInput });
-    }
-
-    async function searchGroupMembers(query) {
-        if (!groupCreateSearchResults) return;
-        const normalized = String(query || '').trim();
-        const requestSeq = ++groupCreateSearchRequestSeq;
-
-        if (!normalized) {
-            groupCreateSearchResults.innerHTML = '';
-            return;
-        }
-        if (normalized.length < 3) {
-            groupCreateSearchResults.innerHTML = '<p class="text-center">Введите минимум 3 символа.</p>';
-            return;
-        }
-
-        groupCreateSearchResults.innerHTML = buildSearchResultsLoaderHtml();
-        try {
-            const response = await fetch(withAppRoot(`/search_users?q=${encodeURIComponent(normalized)}&limit=20`), {
-                credentials: 'same-origin',
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (requestSeq !== groupCreateSearchRequestSeq) return;
-            const users = payload.results || payload.users || [];
-            if (!response.ok || !payload.success) {
-                groupCreateSearchResults.innerHTML = `<p class="text-center">${escapeHtml(payload.error || 'Поиск не удался.')}</p>`;
-                return;
-            }
-            renderGroupCreateSearchResults(users);
-        } catch (_) {
-            if (requestSeq !== groupCreateSearchRequestSeq) return;
-            groupCreateSearchResults.innerHTML = '<p class="text-center">Поиск не удался. Попробуйте снова.</p>';
-        }
-    }
 
     async function openChatByIdWhenReady(chatId) {
         const normalizedChatId = String(chatId || '').trim();
@@ -6127,52 +6058,6 @@ const initChatPage = async () => {
         }
     }
 
-    async function submitGroupCreate() {
-        if (groupCreateSubmitting) return;
-        const title = String(groupTitleInput?.value || '').trim();
-        const memberIds = Array.from(groupCreateMembers.keys());
-        if (title.length < 2 || title.length > 120) {
-            showToast('Название группы должно быть от 2 до 120 символов.', 'warning');
-            updateGroupCreateSubmitState();
-            return;
-        }
-        if (!memberIds.length) {
-            showToast('Добавьте хотя бы одного участника.', 'warning');
-            updateGroupCreateSubmitState();
-            return;
-        }
-
-        groupCreateSubmitting = true;
-        updateGroupCreateSubmitState();
-        try {
-            const response = await fetch(withAppRoot('/api/chats/group/create'), {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({
-                    title,
-                    member_user_ids: memberIds,
-                }),
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok || !payload.success) {
-                throw new Error(String(payload.error || 'Не удалось создать группу.'));
-            }
-
-            closeAnimatedDialog(groupCreateModal);
-            showToast('Группа создана.', 'success');
-            await loadContacts({ immediate: true, attemptInitialChatRestore: false });
-            await openChatByIdWhenReady(payload.chat_id);
-        } catch (error) {
-            showToast(error?.message || 'Не удалось создать группу.', 'danger');
-        } finally {
-            groupCreateSubmitting = false;
-            updateGroupCreateSubmitState();
-        }
-    }
 
     let groupEditSubmitting = false;
     let groupEditAvatarUploading = false;
@@ -6334,67 +6219,6 @@ const initChatPage = async () => {
         }
     }
 
-    groupTitleInput?.addEventListener('input', () => {
-        updateGroupCreateSubmitState();
-    });
-
-    groupMemberSearchInput?.addEventListener('input', () => {
-        void searchGroupMembers(groupMemberSearchInput.value);
-    });
-
-    groupCreateSearchResults?.addEventListener('click', (event) => {
-        const addButton = event.target.closest('[data-group-add-member-id]');
-        if (!addButton) return;
-        const memberId = Number.parseInt(addButton.getAttribute('data-group-add-member-id') || '', 10);
-        if (!Number.isFinite(memberId) || memberId <= 0 || groupCreateMembers.has(memberId)) return;
-
-        const resultName = String(addButton.querySelector('.group-create-result-name')?.textContent || `Пользователь ${memberId}`).trim();
-        const resultUsername = String(
-            addButton.querySelector('.group-create-result-username')?.textContent || '',
-        ).replace(/^@/, '').trim();
-        groupCreateMembers.set(memberId, {
-            user_id: memberId,
-            display_name: resultName || `Пользователь ${memberId}`,
-            username: resultUsername,
-            avatar_url: '',
-        });
-        renderGroupCreateSelectedMembers();
-        updateGroupCreateSubmitState();
-        addButton.remove();
-    });
-
-    groupCreateSelected?.addEventListener('click', (event) => {
-        const removeButton = event.target.closest('[data-group-remove-member-id]');
-        if (!removeButton) return;
-        const memberId = Number.parseInt(removeButton.getAttribute('data-group-remove-member-id') || '', 10);
-        if (!Number.isFinite(memberId) || memberId <= 0) return;
-        groupCreateMembers.delete(memberId);
-        renderGroupCreateSelectedMembers();
-        updateGroupCreateSubmitState();
-        void searchGroupMembers(groupMemberSearchInput?.value || '');
-    });
-
-    groupCreateSubmitBtn?.addEventListener('click', () => {
-        void submitGroupCreate();
-    });
-
-    groupMemberSearchInput?.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const firstResult = groupCreateSearchResults?.querySelector('[data-group-add-member-id]');
-            if (firstResult) {
-                firstResult.click();
-                return;
-            }
-            if (!groupCreateSubmitBtn?.disabled) {
-                void submitGroupCreate();
-            }
-        }
-    });
-
-    groupCreateModal?.addEventListener('close', () => {
-        resetGroupCreateModal();
-    });
 
     groupEditTitleInput?.addEventListener('input', () => {
         updateGroupEditSubmitState();
@@ -6606,94 +6430,6 @@ const initChatPage = async () => {
     });
     // ===================================================
 
-    function extractClipboardFiles(event) {
-        const clipboardData = event.clipboardData || event.originalEvent?.clipboardData;
-        if (!clipboardData) return [];
-
-        // Prefer items API (more reliable); fall back to files.
-        // Never read BOTH - they contain the same data and cause duplicates.
-        if (clipboardData.items && clipboardData.items.length) {
-            const files = [];
-            for (const item of clipboardData.items) {
-                if (item.kind === 'file') {
-                    const file = item.getAsFile();
-                    if (file) files.push(file);
-                }
-            }
-            if (files.length) return files;
-        }
-
-        if (clipboardData.files && clipboardData.files.length) {
-            return Array.from(clipboardData.files);
-        }
-
-        return [];
-    }
-
-    function handleClipboardPaste(e) {
-        const files = extractClipboardFiles(e);
-        if (!files.length) return;
-
-        e.preventDefault();
-        const allowCaption = files.length === 1;
-        files.forEach((file) => handleFileUpload(file, { allowCaption }));
-    }
-
-    if (messageInput) {
-        messageInput.addEventListener('paste', handleClipboardPaste);
-    }
-
-    document.addEventListener('paste', (e) => {
-        if (!currentChatId) return;
-        if (e.target === messageInput) return;
-        handleClipboardPaste(e);
-    });
-
-    // Drag & Drop - fix dragleave flickering by tracking drag depth
-    if (chatArea && dragDropOverlay) {
-        let dragDepth = 0;
-
-        chatArea.addEventListener('dragenter', (e) => {
-            if (!currentChatId) return;
-            if (isProfileDrawerOpen()) return;
-            // Only handle real file drags, not browser image drags
-            if (!e.dataTransfer.types.includes('Files')) return;
-            e.preventDefault();
-            dragDepth++;
-            dragDropOverlay.classList.add('active');
-        });
-
-        chatArea.addEventListener('dragover', (e) => {
-            if (!currentChatId) return;
-            if (isProfileDrawerOpen()) return;
-            if (!e.dataTransfer.types.includes('Files')) return;
-            e.preventDefault(); // required to allow drop
-        });
-
-        chatArea.addEventListener('dragleave', (e) => {
-            dragDepth--;
-            if (dragDepth <= 0) {
-                dragDepth = 0;
-                dragDropOverlay.classList.remove('active');
-            }
-        });
-
-        chatArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dragDepth = 0;
-            dragDropOverlay.classList.remove('active');
-            if (!currentChatId) {
-                showToast('\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442 \u043F\u0435\u0440\u0435\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u043E\u0439 \u0444\u0430\u0439\u043B\u0430.', 'warning');
-                return;
-            }
-            if (isProfileDrawerOpen()) return;
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const allowCaption = files.length === 1;
-                for (let file of files) handleFileUpload(file, { allowCaption });
-            }
-        });
-    }
 
     // \u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439
     // Controller for message edit state and edit window validation.
