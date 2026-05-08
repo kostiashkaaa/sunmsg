@@ -548,7 +548,9 @@ function buildFileBubble(filePayload) {
                     <audio class="file-msg-audio-el"
                            data-src="${escapeHtml(safeUri)}"
                            data-duration-seconds="${audioDurationSeconds > 0 ? String(audioDurationSeconds) : ''}"
-                           preload="none"></audio>
+                           preload="none"
+                           playsinline
+                           webkit-playsinline></audio>
                     <button class="audio-player-toggle" type="button" aria-label="\u0412\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438">
                         <i class="bi bi-play-fill"></i>
                     </button>
