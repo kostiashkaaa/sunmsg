@@ -63,7 +63,7 @@ self.addEventListener('push', (event) => {
         }
     })();
     const title = String(payload.title || 'SUN Messenger');
-    const body = String(payload.body || 'Новое сообщение');
+    const body = String(payload.body || '');
     const url = String(payload.url || '/chat');
     const icon = String(payload.icon || '/static/icons/icon-192x192.png');
     const badge = String(payload.badge || '/static/icons/icon-192x192.png');

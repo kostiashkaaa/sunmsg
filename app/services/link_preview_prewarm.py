@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable
@@ -11,6 +12,8 @@ _PREWARM_EXECUTOR = ThreadPoolExecutor(
 )
 _PREWARM_PENDING_LOCK = threading.Lock()
 _PREWARM_PENDING_URLS: set[str] = set()
+
+atexit.register(_PREWARM_EXECUTOR.shutdown, wait=True, cancel_futures=False)
 
 
 def schedule_link_preview_prewarm(

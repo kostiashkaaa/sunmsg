@@ -593,8 +593,9 @@ def _triage_report(
     decision_source = 'rules'
 
     auto_action = ''
+    target_type_str = str(report['target_type'])
     if (
-        str(report['target_type']) == 'user'
+        target_type_str in {'user', GROUP_MEMBER_SUBJECT_TYPE}
         and risk_score >= float(auto_action_threshold)
         and auto_action_type in AUTO_SANCTION_ACTION_TYPES
     ):
