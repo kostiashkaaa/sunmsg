@@ -1486,7 +1486,7 @@
 
 @media (min-width: 769px) {
     #backBtnMobile {
-        display: none !important;
+        display: none;
     }
 
     .sidebar-top-row {

@@ -2060,12 +2060,12 @@
 
 
         .composer-row > .jump-to-new-btn {
-            position: absolute !important;
-            left: auto !important;
-            right: 0 !important;
-            top: auto !important;
-            bottom: calc(100% + 8px) !important;
-            transform: none !important;
+            position: absolute;
+            left: auto;
+            right: 0;
+            top: auto;
+            bottom: calc(100% + 8px);
+            transform: none;
             z-index: 30;
         }
 
