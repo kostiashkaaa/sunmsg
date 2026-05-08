@@ -692,6 +692,15 @@ const initChatPage = async () => {
         setIntervalFn: (handler, delay) => window.setInterval(handler, delay),
         clearIntervalFn: (timerId) => window.clearInterval(timerId),
     });
+
+    const mutePreferences = createChatMutePreferences({
+        storage: window.localStorage,
+        muteChatStorageKey: MUTE_CHAT_STORAGE_KEY,
+        muteDialogRequestsStorageKey: MUTE_DIALOG_REQUESTS_STORAGE_KEY,
+        bootstrapMuteDialogRequests: Boolean(bootstrapUser.muteDialogRequests),
+    });
+    const { ensureMediaElementHydrated, disconnectLazyMediaHydrationObserver, registerMediaElementsForLazyHydration } = createMediaHydrationController({ root: chatMessages });
+
     function getMutedChatIds() {
         return mutePreferences.getMutedChatIds();
     }
@@ -1166,7 +1175,11 @@ const initChatPage = async () => {
         clearOnlineStatusPendingBridge(onlineStatusController);
     };
 
-    const sidebarStatusController = createSidebarStatusController({
+    // var-hoisted: до инициализации обёртки выше видят undefined, не TDZ.
+    // realtime-orchestrator может вызвать syncSidebarStatusBar() на connect
+    // ещё до того, как initChatPage дойдёт до этой строки.
+    // eslint-disable-next-line no-var
+    var sidebarStatusController = createSidebarStatusController({
         computeSidebarStatusSnapshot: _computeSidebarStatusSnapshot,
         runSidebarStatusActionFn: _runSidebarStatusAction,
         syncSidebarStatusBarFn: _syncSidebarStatusBar,
@@ -1194,15 +1207,15 @@ const initChatPage = async () => {
     });
 
     function getSidebarStatusSnapshot() {
-        return sidebarStatusController.getSidebarStatusSnapshot();
+        return sidebarStatusController?.getSidebarStatusSnapshot() || {};
     }
 
     function runSidebarStatusAction(action, { silent = false } = {}) {
-        sidebarStatusController.runSidebarStatusAction(action, { silent });
+        sidebarStatusController?.runSidebarStatusAction(action, { silent });
     }
 
     function syncSidebarStatusBar() {
-        sidebarStatusController.syncSidebarStatusBar();
+        sidebarStatusController?.syncSidebarStatusBar();
     }
 
     sidebarProfileShortcut?.addEventListener('click', () => {
