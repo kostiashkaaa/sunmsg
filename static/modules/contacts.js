@@ -54,8 +54,8 @@ function buildSidebarTickHtml(tickStatus) {
 }
 
 function buildSidebarTimeMetaHtml(timeText, isSelf, deliveryState, isUnread) {
-    const unreadStyle = isUnread ? ' style="color:var(--accent);"' : '';
-    return `<span class="contact-time-meta"${unreadStyle}>${isSelf ? buildSidebarTickHtml(deliveryState) : ''}<span class="contact-time">${escapeHtml(timeText || '')}</span></span>`;
+    const unreadClass = isUnread ? ' contact-time-meta--unread' : '';
+    return `<span class="contact-time-meta${unreadClass}">${isSelf ? buildSidebarTickHtml(deliveryState) : ''}<span class="contact-time">${escapeHtml(timeText || '')}</span></span>`;
 }
 
 function escapeSelectorValue(value) {
