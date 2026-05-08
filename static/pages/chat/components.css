@@ -9032,20 +9032,29 @@
     .voice-playback-bar {
         position: fixed;
         top: auto;
-        left: 0;
-        right: 0;
+        left: 6px;
+        right: 6px;
         bottom: calc(
             var(--floating-composer-reserve, 72px)
             + env(safe-area-inset-bottom, 0px)
-            + 6px
+            + 10px
         );
         z-index: 1003;
         padding: 8px 10px 10px;
         gap: 8px;
-        border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-        border-bottom: none;
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
+        background: var(--chat-hdr);
+        border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    /* Скрываем jump-to-new-btn пока активен voice-bar — иначе оранжевый
+       круг рисуется поверх кнопок воспроизведения. */
+    .chat-area.chat-area--voice-playback-active .jump-to-new-btn {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
     }
     .voice-playback-bar--hidden {
         opacity: 0;
