@@ -8209,29 +8209,6 @@
             .chat-messages .file-msg-audio-player {
                 -webkit-touch-callout: none;
             }
-            /* Компактные аудио-сообщения на мобиле */
-            .bubble--audio {
-                max-width: min(78%, 360px);
-            }
-            .bubble--audio .file-msg-audio-player {
-                gap: 8px;
-            }
-            .bubble--audio .audio-player-toggle {
-                width: 34px;
-                height: 34px;
-            }
-            .bubble--audio .audio-player-toggle i {
-                font-size: 16px;
-            }
-            .bubble--audio .audio-player-wave-wrap {
-                height: 20px;
-            }
-            .bubble--audio .audio-player-wave {
-                height: 18px;
-            }
-            .bubble--audio .audio-message-body {
-                padding-bottom: calc(12px * var(--chat-message-scale));
-            }
             .header-actions-group { gap: 0; }
             .btn-icon { padding: 7px; font-size: 19px; }
             .chat-header .back-btn,
@@ -9150,5 +9127,41 @@
             var(--floating-composer-reserve, 72px)
             + env(safe-area-inset-bottom, 0px)
         );
+    }
+
+    /* ─── Скрываем аватарку слева — даём текстам больше ширины ─── */
+    .chat-area { --chat-avatar-slot: 0px; }
+    .chat-messages .message-avatar-slot {
+        display: none !important;
+    }
+
+    /* ─── Компактные аудио-баблы ─── */
+    .bubble--audio {
+        max-width: min(74%, 320px);
+    }
+    .bubble--audio .file-msg-audio-player {
+        gap: 8px;
+    }
+    .bubble--audio .audio-player-toggle {
+        width: 34px;
+        height: 34px;
+    }
+    .bubble--audio .audio-player-toggle i {
+        font-size: 16px;
+    }
+    .bubble--audio .audio-player-wave-wrap {
+        height: 20px;
+    }
+    .bubble--audio .audio-player-wave {
+        height: 18px;
+    }
+    .bubble--audio .audio-message-body {
+        padding-bottom: calc(12px * var(--chat-message-scale));
+    }
+    /* На совсем узких экранах ужмём ещё */
+    @media (max-width: 380px) {
+        .bubble--audio {
+            max-width: 88%;
+        }
     }
 }
