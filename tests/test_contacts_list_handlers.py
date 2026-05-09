@@ -244,6 +244,65 @@ def test_fetch_contacts_for_user_applies_limit(tmp_path):
     assert contacts[0]['userId'] == 1
 
 
+def test_fetch_contacts_for_user_skips_pinned_table_ddl_when_table_exists(tmp_path):
+    db_path = tmp_path / 'contacts-list-handlers-no-ddl-when-pins-exist.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (
+                id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, hide_online_status
+            )
+            VALUES
+                (1, 'alice', 'Alice', 'pk-1', NULL, 'all', 0, 0),
+                (2, 'bob', 'Bob', 'pk-2', NULL, 'all', 0, 0)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, 'chat-a')
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TABLE pinned_chats (
+                user_id INTEGER NOT NULL,
+                chat_id TEXT NOT NULL,
+                pin_order INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, chat_id)
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO pinned_chats (user_id, chat_id, pin_order)
+            VALUES (1, 'chat-a', 0)
+            '''
+        )
+        conn.commit()
+
+        ensure_calls = {'count': 0}
+
+        def _ensure_pinned(conn):
+            ensure_calls['count'] += 1
+
+        contacts = fetch_contacts_for_user(
+            1,
+            conn,
+            language='ru',
+            normalize_language_func=lambda language, default='ru': language,
+            ensure_pinned_chats_table_func=_ensure_pinned,
+            format_sidebar_time_func=lambda raw, *, language: '',
+            build_initial_last_message_preview_func=lambda raw, *, blocked_by_me, blocked_me, language: '',
+            get_safe_avatar_url_func=lambda row, viewer_id: None,
+            is_effectively_online_func=lambda pub, *, persisted=False: False,
+        )
+
+    assert contacts
+    assert ensure_calls['count'] == 0
+
+
 def test_fetch_contacts_for_user_forces_zero_unread_for_saved_messages(tmp_path):
     db_path = tmp_path / 'contacts-list-handlers-saved-unread.db'
     with _connect(db_path) as conn:

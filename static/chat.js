@@ -735,7 +735,8 @@ const initChatPage = async () => {
             window.requestIdleCallback(() => callback(), { timeout });
             return;
         }
-        window.setTimeout(callback, 0);
+        const fallbackDelayMs = Math.max(0, Number(timeout) || 0);
+        window.setTimeout(callback, fallbackDelayMs);
     };
     let applyActiveMessageSearchFilterImpl = () => {};
     let emojiPickerInitPromise = null;
@@ -6799,6 +6800,11 @@ const initChatPage = async () => {
             delete window.__sunMediaCacheRememberElement;
             delete window.__sunScheduleDataMemoryPolicy;
             mediaCacheRuntime.close().catch(() => {});
+        },
+        disconnectSocket: () => {
+            try {
+                socket.disconnect();
+            } catch (_) {}
         },
     });
 

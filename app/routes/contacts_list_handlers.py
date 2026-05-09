@@ -36,14 +36,20 @@ def fetch_contacts_for_user(
     include_self_contact: bool = True,
 ):
     resolved_language = normalize_language_func(language, default='ru')
-    ensure_pinned_chats_table_func(conn)
     cursor = conn.cursor()
     schema_columns = tables_columns(
         cursor,
         ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
     )
-    has_chat_drafts = bool(schema_columns.get('chat_drafts', set()))
     has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
+    if not has_pinned_chats:
+        ensure_pinned_chats_table_func(conn)
+        schema_columns = tables_columns(
+            cursor,
+            ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
+        )
+        has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
+    has_chat_drafts = bool(schema_columns.get('chat_drafts', set()))
     users_columns = schema_columns.get('users', set())
     last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
     has_group_invite_privacy = 'group_invite_privacy' in users_columns
