@@ -9,9 +9,7 @@ export function initThemeSection({
     persistClientPreferences,
 }) {
     const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
-    const darkModeSwitchEl = document.getElementById('darkModeSwitch');
-    const themeLightEl = document.getElementById('themeLight');
-    const themeDarkEl = document.getElementById('themeDark');
+    const themePresetEls = Array.from(document.querySelectorAll('.theme-preview[data-theme-preset]'));
 
     const isDark = () => localStorage.getItem('darkMode') === 'true';
     const activeThemeKey = () => (isDark() ? 'dark' : 'light');
@@ -87,14 +85,28 @@ export function initThemeSection({
         }, delayMs);
     }
 
-    function applyTheme(dark) {
+    function activePresetId() {
+        if (interfaceThemeApi && typeof interfaceThemeApi.getActivePreset === 'function') {
+            const preset = interfaceThemeApi.getActivePreset(activeThemeKey());
+            return String(preset?.id || '');
+        }
+        return activeThemeKey() === 'dark' ? 'dark-classic' : 'light-classic';
+    }
+
+    function syncPresetSelectionUi() {
+        const presetId = activePresetId();
+        themePresetEls.forEach((preview) => {
+            preview.classList.toggle('selected', preview.dataset.themePreset === presetId);
+        });
+    }
+
+    function applyTheme(dark, options = {}) {
+        const skipInterfaceApply = options.skipInterfaceApply === true;
         document.documentElement.classList.toggle('dark-mode', dark);
         document.body.classList.toggle('dark-mode', dark);
-        if (darkModeSwitchEl) darkModeSwitchEl.checked = dark;
-        if (themeLightEl) themeLightEl.classList.toggle('selected', !dark);
-        if (themeDarkEl) themeDarkEl.classList.toggle('selected', dark);
+        syncPresetSelectionUi();
 
-        if (interfaceThemeApi) {
+        if (interfaceThemeApi && !skipInterfaceApply) {
             interfaceThemeApi.applyCurrentTheme();
             if (typeof refreshInterfaceThemeUi === 'function') {
                 refreshInterfaceThemeUi();
@@ -117,20 +129,24 @@ export function initThemeSection({
         scheduleClientPreferencesPersist();
     }
 
-    darkModeSwitchEl?.addEventListener('change', function () {
-        setTheme(this.checked);
-    });
-    themeLightEl?.addEventListener('click', () => {
-        setTheme(false);
-    });
-    themeDarkEl?.addEventListener('click', () => {
-        setTheme(true);
-    });
-    document.querySelectorAll('.theme-preview[data-theme-choice]').forEach((preview) => {
-        preview.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            setTheme(preview.dataset.themeChoice === 'dark');
+    function setThemePreset(presetId) {
+        if (interfaceThemeApi && typeof interfaceThemeApi.setActivePreset === 'function') {
+            const applied = interfaceThemeApi.setActivePreset(presetId, { apply: true });
+            const dark = String(applied?.themeKey || activeThemeKey()) === 'dark';
+            applyTheme(dark, { skipInterfaceApply: true });
+            scheduleClientPreferencesPersist();
+            return;
+        }
+
+        const forceDark = String(presetId || '').startsWith('dark');
+        setTheme(forceDark);
+    }
+
+    themePresetEls.forEach((preview) => {
+        preview.addEventListener('click', () => {
+            const presetId = String(preview.dataset.themePreset || '').trim();
+            if (!presetId) return;
+            setThemePreset(presetId);
         });
     });
 
@@ -146,6 +162,7 @@ export function initThemeSection({
 
         function refreshControls() {
             const theme = activeThemeKey();
+            syncPresetSelectionUi();
             const state = interfaceThemeApi.getThemeState(theme);
             accentInput.value = state.accent || (theme === 'dark' ? '#d6a449' : '#c58a22');
             scopeLabel.textContent = theme === 'dark'

@@ -165,14 +165,27 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     })();
 
     function toggleTheme() {
-        const isDark = document.body.classList.toggle('dark-mode');
-        document.documentElement.classList.toggle('dark-mode', isDark);
-        localStorage.setItem('darkMode', String(isDark));
+        let isDark = false;
+        let shouldApplyInterfaceTheme = true;
+
+        if (interfaceThemeApi && typeof interfaceThemeApi.toggleThemeMode === 'function') {
+            const applied = interfaceThemeApi.toggleThemeMode({ apply: true });
+            isDark = String(applied?.themeKey || (localStorage.getItem('darkMode') === 'true' ? 'dark' : 'light')) === 'dark';
+            document.body.classList.toggle('dark-mode', isDark);
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('darkMode', String(isDark));
+            shouldApplyInterfaceTheme = false;
+        } else {
+            isDark = document.body.classList.toggle('dark-mode');
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('darkMode', String(isDark));
+        }
+
         const icon = document.getElementById('themeIcon');
         if (icon) {
             icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
         }
-        if (interfaceThemeApi) {
+        if (interfaceThemeApi && shouldApplyInterfaceTheme) {
             interfaceThemeApi.applyCurrentTheme();
         }
     }
