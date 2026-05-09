@@ -3824,7 +3824,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 
         .chat-header .chat-partner-name {
-            font-size: 15.5px;
+            font-size: 16.5px;
             font-weight: 650;
             line-height: 1.2;
             color: var(--text);
