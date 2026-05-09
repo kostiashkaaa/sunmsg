@@ -795,7 +795,6 @@ def handle_send_message_event(
                         updated_at
                     )
                     VALUES (?, ?, ?, ?, ?, ?, 0, 0, CURRENT_TIMESTAMP)
-                    ON CONFLICT(message_id, user_id) DO NOTHING
                     ''',
                     (
                         msg_id,
