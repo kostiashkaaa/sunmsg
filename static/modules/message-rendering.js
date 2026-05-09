@@ -171,7 +171,8 @@ function bindMessageInteractiveHandlers(messageDiv) {
         const onImageError = () => window._onMessageMediaLoadError?.(imgEl);
         imgEl.addEventListener('load', onImageLoad);
         imgEl.addEventListener('error', onImageError);
-        if (imgEl.complete) {
+        const initialSrc = String(imgEl.getAttribute('src') || '').trim();
+        if (initialSrc && imgEl.complete) {
             if (Number(imgEl.naturalWidth) > 0) {
                 onImageLoad();
             } else {
@@ -549,13 +550,14 @@ function buildFileBubble(filePayload) {
         bubbleClass += ' bubble--image';
         if (caption) bubbleClass += ' bubble--image-has-caption';
         content = `
-            <div class="background-layer" data-bg-image="${safeImg}"></div>
+            <div class="background-layer"></div>
             <div class="image-wrapper file-msg-media-trigger"
                  data-media-aspect-ratio="${aspectRatio}"
                  data-media-kind="image"
+                 data-media-src="${safeImg}"
                  data-caption="${escapeHtml(caption)}">
                 ${buildMediaStatusOverlay(filePayload)}
-                <img class="file-msg-img" src="${safeImg}"
+                <img class="file-msg-img" data-src="${safeImg}"
                      loading="lazy" decoding="async" fetchpriority="low"
                      alt="${escapeHtml(filePayload.name || '')}">
             </div>

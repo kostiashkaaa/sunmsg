@@ -81,14 +81,19 @@ export function createChatMessageMutations({
 
             if (imageEl && isImageFile) {
                 const imageSrc = sanitizeFileUri(filePayload.data, { imageOnlyData: true });
-                if (imageSrc && imageEl.getAttribute('src') !== imageSrc) {
+                if (imageSrc) {
+                    imageEl.setAttribute('data-src', imageSrc);
+                    mediaTrigger?.setAttribute('data-media-src', imageSrc);
+                }
+                const currentImageSrc = String(imageEl.getAttribute('src') || '').trim();
+                if (imageSrc && currentImageSrc && currentImageSrc !== imageSrc) {
                     imageEl.removeAttribute('data-loaded');
                     mediaWrap?.classList.remove('is-loaded');
-                    imageEl.setAttribute('src', imageSrc);
+                    imageEl.removeAttribute('src');
                 }
                 const bgLayer = msgDiv.querySelector('.background-layer');
                 if (bgLayer) {
-                    bgLayer.style.backgroundImage = `url('${imageSrc || imageEl.getAttribute('src') || ''}')`;
+                    bgLayer.style.removeProperty('background-image');
                 }
             }
 

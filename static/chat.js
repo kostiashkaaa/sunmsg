@@ -132,9 +132,10 @@ import {
 } from './modules/motion.js';
 import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js?v=20260501e';
 import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
-import { createMediaHydrationController } from './modules/media-hydration.js?v=20260502a';
+import { createMediaHydrationController } from './modules/media-hydration.js?v=20260509a';
 import { createChatMessageMutations } from './modules/chat-message-mutations.js';
 import { initChatMediaRuntime, formatAudioPlayerTime, hasProvidedWaveformPayload } from './modules/chat-media-runtime.js';
+import { createChatMediaCacheRuntime } from './modules/chat-media-cache-runtime.js';
 import { createChatForwardFlow } from './modules/chat-forward-flow.js';
 import { createChatDraftsController } from './modules/chat-drafts.js';
 import { createChatReportFlow } from './modules/chat-report-flow.js';
@@ -304,6 +305,17 @@ const initChatPage = async () => {
         scheduleDataMemoryPolicy();
         return prunePromise;
     }
+    window.__sunScheduleDataMemoryPolicy = scheduleDataMemoryPolicy;
+
+    const mediaCacheRuntime = createChatMediaCacheRuntime({
+        currentUserId: CURRENT_USER_ID,
+        fetchImpl: window.authFetch || window.fetch?.bind(window),
+    });
+    mediaCacheRuntime.init().catch(() => {});
+    window.__sunMediaCacheResolveSource = (sourceUrl, options = {}) =>
+        mediaCacheRuntime.resolveMediaSource(sourceUrl, options);
+    window.__sunMediaCacheRememberElement = (mediaEl) =>
+        mediaCacheRuntime.rememberFromElement(mediaEl);
 
     chatIdbRuntime.init()
         .then((ready) => {
@@ -346,6 +358,12 @@ const initChatPage = async () => {
             window.clearTimeout(cachePolicyTimerId);
             cachePolicyTimerId = 0;
         }
+        try {
+            delete window.__sunMediaCacheResolveSource;
+            delete window.__sunMediaCacheRememberElement;
+            delete window.__sunScheduleDataMemoryPolicy;
+            await mediaCacheRuntime.close();
+        } catch (_) {}
         try { await previousClearChatHistoryCacheOnLogout?.(); } catch (_) {}
         try { await outboxRuntime.clearOnLogout(); } catch (_) {}
     };
@@ -6742,6 +6760,12 @@ const initChatPage = async () => {
         isChatIdbReady,
         chatIdbRuntime,
         getExistingChatHistoryRuntime: () => chatHistoryRuntime,
+        disposeMediaCacheRuntime: () => {
+            delete window.__sunMediaCacheResolveSource;
+            delete window.__sunMediaCacheRememberElement;
+            delete window.__sunScheduleDataMemoryPolicy;
+            mediaCacheRuntime.close().catch(() => {});
+        },
     });
 
 };

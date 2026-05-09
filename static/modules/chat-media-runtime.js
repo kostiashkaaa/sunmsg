@@ -1177,6 +1177,18 @@ export function initChatMediaRuntime(deps = {}) {
         mediaEl.setAttribute('data-loaded', '1');
         const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
         mediaWrap?.classList.add('is-loaded');
+        try {
+            window.__sunMediaCacheRememberElement?.(mediaEl);
+        } catch (_) {}
+
+        const resolvedSrc = String(mediaEl.currentSrc || mediaEl.getAttribute('src') || '').trim();
+        if (resolvedSrc) {
+            const bgLayer = mediaEl.closest('.bubble')?.querySelector('.background-layer');
+            if (bgLayer instanceof HTMLElement) {
+                const safeSrc = resolvedSrc.replace(/'/g, "\\'");
+                bgLayer.style.setProperty('background-image', `url('${safeSrc}')`);
+            }
+        }
 
         const naturalWidth = Number(mediaEl.naturalWidth || mediaEl.videoWidth);
         const naturalHeight = Number(mediaEl.naturalHeight || mediaEl.videoHeight);
