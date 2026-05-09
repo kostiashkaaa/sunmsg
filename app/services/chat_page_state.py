@@ -48,13 +48,15 @@ def fetch_chat_page_context(
         return None
 
     ui_language = language_from_user_row(user_info)
-    initial_contacts = fetch_contacts_for_user(
+    initial_contacts_with_probe = fetch_contacts_for_user(
         user_id,
         conn,
-        limit=initial_contacts_limit,
+        limit=max(1, int(initial_contacts_limit)) + 1,
         language=ui_language,
         include_self_contact=False,
     ) or []
+    has_more_initial_contacts = len(initial_contacts_with_probe) > int(initial_contacts_limit)
+    initial_contacts = initial_contacts_with_probe[: int(initial_contacts_limit)]
 
     return {
         'current_display_name': user_info['display_name'],
@@ -67,4 +69,5 @@ def fetch_chat_page_context(
             user_info['client_preferences'] if 'client_preferences' in user_info.keys() else None
         ),
         'initial_contacts': initial_contacts,
+        'has_more_initial_contacts': has_more_initial_contacts,
     }

@@ -61,6 +61,36 @@ def table_columns(cursor, table_name: str) -> set[str]:
     return {str(row['column_name']) for row in rows}
 
 
+def tables_columns(cursor, table_names: list[str] | tuple[str, ...]) -> dict[str, set[str]]:
+    normalized_names: list[str] = []
+    for raw_name in table_names:
+        name = str(raw_name or '').strip()
+        if not name:
+            continue
+        if name in normalized_names:
+            continue
+        normalized_names.append(name)
+
+    if not normalized_names:
+        return {}
+
+    placeholders = ', '.join('?' for _ in normalized_names)
+    rows = cursor.execute(
+        f'''
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name IN ({placeholders})
+        ORDER BY table_name, ordinal_position
+        ''',
+        tuple(normalized_names),
+    ).fetchall()
+    result = {name: set() for name in normalized_names}
+    for row in rows:
+        table_name = str(row['table_name'])
+        result.setdefault(table_name, set()).add(str(row['column_name']))
+    return result
+
+
 def table_primary_key_columns(cursor, table_name: str) -> list[str]:
     rows = cursor.execute(
         '''

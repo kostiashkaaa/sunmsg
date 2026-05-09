@@ -38,8 +38,9 @@ def ensure_saved_messages_chat(conn, *, user_id: int, public_key: str) -> str:
         UPDATE contacts
         SET chat_id = ?
         WHERE user_id = ? AND contact_id = ?
+          AND COALESCE(chat_id, '') <> ?
         ''',
-        (chat_id, user_id, user_id),
+        (chat_id, user_id, user_id, chat_id),
     )
     return chat_id
 

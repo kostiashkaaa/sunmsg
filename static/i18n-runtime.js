@@ -391,11 +391,9 @@
             applyTextNode(walker.currentNode, lang);
         }
 
-        if (targetRoot.querySelectorAll) {
-            const elements = targetRoot.querySelectorAll('*');
-            for (const element of elements) {
-                applyElementAttributes(element, lang);
-            }
+        const elementWalker = document.createTreeWalker(targetRoot, NodeFilter.SHOW_ELEMENT);
+        while (elementWalker.nextNode()) {
+            applyElementAttributes(elementWalker.currentNode, lang);
         }
     }
 

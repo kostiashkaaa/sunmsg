@@ -6048,6 +6048,9 @@ const initChatPage = async () => {
     syncAllContactsMuteState();
     syncMuteButton();
     const hasSsrContacts = Boolean(contactsList?.querySelector('.contact-item[data-chat-id]'));
+    const hasMoreInitialContacts = String(
+        contactsList?.dataset?.hasMoreInitialContacts || '0',
+    ) === '1';
     if (hasSsrContacts) {
         sortContactsList();
         hideAppBootOverlay();
@@ -6057,9 +6060,11 @@ const initChatPage = async () => {
             attemptInitialChatRestore: false,
         });
     }
-    scheduleNonCriticalTask(() => {
-        loadContacts({ immediate: true });
-    }, CONTACTS_FULL_SYNC_IDLE_TIMEOUT_MS);
+    if (!hasSsrContacts || hasMoreInitialContacts) {
+        scheduleNonCriticalTask(() => {
+            loadContacts({ immediate: true });
+        }, CONTACTS_FULL_SYNC_IDLE_TIMEOUT_MS);
+    }
 
     async function updateContact(contact) {
         return contactsSidebarController.updateContact(contact);
