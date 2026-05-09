@@ -7600,6 +7600,11 @@
         .msg-meta .msg-tick.failed {
             color: #ff7a7a;
             opacity: 1;
+            cursor: pointer;
+        }
+
+        .message.self .msg-meta .msg-tick.failed:hover {
+            opacity: 0.85;
         }
 
 
@@ -7635,6 +7640,51 @@
                 calc(var(--text-meta-reserve) + var(--chat-message-pad-x) * 2 + 44px),
                 min(68vw, 210px)
             );
+        }
+
+        #sunOutboxPill {
+            position: fixed;
+            right: 16px;
+            bottom: 88px;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(28, 28, 32, 0.92);
+            color: #f3f3f5;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #sunOutboxPill.is-visible {
+            display: inline-flex;
+        }
+
+        #sunOutboxPill .sun-outbox-pill__icon {
+            display: inline-flex;
+            width: 14px;
+            height: 14px;
+        }
+
+        #sunOutboxPill .sun-outbox-pill__count {
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 640px) {
+            #sunOutboxPill {
+                right: 12px;
+                bottom: 96px;
+                font-size: 12px;
+                padding: 7px 12px;
+            }
         }
 
 
