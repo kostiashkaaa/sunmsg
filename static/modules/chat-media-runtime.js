@@ -46,10 +46,12 @@ export function initChatMediaRuntime(deps = {}) {
         voicePlaybackPlayBtn,
         voicePlaybackBackBtn,
         voicePlaybackForwardBtn,
+        voicePlaybackSender,
         voicePlaybackDetails,
         voicePlaybackProgress,
         voicePlaybackProgressFill,
         voicePlaybackSpeedBtn,
+        voicePlaybackRepeatBtn,
         voicePlaybackVolume,
         voicePlaybackCloseBtn,
         ensureMediaElementHydrated,
@@ -159,8 +161,10 @@ export function initChatMediaRuntime(deps = {}) {
     const AUDIO_PLAYBACK_RATES = Object.freeze([1, 1.5, 2]);
     const AUDIO_PLAYBACK_RATE_STORAGE_KEY = 'sun_audio_playback_rate';
     const AUDIO_VOLUME_STORAGE_KEY = 'sun_audio_volume';
+    const AUDIO_REPEAT_STORAGE_KEY = 'sun_audio_repeat_enabled';
     const AUDIO_WAVEFORM_BARS_COUNT = 48;
     let activeVoicePlaybackAudioEl = null;
+    let isAudioRepeatEnabled = false;
 
     function normalizeAudioPlaybackRate(value) {
         const numeric = Number(value);
@@ -222,6 +226,39 @@ export function initChatMediaRuntime(deps = {}) {
         } catch (_) {}
         return normalized;
     }
+
+    function normalizeAudioRepeatEnabled(value) {
+        if (value === true || value === false) return value;
+        const normalized = String(value || '').trim().toLowerCase();
+        return normalized === '1' || normalized === 'true';
+    }
+
+    function getPreferredAudioRepeatEnabled() {
+        try {
+            return normalizeAudioRepeatEnabled(window.localStorage?.getItem(AUDIO_REPEAT_STORAGE_KEY));
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function setPreferredAudioRepeatEnabled(value) {
+        const normalized = Boolean(value);
+        try {
+            window.localStorage?.setItem(AUDIO_REPEAT_STORAGE_KEY, normalized ? '1' : '0');
+        } catch (_) {}
+        return normalized;
+    }
+
+    function syncVoicePlaybackRepeatButton() {
+        if (!voicePlaybackRepeatBtn) return;
+        const isEnabled = isAudioRepeatEnabled;
+        voicePlaybackRepeatBtn.classList.toggle('is-active', isEnabled);
+        voicePlaybackRepeatBtn.setAttribute('aria-pressed', isEnabled ? 'true' : 'false');
+        voicePlaybackRepeatBtn.setAttribute('aria-label', isEnabled ? 'Повтор включен. Выключить' : 'Повтор выключен. Включить');
+        voicePlaybackRepeatBtn.setAttribute('title', isEnabled ? 'Повтор включен' : 'Повтор выключен');
+    }
+
+    isAudioRepeatEnabled = getPreferredAudioRepeatEnabled();
 
     function resolveVoicePlaybackTimeLabel(audioEl) {
         const messageEl = resolveAudioMessageElement(audioEl);
@@ -344,6 +381,7 @@ export function initChatMediaRuntime(deps = {}) {
         voicePlaybackPlayBtn.setAttribute('title', isPlaying ? 'Пауза' : 'Воспроизвести');
         const preferredRate = getPreferredAudioPlaybackRate();
         voicePlaybackSpeedBtn.textContent = formatAudioPlaybackRateLabel(preferredRate);
+        syncVoicePlaybackRepeatButton();
         voicePlaybackSpeedBtn.setAttribute('aria-label', `Скорость ${formatAudioPlaybackRateLabel(preferredRate)}. Изменить`);
         if (voicePlaybackVolume.dataset.seeking !== '1') {
             voicePlaybackVolume.value = String(Math.round((activeAudio.volume ?? 1) * 100));
@@ -790,6 +828,13 @@ export function initChatMediaRuntime(deps = {}) {
 
         // Trigger autoplay/close logic on `ended` once.
         if (audioEl.ended && resolveActiveVoicePlaybackAudio() === audioEl) {
+            if (isAudioRepeatEnabled) {
+                const repeatToggle = audioEl.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
+                if (repeatToggle) {
+                    window._toggleAudioPlayer(repeatToggle);
+                    return;
+                }
+            }
             const next = findAdjacentVoiceAudio(audioEl, 1);
             if (next) {
                 // Авто-переход на следующее голосовое (Telegram-style).
@@ -1057,6 +1102,14 @@ export function initChatMediaRuntime(deps = {}) {
         voicePlaybackSpeedBtn.addEventListener('click', () => {
             window._cycleAudioPlaybackRate?.(null);
             syncVoicePlaybackBar();
+        });
+    }
+
+    if (voicePlaybackRepeatBtn) {
+        syncVoicePlaybackRepeatButton();
+        voicePlaybackRepeatBtn.addEventListener('click', () => {
+            isAudioRepeatEnabled = setPreferredAudioRepeatEnabled(!isAudioRepeatEnabled);
+            syncVoicePlaybackRepeatButton();
         });
     }
 
