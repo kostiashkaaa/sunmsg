@@ -1,7 +1,7 @@
 const DB_VERSION = 1;
 const STORE_CHATS = 'chats';
 const INDEX_UPDATED_AT = 'byUpdatedAt';
-const MAX_MESSAGES_PER_CHAT = 50;
+const MAX_MESSAGES_PER_CHAT = 500;
 
 let activeDb = null;
 let activeUserId = '';
