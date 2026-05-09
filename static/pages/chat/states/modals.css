@@ -584,13 +584,23 @@
 .caption-modal-footer .btn-send:active { transform: scale(0.96); }
 
 .group-create-modal {
+    --group-create-bg: color-mix(in srgb, var(--paper, #f8fafc) 82%, var(--surface, #ffffff) 18%);
+    --group-create-head-bg: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--paper, #f8fafc) 12%);
+    --group-create-actions-bg: color-mix(in srgb, var(--surface-2, #eef2f7) 86%, transparent);
+    --group-create-field-bg: color-mix(in srgb, var(--surface, #ffffff) 72%, var(--paper-alt, #f1f5f9) 28%);
+    --group-create-border: color-mix(in srgb, var(--border, #d1d5db) 74%, transparent);
+    --group-create-sub-text: color-mix(in srgb, var(--sub-text, #6b7280) 90%, var(--text, #111827) 10%);
+    --group-create-chip-bg: color-mix(in srgb, var(--surface-2, #eef2f7) 74%, transparent);
+    --group-create-chip-border: color-mix(in srgb, var(--border, #d1d5db) 70%, transparent);
+    --group-create-hover-bg: color-mix(in srgb, var(--accent-soft, #bfdbfe) 30%, var(--surface, #ffffff) 70%);
+    --group-create-avatar-bg: color-mix(in srgb, var(--accent, #2563eb) 46%, #111827 54%);
     width: min(370px, calc(100vw - 16px));
     max-height: min(92dvh, 920px);
     border: 0;
     border-radius: 10px;
     padding: 0;
-    background: #232c36;
-    color: #f8fbff;
+    background: var(--group-create-bg);
+    color: var(--text, #111827);
     box-shadow: 0 22px 56px rgba(0, 0, 0, 0.46);
     overflow: hidden;
 }
@@ -607,8 +617,8 @@
     align-items: center;
     gap: 10px;
     padding: 14px 14px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    background: #252f39;
+    border-bottom: 1px solid var(--group-create-border);
+    background: var(--group-create-head-bg);
 }
 
 .group-create-modal__title {
@@ -623,7 +633,7 @@
 
 .group-create-modal__count-badge {
     font-size: 12px;
-    color: rgba(212, 223, 236, 0.7);
+    color: var(--group-create-sub-text);
     white-space: nowrap;
 }
 
@@ -652,7 +662,7 @@
     font-size: 13px;
     letter-spacing: 0;
     text-transform: none;
-    color: rgba(207, 220, 236, 0.75);
+    color: var(--group-create-sub-text);
 }
 
 .group-create-modal__input {
@@ -662,12 +672,13 @@
     min-height: 42px;
     padding: 10px 12px;
     font: inherit;
-    color: #f7fbff;
-    background: #1b232d;
+    color: var(--text, #111827);
+    background: var(--group-create-field-bg);
+    border: 1px solid var(--group-create-border);
 }
 
 .group-create-modal__input::placeholder {
-    color: rgba(187, 198, 214, 0.68);
+    color: color-mix(in srgb, var(--sub-text, #6b7280) 88%, transparent);
 }
 
 .group-create-modal__input:focus {
@@ -697,7 +708,11 @@
     justify-content: center;
     font-size: 22px;
     color: #fff;
-    background: linear-gradient(140deg, #5fa4ff 0%, #3f80de 100%);
+    background: linear-gradient(
+        140deg,
+        color-mix(in srgb, var(--accent, #2563eb) 74%, #ffffff 26%) 0%,
+        color-mix(in srgb, var(--accent, #2563eb) 88%, #111827 12%) 100%
+    );
 }
 
 .group-create-title-fields {
@@ -717,8 +732,8 @@
     align-items: center;
     gap: 6px;
     border-radius: 999px;
-    border: 1px solid rgba(129, 156, 189, 0.4);
-    background: rgba(82, 116, 153, 0.18);
+    border: 1px solid var(--group-create-chip-border);
+    background: var(--group-create-chip-bg);
     padding: 4px 8px 4px 4px;
     font-size: 12px;
 }
@@ -734,7 +749,7 @@
     font-size: 11px;
     font-weight: 700;
     color: #fff;
-    background: rgba(90, 128, 171, 0.8);
+    background: var(--group-create-avatar-bg);
 }
 
 .group-create-member-chip__avatar img {
@@ -768,9 +783,9 @@
     align-items: center;
     gap: 10px;
     border: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid color-mix(in srgb, var(--group-create-border) 74%, transparent);
     background: transparent;
-    color: #f4f8ff;
+    color: var(--text, #111827);
     padding: 8px 10px;
     text-align: left;
     cursor: pointer;
@@ -781,7 +796,7 @@
 }
 
 .group-create-result-item:hover {
-    background: rgba(151, 176, 205, 0.1);
+    background: var(--group-create-hover-bg);
 }
 
 .group-create-result-avatar {
@@ -795,7 +810,7 @@
     font-size: 14px;
     font-weight: 700;
     color: #fff;
-    background: rgba(90, 128, 171, 0.82);
+    background: var(--group-create-avatar-bg);
 }
 
 .group-create-result-avatar img {
@@ -819,14 +834,14 @@
 
 .group-create-result-username {
     font-size: 14px;
-    color: rgba(197, 209, 224, 0.78);
+    color: var(--group-create-sub-text);
     line-height: 1.2;
 }
 
 .group-create-result-add {
     font-size: 12px;
     font-weight: 700;
-    color: rgba(189, 164, 255, 0.92);
+    color: color-mix(in srgb, var(--accent, #2563eb) 72%, var(--text, #111827) 28%);
 }
 
 .group-create-modal__actions {
@@ -838,8 +853,8 @@
     gap: 10px;
     margin-top: 6px;
     padding: 12px 12px 14px;
-    background: #2a3440;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--group-create-actions-bg);
+    border-top: 1px solid var(--group-create-border);
 }
 
 /* Forward modal: compact Telegram-like list */

@@ -7,6 +7,18 @@ function readInt(value) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function readBooleanFlag(value, fallback = true) {
+    if (value === true || value === false) return value;
+    if (typeof value === 'number') return value > 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+        if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+    }
+    return Boolean(fallback);
+}
+
+
 function normalizeCandidate(user) {
     if (!user || typeof user !== 'object') return null;
     const parsedId = readInt(user.userId ?? user.user_id);
@@ -14,11 +26,13 @@ function normalizeCandidate(user) {
     const displayName = String(user.display_name || user.username || `Пользователь ${parsedId}`).trim();
     const username = String(user.username || '').trim().replace(/^@+/, '');
     const avatarUrl = String(user.avatar_url || '').trim();
+    const canGroupAddDirect = readBooleanFlag(user.can_group_add_direct, true);
     return {
         user_id: parsedId,
         display_name: displayName || `Пользователь ${parsedId}`,
         username,
         avatar_url: avatarUrl,
+        can_group_add_direct: canGroupAddDirect,
     };
 }
 
@@ -64,12 +78,14 @@ export function createChatGroupCreateController(deps = {}) {
             const displayName = String(item.querySelector('.contact-name')?.textContent || '').trim();
             const username = String(item.dataset.contactUsername || '').trim().replace(/^@+/, '');
             const avatarUrl = String(item.querySelector('.contact-avatar img')?.getAttribute('src') || '').trim();
+            const canGroupAddDirect = readBooleanFlag(item.dataset.canGroupAddDirect, true);
 
             uniqueCandidates.set(userId, {
                 user_id: userId,
                 display_name: displayName || `Пользователь ${userId}`,
                 username,
                 avatar_url: avatarUrl,
+                can_group_add_direct: canGroupAddDirect,
             });
         }
 
@@ -172,12 +188,13 @@ export function createChatGroupCreateController(deps = {}) {
     function renderGroupCreateSearchResults(users) {
         if (!groupCreateSearchResults) return;
         const normalize = typeof normalizeSearchUser === 'function' ? normalizeSearchUser : normalizeCandidate;
-        const normalizedUsers = Array.isArray(users)
+        const normalizedUsersRaw = Array.isArray(users)
             ? users
                 .map((entry) => normalize(entry))
                 .filter(Boolean)
                 .filter((entry) => !groupCreateMembers.has(entry.user_id))
             : [];
+        const normalizedUsers = normalizedUsersRaw.filter((entry) => entry.can_group_add_direct !== false);
 
         if (!normalizedUsers.length) {
             groupCreateSearchResults.innerHTML = '<p class="text-center">Пользователи не найдены.</p>';
@@ -186,7 +203,7 @@ export function createChatGroupCreateController(deps = {}) {
 
         groupCreateSearchResults.innerHTML = normalizedUsers
             .map((user) => `
-                <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}">
+                <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}" data-can-group-add-direct="${user.can_group_add_direct === false ? '0' : '1'}">
                     <span class="group-create-result-avatar">${buildResultAvatarHtml(user)}</span>
                     <span class="group-create-result-copy">
                         <span class="group-create-result-name">${escapeHtml(user.display_name)}</span>
@@ -302,6 +319,15 @@ export function createChatGroupCreateController(deps = {}) {
 
             await closeAnimatedDialog(groupCreateModal);
             showToast('Группа создана.', 'success');
+            const requestedCount = Array.isArray(payload.requested_member_ids) ? payload.requested_member_ids.length : 0;
+            if (requestedCount > 0) {
+                showToast(
+                    requestedCount === 1
+                        ? '1 пользователь получил запрос на вступление.'
+                        : `${requestedCount} пользователей получили запрос на вступление.`,
+                    'info',
+                );
+            }
             await loadContacts({ immediate: true, attemptInitialChatRestore: false });
             await openChatByIdWhenReady(payload.chat_id);
         } catch (error) {
@@ -331,6 +357,7 @@ export function createChatGroupCreateController(deps = {}) {
     groupCreateSearchResults?.addEventListener('click', (event) => {
         const addButton = event.target.closest('[data-group-add-member-id]');
         if (!addButton) return;
+        if (readBooleanFlag(addButton.getAttribute('data-can-group-add-direct'), true) === false) return;
         const memberId = readInt(addButton.getAttribute('data-group-add-member-id'));
         if (memberId <= 0 || groupCreateMembers.has(memberId)) return;
 
