@@ -5953,6 +5953,11 @@
             overflow:visible; text-overflow:clip; display:block;
             word-wrap:break-word; overflow-wrap:anywhere; }
 
+        .message.self .reply-quote-name,
+        .message.self .reply-quote-text {
+            color: color-mix(in srgb, var(--chat-bubble-out-text) 88%, transparent);
+        }
+
         .forward-quote {
             margin-bottom: 6px;
             line-height: 1.15;
