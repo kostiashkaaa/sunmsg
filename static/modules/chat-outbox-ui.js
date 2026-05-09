@@ -1,66 +1,7 @@
 // Floating pill that shows the number of messages waiting in the outbox.
-// Visible only when count > 0. Self-contained: creates its own DOM element and
-// CSS via a single style tag. No template changes required.
+// Visible only when count > 0. CSS is defined in static styles.
 
 const PILL_ID = 'sunOutboxPill';
-const STYLE_ID = 'sunOutboxPillStyles';
-
-const PILL_STYLES = `
-#${PILL_ID} {
-    position: fixed;
-    right: 16px;
-    bottom: 88px;
-    z-index: 1000;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(28, 28, 32, 0.92);
-    color: #f3f3f5;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    pointer-events: none;
-    user-select: none;
-}
-#${PILL_ID}.is-visible {
-    display: inline-flex;
-}
-#${PILL_ID} .sun-outbox-pill__icon {
-    display: inline-flex;
-    width: 14px;
-    height: 14px;
-}
-#${PILL_ID} .sun-outbox-pill__count {
-    font-variant-numeric: tabular-nums;
-}
-@media (max-width: 640px) {
-    #${PILL_ID} {
-        right: 12px;
-        bottom: 96px;
-        font-size: 12px;
-        padding: 7px 12px;
-    }
-}
-.message.self .msg-tick.failed {
-    cursor: pointer;
-}
-.message.self .msg-tick.failed:hover {
-    opacity: 0.85;
-}
-`;
-
-function ensureStyles() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = PILL_STYLES;
-    document.head.appendChild(style);
-}
 
 function ensurePillElement() {
     let pill = document.getElementById(PILL_ID);
@@ -92,7 +33,6 @@ export function mountOutboxPill(outboxRuntime) {
     if (!outboxRuntime || typeof outboxRuntime.onCountChange !== 'function') {
         return () => {};
     }
-    ensureStyles();
     const pill = ensurePillElement();
     const labelEl = pill.querySelector('.sun-outbox-pill__label');
     const countEl = pill.querySelector('.sun-outbox-pill__count');
