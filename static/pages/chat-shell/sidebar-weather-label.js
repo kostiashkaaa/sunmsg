@@ -82,25 +82,35 @@ function formatTemperatureLabel(value) {
     return `${prefix}${rounded}°`;
 }
 
-function formatFeelsLikeLabel(value) {
+function normalizeLabelLanguage(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    return raw.startsWith('en') ? 'en' : 'ru';
+}
+
+function formatFeelsLikeLabel(value, language = 'ru') {
     const temp = formatTemperatureLabel(value);
     if (!temp) return '';
-    return `ощ ${temp}`;
+    const prefix = language === 'en' ? 'feels' : 'ощ';
+    return `${prefix} ${temp}`;
 }
 
-function formatHumidityLabel(value) {
+function formatHumidityLabel(value, language = 'ru') {
     if (!Number.isFinite(value)) return '';
-    return `вл ${Math.round(value)}%`;
+    const prefix = language === 'en' ? 'hum' : 'вл';
+    return `${prefix} ${Math.round(value)}%`;
 }
 
-function formatWindLabel(value) {
+function formatWindLabel(value, language = 'ru') {
     if (!Number.isFinite(value)) return '';
-    return `вет ${Math.round(value)}м/с`;
+    const prefix = language === 'en' ? 'wind' : 'вет';
+    const unit = language === 'en' ? 'm/s' : 'м/с';
+    return `${prefix} ${Math.round(value)}${unit}`;
 }
 
-function formatPrecipitationLabel(value) {
+function formatPrecipitationLabel(value, language = 'ru') {
     if (!Number.isFinite(value)) return '';
-    return `дождь ${Math.round(value)}%`;
+    const prefix = language === 'en' ? 'rain' : 'дождь';
+    return `${prefix} ${Math.round(value)}%`;
 }
 
 function formatUvLabel(value) {
@@ -113,10 +123,11 @@ function formatAqiLabel(value) {
     return `AQI ${Math.round(value)}`;
 }
 
-function formatPressureLabel(value) {
+function formatPressureLabel(value, language = 'ru') {
     if (!Number.isFinite(value)) return '';
     const mmHg = Math.round(value * 0.75006156);
-    return `давл ${mmHg}`;
+    const prefix = language === 'en' ? 'pres' : 'давл';
+    return `${prefix} ${mmHg}`;
 }
 
 function extractClockPart(value) {
@@ -293,27 +304,28 @@ async function fetchWeatherSnapshotByCoordinates(coords, { includeAqi = false } 
     return snapshot;
 }
 
-function buildWeatherLabels(snapshot, metricKeys) {
+function buildWeatherLabels(snapshot, metricKeys, language = 'ru') {
     if (!snapshot || !Array.isArray(metricKeys) || !metricKeys.length) return [];
+    const labelLanguage = normalizeLabelLanguage(language);
     const labels = [];
     metricKeys.forEach((metric) => {
         let label = '';
         if (metric === 'temperature') {
             label = formatTemperatureLabel(snapshot.temperature);
         } else if (metric === 'feels_like') {
-            label = formatFeelsLikeLabel(snapshot.apparentTemperature);
+            label = formatFeelsLikeLabel(snapshot.apparentTemperature, labelLanguage);
         } else if (metric === 'humidity') {
-            label = formatHumidityLabel(snapshot.humidity);
+            label = formatHumidityLabel(snapshot.humidity, labelLanguage);
         } else if (metric === 'wind') {
-            label = formatWindLabel(snapshot.windSpeed);
+            label = formatWindLabel(snapshot.windSpeed, labelLanguage);
         } else if (metric === 'precip') {
-            label = formatPrecipitationLabel(snapshot.precipitationProbability);
+            label = formatPrecipitationLabel(snapshot.precipitationProbability, labelLanguage);
         } else if (metric === 'uv') {
             label = formatUvLabel(snapshot.uvIndex);
         } else if (metric === 'aqi') {
             label = formatAqiLabel(snapshot.usAqi);
         } else if (metric === 'pressure') {
-            label = formatPressureLabel(snapshot.pressureMsl);
+            label = formatPressureLabel(snapshot.pressureMsl, labelLanguage);
         } else if (metric === 'sun_cycle') {
             label = formatSunCycleLabel(snapshot);
         }
@@ -536,7 +548,8 @@ export function initSidebarWeatherLabel({
             const includeAqi = metricKeys.includes('aqi');
             const snapshot = await fetchWeatherSnapshotByCoordinates(coords, { includeAqi });
             if (destroyed || seq !== requestSeq) return;
-            weatherLabels = buildWeatherLabels(snapshot, metricKeys);
+            const currentLanguage = normalizeLabelLanguage(language());
+            weatherLabels = buildWeatherLabels(snapshot, metricKeys, currentLanguage);
             if (!weatherLabels.length) {
                 rotationCursor = 0;
             } else {
