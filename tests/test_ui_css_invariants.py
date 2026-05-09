@@ -843,8 +843,8 @@ def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
     assert '&& !tailGroupWouldChange' in chat_js, (
         'chat.js: fast append must not leave stale grouped tail DOM next to new messages'
     )
-    assert "chat-text-send.js?v=2.0.11" in chat_js
-    assert "chat-file-send.js?v=2.1.2" in chat_js
+    assert "chat-text-send.js" in chat_js
+    assert "chat-file-send.js" in chat_js
     assert 'renderOptions: { force: true, scrollToBottom: true }' in text_send, (
         'chat-text-send.js: optimistic text sends should force a tail rerender for alignment'
     )

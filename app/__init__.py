@@ -19,6 +19,7 @@ from app.bootstrap.security import (
     require_production_realtime_backing_services,
     require_production_security_baseline,
 )
+from app.db.connection import close_request_db_connection
 from app.extensions import init_extensions
 from app.routes.auth import auth_bp
 from app.routes.chat import chat_bp
@@ -58,6 +59,10 @@ def create_app(config_name=None, overrides=None):
     @app.before_request
     def _prepare_request_context():
         g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.teardown_appcontext
+    def _close_request_db_connection(_exception):
+        close_request_db_connection()
 
     init_extensions(app)
     csrf.init_app(app)

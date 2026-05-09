@@ -4,7 +4,7 @@ from app.services.favorites_chat import (
     ensure_saved_messages_chat,
     resolve_contact_display_name,
 )
-from app.db.schema import table_columns, table_exists
+from app.db.schema import table_columns
 
 
 def _coerce_bool_flag(value, *, default: bool = True) -> bool:
@@ -38,8 +38,8 @@ def fetch_contacts_for_user(
     resolved_language = normalize_language_func(language, default='ru')
     ensure_pinned_chats_table_func(conn)
     cursor = conn.cursor()
-    has_chat_drafts = table_exists(cursor, 'chat_drafts')
-    has_pinned_chats = table_exists(cursor, 'pinned_chats')
+    has_chat_drafts = bool(table_columns(cursor, 'chat_drafts'))
+    has_pinned_chats = bool(table_columns(cursor, 'pinned_chats'))
     users_columns = table_columns(cursor, 'users')
     last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
     has_group_invite_privacy = 'group_invite_privacy' in users_columns

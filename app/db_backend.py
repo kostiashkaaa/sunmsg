@@ -362,6 +362,11 @@ class PostgresConnectionAdapter:
 
 
 def connect_postgres(database_url: str, *, schema_name: str | None = None):
+    connection = connect_postgres_raw(database_url, schema_name=schema_name)
+    return PostgresConnectionAdapter(connection)
+
+
+def connect_postgres_raw(database_url: str, *, schema_name: str | None = None):
     try:
         import psycopg
     except ImportError as exc:
@@ -386,4 +391,4 @@ def connect_postgres(database_url: str, *, schema_name: str | None = None):
         options=' '.join(options),
         connect_timeout=5,
     )
-    return PostgresConnectionAdapter(connection)
+    return connection

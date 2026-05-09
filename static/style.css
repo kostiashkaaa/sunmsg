@@ -1,7 +1,671 @@
-/* Global stylesheet entrypoint (decomposed). */
-@import url('./styles/tokens.css');
-@import url('./styles/base.css');
-@import url('./styles/shared-components.css');
+/* Global stylesheet entrypoint (inlined to avoid render-blocking @import chain). */
+
+/* Source: styles/tokens.css */
+/* normalized: removed mojibake comment */
+:root {
+    --font: 'Inter', system-ui, sans-serif;
+    --font-serif: var(--font);
+    --font-mono: var(--font);
+
+    /* Backgrounds */
+    --bg:              #f3f0e8;
+    --paper:           #fbf8f1;
+    --paper-alt:       #efeae0;
+    --surface:         #fbf8f1;
+    --surface-2:       #efeae0;
+    --sidebar-bg:      #f3f0e8;
+    --sidebar-hdr:     #efeae0;
+    --chat-bg:         #f2ede2;
+    --chat-hdr-bg:     #f3f0e8;
+    --input-bg:        #fbf8f1;
+    --overlay-bg:      #fbf8f1;
+    --modal-bg:        #fbf8f1;
+    --req-bg:          #fefce8;
+    --req-border:      #fde68a;
+    --contact-bg:      transparent;
+    --contact-hover:   rgba(20,16,8,0.04);
+
+    /* normalized: removed mojibake comment */
+    --auth-bg:         #f3f0e8;
+    --auth-card-bg:    rgba(251,248,241,0.95);
+    --auth-card-border:rgba(217,210,191,0.5);
+    --auth-card-shadow:0 6px 18px rgba(20,16,8,0.07), 0 1px 4px rgba(20,16,8,0.03);
+    --auth-orb-1:      oklch(68% 0.14 65);
+    --auth-orb-2:      transparent;
+    --auth-orb-3:      transparent;
+
+    /* Text */
+    --ink:             #15140e;
+    --ink-soft:        #3f3a2d;
+    --ink-mute:        #7a7363;
+    --ink-faint:       #aba493;
+    --text:            #15140e;
+    --sub-text:        #7a7363;
+    --text-muted:      #aba493;
+    --text-inv:        #f3f0e8;
+
+    /* normalized: removed mojibake comment */
+    --rule:            #d9d2bf;
+    --rule-soft:       #e8e1cd;
+    --border:          #d9d2bf;
+    --border-focus:    rgba(196,148,60,0.45);
+
+    /* normalized: removed mojibake comment */
+    --accent:          oklch(68% 0.14 65);
+    --accent-deep:     oklch(58% 0.16 55);
+    --accent-soft:     oklch(94% 0.04 75);
+    --accent-hover:    oklch(58% 0.16 55);
+    --accent-light:    oklch(94% 0.04 75);
+    --accent-bright:   oklch(74% 0.12 70);
+    --accent-glow:     rgba(196,148,60,0.20);
+    --accent-gradient: linear-gradient(135deg, oklch(68% 0.14 65) 0%, oklch(74% 0.12 70) 100%);
+
+    /* normalized: removed mojibake comment */
+    --bubble-out:      #15140e;
+    --bubble-out-text: #f3f0e8;
+    --bubble-in:       #fbf8f1;
+    --bubble-in-text:  #15140e;
+
+    /* normalized: removed mojibake comment */
+    --danger:          oklch(58% 0.18 25);
+    --success:         oklch(58% 0.10 155);
+    --good:            oklch(58% 0.10 155);
+    --warning:         oklch(70% 0.12 50);
+    --warn:            oklch(70% 0.12 50);
+
+    /* normalized: removed mojibake comment */
+    --chat-hdr:        #f3f0e8;
+    --overlay-menu-bg: #fbf8f1;
+
+    /* Radius */
+    --radius-xs:       4px;
+    --radius-sm:       8px;
+    --radius-md:       14px;
+    --radius:          14px;
+    --radius-lg:       14px;
+    --radius-full:     999px;
+
+    /* normalized: removed mojibake comment */
+    --avatar-xs:       28px;  /* inline mentions, mini-rows */
+    --avatar-sm:       32px;  /* compact rows */
+    --avatar-md:       40px;  /* sidebar contact-item */
+    --avatar-lg:       44px;  /* chat-header, sidebar-header */
+    --avatar-xl:       72px;  /* profile drawer header */
+
+    /* normalized: removed mojibake comment */
+    --header-h:        60px;
+
+    /* Shadow */
+    --shadow-none:     none;
+    --shadow-1:        0 1px 2px rgba(20,16,8,0.08);
+    --shadow-2:        0 4px 12px rgba(20,16,8,0.07);
+    --shadow:          0 1px 2px rgba(20,16,8,0.08);
+    --shadow-md:       0 4px 12px rgba(20,16,8,0.07);
+    --shadow-lg:       0 10px 26px rgba(20,16,8,0.12);
+    --text-shadow-1:   0 1px 2px rgba(0,0,0,0.22);
+    --text-shadow-contrast: 0 1px 2px rgba(0,0,0,0.30);
+    --text-shadow-media: 0 1px 3px rgba(0,0,0,0.60);
+    --text-shadow-glow-accent: 0 0 12px color-mix(in srgb, var(--accent) 16%, transparent);
+    --text-shadow-glow-success: 0 0 12px color-mix(in srgb, var(--success) 18%, transparent);
+
+    /* normalized: removed mojibake comment */
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+    --space-4: 16px; --space-5: 20px; --space-6: 24px;
+    --space-7: 32px; --space-8: 40px;
+    --space-9: 56px; --space-10: 72px;
+
+    /* normalized: removed mojibake comment */
+    --ease-quick:      cubic-bezier(.4,0,.2,1);
+    --ease-spring:     cubic-bezier(.4,0,.2,1);
+    --dur-instant:     120ms;
+    --dur-quick:       200ms;
+    --dur-medium:      300ms;
+    --dur-slow:        400ms;
+    --transition:      0.2s cubic-bezier(.4,0,.2,1);
+
+    /* normalized: removed mojibake comment */
+    --profile-sheet-bg:    linear-gradient(180deg, rgba(243,240,232,0.98) 0%, rgba(239,234,224,0.99) 100%);
+    --profile-sheet-border:rgba(21,20,14,0.08);
+    --profile-sheet-shadow:-10px 0 26px rgba(20,16,8,0.09);
+    --profile-pane-border: rgba(21,20,14,0.08);
+    --profile-card-bg:     rgba(251,248,241,0.8);
+    --profile-card-border: rgba(21,20,14,0.08);
+    --profile-row-divider: rgba(21,20,14,0.06);
+    --profile-row-hover:   rgba(20,16,8,0.03);
+    --profile-action-bg:   rgba(251,248,241,0.7);
+    --profile-action-border:rgba(21,20,14,0.1);
+    --profile-action-hover: rgba(239,234,224,0.92);
+    --profile-count-bg:    rgba(21,20,14,0.06);
+    --profile-meta-label:  rgba(122,115,99,0.92);
+    --profile-meta-value:  rgba(21,20,14,0.94);
+    --profile-meta-icon:   rgba(122,115,99,0.78);
+    --profile-meta-copy-bg:rgba(21,20,14,0.05);
+    --profile-meta-copy-border:rgba(21,20,14,0.1);
+    --profile-avatar-bg:   linear-gradient(145deg, oklch(68% 0.14 65), oklch(74% 0.12 70));
+    --profile-avatar-text: #15140e;
+    --profile-online-border:#f3f0e8;
+    --profile-backdrop-bg: rgba(20,16,8,0.32);
+    --profile-grabber-bg:  rgba(21,20,14,0.18);
+    --profile-username-color: var(--accent);
+    --profile-lastseen-color: rgba(122,115,99,0.72);
+    --profile-danger-text: #dc2626;
+    --profile-danger-small: rgba(120,80,80,0.8);
+
+    /* Chat wallpaper runtime variables */
+    --chat-wallpaper-base: var(--chat-bg);
+    --chat-wallpaper-image: none;
+    --chat-wallpaper-size: cover;
+    --chat-wallpaper-position: center center;
+    --chat-wallpaper-repeat: no-repeat;
+    --chat-wallpaper-opacity: 1;
+    --chat-wallpaper-blur: 0px;
+    --chat-wallpaper-dim: 0;
+    --chat-bubble-in-bg: var(--bubble-in);
+    --chat-bubble-in-text: var(--bubble-in-text);
+    --chat-bubble-out-bg: var(--bubble-out);
+    --chat-bubble-out-text: var(--bubble-out-text);
+}
+
+/* normalized: removed mojibake comment */
+body.dark-mode,
+html.dark-mode body {
+    --bg:              #1c1a14;
+    --paper:           #221f17;
+    --paper-alt:       #2a261c;
+    --surface:         #221f17;
+    --surface-2:       #2a261c;
+    --sidebar-bg:      #1c1a14;
+    --sidebar-hdr:     #221f17;
+    --chat-bg:         #100e09;
+    --chat-hdr-bg:     #1c1a14;
+    --input-bg:        #221f17;
+    --overlay-bg:      #221f17;
+    --modal-bg:        #221f17;
+    --req-bg:          #1c1500;
+    --req-border:      #3d2e00;
+    --contact-bg:      transparent;
+    --contact-hover:   rgba(255,255,255,0.04);
+
+    /* normalized: removed mojibake comment */
+    --auth-bg:         #1c1a14;
+    --auth-card-bg:    rgba(34,31,23,0.95);
+    --auth-card-border:rgba(220,180,80,0.14);
+    --auth-card-shadow:0 6px 18px rgba(0,0,0,0.34), 0 1px 4px rgba(0,0,0,0.22);
+    --auth-orb-1:      oklch(68% 0.14 65);
+    --auth-orb-2:      transparent;
+    --auth-orb-3:      transparent;
+
+    /* normalized: removed mojibake comment */
+    --ink:             #ece6d5;
+    --ink-soft:        #c4bfaf;
+    --ink-mute:        #9b9586;
+    --ink-faint:       #6f6a5b;
+    --text:            #ece6d5;
+    --sub-text:        #9b9586;
+    --text-muted:      #6f6a5b;
+    --text-inv:        #1c1a14;
+
+    /* normalized: removed mojibake comment */
+    --rule:            #332f24;
+    --rule-soft:       #2a261c;
+    --border:          #332f24;
+    --border-focus:    rgba(196,148,60,0.45);
+
+    /* normalized: removed mojibake comment */
+    --accent:          oklch(68% 0.14 65);
+    --accent-deep:     oklch(74% 0.12 70);
+    --accent-soft:     rgba(196,148,60,0.14);
+    --accent-hover:    oklch(74% 0.12 70);
+    --accent-light:    rgba(196,148,60,0.10);
+    --accent-bright:   oklch(74% 0.12 70);
+    --accent-glow:     rgba(196,148,60,0.18);
+    --accent-gradient: linear-gradient(135deg, oklch(68% 0.14 65) 0%, oklch(74% 0.12 70) 100%);
+
+    /* normalized: removed mojibake comment */
+    --bubble-out:      #ece6d5;
+    --bubble-out-text: #15140e;
+    --bubble-in:       #2a261c;
+    --bubble-in-text:  #ece6d5;
+
+    /* normalized: removed mojibake comment */
+    --chat-hdr:        #1c1a14;
+    --overlay-menu-bg: #221f17;
+
+    /* normalized: removed mojibake comment */
+    --shadow:          0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md:       0 4px 12px rgba(0,0,0,0.30);
+    --shadow-lg:       0 10px 26px rgba(0,0,0,0.40);
+
+    /* normalized: removed mojibake comment */
+    --profile-sheet-bg:    linear-gradient(180deg, rgba(28,26,20,0.96) 0%, rgba(34,31,23,0.98) 100%);
+    --profile-sheet-border:rgba(236,230,213,0.08);
+    --profile-sheet-shadow:-10px 0 28px rgba(0,0,0,0.24);
+    --profile-pane-border: rgba(236,230,213,0.08);
+    --profile-card-bg:     rgba(42,38,28,0.82);
+    --profile-card-border: rgba(236,230,213,0.09);
+    --profile-row-divider: rgba(236,230,213,0.05);
+    --profile-row-hover:   rgba(255,255,255,0.03);
+    --profile-action-bg:   rgba(34,31,23,0.82);
+    --profile-action-border:rgba(236,230,213,0.1);
+    --profile-action-hover: rgba(51,47,36,0.92);
+    --profile-count-bg:    rgba(236,230,213,0.06);
+    --profile-meta-label:  rgba(155,149,134,0.94);
+    --profile-meta-value:  rgba(236,230,213,0.94);
+    --profile-meta-icon:   rgba(155,149,134,0.84);
+    --profile-meta-copy-bg:rgba(236,230,213,0.05);
+    --profile-meta-copy-border:rgba(236,230,213,0.12);
+    --profile-avatar-bg:   linear-gradient(145deg, oklch(68% 0.14 65), #6f5a31);
+    --profile-avatar-text: #15140e;
+    --profile-online-border:rgba(34,31,23,0.98);
+    --profile-backdrop-bg: rgba(8,7,5,0.62);
+    --profile-grabber-bg:  rgba(236,230,213,0.28);
+    --profile-username-color: var(--accent-deep);
+    --profile-lastseen-color: rgba(155,149,134,0.76);
+    --profile-danger-text: #ff5261;
+    --profile-danger-small: rgba(211,192,197,0.8);
+}
+
+/* Source: styles/base.css */
+/* normalized: removed mojibake comment */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    transition: background var(--transition), color var(--transition);
+}
+
+@keyframes sun-fade-up {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 14px, 0) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes sun-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes sun-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes sun-pulse {
+    0%, 100% { opacity: 0.56; transform: scale(0.96); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+.sun-surface-enter {
+    animation: sun-fade-up var(--dur-medium) var(--ease-spring) both;
+}
+
+.sun-fade-enter {
+    animation: sun-fade-in var(--dur-medium) var(--ease-quick) both;
+}
+
+.sun-loading-shimmer,
+.sun-skeleton-line,
+.sun-skeleton-block {
+    position: relative;
+    overflow: hidden;
+}
+
+.sun-loading-shimmer::after,
+.sun-skeleton-line::after,
+.sun-skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--accent-light) 72%, rgba(255, 255, 255, 0.18)) 50%,
+        transparent 100%
+    );
+    animation: sun-shimmer 1.45s linear infinite;
+}
+
+.sun-skeleton-line,
+.sun-skeleton-block {
+    background: color-mix(in srgb, var(--surface-2) 82%, transparent 18%);
+    border: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
+}
+
+.sun-skeleton-line {
+    height: 12px;
+    border-radius: 999px;
+}
+
+.sun-skeleton-block {
+    border-radius: 18px;
+}
+
+.sun-dot-loader {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.sun-dot-loader span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: sun-pulse 0.9s var(--ease-quick) infinite;
+}
+
+.sun-dot-loader span:nth-child(2) {
+    animation-delay: var(--dur-quick);
+}
+
+.sun-dot-loader span:nth-child(3) {
+    animation-delay: var(--dur-medium);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+
+/* normalized: removed mojibake comment */
+.form-control {
+    background: var(--input-bg) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.form-control:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow) !important;
+    background: var(--input-bg) !important;
+    color: var(--text) !important;
+    outline: none;
+}
+.form-control::placeholder { color: var(--text-muted) !important; }
+
+/* normalized: removed mojibake comment */
+.btn-primary {
+    background: var(--accent-gradient) !important;
+    border: none !important;
+    color: #fff !important;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-family: var(--font);
+    transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 2px 12px var(--accent-glow);
+}
+.btn-primary:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px var(--accent-glow);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-secondary {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    transition: background var(--transition), color var(--transition);
+}
+.btn-secondary:hover {
+    background: var(--accent-light) !important;
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+/* normalized: removed mojibake comment */
+.modal-content {
+    background: var(--modal-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-lg);
+}
+.modal-header {
+    border-bottom: 1px solid var(--border) !important;
+    padding: 18px 24px;
+}
+.modal-footer {
+    border-top: 1px solid var(--border) !important;
+    padding: 16px 24px;
+}
+.modal-body { padding: 20px 24px; }
+.modal-title { font-weight: 600; font-size: 16px; }
+.close { color: var(--sub-text) !important; opacity: 1 !important; }
+.close:hover { color: var(--text) !important; }
+
+/* normalized: removed mojibake comment */
+
+/* Source: styles/shared-components.css */
+/* normalized: removed mojibake comment */
+#toastContainer {
+    position: fixed;
+    top: calc(
+        var(--vv-top-offset, 0px)
+        + var(--header-h, 64px)
+        + env(safe-area-inset-top)
+        + 10px
+    );
+    left: calc((100vw + var(--sidebar-width, 320px)) / 2);
+    right: auto;
+    transform: translateX(-50%);
+    bottom: auto;
+    z-index: 9999;
+    width: min(460px, calc(100vw - 28px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+/* Keep SVG symbol sprite out of normal document flow even under strict CSP. */
+svg[aria-hidden="true"][focusable="false"][width="0"][height="0"] {
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+.toast-msg {
+    --toast-accent: color-mix(in srgb, #3b82f6 86%, white 14%);
+    --toast-bg: color-mix(in srgb, var(--surface) 88%, transparent 12%);
+    --toast-border: color-mix(in srgb, var(--toast-accent) 34%, var(--border) 66%);
+    --toast-title-color: var(--text);
+    --toast-text-color: color-mix(in srgb, var(--text) 74%, var(--sub-text) 26%);
+    --toast-close-color: color-mix(in srgb, var(--text) 58%, var(--sub-text) 42%);
+    --toast-icon-bg: color-mix(in srgb, var(--toast-accent) 18%, transparent);
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 10px;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--toast-accent) 14%, transparent) 0%, transparent 62%),
+        var(--toast-bg);
+    color: var(--toast-title-color);
+    border-radius: 16px;
+    border: 1px solid var(--toast-border);
+    padding: 10px 10px 10px 12px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow:
+        0 12px 26px rgba(9, 16, 28, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    animation: toastSlide var(--dur-medium) var(--ease-quick) both;
+    pointer-events: auto;
+    backdrop-filter: blur(12px) saturate(122%);
+    -webkit-backdrop-filter: blur(12px) saturate(122%);
+    transition:
+        opacity var(--dur-medium) var(--ease-quick),
+        transform var(--dur-medium) var(--ease-quick);
+    word-break: break-word;
+}
+
+.toast-msg__icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    align-self: center;
+    background: var(--toast-icon-bg);
+    color: var(--toast-accent);
+    font-size: 14px;
+    margin-top: 0;
+}
+
+.toast-msg__content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.toast-msg__title {
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.toast-msg__text {
+    font-size: 12px;
+    color: var(--toast-text-color);
+    line-height: 1.35;
+}
+
+.toast-msg__close {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--toast-close-color);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    align-self: center;
+    transition: background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+}
+
+.toast-msg__close i {
+    font-size: 12px;
+}
+
+.toast-msg__close:hover {
+    background: color-mix(in srgb, var(--toast-accent) 12%, transparent);
+    color: color-mix(in srgb, var(--toast-accent) 78%, var(--text) 22%);
+}
+.toast-msg.success {
+    --toast-accent: color-mix(in srgb, #22c55e 82%, white 18%);
+}
+.toast-msg.danger,
+.toast-msg.error {
+    --toast-accent: color-mix(in srgb, #ef4444 82%, white 18%);
+}
+.toast-msg.warning {
+    --toast-accent: color-mix(in srgb, #f59e0b 84%, white 16%);
+}
+.toast-msg.info {
+    --toast-accent: color-mix(in srgb, #3b82f6 86%, white 14%);
+}
+body.dark-mode .toast-msg {
+    --toast-bg: color-mix(in srgb, var(--surface) 90%, #120f0a 10%);
+    --toast-border: color-mix(in srgb, var(--toast-accent) 34%, rgba(148, 163, 184, 0.45) 66%);
+    --toast-title-color: #f8fafc;
+    --toast-text-color: rgba(226, 232, 240, 0.88);
+    --toast-close-color: rgba(203, 213, 225, 0.82);
+    box-shadow:
+        0 14px 30px rgba(2, 6, 23, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.toast-msg.is-hiding {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.985);
+}
+@keyframes toastSlide {
+    from { opacity: 0; transform: translate3d(0, -10px, 0) scale(0.975); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.auth-toast-container#toastContainer {
+    top: 20px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: min(360px, calc(100vw - 24px));
+    align-items: stretch;
+}
+
+/* Bootstrap toast compat */
+.toast {
+    background: var(--modal-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+.toast-header {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+}
+
+.sun-check-glyph {
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    line-height: 1;
+    color: currentColor;
+    vertical-align: middle;
+    flex: 0 0 auto;
+}
+.sun-check-glyph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+.sun-check-glyph--single {
+    width: 0.92em;
+    height: 1em;
+}
+.sun-check-glyph--double {
+    width: 1.26em;
+    height: 1em;
+}
+.sun-check-glyph--ui {
+    width: 1em;
+    height: 1em;
+}
 
 /* Compatibility invariants kept in this entry file for test guardrails. */
 :root {
