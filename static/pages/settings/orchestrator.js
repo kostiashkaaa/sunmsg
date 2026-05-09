@@ -15,7 +15,6 @@ import { createSettingsApi } from './api.js';
 import { initProfileSection } from './profile-section.js';
 import { initPrivacySection } from './privacy-section.js';
 import { initTotpSection } from './totp-section.js';
-import { initPasskeysSection } from './passkeys-section.js';
 import { initDevicesSection } from './devices-section.js';
 import { initThemeSection } from './theme-section.js';
 import { initSettingsNavShell } from './nav-shell.js';
@@ -240,7 +239,6 @@ export function initSettingsPage() {
     });
 
     initTotpSection({ api, tr, showAlert, uiLocale });
-    initPasskeysSection({ api, tr, showAlert, escapeHtml, uiLocale });
     initNotificationsSection({ api, tr, showAlert });
 
     const settingsSupportSubmitBtn = document.getElementById('settingsSupportSubmitBtn');

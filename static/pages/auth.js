@@ -8,9 +8,6 @@ import {
     hasWebCryptoSupport,
     webCryptoUnavailableMessage,
     assertWebCryptoSupport,
-    supportsPasskeyAuth,
-    parseRequestOptionsFromServer,
-    credentialToJSON,
     deriveTransferKey,
     decryptPrivateKeyPem,
 } from './auth/crypto-helpers.js';
@@ -18,7 +15,6 @@ import { initAuthUi } from './auth/ui.js';
 import { createQrLoginFlow } from './auth/qr-login-flow.js';
 import { initLoginFlow } from './auth/login-flow.js';
 import { initRegisterFlow } from './auth/register-flow.js';
-import { initPasskeyFlow } from './auth/passkey-flow.js';
 
 initMotionRuntime();
 initTelegramRipple(document);
@@ -128,16 +124,4 @@ initRegisterFlow({
     setMnemonicToGrid: ui.setMnemonicToGrid,
     switchTab: ui.switchTab,
     prepareMnemonicLoginAfterRegister: loginFlow.prepareMnemonicLoginAfterRegister,
-});
-
-initPasskeyFlow({
-    tr: ui.tr,
-    showToast: ui.showToast,
-    supportsPasskeyAuth,
-    parseRequestOptionsFromServer,
-    credentialToJSON,
-    withAppRoot,
-    getCsrfToken,
-    setCsrfToken,
-    loginFlow,
 });
