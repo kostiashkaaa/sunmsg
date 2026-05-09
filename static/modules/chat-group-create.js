@@ -18,18 +18,30 @@ function readBooleanFlag(value, fallback = true) {
     return Boolean(fallback);
 }
 
+function tr(value) {
+    const api = window.SUN_I18N;
+    if (api && typeof api.translateText === 'function') {
+        return api.translateText(value);
+    }
+    return value;
+}
+
+function buildFallbackUserName(userId) {
+    return `${tr('Пользователь')} ${userId}`;
+}
+
 
 function normalizeCandidate(user) {
     if (!user || typeof user !== 'object') return null;
     const parsedId = readInt(user.userId ?? user.user_id);
     if (parsedId <= 0) return null;
-    const displayName = String(user.display_name || user.username || `Пользователь ${parsedId}`).trim();
+    const displayName = String(user.display_name || user.username || buildFallbackUserName(parsedId)).trim();
     const username = String(user.username || '').trim().replace(/^@+/, '');
     const avatarUrl = String(user.avatar_url || '').trim();
     const canGroupAddDirect = readBooleanFlag(user.can_group_add_direct, true);
     return {
         user_id: parsedId,
-        display_name: displayName || `Пользователь ${parsedId}`,
+        display_name: displayName || buildFallbackUserName(parsedId),
         username,
         avatar_url: avatarUrl,
         can_group_add_direct: canGroupAddDirect,
@@ -82,7 +94,7 @@ export function createChatGroupCreateController(deps = {}) {
 
             uniqueCandidates.set(userId, {
                 user_id: userId,
-                display_name: displayName || `Пользователь ${userId}`,
+                display_name: displayName || buildFallbackUserName(userId),
                 username,
                 avatar_url: avatarUrl,
                 can_group_add_direct: canGroupAddDirect,
@@ -131,10 +143,10 @@ export function createChatGroupCreateController(deps = {}) {
             groupCreateTitleStep.classList.toggle('is-active', !showMembersStep);
         }
         if (groupCreateTitleText) {
-            groupCreateTitleText.textContent = showMembersStep ? 'Добавить участников' : 'Название группы';
+            groupCreateTitleText.textContent = showMembersStep ? tr('Добавить участников') : tr('Название группы');
         }
         if (groupCreateBackBtn) {
-            groupCreateBackBtn.textContent = showMembersStep ? 'Отмена' : 'Назад';
+            groupCreateBackBtn.textContent = showMembersStep ? tr('Отмена') : tr('Назад');
         }
         if (showMembersStep) {
             groupMemberSearchInput?.focus({ preventScroll: true });
@@ -158,27 +170,28 @@ export function createChatGroupCreateController(deps = {}) {
 
         groupCreateSubmitBtn.disabled = !canSubmit;
         if (groupCreateStep === 'members') {
-            groupCreateSubmitBtn.textContent = 'Далее';
+            groupCreateSubmitBtn.textContent = tr('Далее');
             return;
         }
-        groupCreateSubmitBtn.textContent = groupCreateSubmitting ? 'Создание...' : 'Создать';
+        groupCreateSubmitBtn.textContent = groupCreateSubmitting ? tr('Создание...') : tr('Создать');
     }
 
     function renderGroupCreateSelectedMembers() {
         if (!groupCreateSelected) return;
         const selected = Array.from(groupCreateMembers.values());
         if (!selected.length) {
-            groupCreateSelected.innerHTML = '<span class="group-create-result-username">Участники пока не выбраны.</span>';
+            groupCreateSelected.innerHTML = `<span class="group-create-result-username">${escapeHtml(tr('Участники пока не выбраны.'))}</span>`;
             updateGroupCreateCountBadge();
             return;
         }
 
+        const removeLabel = escapeHtml(tr('Удалить участника'));
         groupCreateSelected.innerHTML = selected
             .map((member) => `
                 <span class="group-create-member-chip">
                     <span class="group-create-member-chip__avatar">${buildResultAvatarHtml(member)}</span>
                     <span>${escapeHtml(member.display_name)}</span>
-                    <button type="button" data-group-remove-member-id="${member.user_id}" aria-label="Удалить участника">&times;</button>
+                    <button type="button" data-group-remove-member-id="${member.user_id}" aria-label="${removeLabel}">&times;</button>
                 </span>
             `)
             .join('');
@@ -197,10 +210,11 @@ export function createChatGroupCreateController(deps = {}) {
         const normalizedUsers = normalizedUsersRaw.filter((entry) => entry.can_group_add_direct !== false);
 
         if (!normalizedUsers.length) {
-            groupCreateSearchResults.innerHTML = '<p class="text-center">Пользователи не найдены.</p>';
+            groupCreateSearchResults.innerHTML = `<p class="text-center">${escapeHtml(tr('Пользователи не найдены.'))}</p>`;
             return;
         }
 
+        const addLabel = escapeHtml(tr('Добавить'));
         groupCreateSearchResults.innerHTML = normalizedUsers
             .map((user) => `
                 <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}" data-can-group-add-direct="${user.can_group_add_direct === false ? '0' : '1'}">
@@ -209,7 +223,7 @@ export function createChatGroupCreateController(deps = {}) {
                         <span class="group-create-result-name">${escapeHtml(user.display_name)}</span>
                         <span class="group-create-result-username">@${escapeHtml(user.username || 'user')}</span>
                     </span>
-                    <span class="group-create-result-add">Добавить</span>
+                    <span class="group-create-result-add">${addLabel}</span>
                 </button>
             `)
             .join('');
@@ -280,7 +294,7 @@ export function createChatGroupCreateController(deps = {}) {
         if (groupCreateSubmitting) return;
         const memberIds = Array.from(groupCreateMembers.keys());
         if (!memberIds.length) {
-            showToast('Добавьте хотя бы одного участника.', 'warning');
+            showToast(tr('Добавьте хотя бы одного участника.'), 'warning');
             updateGroupCreateSubmitState();
             return;
         }
@@ -292,7 +306,7 @@ export function createChatGroupCreateController(deps = {}) {
 
         const title = String(groupTitleInput?.value || '').trim();
         if (title.length < 2 || title.length > 120) {
-            showToast('Название группы должно быть от 2 до 120 символов.', 'warning');
+            showToast(tr('Название группы должно быть от 2 до 120 символов.'), 'warning');
             updateGroupCreateSubmitState();
             return;
         }
@@ -314,24 +328,24 @@ export function createChatGroupCreateController(deps = {}) {
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.success) {
-                throw new Error(String(payload.error || 'Не удалось создать группу.'));
+                throw new Error(String(payload.error || tr('Не удалось создать группу.')));
             }
 
             await closeAnimatedDialog(groupCreateModal);
-            showToast('Группа создана.', 'success');
+            showToast(tr('Группа создана.'), 'success');
             const requestedCount = Array.isArray(payload.requested_member_ids) ? payload.requested_member_ids.length : 0;
             if (requestedCount > 0) {
                 showToast(
                     requestedCount === 1
-                        ? '1 пользователь получил запрос на вступление.'
-                        : `${requestedCount} пользователей получили запрос на вступление.`,
+                        ? tr('1 пользователь получил запрос на вступление.')
+                        : `${requestedCount} ${tr('пользователей получили запрос на вступление.')}`,
                     'info',
                 );
             }
             await loadContacts({ immediate: true, attemptInitialChatRestore: false });
             await openChatByIdWhenReady(payload.chat_id);
         } catch (error) {
-            showToast(error?.message || 'Не удалось создать группу.', 'danger');
+            showToast(error?.message || tr('Не удалось создать группу.'), 'danger');
         } finally {
             groupCreateSubmitting = false;
             updateGroupCreateSubmitState();
@@ -361,14 +375,14 @@ export function createChatGroupCreateController(deps = {}) {
         const memberId = readInt(addButton.getAttribute('data-group-add-member-id'));
         if (memberId <= 0 || groupCreateMembers.has(memberId)) return;
 
-        const resultName = String(addButton.querySelector('.group-create-result-name')?.textContent || `Пользователь ${memberId}`).trim();
+        const resultName = String(addButton.querySelector('.group-create-result-name')?.textContent || buildFallbackUserName(memberId)).trim();
         const resultUsername = String(addButton.querySelector('.group-create-result-username')?.textContent || '')
             .replace(/^@/, '')
             .trim();
         const resultAvatar = String(addButton.querySelector('.group-create-result-avatar img')?.getAttribute('src') || '').trim();
         groupCreateMembers.set(memberId, {
             user_id: memberId,
-            display_name: resultName || `Пользователь ${memberId}`,
+            display_name: resultName || buildFallbackUserName(memberId),
             username: resultUsername,
             avatar_url: resultAvatar,
         });

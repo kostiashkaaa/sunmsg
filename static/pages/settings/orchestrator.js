@@ -310,7 +310,7 @@ export function initSettingsPage() {
                 setSupportStatus(data.error || 'Не удалось отправить обращение.', 'error');
                 return;
             }
-            setSupportStatus(`Обращение отправлено (#${data.request_id}).`, 'success');
+            setSupportStatus(`${tr('Обращение отправлено')} (#${data.request_id}).`, 'success');
             if (settingsSupportSubject) settingsSupportSubject.value = '';
             if (settingsSupportBody) settingsSupportBody.value = '';
         } catch (_error) {
