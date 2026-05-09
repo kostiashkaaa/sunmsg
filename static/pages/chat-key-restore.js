@@ -46,7 +46,7 @@ async function persistPrivateKeyPem(privateKeyPem) {
 function syncLockAlertVisibility() {
     const alertEl = document.getElementById('e2eLockAlert');
     if (!alertEl) return;
-    alertEl.style.display = hasPrivateKeyForUi() ? 'none' : 'flex';
+    alertEl.style.display = 'none';
 }
 
 syncLockAlertVisibility();

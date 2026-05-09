@@ -236,22 +236,22 @@ const source = fs.readFileSync({str(script_path)!r}, 'utf8');
 vm.runInNewContext(source, context, {{ filename: 'chat-key-restore.js' }});
 
 const alertEl = elements.get('e2eLockAlert');
-if (alertEl.style.display !== 'flex') {{
-  throw new Error(`Expected lock alert to be visible without key, got ${{alertEl.style.display}}`);
+if (alertEl.style.display !== 'none') {{
+  throw new Error(`Expected lock alert to stay hidden on boot, got ${{alertEl.style.display}}`);
 }}
 
 context.window.sunPrivateKeySession._setPrivateKey('pem');
 context.window.dispatchEvent(new context.Event('sun-private-key-status-changed'));
 
 if (alertEl.style.display !== 'none') {{
-  throw new Error(`Expected lock alert to hide after key restore event, got ${{alertEl.style.display}}`);
+  throw new Error(`Expected lock alert to stay hidden after key restore event, got ${{alertEl.style.display}}`);
 }}
 
 context.window.sunPrivateKeySession._setPrivateKey('');
 context.window.dispatchEvent(new context.Event('sun-private-key-status-changed'));
 
-if (alertEl.style.display !== 'flex') {{
-  throw new Error(`Expected lock alert to reappear after key removal, got ${{alertEl.style.display}}`);
+if (alertEl.style.display !== 'none') {{
+  throw new Error(`Expected lock alert to stay hidden after key removal, got ${{alertEl.style.display}}`);
 }}
 """
 
