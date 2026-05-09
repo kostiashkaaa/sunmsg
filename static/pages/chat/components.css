@@ -8085,7 +8085,7 @@
 
             .message .bubble > .message-footer > .msg-meta,
             .message .bubble > .message-footer > .message-meta {
-                align-self: center;
+                align-self: flex-end;
                 margin-left: auto;
             }
 
