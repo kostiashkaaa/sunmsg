@@ -419,6 +419,7 @@ function renderAudioList(contentEl, items, isVoice, onItemClick) {
         const playBtn = row.querySelector('[data-action="play"]');
         let audioEl = null;
         let isPlaying = false;
+        let voiceListenReported = false;
 
         const togglePlayback = (event) => {
             if (event) event.stopPropagation();
@@ -459,6 +460,10 @@ function renderAudioList(contentEl, items, isVoice, onItemClick) {
                 isPlaying = true;
                 row.classList.add('is-playing');
                 if (icon) icon.className = 'bi bi-pause-fill';
+                if (isVoice && !voiceListenReported) {
+                    onItemClick?.({ kind: 'voice', entry, action: 'play' });
+                    voiceListenReported = true;
+                }
             }
         };
 
