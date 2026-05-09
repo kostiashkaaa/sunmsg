@@ -79,7 +79,8 @@ import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
-import { sendFileMessageFlow } from './modules/chat-file-send.js?v=2.1.2';
+import { sendFileMessageFlow } from './modules/chat-file-send.js?v=2.1.3';
+import { createTypingSignalHeartbeat } from './modules/chat-typing-signal-heartbeat.js';
 import { sendTextMessageFlow } from './modules/chat-text-send.js?v=2.0.11';
 import { handleComposerEditFlow } from './modules/chat-edit-flow.js?v=2.1.1';
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js?v=2.0.9';
@@ -2687,6 +2688,23 @@ const initChatPage = async () => {
         }
     }
 
+    function clearLocalChatDataAfterDeletion(chatId) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) return;
+        const isCurrentChat = String(currentChatId || '') === normalizedChatId;
+        if (isCurrentChat) {
+            closeChatUI();
+        }
+        abortHistoryRequestsForChat(normalizedChatId);
+        dropChatDomSnapshotLRU(normalizedChatId);
+        chatStates.delete(normalizedChatId);
+        chatScrollPositions.delete(normalizedChatId);
+        hideSidebarTyping(normalizedChatId);
+        dropChatCache(normalizedChatId);
+        clearStoredLastActiveChatId(normalizedChatId);
+        resolveContactItemByChatId(normalizedChatId)?.remove();
+    }
+
     let profileMediaPanelController = null;
     const profileOrchestrator = createProfileOrchestrator({
         profileDrawer: _profileDrawer,
@@ -2728,7 +2746,7 @@ const initChatPage = async () => {
         toggleCurrentChatMuted,
         updateChatPinnedState,
         showDeleteChatDialog,
-        closeChatUI,
+        closeChatUI: (deletedChatId) => clearLocalChatDataAfterDeletion(deletedChatId),
         loadContacts,
         scheduleComposerFocus,
         copyTextToClipboard,
@@ -3606,9 +3624,14 @@ const initChatPage = async () => {
         deleteChatBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeHeaderDropdown();
-            if (!currentChatId) return;
+            const targetChatId = String(currentChatId || '').trim();
+            if (!targetChatId) return;
             const isGroup = isCurrentChatGroup();
-            showDeleteChatDialog(currentChatId, { onDeleted: closeChatUI, onReload: loadContacts, isGroup });
+            showDeleteChatDialog(targetChatId, {
+                onDeleted: () => clearLocalChatDataAfterDeletion(targetChatId),
+                onReload: loadContacts,
+                isGroup,
+            });
         });
     }
 
@@ -3665,7 +3688,7 @@ const initChatPage = async () => {
         getCsrfToken,
         showToast,
         showDeleteChatDialog,
-        onDeleteChat: closeChatUI,
+        onDeleteChat: (deletedChatId) => clearLocalChatDataAfterDeletion(deletedChatId),
         onReloadChats: loadContacts,
         isChatMuted,
         onToggleMute: ({ chatId }) => {
@@ -3900,6 +3923,7 @@ const initChatPage = async () => {
         if (currentChatId) {
             emitSocket('stop_typing', { chat_id: currentChatId });
         }
+        voiceTypingSignal.stopAll();
         if (typingTimeout) {
             clearTimeout(typingTimeout);
             typingTimeout = null;
@@ -3974,6 +3998,11 @@ const initChatPage = async () => {
     // \u0418\u0441\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439 \u0438 \u043F\u0430\u043D\u0435\u043B\u0438 \u043D\u0430 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0439 \u0432\u0435\u0440\u0441\u0438\u0438
     let typingTimeout = null;
     let lastTypingEmitAt = 0;
+    const voiceTypingSignal = createTypingSignalHeartbeat({
+        emitSocket,
+        getChatId: () => currentChatId,
+        isBlocked: () => isChatBlocked(),
+    });
     if (messageInput) {
         messageInput.addEventListener('input', () => {
             updateVoiceRecordButtonState();
@@ -4037,11 +4066,11 @@ const initChatPage = async () => {
             typingTimeout = null;
         }
         if (isRecording) {
-            emitSocket('typing', { chat_id: currentChatId, typing_kind: 'voice' });
+            voiceTypingSignal.start('voice');
             lastTypingEmitAt = Date.now();
             return;
         }
-        emitSocket('stop_typing', { chat_id: currentChatId, typing_kind: 'voice' });
+        voiceTypingSignal.stop('voice');
         lastTypingEmitAt = 0;
     }
 
