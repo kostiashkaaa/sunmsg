@@ -698,6 +698,57 @@ def test_upload_chat_media_accepts_audio_mpeg_extension_aliases(monkeypatch, tmp
     assert rows[1]['storage_name'].endswith('.mp3')
 
 
+def test_upload_chat_media_allows_payload_when_global_limit_is_lower(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-media-max-content-length.db'
+    media_dir = tmp_path / 'chat_media_max_content_length'
+    media_dir.mkdir()
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app(
+        'testing',
+        overrides={
+            'DATABASE_PATH': str(db_path),
+            'MAX_CONTENT_LENGTH': 1 * 1024 * 1024,
+        },
+    )
+    monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
+    chat_id = generate_chat_id('pk-1', 'pk-2')
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, ?), (2, 1, ?)
+            ''',
+            (chat_id, chat_id),
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    media_body = b'a' * (2 * 1024 * 1024)
+    response = client.post(
+        '/upload_chat_media',
+        data={
+            'chat_id': chat_id,
+            'file': (BytesIO(media_body), 'large-note.txt', 'text/plain'),
+        },
+        content_type='multipart/form-data',
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload['success'] is True
+    assert payload['size'] == len(media_body)
+
+
 def test_search_users_enforces_min_query_and_paginates_without_public_key(monkeypatch, tmp_path):
     db_path = tmp_path / 'search-users-http.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
