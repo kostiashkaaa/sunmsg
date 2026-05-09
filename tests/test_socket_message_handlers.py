@@ -98,6 +98,7 @@ def _prepare_group_send_schema(conn):
         CREATE TABLE chats (
             id INTEGER PRIMARY KEY,
             chat_id TEXT UNIQUE NOT NULL,
+            chat_name TEXT NOT NULL DEFAULT 'Group Chat',
             chat_type TEXT NOT NULL DEFAULT 'group'
         )
         '''
@@ -649,3 +650,78 @@ def test_handle_send_message_event_group_mute_restriction_blocks_delivery(tmp_pa
         event[0] == 'error' and event[1].get('code') == 'group_moderation_restriction'
         for event in emitted
     )
+
+
+def test_handle_send_message_event_group_mentions_emit_and_push(tmp_path):
+    db_path = tmp_path / 'socket-message-handler-send-group-mentions.db'
+    with _connect(db_path) as conn:
+        _prepare_group_send_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'member', 'Member'),
+                (3, 'pk-3', 'other', 'Other')
+            '''
+        )
+        conn.execute("INSERT INTO chats (chat_id, chat_name, chat_type) VALUES ('group-a', 'Team Core', 'group')")
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES
+                (1, 'group-a', 'owner'),
+                (2, 'group-a', 'member'),
+                (3, 'group-a', 'member')
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+    push_calls = []
+
+    handle_send_message_event(
+        {'chat_id': 'group-a', 'message': 'hello @member and @ghost'},
+        session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        count_connected_func=lambda pub: 0 if pub == 'pk-2' else 1,
+        build_block_state_func=lambda conn, sender_id, receiver_id: {'is_blocked': False, 'blocked_by_me': False, 'blocked_me': False},
+        normalize_block_state_func=lambda state: state,
+        sanitize_message_type_func=lambda value: 'text',
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        looks_like_ciphertext_func=lambda raw: True,
+        emit_blocked_error_func=lambda message, state: None,
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+        utc_now_text_func=lambda: '2025-01-01 00:00:00',
+        logger=type('Logger', (), {'warning': lambda self, msg, *args: None, 'error': lambda self, msg, *args: None})(),
+        database_error_cls=DatabaseError,
+        send_web_push_notification_func=lambda **kwargs: push_calls.append(kwargs),
+    )
+
+    group_receive_event = next(
+        (event for event in emitted if event[0] == 'receive_message' and event[2].get('room') == 'group-a'),
+        None,
+    )
+    assert group_receive_event is not None
+    payload = group_receive_event[1]
+    assert payload['mentioned_user_ids'] == [2]
+    assert payload['mentioned_usernames'] == ['member']
+    assert payload['group_read_count'] == 0
+    assert payload['group_readers'] == []
+    assert push_calls == [
+        {
+            'receiver_user_id': 2,
+            'sender_user_id': 1,
+            'sender_display_name': 'Alice',
+            'sender_username': 'alice',
+            'chat_id': 'group-a',
+            'message_type': 'text',
+            'notification_type': 'mention',
+            'chat_display_name': 'Team Core',
+        }
+    ]

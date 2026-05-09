@@ -1,3 +1,9 @@
+import {
+    isCurrentUserMentioned,
+    normalizeMentionUserIds,
+} from './chat-mentions.js';
+import { normalizeGroupReaders } from './chat-group-read-receipts.js';
+
 async function decryptReplyPreview({
     data,
     currentUserPublicKey,
@@ -25,6 +31,17 @@ function buildIncomingMessageState({
     isEncryptedPayload,
 } = {}) {
     const hasReactionPayload = Array.isArray(data?.reactions) && data.reactions.length > 0;
+    const normalizedMentionedUserIds = normalizeMentionUserIds(data?.mentioned_user_ids);
+    const normalizedMentionedUsernames = Array.isArray(data?.mentioned_usernames)
+        ? data.mentioned_usernames
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+        : [];
+    const groupReadCountRaw = Number(data?.group_read_count);
+    const normalizedGroupReaders = normalizeGroupReaders(data?.group_readers);
+    const normalizedGroupReadCount = Number.isFinite(groupReadCountRaw) && groupReadCountRaw >= 0
+        ? Math.floor(groupReadCountRaw)
+        : normalizedGroupReaders.length;
     return {
         id: data.id,
         sender: isSelf ? 'self' : 'other',
@@ -47,6 +64,10 @@ function buildIncomingMessageState({
             : otherSenderLabel,
         forwardFromName: String(data.forward_from_name || '').trim(),
         forwardFromUserId: Number(data.forward_from_user_id) || null,
+        group_read_count: normalizedGroupReadCount,
+        group_readers: normalizedGroupReaders,
+        mentionedUserIds: normalizedMentionedUserIds,
+        mentionedUsernames: normalizedMentionedUsernames,
         ...(hasReactionPayload ? { reactions: normalizeMessageReactions(data.reactions) } : {}),
     };
 }
@@ -90,6 +111,8 @@ export function registerIncomingMessageSocketHandlers({
     notifyIncomingMessage,
     onIncomingRawMessage,
     prewarmMessageLinkPreview,
+    getCurrentUserId = () => null,
+    getCurrentUsername = () => '',
 } = {}) {
     socket.on('receive_message', async (data) => {
         try {
@@ -105,6 +128,8 @@ export function registerIncomingMessageSocketHandlers({
         const normalizedCurrentChatId = String(currentChatId || '');
         const normalizedIncomingChatId = String(data?.chat_id || '');
         const privateKeyPem = getPrivateKeyPem();
+        const currentUserId = getCurrentUserId?.();
+        const currentUsername = String(getCurrentUsername?.() || '').trim();
 
         if (normalizedIncomingChatId === normalizedCurrentChatId) {
             const isSelf = data.sender_public_key === currentUserPublicKey;
@@ -132,6 +157,12 @@ export function registerIncomingMessageSocketHandlers({
                 otherSenderLabel: getCurrentPartnerDisplayName(),
                 normalizeMessageReactions,
                 isEncryptedPayload,
+            });
+            const mentionForCurrentUser = !isSelf && isCurrentUserMentioned({
+                mentionedUserIds: incomingMessageState.mentionedUserIds,
+                currentUserId,
+                currentUsername,
+                text: decryptedMessage,
             });
 
             if (isSelf && data.client_id) {
@@ -245,12 +276,13 @@ export function registerIncomingMessageSocketHandlers({
                 },
                 data.created_at,
             );
-            if (!isSelf && !isChatMuted(data.chat_id)) {
+            if (!isSelf && (!isChatMuted(data.chat_id) || mentionForCurrentUser)) {
                 notifyIncomingMessage?.({
                     chatId: data.chat_id,
                     message: decryptedMessage,
                     isCurrentChat: true,
                     isSelf: false,
+                    isMention: mentionForCurrentUser,
                     shouldIncrementUnread: !canTreatAsSeenNow,
                 });
             }
@@ -279,6 +311,12 @@ export function registerIncomingMessageSocketHandlers({
             currentUserPublicKey,
             normalizeMessageReactions,
             isEncryptedPayload,
+        });
+        const mentionForCurrentUser = !isSelfOther && isCurrentUserMentioned({
+            mentionedUserIds: incomingMessageForOtherChat.mentionedUserIds,
+            currentUserId,
+            currentUsername,
+            text: decryptedMessage,
         });
         const otherState = getChatState(data.chat_id);
         if (otherState.initialized) {
@@ -316,13 +354,14 @@ export function registerIncomingMessageSocketHandlers({
                 is_delivered: Boolean(data.is_delivered),
             },
         );
-        if (!isSelfOther && !isChatMuted(data.chat_id)) {
+        if (!isSelfOther && (!isChatMuted(data.chat_id) || mentionForCurrentUser)) {
             if (typeof notifyIncomingMessage === 'function') {
                 notifyIncomingMessage({
                     chatId: data.chat_id,
                     message: decryptedMessage,
                     isCurrentChat: false,
                     isSelf: false,
+                    isMention: mentionForCurrentUser,
                     shouldIncrementUnread: true,
                 });
             } else {

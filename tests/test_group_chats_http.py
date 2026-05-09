@@ -135,7 +135,8 @@ def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
             )
             VALUES
                 (301, 1, 0, 0, 0, NULL, NULL),
-                (302, 1, 1, 1, 0, '2025-01-01 10:01:00', '2025-01-01 10:01:00')
+                (302, 1, 1, 1, 0, '2025-01-01 10:01:00', '2025-01-01 10:01:00'),
+                (302, 2, 1, 1, 0, '2025-01-01 10:01:03', '2025-01-01 10:01:03')
             '''
         )
         conn.execute(
@@ -159,6 +160,9 @@ def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
     assert payload['messages'][0]['is_favorite'] is True
     assert payload['messages'][1]['is_favorite'] is False
     assert payload['messages'][1]['is_self'] is True
+    assert payload['messages'][1]['group_read_count'] == 1
+    assert len(payload['messages'][1]['group_readers']) == 1
+    assert payload['messages'][1]['group_readers'][0]['user_id'] == 2
     assert len(payload['favorites']) == 1
     assert payload['favorites'][0]['message_id'] == 301
     assert any(

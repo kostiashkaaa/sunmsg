@@ -1,3 +1,9 @@
+import {
+    applyGroupReadMetaToElement,
+    applyGroupReadUpdateToMessage,
+    normalizeGroupReadUpdate,
+} from './chat-group-read-receipts.js';
+
 export function registerMessageStatusSocketHandlers({
     socket,
     isBlockedChat,
@@ -19,6 +25,7 @@ export function registerMessageStatusSocketHandlers({
     getContactsRoot,
     markAllTicksRead,
     onMessagesMarkedRead,
+    isGroupChatById = () => false,
 } = {}) {
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -128,6 +135,9 @@ export function registerMessageStatusSocketHandlers({
 
     socket.on('messages_read', (data) => {
         if (isBlockedChat(data.chat_id)) return;
+        if (isGroupChatById(data.chat_id)) {
+            return;
+        }
         const readAt = String(data?.read_at || '').trim() || currentUtcText();
         const state = getChatState(data.chat_id);
         if (state.initialized) {
@@ -149,6 +159,73 @@ export function registerMessageStatusSocketHandlers({
         onMessagesMarkedRead?.({
             chatId: data.chat_id,
             readAt,
+        });
+    });
+
+    socket.on('group_messages_read', (data) => {
+        if (isBlockedChat(data?.chat_id)) return;
+        const normalizedChatId = String(data?.chat_id || '').trim();
+        if (!normalizedChatId) return;
+        const rawUpdates = Array.isArray(data?.updates) ? data.updates : [];
+        if (!rawUpdates.length) return;
+
+        const normalizedUpdates = rawUpdates
+            .map((item) => normalizeGroupReadUpdate(item))
+            .filter((item) => item && Number.isFinite(item.messageId) && item.messageId > 0);
+        if (!normalizedUpdates.length) return;
+
+        const updateMap = new Map();
+        normalizedUpdates.forEach((item) => {
+            updateMap.set(item.messageId, item);
+        });
+        const state = getChatState(normalizedChatId);
+        if (state.initialized) {
+            state.messages = state.messages.map((msg) => {
+                if (msg.sender !== 'self') return msg;
+                const messageId = Number(msg.id);
+                if (!Number.isFinite(messageId) || messageId <= 0) return msg;
+                const update = updateMap.get(messageId);
+                if (!update) return msg;
+                return applyGroupReadUpdateToMessage(msg, update);
+            });
+        }
+
+        if (String(normalizedChatId) === String(getCurrentChatId())) {
+            normalizedUpdates.forEach((update) => {
+                const messageEl = currentChatMessagesEl?.querySelector(`.message.self[data-msg-id="${update.messageId}"]`);
+                if (!messageEl) return;
+                const stateMessage = state?.initialized
+                    ? state.messages.find((msg) => Number(msg.id) === Number(update.messageId))
+                    : null;
+                const patchedMessage = stateMessage || applyGroupReadUpdateToMessage(
+                    {
+                        sender: 'self',
+                        group_read_count: 0,
+                        group_readers: [],
+                        is_read: false,
+                        is_delivered: true,
+                        pending: false,
+                        read_at: null,
+                    },
+                    update,
+                );
+
+                applyGroupReadMetaToElement(messageEl, patchedMessage, { isGroupChat: true });
+                const tickEl = messageEl.querySelector('.msg-tick');
+                if (tickEl) {
+                    applyTickToElement(tickEl, patchedMessage);
+                }
+            });
+        }
+
+        if (normalizedUpdates.some((item) => item.readCount > 0)) {
+            updateSidebarContactTick(normalizedChatId, 'read', getContactsRoot());
+        }
+        onMessagesMarkedRead?.({
+            chatId: normalizedChatId,
+            readerUserId: Number(data?.reader_user_id) || null,
+            messageIds: normalizedUpdates.map((item) => item.messageId),
+            isGroup: true,
         });
     });
 }

@@ -1,4 +1,6 @@
 import { withAppRoot } from './app-url.js';
+import { normalizeMentionUserIds } from './chat-mentions.js';
+import { normalizeGroupReaders } from './chat-group-read-receipts.js';
 
 export async function mapWithConcurrency(items, limit, mapper) {
     const source = Array.isArray(items) ? items : [];
@@ -184,6 +186,17 @@ export function createChatHistoryRuntime(ctx = {}) {
         const currentPartnerData = ctx.getCurrentPartnerData();
         const toDecodedMessage = (msg, decMessage, replyText) => {
             const isSelf = msg.sender_public_key === currentUserPublicKey;
+            const normalizedMentionedUserIds = normalizeMentionUserIds(msg.mentioned_user_ids);
+            const normalizedMentionedUsernames = Array.isArray(msg.mentioned_usernames)
+                ? msg.mentioned_usernames
+                    .map((value) => String(value || '').trim().toLowerCase())
+                    .filter(Boolean)
+                : [];
+            const normalizedGroupReaders = normalizeGroupReaders(msg.group_readers);
+            const groupReadCountRaw = Number(msg.group_read_count);
+            const normalizedGroupReadCount = Number.isFinite(groupReadCountRaw) && groupReadCountRaw >= 0
+                ? Math.floor(groupReadCountRaw)
+                : normalizedGroupReaders.length;
             return {
                 id: msg.id,
                 sender: isSelf ? 'self' : 'other',
@@ -208,6 +221,10 @@ export function createChatHistoryRuntime(ctx = {}) {
                     : (currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A'),
                 forwardFromName: String(msg.forward_from_name || '').trim(),
                 forwardFromUserId: Number(msg.forward_from_user_id) || null,
+                group_read_count: normalizedGroupReadCount,
+                group_readers: normalizedGroupReaders,
+                mentionedUserIds: normalizedMentionedUserIds,
+                mentionedUsernames: normalizedMentionedUsernames,
                 reactions: ctx.normalizeMessageReactions(msg.reactions),
             };
         };

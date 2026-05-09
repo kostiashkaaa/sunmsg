@@ -1,4 +1,8 @@
 from app.services.chat_members import get_chat_type
+from app.services.group_receipts import (
+    build_group_read_updates,
+    list_unread_group_receipt_message_ids,
+)
 
 
 def _is_missing_read_at_column_error(exc: Exception) -> bool:
@@ -55,10 +59,17 @@ def handle_messages_seen_event(
         return
 
     cursor = None
+    affected_message_ids: list[int] = []
+    group_read_updates: list[dict] = []
     try:
         read_at_row = conn.execute('SELECT CURRENT_TIMESTAMP AS read_at').fetchone()
         read_at_value = read_at_row['read_at'] if read_at_row else None
         if is_group_chat:
+            affected_message_ids = list_unread_group_receipt_message_ids(
+                conn,
+                chat_id=chat_id,
+                user_id=user_id,
+            )
             cursor = conn.execute(
                 '''
                 UPDATE message_receipts AS mr
@@ -96,6 +107,12 @@ def handle_messages_seen_event(
         except Exception:
             pass
         if is_group_chat:
+            if not affected_message_ids:
+                affected_message_ids = list_unread_group_receipt_message_ids(
+                    conn,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                )
             cursor = conn.execute(
                 '''
                 UPDATE message_receipts AS mr
@@ -122,13 +139,29 @@ def handle_messages_seen_event(
                 (chat_id, user_id),
             )
     should_notify = cursor.rowcount > 0 if cursor is not None else False
+    if should_notify and is_group_chat and affected_message_ids:
+        group_read_updates = build_group_read_updates(
+            conn,
+            chat_id=chat_id,
+            message_ids=affected_message_ids,
+        )
     conn.commit()
     conn.close()
 
-    if should_notify and partner and partner['public_key']:
-        emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
-    elif should_notify and is_group_chat:
+    if should_notify and is_group_chat:
+        if group_read_updates:
+            emit_func(
+                'group_messages_read',
+                {
+                    'chat_id': chat_id,
+                    'reader_user_id': int(user_id),
+                    'updates': group_read_updates,
+                },
+                room=chat_id,
+            )
         emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+    elif should_notify and partner and partner['public_key']:
+        emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
 
 
 def handle_voice_message_listened_event(
