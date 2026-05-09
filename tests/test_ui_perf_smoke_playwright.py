@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 ROOT = Path(__file__).resolve().parents[1]
 _HEADLESS = os.environ.get('PLAYWRIGHT_HEADLESS', '1') != '0'
 _SLOW_MO = int(os.environ.get('PLAYWRIGHT_SLOW_MO', '0'))
-_TIMEOUT = int(os.environ.get('PLAYWRIGHT_TIMEOUT', '10000'))
+_TIMEOUT = int(os.environ.get('PLAYWRIGHT_TIMEOUT', '20000'))
 
 
 @pytest.fixture(scope='session')

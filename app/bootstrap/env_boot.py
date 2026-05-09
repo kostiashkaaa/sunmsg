@@ -5,6 +5,7 @@ from flask import Flask
 
 from app.config import get_config_class, load_environment
 from app.database import run_migrations
+from app.db.connection import clear_postgres_connection_pools
 from app.db_backend import ensure_postgres_schema, testing_schema_from_identifier
 from app.bootstrap.security import (
     require_production_realtime_backing_services,
@@ -57,6 +58,9 @@ def configure_testing_database_schema(app: Flask, overrides=None) -> str:
     # In testing mode we map each path to an isolated PostgreSQL schema.
     legacy_database_path = ""
     if app.config.get("TESTING"):
+        # Each test app can set a unique DATABASE_SCHEMA derived from tmp_path.
+        # Reset cached pools to prevent idle connections from accumulating per schema.
+        clear_postgres_connection_pools()
         explicit_database_url = str((overrides or {}).get("DATABASE_URL") or "").strip()
         runtime_database_url = str(app.config.get("DATABASE_URL") or "").strip()
         runtime_baseline_database_url = str(os.environ.get("RUNTIME_DATABASE_URL_ORIGINAL") or "").strip()
