@@ -1,4 +1,4 @@
-from app.services.chat_members import get_chat_type
+from app.services.chat_members import get_chat_type, list_chat_member_public_keys
 
 ALLOWED_TYPING_KINDS = {
     'text',
@@ -51,6 +51,13 @@ def _handle_typing_signal_event(
     conn = get_db_connection_func()
     partner, block_state = chat_partner_state_func(conn, uid, chat_id)
     is_group_chat = get_chat_type(conn, chat_id) == 'group'
+    group_member_public_keys = []
+    if is_group_chat:
+        group_member_public_keys = list_chat_member_public_keys(
+            conn,
+            chat_id,
+            exclude_user_id=int(uid),
+        )
     sender_row = conn.execute(
         '''
         SELECT id, display_name, username
@@ -83,7 +90,11 @@ def _handle_typing_signal_event(
     if normalized_typing_kind:
         payload['typing_kind'] = normalized_typing_kind
     if is_group_chat:
-        emit_func(partner_event_name, payload, room=chat_id, include_self=False)
+        for member in group_member_public_keys:
+            member_public_key = str(member['public_key'] or '').strip()
+            if not member_public_key:
+                continue
+            emit_func(partner_event_name, payload, room=member_public_key)
     elif partner and partner['public_key']:
         emit_func(partner_event_name, payload, room=partner['public_key'], include_self=False)
 
