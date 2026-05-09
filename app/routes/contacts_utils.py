@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 
 from app.services.locale import normalize_language
@@ -7,6 +8,36 @@ ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__'
 
 def is_encrypted_message_payload(value) -> bool:
     return isinstance(value, str) and value.strip().startswith('{') and 'encrypted_message' in value
+
+
+def _build_initial_file_payload_preview(raw_message) -> str | None:
+    if not isinstance(raw_message, str):
+        return None
+    normalized = raw_message.strip()
+    if not normalized.startswith('{') or '"__sunfile"' not in normalized:
+        return None
+    try:
+        payload = json.loads(normalized)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or not payload.get('__sunfile'):
+        return None
+
+    caption = str(payload.get('caption') or '').strip()
+    if caption:
+        return caption
+
+    mime = str(payload.get('mime') or '').strip().lower()
+    name = str(payload.get('name') or '').strip()
+    if mime.startswith('image/'):
+        return '[photo]'
+    if mime.startswith('video/'):
+        return '[video]'
+    if mime.startswith('audio/'):
+        return '[voice]'
+    if name:
+        return f'[file] {name}'
+    return '[file]'
 
 
 def format_sidebar_time(timestamp, *, language: str = 'ru'):
@@ -55,6 +86,9 @@ def build_initial_last_message_preview(
         return '🚫 You are blocked' if resolved_language == 'en' else '🚫 Вы заблокированы'
     if is_encrypted_message_payload(raw_message):
         return ENCRYPTED_PREVIEW_LOADING_TOKEN
+    file_preview = _build_initial_file_payload_preview(raw_message)
+    if file_preview:
+        return file_preview
     return raw_message or ''
 
 

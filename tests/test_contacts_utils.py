@@ -61,6 +61,39 @@ def test_build_initial_last_message_preview_states():
     ) == 'plain'
 
 
+def test_build_initial_last_message_preview_for_media_payloads():
+    assert build_initial_last_message_preview(
+        '{"__sunfile":true,"name":"image.png","mime":"image/png"}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='ru',
+    ) == '[photo]'
+    assert build_initial_last_message_preview(
+        '{"__sunfile":true,"name":"clip.mp4","mime":"video/mp4"}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='en',
+    ) == '[video]'
+    assert build_initial_last_message_preview(
+        '{"__sunfile":true,"name":"memo.ogg","mime":"audio/ogg"}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='en',
+    ) == '[voice]'
+    assert build_initial_last_message_preview(
+        '{"__sunfile":true,"name":"report.pdf","mime":"application/pdf"}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='en',
+    ) == '[file] report.pdf'
+    assert build_initial_last_message_preview(
+        '{"__sunfile":true,"name":"image.png","mime":"image/png","caption":"My caption"}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='ru',
+    ) == 'My caption'
+
+
 def test_parse_int_like_pattern_and_canonical_username():
     assert parse_int('10') == 10
     assert parse_int('-3') == -3
