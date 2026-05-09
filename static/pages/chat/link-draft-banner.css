@@ -13,6 +13,9 @@
     transform: translateY(8px);
     transform-origin: bottom center;
     transition:
+        max-height var(--dur-quick) var(--ease-quick),
+        padding-top var(--dur-quick) var(--ease-quick),
+        padding-bottom var(--dur-quick) var(--ease-quick),
         opacity var(--dur-quick) var(--ease-quick),
         transform var(--dur-quick) var(--ease-quick);
     background: transparent;
@@ -21,6 +24,10 @@
     border-radius: 0;
     margin: 0;
     width: 100%;
+}
+
+.link-draft-bar--hidden {
+    display: none;
 }
 
 .link-draft-bar.is-visible {

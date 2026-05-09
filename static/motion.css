@@ -1725,6 +1725,9 @@ button > i[class*=" bi-"],
 .reply-bar {
     transform: translate3d(0, 8px, 0);
     transition:
+        max-height var(--tg3-dur-panel) var(--tg3-ease-surface),
+        padding-top var(--tg3-dur-panel) var(--tg3-ease-surface),
+        padding-bottom var(--tg3-dur-panel) var(--tg3-ease-surface),
         opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
         transform var(--tg3-dur-panel) var(--tg3-ease-surface);
     -webkit-backface-visibility: hidden;
