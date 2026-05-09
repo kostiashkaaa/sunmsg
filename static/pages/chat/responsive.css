@@ -673,6 +673,14 @@
                 z-index: 50;
                 padding-bottom: env(safe-area-inset-bottom, 0px);
             }
+            .sidebar.sidebar--collapsed {
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .sidebar-collapse-toggle {
+                display: none;
+            }
             #sidebarScrollArea {
                 scrollbar-gutter: auto;
             }

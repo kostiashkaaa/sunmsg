@@ -1,5 +1,48 @@
 export function initChatShellSidebar() {
     const requestsShortcutBtn = document.getElementById('requestsShortcutBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarCollapseToggleBtn = document.getElementById('sidebarCollapseToggleBtn');
+    const SIDEBAR_COLLAPSE_STORAGE_KEY = 'sun.sidebar.collapsed.v1';
+    const COLLAPSE_LABEL = 'Сжать список чатов';
+    const EXPAND_LABEL = 'Развернуть список чатов';
+    const mobileSidebarQuery = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 768px)')
+        : null;
+
+    function readPersistedSidebarCollapsedState() {
+        try {
+            return window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === '1';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function persistSidebarCollapsedState(collapsed) {
+        try {
+            window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, collapsed ? '1' : '0');
+        } catch (_) {
+            // Ignore storage availability issues.
+        }
+    }
+
+    function syncSidebarCollapseToggleState(collapsed, isMobileViewport) {
+        if (!sidebarCollapseToggleBtn) return;
+        const appliedCollapsedState = !isMobileViewport && collapsed;
+        const nextLabel = appliedCollapsedState ? EXPAND_LABEL : COLLAPSE_LABEL;
+        sidebarCollapseToggleBtn.setAttribute('aria-pressed', appliedCollapsedState ? 'true' : 'false');
+        sidebarCollapseToggleBtn.setAttribute('aria-label', nextLabel);
+        sidebarCollapseToggleBtn.title = nextLabel;
+    }
+
+    let sidebarCollapsed = readPersistedSidebarCollapsedState();
+
+    function applySidebarCollapsedState() {
+        const isMobileViewport = Boolean(mobileSidebarQuery?.matches);
+        if (sidebar) {
+            sidebar.classList.toggle('sidebar--collapsed', !isMobileViewport && sidebarCollapsed);
+        }
+        syncSidebarCollapseToggleState(sidebarCollapsed, isMobileViewport);
+    }
 
     function scheduleGroupLabelsUpdate() {
         // Group labels were removed from sidebar; keep a no-op for existing call sites.
@@ -60,6 +103,23 @@ export function initChatShellSidebar() {
         switchSidebarTab(currentTab === 'requests' ? 'all' : 'requests');
     });
 
+    sidebarCollapseToggleBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (mobileSidebarQuery?.matches) return;
+        sidebarCollapsed = !sidebarCollapsed;
+        persistSidebarCollapsedState(sidebarCollapsed);
+        applySidebarCollapsedState();
+    });
+
+    const handleSidebarViewportChange = () => applySidebarCollapsedState();
+    if (mobileSidebarQuery) {
+        if (typeof mobileSidebarQuery.addEventListener === 'function') {
+            mobileSidebarQuery.addEventListener('change', handleSidebarViewportChange);
+        } else if (typeof mobileSidebarQuery.addListener === 'function') {
+            mobileSidebarQuery.addListener(handleSidebarViewportChange);
+        }
+    }
+
     function applyAvatarTints() {
         document.querySelectorAll('.contact-item .contact-avatar').forEach((avatar) => {
             if (avatar.querySelector('img')) return;
@@ -94,6 +154,7 @@ export function initChatShellSidebar() {
     }
 
     updateSidebarTabCounts();
+    applySidebarCollapsedState();
     window.updateSidebarTabCounts = updateSidebarTabCounts;
     window.switchSidebarTab = switchSidebarTab;
 
