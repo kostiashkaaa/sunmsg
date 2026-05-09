@@ -742,6 +742,28 @@
             text-shadow: none;
         }
 
+        #chatOnlineStatus[data-connection-state="warning"] {
+            position: relative;
+            padding-left: 15px;
+        }
+
+        #chatOnlineStatus[data-connection-state="warning"]::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: calc(50% - 5px);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid color-mix(in srgb, var(--warning) 30%, transparent);
+            border-top-color: var(--warning);
+            animation: chat-connection-spinner 0.9s linear infinite;
+        }
+
+        @keyframes chat-connection-spinner {
+            to { transform: rotate(360deg); }
+        }
+
 
         .jump-to-new-btn.is-visible {
             opacity: 1;
