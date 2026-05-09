@@ -180,7 +180,9 @@
     }
 
     function detectDarkMode() {
-        return document.body.classList.contains('dark-mode') || localStorage.getItem('darkMode') === 'true';
+        return document.documentElement.classList.contains('dark-mode')
+            || Boolean(document.body?.classList?.contains('dark-mode'))
+            || localStorage.getItem('darkMode') === 'true';
     }
 
     function mergeThemeState(input, theme) {
