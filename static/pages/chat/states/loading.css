@@ -529,6 +529,47 @@
 
         body.dark-mode .user-popup-item.danger:hover { background: #3a1010; }
 
+        .search-input-wrapper[data-network-state="offline"] {
+            border-color: color-mix(in srgb, var(--warning) 34%, var(--border) 66%);
+            background: color-mix(in srgb, var(--surface) 86%, rgba(229, 160, 52, 0.12) 14%);
+        }
+
+        .search-input-wrapper[data-network-state="offline"] i {
+            color: transparent;
+            opacity: 1;
+            position: relative;
+        }
+
+        .search-input-wrapper[data-network-state="offline"] i::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 11px;
+            height: 11px;
+            margin-left: -5.5px;
+            margin-top: -5.5px;
+            border-radius: 50%;
+            border: 2px solid color-mix(in srgb, var(--warning) 38%, transparent);
+            border-top-color: var(--warning);
+            animation: sidebar-search-offline-spinner 0.95s linear infinite;
+        }
+
+        .search-input-wrapper[data-network-state="offline"] input::placeholder {
+            color: color-mix(in srgb, var(--warning) 72%, var(--text) 28%);
+            opacity: 0.95;
+        }
+
+        .search-input-wrapper[data-network-state="offline"]:hover,
+        .search-input-wrapper[data-network-state="offline"]:focus-within {
+            border-color: color-mix(in srgb, var(--warning) 48%, var(--border) 52%);
+            background: color-mix(in srgb, var(--surface) 82%, rgba(229, 160, 52, 0.18) 18%);
+        }
+
+        @keyframes sidebar-search-offline-spinner {
+            to { transform: rotate(360deg); }
+        }
+
 
         .search-input-wrapper:hover {
             background: var(--surface);
