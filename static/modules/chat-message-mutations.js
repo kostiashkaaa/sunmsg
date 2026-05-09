@@ -260,7 +260,7 @@ export function createChatMessageMutations({
             if (meta) {
                 const edited = doc.createElement('span');
                 edited.className = 'msg-edited';
-                edited.textContent = '(????????)';
+                edited.textContent = '(\u0438\u0437\u043c\u0435\u043d\u0435\u043d\u043e)';
                 const timeEl = meta.querySelector('.msg-time');
                 if (timeEl) {
                     timeEl.before(edited);
