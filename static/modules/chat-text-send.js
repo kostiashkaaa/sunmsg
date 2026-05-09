@@ -63,6 +63,7 @@ export async function sendTextMessageFlow({
             request_id: clientId,
         };
         const emitted = emitSocket('send_message', sendPayload, { requireConnected: true });
+        let isQueuedOffline = false;
         if (!emitted) {
             if (typeof enqueueOutbox !== 'function') {
                 return;
@@ -74,6 +75,7 @@ export async function sendTextMessageFlow({
                     payload: sendPayload,
                 });
                 if (!queued) return;
+                isQueuedOffline = true;
             } catch (_) {
                 return;
             }
@@ -103,7 +105,9 @@ export async function sendTextMessageFlow({
             { pending: true, is_read: false, is_delivered: false },
             sentAt,
         );
-        schedulePendingTimeout(clientId);
+        if (!isQueuedOffline) {
+            schedulePendingTimeout(clientId);
+        }
 
         clearComposerInput();
         requestAnimationFrame(() => {
