@@ -116,6 +116,8 @@ import { createChatSocketClient, createSocketEmitter } from './modules/chat-sock
 import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
 import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } from './modules/chat-idb-runtime.js';
+import { applyDataMemoryPolicy } from './modules/chat-cache-manager.js';
+import { readDataMemoryStore } from './modules/chat-cache-policy.js';
 import { createOutboxRuntime } from './modules/chat-outbox.js';
 import { mountOutboxPill } from './modules/chat-outbox-ui.js?v=20260509b';
 import { createChatHistoryRuntime, mapWithConcurrency } from './modules/chat-history-runtime.js';
@@ -258,7 +260,56 @@ const initChatPage = async () => {
         chatIdbRuntime.dropChatCache(chatId);
     }
     window.clearChatHistoryCacheOnLogout = () => chatIdbRuntime.clearOnLogout();
-    chatIdbRuntime.init();
+    let cachePolicyTimerId = 0;
+    let cachePolicyInFlight = false;
+    let cachePolicyQueued = false;
+
+    async function runDataMemoryPolicyNow() {
+        if (cachePolicyInFlight) {
+            cachePolicyQueued = true;
+            return;
+        }
+        cachePolicyInFlight = true;
+        try {
+            await applyDataMemoryPolicy({
+                userId: CURRENT_USER_ID,
+                preferences: readDataMemoryStore(),
+            });
+        } catch (_) {
+            // Ignore background policy errors.
+        } finally {
+            cachePolicyInFlight = false;
+            if (cachePolicyQueued) {
+                cachePolicyQueued = false;
+                window.setTimeout(() => {
+                    runDataMemoryPolicyNow().catch(() => {});
+                }, 120);
+            }
+        }
+    }
+
+    function scheduleDataMemoryPolicy(delayMs = 900) {
+        if (cachePolicyTimerId) {
+            window.clearTimeout(cachePolicyTimerId);
+        }
+        cachePolicyTimerId = window.setTimeout(() => {
+            cachePolicyTimerId = 0;
+            runDataMemoryPolicyNow().catch(() => {});
+        }, Math.max(0, Number(delayMs) || 0));
+    }
+
+    function pruneCachedChatsWithPolicy(limit = 100) {
+        const prunePromise = ChatIdb.pruneCachedChats(limit);
+        prunePromise.catch(() => {});
+        scheduleDataMemoryPolicy();
+        return prunePromise;
+    }
+
+    chatIdbRuntime.init()
+        .then((ready) => {
+            if (ready) scheduleDataMemoryPolicy(60);
+        })
+        .catch(() => {});
 
     const outboxRuntime = createOutboxRuntime({
         currentUserId: CURRENT_USER_ID,
@@ -291,6 +342,10 @@ const initChatPage = async () => {
     });
     const previousClearChatHistoryCacheOnLogout = window.clearChatHistoryCacheOnLogout;
     window.clearChatHistoryCacheOnLogout = async () => {
+        if (cachePolicyTimerId) {
+            window.clearTimeout(cachePolicyTimerId);
+            cachePolicyTimerId = 0;
+        }
         try { await previousClearChatHistoryCacheOnLogout?.(); } catch (_) {}
         try { await outboxRuntime.clearOnLogout(); } catch (_) {}
     };
@@ -5860,7 +5915,7 @@ const initChatPage = async () => {
                 const encryptedRawMessage = buildEncryptedCacheMessageFromSocketPayload(rawMessage);
                 if (!encryptedRawMessage) return;
                 appendEncryptedMessagesToCache(chatId, [encryptedRawMessage]).catch(() => {});
-                ChatIdb.pruneCachedChats(100).catch(() => {});
+                pruneCachedChatsWithPolicy(100);
             },
             prewarmMessageLinkPreview: scheduleMessageLinkPreviewPrewarm,
         },
@@ -6060,7 +6115,7 @@ const initChatPage = async () => {
             isChatIdbReady,
             readCachedMessages: (chatId) => ChatIdb.readCachedMessages(chatId),
             writeCachedMessages: (chatId, messages, meta) => ChatIdb.writeCachedMessages(chatId, messages, meta),
-            pruneCachedChats: (limit) => ChatIdb.pruneCachedChats(limit),
+            pruneCachedChats: (limit) => pruneCachedChatsWithPolicy(limit),
             appendEncryptedMessagesToCache,
             showToast,
             normalizeBlockState,
@@ -6195,11 +6250,13 @@ const initChatPage = async () => {
         const displayName = String(user.display_name || user.username || `Пользователь ${parsedId}`).trim();
         const username = String(user.username || '').trim();
         const avatarUrl = String(user.avatar_url || '').trim();
+        const canGroupAddDirect = user.can_group_add_direct !== false;
         return {
             user_id: parsedId,
             display_name: displayName || `Пользователь ${parsedId}`,
             username,
             avatar_url: avatarUrl,
+            can_group_add_direct: canGroupAddDirect,
         };
     }
 

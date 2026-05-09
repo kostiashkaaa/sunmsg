@@ -179,6 +179,33 @@ export async function readCachedMessages(chatId) {
     }
 }
 
+export async function readAllCachedChats() {
+    if (!activeDb) return [];
+    try {
+        const rows = await new Promise((resolve, reject) => {
+            const tx = activeDb.transaction(STORE_CHATS, 'readonly');
+            const request = tx.objectStore(STORE_CHATS).getAll();
+            request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+            request.onerror = () => reject(request.error || new Error('Failed to read all cache rows.'));
+            tx.onerror = () => reject(tx.error || new Error('Failed to read cache transaction.'));
+        });
+
+        return rows
+            .filter((row) => row && typeof row === 'object')
+            .map((row) => ({
+                chat_id: normalizeChatId(row.chat_id),
+                messages: Array.isArray(row.messages) ? row.messages : [],
+                updatedAt: Number(row.updatedAt) || 0,
+                lastId: safeMessageId(row.lastId) || 0,
+                firstId: safeMessageId(row.firstId) || 0,
+            }))
+            .filter((row) => row.chat_id);
+    } catch (error) {
+        warn('readAllCachedChats failed.', error);
+        return [];
+    }
+}
+
 export async function writeCachedMessages(chatId, messages, meta = {}) {
     const key = normalizeChatId(chatId);
     if (!activeDb || !key) return;

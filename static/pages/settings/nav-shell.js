@@ -33,6 +33,7 @@ export function initSettingsNavShell({
         privacy: 'Приватность',
         keys: 'Безопасность',
         notifications: 'Уведомления',
+        'data-memory': 'Данные и память',
         appearance: 'Внешний вид',
         'chat-style': 'Обои',
         account: 'Устройства',
