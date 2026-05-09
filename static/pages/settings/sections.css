@@ -1138,6 +1138,55 @@
     box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent) 58%, transparent);
 }
 
+.settings-city-autocomplete {
+    position: relative;
+    width: min(320px, 100%);
+    justify-self: end;
+}
+
+.settings-city-autocomplete .settings-input {
+    width: 100%;
+    min-width: 0;
+}
+
+.settings-city-suggestions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 24;
+    display: grid;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    background: color-mix(in srgb, var(--paper) 96%, transparent);
+    box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.45);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.settings-city-suggestion {
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--text);
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background-color var(--dur-quick) var(--ease-quick);
+}
+
+.settings-city-suggestion:hover,
+.settings-city-suggestion:focus-visible {
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+    outline: none;
+}
+
 select.settings-select-control {
     border: 0;
     background-color: color-mix(in srgb, var(--paper-alt) 72%, transparent);
