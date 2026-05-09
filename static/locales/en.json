@@ -1189,5 +1189,21 @@
   "Обращение отправлено": "Support request sent",
   "Сетевая ошибка при отправке обращения.": "Network error while sending support request.",
   "дня": "days",
-  "дней": "days"
+  "дней": "days",
+  "Анимация": "Animation",
+  "Полностью включает или отключает анимации интерфейса": "Completely enables or disables interface animations",
+  "Ошибка: выберите изображение": "Error: select an image",
+  "Push не поддерживается в этом браузере.": "Push is not supported in this browser.",
+  "Push отключен на стороне сервера.": "Push is disabled on the server side.",
+  "Разрешение на уведомления не выдано.": "Notification permission was not granted.",
+  "Push-уведомления отключены.": "Push notifications disabled.",
+  "Настройки экспортированы.": "Settings exported.",
+  "Некорректный файл настроек: отсутствует serverSettings.": "Invalid settings file: serverSettings is missing.",
+  "Настройки импортированы. Перезагружаем интерфейс...": "Settings imported. Reloading the interface...",
+  "Кэш файлов очищен.": "File cache cleared.",
+  "Не удалось очистить кэш файлов.": "Failed to clear file cache.",
+  "Кэш видеофрагментов очищен.": "Video fragment cache cleared.",
+  "Не удалось очистить кэш видеофрагментов.": "Failed to clear video fragment cache.",
+  "Весь кэш очищен.": "All cache cleared.",
+  "Не удалось очистить весь кэш.": "Failed to clear all cache."
 }
