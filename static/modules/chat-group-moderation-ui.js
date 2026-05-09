@@ -82,7 +82,8 @@ export function buildGroupEditMembersHtml({
                         Transfer owner
                     </button>
                 `;
-            } else if (myRole === 'owner' && ['member', 'moderator'].includes(role)) {
+            }
+            if (myRole === 'owner' && ['member', 'moderator'].includes(role)) {
                 roleActionHtml += `
                     <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="admin">
                         Set admin

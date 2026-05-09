@@ -1025,21 +1025,25 @@ body.dark-mode #messageForwardModal .forward-target-status {
 }
 
 .group-create-action-btn--secondary {
-    border: 1px solid rgba(158, 177, 198, 0.36);
-    background: rgba(60, 76, 93, 0.45);
-    color: #dde8f7;
+    border: 1px solid color-mix(in srgb, var(--border, #d1d5db) 72%, transparent);
+    background: color-mix(in srgb, var(--surface-2, #eef2f7) 82%, transparent);
+    color: var(--text, #111827);
     box-shadow: none;
 }
 
 .group-create-action-btn--secondary:hover {
-    background: rgba(75, 95, 115, 0.5);
+    background: color-mix(in srgb, var(--surface-2, #eef2f7) 72%, var(--accent-soft, #93c5fd) 28%);
 }
 
 .group-create-action-btn--primary {
-    border: 1px solid rgba(146, 125, 247, 0.5);
-    background: linear-gradient(140deg, #8b77f2 0%, #6f5ad6 100%);
+    border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 46%, transparent);
+    background: linear-gradient(
+        140deg,
+        color-mix(in srgb, var(--accent, #2563eb) 76%, #ffffff 24%) 0%,
+        color-mix(in srgb, var(--accent, #2563eb) 88%, #0f172a 12%) 100%
+    );
     color: #fff;
-    box-shadow: 0 8px 20px rgba(112, 88, 220, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-glow, #93c5fd) 38%, transparent);
 }
 
 .group-create-action-btn--primary:hover:not(:disabled) {
@@ -1053,13 +1057,23 @@ body.dark-mode #messageForwardModal .forward-target-status {
 }
 
 .group-edit-side-panel {
+    --group-edit-bg: color-mix(in srgb, var(--paper, #f8fafc) 82%, var(--surface, #ffffff) 18%);
+    --group-edit-head-bg: color-mix(in srgb, var(--surface, #ffffff) 88%, var(--paper, #f8fafc) 12%);
+    --group-edit-footer-bg: color-mix(in srgb, var(--surface-2, #eef2f7) 86%, transparent);
+    --group-edit-field-bg: color-mix(in srgb, var(--surface, #ffffff) 68%, var(--paper-alt, #f1f5f9) 32%);
+    --group-edit-border: color-mix(in srgb, var(--border, #d1d5db) 76%, transparent);
+    --group-edit-sub-text: color-mix(in srgb, var(--sub-text, #6b7280) 90%, var(--text, #111827) 10%);
+    --group-edit-chip-bg: color-mix(in srgb, var(--surface-2, #eef2f7) 74%, transparent);
+    --group-edit-chip-border: color-mix(in srgb, var(--border, #d1d5db) 68%, transparent);
+    --group-edit-chip-hover-bg: color-mix(in srgb, var(--accent-soft, #bfdbfe) 48%, var(--surface-2, #eef2f7) 52%);
+    --group-edit-chip-hover-border: color-mix(in srgb, var(--accent, #2563eb) 42%, var(--border, #d1d5db) 58%);
     position: absolute;
     inset: 0;
     z-index: 40;
     display: flex;
     flex-direction: column;
-    background: #1f2731;
-    color: #f8fbff;
+    background: var(--group-edit-bg);
+    color: var(--text, #111827);
     transform: translate3d(100%, 0, 0);
     opacity: 0;
     pointer-events: none;
@@ -1090,8 +1104,8 @@ body.dark-mode #messageForwardModal .forward-target-status {
     gap: 8px;
     min-height: 58px;
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    background: #242e39;
+    border-bottom: 1px solid var(--group-edit-border);
+    background: var(--group-edit-head-bg);
 }
 
 .group-edit-side-panel__title {
@@ -1105,6 +1119,37 @@ body.dark-mode #messageForwardModal .forward-target-status {
     gap: 12px;
     padding: 12px;
     overflow-y: auto;
+}
+
+.group-edit-side-panel__footer {
+    margin-top: auto;
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--group-edit-border);
+    background: var(--group-edit-footer-bg);
+}
+
+.group-edit-side-panel__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.group-edit-side-panel__actions .group-create-action-btn {
+    min-width: 120px;
+}
+
+.group-edit-side-panel .group-create-modal__label {
+    color: var(--group-edit-sub-text);
+}
+
+.group-edit-side-panel .group-create-modal__input {
+    background: var(--group-edit-field-bg);
+    color: var(--text, #111827);
+    border: 1px solid var(--group-edit-border);
+}
+
+.group-edit-side-panel .group-create-modal__input::placeholder {
+    color: color-mix(in srgb, var(--sub-text, #6b7280) 92%, transparent);
 }
 
 .group-edit-avatar-row {
@@ -1150,29 +1195,29 @@ body.dark-mode #messageForwardModal .forward-target-status {
     font-size: 13px;
     font-weight: 700;
     border-radius: 12px;
-    border: 1px solid rgba(158, 177, 198, 0.36);
-    background: rgba(60, 76, 93, 0.45);
-    color: #dde8f7;
+    border: 1px solid var(--group-edit-border);
+    background: var(--group-edit-chip-bg);
+    color: var(--text, #111827);
 }
 
 .group-edit-members-list {
-    border: 1px solid rgba(158, 177, 198, 0.28);
+    border: 1px solid var(--group-edit-border);
     border-radius: 14px;
     max-height: min(40dvh, 360px);
     overflow: auto;
-    background: rgba(17, 24, 34, 0.45);
+    background: color-mix(in srgb, var(--surface, #ffffff) 76%, transparent);
 }
 
 .group-edit-member-row {
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-columns: 36px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 10px 12px 12px;
 }
 
 .group-edit-member-row + .group-edit-member-row {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--group-edit-border);
 }
 
 .group-edit-member-avatar {
@@ -1203,27 +1248,39 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 .group-edit-member-meta {
     font-size: 12px;
-    color: rgba(197, 209, 224, 0.78);
+    color: var(--group-edit-sub-text);
     line-height: 1.1;
     margin-top: 2px;
 }
 
+.group-edit-member-copy {
+    min-width: 0;
+}
+
+.group-edit-member-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 4px;
+}
+
 .group-edit-member-role-btn {
-    border: 1px solid rgba(158, 177, 198, 0.34);
-    background: rgba(60, 76, 93, 0.45);
-    color: #dde8f7;
+    border: 1px solid var(--group-edit-chip-border);
+    background: var(--group-edit-chip-bg);
+    color: var(--text, #111827);
     border-radius: 999px;
     min-height: 34px;
     font-size: 12px;
     font-weight: 700;
-    padding: 0 12px;
+    padding: 0 11px;
     cursor: pointer;
     transition: background-color var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick);
 }
 
 .group-edit-member-role-btn:hover:not(:disabled) {
-    border-color: rgba(146, 125, 247, 0.48);
-    background: rgba(116, 94, 225, 0.2);
+    border-color: var(--group-edit-chip-hover-border);
+    background: var(--group-edit-chip-hover-bg);
     transform: translateY(-1px);
 }
 
@@ -1560,5 +1617,4 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .btn-icon:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
-
 
