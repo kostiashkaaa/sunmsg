@@ -834,13 +834,17 @@ def handle_send_message_event(
 
         if not receiver_is_connected and callable(send_web_push_notification_func):
             try:
+                push_payload = {
+                    'receiver_user_id': receiver_id,
+                    'sender_user_id': sender_id,
+                    'sender_display_name': sender_display_name,
+                    'sender_username': sender_username,
+                    'chat_id': chat_id,
+                }
+                if message_type != 'text':
+                    push_payload['message_type'] = message_type
                 send_web_push_notification_func(
-                    receiver_user_id=receiver_id,
-                    sender_user_id=sender_id,
-                    sender_display_name=sender_display_name,
-                    sender_username=sender_username,
-                    chat_id=chat_id,
-                    message_type=message_type,
+                    **push_payload,
                 )
             except Exception:  # noqa: BLE001
                 logger.warning('Web push notification send failed for receiver_id=%s', receiver_id)

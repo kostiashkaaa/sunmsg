@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from app.bootstrap.security import _is_default_or_weak_production_secret, _is_redis_like_uri
 from app.config import get_config_class, load_environment
 
@@ -14,7 +16,29 @@ def _check(name: str, ok: bool, detail: str) -> dict:
 
 def run_production_config_check(config_name=None, overrides=None):
     load_environment()
-    config = get_config_class(config_name).from_env()
+    prior_secret_key = os.environ.get('SECRET_KEY')
+    prior_database_url = os.environ.get('DATABASE_URL')
+    try:
+        if not str(os.environ.get('SECRET_KEY') or '').strip():
+            override_secret_key = str((overrides or {}).get('SECRET_KEY') or '').strip()
+            os.environ['SECRET_KEY'] = override_secret_key or 'temporary-production-check-secret-key-32-bytes'
+        if not str(os.environ.get('DATABASE_URL') or '').strip():
+            override_database_url = str((overrides or {}).get('DATABASE_URL') or '').strip()
+            os.environ['DATABASE_URL'] = (
+                override_database_url
+                or 'postgresql://sunmessenger:check@127.0.0.1:5432/sunmessenger'
+            )
+        config = get_config_class(config_name).from_env()
+    finally:
+        if prior_secret_key is None:
+            os.environ.pop('SECRET_KEY', None)
+        else:
+            os.environ['SECRET_KEY'] = prior_secret_key
+        if prior_database_url is None:
+            os.environ.pop('DATABASE_URL', None)
+        else:
+            os.environ['DATABASE_URL'] = prior_database_url
+
     if overrides:
         config.update(overrides)
 

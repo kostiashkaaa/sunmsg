@@ -25,6 +25,7 @@ def fetch_contacts_for_user(
     ensure_pinned_chats_table_func(conn)
     cursor = conn.cursor()
     has_chat_drafts = table_exists(cursor, 'chat_drafts')
+    has_pinned_chats = table_exists(cursor, 'pinned_chats')
     saved_messages_id = ''
     user_row = cursor.execute(
         '''
@@ -47,6 +48,16 @@ def fetch_contacts_for_user(
         draft_select_sql = "'' AS draft_text, NULL AS draft_updated_at"
         draft_join_sql = ''
         draft_order_value_sql = 'NULL'
+
+    pinned_select_sql = 'pc.chat_id IS NOT NULL AS is_pinned, COALESCE(pc.pin_order, 0) AS pin_order'
+    pinned_join_sql = 'LEFT JOIN pinned_chats pc ON pc.chat_id = uc.chat_id AND pc.user_id = ?'
+    pinned_order_presence_sql = 'CASE WHEN pc.chat_id IS NOT NULL THEN 0 ELSE 1 END ASC,'
+    pinned_order_value_sql = 'CASE WHEN pc.chat_id IS NOT NULL THEN pc.pin_order ELSE NULL END ASC,'
+    if not has_pinned_chats:
+        pinned_select_sql = '0 AS is_pinned, 0 AS pin_order'
+        pinned_join_sql = ''
+        pinned_order_presence_sql = ''
+        pinned_order_value_sql = ''
 
     query = '''
         WITH user_contacts AS (
@@ -117,8 +128,7 @@ def fetch_contacts_for_user(
             lm.last_message_is_delivered,
             lm.last_message_time,
             COALESCE(ucnt.unread_count, 0) AS unread_count,
-            pc.chat_id IS NOT NULL AS is_pinned,
-            COALESCE(pc.pin_order, 0) AS pin_order,
+            {pinned_select_sql},
             {draft_select_sql}
         FROM user_contacts uc
         JOIN users u ON uc.contact_id = u.id
@@ -126,15 +136,19 @@ def fetch_contacts_for_user(
         LEFT JOIN block_list bme ON bme.blocker_id = u.id AND bme.blocked_id = ?
         LEFT JOIN last_messages lm ON lm.chat_id = uc.chat_id
         LEFT JOIN unread_counts ucnt ON ucnt.chat_id = uc.chat_id
-        LEFT JOIN pinned_chats pc ON pc.chat_id = uc.chat_id AND pc.user_id = ?
+        {pinned_join_sql}
         {draft_join_sql}
         ORDER BY
             CASE WHEN uc.contact_id = ? THEN 0 ELSE 1 END ASC,
-            CASE WHEN pc.chat_id IS NOT NULL THEN 0 ELSE 1 END ASC,
-            CASE WHEN pc.chat_id IS NOT NULL THEN pc.pin_order ELSE NULL END ASC,
+            {pinned_order_presence_sql}
+            {pinned_order_value_sql}
             CASE WHEN COALESCE({draft_order_value_sql}, CAST(lm.last_message_time AS TEXT)) IS NULL THEN 1 ELSE 0 END ASC,
             COALESCE({draft_order_value_sql}, CAST(lm.last_message_time AS TEXT)) DESC
         '''.format(
+        pinned_select_sql=pinned_select_sql,
+        pinned_join_sql=pinned_join_sql,
+        pinned_order_presence_sql=pinned_order_presence_sql,
+        pinned_order_value_sql=pinned_order_value_sql,
         draft_select_sql=draft_select_sql,
         draft_join_sql=draft_join_sql,
         draft_order_value_sql=draft_order_value_sql,
@@ -146,8 +160,9 @@ def fetch_contacts_for_user(
         user_id,
         user_id,
         user_id,
-        user_id,
     ]
+    if has_pinned_chats:
+        params.append(user_id)
     if has_chat_drafts:
         params.append(user_id)
     params.append(user_id)
