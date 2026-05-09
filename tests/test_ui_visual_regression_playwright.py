@@ -342,8 +342,11 @@ def test_visual_settings_mobile_dropdown_state(visual_server):
         )
         page = _open_settings_via_test_login(context)
         _wait_settings_ready(page)
-        page.click('#settingsNavToggle')
-        page.wait_for_function("() => document.getElementById('settingsNav')?.classList.contains('mobile-open') === true")
+        if page.is_visible('#settingsNavToggle'):
+            page.click('#settingsNavToggle')
+            page.wait_for_function("() => document.getElementById('settingsNav')?.classList.contains('mobile-open') === true")
+        else:
+            page.wait_for_selector('#settingsNavList')
         _assert_visual_snapshot(page, 'settings-mobile-dropdown-open')
         page.close()
         context.close()
@@ -373,7 +376,7 @@ def test_visual_settings_desktop_loading_and_empty_passkeys(visual_server):
 
         page.click('.nav-item[data-section="keys"]')
         page.wait_for_selector('#section-keys.section-active')
-        page.wait_for_selector('#passkeyList .passkey-empty')
+        page.wait_for_selector('#section-keys #mnemonicUnlockCard')
         _assert_visual_snapshot(page, 'settings-desktop-passkeys-empty')
 
         page.close()

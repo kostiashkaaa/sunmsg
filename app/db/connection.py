@@ -104,6 +104,7 @@ class _PostgresAdapterPool:
         self._lock = threading.Lock()
         self._idle_raw_connections: list[object] = []
         self._total_connections = 0
+        self._disposed = False
 
     def acquire(self) -> _PooledConnection:
         with self._lock:
@@ -162,15 +163,39 @@ class _PostgresAdapterPool:
             return
 
         with self._lock:
+            if self._disposed:
+                self._total_connections = max(0, self._total_connections - 1)
+                should_close = True
+            else:
+                should_close = False
             if len(self._idle_raw_connections) < self._max_size and _is_raw_connection_open(raw_connection):
-                self._idle_raw_connections.append(raw_connection)
-                return
-            self._total_connections = max(0, self._total_connections - 1)
+                if not should_close:
+                    self._idle_raw_connections.append(raw_connection)
+                    return
+            if not should_close:
+                self._total_connections = max(0, self._total_connections - 1)
+                should_close = True
 
-        try:
-            raw_connection.close()
-        except Exception:  # noqa: BLE001
-            pass
+        if should_close:
+            try:
+                raw_connection.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def dispose(self) -> None:
+        with self._lock:
+            if self._disposed:
+                return
+            self._disposed = True
+            idle_connections = self._idle_raw_connections
+            self._idle_raw_connections = []
+            self._total_connections = max(0, self._total_connections - len(idle_connections))
+
+        for raw_connection in idle_connections:
+            try:
+                raw_connection.close()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def _pool_for(database_url_value: str, schema_name: str) -> _PostgresAdapterPool:
@@ -185,6 +210,15 @@ def _pool_for(database_url_value: str, schema_name: str) -> _PostgresAdapterPool
             )
             _POOL_REGISTRY[pool_key] = pool
     return pool
+
+
+def clear_postgres_connection_pools() -> None:
+    with _POOL_REGISTRY_LOCK:
+        pools = list(_POOL_REGISTRY.values())
+        _POOL_REGISTRY.clear()
+
+    for pool in pools:
+        pool.dispose()
 
 
 def _get_request_scoped_connection():
