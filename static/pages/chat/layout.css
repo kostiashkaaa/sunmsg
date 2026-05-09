@@ -3922,7 +3922,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         .chat-input-area {
             --composer-min-height: 48px;
             --composer-max-height: 136px;
-            --composer-action-size: 46px;
+            --composer-action-size: 50px;
             position: absolute;
             left: 0;
             right: 0;
