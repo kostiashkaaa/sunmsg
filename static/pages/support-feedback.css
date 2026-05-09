@@ -1,0 +1,319 @@
+.support-feedback-body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 42px 20px 48px;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 16% 12%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 38%),
+        radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--surface-2) 84%, transparent) 0%, transparent 36%),
+        linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--paper) 82%, var(--bg)) 100%);
+    position: relative;
+    overflow-x: hidden;
+}
+
+.support-feedback-orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.support-feedback-orb-1 {
+    width: 360px;
+    height: 360px;
+    top: -160px;
+    right: -120px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent) 0%, transparent 70%);
+}
+
+.support-feedback-orb-2 {
+    width: 320px;
+    height: 320px;
+    left: -110px;
+    bottom: -140px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--paper-alt) 88%, transparent) 0%, transparent 74%);
+}
+
+.support-feedback-shell {
+    width: min(100%, 880px);
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.support-feedback-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+    background: color-mix(in srgb, var(--surface) 90%, transparent 10%);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    padding: 32px;
+}
+
+.support-feedback-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 40%);
+}
+
+.support-feedback-topline,
+.support-feedback-copy,
+.support-feedback-note,
+.support-feedback-form {
+    position: relative;
+    z-index: 1;
+}
+
+.support-feedback-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.support-feedback-code {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+}
+
+.support-feedback-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-2) 84%, transparent);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: transform var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.support-feedback-back:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: color-mix(in srgb, var(--accent-light) 65%, var(--surface-2));
+}
+
+.support-feedback-eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+}
+
+.support-feedback-copy h1 {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 4vw, 3.3rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+}
+
+.support-feedback-description {
+    margin: 14px 0 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.support-feedback-note {
+    margin-top: 22px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+    background: color-mix(in srgb, var(--paper-alt) 64%, transparent);
+    padding: 14px 16px;
+    display: grid;
+    gap: 6px;
+}
+
+.support-feedback-note span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+}
+
+.support-feedback-note strong {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.support-feedback-form {
+    margin-top: 22px;
+}
+
+.support-feedback-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.support-feedback-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.support-feedback-field-full {
+    grid-column: 1 / -1;
+}
+
+.support-feedback-field label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+}
+
+.support-feedback-field input,
+.support-feedback-field select,
+.support-feedback-field textarea {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 11px 12px;
+    outline: none;
+    transition: border-color var(--dur-quick) var(--ease-quick), box-shadow var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.support-feedback-field select {
+    cursor: pointer;
+}
+
+.support-feedback-field textarea {
+    min-height: 170px;
+    resize: vertical;
+}
+
+.support-feedback-field input::placeholder,
+.support-feedback-field textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.support-feedback-field input:focus,
+.support-feedback-field select:focus,
+.support-feedback-field textarea:focus {
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+}
+
+.support-feedback-field input[readonly] {
+    color: var(--ink-soft);
+    background: color-mix(in srgb, var(--surface-2) 75%, var(--paper));
+    cursor: default;
+}
+
+.support-feedback-actions {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.support-feedback-status {
+    margin: 0;
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--ink-mute);
+    line-height: 1.5;
+}
+
+.support-feedback-status.ok {
+    color: var(--success);
+}
+
+.support-feedback-status.err {
+    color: var(--danger);
+}
+
+.support-feedback-submit {
+    min-height: 48px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0 20px;
+    background: var(--accent-gradient);
+    color: #1b160b;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform var(--dur-quick) var(--ease-quick), box-shadow var(--dur-quick) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick);
+    box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.support-feedback-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px var(--accent-glow);
+}
+
+.support-feedback-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .support-feedback-panel {
+        border-radius: 26px;
+        padding: 26px 22px;
+    }
+}
+
+@media (max-width: 760px) {
+    .support-feedback-body {
+        padding: 20px 12px 28px;
+    }
+
+    .support-feedback-panel {
+        border-radius: 22px;
+        padding: 20px 16px;
+    }
+
+    .support-feedback-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .support-feedback-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .support-feedback-submit {
+        width: 100%;
+    }
+}

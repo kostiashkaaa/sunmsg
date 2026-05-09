@@ -1,138 +1,57 @@
 <!DOCTYPE html>
 <html lang="{{ ui_language|default('ru') }}">
 <head>
+    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sun">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Поддержка и обратная связь</title>
-    <style nonce="{{ csp_nonce }}">
-        :root {
-            color-scheme: light;
-            --bg: #f4f6f8;
-            --fg: #1d2530;
-            --muted: #5b6777;
-            --line: #d7dde5;
-            --card: #ffffff;
-            --ok: #1f7a36;
-            --err: #a3322c;
-            --accent: #0f5bd8;
-        }
-        body {
-            margin: 0;
-            font-family: "Inter", system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--fg);
-        }
-        .wrap {
-            max-width: 760px;
-            margin: 0 auto;
-            padding: 24px 16px 40px;
-        }
-        .top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-        .title {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-        }
-        .btn {
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 8px 12px;
-            text-decoration: none;
-            color: var(--fg);
-            background: var(--card);
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .btn.primary {
-            border-color: var(--accent);
-            background: var(--accent);
-            color: #fff;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 14px;
-        }
-        .muted {
-            color: var(--muted);
-            font-size: 13px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 12px;
-        }
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .field.full {
-            grid-column: 1 / -1;
-        }
-        label {
-            font-size: 13px;
-            color: var(--muted);
-        }
-        input, select, textarea {
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 14px;
-            background: #fff;
-            color: var(--fg);
-            font-family: inherit;
-        }
-        textarea {
-            min-height: 140px;
-            resize: vertical;
-        }
-        .status {
-            margin-top: 10px;
-            font-size: 13px;
-        }
-        .status.ok {
-            color: var(--ok);
-        }
-        .status.err {
-            color: var(--err);
-        }
-        .actions {
-            margin-top: 14px;
-            display: flex;
-            justify-content: flex-end;
-        }
-        @media (max-width: 760px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <meta name="description" content="SUN Messenger — поддержка и обратная связь">
+    <title>sun · Поддержка</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/support-feedback.css') }}">
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('pages/support-feedback.js') }}" defer></script>
 </head>
-<body>
-<main class="wrap">
-    <div class="top">
-        <h1 class="title">Поддержка и обратная связь</h1>
-        <a class="btn" href="{{ '/chat' if user_id else '/' }}">{{ 'В чат' if user_id else 'Ко входу' }}</a>
-    </div>
+<body class="support-feedback-body" data-ui-language="{{ ui_language|default('ru') }}">
+<div class="support-feedback-orb support-feedback-orb-1" aria-hidden="true"></div>
+<div class="support-feedback-orb support-feedback-orb-2" aria-hidden="true"></div>
 
-    <div class="card">
-        <p class="muted">
-            Отправьте баг-репорт или вопрос в поддержку. Сообщения попадут в модераторскую консоль без доступа к вашей переписке.
-        </p>
-        <form id="supportFeedbackForm">
-            <div class="grid">
-                <div class="field">
+<main class="support-feedback-shell">
+    <section class="support-feedback-panel sun-surface-enter">
+        <div class="support-feedback-topline">
+            <span class="support-feedback-code">support channel</span>
+            <a class="support-feedback-back" href="{{ '/chat' if user_id else '/' }}">{{ 'В чат' if user_id else 'Ко входу' }}</a>
+        </div>
+
+        <header class="support-feedback-copy">
+            <p class="support-feedback-eyebrow">SUN Messenger</p>
+            <h1>Поддержка и обратная связь</h1>
+            <p class="support-feedback-description">
+                Опишите проблему или задайте вопрос. Запрос попадёт в модераторскую консоль без доступа к вашей личной переписке.
+            </p>
+        </header>
+
+        <div class="support-feedback-note">
+            <span>Что ускоряет обработку</span>
+            <strong>Точная тема, шаги воспроизведения и контакт для ответа.</strong>
+        </div>
+
+        <form
+            id="supportFeedbackForm"
+            class="support-feedback-form"
+            data-is-auth-user="{{ '1' if user_id else '0' }}"
+            data-auth-username="{{ username or '' }}"
+        >
+            <input type="hidden" id="supportSource" name="source_page" value="support_page">
+
+            <div class="support-feedback-grid">
+                <div class="support-feedback-field">
                     <label for="supportCategory">Категория</label>
                     <select id="supportCategory" name="category">
                         <option value="bug">Ошибка</option>
@@ -145,82 +64,53 @@
                         <option value="other">Другое</option>
                     </select>
                 </div>
-                <div class="field">
-                    <label for="supportSource">Источник</label>
-                    <input id="supportSource" name="source_page" value="support_page" maxlength="64">
-                </div>
-                <div class="field">
+
+                <div class="support-feedback-field">
                     <label for="supportUsername">Имя пользователя</label>
-                    <input id="supportUsername" name="username" value="{{ username or '' }}" maxlength="120" {% if user_id %}readonly{% endif %}>
+                    <input
+                        id="supportUsername"
+                        name="username"
+                        value="{{ username or '' }}"
+                        maxlength="120"
+                        placeholder="ваш_username"
+                        autocomplete="username"
+                        {% if user_id %}readonly{% endif %}
+                    >
                 </div>
-                <div class="field">
+
+                <div class="support-feedback-field">
                     <label for="supportEmail">Эл. почта</label>
-                    <input id="supportEmail" name="contact_email" maxlength="200" placeholder="name@example.com">
+                    <input id="supportEmail" name="contact_email" maxlength="200" placeholder="name@example.com" autocomplete="email">
                 </div>
-                <div class="field full">
+
+                <div class="support-feedback-field">
                     <label for="supportHandle">Контакт для связи</label>
                     <input id="supportHandle" name="contact_handle" maxlength="120" placeholder="@telegram / @username / другой контакт">
                 </div>
-                <div class="field full">
+
+                <div class="support-feedback-field support-feedback-field-full">
                     <label for="supportSubject">Тема</label>
-                    <input id="supportSubject" name="subject" maxlength="160" required>
+                    <input id="supportSubject" name="subject" maxlength="160" placeholder="Кратко: что случилось" required>
                 </div>
-                <div class="field full">
+
+                <div class="support-feedback-field support-feedback-field-full">
                     <label for="supportBody">Подробности</label>
-                    <textarea id="supportBody" name="message" maxlength="8000" required></textarea>
+                    <textarea
+                        id="supportBody"
+                        name="message"
+                        maxlength="8000"
+                        placeholder="Опишите шаги, ожидаемое поведение и что получили фактически."
+                        required
+                    ></textarea>
                 </div>
             </div>
-            <div class="status" id="supportStatus" aria-live="polite"></div>
-            <div class="actions">
-                <button type="submit" class="btn primary" id="supportSubmitBtn">Отправить</button>
+
+            <div class="support-feedback-actions">
+                <p class="support-feedback-status" id="supportStatus" aria-live="polite"></p>
+                <button type="submit" class="support-feedback-submit" id="supportSubmitBtn">Отправить запрос</button>
             </div>
         </form>
-    </div>
+    </section>
 </main>
-<script nonce="{{ csp_nonce }}">
-(() => {
-    const form = document.getElementById('supportFeedbackForm');
-    const submitBtn = document.getElementById('supportSubmitBtn');
-    const statusEl = document.getElementById('supportStatus');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const setStatus = (message, mode = '') => {
-        statusEl.textContent = String(message || '');
-        statusEl.className = `status ${mode}`.trim();
-    };
-    form?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (!submitBtn) return;
-        submitBtn.disabled = true;
-        setStatus('Отправка...');
-        const payload = Object.fromEntries(new FormData(form).entries());
-        try {
-            const response = await fetch('/api/support/requests', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                credentials: 'include',
-                body: JSON.stringify(payload),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.success) {
-                setStatus(data.error || 'Не удалось отправить запрос', 'err');
-                return;
-            }
-            setStatus(`Запрос отправлен (id #${data.request_id})`, 'ok');
-            form.reset();
-            document.getElementById('supportSource').value = 'support_page';
-            if ({{ 'true' if user_id else 'false' }}) {
-                document.getElementById('supportUsername').value = {{ (username or '')|tojson }};
-            }
-        } catch (_) {
-            setStatus('Сетевая ошибка', 'err');
-        } finally {
-            submitBtn.disabled = false;
-        }
-    });
-})();
-</script>
 </body>
 </html>
