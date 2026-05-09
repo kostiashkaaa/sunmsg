@@ -149,7 +149,7 @@ export function createProfileOrchestrator(options = {}) {
             }
             const currentProfile = getCurrentPartnerData() || {};
             showDeleteChatDialog(currentChatId, {
-                onDeleted: closeChatUI,
+                onDeleted: () => closeChatUI(currentChatId),
                 onReload: loadContacts,
                 isGroup: Boolean(currentProfile?._group_profile),
             });

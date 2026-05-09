@@ -294,7 +294,7 @@ export function initContactContextMenu({
         const targetItem = resolveContactItemByChatId(chatId);
         const isGroup = String(targetItem?.getAttribute('data-is-group') || '') === '1';
         showDeleteChatDialog(chatId, {
-            onDeleted: onDeleteChat,
+            onDeleted: () => onDeleteChat?.(chatId),
             onReload: onReloadChats,
             isGroup,
         });
