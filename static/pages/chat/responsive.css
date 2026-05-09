@@ -1565,13 +1565,13 @@
     }
 
     .contact-avatar {
-        width: 44px;
-        height: 44px;
-        font-size: 15px;
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
     }
 
     .contact-name {
-        font-size: 16px;
+        font-size: 17px;
     }
 
     .contact-time {
@@ -1579,7 +1579,7 @@
     }
 
     .contact-last-msg {
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.25;
     }
 
@@ -1619,4 +1619,3 @@
     }
 
 }
-
