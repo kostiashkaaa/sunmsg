@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="5">
+    <meta name="robots" content="noindex">
+    <title>sun · обновление</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f3f0e8;
+            --paper: #fbf8f1;
+            --paper-alt: #efeae0;
+            --rule: #d9d2bf;
+            --ink: #15140e;
+            --ink-soft: #3f3a2d;
+            --ink-mute: #7a7363;
+            --accent: oklch(68% 0.14 65);
+            --accent-deep: oklch(58% 0.16 55);
+            --accent-soft: oklch(94% 0.04 75);
+            --accent-glow: rgba(206, 153, 70, 0.35);
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-serif: 'Instrument Serif', Georgia, serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font-family: var(--font);
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--accent) 20%, transparent) 0%, transparent 34%),
+                radial-gradient(circle at 82% 16%, color-mix(in srgb, var(--paper-alt) 82%, transparent) 0%, transparent 32%),
+                linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--paper) 80%, var(--bg)) 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+        .orb-1 {
+            width: 420px; height: 420px;
+            top: -180px; right: -120px;
+            background: radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, transparent) 0%, transparent 68%);
+        }
+        .orb-2 {
+            width: 360px; height: 360px;
+            bottom: -180px; left: -120px;
+            background: radial-gradient(circle, color-mix(in srgb, var(--paper-alt) 88%, transparent) 0%, transparent 72%);
+        }
+        .corner {
+            position: absolute;
+            top: 22px; left: 22px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+        .corner-dot {
+            width: 11px; height: 11px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+            box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
+        }
+        .shell {
+            width: min(100%, 640px);
+            position: relative;
+            z-index: 1;
+        }
+        .panel {
+            background: color-mix(in srgb, var(--paper) 92%, transparent);
+            border: 1px solid color-mix(in srgb, var(--rule) 78%, transparent);
+            border-radius: 30px;
+            box-shadow: 0 24px 60px rgba(21, 20, 14, 0.08);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: 38px;
+            position: relative;
+            overflow: hidden;
+        }
+        .panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 38%);
+            pointer-events: none;
+        }
+        .topline, .copy, .footer, .pulse-row {
+            position: relative;
+            z-index: 1;
+        }
+        .topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .code {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            border-radius: 999px;
+            padding: 0 14px;
+            border: 1px solid color-mix(in srgb, var(--rule) 78%, transparent);
+            background: color-mix(in srgb, var(--paper) 72%, transparent);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent-deep);
+        }
+        .status {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pulse {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent-deep);
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
+        .eyebrow {
+            margin-bottom: 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+        h1 {
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: clamp(2.2rem, 5vw, 3.4rem);
+            line-height: 0.98;
+            letter-spacing: -0.035em;
+            margin-bottom: 18px;
+            color: var(--ink);
+        }
+        h1 em {
+            font-style: italic;
+            color: var(--accent-deep);
+        }
+        .description {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--ink-soft);
+            max-width: 48ch;
+        }
+        .footer {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-mute);
+        }
+        @media (max-width: 560px) {
+            .panel { padding: 26px; border-radius: 22px; }
+            .topline { flex-direction: column; align-items: flex-start; }
+            .footer { flex-direction: column; }
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1c1a14;
+                --paper: #221f17;
+                --paper-alt: #2a2619;
+                --rule: #3a3528;
+                --ink: #f3efe2;
+                --ink-soft: #c9c2ad;
+                --ink-mute: #8a8270;
+            }
+            .panel {
+                box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+
+    <div class="corner">
+        <span class="corner-dot"></span>
+        <span>sun</span>
+    </div>
+
+    <main class="shell">
+        <section class="panel">
+            <div class="topline">
+                <span class="code">обновление · 502</span>
+                <span class="status">
+                    <span class="pulse" aria-hidden="true"></span>
+                    в&nbsp;сети через мгновение
+                </span>
+            </div>
+
+            <p class="eyebrow">SUN Messenger</p>
+            <h1>Тихая&nbsp;сеть <em>обновляется</em>.</h1>
+            <p class="description">
+                Мы перенастраиваем серверы, чтобы вернуть всё в&nbsp;строй чище и&nbsp;быстрее.
+                Страница обновится сама, как только связь восстановится.
+            </p>
+
+            <div class="footer">
+                <span>защищённый транспорт</span>
+                <span>end-to-end</span>
+                <span>auto-reload · 5s</span>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
