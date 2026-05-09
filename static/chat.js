@@ -4546,10 +4546,13 @@ const initChatPage = async () => {
         const escapedClientId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
             ? CSS.escape(rawClientId)
             : rawClientId.replace(/["\\]/g, '\\$&');
-        const msgEl = chatMessages.querySelector(`.message.self[data-client-id="${escapedClientId}"]`);
+        let msgEl = chatMessages.querySelector(`.message.self[data-client-id="${escapedClientId}"]`);
+        const numericMessageId = Number(messageId);
+        if (!msgEl && Number.isFinite(numericMessageId) && numericMessageId > 0) {
+            msgEl = chatMessages.querySelector(`.message.self[data-msg-id="${numericMessageId}"]`);
+        }
         if (!msgEl) return false;
 
-        const numericMessageId = Number(messageId);
         if (Number.isFinite(numericMessageId) && numericMessageId > 0) {
             msgEl.setAttribute('data-msg-id', String(numericMessageId));
         }
