@@ -227,7 +227,17 @@
 
     function buildWallpaper(state, theme) {
         if (!state || state.mode === 'default') {
-            return Object.assign({}, DEFAULT_BACKGROUNDS[theme], { blur: 0, dim: 0, opacity: 1 });
+            return {
+                baseColor: 'var(--chat-bg)',
+                image: 'none',
+                size: 'cover',
+                position: 'center center',
+                repeat: 'no-repeat',
+                blur: 0,
+                dim: 0,
+                opacity: 1,
+                luminance: DEFAULT_BACKGROUNDS[theme].luminance,
+            };
         }
 
         if (state.mode === 'preset') {
