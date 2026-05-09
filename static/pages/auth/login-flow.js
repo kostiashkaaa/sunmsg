@@ -290,7 +290,7 @@ export function initLoginFlow({
             } catch (decryptErr) {
                 const decryptMessage = String(decryptErr?.message || '');
                 if (decryptMessage.includes('Неверная фраза')) {
-                    throw new Error(tr('Не удалось расшифровать ключ. Проверьте 24 слова и username.'));
+                    throw new Error(tr('Не удалось расшифровать ключ. Проверьте 24 слова и имя пользователя.'));
                 }
                 throw decryptErr;
             }
