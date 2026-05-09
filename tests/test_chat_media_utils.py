@@ -23,6 +23,7 @@ _MAGIC_BYTES = {
 
 _CHAT_MEDIA_MAGIC_RULES = {
     'png': [[(0, b'\x89PNG\r\n\x1a\n')]],
+    'mp3': [[(0, b'ID3')], [(0, b'\xff\xfb')], [(0, b'\xff\xfa')], [(0, b'\xff\xf3')], [(0, b'\xff\xf2')], [(0, b'\xff\xe3')], [(0, b'\xff\xe2')]],
     'txt': [],
     'docx': [[(0, b'PK\x03\x04')], [(0, b'PK\x05\x06')], [(0, b'PK\x07\x08')]],
     'xlsx': [[(0, b'PK\x03\x04')], [(0, b'PK\x05\x06')], [(0, b'PK\x07\x08')]],
@@ -80,12 +81,22 @@ def test_validate_openxml_package_and_chat_media_content():
     xlsx_bytes = _build_openxml_bytes('xl')
     bad_zip = b'PK\x03\x04not-a-valid-zip'
     png = b'\x89PNG\r\n\x1a\n' + b'\x00' * 16
+    mp3_id3 = b'ID3\x04\x00\x00' + b'\x00' * 16
+    mp3_fffb = b'\xff\xfb\x90\x64' + b'\x00' * 16
+    mp3_fffa = b'\xff\xfa\x90\x64' + b'\x00' * 16
+    mp3_ffe3 = b'\xff\xe3\x90\x64' + b'\x00' * 16
+    mp3_ffe2 = b'\xff\xe2\x90\x64' + b'\x00' * 16
 
     assert validate_openxml_package(BytesIO(docx_bytes), 'word/') is True
     assert validate_openxml_package(BytesIO(xlsx_bytes), 'xl/') is True
     assert validate_openxml_package(BytesIO(bad_zip), 'word/') is False
 
     assert validate_chat_media_content(_Upload(png), 'png', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(mp3_id3), 'mp3', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(mp3_fffb), 'mp3', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(mp3_fffa), 'mp3', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(mp3_ffe3), 'mp3', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(mp3_ffe2), 'mp3', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
     assert validate_chat_media_content(_Upload(b'not-png'), 'png', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
     assert validate_chat_media_content(_Upload(b'hello'), 'txt', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
     assert validate_chat_media_content(_Upload(b'bad\x00text'), 'txt', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
