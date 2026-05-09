@@ -1,3 +1,17 @@
+def _coerce_bool_flag(value, *, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return int(value) != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'1', 'true', 't', 'yes', 'on'}:
+            return True
+        if normalized in {'0', 'false', 'f', 'no', 'off'}:
+            return False
+    return bool(default)
+
+
 def fetch_public_search_results(conn, *, user_id: int, query: str):
     users = conn.execute(
         '''
@@ -38,6 +52,21 @@ def build_search_users_payload(
     like_pattern_func,
     get_safe_avatar_url_func,
 ):
+    group_add_direct_select_sql = '''
+        CASE
+            WHEN LOWER(COALESCE(users.group_invite_privacy, 'all')) = 'nobody' THEN 0
+            WHEN LOWER(COALESCE(users.group_invite_privacy, 'all')) = 'contacts'
+                 AND EXISTS(
+                    SELECT 1
+                    FROM contacts invite_contacts
+                    WHERE invite_contacts.user_id = users.id
+                      AND invite_contacts.contact_id = ?
+                 ) THEN 1
+            WHEN LOWER(COALESCE(users.group_invite_privacy, 'all')) = 'contacts' THEN 0
+            ELSE 1
+        END AS can_group_add_direct
+    '''
+
     if not query:
         return {
             'success': True,
@@ -58,9 +87,10 @@ def build_search_users_payload(
         key_pattern = like_pattern_func(query)
         clean_key_pattern = like_pattern_func(clean_query)
         users = conn.execute(
-            '''
+            f'''
             SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
-                   EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact
+                   EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
+                   {group_add_direct_select_sql}
             FROM users
             WHERE (
                 public_key LIKE ? ESCAPE '\\'
@@ -76,7 +106,17 @@ def build_search_users_payload(
             ORDER BY id ASC
             LIMIT ? OFFSET ?
             ''',
-            (user_id, key_pattern, clean_key_pattern, user_id, user_id, user_id, limit + 1, offset),
+            (
+                user_id,
+                user_id,
+                key_pattern,
+                clean_key_pattern,
+                user_id,
+                user_id,
+                user_id,
+                limit + 1,
+                offset,
+            ),
         ).fetchall()
 
         for user in users[:limit]:
@@ -88,6 +128,7 @@ def build_search_users_payload(
                     'display_name': user['display_name'],
                     'public_key': user['public_key'],
                     'avatar_url': get_safe_avatar_url_func(user, user_id),
+                    'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
                 }
             )
 
@@ -114,9 +155,10 @@ def build_search_users_payload(
 
     broad_pattern = like_pattern_func(query)
     users = conn.execute(
-        '''
+        f'''
         SELECT id, username, display_name, avatar_url, avatar_visibility,
-               EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact
+               EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
+               {group_add_direct_select_sql}
         FROM users
         WHERE (username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\')
           AND id != ?
@@ -130,7 +172,17 @@ def build_search_users_payload(
         ORDER BY id ASC
         LIMIT ? OFFSET ?
         ''',
-        (user_id, broad_pattern, broad_pattern, user_id, user_id, user_id, limit + 1, offset),
+        (
+            user_id,
+            user_id,
+            broad_pattern,
+            broad_pattern,
+            user_id,
+            user_id,
+            user_id,
+            limit + 1,
+            offset,
+        ),
     ).fetchall()
 
     for user in users[:limit]:
@@ -141,6 +193,7 @@ def build_search_users_payload(
                 'username': user['username'],
                 'display_name': user['display_name'],
                 'avatar_url': get_safe_avatar_url_func(user, user_id),
+                'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
             }
         )
 

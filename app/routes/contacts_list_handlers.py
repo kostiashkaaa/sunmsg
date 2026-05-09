@@ -7,6 +7,20 @@ from app.services.favorites_chat import (
 from app.db.schema import table_columns, table_exists
 
 
+def _coerce_bool_flag(value, *, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return int(value) != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'1', 'true', 't', 'yes', 'on'}:
+            return True
+        if normalized in {'0', 'false', 'f', 'no', 'off'}:
+            return False
+    return bool(default)
+
+
 def fetch_contacts_for_user(
     user_id: int,
     conn,
@@ -28,6 +42,25 @@ def fetch_contacts_for_user(
     has_pinned_chats = table_exists(cursor, 'pinned_chats')
     users_columns = table_columns(cursor, 'users')
     last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
+    has_group_invite_privacy = 'group_invite_privacy' in users_columns
+    group_add_direct_select_sql = (
+        '''
+            CASE
+                WHEN LOWER(COALESCE(u.group_invite_privacy, 'all')) = 'nobody' THEN 0
+                WHEN LOWER(COALESCE(u.group_invite_privacy, 'all')) = 'contacts'
+                     AND EXISTS(
+                        SELECT 1
+                        FROM contacts invite_contacts
+                        WHERE invite_contacts.user_id = u.id
+                          AND invite_contacts.contact_id = ?
+                     ) THEN 1
+                WHEN LOWER(COALESCE(u.group_invite_privacy, 'all')) = 'contacts' THEN 0
+                ELSE 1
+            END AS can_group_add_direct
+        '''
+        if has_group_invite_privacy
+        else '1 AS can_group_add_direct'
+    )
     saved_messages_id = ''
     user_row = cursor.execute(
         '''
@@ -123,6 +156,7 @@ def fetch_contacts_for_user(
             {last_seen_select_sql},
             u.hide_online_status,
             1 AS is_contact,
+            {group_add_direct_select_sql},
             CASE WHEN bm.blocked_id IS NULL THEN 0 ELSE 1 END AS blocked_by_me,
             CASE WHEN bme.blocker_id IS NULL THEN 0 ELSE 1 END AS blocked_me,
             lm.last_message,
@@ -156,15 +190,20 @@ def fetch_contacts_for_user(
         draft_join_sql=draft_join_sql,
         draft_order_value_sql=draft_order_value_sql,
         last_seen_select_sql=last_seen_select_sql,
+        group_add_direct_select_sql=group_add_direct_select_sql,
     )
     params = [
         user_id,
         user_id,
         user_id,
         user_id,
-        user_id,
-        user_id,
     ]
+    if has_group_invite_privacy:
+        params.append(user_id)
+    params.extend([
+        user_id,
+        user_id,
+    ])
     if has_pinned_chats:
         params.append(user_id)
     if has_chat_drafts:
@@ -236,6 +275,11 @@ def fetch_contacts_for_user(
                 'blocked_by_me': blocked_by_me,
                 'blocked_me': blocked_me,
                 'is_blocked': is_blocked,
+                'can_group_add_direct': (
+                    _coerce_bool_flag(contact['can_group_add_direct'], default=True)
+                    if 'can_group_add_direct' in contact.keys()
+                    else True
+                ),
                 'is_pinned': bool(contact['is_pinned']),
                 'pin_order': contact['pin_order'],
                 'draft_text': draft_text if has_draft else '',

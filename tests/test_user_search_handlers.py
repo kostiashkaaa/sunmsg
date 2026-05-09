@@ -21,6 +21,7 @@ def _prepare_schema(conn):
             display_name TEXT,
             avatar_url TEXT,
             avatar_visibility TEXT DEFAULT 'all',
+            group_invite_privacy TEXT DEFAULT 'all',
             is_public INTEGER NOT NULL DEFAULT 1
         )
         '''
@@ -132,3 +133,54 @@ def test_build_search_users_payload_key_query_keeps_public_key(tmp_path):
     assert len(payload['results']) == 1
     assert payload['results'][0]['userId'] == 2
     assert payload['results'][0]['public_key'] == target_key
+
+
+def test_build_search_users_payload_sets_group_add_direct_flag(tmp_path):
+    db_path = tmp_path / 'user-search-group-add-direct.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, group_invite_privacy, is_public)
+            VALUES
+                (1, 'pk-1', 'owner', 'Owner', 'all', 1),
+                (2, 'pk-2', 'blocked_invite', 'Blocked Invite', 'nobody', 1),
+                (3, 'pk-3', 'needs_contact', 'Needs Contact', 'contacts', 1),
+                (4, 'pk-4', 'allowed_all', 'Allowed All', 'all', 1)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (3, 1, 'chat-31')
+            '''
+        )
+        conn.commit()
+
+        payload = build_search_users_payload(
+            conn,
+            user_id=1,
+            query='invite',
+            limit=20,
+            offset=0,
+            min_query_length=3,
+            like_pattern_func=_like_pattern,
+            get_safe_avatar_url_func=lambda row, viewer_id: dict(row).get('avatar_url'),
+        )
+        by_username = {str(item['username']): item for item in payload['results']}
+
+    assert by_username['blocked_invite']['can_group_add_direct'] is False
+
+    with _connect(db_path) as conn:
+        payload_contacts = build_search_users_payload(
+            conn,
+            user_id=1,
+            query='needs',
+            limit=20,
+            offset=0,
+            min_query_length=3,
+            like_pattern_func=_like_pattern,
+            get_safe_avatar_url_func=lambda row, viewer_id: dict(row).get('avatar_url'),
+        )
+    by_username_contacts = {str(item['username']): item for item in payload_contacts['results']}
+    assert by_username_contacts['needs_contact']['can_group_add_direct'] is True
