@@ -6052,6 +6052,9 @@ const initChatPage = async () => {
     const hasMoreInitialContacts = String(
         contactsList?.dataset?.hasMoreInitialContacts || '0',
     ) === '1';
+    const hasPendingEncryptedPreview = Boolean(
+        contactsList?.querySelector('.contact-last-msg-loading'),
+    );
     if (hasSsrContacts) {
         sortContactsList();
         hideAppBootOverlay();
@@ -6061,7 +6064,7 @@ const initChatPage = async () => {
             attemptInitialChatRestore: false,
         });
     }
-    if (!hasSsrContacts || hasMoreInitialContacts) {
+    if (!hasSsrContacts || hasMoreInitialContacts || hasPendingEncryptedPreview) {
         scheduleNonCriticalTask(() => {
             loadContacts({ immediate: true });
         }, CONTACTS_FULL_SYNC_IDLE_TIMEOUT_MS);
