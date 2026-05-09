@@ -51,7 +51,7 @@ export function normalizeGroupReadUpdate(rawUpdate) {
     const readCount = Number.isFinite(countRaw) && countRaw >= 0
         ? Math.floor(countRaw)
         : readers.length;
-    const latestReadAt = String(rawUpdate?.latest_read_at ?? rawUpdate?.latestReadAt || '').trim() || null;
+    const latestReadAt = String((rawUpdate?.latest_read_at ?? rawUpdate?.latestReadAt) || '').trim() || null;
     return {
         messageId,
         readCount,
