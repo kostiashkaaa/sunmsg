@@ -107,6 +107,12 @@
             animation: m-pop-overshoot var(--m-dur-fast) var(--m-bouncy) both;
         }
 
+        @media (max-width: 768px) {
+            .reaction-picker.active {
+                animation: reactionPickerIn var(--dur-quick) var(--ease-quick) both;
+            }
+        }
+
 
         .reaction-picker__item:hover {
             transform: translateY(-2px) scale(1.08);
@@ -174,4 +180,3 @@
             border-bottom-color: var(--text);
             background: transparent;
         }
-
