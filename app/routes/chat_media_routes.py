@@ -8,6 +8,8 @@ from app.services.chat_media_service import (
     upload_chat_media_for_user,
 )
 
+_CHAT_MEDIA_MULTIPART_OVERHEAD_BYTES = 1024 * 1024
+
 
 def register_chat_media_routes(
     chat_bp,
@@ -74,6 +76,9 @@ def register_chat_media_routes(
     def upload_chat_media():
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
+        # Allow multipart envelope bytes so a valid chat media file is not rejected
+        # by global MAX_CONTENT_LENGTH before route-level validation runs.
+        request.max_content_length = int(get_max_chat_media_size_func()) + _CHAT_MEDIA_MULTIPART_OVERHEAD_BYTES
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'Файл не найден.'}), 400
 
