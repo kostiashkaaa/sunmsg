@@ -779,6 +779,47 @@
     font-style: italic;
 }
 
+.auth-onboarding-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+    border-radius: 14px;
+    padding: 12px 13px;
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    box-shadow: 0 8px 20px -20px color-mix(in srgb, var(--accent) 44%, transparent);
+    transition: border-color var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.auth-onboarding-entry:hover {
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+}
+
+.auth-onboarding-entry-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+}
+
+.auth-onboarding-entry-title {
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.auth-onboarding-entry-action {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+}
+
 /* Auth card */
 .auth-card {
     background: transparent;

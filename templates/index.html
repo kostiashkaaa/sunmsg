@@ -59,6 +59,18 @@
             <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
         </div>
 
+        <a class="auth-onboarding-entry" href="{{ url_for('auth.onboarding_guide') }}">
+            <span class="auth-onboarding-entry-kicker">
+                {{ 'Need help getting started?' if ui_language == 'en' else 'Впервые в SUN Messenger?' }}
+            </span>
+            <span class="auth-onboarding-entry-title">
+                {{ 'Open a short registration and sign-in guide' if ui_language == 'en' else 'Откройте короткую инструкцию по регистрации и входу' }}
+            </span>
+            <span class="auth-onboarding-entry-action">
+                {{ 'Open guide' if ui_language == 'en' else 'Открыть инструкцию' }}
+            </span>
+        </a>
+
         <div class="auth-card">
             <div class="auth-tabs auth-tabs--auth" role="tablist">
                 <button class="auth-tab-btn active" id="tab-login-btn" role="tab"
