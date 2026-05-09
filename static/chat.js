@@ -79,7 +79,7 @@ import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
-import { sendFileMessageFlow } from './modules/chat-file-send.js?v=2.1.3';
+import { sendFileMessageFlow } from './modules/chat-file-send.js?v=2.1.2';
 import { createTypingSignalHeartbeat } from './modules/chat-typing-signal-heartbeat.js';
 import { sendTextMessageFlow } from './modules/chat-text-send.js?v=2.0.11';
 import { handleComposerEditFlow } from './modules/chat-edit-flow.js?v=2.1.1';
