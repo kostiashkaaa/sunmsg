@@ -22,6 +22,7 @@ import {
     submitTransferForSession,
     claimAndApplyIfReady,
 } from './key-transfer/crypto-flow.js';
+import { assertWebCryptoSupport } from './auth/crypto-helpers.js';
 
 function finishScanSuccess(successText, statusText) {
     setScanSuccessState(true, successText);
@@ -77,6 +78,7 @@ async function handleDetectedQrText(rawText, statusEl) {
         scanState.handling = false;
         return false;
     }
+    assertWebCryptoSupport((value) => String(value ?? ''));
     if (!hasRuntimePrivateKey()) {
         throw new Error('Сначала разблокируйте историю на этом устройстве для переноса ключа.');
     }
@@ -282,6 +284,7 @@ async function openReceiveModal(options = {}) {
     const statusEl = document.getElementById('keyTransferReceiveStatus');
     const copyBtn = document.getElementById('keyTransferReceiveCopyBtn');
     if (!dialog || !statusEl) return false;
+    assertWebCryptoSupport((value) => String(value ?? ''));
 
     receiveState.onSuccess = typeof options.onSuccess === 'function' ? options.onSuccess : null;
     openDialog(dialog);
@@ -387,6 +390,5 @@ document.addEventListener('DOMContentLoaded', () => {
         closeScanModal,
     };
 });
-
 
 
