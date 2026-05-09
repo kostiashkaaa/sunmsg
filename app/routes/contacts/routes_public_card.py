@@ -1,4 +1,4 @@
-from flask import abort, flash, redirect, render_template, session, url_for
+from flask import abort, flash, redirect, render_template, request, session, url_for
 
 from app.database import get_db_connection
 from app.extensions import limiter, socketio
@@ -17,9 +17,17 @@ from app.routes.public_user_card_handlers import (
     resolve_public_user_card_context,
 )
 from app.services.blocking import build_block_state, normalize_block_state
+from app.services.locale import detect_auth_language, normalize_language
 from app.services.user import get_safe_avatar_url
 
 from .context import USERNAME_PATTERN, contacts_bp, _resolve_viewer_context
+
+
+def _resolve_ui_language() -> str:
+    return normalize_language(
+        session.get('ui_language') or session.get('guest_ui_language'),
+        default=detect_auth_language(request),
+    )
 
 
 @contacts_bp.route('/u/<username>', methods=['GET'])
@@ -30,6 +38,7 @@ def public_user_card(username):
         abort(404)
 
     conn = get_db_connection()
+    ui_language = _resolve_ui_language()
     try:
         result = process_public_user_card_route(
             conn,
@@ -50,6 +59,7 @@ def public_user_card(username):
                 stub_username=result['username'],
                 stub_reason='private',
                 viewer=None,
+                ui_language=ui_language,
             ), 200
     finally:
         conn.close()
@@ -62,6 +72,7 @@ def public_user_card(username):
         can_open_chat=result['can_open_chat'],
         can_send_request=result['can_send_request'],
         block_state=result['block_state'],
+        ui_language=ui_language,
     )
 
 

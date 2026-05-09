@@ -6,7 +6,7 @@ from app.database import get_db_connection
 from app.extensions import limiter
 from app.services import moderation as moderation_service
 from app.services import support as support_service
-from app.services.locale import detect_auth_language
+from app.services.locale import detect_auth_language, normalize_language
 
 support_bp = Blueprint('support', __name__)
 
@@ -74,9 +74,10 @@ def feedback_page():
             username = str(row['username'] or '')
             display_name = str(row['display_name'] or '')
 
-    ui_language = session.get('ui_language')
-    if not ui_language:
-        ui_language = detect_auth_language(request)
+    ui_language = normalize_language(
+        session.get('ui_language') or session.get('guest_ui_language'),
+        default=detect_auth_language(request),
+    )
     return render_template(
         'support_feedback.html',
         ui_language=ui_language,
