@@ -2,6 +2,8 @@ import { withAppRoot } from './app-url.js';
 import { normalizeMentionUserIds } from './chat-mentions.js';
 import { normalizeGroupReaders } from './chat-group-read-receipts.js';
 
+const INITIAL_SNAPSHOT_CACHE_LIMIT = 200;
+
 export async function mapWithConcurrency(items, limit, mapper) {
     const source = Array.isArray(items) ? items : [];
     if (!source.length) return [];
@@ -428,17 +430,20 @@ export function createChatHistoryRuntime(ctx = {}) {
             chatId,
         );
         state.isLoadingInitial = true;
+        const shouldShowNetworkLoading = !restoredFromCache;
         if (String(chatId) === String(ctx.getCurrentChatId())) {
-            ctx.setChatStageLoading(true);
-            ctx.setHistoryLoading(true);
+            if (shouldShowNetworkLoading) {
+                ctx.setChatStageLoading(true);
+                ctx.setHistoryLoading(true);
+            }
         }
         try {
             const lastKnownId = state.messages.length
                 ? Number(state.messages[state.messages.length - 1]?.id)
                 : null;
-            // After local cache restore, request full history snapshot first.
-            // This reconciles stale local entries (e.g. previously deleted messages).
-            const useAfterId = !restoredFromCache && Number.isFinite(lastKnownId) && lastKnownId > 0;
+            // If we already restored a local snapshot, request only the delta after
+            // the newest cached message to avoid full re-render on every reload.
+            const useAfterId = Number.isFinite(lastKnownId) && lastKnownId > 0;
             const response = await requestChatHistoryPage(chatId, {
                 afterId: useAfterId ? lastKnownId : null,
                 limit: ctx.chatHistoryPageSize,
@@ -517,7 +522,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                     const lastId = Number(response.messages[response.messages.length - 1]?.id) || 0;
                     ctx.writeCachedMessages(
                         chatId,
-                        response.messages.slice(-50),
+                        response.messages.slice(-INITIAL_SNAPSHOT_CACHE_LIMIT),
                         { firstId, lastId },
                     ).catch(() => {});
                     ctx.pruneCachedChats(100).catch(() => {});
