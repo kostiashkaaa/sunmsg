@@ -20,8 +20,8 @@ export function initChatShellQr(options = {}) {
     function renderQrPlaceholder() {
         if (!myQrCodeContainer) return;
         myQrCodeContainer.innerHTML = `
-            <div class="sun-fade-enter" style="display:flex; flex-direction:column; align-items:center; gap:14px; color:#15140e;">
-                <div class="sun-skeleton-block" style="width:176px; height:176px; border-radius:20px; background:rgba(21,20,14,0.08); border-color:rgba(21,20,14,0.08);"></div>
+            <div class="sun-fade-enter my-qr-modal__placeholder">
+                <div class="sun-skeleton-block my-qr-modal__placeholder-skeleton"></div>
                 <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
             </div>
         `;
@@ -56,7 +56,7 @@ export function initChatShellQr(options = {}) {
             window.setTimeout(() => {
                 ensureMyQrCode().catch(() => {
                     if (myQrCodeContainer) {
-                        myQrCodeContainer.innerHTML = '<p style="font-size:12px;color:var(--danger);">Не удалось загрузить QR-код.</p>';
+                        myQrCodeContainer.innerHTML = '<p class="my-qr-modal__error">Не удалось загрузить QR-код.</p>';
                     }
                 });
             }, 80);
