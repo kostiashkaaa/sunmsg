@@ -440,6 +440,36 @@ export function initChatShellSettingsOverlay(options = {}) {
         }
     });
 
+    function applyMotionSettingsFromDetail(detail) {
+        const rawPerformanceMode = String(detail?.performanceMode || '').trim().toLowerCase();
+        const safePerformanceMode = rawPerformanceMode === 'lite' || rawPerformanceMode === 'full' || rawPerformanceMode === 'auto'
+            ? rawPerformanceMode
+            : 'auto';
+        const rawMotionLevel = String(detail?.motionLevel || '').trim().toLowerCase();
+        const safeMotionLevel = rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite' || rawMotionLevel === 'auto'
+            ? rawMotionLevel
+            : 'auto';
+        const animationsEnabled = safePerformanceMode !== 'lite' && safeMotionLevel !== 'lite';
+        const appliedMotionLevel = animationsEnabled
+            ? (safeMotionLevel === 'auto' ? 'full' : safeMotionLevel)
+            : 'lite';
+
+        document.documentElement.classList.toggle('perf-lite', !animationsEnabled);
+        document.documentElement.setAttribute('data-performance-mode', animationsEnabled ? 'full' : 'lite');
+        document.documentElement.setAttribute('data-motion-level', appliedMotionLevel);
+        window.SUN_PERFORMANCE_MODE = {
+            ...(window.SUN_PERFORMANCE_MODE || {}),
+            preference: safePerformanceMode,
+            isLite: !animationsEnabled,
+        };
+        window.SUN_MOTION = {
+            ...(window.SUN_MOTION || {}),
+            preference: safeMotionLevel,
+            level: appliedMotionLevel,
+            forceAnimations: animationsEnabled,
+        };
+    }
+
     window.addEventListener('message', (event) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'sun-settings-close') {
@@ -462,6 +492,9 @@ export function initChatShellSettingsOverlay(options = {}) {
             if (typeof window.applyChatMessageScale === 'function') {
                 window.applyChatMessageScale(event.data?.detail?.scale, { persist: false, rerender: true });
             }
+        }
+        if (event.data?.type === 'sun-settings-motion-updated') {
+            applyMotionSettingsFromDetail(event.data?.detail || {});
         }
         if (event.data?.type === 'sun-settings-avatar-updated') {
             onAvatarUpdated({

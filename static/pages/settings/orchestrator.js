@@ -22,6 +22,7 @@ import { initMnemonicSection } from './mnemonic-section.js';
 import { initAccountDangerSection } from './account-danger-section.js';
 import { initNotificationsSection } from './notifications-section.js';
 import { initSettingsTransferSection } from './settings-transfer-section.js';
+import { initDataMemorySection } from './data-memory-section.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -152,6 +153,7 @@ export function initSettingsPage() {
         document.getElementById('sendShortcutCtrlEnterOption'),
         document.getElementById('timeFormat12hOption'),
         document.getElementById('timeFormat24hOption'),
+        document.getElementById('animationsEnabledSwitch'),
     ];
 
     const avatarUploadLabel = document.getElementById('avatarUploadLabel');
@@ -217,6 +219,7 @@ export function initSettingsPage() {
         markSettingsReady,
         persistMuteDialogRequestsPreference,
         notifyLanguageUpdate,
+        notifyMotionUpdate: (detail) => notifyParent('sun-settings-motion-updated', detail || {}),
         applyAvatarFromSettings: profileSection.applyAvatarFromSettings,
         downloadSettingsQr,
     });
@@ -244,6 +247,11 @@ export function initSettingsPage() {
 
     initTotpSection({ api, tr, showAlert, uiLocale });
     initNotificationsSection({ api, tr, showAlert });
+    initDataMemorySection({
+        tr,
+        showAlert,
+        currentUserId: String(bootstrapUser.currentUserId || pageRoot.dataset.currentUserId || '').trim(),
+    });
 
     const settingsSupportSubmitBtn = document.getElementById('settingsSupportSubmitBtn');
     const settingsSupportOpenPageBtn = document.getElementById('settingsSupportOpenPageBtn');

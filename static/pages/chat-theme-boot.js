@@ -106,7 +106,7 @@
     const motionPreference = readStoredMotionPreference();
     const motionLevel = resolveMotionLevel(motionPreference);
     const isLitePerformance = shouldUseLiteMode(performancePreference);
-    document.documentElement.classList.toggle('perf-lite', false);
+    document.documentElement.classList.toggle('perf-lite', isLitePerformance);
     document.documentElement.setAttribute('data-performance-mode', isLitePerformance ? 'lite' : 'full');
     document.documentElement.setAttribute('data-motion-level', motionLevel);
     installReducedMotionRuntimeBridge();
