@@ -1381,7 +1381,7 @@
 
 @media (max-width: 768px) {
     .chat-area {
-        --chat-mobile-outgoing-edge-offset: 12px;
+        --chat-mobile-outgoing-edge-offset: 0px;
         --chat-bubble-max-width: min(92%, 680px);
         --chat-message-font-size: 14.5px;
         --chat-message-line-height: 1.3;
@@ -1405,7 +1405,7 @@
         padding-left: max(6px, env(safe-area-inset-left, 0px));
         padding-right: max(6px, env(safe-area-inset-right, 0px));
         --selection-row-bleed-left: 10px;
-        --selection-row-bleed-right: 6px;
+        --selection-row-bleed-right: 10px;
     }
 
     .message.self {
