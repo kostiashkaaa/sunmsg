@@ -23,21 +23,7 @@ def _build_initial_file_payload_preview(raw_message) -> str | None:
     if not isinstance(payload, dict) or not payload.get('__sunfile'):
         return None
 
-    caption = str(payload.get('caption') or '').strip()
-    if caption:
-        return caption
-
-    mime = str(payload.get('mime') or '').strip().lower()
-    name = str(payload.get('name') or '').strip()
-    if mime.startswith('image/'):
-        return '[photo]'
-    if mime.startswith('video/'):
-        return '[video]'
-    if mime.startswith('audio/'):
-        return '[voice]'
-    if name:
-        return f'[file] {name}'
-    return '[file]'
+    return ENCRYPTED_PREVIEW_LOADING_TOKEN
 
 
 def format_sidebar_time(timestamp, *, language: str = 'ru'):
