@@ -4,7 +4,7 @@ from app.services.favorites_chat import (
     ensure_saved_messages_chat,
     resolve_contact_display_name,
 )
-from app.db.schema import table_columns
+from app.db.schema import tables_columns
 
 
 def _coerce_bool_flag(value, *, default: bool = True) -> bool:
@@ -38,9 +38,13 @@ def fetch_contacts_for_user(
     resolved_language = normalize_language_func(language, default='ru')
     ensure_pinned_chats_table_func(conn)
     cursor = conn.cursor()
-    has_chat_drafts = bool(table_columns(cursor, 'chat_drafts'))
-    has_pinned_chats = bool(table_columns(cursor, 'pinned_chats'))
-    users_columns = table_columns(cursor, 'users')
+    schema_columns = tables_columns(
+        cursor,
+        ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
+    )
+    has_chat_drafts = bool(schema_columns.get('chat_drafts', set()))
+    has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
+    users_columns = schema_columns.get('users', set())
     last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
     has_group_invite_privacy = 'group_invite_privacy' in users_columns
     group_add_direct_select_sql = (
@@ -290,7 +294,28 @@ def fetch_contacts_for_user(
         )
 
     # Group chats: sidebar entries derived from chat_members + message_receipts.
-    chats_columns = table_columns(cursor, 'chats')
+    chats_columns = schema_columns.get('chats', set())
+    has_chat_members_table = bool(schema_columns.get('chat_members', set()))
+    has_message_receipts_table = bool(schema_columns.get('message_receipts', set()))
+    if not has_chat_members_table or not has_message_receipts_table:
+        if isinstance(limit, int) and limit > 0:
+            contacts_list = contacts_list[:limit]
+        return contacts_list
+
+    has_group_membership = cursor.execute(
+        '''
+        SELECT 1
+        FROM chat_members
+        WHERE user_id = ?
+        LIMIT 1
+        ''',
+        (user_id,),
+    ).fetchone()
+    if not has_group_membership:
+        if isinstance(limit, int) and limit > 0:
+            contacts_list = contacts_list[:limit]
+        return contacts_list
+
     has_chat_avatar_column = 'chat_avatar_url' in chats_columns
     has_chat_description_column = 'chat_description' in chats_columns
     group_avatar_select_sql = 'ch.chat_avatar_url AS chat_avatar_url' if has_chat_avatar_column else 'NULL AS chat_avatar_url'

@@ -40,6 +40,7 @@ export function initChatContactsSidebar({
     let queuedContactsReloadOptions = null;
     let scheduledContactsReloadOptions = null;
     let lastContactsLoadStartedAt = 0;
+    let lastFullContactsPayloadSignature = '';
     const CONTACTS_DECRYPT_CONCURRENCY = 6;
     const CONTACTS_MAX_LIMIT = 200;
     const CONTACTS_IMMEDIATE_MIN_INTERVAL_MS = 220;
@@ -122,6 +123,29 @@ export function initChatContactsSidebar({
             limit: normalizeContactsLimit(options?.limit),
             attemptInitialChatRestore: options?.attemptInitialChatRestore !== false,
         };
+    }
+
+    function buildContactsPayloadSignature(contacts) {
+        const rows = Array.isArray(contacts) ? contacts : [];
+        if (!rows.length) return 'empty';
+        return rows.map((item) => ([
+            String(item?.chatId || ''),
+            String(item?.last_message || ''),
+            String(item?.last_message_time || ''),
+            String(item?.draft_text || ''),
+            String(item?.draft_updated_at || ''),
+            String(item?.unreadCount || 0),
+            String(item?.last_sender_id || ''),
+            String(item?.last_message_is_read || 0),
+            String(item?.last_message_is_delivered || 0),
+            String(item?.blocked_by_me || 0),
+            String(item?.blocked_me || 0),
+            String(item?.is_online || 0),
+            String(item?.display_name || ''),
+            String(item?.avatar_url || ''),
+            String(item?.is_pinned || 0),
+            String(item?.pin_order || 0),
+        ].join('\u001f'))).join('\u001e');
     }
 
     function hasContactDraft(contact) {
@@ -416,12 +440,25 @@ export function initChatContactsSidebar({
                 .then(async (response) => {
                     try {
                         if (response.success && response.contacts) {
-                            if (!isPartialLoad) {
-                                reconcileContactsList(response.contacts);
-                            }
                             const orderedContacts = Array.isArray(response.contacts)
                                 ? [...response.contacts]
                                 : [];
+                            if (!isPartialLoad) {
+                                const hasRenderedContacts = Boolean(
+                                    contactsList?.querySelector('.contact-item[data-chat-id]'),
+                                );
+                                const nextSignature = buildContactsPayloadSignature(orderedContacts);
+                                if (hasRenderedContacts && nextSignature === lastFullContactsPayloadSignature) {
+                                    if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore()) {
+                                        setHasAttemptedInitialChatRestore(true);
+                                        restoreLastActiveChatSelection();
+                                    }
+                                    hideAppBootOverlay();
+                                    return;
+                                }
+                                lastFullContactsPayloadSignature = nextSignature;
+                                reconcileContactsList(orderedContacts);
+                            }
                             await runWithConcurrency(
                                 orderedContacts,
                                 shouldBatchHydrate ? 1 : CONTACTS_DECRYPT_CONCURRENCY,
