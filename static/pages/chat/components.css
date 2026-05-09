@@ -5117,9 +5117,9 @@
             --audio-wave-played: color-mix(in srgb, var(--accent) 92%, var(--chat-bubble-in-text) 8%);
             --audio-listen-dot-color: color-mix(in srgb, var(--accent) 76%, var(--chat-bubble-in-text) 24%);
             --audio-listen-dot-done-color: color-mix(in srgb, var(--chat-bubble-in-text) 70%, transparent);
-            width: min(420px, 100%);
+            width: min(460px, 100%);
             min-width: clamp(180px, 25vw, 230px);
-            max-width: min(420px, 74vw);
+            max-width: min(460px, 74vw);
             border-radius: 14px !important;
             padding: 9px 12px 7px !important;
             display: flex;
