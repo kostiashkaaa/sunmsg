@@ -102,7 +102,7 @@ html, body {
         }
         .settings-panel-head {
             padding: 20px 32px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
             display: flex;
             align-items: center;
             gap: 16px;
