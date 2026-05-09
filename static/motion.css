@@ -230,7 +230,7 @@ html[data-motion-level="lite"] {
 }
 /* Самоотправленное — bubble pop с overshoot */
 .message.msg-animate-in.msg-animate-self .bubble {
-    animation: m-pop-overshoot 260ms var(--m-bouncy) both;
+    animation: m-pop-overshoot-soft var(--motion-duration-pop-bouncy) var(--m-decel) both;
     transform-origin: bottom right;
 }
 
@@ -595,6 +595,12 @@ img.is-loaded,
 @keyframes m-pop-overshoot {
     0%   { opacity: 0; transform: scale(0.88); }
     60%  { opacity: 1; transform: scale(1.025); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes m-pop-overshoot-soft {
+    0%   { opacity: 0; transform: scale(0.94); }
+    65%  { opacity: 1; transform: scale(1.01); }
     100% { opacity: 1; transform: scale(1); }
 }
 
