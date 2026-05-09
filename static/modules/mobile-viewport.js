@@ -76,7 +76,7 @@ export function createVisualViewportCssSyncer({
         // visualViewport реально меньше базового — значит клава поднята.
         const hasKeyboardViewport = isTouchViewport
             && viewportBaseHeight > 0
-            && (rawComposerBottomInset > 80 || vvHeight < viewportBaseHeight * 0.82);
+            && (rawComposerBottomInset > 24 || vvHeight < viewportBaseHeight * 0.82);
         const keyboardInset = hasKeyboardViewport ? rawComposerBottomInset : 0;
         const appHeight = hasKeyboardViewport ? vvHeight : layoutViewportHeight;
         const appTopOffset = hasKeyboardViewport ? vvTop : 0;
