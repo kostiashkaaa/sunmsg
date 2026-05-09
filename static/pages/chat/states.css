@@ -1535,6 +1535,9 @@
 
 
         .contact-last-msg .typing-indicator-inline {
+            font-family: inherit;
+            font-size: 1em;
+            line-height: inherit;
             letter-spacing: 0.04em;
             color: color-mix(in srgb, var(--success) 22%, var(--accent) 78%);
         }
