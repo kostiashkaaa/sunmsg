@@ -1839,6 +1839,7 @@
             justify-content: center;
             height: 1em;
             color: currentColor;
+            transform: translateY(-0.08em);
         }
 
 
