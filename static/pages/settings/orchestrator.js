@@ -154,6 +154,10 @@ export function initSettingsPage() {
         document.getElementById('timeFormat12hOption'),
         document.getElementById('timeFormat24hOption'),
         document.getElementById('animationsEnabledSwitch'),
+        document.getElementById('sidebarWeatherEnabledSwitch'),
+        document.getElementById('sidebarWeatherSourceSelect'),
+        document.getElementById('sidebarWeatherCityInput'),
+        document.getElementById('sidebarWeatherRotateSelect'),
     ];
 
     const avatarUploadLabel = document.getElementById('avatarUploadLabel');
@@ -220,6 +224,7 @@ export function initSettingsPage() {
         persistMuteDialogRequestsPreference,
         notifyLanguageUpdate,
         notifyMotionUpdate: (detail) => notifyParent('sun-settings-motion-updated', detail || {}),
+        notifyWeatherLabelUpdate: (detail) => notifyParent('sun-settings-weather-label-updated', detail || {}),
         applyAvatarFromSettings: profileSection.applyAvatarFromSettings,
         downloadSettingsQr,
     });

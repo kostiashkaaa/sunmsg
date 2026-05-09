@@ -32,6 +32,22 @@ function normalizeTimeFormat(value) {
     return String(value || '').trim().toLowerCase() === '12h' ? '12h' : '24h';
 }
 
+function normalizeSidebarWeatherSource(value) {
+    return String(value || '').trim().toLowerCase() === 'city' ? 'city' : 'auto';
+}
+
+function normalizeSidebarWeatherRotateSeconds(value) {
+    const parsed = Number.parseInt(String(value || ''), 10);
+    return parsed === 30 ? 30 : 60;
+}
+
+function normalizeSidebarWeatherCity(value) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+}
+
 function readLocalPreference(key, fallback = '') {
     try {
         return localStorage.getItem(key) || fallback;
@@ -76,6 +92,10 @@ export function initSettingsTransferSection({
         let motionLevel = 'auto';
         let sendShortcut = 'enter';
         let timeFormat = '24h';
+        let sidebarWeatherEnabled = false;
+        let sidebarWeatherSource = 'auto';
+        let sidebarWeatherCity = '';
+        let sidebarWeatherRotateSeconds = 60;
         try {
             const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
             if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
@@ -88,6 +108,14 @@ export function initSettingsTransferSection({
             sendShortcut = normalizeSendShortcut(localStorage.getItem(SEND_SHORTCUT_STORAGE_KEY));
             timeFormat = normalizeTimeFormat(localStorage.getItem(TIME_FORMAT_STORAGE_KEY));
         } catch (_) {}
+        const sidebarWeatherEnabledEl = document.getElementById('sidebarWeatherEnabledSwitch');
+        const sidebarWeatherSourceEl = document.getElementById('sidebarWeatherSourceSelect');
+        const sidebarWeatherCityEl = document.getElementById('sidebarWeatherCityInput');
+        const sidebarWeatherRotateEl = document.getElementById('sidebarWeatherRotateSelect');
+        sidebarWeatherEnabled = !!sidebarWeatherEnabledEl?.checked;
+        sidebarWeatherSource = normalizeSidebarWeatherSource(sidebarWeatherSourceEl?.value);
+        sidebarWeatherCity = normalizeSidebarWeatherCity(sidebarWeatherCityEl?.value);
+        sidebarWeatherRotateSeconds = normalizeSidebarWeatherRotateSeconds(sidebarWeatherRotateEl?.value);
 
         return {
             darkMode: localAppearance.darkMode,
@@ -96,6 +124,10 @@ export function initSettingsTransferSection({
             motionLevel,
             sendShortcut,
             timeFormat,
+            sidebarWeatherEnabled,
+            sidebarWeatherSource,
+            sidebarWeatherCity,
+            sidebarWeatherRotateSeconds,
             interfaceThemeStore: localAppearance.interfaceThemeStore || {},
             chatAppearanceStore: localAppearance.chatAppearanceStore || {},
         };
@@ -117,6 +149,10 @@ export function initSettingsTransferSection({
                     : 'auto',
                 sendShortcut: normalizeSendShortcut(direct.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
                 timeFormat: normalizeTimeFormat(direct.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
+                sidebarWeatherEnabled: direct.sidebarWeatherEnabled === true,
+                sidebarWeatherSource: normalizeSidebarWeatherSource(direct.sidebarWeatherSource),
+                sidebarWeatherCity: normalizeSidebarWeatherCity(direct.sidebarWeatherCity),
+                sidebarWeatherRotateSeconds: normalizeSidebarWeatherRotateSeconds(direct.sidebarWeatherRotateSeconds),
                 interfaceThemeStore: direct.interfaceThemeStore && typeof direct.interfaceThemeStore === 'object'
                     ? direct.interfaceThemeStore
                     : null,
@@ -134,6 +170,10 @@ export function initSettingsTransferSection({
             motionLevel: 'auto',
             sendShortcut: normalizeSendShortcut(payload?.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
             timeFormat: normalizeTimeFormat(payload?.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
+            sidebarWeatherEnabled: false,
+            sidebarWeatherSource: 'auto',
+            sidebarWeatherCity: '',
+            sidebarWeatherRotateSeconds: 60,
             interfaceThemeStore: localAppearance.interfaceThemeStore && typeof localAppearance.interfaceThemeStore === 'object'
                 ? localAppearance.interfaceThemeStore
                 : null,
@@ -211,11 +251,15 @@ export function initSettingsTransferSection({
                     : 'all',
             };
 
+            const resolvedClientPreferences = resolveClientPreferences(parsed);
             await api.saveSettings({
                 ...serverPayload,
-                client_preferences: resolveClientPreferences(parsed),
+                client_preferences: resolvedClientPreferences,
             });
-            privacySection.applySettingsFromPayload(serverPayload);
+            privacySection.applySettingsFromPayload({
+                ...serverPayload,
+                client_preferences: resolvedClientPreferences,
+            });
             notifyLanguageUpdate(serverPayload.language, true);
 
             applyLocalAppearance(parsed);
