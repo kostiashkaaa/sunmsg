@@ -116,6 +116,7 @@ import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
 import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } from './modules/chat-idb-runtime.js';
 import { createOutboxRuntime } from './modules/chat-outbox.js';
+import { mountOutboxPill } from './modules/chat-outbox-ui.js';
 import { createChatHistoryRuntime, mapWithConcurrency } from './modules/chat-history-runtime.js';
 import { bindWindowActivityEvents, createActivityReporter } from './modules/chat-activity.js';
 import { initKeyboardShortcuts } from './modules/keyboard-shortcuts.js';
@@ -257,8 +258,17 @@ const initChatPage = async () => {
     window.clearChatHistoryCacheOnLogout = () => chatIdbRuntime.clearOnLogout();
     chatIdbRuntime.init();
 
-    const outboxRuntime = createOutboxRuntime({ currentUserId: CURRENT_USER_ID });
+    const outboxRuntime = createOutboxRuntime({
+        currentUserId: CURRENT_USER_ID,
+        onEntryExpired: (clientId) => {
+            try { failPendingMessage(clientId); } catch (_) {}
+        },
+        onEntryDrained: (clientId) => {
+            try { schedulePendingTimeout(clientId); } catch (_) {}
+        },
+    });
     outboxRuntime.init();
+    mountOutboxPill(outboxRuntime);
     const enqueueOutboxMessage = (entry) => outboxRuntime.enqueue(entry);
     const drainOutboxOnce = () => outboxRuntime.drainOnce(emitSocket);
     const removeOutboxByClientId = (clientId) => outboxRuntime.remove(clientId);
@@ -267,6 +277,15 @@ const initChatPage = async () => {
     socket.on('message_sent', (data) => {
         const clientId = String(data?.client_id || '').trim();
         if (clientId) void removeOutboxByClientId(clientId);
+    });
+    document.addEventListener('click', (event) => {
+        const tick = event.target?.closest?.('.msg-tick.failed');
+        if (!tick) return;
+        const messageEl = tick.closest('.message.self');
+        if (!messageEl) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void drainOutboxOnce();
     });
     const previousClearChatHistoryCacheOnLogout = window.clearChatHistoryCacheOnLogout;
     window.clearChatHistoryCacheOnLogout = async () => {
@@ -5365,6 +5384,7 @@ const initChatPage = async () => {
             setActiveComposerUpload,
             updateActiveComposerUploadProgress,
             clearActiveComposerUpload,
+            enqueueOutbox: enqueueOutboxMessage,
         });
     }
 

@@ -53,6 +53,7 @@ export async function sendFileMessageFlow({
     setActiveComposerUpload,
     updateActiveComposerUploadProgress,
     clearActiveComposerUpload,
+    enqueueOutbox,
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -201,16 +202,34 @@ export async function sendFileMessageFlow({
         transferPresenceSignal.start(transferPresenceKinds.send);
 
         const encrypted = await encryptForCurrentChat(payload);
-        const emitted = emitSocket('send_message', {
+        const sendPayload = {
             message: encrypted,
             chat_id: currentChatId,
             message_type: msgType,
             client_id: clientId,
             reply_to_id: snapReplyId,
-        }, { requireConnected: true });
+            request_id: clientId,
+        };
+        const emitted = emitSocket('send_message', sendPayload, { requireConnected: true });
+        let isQueuedOffline = false;
         if (!emitted) {
-            failPendingMessage?.(clientId);
-            throw new Error('\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443 \u0447\u0435\u0440\u0435\u0437 \u043F\u0430\u0440\u0443 \u0441\u0435\u043A\u0443\u043D\u0434.');
+            let queued = false;
+            if (typeof enqueueOutbox === 'function') {
+                try {
+                    queued = await enqueueOutbox({
+                        clientId,
+                        eventName: 'send_message',
+                        payload: sendPayload,
+                    });
+                } catch (_) {
+                    queued = false;
+                }
+            }
+            if (!queued) {
+                failPendingMessage?.(clientId);
+                throw new Error('\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443 \u0447\u0435\u0440\u0435\u0437 \u043F\u0430\u0440\u0443 \u0441\u0435\u043A\u0443\u043D\u0434.');
+            }
+            isQueuedOffline = true;
         }
 
         updateActiveContactLastMessage(
@@ -219,7 +238,9 @@ export async function sendFileMessageFlow({
             { pending: true, is_read: false, is_delivered: false },
             pendingTimestamp,
         );
-        schedulePendingTimeout(clientId);
+        if (!isQueuedOffline) {
+            schedulePendingTimeout(clientId);
+        }
         window.setTimeout(() => {
             try { URL.revokeObjectURL(previewUrl); } catch (_) {}
         }, 30000);

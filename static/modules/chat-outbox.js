@@ -186,6 +186,29 @@ export function createOutboxRuntime({
     let ready = false;
     let initPromise = Promise.resolve(false);
     let draining = false;
+    let cachedCount = 0;
+    const changeListeners = new Set();
+
+    function notifyChange() {
+        changeListeners.forEach((listener) => {
+            try { listener(cachedCount); } catch (_) {}
+        });
+    }
+
+    async function refreshCount() {
+        if (!ready) {
+            cachedCount = 0;
+            return 0;
+        }
+        try {
+            const entries = await listOutboxEntries();
+            cachedCount = entries.length;
+        } catch (_) {
+            cachedCount = 0;
+        }
+        notifyChange();
+        return cachedCount;
+    }
 
     async function init() {
         initPromise = (async () => {
@@ -200,6 +223,7 @@ export function createOutboxRuntime({
                             try { onEntryExpired(clientId); } catch (_) {}
                         });
                     }
+                    await refreshCount();
                 }
                 return ready;
             } catch (error) {
@@ -219,17 +243,20 @@ export function createOutboxRuntime({
 
     async function enqueue({ clientId, eventName, payload }) {
         if (!await ensureReady()) return false;
-        return enqueueOutboxEntry({
+        const ok = await enqueueOutboxEntry({
             clientId,
             eventName,
             payload,
             createdAt: Date.now(),
         });
+        if (ok) await refreshCount();
+        return ok;
     }
 
     async function remove(clientId) {
         if (!await ensureReady()) return;
         await removeOutboxEntry(clientId);
+        await refreshCount();
     }
 
     async function drainOnce(emitSocket) {
@@ -254,10 +281,22 @@ export function createOutboxRuntime({
                     try { onEntryDrained(entry.clientId); } catch (_) {}
                 }
             }
+            if (sent > 0) await refreshCount();
         } finally {
             draining = false;
         }
         return sent;
+    }
+
+    function onCountChange(listener) {
+        if (typeof listener !== 'function') return () => {};
+        changeListeners.add(listener);
+        try { listener(cachedCount); } catch (_) {}
+        return () => { changeListeners.delete(listener); };
+    }
+
+    function getCount() {
+        return cachedCount;
     }
 
     async function close() {
@@ -289,5 +328,8 @@ export function createOutboxRuntime({
         drainOnce,
         close,
         clearOnLogout,
+        getCount,
+        onCountChange,
+        refreshCount,
     };
 }
