@@ -1063,6 +1063,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     font-size: 12px !important;
 }
 
+/* Hide chat toast notifications globally in the chat UI. */
+#toastContainer {
+    display: none !important;
+}
+
 /* Duplicate removed */
 .drag-drop-overlay__inner {
     display: flex;
@@ -1886,6 +1891,19 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 }
 
 .profile-info-line:hover .profile-info-icon { color: var(--accent); }
+
+.profile-info-line.profile-info-line--disabled {
+    cursor: default;
+}
+
+.profile-info-line.profile-info-line--disabled:hover,
+.profile-info-line.profile-info-line--disabled:focus-visible {
+    background: transparent;
+}
+
+.profile-info-line.profile-info-line--disabled .profile-info-icon {
+    color: var(--sub-text);
+}
 
 .profile-info-text {
     flex: 1 1 auto;
