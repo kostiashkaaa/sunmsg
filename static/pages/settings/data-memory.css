@@ -20,7 +20,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    color: var(--text-primary, #fff);
+    color: var(--text);
 }
 
 .settings-list-stat-row strong {
@@ -33,4 +33,3 @@
         margin-top: 6px;
     }
 }
-
