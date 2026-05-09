@@ -3,6 +3,7 @@ import {
     getMessageTypeByCategory,
     optimizeFileForAttachMode,
     uploadChatMedia,
+    isUploadAbortedError,
     probeAudioDurationSeconds,
     buildAudioWaveformPeaks,
     probeVisualMediaMetadata,
@@ -32,6 +33,9 @@ export async function sendFileMessageFlow({
     updatePendingFileUploadProgress,
     commitPendingFileUpload,
     failPendingMessage,
+    setActiveComposerUpload,
+    updateActiveComposerUploadProgress,
+    clearActiveComposerUpload,
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -120,14 +124,26 @@ export async function sendFileMessageFlow({
         pendingTimestamp,
     );
 
+    setActiveComposerUpload?.({
+        clientId,
+        progress: 0,
+    });
     setSendingState(true);
     try {
         const [uploaded, audioWaveform] = await Promise.all([
             uploadChatMedia(uploadFile, {
                 chatId: currentChatId || '',
                 csrfToken: getCsrfToken(),
+                onRequestReady: (cancelUpload) => {
+                    setActiveComposerUpload?.({
+                        clientId,
+                        progress: 0,
+                        cancel: cancelUpload,
+                    });
+                },
                 onProgress: (percent) => {
                     updatePendingFileUploadProgress?.(clientId, percent);
+                    updateActiveComposerUploadProgress?.(clientId, percent);
                 },
             }),
             audioWaveformPromise,
@@ -184,8 +200,10 @@ export async function sendFileMessageFlow({
         }, 30000);
     } catch (error) {
         failPendingMessage?.(clientId);
+        if (isUploadAbortedError(error)) return;
         throw error;
     } finally {
+        clearActiveComposerUpload?.(clientId);
         setSendingState(false);
     }
 }

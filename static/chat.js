@@ -135,6 +135,7 @@ import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { createChatGroupCreateController } from './modules/chat-group-create.js';
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatAttachMenuController } from './modules/chat-attach-menu.js';
+import { createComposerUploadState } from './modules/chat-composer-upload-state.js';
 import { createChatAnimationsController } from './modules/chat-animations.js';
 import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
 import { initWebPush } from './modules/web-push.js';
@@ -1106,6 +1107,8 @@ const initChatPage = async () => {
         contactsReloadDebounceMs: CONTACTS_RELOAD_DEBOUNCE_MS,
     });
 
+    const composerUploadState = createComposerUploadState();
+
     const voiceRecorderController = initVoiceRecorder({
         composerRow,
         messageInput,
@@ -1130,6 +1133,10 @@ const initChatPage = async () => {
         onComposerStopTyping,
         onVoiceRecordingStateChange: onVoiceRecordingPresenceChange,
         sendFileMessage: (file, caption = '', options = {}) => sendFileMessage(file, caption, options),
+        isUploadInProgress: () => composerUploadState.isActive(),
+        getUploadProgress: () => composerUploadState.getProgress(),
+        canCancelUpload: () => composerUploadState.canCancel(),
+        cancelActiveUpload: () => cancelActiveComposerUpload(),
     });
 
     const voiceRecorderControls = createVoiceRecorderControls(voiceRecorderController);
@@ -1144,6 +1151,38 @@ const initChatPage = async () => {
 
     function updateVoiceRecordButtonState() {
         voiceRecorderControls.updateVoiceRecordButtonState();
+    }
+
+    function setActiveComposerUpload(payload = {}) {
+        const changed = composerUploadState.setActive(payload);
+        if (changed) {
+            updateVoiceRecordButtonState();
+        }
+        return changed;
+    }
+
+    function updateActiveComposerUploadProgress(clientId, percent) {
+        const changed = composerUploadState.updateProgress(clientId, percent);
+        if (changed) {
+            updateVoiceRecordButtonState();
+        }
+        return changed;
+    }
+
+    function clearActiveComposerUpload(clientId = '') {
+        const changed = composerUploadState.clear(clientId);
+        if (changed) {
+            updateVoiceRecordButtonState();
+        }
+        return changed;
+    }
+
+    function cancelActiveComposerUpload() {
+        const canceled = composerUploadState.cancelActiveUpload();
+        if (canceled) {
+            updateVoiceRecordButtonState();
+        }
+        return canceled;
     }
 
     async function stopVoiceRecording(options = {}) {
@@ -1578,6 +1617,8 @@ const initChatPage = async () => {
         const groupClass = String(layout.groupClass || 'group-single');
         node.classList.remove('group-start', 'group-middle', 'group-end', 'group-single');
         node.classList.add(groupClass);
+        node.style.removeProperty('--swipe-reply-shift');
+        node.classList.remove('swipe-reply-dragging', 'swipe-reply-ready', 'swipe-reply-reset-immediate');
         node.classList.toggle('show-avatar', Boolean(layout.showAvatar));
         node.classList.toggle('selecting', messageSelectionController.isSelectionMode());
         if (msg.id && messageSelectionController.hasSelectedMessage(String(msg.id))) {
@@ -5258,6 +5299,9 @@ const initChatPage = async () => {
             updatePendingFileUploadProgress,
             commitPendingFileUpload,
             failPendingMessage,
+            setActiveComposerUpload,
+            updateActiveComposerUploadProgress,
+            clearActiveComposerUpload,
         });
     }
 
@@ -5405,19 +5449,23 @@ const initChatPage = async () => {
 
     if (voiceRecordBtn) {
         voiceRecordBtn.addEventListener('click', () => {
-        if (voiceRecordBtn.classList.contains('is-send-state')) {
-            const messageForm = document.getElementById('messageForm');
-            if (messageForm && typeof messageForm.requestSubmit === 'function') {
-                messageForm.requestSubmit();
-            } else if (messageForm) {
-                messageForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            if (voiceRecordBtn.classList.contains('is-uploading-state')) {
+                cancelActiveComposerUpload();
+                return;
             }
-            return;
-        }
-        startVoiceRecording().catch((err) => {
-            showToast(err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u043F\u0438\u0441\u0438.', 'danger');
+            if (voiceRecordBtn.classList.contains('is-send-state')) {
+                const messageForm = document.getElementById('messageForm');
+                if (messageForm && typeof messageForm.requestSubmit === 'function') {
+                    messageForm.requestSubmit();
+                } else if (messageForm) {
+                    messageForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+                return;
+            }
+            startVoiceRecording().catch((err) => {
+                showToast(err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u043F\u0438\u0441\u0438.', 'danger');
+            });
         });
-    });
     }
     if (voiceRecordCancelBtn) {
         voiceRecordCancelBtn.addEventListener('click', () => {

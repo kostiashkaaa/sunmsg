@@ -17,6 +17,23 @@ export function getMessageTypeByCategory(category) {
     return 'file';
 }
 
+export function createUploadAbortedError() {
+    const error = new Error('Загрузка отменена.');
+    error.code = 'UPLOAD_ABORTED';
+    error.name = 'UploadAbortedError';
+    error.isUploadAborted = true;
+    return error;
+}
+
+export function isUploadAbortedError(error) {
+    return Boolean(
+        error
+        && (error.code === 'UPLOAD_ABORTED'
+            || error.name === 'UploadAbortedError'
+            || error.isUploadAborted === true),
+    );
+}
+
 function renameFileByMime(fileName, mimeType) {
     const rawName = String(fileName || 'media');
     const baseName = rawName.replace(/\.[^/.]+$/, '');
@@ -207,11 +224,33 @@ export function uploadChatMedia(file, {
     chatId = '',
     csrfToken = '',
     onProgress,
+    onRequestReady,
 } = {}) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        let settled = false;
+        const resolveOnce = (value) => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+        };
+        const rejectOnce = (error) => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+        };
+        const abortUpload = () => {
+            if (xhr.readyState === XMLHttpRequest.DONE || xhr.readyState === XMLHttpRequest.UNSENT) return;
+            try {
+                xhr.abort();
+            } catch (_) {}
+        };
+
         xhr.open('POST', withAppRoot('/upload_chat_media'), true);
         if (csrfToken) xhr.setRequestHeader('X-CSRFToken', csrfToken);
+        if (typeof onRequestReady === 'function') {
+            onRequestReady(abortUpload);
+        }
 
         xhr.upload.onprogress = (event) => {
             if (!event.lengthComputable || typeof onProgress !== 'function') return;
@@ -223,19 +262,20 @@ export function uploadChatMedia(file, {
             try {
                 data = JSON.parse(xhr.responseText || '{}');
             } catch (_) {
-                reject(new Error('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B.'));
+                rejectOnce(new Error('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B.'));
                 return;
             }
             if (xhr.status >= 200 && xhr.status < 300 && data?.success) {
-                resolve(data);
+                resolveOnce(data);
                 return;
             }
             const errMsg = typeof data?.error === 'string'
                 ? data.error
                 : (data?.error?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u0444\u0430\u0439\u043B\u0430.');
-            reject(new Error(errMsg));
+            rejectOnce(new Error(errMsg));
         };
-        xhr.onerror = () => reject(new Error('\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0442\u0438 \u043F\u0440\u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0435 \u0444\u0430\u0439\u043B\u0430.'));
+        xhr.onerror = () => rejectOnce(new Error('\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0442\u0438 \u043F\u0440\u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0435 \u0444\u0430\u0439\u043B\u0430.'));
+        xhr.onabort = () => rejectOnce(createUploadAbortedError());
 
         const formData = new FormData();
         formData.append('file', file);
