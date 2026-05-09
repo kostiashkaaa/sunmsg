@@ -224,7 +224,7 @@ def handle_voice_message_listened_event(
                 SET voice_listened_by_receiver = 1
                 WHERE id = ?
                   AND chat_id = ?
-                  AND receiver_id = ?
+                  AND (receiver_id = ? OR receiver_id IS NULL)
                   AND sender_id = ?
                   AND voice_listened_by_receiver = 0
                 ''',

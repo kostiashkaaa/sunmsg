@@ -203,6 +203,57 @@ def test_handle_voice_message_listened_event_updates_and_notifies(tmp_path):
     )
 
 
+def test_handle_voice_message_listened_event_updates_legacy_null_receiver(tmp_path):
+    db_path = tmp_path / 'socket-read-receipt-voice-null-receiver.db'
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            CREATE TABLE messages (
+                id INTEGER PRIMARY KEY,
+                chat_id TEXT NOT NULL,
+                sender_id INTEGER NOT NULL,
+                receiver_id INTEGER,
+                voice_listened_by_receiver INTEGER NOT NULL DEFAULT 0
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, voice_listened_by_receiver)
+            VALUES (51, 'chat-a', 2, NULL, 0)
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_voice_message_listened_event(
+        {'chat_id': 'chat-a', 'msg_id': 51},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        is_valid_chat_id_func=lambda chat_id: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT voice_listened_by_receiver FROM messages WHERE id = 51'
+        ).fetchone()
+
+    assert int(row['voice_listened_by_receiver']) == 1
+    assert any(
+        event[0] == 'voice_message_listened'
+        and event[1]['msg_id'] == 51
+        and event[2].get('room') == 'pk-2'
+        for event in emitted
+    )
+
+
 def test_handle_voice_message_listened_event_blocked_emits_state(tmp_path):
     db_path = tmp_path / 'socket-read-receipt-voice-blocked.db'
     with _connect(db_path) as conn:
