@@ -1159,7 +1159,6 @@
         .sidebar.sidebar--compact .sidebar-tabs,
         .sidebar.sidebar--compact .dialog-requests-section,
         .sidebar.sidebar--compact .e2e-lock-alert,
-        .sidebar.sidebar--compact .sidebar-bottom-user,
         .sidebar.sidebar--compact .sidebar-meta-footer {
             display: none !important;
         }
@@ -1223,6 +1222,48 @@
 
         .sidebar.sidebar--compact .contact-info {
             display: none;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-user {
+            display: flex;
+            padding: 8px 6px 10px;
+            gap: 6px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-profile-card {
+            padding: 6px;
+            border-radius: 12px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-main {
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-identity {
+            flex: 0 0 auto;
+            width: 40px;
+            min-width: 40px;
+            padding: 4px;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-avatar {
+            width: 30px;
+            height: 30px;
+            font-size: 12px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-info {
+            display: none;
+        }
+
+        .sidebar.sidebar--compact .sidebar-status-bar--compact {
+            width: 32px;
+            min-width: 32px;
+            height: 32px;
+            border-radius: 10px;
         }
 
         #sidebarScrollArea {
