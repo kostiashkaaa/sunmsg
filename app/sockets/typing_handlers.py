@@ -35,7 +35,13 @@ def _handle_typing_signal_event(
     uid = session_store.get('user_id')
     if not chat_id or not uid:
         return
-    if not socket_signal_interval_ok_func(uid, rate_event_name):
+    typing_kind = str(data.get('typing_kind') or '').strip().lower()
+    normalized_typing_kind = typing_kind if typing_kind in ALLOWED_TYPING_KINDS else ''
+    signal_interval_event_name = rate_event_name
+    if rate_event_name == 'typing':
+        signal_kind = normalized_typing_kind or 'text'
+        signal_interval_event_name = f'typing:{signal_kind}'
+    if not socket_signal_interval_ok_func(uid, signal_interval_event_name):
         return
     if not socket_rate_ok_func(uid, rate_event_name):
         return
@@ -74,9 +80,8 @@ def _handle_typing_signal_event(
         'sender_display_name': sender_display_name,
         'sender_username': sender_username,
     }
-    typing_kind = str(data.get('typing_kind') or '').strip().lower()
-    if typing_kind in ALLOWED_TYPING_KINDS:
-        payload['typing_kind'] = typing_kind
+    if normalized_typing_kind:
+        payload['typing_kind'] = normalized_typing_kind
     if is_group_chat:
         emit_func(partner_event_name, payload, room=chat_id, include_self=False)
     elif partner and partner['public_key']:

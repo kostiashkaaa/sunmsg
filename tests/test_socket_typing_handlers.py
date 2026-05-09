@@ -108,6 +108,25 @@ def test_handle_typing_event_forwards_extended_typing_kind():
     conn.close()
 
 
+def test_handle_typing_event_uses_kind_specific_interval_bucket():
+    observed_event_names = []
+
+    handle_typing_event(
+        {'chat_id': 'chat-a', 'typing_kind': 'voice'},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_signal_interval_ok_func=lambda uid, event_name: observed_event_names.append(event_name) or False,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=_connect,
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_func=lambda *args, **kwargs: None,
+    )
+
+    assert observed_event_names == ['typing:voice']
+
+
 def test_handle_typing_event_skips_when_signal_interval_rejects():
     emitted = []
 
