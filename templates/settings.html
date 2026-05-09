@@ -362,6 +362,148 @@
             </div>
         </section>
 
+        <section id="section-data-memory" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-hdd-network"></i>
+                    <h3>Данные и память</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автозагрузка медиа</div>
+                        <div class="settings-row-desc">Управляйте автоматической загрузкой фото, видео и файлов.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryAutoDownloadSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Фото</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryPhotosSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Видео</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryVideosSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row settings-row-borderless data-memory-range-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Файлы</div>
+                        <div class="settings-row-desc">До <span id="dataMemoryFilesLimitValue">3.0 MB</span></div>
+                    </div>
+                    <input
+                        type="range"
+                        id="dataMemoryFilesLimitMb"
+                        min="0.1"
+                        max="50"
+                        step="0.1"
+                        value="3"
+                        class="settings-range"
+                    >
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-database"></i>
+                    <h3>Расчётный объём хранения</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Кэшированные файлы</div>
+                        <div class="settings-row-desc" id="dataMemoryCacheTotal">0 B</div>
+                    </div>
+                    <button type="button" class="btn-settings secondary" id="dataMemoryClearCachedFilesBtn">
+                        Удалить
+                    </button>
+                </div>
+                <div class="settings-list-stat">
+                    <div class="settings-list-stat-row">
+                        <span>Фотографии</span>
+                        <strong id="dataMemoryCachePhotos">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row">
+                        <span>Видео</span>
+                        <strong id="dataMemoryCacheVideos">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row">
+                        <span>Стикеры и эмодзи</span>
+                        <strong id="dataMemoryCacheStickers">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row">
+                        <span>Другое</span>
+                        <strong id="dataMemoryCacheOther">0 B</strong>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Кэшированные фрагменты видеопотока</div>
+                        <div class="settings-row-desc" id="dataMemoryStreamFragments">0 B</div>
+                    </div>
+                    <button type="button" class="btn-settings secondary" id="dataMemoryClearStreamBtn">
+                        Удалить
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-sliders"></i>
+                    <h3>Политика очистки</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автоудаление кэша</div>
+                        <div class="settings-row-desc" id="dataMemoryRetentionValue">7 дней</div>
+                    </div>
+                    <select id="dataMemoryRetentionSelect" class="settings-select settings-select-control">
+                        <option value="0">Никогда</option>
+                        <option value="1">1 день</option>
+                        <option value="3">3 дня</option>
+                        <option value="7" selected>7 дней</option>
+                        <option value="30">30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div class="settings-row settings-row-borderless data-memory-range-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Максимальный размер кэша</div>
+                        <div class="settings-row-desc" id="dataMemoryMaxCacheValue">Авто</div>
+                    </div>
+                    <input
+                        type="range"
+                        id="dataMemoryMaxCacheMb"
+                        min="0"
+                        max="1024"
+                        step="32"
+                        value="0"
+                        class="settings-range"
+                    >
+                </div>
+                <div class="settings-row settings-row-actions settings-row-borderless">
+                    <button type="button" class="btn-settings secondary" id="dataMemoryRefreshBtn">
+                        Обновить расчёт
+                    </button>
+                    <button type="button" class="btn-settings danger-btn" id="dataMemoryClearAllBtn">
+                        Очистить весь кэш
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <section id="section-keys" class="settings-hidden">
             <div class="settings-card settings-e2e-status-card settings-hidden" id="e2eStatusCard">
                 <div class="settings-e2e-status-row">
