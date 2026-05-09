@@ -1148,6 +1148,83 @@
             display: none !important;
         }
 
+        .sidebar.sidebar--compact .sidebar-top-row {
+            justify-content: center;
+            gap: 0;
+            padding: 10px 8px 8px;
+        }
+
+        .sidebar.sidebar--compact .sidebar-brand,
+        .sidebar.sidebar--compact .sidebar-requests-shortcut,
+        .sidebar.sidebar--compact .sidebar-tabs,
+        .sidebar.sidebar--compact .dialog-requests-section,
+        .sidebar.sidebar--compact .e2e-lock-alert,
+        .sidebar.sidebar--compact .sidebar-bottom-user,
+        .sidebar.sidebar--compact .sidebar-meta-footer {
+            display: none !important;
+        }
+
+        .sidebar.sidebar--compact .sidebar-search-bar {
+            flex: 0 0 auto;
+            width: 40px;
+            min-width: 40px;
+            max-width: 40px;
+        }
+
+        .sidebar.sidebar--compact .search-input-wrapper {
+            position: relative;
+            grid-template-columns: 1fr;
+            gap: 0;
+            width: 40px;
+            min-height: 40px;
+            padding: 0;
+            border-radius: 12px;
+        }
+
+        .sidebar.sidebar--compact .search-input-wrapper i {
+            font-size: 15px;
+            opacity: 0.88;
+        }
+
+        .sidebar.sidebar--compact .search-input-wrapper input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .sidebar.sidebar--compact .search-clear-btn {
+            display: none !important;
+        }
+
+        .sidebar.sidebar--compact #sidebarScrollArea {
+            padding: 6px 6px 10px;
+        }
+
+        .sidebar.sidebar--compact .contact-item {
+            justify-content: center;
+            gap: 0;
+            padding: 8px 4px;
+            margin: 0 0 6px;
+            border-radius: 14px;
+        }
+
+        .sidebar.sidebar--compact .contact-item::before {
+            left: 3px;
+            width: 2px;
+            height: 18px;
+        }
+
+        .sidebar.sidebar--compact .contact-avatar {
+            width: 42px;
+            height: 42px;
+            font-size: 14px;
+        }
+
+        .sidebar.sidebar--compact .contact-info {
+            display: none;
+        }
+
         #sidebarScrollArea {
             padding: 4px 10px 12px;
             scroll-behavior: smooth;
