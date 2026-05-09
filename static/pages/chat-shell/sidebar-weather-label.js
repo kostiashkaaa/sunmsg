@@ -31,6 +31,10 @@ const LABEL_SWAP_OUT_DURATION_MS = 160;
 const LABEL_SWAP_IN_DURATION_MS = 220;
 const LABEL_SWAP_OUT_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const LABEL_SWAP_IN_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const LABEL_MARQUEE_MIN_OVERFLOW_PX = 8;
+const LABEL_MARQUEE_EXTRA_TRAVEL_PX = 12;
+const LABEL_MARQUEE_MS_PER_PX = 42;
+const LABEL_MARQUEE_MIN_DURATION_MS = 2800;
 
 function normalizeMetricList(rawValue, { fallbackToDefault = true } = {}) {
     if (!Array.isArray(rawValue)) {
@@ -358,14 +362,86 @@ export function initSidebarWeatherLabel({
     let geolocationBlocked = false;
     let labelTransitionSeq = 0;
     let activeLabelAnimation = null;
+    let activeLabelMarqueeAnimation = null;
+    let labelMeasureRafId = 0;
+    let currentLabelText = '';
     let hasRenderedLabel = false;
     const cityCoordinatesCache = new Map();
 
+    function getLabelTextEl() {
+        let textEl = labelEl.querySelector('.sidebar-brand-name__text');
+        if (!textEl) {
+            labelEl.textContent = '';
+            textEl = document.createElement('span');
+            textEl.className = 'sidebar-brand-name__text';
+            labelEl.appendChild(textEl);
+        }
+        return textEl;
+    }
+
+    function stopActiveLabelMarqueeAnimation() {
+        if (labelMeasureRafId) {
+            window.cancelAnimationFrame(labelMeasureRafId);
+            labelMeasureRafId = 0;
+        }
+        if (activeLabelMarqueeAnimation) {
+            try {
+                activeLabelMarqueeAnimation.cancel();
+            } catch (_) {}
+            activeLabelMarqueeAnimation = null;
+        }
+        labelEl.classList.remove('sidebar-brand-name--marquee');
+        const textEl = labelEl.querySelector('.sidebar-brand-name__text');
+        if (textEl) {
+            textEl.style.transform = 'translate3d(0, 0, 0)';
+        }
+    }
+
+    function syncLabelMarqueeAnimation() {
+        stopActiveLabelMarqueeAnimation();
+        if (destroyed || prefersReducedMotion() || typeof labelEl.animate !== 'function') return;
+        const textEl = getLabelTextEl();
+        const overflowPx = Math.ceil(textEl.scrollWidth - labelEl.clientWidth);
+        if (overflowPx < LABEL_MARQUEE_MIN_OVERFLOW_PX) return;
+        const travelPx = overflowPx + LABEL_MARQUEE_EXTRA_TRAVEL_PX;
+        const durationMs = Math.max(
+            LABEL_MARQUEE_MIN_DURATION_MS,
+            Math.round(travelPx * LABEL_MARQUEE_MS_PER_PX),
+        );
+        labelEl.classList.add('sidebar-brand-name--marquee');
+        activeLabelMarqueeAnimation = textEl.animate(
+            [
+                { transform: 'translate3d(0, 0, 0)' },
+                { transform: `translate3d(-${travelPx}px, 0, 0)` },
+            ],
+            {
+                duration: durationMs,
+                easing: 'ease-in-out',
+                direction: 'alternate',
+                iterations: Infinity,
+                fill: 'both',
+            },
+        );
+    }
+
+    function scheduleLabelMarqueeSync() {
+        if (labelMeasureRafId) {
+            window.cancelAnimationFrame(labelMeasureRafId);
+        }
+        labelMeasureRafId = window.requestAnimationFrame(() => {
+            labelMeasureRafId = 0;
+            syncLabelMarqueeAnimation();
+        });
+    }
+
     function applyLabelText(next) {
-        if (labelEl.textContent !== next) {
-            labelEl.textContent = next;
+        const textEl = getLabelTextEl();
+        if (textEl.textContent !== next) {
+            textEl.textContent = next;
+            currentLabelText = next;
         }
         labelEl.setAttribute('title', next);
+        scheduleLabelMarqueeSync();
     }
 
     function stopActiveLabelAnimation() {
@@ -442,7 +518,7 @@ export function initSidebarWeatherLabel({
             hasRenderedLabel = true;
             return;
         }
-        if (labelEl.textContent === next) {
+        if (currentLabelText === next) {
             labelEl.setAttribute('title', next);
             return;
         }
@@ -599,6 +675,10 @@ export function initSidebarWeatherLabel({
     }
 
     applyPreferences(prefs);
+    const handleWindowResize = () => {
+        scheduleLabelMarqueeSync();
+    };
+    window.addEventListener('resize', handleWindowResize);
 
     return {
         refresh: () => refreshWeatherNow(),
@@ -608,6 +688,8 @@ export function initSidebarWeatherLabel({
         destroy() {
             destroyed = true;
             clearTimers();
+            window.removeEventListener('resize', handleWindowResize);
+            stopActiveLabelMarqueeAnimation();
             setLabel(base, { immediate: true });
         },
     };
