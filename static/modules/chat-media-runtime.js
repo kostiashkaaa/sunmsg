@@ -431,6 +431,8 @@ export function initChatMediaRuntime(deps = {}) {
     async function decodeAudioWaveformBySource(sourceUrl, barsCount = AUDIO_WAVEFORM_BARS_COUNT) {
         const src = String(sourceUrl || '').trim();
         if (!src) return null;
+        // blob: URLs are local object URLs; fetching them is blocked by strict connect-src CSP.
+        if (src.startsWith('blob:')) return null;
         const cacheKey = `${src}::${Math.max(16, Math.floor(barsCount || AUDIO_WAVEFORM_BARS_COUNT))}`;
         if (audioWaveformCacheBySource.has(cacheKey)) {
             return audioWaveformCacheBySource.get(cacheKey);
