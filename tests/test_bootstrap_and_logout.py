@@ -180,6 +180,8 @@ const payload = {{
       messageScale: 1.2,
       performanceMode: 'lite',
       motionLevel: 'balanced',
+      sendShortcut: 'ctrl_enter',
+      timeFormat: '12h',
       interfaceThemeStore: {{ version: 2, themes: {{ light: {{ accent: '#c58a22' }}, dark: {{ accent: '#d6a449' }} }} }},
       chatAppearanceStore: {{ themes: {{ light: {{ mode: 'default' }}, dark: {{ mode: 'default' }} }} }},
     }},
@@ -248,6 +250,8 @@ if (localStorageState.darkMode !== 'true') throw new Error('darkMode was not per
 if (localStorageState.sun_chat_message_scale_v1 !== '1.20') throw new Error('message scale was not persisted from bootstrap clientPreferences');
 if (localStorageState.sun_performance_mode !== 'lite') throw new Error('performance mode was not persisted from bootstrap clientPreferences');
 if (localStorageState.sun_motion_level !== 'balanced') throw new Error('motion level was not persisted from bootstrap clientPreferences');
+if (localStorageState.sun_send_shortcut_mode_v1 !== 'ctrl_enter') throw new Error('send shortcut was not persisted from bootstrap clientPreferences');
+if (localStorageState.sun_time_format_v1 !== '12h') throw new Error('time format was not persisted from bootstrap clientPreferences');
 if (!localStorageState['sun.interfaceTheme.v1']) throw new Error('interface theme store was not persisted');
 if (!localStorageState['sun.chatAppearance.v2']) throw new Error('chat appearance store was not persisted');
 """

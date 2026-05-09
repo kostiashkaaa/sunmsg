@@ -1,4 +1,21 @@
 // Composer event wiring and submit orchestration for chat input.
+const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
+const SEND_SHORTCUT_ENTER = 'enter';
+const SEND_SHORTCUT_CTRL_ENTER = 'ctrl_enter';
+
+function normalizeSendShortcutMode(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    return raw === SEND_SHORTCUT_CTRL_ENTER ? SEND_SHORTCUT_CTRL_ENTER : SEND_SHORTCUT_ENTER;
+}
+
+function readSendShortcutMode() {
+    try {
+        return normalizeSendShortcutMode(window.localStorage.getItem(SEND_SHORTCUT_STORAGE_KEY));
+    } catch (_) {
+        return SEND_SHORTCUT_ENTER;
+    }
+}
+
 export function initComposer(opts = {}) {
     const {
         messageInput,
@@ -76,7 +93,14 @@ export function initComposer(opts = {}) {
         if (event.key !== 'Enter') return;
         // On touch devices Enter should insert a new line; sending is button-only.
         if (isCoarsePointer()) return;
-        if (event.shiftKey || event.isComposing) return;
+        const sendShortcutMode = readSendShortcutMode();
+        const hasSendModifier = event.ctrlKey || event.metaKey;
+
+        if (sendShortcutMode === SEND_SHORTCUT_CTRL_ENTER) {
+            if (!hasSendModifier || event.shiftKey || event.isComposing) return;
+        } else if (event.shiftKey || event.isComposing) {
+            return;
+        }
 
         event.preventDefault();
         event.stopPropagation();

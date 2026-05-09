@@ -7,6 +7,8 @@
     const MESSAGE_SCALE_MAX = 1.3;
     const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
     const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
+    const SEND_SHORTCUT_MODES = new Set(['enter', 'ctrl_enter']);
+    const TIME_FORMAT_MODES = new Set(['24h', '12h']);
 
     function asObject(value) {
         return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -87,6 +89,16 @@
             out.motionLevel = motionLevel;
         }
 
+        const sendShortcut = asString(raw.sendShortcut).toLowerCase();
+        if (SEND_SHORTCUT_MODES.has(sendShortcut)) {
+            out.sendShortcut = sendShortcut;
+        }
+
+        const timeFormat = asString(raw.timeFormat).toLowerCase();
+        if (TIME_FORMAT_MODES.has(timeFormat)) {
+            out.timeFormat = timeFormat;
+        }
+
         const interfaceThemeStore = asJsonObject(raw.interfaceThemeStore, 32_000);
         if (interfaceThemeStore) {
             out.interfaceThemeStore = interfaceThemeStore;
@@ -119,6 +131,12 @@
             }
             if (typeof clientPreferences.motionLevel === 'string' && MOTION_LEVELS.has(clientPreferences.motionLevel)) {
                 localStorage.setItem('sun_motion_level', clientPreferences.motionLevel);
+            }
+            if (typeof clientPreferences.sendShortcut === 'string' && SEND_SHORTCUT_MODES.has(clientPreferences.sendShortcut)) {
+                localStorage.setItem('sun_send_shortcut_mode_v1', clientPreferences.sendShortcut);
+            }
+            if (typeof clientPreferences.timeFormat === 'string' && TIME_FORMAT_MODES.has(clientPreferences.timeFormat)) {
+                localStorage.setItem('sun_time_format_v1', clientPreferences.timeFormat);
             }
             if (clientPreferences.interfaceThemeStore) {
                 localStorage.setItem('sun.interfaceTheme.v1', JSON.stringify(clientPreferences.interfaceThemeStore));

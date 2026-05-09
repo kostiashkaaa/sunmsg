@@ -16,6 +16,26 @@ function activeLocale() {
     return language === 'en' ? 'en-US' : 'ru-RU';
 }
 
+const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
+
+function readTimeFormat() {
+    try {
+        return String(window.localStorage.getItem(TIME_FORMAT_STORAGE_KEY) || '').trim().toLowerCase() === '12h'
+            ? '12h'
+            : '24h';
+    } catch (_) {
+        return '24h';
+    }
+}
+
+function buildTimeFormatOptions() {
+    return {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: readTimeFormat() === '12h',
+    };
+}
+
 let profileLocaleListenerBound = false;
 
 function formatSavedMessageCountLabel(rawCount) {
@@ -67,6 +87,7 @@ function refreshProfileLocaleBindings() {
 function ensureProfileLocaleListener() {
     if (profileLocaleListenerBound) return;
     window.addEventListener('sun-ui-language-changed', refreshProfileLocaleBindings);
+    window.addEventListener('sun-time-format-changed', refreshProfileLocaleBindings);
     profileLocaleListenerBound = true;
 }
 
@@ -436,7 +457,7 @@ export function formatLastSeenText(rawValue) {
     if (!date) return tr('\u043D\u0435 \u0432 \u0441\u0435\u0442\u0438');
     const now = new Date();
     const isToday = now.toDateString() === date.toDateString();
-    const timePart = date.toLocaleTimeString(activeLocale(), { hour: '2-digit', minute: '2-digit' });
+    const timePart = date.toLocaleTimeString(activeLocale(), buildTimeFormatOptions());
     if (isToday) return `${tr('\u0431\u044B\u043B(\u0430) \u0432 \u0441\u0435\u0442\u0438')} ${tr('\u0441\u0435\u0433\u043E\u0434\u043D\u044F \u0432')} ${timePart}`;
     return `${tr('\u0431\u044B\u043B(\u0430) \u0432 \u0441\u0435\u0442\u0438')} ${date.toLocaleDateString(activeLocale())}, ${timePart}`;
 }

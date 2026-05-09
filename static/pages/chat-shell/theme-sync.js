@@ -6,6 +6,8 @@ export function initChatShellThemeSync(options = {}) {
         ? options.persistClientPreferences
         : null;
     const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
+    const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
+    const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     let persistTimerId = 0;
 
     const tr = (value) => {
@@ -23,10 +25,20 @@ export function initChatShellThemeSync(options = {}) {
         return Math.min(1.3, Math.max(0.9, parsed));
     }
 
+    function normalizeSendShortcut(value) {
+        return String(value || '').trim().toLowerCase() === 'ctrl_enter' ? 'ctrl_enter' : 'enter';
+    }
+
+    function normalizeTimeFormat(value) {
+        return String(value || '').trim().toLowerCase() === '12h' ? '12h' : '24h';
+    }
+
     function collectClientPreferences() {
         let messageScale = 1;
         let performanceMode = 'auto';
         let motionLevel = 'auto';
+        let sendShortcut = 'enter';
+        let timeFormat = '24h';
 
         try {
             messageScale = clampMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || 1);
@@ -38,6 +50,8 @@ export function initChatShellThemeSync(options = {}) {
             if (rawMotionLevel === 'auto' || rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite') {
                 motionLevel = rawMotionLevel;
             }
+            sendShortcut = normalizeSendShortcut(localStorage.getItem(SEND_SHORTCUT_STORAGE_KEY));
+            timeFormat = normalizeTimeFormat(localStorage.getItem(TIME_FORMAT_STORAGE_KEY));
         } catch (_) {}
 
         return {
@@ -45,6 +59,8 @@ export function initChatShellThemeSync(options = {}) {
             messageScale,
             performanceMode,
             motionLevel,
+            sendShortcut,
+            timeFormat,
             interfaceThemeStore: interfaceThemeApi?.readStore?.() || {},
             chatAppearanceStore: chatAppearanceApi?.readStore?.() || {},
         };

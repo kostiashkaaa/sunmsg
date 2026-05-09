@@ -1,4 +1,6 @@
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
+const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
+const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
 
 function downloadTextFile(filename, text) {
     const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
@@ -20,6 +22,22 @@ function normalizeMessageScale(value) {
     const parsed = Number.parseFloat(value);
     if (!Number.isFinite(parsed)) return 1;
     return Math.min(1.3, Math.max(0.9, parsed));
+}
+
+function normalizeSendShortcut(value) {
+    return String(value || '').trim().toLowerCase() === 'ctrl_enter' ? 'ctrl_enter' : 'enter';
+}
+
+function normalizeTimeFormat(value) {
+    return String(value || '').trim().toLowerCase() === '12h' ? '12h' : '24h';
+}
+
+function readLocalPreference(key, fallback = '') {
+    try {
+        return localStorage.getItem(key) || fallback;
+    } catch (_) {
+        return fallback;
+    }
 }
 
 export function initSettingsTransferSection({
@@ -56,6 +74,8 @@ export function initSettingsTransferSection({
         const localAppearance = collectLocalAppearance();
         let performanceMode = 'auto';
         let motionLevel = 'auto';
+        let sendShortcut = 'enter';
+        let timeFormat = '24h';
         try {
             const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
             if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
@@ -65,6 +85,8 @@ export function initSettingsTransferSection({
             if (rawMotionLevel === 'auto' || rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite') {
                 motionLevel = rawMotionLevel;
             }
+            sendShortcut = normalizeSendShortcut(localStorage.getItem(SEND_SHORTCUT_STORAGE_KEY));
+            timeFormat = normalizeTimeFormat(localStorage.getItem(TIME_FORMAT_STORAGE_KEY));
         } catch (_) {}
 
         return {
@@ -72,6 +94,8 @@ export function initSettingsTransferSection({
             messageScale: localAppearance.messageScale,
             performanceMode,
             motionLevel,
+            sendShortcut,
+            timeFormat,
             interfaceThemeStore: localAppearance.interfaceThemeStore || {},
             chatAppearanceStore: localAppearance.chatAppearanceStore || {},
         };
@@ -91,6 +115,8 @@ export function initSettingsTransferSection({
                 motionLevel: ['auto', 'full', 'balanced', 'lite'].includes(String(direct.motionLevel || '').toLowerCase())
                     ? String(direct.motionLevel).toLowerCase()
                     : 'auto',
+                sendShortcut: normalizeSendShortcut(direct.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
+                timeFormat: normalizeTimeFormat(direct.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
                 interfaceThemeStore: direct.interfaceThemeStore && typeof direct.interfaceThemeStore === 'object'
                     ? direct.interfaceThemeStore
                     : null,
@@ -106,6 +132,8 @@ export function initSettingsTransferSection({
             messageScale: normalizeMessageScale(localAppearance.messageScale),
             performanceMode: 'auto',
             motionLevel: 'auto',
+            sendShortcut: normalizeSendShortcut(payload?.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
+            timeFormat: normalizeTimeFormat(payload?.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
             interfaceThemeStore: localAppearance.interfaceThemeStore && typeof localAppearance.interfaceThemeStore === 'object'
                 ? localAppearance.interfaceThemeStore
                 : null,
@@ -131,6 +159,8 @@ export function initSettingsTransferSection({
         localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, normalizeMessageScale(clientPreferences.messageScale).toFixed(2));
         localStorage.setItem('sun_performance_mode', clientPreferences.performanceMode || 'auto');
         localStorage.setItem('sun_motion_level', clientPreferences.motionLevel || 'auto');
+        localStorage.setItem(SEND_SHORTCUT_STORAGE_KEY, normalizeSendShortcut(clientPreferences.sendShortcut));
+        localStorage.setItem(TIME_FORMAT_STORAGE_KEY, normalizeTimeFormat(clientPreferences.timeFormat));
         window.InterfaceTheme?.applyCurrentTheme?.();
         window.ChatAppearance?.applyCurrentTheme?.();
     }

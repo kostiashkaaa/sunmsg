@@ -8,6 +8,8 @@ _MAX_INTERFACE_THEME_STORE_JSON_LENGTH = 32_000
 _MAX_CHAT_APPEARANCE_STORE_JSON_LENGTH = 460_000
 _PERFORMANCE_MODES = {'auto', 'full', 'lite'}
 _MOTION_LEVELS = {'auto', 'full', 'balanced', 'lite'}
+_SEND_SHORTCUT_MODES = {'enter', 'ctrl_enter'}
+_TIME_FORMATS = {'24h', '12h'}
 
 
 def _clamp_message_scale(value: float) -> float:
@@ -51,6 +53,14 @@ def normalize_client_preferences(raw_value) -> dict:
     motion_level = str(src.get('motionLevel') or '').strip().lower()
     if motion_level in _MOTION_LEVELS:
         normalized['motionLevel'] = motion_level
+
+    send_shortcut = str(src.get('sendShortcut') or '').strip().lower()
+    if send_shortcut in _SEND_SHORTCUT_MODES:
+        normalized['sendShortcut'] = send_shortcut
+
+    time_format = str(src.get('timeFormat') or '').strip().lower()
+    if time_format in _TIME_FORMATS:
+        normalized['timeFormat'] = time_format
 
     interface_theme_store = _normalize_json_object(
         src.get('interfaceThemeStore'),

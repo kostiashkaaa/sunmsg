@@ -836,6 +836,8 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
                 'messageScale': 1.5,
                 'performanceMode': 'lite',
                 'motionLevel': 'balanced',
+                'sendShortcut': 'ctrl_enter',
+                'timeFormat': '12h',
                 'interfaceThemeStore': {
                     'version': 2,
                     'themes': {
@@ -865,6 +867,8 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
     assert stored_preferences['messageScale'] == 1.3
     assert stored_preferences['performanceMode'] == 'lite'
     assert stored_preferences['motionLevel'] == 'balanced'
+    assert stored_preferences['sendShortcut'] == 'ctrl_enter'
+    assert stored_preferences['timeFormat'] == '12h'
     assert 'interfaceThemeStore' in stored_preferences
     assert 'chatAppearanceStore' in stored_preferences
     assert 'unknown' not in stored_preferences

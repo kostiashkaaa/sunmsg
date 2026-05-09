@@ -148,6 +148,10 @@ export function initSettingsPage() {
         document.getElementById('muteDialogRequestsSwitch'),
         document.getElementById('avatarVisibilitySelect'),
         document.getElementById('avatarFileInput'),
+        document.getElementById('sendShortcutEnterOption'),
+        document.getElementById('sendShortcutCtrlEnterOption'),
+        document.getElementById('timeFormat12hOption'),
+        document.getElementById('timeFormat24hOption'),
     ];
 
     const avatarUploadLabel = document.getElementById('avatarUploadLabel');
