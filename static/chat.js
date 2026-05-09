@@ -68,6 +68,7 @@ import {
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js?v=20260507a';
+import { initSidebarActiveChatLabel } from './modules/sidebar-active-chat-label.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
@@ -721,6 +722,10 @@ const initChatPage = async () => {
 
     const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
     initKeyboardShortcuts();
+    initSidebarActiveChatLabel({
+        chatTitleEl: chatTitle,
+        chatHeaderEl: chatHeader,
+    });
     initSidebarBrandQuickActions({
         openDialog: openAnimatedDialog,
     });
