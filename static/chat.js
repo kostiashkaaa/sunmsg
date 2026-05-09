@@ -2719,7 +2719,11 @@ const initChatPage = async () => {
                 });
             }
             const response = await fetch(withAppRoot(`/get_user_profile?user_id=${encodeURIComponent(partnerId)}`));
-            return response.json();
+            const payload = await response.json();
+            if (payload && typeof payload === 'object') {
+                payload._group_profile = false;
+            }
+            return payload;
         },
     });
 
