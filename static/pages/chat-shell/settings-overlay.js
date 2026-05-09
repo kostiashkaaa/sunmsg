@@ -367,8 +367,26 @@ export function initChatShellSettingsOverlay(options = {}) {
             if (!settingsOverlayAwaitingReadySignal) return;
             resolveSettingsOverlayReady();
         }, 5000);
-        if (settingsOverlayFrame.getAttribute('src') !== nextSrc) {
-            settingsOverlayFrame.setAttribute('src', nextSrc);
+        let shouldNavigateFrame = settingsOverlayFrame.getAttribute('src') !== nextSrc;
+        if (!shouldNavigateFrame) {
+            try {
+                const frameHref = String(settingsOverlayFrame.contentWindow?.location?.href || '');
+                if (frameHref === 'about:blank' || frameHref.startsWith('about:blank#')) {
+                    shouldNavigateFrame = true;
+                }
+            } catch (_) {}
+        }
+        if (shouldNavigateFrame) {
+            if (settingsOverlayFrame.getAttribute('src') === nextSrc) {
+                try {
+                    settingsOverlayFrame.contentWindow?.location?.replace(nextSrc);
+                } catch (_) {
+                    settingsOverlayFrame.setAttribute('src', 'about:blank');
+                    settingsOverlayFrame.setAttribute('src', nextSrc);
+                }
+            } else {
+                settingsOverlayFrame.setAttribute('src', nextSrc);
+            }
         } else {
             try {
                 const frameWindow = settingsOverlayFrame.contentWindow;
