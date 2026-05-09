@@ -8036,8 +8036,8 @@
 
         @media (max-width: 768px) {
             .message-reactions {
-                gap: 4px;
-                margin-top: 5px;
+                gap: 6px;
+                margin-top: 6px;
             }
 
             .message .bubble {
@@ -8072,8 +8072,8 @@
                 justify-content: space-between;
                 gap: 8px;
                 width: 100%;
-                min-height: 20px;
-                margin-top: 5px;
+                min-height: 32px;
+                margin-top: 6px;
             }
 
             .message .bubble > .message-footer > .message-reactions {
@@ -8098,13 +8098,12 @@
                 grid-auto-columns: max-content;
                 align-items: center;
                 justify-content: center;
-                min-height: calc(20px * var(--chat-message-scale));
-                height: calc(20px * var(--chat-message-scale));
-                padding: 0 calc(5px * var(--chat-message-scale));
-                gap: calc(2px * var(--chat-message-scale));
-                font-size: calc(11px * var(--chat-message-scale));
+                min-height: calc(36px * var(--chat-message-scale));
+                padding: 0 calc(10px * var(--chat-message-scale));
+                gap: calc(4px * var(--chat-message-scale));
+                font-size: calc(13px * var(--chat-message-scale));
                 line-height: 1;
-                border-radius: calc(10px * var(--chat-message-scale));
+                border-radius: calc(18px * var(--chat-message-scale));
                 border-width: 1px;
                 box-shadow: none;
                 backdrop-filter: none;
@@ -8136,17 +8135,17 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: calc(14px * var(--chat-message-scale));
-                min-width: calc(14px * var(--chat-message-scale));
-                height: calc(14px * var(--chat-message-scale));
-                font-size: calc(14px * var(--chat-message-scale));
+                width: calc(20px * var(--chat-message-scale));
+                min-width: calc(20px * var(--chat-message-scale));
+                height: calc(20px * var(--chat-message-scale));
+                font-size: calc(20px * var(--chat-message-scale));
                 line-height: 1;
             }
 
             .reaction-pill__emoji .emoji-graphic {
                 display: block;
-                width: calc(14px * var(--chat-message-scale));
-                height: calc(14px * var(--chat-message-scale));
+                width: calc(20px * var(--chat-message-scale));
+                height: calc(20px * var(--chat-message-scale));
                 object-fit: contain;
             }
 
@@ -8154,31 +8153,31 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                min-width: calc(14px * var(--chat-message-scale));
-                height: calc(14px * var(--chat-message-scale));
-                margin-left: calc(1px * var(--chat-message-scale));
+                min-width: calc(18px * var(--chat-message-scale));
+                height: calc(18px * var(--chat-message-scale));
+                margin-left: calc(2px * var(--chat-message-scale));
                 overflow: visible;
             }
 
             .reaction-reactor {
-                width: calc(14px * var(--chat-message-scale));
-                height: calc(14px * var(--chat-message-scale));
+                width: calc(18px * var(--chat-message-scale));
+                height: calc(18px * var(--chat-message-scale));
                 border-width: 1px;
-                font-size: calc(8px * var(--chat-message-scale));
+                font-size: calc(9px * var(--chat-message-scale));
                 box-shadow: 0 0 0 1px rgba(10, 18, 32, 0.14);
             }
 
             .reaction-reactor + .reaction-reactor {
-                margin-left: calc(-4px * var(--chat-message-scale));
+                margin-left: calc(-6px * var(--chat-message-scale));
             }
 
             .reaction-pill__count:not(:empty) {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                height: calc(11px * var(--chat-message-scale));
-                min-width: calc(6px * var(--chat-message-scale));
-                font-size: calc(10px * var(--chat-message-scale));
+                height: calc(14px * var(--chat-message-scale));
+                min-width: calc(9px * var(--chat-message-scale));
+                font-size: calc(11px * var(--chat-message-scale));
                 font-weight: 700;
                 line-height: 1;
             }
@@ -8804,34 +8803,43 @@
         @media (max-width: 768px) {
             .reaction-picker {
                 min-width: 0;
-                max-width: calc(100vw - 24px);
-                gap: 4px;
-                padding: 5px;
+                max-width: calc(100vw - 16px);
+                gap: 8px;
+                padding: 10px;
+                border-radius: 18px;
+            }
+
+            .reaction-picker__row,
+            .reaction-picker__quick {
+                gap: 6px;
             }
 
             .reaction-picker__expanded {
-                grid-template-columns: repeat(6, minmax(0, 1fr));
-                max-height: 132px;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                max-height: 220px;
+                gap: 6px;
             }
 
             .reaction-picker__item {
-                width: 28px;
-                height: 28px;
-                flex: 0 0 28px;
-                font-size: 18px;
+                width: 40px;
+                height: 40px;
+                flex: 0 0 40px;
+                border-radius: 12px;
+                font-size: 24px;
             }
 
             .reaction-picker__expand-toggle {
-                width: 28px;
-                height: 28px;
-                flex: 0 0 28px;
+                width: 40px;
+                height: 40px;
+                flex: 0 0 40px;
+                border-radius: 12px;
             }
 
             .reaction-picker__expanded .reaction-picker__item {
                 width: 100%;
-                height: 28px;
+                height: 40px;
                 flex: 1 1 auto;
-                font-size: 18px;
+                font-size: 24px;
             }
         }
 

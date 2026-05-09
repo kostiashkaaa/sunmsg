@@ -1,4 +1,5 @@
 import { setMotionOriginFromPoint, waitForMotionEnd } from './motion.js';
+import { REACTION_PICKER_EMOJIS } from './reactions.js';
 
 export function initReactionPickerController({
     pickerEl,
@@ -7,9 +8,135 @@ export function initReactionPickerController({
     resolveMessageElement,
     onSelectEmoji,
 } = {}) {
+    const QUICK_REACTION_COUNT = 9;
     let activeMessageId = null;
     let activeAnchorEl = null;
     let pickerTransitionSeq = 0;
+    let positionRafId = 0;
+
+    function createPickerItem(emoji) {
+        const normalized = String(emoji || '').trim();
+        if (!REACTION_PICKER_EMOJIS.includes(normalized)) return null;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'reaction-picker__item';
+        button.setAttribute('data-emoji', normalized);
+        button.setAttribute('aria-label', `Reaction ${normalized}`);
+        button.textContent = normalized;
+        return button;
+    }
+
+    function renderPickerItems(container, emojis) {
+        if (!container) return;
+        const fragment = document.createDocumentFragment();
+        emojis.forEach((emoji) => {
+            const item = createPickerItem(emoji);
+            if (item) fragment.append(item);
+        });
+        container.replaceChildren(fragment);
+    }
+
+    function uniqueValidEmojis(values) {
+        const seen = new Set();
+        const normalized = [];
+        (Array.isArray(values) ? values : []).forEach((value) => {
+            const emoji = String(value || '').trim();
+            if (!REACTION_PICKER_EMOJIS.includes(emoji)) return;
+            if (seen.has(emoji)) return;
+            seen.add(emoji);
+            normalized.push(emoji);
+        });
+        return normalized;
+    }
+
+    function findDirectChildByClass(parent, className) {
+        if (!parent || !className) return null;
+        return Array.from(parent.children || []).find(
+            (child) => child?.classList?.contains(className)
+        ) || null;
+    }
+
+    function ensurePickerStructure() {
+        if (!pickerEl) return;
+        const legacyTopItems = Array.from(pickerEl.children || []).filter(
+            (child) => child?.classList?.contains('reaction-picker__item')
+        );
+        let rowEl = findDirectChildByClass(pickerEl, 'reaction-picker__row');
+        if (!rowEl) {
+            rowEl = document.createElement('div');
+            rowEl.className = 'reaction-picker__row';
+            pickerEl.prepend(rowEl);
+        }
+
+        let quickEl = rowEl.querySelector('.reaction-picker__quick');
+        if (!quickEl) {
+            quickEl = document.createElement('div');
+            quickEl.className = 'reaction-picker__quick';
+            rowEl.prepend(quickEl);
+        }
+
+        let expandToggle = rowEl.querySelector('[data-reaction-expand-toggle]');
+        if (!expandToggle) {
+            expandToggle = document.createElement('button');
+            expandToggle.type = 'button';
+            expandToggle.className = 'reaction-picker__expand-toggle';
+            expandToggle.setAttribute('data-reaction-expand-toggle', '1');
+            expandToggle.setAttribute('aria-expanded', 'false');
+            expandToggle.setAttribute('aria-label', 'Show more reactions');
+            expandToggle.innerHTML = '<i class="bi bi-chevron-down" aria-hidden="true"></i>';
+            rowEl.append(expandToggle);
+        }
+
+        let expandedEl = findDirectChildByClass(pickerEl, 'reaction-picker__expanded');
+        if (!expandedEl) {
+            expandedEl = document.createElement('div');
+            expandedEl.className = 'reaction-picker__expanded';
+            expandedEl.hidden = true;
+            pickerEl.append(expandedEl);
+        }
+
+        if (!expandedEl.id) {
+            expandedEl.id = 'reactionPickerExpanded';
+        }
+        expandToggle.setAttribute('aria-controls', expandedEl.id);
+
+        const legacyEmojis = uniqueValidEmojis(
+            legacyTopItems.map((button) => button.getAttribute('data-emoji') || button.textContent || '')
+        );
+        const existingQuickEmojis = uniqueValidEmojis(
+            Array.from(quickEl.querySelectorAll('.reaction-picker__item'))
+                .map((button) => button.getAttribute('data-emoji') || button.textContent || '')
+        );
+        const quickSource = existingQuickEmojis.length
+            ? existingQuickEmojis
+            : (legacyEmojis.length ? legacyEmojis : REACTION_PICKER_EMOJIS);
+        const quickEmojis = quickSource.slice(0, QUICK_REACTION_COUNT);
+
+        renderPickerItems(quickEl, quickEmojis);
+        renderPickerItems(expandedEl, REACTION_PICKER_EMOJIS);
+        legacyTopItems.forEach((item) => item.remove());
+    }
+
+    function schedulePositionReactionPicker() {
+        if (!pickerEl) return;
+        if (
+            !pickerEl.classList.contains('active')
+            && !pickerEl.classList.contains('is-opening')
+        ) return;
+        if (positionRafId) return;
+        positionRafId = window.requestAnimationFrame(() => {
+            positionRafId = 0;
+            positionReactionPicker();
+        });
+    }
+
+    function clearScheduledPosition() {
+        if (!positionRafId) return;
+        window.cancelAnimationFrame(positionRafId);
+        positionRafId = 0;
+    }
+
+    ensurePickerStructure();
 
     function setExpandedState(isExpanded, { reposition = false } = {}) {
         if (!pickerEl) return;
@@ -28,7 +155,7 @@ export function initReactionPickerController({
             }
         }
         if (reposition && (pickerEl.classList.contains('active') || pickerEl.classList.contains('is-opening'))) {
-            positionReactionPicker();
+            schedulePositionReactionPicker();
         }
     }
 
@@ -67,6 +194,7 @@ export function initReactionPickerController({
             && !pickerEl.classList.contains('is-opening')
             && !pickerEl.classList.contains('is-closing')
         ) return;
+        clearScheduledPosition();
         const closeSeq = ++pickerTransitionSeq;
         pickerEl.classList.remove('active', 'is-opening');
         pickerEl.classList.add('is-closing');
@@ -153,6 +281,7 @@ export function initReactionPickerController({
         activeMessageId = numericMessageId;
         activeAnchorEl = anchorEl;
         const openSeq = ++pickerTransitionSeq;
+        clearScheduledPosition();
         pickerEl.classList.remove('active', 'is-closing');
         setExpandedState(false);
         pickerEl.classList.add('is-opening');
@@ -225,16 +354,16 @@ export function initReactionPickerController({
     });
 
     window.addEventListener('resize', () => {
-        if (pickerEl?.classList.contains('active')) positionReactionPicker();
+        schedulePositionReactionPicker();
     }, { passive: true });
     window.addEventListener('scroll', () => {
-        if (pickerEl?.classList.contains('active')) positionReactionPicker();
+        schedulePositionReactionPicker();
     }, { passive: true });
     window.visualViewport?.addEventListener('resize', () => {
-        if (pickerEl?.classList.contains('active')) positionReactionPicker();
+        schedulePositionReactionPicker();
     });
     window.visualViewport?.addEventListener('scroll', () => {
-        if (pickerEl?.classList.contains('active')) positionReactionPicker();
+        schedulePositionReactionPicker();
     });
 
     return {
