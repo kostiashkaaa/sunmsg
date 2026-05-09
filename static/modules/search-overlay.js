@@ -38,6 +38,26 @@ export function initSearchOverlay() {
         return null;
     }
 
+    const fallbackPlaceholder = String(visibleInput.getAttribute('placeholder') || 'Поиск');
+    function tr(value) {
+        const i18nApi = window.SUN_I18N;
+        if (i18nApi && typeof i18nApi.translateText === 'function') {
+            return i18nApi.translateText(value);
+        }
+        return String(value ?? '');
+    }
+    function syncSearchNetworkState() {
+        const offline = navigator.onLine === false;
+        wrapper?.setAttribute('data-network-state', offline ? 'offline' : 'online');
+        const activeValue = String(visibleInput.value || '').trim();
+        const onlinePlaceholder = String(tr('Поиск') || fallbackPlaceholder);
+        if (offline && !activeValue) {
+            visibleInput.setAttribute('placeholder', tr('Нет сети'));
+        } else {
+            visibleInput.setAttribute('placeholder', onlinePlaceholder);
+        }
+    }
+
     // \u041F\u0435\u0440\u0435\u043C\u0435\u0449\u0430\u0435\u043C overlay \u0438\u0437 \u043A\u043E\u043D\u0446\u0430 \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \u0432 \u0441\u0430\u0439\u0434\u0431\u0430\u0440, \u043F\u043E\u0434 top-card.
     if (overlay.parentElement !== sidebar) {
         sidebar.insertBefore(overlay, sidebarTopCard.nextSibling);
@@ -171,6 +191,7 @@ export function initSearchOverlay() {
             hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
         lastQuery = '';
+        syncSearchNetworkState();
     }
 
     function clearAutoSwitch() {
@@ -209,6 +230,7 @@ export function initSearchOverlay() {
         } else {
             scheduleAutoSwitchToContacts(trimmed);
         }
+        syncSearchNetworkState();
     }
 
     visibleInput.addEventListener('focus', () => open());
@@ -276,6 +298,11 @@ export function initSearchOverlay() {
         event.preventDefault();
         close({ focusTrigger: true });
     });
+
+    window.addEventListener('online', syncSearchNetworkState);
+    window.addEventListener('offline', syncSearchNetworkState);
+    window.addEventListener('sun-ui-language-changed', syncSearchNetworkState);
+    syncSearchNetworkState();
 
     // \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430 \u043F\u0440\u0435\u0436\u043D\u0435\u0433\u043E API: window.openCommandPalette(prefill).
     window.closeCommandPalette = function () { close(); };
