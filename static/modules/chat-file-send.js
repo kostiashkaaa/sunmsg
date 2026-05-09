@@ -8,6 +8,22 @@ import {
     buildAudioWaveformPeaks,
     probeVisualMediaMetadata,
 } from './chat-media-upload.js?v=2.1.0';
+import { createTypingSignalHeartbeat } from './chat-typing-signal-heartbeat.js';
+
+function resolveTransferPresenceKinds(options = {}) {
+    const hint = String(options?.typingKindHint || '').trim().toLowerCase();
+    const isVoiceTransfer = hint === 'voice' || hint === 'voice_message';
+    if (isVoiceTransfer) {
+        return {
+            upload: 'upload_voice',
+            send: 'send_voice',
+        };
+    }
+    return {
+        upload: 'upload_file',
+        send: 'send_file',
+    };
+}
 
 export async function sendFileMessageFlow({
     file,
@@ -55,6 +71,11 @@ export async function sendFileMessageFlow({
     }
 
     const sourceCategory = detectFileCategory(uploadFile);
+    const transferPresenceKinds = resolveTransferPresenceKinds(options);
+    const transferPresenceSignal = createTypingSignalHeartbeat({
+        emitSocket,
+        getChatId: () => currentChatId,
+    });
     const forceDocumentVisual = attachMode === 'file'
         && (sourceCategory === 'image' || sourceCategory === 'video');
     const category = forceDocumentVisual ? 'file' : sourceCategory;
@@ -128,6 +149,7 @@ export async function sendFileMessageFlow({
         clientId,
         progress: 0,
     });
+    transferPresenceSignal.start(transferPresenceKinds.upload);
     setSendingState(true);
     try {
         const [uploaded, audioWaveform] = await Promise.all([
@@ -174,6 +196,7 @@ export async function sendFileMessageFlow({
         };
         const payload = JSON.stringify(finalPayload);
         commitPendingFileUpload?.(clientId, finalPayload);
+        transferPresenceSignal.start(transferPresenceKinds.send);
 
         const encrypted = await encryptForCurrentChat(payload);
         const emitted = emitSocket('send_message', {
@@ -203,6 +226,7 @@ export async function sendFileMessageFlow({
         if (isUploadAbortedError(error)) return;
         throw error;
     } finally {
+        transferPresenceSignal.stopAll();
         clearActiveComposerUpload?.(clientId);
         setSendingState(false);
     }

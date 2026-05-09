@@ -617,6 +617,53 @@
             white-space: nowrap;
         }
 
+        .typing-indicator-glyph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 13px;
+            height: 13px;
+            font-size: 11px;
+            opacity: 0.9;
+            transform-origin: 50% 50%;
+            will-change: transform, opacity;
+        }
+
+        .typing-indicator-inline[data-typing-kind^="upload_"] .typing-indicator-glyph {
+            animation: typingUploadSpin 1.05s linear infinite;
+        }
+
+        .typing-indicator-inline[data-typing-kind="voice"] .typing-indicator-glyph,
+        .typing-indicator-inline[data-typing-kind="upload_voice"] .typing-indicator-glyph {
+            animation: typingVoicePulse 1.18s var(--ease-quick) infinite;
+        }
+
+        .typing-indicator-inline[data-typing-kind^="send_"] .typing-indicator-glyph {
+            animation: typingSendPulse 0.95s var(--ease-quick) infinite;
+        }
+
+        .typing-indicator-inline[data-typing-kind^="upload_"] .typing-indicator-label,
+        .typing-indicator-inline[data-typing-kind^="send_"] .typing-indicator-label {
+            letter-spacing: 0.045em;
+        }
+
+        @keyframes typingVoicePulse {
+            0%   { transform: scale(0.86); opacity: 0.52; }
+            50%  { transform: scale(1.04); opacity: 1; }
+            100% { transform: scale(0.86); opacity: 0.52; }
+        }
+
+        @keyframes typingUploadSpin {
+            from { transform: rotate(0deg); opacity: 0.84; }
+            to   { transform: rotate(360deg); opacity: 1; }
+        }
+
+        @keyframes typingSendPulse {
+            0%   { transform: translateX(-1px) scale(0.96); opacity: 0.68; }
+            50%  { transform: translateX(1px) scale(1.02); opacity: 1; }
+            100% { transform: translateX(-1px) scale(0.96); opacity: 0.68; }
+        }
+
 
         #typingIndicator .typing-indicator-inline {
             font-size: 11px;

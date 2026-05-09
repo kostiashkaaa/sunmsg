@@ -49,12 +49,64 @@ function isGroupChatById(chatId) {
     return String(item?.getAttribute('data-is-group') || '') === '1';
 }
 
+const TYPING_KIND_PRIORITY = {
+    text: 1,
+    voice: 2,
+    upload_file: 3,
+    upload_voice: 4,
+    send_file: 5,
+    send_voice: 6,
+};
+
+function normalizeTypingKind(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(TYPING_KIND_PRIORITY, normalized)
+        ? normalized
+        : 'text';
+}
+
+function resolveDominantTypingKind(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (!list.length) return 'text';
+    let dominant = 'text';
+    let dominantPriority = TYPING_KIND_PRIORITY.text;
+    list.forEach((entry) => {
+        const kind = normalizeTypingKind(entry?.typing_kind);
+        const priority = TYPING_KIND_PRIORITY[kind] || TYPING_KIND_PRIORITY.text;
+        if (priority > dominantPriority) {
+            dominant = kind;
+            dominantPriority = priority;
+        }
+    });
+    return dominant;
+}
+
+function resolveTypingActionLabel(kind, { plural = false } = {}) {
+    const normalized = normalizeTypingKind(kind);
+    if (normalized === 'voice') {
+        return plural ? tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u044E\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435') : tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435');
+    }
+    if (normalized === 'upload_file') {
+        return plural ? tr('\u0437\u0430\u0433\u0440\u0443\u0436\u0430\u044E\u0442 \u0444\u0430\u0439\u043B\u044B') : tr('\u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442 \u0444\u0430\u0439\u043B');
+    }
+    if (normalized === 'upload_voice') {
+        return plural ? tr('\u0437\u0430\u0433\u0440\u0443\u0436\u0430\u044E\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435') : tr('\u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435');
+    }
+    if (normalized === 'send_file') {
+        return plural ? tr('\u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442 \u0444\u0430\u0439\u043B\u044B') : tr('\u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u0442 \u0444\u0430\u0439\u043B');
+    }
+    if (normalized === 'send_voice') {
+        return plural ? tr('\u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435') : tr('\u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435');
+    }
+    return plural ? tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442') : tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442');
+}
+
 function buildTypingPhrase(entries, { includeNames = true } = {}) {
     const list = Array.isArray(entries) ? entries : [];
     if (!list.length) return '';
-    const hasVoiceRecording = list.some((entry) => String(entry?.typing_kind || 'text') === 'voice');
-    const singleAction = hasVoiceRecording ? tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435') : tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442');
-    const pluralAction = hasVoiceRecording ? tr('\u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u044E\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435') : tr('\u043F\u0435\u0447\u0430\u0442\u0430\u044E\u0442');
+    const dominantKind = resolveDominantTypingKind(list);
+    const singleAction = resolveTypingActionLabel(dominantKind, { plural: false });
+    const pluralAction = resolveTypingActionLabel(dominantKind, { plural: true });
     if (!includeNames) {
         if (list.length === 1) return singleAction;
         if (list.length === 2) return pluralAction;
@@ -69,24 +121,37 @@ function buildTypingPhrase(entries, { includeNames = true } = {}) {
     return `${list.length} ${pluralAction}...`;
 }
 
-function renderTypingText(text) {
-    const typingIndicator = document.getElementById('typingIndicator');
-    if (!typingIndicator) return;
-    const label = escapeHtml(sanitizeTypingLabel(text));
-    typingIndicator.innerHTML = `
-        <span class="typing-indicator-inline">
-            <span class="typing-indicator-label">${label}</span>
-            <span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
-        </span>
-    `;
+function resolveTypingKindIconClass(kind) {
+    const normalized = normalizeTypingKind(kind);
+    if (normalized === 'voice' || normalized === 'upload_voice') return 'bi bi-mic-fill';
+    if (normalized === 'upload_file') return 'bi bi-upload';
+    if (normalized === 'send_file' || normalized === 'send_voice') return 'bi bi-send-fill';
+    return '';
 }
 
-function showTyping(text) {
+function buildTypingInlineHtml(text, kind, { withSidebarMarker = false } = {}) {
+    const label = escapeHtml(sanitizeTypingLabel(text));
+    const normalizedKind = normalizeTypingKind(kind);
+    const iconClass = resolveTypingKindIconClass(normalizedKind);
+    const markerAttr = withSidebarMarker ? ' data-typing-indicator="1"' : '';
+    const iconHtml = iconClass
+        ? `<span class="typing-indicator-glyph" aria-hidden="true"><i class="${iconClass}"></i></span>`
+        : '';
+    return `<span class="typing-indicator-inline typing-indicator-inline--${normalizedKind}" data-typing-kind="${normalizedKind}"${markerAttr}><span class="typing-indicator-label">${label}</span>${iconHtml}<span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>`;
+}
+
+function renderTypingText(text, kind = 'text') {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (!typingIndicator) return;
+    typingIndicator.innerHTML = buildTypingInlineHtml(text, kind);
+}
+
+function showTyping(text, kind = 'text') {
     const typingIndicator = document.getElementById('typingIndicator');
     const chatOnlineStatus = document.getElementById('chatOnlineStatus');
     if (chatOnlineStatus) chatOnlineStatus.style.display = 'none';
     if (typingIndicator) {
-        if (text) renderTypingText(text);
+        if (text) renderTypingText(text, kind);
         typingIndicator.style.display = 'block';
     }
 }
@@ -98,7 +163,7 @@ function hideTyping() {
     if (chatOnlineStatus) chatOnlineStatus.style.display = 'block';
 }
 
-function showSidebarTyping(chatId, text) {
+function showSidebarTyping(chatId, text, kind = 'text') {
     const item = document.querySelector(`.contact-item[data-chat-id="${chatId}"]`);
     if (!item) return;
     const lastMessage = item.querySelector('.contact-last-msg');
@@ -106,8 +171,8 @@ function showSidebarTyping(chatId, text) {
     if (!Object.prototype.hasOwnProperty.call(sidebarTypingSnapshotByChat, chatId)) {
         sidebarTypingSnapshotByChat[chatId] = lastMessage.innerHTML;
     }
-    const typingLabel = escapeHtml(sanitizeTypingLabel(text || tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442')));
-    lastMessage.innerHTML = `<span class="typing-indicator-inline" data-typing-indicator="1"><span class="typing-indicator-label">${typingLabel}</span><span class="typing-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>`;
+    const typingLabel = sanitizeTypingLabel(text || tr('\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442'));
+    lastMessage.innerHTML = buildTypingInlineHtml(typingLabel, kind, { withSidebarMarker: true });
 }
 
 function hideSidebarTyping(chatId) {
@@ -163,9 +228,10 @@ function applyTypingUiForChat(chatId, getChatId) {
         if (String(getChatId() || '') === key) hideTyping();
         return;
     }
+    const dominantKind = resolveDominantTypingKind(entries);
     const phrase = buildTypingPhrase(entries, { includeNames: isGroupChatById(key) });
-    showSidebarTyping(key, phrase);
-    if (String(getChatId() || '') === key) showTyping(phrase);
+    showSidebarTyping(key, phrase, dominantKind);
+    if (String(getChatId() || '') === key) showTyping(phrase, dominantKind);
 }
 
 function pruneTypingState(chatId) {
@@ -186,7 +252,7 @@ function upsertTypingSignal(data, getChatId) {
         sender_user_id: data?.sender_user_id,
         sender_display_name: data?.sender_display_name,
         sender_username: data?.sender_username,
-        typing_kind: String(data?.typing_kind || 'text').trim().toLowerCase() === 'voice' ? 'voice' : 'text',
+        typing_kind: normalizeTypingKind(data?.typing_kind),
     });
     typingEntriesByChat.set(chatId, map);
 
