@@ -1437,5 +1437,85 @@ select.settings-select-control:focus-visible {
     margin-top: 8px;
 }
 
+.settings-preference-group {
+    padding: 10px 0 6px;
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.settings-preference-group--tight {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.settings-preference-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.settings-preference-option {
+    display: grid;
+    grid-template-columns: 20px 22px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+.settings-preference-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    opacity: 0;
+    margin: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+.settings-preference-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    border: 2px solid color-mix(in srgb, var(--text) 38%, var(--rule));
+    position: relative;
+    transition: border-color var(--dur-quick) var(--ease-quick);
+}
+
+.settings-preference-indicator::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 999px;
+    background: var(--accent);
+    transform: scale(0);
+    opacity: 0;
+    transition: transform var(--dur-quick) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick);
+}
+
+.settings-preference-option input[type="radio"]:checked + .settings-preference-indicator {
+    border-color: var(--accent);
+}
+
+.settings-preference-option input[type="radio"]:checked + .settings-preference-indicator::after {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.settings-preference-option input[type="radio"]:focus-visible + .settings-preference-indicator {
+    outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    outline-offset: 2px;
+}
+
+.settings-preference-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.settings-preference-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+}
+
 
 

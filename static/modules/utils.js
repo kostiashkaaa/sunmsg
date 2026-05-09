@@ -67,6 +67,35 @@ function activeLocale() {
     return language === 'en' ? 'en-US' : 'ru-RU';
 }
 
+const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
+const TIME_FORMAT_12H = '12h';
+const TIME_FORMAT_24H = '24h';
+
+function normalizeTimeFormat(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    return raw === TIME_FORMAT_12H ? TIME_FORMAT_12H : TIME_FORMAT_24H;
+}
+
+function readTimeFormat() {
+    try {
+        return normalizeTimeFormat(window.localStorage.getItem(TIME_FORMAT_STORAGE_KEY));
+    } catch (_) {
+        return TIME_FORMAT_24H;
+    }
+}
+
+function buildTimeFormatOptions({ includeSeconds = false } = {}) {
+    const options = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: readTimeFormat() === TIME_FORMAT_12H,
+    };
+    if (includeSeconds) {
+        options.second = '2-digit';
+    }
+    return options;
+}
+
 export function sanitizeFileUri(rawUri, { imageOnlyData = false } = {}) {
     const FALLBACK = '#';
     if (typeof rawUri !== 'string') return FALLBACK;
@@ -96,7 +125,7 @@ export function formatTime(timestamp) {
         dateStr = dateStr.replace(' ', 'T') + 'Z';
     }
     const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(activeLocale(), buildTimeFormatOptions());
 }
 
 export function formatMediaDuration(seconds) {
@@ -118,7 +147,8 @@ export function formatFullTimestamp(timestamp) {
     }
     const d = new Date(dateStr);
     const pad = n => String(n).padStart(2, '0');
-    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const timePart = d.toLocaleTimeString(activeLocale(), buildTimeFormatOptions({ includeSeconds: true }));
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${timePart}`;
 }
 
 export function formatSidebarTime(timestamp) {
@@ -128,12 +158,11 @@ export function formatSidebarTime(timestamp) {
     const d = new Date(dateStr);
     if (isNaN(d)) return '';
     const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
     const isToday = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
     const isYesterday = d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
     const isThisYear = d.getFullYear() === now.getFullYear();
-    if (isToday) return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (isToday) return d.toLocaleTimeString(activeLocale(), buildTimeFormatOptions());
     if (isYesterday) return tr('\u0412\u0447\u0435\u0440\u0430');
     if (isThisYear) {
         return d.toLocaleDateString(activeLocale(), { day: '2-digit', month: '2-digit' });

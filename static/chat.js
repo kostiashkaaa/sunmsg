@@ -11,6 +11,7 @@ import {
     renderMessagePreviewHtml,
     getErrorMessage,
 } from './modules/utils.js';
+import { refreshVisibleTimePreferenceRendering } from './modules/time-format-sync.js';
 import { withAppRoot } from './modules/app-url.js';
 import { initLightbox } from './modules/lightbox.js';
 import { initPresence } from './modules/presence.js';
@@ -872,6 +873,7 @@ const initChatPage = async () => {
     const PINNED_CHATS_LIMIT = 5;
     const CHAT_DAY_SEPARATOR_HEIGHT = 34;
     const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
+    const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const MUTE_CHAT_STORAGE_KEY = 'sun_chat_muted_v1';
     const MUTE_DIALOG_REQUESTS_STORAGE_KEY = 'sun_mute_dialog_requests_v1';
     const BASE_TAB_TITLE = document.title || 'sun';
@@ -1972,9 +1974,16 @@ const initChatPage = async () => {
         })();
 
         applyMessageScale(storedScale || 1, { persist: false, rerender: false });
+        refreshVisibleTimePreferenceRendering(document);
         window.addEventListener('storage', (event) => {
-            if (String(event.key || '') !== MESSAGE_SCALE_STORAGE_KEY) return;
-            applyMessageScale(event.newValue || 1, { persist: false, rerender: true });
+            const key = String(event.key || '');
+            if (key === MESSAGE_SCALE_STORAGE_KEY) {
+                applyMessageScale(event.newValue || 1, { persist: false, rerender: true });
+                return;
+            }
+            if (key === TIME_FORMAT_STORAGE_KEY) {
+                refreshVisibleTimePreferenceRendering(document);
+            }
         });
 
         muteChatBtn?.addEventListener('click', (event) => {

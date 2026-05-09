@@ -21,7 +21,16 @@ export function createMessageEditController(options = {}) {
 
     const MESSAGE_EDIT_WINDOW_SECONDS = 48 * 60 * 60;
     const MESSAGE_EDIT_WINDOW_MS = MESSAGE_EDIT_WINDOW_SECONDS * 1000;
+    const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     let isEditingFilePayload = null;
+
+    function isTwelveHourTimeFormat() {
+        try {
+            return String(window.localStorage.getItem(TIME_FORMAT_STORAGE_KEY) || '').trim().toLowerCase() === '12h';
+        } catch (_) {
+            return false;
+        }
+    }
 
     function getEditingFilePayload() {
         return isEditingFilePayload;
@@ -83,7 +92,7 @@ export function createMessageEditController(options = {}) {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            hour12: false,
+            hour12: isTwelveHourTimeFormat(),
         });
         if (lang === 'en') {
             return `${month} ${day} at ${time}`;
