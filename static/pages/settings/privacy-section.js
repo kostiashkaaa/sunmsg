@@ -20,6 +20,9 @@ const SIDEBAR_WEATHER_METRIC_KEYS = Object.freeze([
     'sun_cycle',
 ]);
 const SIDEBAR_WEATHER_DEFAULT_METRICS = Object.freeze(['temperature']);
+const SIDEBAR_WEATHER_CITY_SUGGESTIONS_MIN_QUERY_LENGTH = 2;
+const SIDEBAR_WEATHER_CITY_SUGGESTIONS_LIMIT = 8;
+const SIDEBAR_WEATHER_CITY_SUGGESTIONS_DEBOUNCE_MS = 260;
 const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
 const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
 
@@ -121,6 +124,7 @@ export function initPrivacySection({
     const sidebarWeatherSourceRowEl = document.getElementById('sidebarWeatherSourceRow');
     const sidebarWeatherSourceSelectEl = document.getElementById('sidebarWeatherSourceSelect');
     const sidebarWeatherCityInputEl = document.getElementById('sidebarWeatherCityInput');
+    const sidebarWeatherCitySuggestionsEl = document.getElementById('sidebarWeatherCitySuggestions');
     const sidebarWeatherCityRowEl = document.getElementById('sidebarWeatherCityRow');
     const sidebarWeatherRotateRowEl = document.getElementById('sidebarWeatherRotateRow');
     const sidebarWeatherRotateSelectEl = document.getElementById('sidebarWeatherRotateSelect');
@@ -129,6 +133,8 @@ export function initPrivacySection({
         .map((metricKey) => document.querySelector(`input[name="sidebarWeatherMetricOption"][value="${metricKey}"]`))
         .filter((el) => el instanceof HTMLInputElement);
     let persistedClientPreferences = {};
+    let sidebarWeatherCitySuggestionsTimerId = 0;
+    let sidebarWeatherCitySuggestionsRequestSeq = 0;
 
     function resolveLocale() {
         const language = i18nApi && typeof i18nApi.getLanguage === 'function'
@@ -180,6 +186,103 @@ export function initPrivacySection({
         }
     }
 
+    function resolveWeatherCitySuggestionsLanguage() {
+        const language = String(languageSelectEl?.value || '').trim().toLowerCase();
+        return language === 'en' ? 'en' : 'ru';
+    }
+
+    function clearSidebarWeatherCitySuggestions() {
+        if (!sidebarWeatherCitySuggestionsEl) return;
+        sidebarWeatherCitySuggestionsEl.replaceChildren();
+    }
+
+    function buildSidebarWeatherCitySuggestionLabel(rawItem) {
+        const item = rawItem && typeof rawItem === 'object' ? rawItem : {};
+        const pieces = [
+            String(item.name || '').trim(),
+            String(item.admin1 || '').trim(),
+            String(item.country || '').trim(),
+        ].filter(Boolean);
+        if (!pieces.length) return '';
+        const deduped = [];
+        const seen = new Set();
+        pieces.forEach((piece) => {
+            const key = piece.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            deduped.push(piece);
+        });
+        return deduped.join(', ');
+    }
+
+    function applySidebarWeatherCitySuggestions(items) {
+        if (!sidebarWeatherCitySuggestionsEl) return;
+        sidebarWeatherCitySuggestionsEl.replaceChildren();
+        const seen = new Set();
+        items.forEach((item) => {
+            const label = buildSidebarWeatherCitySuggestionLabel(item);
+            if (!label) return;
+            const key = label.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            const optionEl = document.createElement('option');
+            optionEl.value = label.slice(0, 80);
+            sidebarWeatherCitySuggestionsEl.appendChild(optionEl);
+        });
+    }
+
+    async function requestSidebarWeatherCitySuggestions(query, seq) {
+        const language = resolveWeatherCitySuggestionsLanguage();
+        const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+        url.searchParams.set('name', query);
+        url.searchParams.set('count', String(SIDEBAR_WEATHER_CITY_SUGGESTIONS_LIMIT));
+        url.searchParams.set('language', language);
+        url.searchParams.set('format', 'json');
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            cache: 'no-store',
+        });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null);
+        if (seq !== sidebarWeatherCitySuggestionsRequestSeq) return;
+        const results = Array.isArray(payload?.results) ? payload.results : [];
+        applySidebarWeatherCitySuggestions(results);
+    }
+
+    function scheduleSidebarWeatherCitySuggestionsUpdate({ immediate = false } = {}) {
+        window.clearTimeout(sidebarWeatherCitySuggestionsTimerId);
+        const enabled = !!sidebarWeatherEnabledSwitchEl?.checked;
+        const source = normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value);
+        const isCityMode = enabled && source === SIDEBAR_WEATHER_SOURCE_CITY;
+        if (!isCityMode || !sidebarWeatherCityInputEl || sidebarWeatherCityInputEl.disabled) {
+            clearSidebarWeatherCitySuggestions();
+            return;
+        }
+
+        const query = normalizeSidebarWeatherCity(sidebarWeatherCityInputEl.value);
+        if (query.length < SIDEBAR_WEATHER_CITY_SUGGESTIONS_MIN_QUERY_LENGTH) {
+            clearSidebarWeatherCitySuggestions();
+            return;
+        }
+
+        const run = () => {
+            const seq = ++sidebarWeatherCitySuggestionsRequestSeq;
+            void requestSidebarWeatherCitySuggestions(query, seq).catch(() => {
+                if (seq !== sidebarWeatherCitySuggestionsRequestSeq) return;
+                clearSidebarWeatherCitySuggestions();
+            });
+        };
+
+        if (immediate) {
+            run();
+            return;
+        }
+        sidebarWeatherCitySuggestionsTimerId = window.setTimeout(
+            run,
+            SIDEBAR_WEATHER_CITY_SUGGESTIONS_DEBOUNCE_MS,
+        );
+    }
+
     function syncSidebarWeatherControls() {
         const enabled = !!sidebarWeatherEnabledSwitchEl?.checked;
         const source = normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value);
@@ -209,6 +312,12 @@ export function initPrivacySection({
         sidebarWeatherMetricInputEls.forEach((inputEl) => {
             inputEl.disabled = !enabled;
         });
+        if (visible) {
+            scheduleSidebarWeatherCitySuggestionsUpdate();
+        } else {
+            window.clearTimeout(sidebarWeatherCitySuggestionsTimerId);
+            clearSidebarWeatherCitySuggestions();
+        }
     }
 
     function getSidebarWeatherPreferencesFromControls() {
@@ -525,6 +634,10 @@ export function initPrivacySection({
         });
     }
 
+    languageSelectEl?.addEventListener('change', () => {
+        scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
+    });
+
     animationsEnabledSwitchEl?.addEventListener('change', () => {
         const animationsEnabled = !!animationsEnabledSwitchEl.checked;
         applyMotionPreferences(
@@ -542,6 +655,14 @@ export function initPrivacySection({
 
     sidebarWeatherSourceSelectEl?.addEventListener('change', () => {
         syncSidebarWeatherControls();
+    });
+
+    sidebarWeatherCityInputEl?.addEventListener('input', () => {
+        scheduleSidebarWeatherCitySuggestionsUpdate();
+    });
+
+    sidebarWeatherCityInputEl?.addEventListener('focus', () => {
+        scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
     });
 
     floatingSaveBtn?.addEventListener('click', function () {
