@@ -317,8 +317,24 @@ const initChatPage = async () => {
 
     // Chat animations controller — initialised below.
     var chatAnimationsController;
-    function triggerChatSurfaceEnterAnimation() { return chatAnimationsController?.triggerChatSurfaceEnterAnimation(); }
-    function triggerChatHistoryRevealAnimation() { return chatAnimationsController?.triggerChatHistoryRevealAnimation(); }
+    function triggerChatSurfaceEnterAnimation() {
+        if (isMobileViewport()) {
+            if (chatArea) {
+                chatArea.classList.remove('chat-surface-enter');
+            }
+            return;
+        }
+        return chatAnimationsController?.triggerChatSurfaceEnterAnimation();
+    }
+    function triggerChatHistoryRevealAnimation() {
+        if (isMobileViewport()) {
+            if (chatArea) {
+                chatArea.classList.remove('chat-history-reveal', 'is-switching');
+            }
+            return;
+        }
+        return chatAnimationsController?.triggerChatHistoryRevealAnimation();
+    }
     function triggerChatAnimateEnter() { return chatAnimationsController?.triggerChatAnimateEnter(); }
     function triggerDesktopMobileRevealAnimation() { return chatAnimationsController?.triggerDesktopMobileRevealAnimation(); }
 

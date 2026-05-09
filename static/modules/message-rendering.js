@@ -259,7 +259,10 @@ function bindMessageInteractiveHandlers(messageDiv) {
             resetPointerSeek();
         });
 
-        rangeEl.addEventListener('input', () => window._seekAudioPlayer?.(rangeEl));
+        rangeEl.addEventListener('input', () => {
+            if (rangeEl.dataset.seeking === '1') return;
+            window._seekAudioPlayer?.(rangeEl);
+        });
         rangeEl.addEventListener('keydown', (event) => window._handleAudioSeekKeydown?.(rangeEl, event));
         rangeEl.addEventListener('mousedown', () => setSeekingState(true));
         rangeEl.addEventListener('mouseup', () => setSeekingState(false));

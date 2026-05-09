@@ -1106,6 +1106,7 @@ export function initChatMediaRuntime(deps = {}) {
         voicePlaybackProgress.addEventListener('pointercancel', endProgressSeek);
         voicePlaybackProgress.addEventListener('lostpointercapture', endProgressSeek);
         voicePlaybackProgress.addEventListener('input', () => {
+            if (voicePlaybackProgress.dataset.seeking === '1') return;
             seekActiveVoicePlaybackByPercent(Number(voicePlaybackProgress.value) || 0);
         });
     }
