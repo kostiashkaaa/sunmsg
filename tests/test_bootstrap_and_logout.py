@@ -110,6 +110,7 @@ def test_chat_page_uses_safe_socketio_client_config(monkeypatch, tmp_path):
     assert bootstrap_payload['socketio']['transports'] == ['polling', 'websocket']
     assert bootstrap_payload['socketio']['upgrade'] is False
     assert bootstrap_payload['user']['currentUsername'] == 'alice'
+    assert isinstance(bootstrap_payload['user']['clientPreferences'], dict)
     assert bootstrap_payload['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
     assert 'window.SUN_SOCKETIO_CONFIG' not in html
 
@@ -150,6 +151,7 @@ def test_auth_and_settings_pages_embed_bootstrap_payload(monkeypatch, tmp_path):
     assert settings_bootstrap['page'] == 'settings'
     assert settings_bootstrap['user']['currentUsername'] == 'alice'
     assert settings_bootstrap['user']['embedMode'] is False
+    assert isinstance(settings_bootstrap['user']['clientPreferences'], dict)
     assert settings_bootstrap['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
     assert 'window.SUN_QRCODE_SRC' not in settings_html
     assert 'pages/settings-qr.js' not in settings_html
@@ -173,6 +175,14 @@ const payload = {{
     currentAvatarUrl: '/static/avatars/a.png',
     initialChatContactUsername: 'bob',
     uiLanguage: 'en',
+    clientPreferences: {{
+      darkMode: true,
+      messageScale: 1.2,
+      performanceMode: 'lite',
+      motionLevel: 'balanced',
+      interfaceThemeStore: {{ version: 2, themes: {{ light: {{ accent: '#c58a22' }}, dark: {{ accent: '#d6a449' }} }} }},
+      chatAppearanceStore: {{ themes: {{ light: {{ mode: 'default' }}, dark: {{ mode: 'default' }} }} }},
+    }},
   }},
   socketio: {{
     transports: ['polling', 'websocket'],
@@ -187,9 +197,23 @@ const bootstrapScript = {{
   textContent: JSON.stringify(payload),
 }};
 
+const localStorageState = {{}};
+const localStorage = {{
+  getItem(key) {{
+    return Object.prototype.hasOwnProperty.call(localStorageState, key) ? localStorageState[key] : null;
+  }},
+  setItem(key, value) {{
+    localStorageState[key] = String(value);
+  }},
+  removeItem(key) {{
+    delete localStorageState[key];
+  }},
+}};
+
 const windowObj = {{}};
 const context = {{
   window: windowObj,
+  localStorage,
   document: {{
     documentElement: {{ lang: 'ru' }},
     body: {{
@@ -213,12 +237,19 @@ vm.runInNewContext(source, context, {{ filename: 'bootstrap.js' }});
 if (!windowObj.SUN_BOOTSTRAP) throw new Error('SUN_BOOTSTRAP was not created');
 if (windowObj.SUN_BOOTSTRAP.page !== 'chat') throw new Error('Unexpected bootstrap page');
 if (windowObj.SUN_BOOTSTRAP.user.currentUsername !== 'alice') throw new Error('Bootstrap user.username mismatch');
+if (windowObj.SUN_BOOTSTRAP.user.clientPreferences.darkMode !== true) throw new Error('Bootstrap user.clientPreferences mismatch');
 if (!Array.isArray(windowObj.SUN_BOOTSTRAP.socketio.transports)) throw new Error('Socket transports missing');
 if (windowObj.SUN_BOOTSTRAP.socketio.upgrade !== false) throw new Error('Socket upgrade mismatch');
 if (windowObj.SUN_QRCODE_SRC !== '/static/vendor/js/qrcode.min.js?v=123') throw new Error('QR source mismatch');
 if (windowObj.currentUserId !== '42') throw new Error('Legacy currentUserId mismatch');
 if (windowObj.currentDisplayName !== 'Alice') throw new Error('Legacy currentDisplayName mismatch');
 if (typeof windowObj.getSunBootstrap !== 'function') throw new Error('Bootstrap accessor missing');
+if (localStorageState.darkMode !== 'true') throw new Error('darkMode was not persisted from bootstrap clientPreferences');
+if (localStorageState.sun_chat_message_scale_v1 !== '1.20') throw new Error('message scale was not persisted from bootstrap clientPreferences');
+if (localStorageState.sun_performance_mode !== 'lite') throw new Error('performance mode was not persisted from bootstrap clientPreferences');
+if (localStorageState.sun_motion_level !== 'balanced') throw new Error('motion level was not persisted from bootstrap clientPreferences');
+if (!localStorageState['sun.interfaceTheme.v1']) throw new Error('interface theme store was not persisted');
+if (!localStorageState['sun.chatAppearance.v2']) throw new Error('chat appearance store was not persisted');
 """
 
     result = subprocess.run(

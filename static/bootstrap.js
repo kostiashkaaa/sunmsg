@@ -3,6 +3,10 @@
 
     const BOOTSTRAP_SCRIPT_ID = 'sun-bootstrap-data';
     const DEFAULT_QRCODE_SRC = '/static/vendor/js/qrcode.min.js';
+    const MESSAGE_SCALE_MIN = 0.9;
+    const MESSAGE_SCALE_MAX = 1.3;
+    const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
+    const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
 
     function asObject(value) {
         return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -14,6 +18,10 @@
 
     function asLanguage(value) {
         return asString(value).toLowerCase() === 'en' ? 'en' : 'ru';
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
     }
 
     function asTransports(value) {
@@ -40,6 +48,87 @@
             enabled: Boolean(raw.enabled),
             publicKey: asString(raw.publicKey),
         };
+    }
+
+    function asJsonObject(value, maxLength) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return null;
+        }
+        try {
+            const packed = JSON.stringify(value);
+            if (!packed || packed.length > maxLength) return null;
+            const parsed = JSON.parse(packed);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function asClientPreferences(value) {
+        const raw = asObject(value);
+        const out = {};
+
+        if (typeof raw.darkMode === 'boolean') {
+            out.darkMode = raw.darkMode;
+        }
+
+        const messageScaleRaw = Number(raw.messageScale);
+        if (Number.isFinite(messageScaleRaw)) {
+            out.messageScale = Number(clamp(messageScaleRaw, MESSAGE_SCALE_MIN, MESSAGE_SCALE_MAX).toFixed(2));
+        }
+
+        const performanceMode = asString(raw.performanceMode).toLowerCase();
+        if (PERFORMANCE_MODES.has(performanceMode)) {
+            out.performanceMode = performanceMode;
+        }
+
+        const motionLevel = asString(raw.motionLevel).toLowerCase();
+        if (MOTION_LEVELS.has(motionLevel)) {
+            out.motionLevel = motionLevel;
+        }
+
+        const interfaceThemeStore = asJsonObject(raw.interfaceThemeStore, 32_000);
+        if (interfaceThemeStore) {
+            out.interfaceThemeStore = interfaceThemeStore;
+        }
+
+        const chatAppearanceStore = asJsonObject(raw.chatAppearanceStore, 460_000);
+        if (chatAppearanceStore) {
+            out.chatAppearanceStore = chatAppearanceStore;
+        }
+
+        return out;
+    }
+
+    function applyClientPreferences(clientPreferences) {
+        if (!clientPreferences || typeof clientPreferences !== 'object') return;
+        if (typeof localStorage === 'undefined' || !localStorage || typeof localStorage.setItem !== 'function') {
+            return;
+        }
+
+        try {
+            if (typeof clientPreferences.darkMode === 'boolean') {
+                localStorage.setItem('darkMode', clientPreferences.darkMode ? 'true' : 'false');
+            }
+            if (Number.isFinite(clientPreferences.messageScale)) {
+                const scale = clamp(Number(clientPreferences.messageScale), MESSAGE_SCALE_MIN, MESSAGE_SCALE_MAX);
+                localStorage.setItem('sun_chat_message_scale_v1', scale.toFixed(2));
+            }
+            if (typeof clientPreferences.performanceMode === 'string' && PERFORMANCE_MODES.has(clientPreferences.performanceMode)) {
+                localStorage.setItem('sun_performance_mode', clientPreferences.performanceMode);
+            }
+            if (typeof clientPreferences.motionLevel === 'string' && MOTION_LEVELS.has(clientPreferences.motionLevel)) {
+                localStorage.setItem('sun_motion_level', clientPreferences.motionLevel);
+            }
+            if (clientPreferences.interfaceThemeStore) {
+                localStorage.setItem('sun.interfaceTheme.v1', JSON.stringify(clientPreferences.interfaceThemeStore));
+            }
+            if (clientPreferences.chatAppearanceStore) {
+                localStorage.setItem('sun.chatAppearance.v2', JSON.stringify(clientPreferences.chatAppearanceStore));
+            }
+        } catch (_error) {
+            // Ignore storage write errors.
+        }
     }
 
     function readBootstrapPayload() {
@@ -71,6 +160,7 @@
                 userPayload.initialChatContactUsername || bodyDataset.initialChatContactUsername
             ).toLowerCase(),
             uiLanguage: asLanguage(userPayload.uiLanguage || bodyDataset.uiLanguage || document.documentElement.lang),
+            clientPreferences: asClientPreferences(userPayload.clientPreferences),
         };
 
         return {
@@ -91,6 +181,7 @@
     }
 
     const bootstrap = buildBootstrap();
+    applyClientPreferences(bootstrap.user?.clientPreferences || {});
     window.SUN_BOOTSTRAP = bootstrap;
     window.getSunBootstrap = () => bootstrap;
 

@@ -22,6 +22,28 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
         return `${root}/${raw.replace(/^\/+/, '')}`;
     };
+    const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    async function persistClientPreferences(clientPreferences) {
+        const response = await fetch(withAppRoot('/api/save_settings'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({
+                client_preferences: clientPreferences || {},
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (!payload || payload.success === false) {
+            throw new Error(String(payload?.error || 'Failed to persist client preferences'));
+        }
+    }
 
     const currentUserState = {
         displayName: String(bootstrapUser.currentDisplayName || window.currentDisplayName || '').trim(),
@@ -231,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             interfaceThemeApi: window.InterfaceTheme || null,
             chatAppearanceApi: window.ChatAppearance || null,
             i18nApi: window.SUN_I18N || null,
+            persistClientPreferences,
         });
 
         settingsOverlayApi = settingsOverlayModule.initChatShellSettingsOverlay({

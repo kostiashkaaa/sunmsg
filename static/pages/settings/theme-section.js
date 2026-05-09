@@ -6,7 +6,9 @@ export function initThemeSection({
     showAlert,
     chatAppearanceApi,
     interfaceThemeApi,
+    persistClientPreferences,
 }) {
+    const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
     const darkModeSwitchEl = document.getElementById('darkModeSwitch');
     const themeLightEl = document.getElementById('themeLight');
     const themeDarkEl = document.getElementById('themeDark');
@@ -15,6 +17,75 @@ export function initThemeSection({
     const activeThemeKey = () => (isDark() ? 'dark' : 'light');
     let refreshChatAppearanceUi = null;
     let refreshInterfaceThemeUi = null;
+    let persistTimerId = 0;
+    let persistInFlight = false;
+    let persistQueued = false;
+
+    function clampMessageScale(value) {
+        const parsed = Number.parseFloat(value);
+        if (!Number.isFinite(parsed)) return 1;
+        return Math.min(1.3, Math.max(0.9, parsed));
+    }
+
+    function collectClientPreferences() {
+        let messageScale = 1;
+        let performanceMode = 'auto';
+        let motionLevel = 'auto';
+
+        try {
+            messageScale = clampMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || 1);
+            const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
+            if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
+                performanceMode = rawPerformanceMode;
+            }
+            const rawMotionLevel = String(localStorage.getItem('sun_motion_level') || '').trim().toLowerCase();
+            if (rawMotionLevel === 'auto' || rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite') {
+                motionLevel = rawMotionLevel;
+            }
+        } catch (_) {}
+
+        return {
+            darkMode: isDark(),
+            messageScale,
+            performanceMode,
+            motionLevel,
+            interfaceThemeStore: interfaceThemeApi?.readStore?.() || {},
+            chatAppearanceStore: chatAppearanceApi?.readStore?.() || {},
+        };
+    }
+
+    async function flushClientPreferencesPersist() {
+        if (typeof persistClientPreferences !== 'function') return;
+        if (persistInFlight) {
+            persistQueued = true;
+            return;
+        }
+
+        persistInFlight = true;
+        const payload = collectClientPreferences();
+        try {
+            await persistClientPreferences(payload);
+        } catch (_) {
+            // Do not block UI if background preferences sync fails.
+        } finally {
+            persistInFlight = false;
+            if (persistQueued) {
+                persistQueued = false;
+                scheduleClientPreferencesPersist(120);
+            }
+        }
+    }
+
+    function scheduleClientPreferencesPersist(delayMs = 360) {
+        if (typeof persistClientPreferences !== 'function') return;
+        if (persistTimerId) {
+            window.clearTimeout(persistTimerId);
+        }
+        persistTimerId = window.setTimeout(() => {
+            persistTimerId = 0;
+            flushClientPreferencesPersist().catch(() => {});
+        }, delayMs);
+    }
 
     function applyTheme(dark) {
         document.documentElement.classList.toggle('dark-mode', dark);
@@ -43,6 +114,7 @@ export function initThemeSection({
     function setTheme(dark) {
         localStorage.setItem('darkMode', dark ? 'true' : 'false');
         applyTheme(!!dark);
+        scheduleClientPreferencesPersist();
     }
 
     darkModeSwitchEl?.addEventListener('change', function () {
@@ -93,12 +165,14 @@ export function initThemeSection({
         accentInput.addEventListener('input', function () {
             interfaceThemeApi.saveThemeState(activeThemeKey(), { accent: this.value });
             applyInterfaceThemeNow();
+            scheduleClientPreferencesPersist();
         });
 
         resetThemeBtn.addEventListener('click', () => {
             interfaceThemeApi.resetTheme(activeThemeKey());
             refreshControls();
             applyInterfaceThemeNow();
+            scheduleClientPreferencesPersist();
             showAlert('Цвет интерфейса для текущей темы сброшен', 'success');
         });
 
@@ -106,6 +180,7 @@ export function initThemeSection({
             interfaceThemeApi.resetAll();
             refreshControls();
             applyInterfaceThemeNow();
+            scheduleClientPreferencesPersist();
             showAlert('Пользовательские цвета интерфейса сброшены', 'success');
         });
 
@@ -116,7 +191,6 @@ export function initThemeSection({
     (function initChatAppearanceSettings() {
         if (!chatAppearanceApi) return;
 
-        const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
         const previewEl = document.getElementById('chatAppearancePreview');
         const modeRow = document.getElementById('chatStyleModeRow');
         const presetGroupsEl = document.getElementById('chatPresetGroups');
@@ -144,12 +218,6 @@ export function initThemeSection({
 
         function getCurrentState() {
             return chatAppearanceApi.getThemeState(activeThemeKey());
-        }
-
-        function clampMessageScale(value) {
-            const parsed = Number.parseFloat(value);
-            if (!Number.isFinite(parsed)) return 1;
-            return Math.min(1.3, Math.max(0.9, parsed));
         }
 
         function getStoredMessageScale() {
@@ -181,6 +249,7 @@ export function initThemeSection({
                 try {
                     localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, normalizedScale.toFixed(2));
                 } catch (_) {}
+                scheduleClientPreferencesPersist();
             }
             renderMessageScaleControls(normalizedScale);
             notifyParent('sun-settings-message-scale-updated', { scale: normalizedScale });
@@ -280,6 +349,7 @@ export function initThemeSection({
 
         function patchState(patch) {
             chatAppearanceApi.saveThemeState(activeThemeKey(), patch);
+            scheduleClientPreferencesPersist();
         }
 
         function patchCustom(customPatch) {
@@ -381,6 +451,7 @@ export function initThemeSection({
                         repeat: !!(state.custom && state.custom.repeat),
                     }),
                 }));
+                scheduleClientPreferencesPersist();
                 refreshControlValues();
                 await applyNowImmediate();
                 showAlert('Кастомный фон применён', 'success');
@@ -397,6 +468,7 @@ export function initThemeSection({
 
         resetAppearanceBtn.addEventListener('click', () => {
             chatAppearanceApi.resetAll();
+            scheduleClientPreferencesPersist();
             refreshControlValues();
             scheduleApplyNow();
             showAlert('Оформление чата сброшено', 'success');

@@ -20,6 +20,7 @@
             'currentDisplayName': current_display_name,
             'uiLanguage': ui_language|default('ru'),
             'embedMode': embed_mode,
+            'clientPreferences': client_preferences|default({}),
         },
         'app': {
             'root': request.script_root or '',

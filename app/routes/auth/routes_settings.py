@@ -26,6 +26,7 @@ from app.routes.auth_helpers_settings import (
     safe_remove_stored_file_from_dir,
 )
 from app.services.blocking import list_visible_contact_public_keys
+from app.services.client_preferences import client_preferences_from_db, client_preferences_to_json
 from app.services.locale import language_from_user_row
 from app.services.presence import is_effectively_online
 from app.services.refresh_tokens import clear_refresh_cookie
@@ -48,7 +49,8 @@ def settings():
         user = conn.execute(
             '''
             SELECT id, username, display_name, public_key, is_public,
-                   auto_decline_requests, hide_online_status, avatar_url, avatar_visibility, bio, language
+                   auto_decline_requests, hide_online_status, avatar_url, avatar_visibility, bio, language,
+                   client_preferences
             FROM users
             WHERE public_key = ?
             ''',
@@ -104,6 +106,9 @@ def settings():
         public_key_pem=user['public_key'],
         embed_mode=embed_mode,
         ui_language=language_from_user_row(user),
+        client_preferences=client_preferences_from_db(
+            user['client_preferences'] if 'client_preferences' in user.keys() else None
+        ),
     )
 
 @auth_bp.route('/api/get_settings', methods=['GET'])
@@ -117,7 +122,8 @@ def get_settings():
     user = conn.execute(
         '''
         SELECT id, username, display_name, public_key, is_public,
-               auto_decline_requests, mute_dialog_requests, hide_online_status, avatar_url, avatar_visibility, bio, language
+               auto_decline_requests, mute_dialog_requests, hide_online_status, avatar_url, avatar_visibility,
+               bio, language, client_preferences
         FROM users
         WHERE public_key = ?
         ''',
@@ -139,6 +145,9 @@ def get_settings():
         'avatar_visibility':    user['avatar_visibility'] if 'avatar_visibility' in user.keys() else 'all',
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
+        'client_preferences':   client_preferences_from_db(
+            user['client_preferences'] if 'client_preferences' in user.keys() else None
+        ),
     })
 
 @auth_bp.route('/api/save_settings', methods=['POST'])
@@ -197,6 +206,16 @@ def api_save_settings():
         if new_language not in {'ru', 'en'}:
             return jsonify({'success': False, 'error': 'Недопустимое значение языка интерфейса.'}), 400
 
+    client_preferences_json = None
+    if 'client_preferences' in data:
+        raw_client_preferences = data.get('client_preferences')
+        if raw_client_preferences is None:
+            client_preferences_json = '{}'
+        elif not isinstance(raw_client_preferences, dict):
+            return jsonify({'success': False, 'error': 'Поле "client_preferences" должно быть объектом.'}), 400
+        else:
+            client_preferences_json = client_preferences_to_json(raw_client_preferences)
+
     try:
         is_public = _normalize_optional_bool('is_public')
         auto_decline_requests = _normalize_optional_bool('auto_decline_requests')
@@ -245,7 +264,8 @@ def api_save_settings():
                     hide_online_status   = COALESCE(?, hide_online_status),
                     avatar_visibility    = COALESCE(?, avatar_visibility),
                     bio                  = COALESCE(?, bio),
-                    language             = COALESCE(?, language)
+                    language             = COALESCE(?, language),
+                    client_preferences   = COALESCE(?, client_preferences)
                 WHERE public_key = ?
             ''', (
                 new_username,
@@ -257,6 +277,7 @@ def api_save_settings():
                 avatar_visibility,
                 bio_value,
                 new_language,
+                client_preferences_json,
                 pub
             ))
             conn.commit()

@@ -22,6 +22,7 @@
             'initialChatContactUsername': initial_chat_contact_username or '',
             'uiLanguage': ui_language|default('ru'),
             'muteDialogRequests': mute_dialog_requests|default(false),
+            'clientPreferences': client_preferences|default({}),
         },
         'socketio': socketio_client_config,
         'app': {

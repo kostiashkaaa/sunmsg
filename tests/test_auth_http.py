@@ -812,6 +812,93 @@ def test_api_save_settings_updates_language(monkeypatch, tmp_path):
         assert sess['ui_language'] == 'en'
 
 
+def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-save-settings-client-preferences.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, language)
+            VALUES (1, 'pk-1', 'alice', 'Alice', 'ru')
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post(
+        '/api/save_settings',
+        json={
+            'client_preferences': {
+                'darkMode': True,
+                'messageScale': 1.5,
+                'performanceMode': 'lite',
+                'motionLevel': 'balanced',
+                'interfaceThemeStore': {
+                    'version': 2,
+                    'themes': {
+                        'light': {'accent': '#c58a22'},
+                        'dark': {'accent': '#d6a449'},
+                    },
+                },
+                'chatAppearanceStore': {
+                    'themes': {
+                        'light': {'mode': 'color', 'color': '#ffffff'},
+                        'dark': {'mode': 'color', 'color': '#111111'},
+                    },
+                },
+                'unknown': 'drop-me',
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {'success': True}
+
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT client_preferences FROM users WHERE id = 1').fetchone()
+
+    stored_preferences = json.loads(row['client_preferences'])
+    assert stored_preferences['darkMode'] is True
+    assert stored_preferences['messageScale'] == 1.3
+    assert stored_preferences['performanceMode'] == 'lite'
+    assert stored_preferences['motionLevel'] == 'balanced'
+    assert 'interfaceThemeStore' in stored_preferences
+    assert 'chatAppearanceStore' in stored_preferences
+    assert 'unknown' not in stored_preferences
+
+    get_response = client.get('/api/get_settings')
+    assert get_response.status_code == 200
+    assert get_response.get_json()['client_preferences'] == stored_preferences
+
+
+def test_api_save_settings_rejects_non_object_client_preferences(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-save-settings-client-preferences-invalid.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post('/api/save_settings', json={'client_preferences': 'invalid'})
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        'success': False,
+        'error': 'Поле "client_preferences" должно быть объектом.',
+    }
+
+
 def test_api_save_settings_skips_profile_broadcast_when_profile_fields_unchanged(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-save-settings-no-profile-broadcast.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

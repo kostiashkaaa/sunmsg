@@ -113,7 +113,8 @@ def ensure_base_schema(conn) -> None:
             totp_secret TEXT,
             totp_enabled_at TIMESTAMP,
             login_vault TEXT,
-            language TEXT NOT NULL DEFAULT 'ru'
+            language TEXT NOT NULL DEFAULT 'ru',
+            client_preferences TEXT NOT NULL DEFAULT '{}'
         );
 
         CREATE TABLE IF NOT EXISTS chats (
