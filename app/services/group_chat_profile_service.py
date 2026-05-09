@@ -9,6 +9,8 @@ from app.services.group_authorization import (
     ACTION_KICK,
     can_role_perform_action,
 )
+from app.services.group_permissions import extract_group_permissions_from_chat_row
+from app.services.group_permissions import role_uses_member_permissions
 
 
 def build_group_chat_profile_payload(
@@ -21,7 +23,7 @@ def build_group_chat_profile_payload(
 ) -> dict | None:
     chat_row = conn.execute(
         '''
-        SELECT chat_id, chat_name, chat_description, chat_avatar_url, created_by_user_id
+        SELECT *
         FROM chats
         WHERE chat_id = ?
         ''',
@@ -163,6 +165,15 @@ def build_group_chat_profile_payload(
     can_ban = can_role_perform_action(my_role, ACTION_BAN)
     can_change_group_settings = can_role_perform_action(my_role, ACTION_CHANGE_SETTINGS)
     can_manage_roles = can_role_perform_action(my_role, ACTION_CHANGE_ROLE)
+    group_permissions = extract_group_permissions_from_chat_row(chat_row)
+    member_scoped = role_uses_member_permissions(my_role)
+    can_invite_effective = can_invite or (member_scoped and bool(group_permissions.get('members_can_add_members')))
+    can_change_settings_effective = can_change_group_settings or (
+        member_scoped and bool(group_permissions.get('members_can_change_info'))
+    )
+    can_pin_effective = can_role_perform_action(my_role, 'pin') or (
+        member_scoped and bool(group_permissions.get('members_can_pin_messages'))
+    )
 
     return {
         'success': True,
@@ -180,17 +191,18 @@ def build_group_chat_profile_payload(
         'members_count': len(members),
         'members': members,
         'my_role': my_role,
-        'can_edit_group': can_change_group_settings,
+        'can_edit_group': can_change_settings_effective,
         'can_manage_admins': can_manage_roles,
         'permissions': {
-            'can_invite': can_invite,
+            'can_invite': can_invite_effective,
             'can_kick': can_kick,
             'can_ban': can_ban,
-            'can_pin': can_role_perform_action(my_role, 'pin'),
+            'can_pin': can_pin_effective,
             'can_delete_messages': can_role_perform_action(my_role, 'delete_messages'),
-            'can_change_group_settings': can_change_group_settings,
+            'can_change_group_settings': can_change_settings_effective,
             'can_manage_roles': can_manage_roles,
         },
+        'group_permissions': group_permissions,
         'my_active_group_sanction': my_active_group_sanction,
         'my_pending_group_appeal': my_pending_group_appeal,
     }

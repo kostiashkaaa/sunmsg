@@ -126,7 +126,13 @@ def ensure_base_schema(conn) -> None:
             chat_type TEXT NOT NULL DEFAULT 'direct',
             chat_description TEXT NOT NULL DEFAULT '',
             chat_avatar_url TEXT DEFAULT NULL,
-            created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL
+            created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+            group_perm_send_messages INTEGER NOT NULL DEFAULT 1,
+            group_perm_send_media INTEGER NOT NULL DEFAULT 1,
+            group_perm_add_members INTEGER NOT NULL DEFAULT 0,
+            group_perm_pin_messages INTEGER NOT NULL DEFAULT 0,
+            group_perm_change_info INTEGER NOT NULL DEFAULT 0,
+            group_slow_mode_seconds INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS contacts (

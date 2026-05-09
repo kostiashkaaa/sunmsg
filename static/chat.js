@@ -138,6 +138,7 @@ import { createChatReportFlow } from './modules/chat-report-flow.js';
 import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { createChatGroupCreateController } from './modules/chat-group-create.js';
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
+import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
 import { createChatAttachMenuController } from './modules/chat-attach-menu.js';
 import { createComposerUploadState } from './modules/chat-composer-upload-state.js';
 import { createChatAnimationsController } from './modules/chat-animations.js';
@@ -344,9 +345,16 @@ const initChatPage = async () => {
 
     // Group edit controller — initialised below.
     var groupEditController;
-    function openGroupEditModal() { return groupEditController?.openGroupEditModal(); }
+    function openGroupEditModal() {
+        closeGroupPermissionsPanel();
+        return groupEditController?.openGroupEditModal();
+    }
     function closeGroupEditModal(options = {}) { return groupEditController?.closeGroupEditModal?.(options); }
     function updateGroupEditSubmitState() { return groupEditController?.updateGroupEditSubmitState(); }
+    // Group permissions controller — initialised below.
+    var groupPermissionsController;
+    function syncGroupPermissionsPanel(profile) { return groupPermissionsController?.syncFromProfile?.(profile); }
+    function closeGroupPermissionsPanel() { return groupPermissionsController?.closePermissionsPanel?.(); }
 
     // Attach menu controller — initialised below.
     var attachMenuPanelController;
@@ -459,6 +467,16 @@ const initChatPage = async () => {
     const groupEditAvatarInput = document.getElementById('groupEditAvatarInput');
     const groupEditAvatarPreview = document.getElementById('groupEditAvatarPreview');
     const groupEditSubmitBtn = document.getElementById('groupEditSubmitBtn');
+    const groupEditOpenPermissionsBtn = document.getElementById('groupEditOpenPermissionsBtn');
+    const groupEditPermissionsSummary = document.getElementById('groupEditPermissionsSummary');
+    const groupPermissionsPanel = document.getElementById('groupPermissionsPanel');
+    const groupPermissionsBackBtn = document.getElementById('groupPermissionsBackBtn');
+    const groupPermSendMessagesToggle = document.getElementById('groupPermSendMessagesToggle');
+    const groupPermSendMediaToggle = document.getElementById('groupPermSendMediaToggle');
+    const groupPermAddMembersToggle = document.getElementById('groupPermAddMembersToggle');
+    const groupPermPinMessagesToggle = document.getElementById('groupPermPinMessagesToggle');
+    const groupPermChangeInfoToggle = document.getElementById('groupPermChangeInfoToggle');
+    const groupPermSlowModeList = document.getElementById('groupPermSlowModeList');
     const messageForwardModal = document.getElementById('messageForwardModal');
     const messageForwardSearchInput = document.getElementById('messageForwardSearchInput');
     const messageForwardSelectedInfo = document.getElementById('messageForwardSelectedInfo');
@@ -594,6 +612,28 @@ const initChatPage = async () => {
         renderGroupEditAvatar: (profile) => renderGroupEditAvatar(profile),
         renderGroupEditMembers: (profile) => renderGroupEditMembers(profile),
         loadContacts: (options) => loadContacts(options),
+    });
+
+    groupPermissionsController = createChatGroupPermissionsController({
+        groupEditModal,
+        groupEditOpenPermissionsBtn,
+        groupEditPermissionsSummary,
+        groupPermissionsPanel,
+        groupPermissionsBackBtn,
+        groupPermSendMessagesToggle,
+        groupPermSendMediaToggle,
+        groupPermAddMembersToggle,
+        groupPermPinMessagesToggle,
+        groupPermChangeInfoToggle,
+        groupPermSlowModeList,
+        withAppRoot,
+        getCsrfToken,
+        showToast,
+        getCurrentGroupProfile: () => currentGroupProfile,
+        onPermissionsUpdated: (nextPermissions) => {
+            if (!currentGroupProfile) return;
+            currentGroupProfile.group_permissions = { ...nextPermissions };
+        },
     });
 
     chatAnimationsController = createChatAnimationsController({
@@ -2849,6 +2889,14 @@ const initChatPage = async () => {
                     my_role: 'member',
                     can_edit_group: false,
                     can_manage_admins: false,
+                    group_permissions: {
+                        members_can_send_messages: true,
+                        members_can_send_media: true,
+                        members_can_add_members: false,
+                        members_can_pin_messages: false,
+                        members_can_change_info: false,
+                        slow_mode_seconds: 0,
+                    },
                 };
             }
             if (savedMessagesUi?.isSavedContactId?.(partnerId)) {
@@ -2904,6 +2952,7 @@ const initChatPage = async () => {
     }
 
     function closePartnerProfileDrawer() {
+        closeGroupPermissionsPanel();
         closeGroupEditModal({ restoreFocus: false });
         const defaultTargetId = resolveDefaultProfileTargetId();
         if (defaultTargetId) {
@@ -3252,6 +3301,7 @@ const initChatPage = async () => {
             || permissions?.can_ban,
         );
         currentGroupProfile = isGroupProfile ? profile : null;
+        syncGroupPermissionsPanel(currentGroupProfile);
         const profileUsernameLine = document.getElementById('profileUsernameLine');
         const profileBioLine = document.getElementById('profileBioLine');
         const profileMetaBio = document.getElementById('profileMetaBio');

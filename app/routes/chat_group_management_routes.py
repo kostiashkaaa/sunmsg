@@ -18,6 +18,7 @@ from app.services import moderation as moderation_service
 from app.services.chat_members import (
     CHAT_TYPE_GROUP,
     ensure_chat_members,
+    get_group_member_role,
     get_chat_type,
     is_chat_member,
     list_chat_member_public_keys,
@@ -29,6 +30,13 @@ from app.services.group_invite_requests import (
     should_route_group_invite_to_request,
 )
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS, ACTION_INVITE
+from app.services.group_permissions import (
+    GROUP_PERMISSION_COLUMN_MAP,
+    extract_group_permissions_from_chat_row,
+    load_group_permissions,
+    normalize_group_permissions_payload,
+    role_uses_member_permissions,
+)
 
 
 def register_chat_group_management_routes(
@@ -196,15 +204,22 @@ def register_chat_group_management_routes(
                 return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
             if not is_chat_member(conn, user_id, chat_id):
                 return jsonify({'success': False, 'error': 'Forbidden.'}), 403
-            _, auth_error = authorize_group_action_or_error_func(
-                conn,
-                actor_user_id=user_id,
-                chat_id=chat_id,
-                action=ACTION_INVITE,
-                denied_message='Only owner/admin/moderator can add members.',
+            actor_role = get_group_member_role(conn, user_id, chat_id)
+            group_permissions = load_group_permissions(conn, chat_id=chat_id)
+            can_member_invite = bool(
+                role_uses_member_permissions(actor_role)
+                and group_permissions.get('members_can_add_members'),
             )
-            if auth_error:
-                return auth_error
+            if not can_member_invite:
+                _, auth_error = authorize_group_action_or_error_func(
+                    conn,
+                    actor_user_id=user_id,
+                    chat_id=chat_id,
+                    action=ACTION_INVITE,
+                    denied_message='Only owner/admin/moderator can add members.',
+                )
+                if auth_error:
+                    return auth_error
 
             placeholders = ', '.join('?' * len(member_ids))
             rows = conn.execute(
@@ -337,15 +352,22 @@ def register_chat_group_management_routes(
                 return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
             if not is_chat_member(conn, user_id, chat_id):
                 return jsonify({'success': False, 'error': 'Forbidden.'}), 403
-            _, auth_error = authorize_group_action_or_error_func(
-                conn,
-                actor_user_id=user_id,
-                chat_id=chat_id,
-                action=ACTION_CHANGE_SETTINGS,
-                denied_message='Only owner/admin can change group settings.',
+            actor_role = get_group_member_role(conn, user_id, chat_id)
+            group_permissions = load_group_permissions(conn, chat_id=chat_id)
+            can_member_change_info = bool(
+                role_uses_member_permissions(actor_role)
+                and group_permissions.get('members_can_change_info'),
             )
-            if auth_error:
-                return auth_error
+            if not can_member_change_info:
+                _, auth_error = authorize_group_action_or_error_func(
+                    conn,
+                    actor_user_id=user_id,
+                    chat_id=chat_id,
+                    action=ACTION_CHANGE_SETTINGS,
+                    denied_message='Only owner/admin can change group settings.',
+                )
+                if auth_error:
+                    return auth_error
 
             updates = []
             params = []
@@ -389,6 +411,109 @@ def register_chat_group_management_routes(
         finally:
             conn.close()
 
+    @chat_bp.route('/api/chats/group/update_permissions', methods=['POST'])
+    @limiter.limit('40 per hour')
+    def update_group_permissions():
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Authorization required.'}), 401
+
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Invalid payload.'}), 400
+
+        user_id = int(session['user_id'])
+        chat_id = str(data.get('chat_id') or '').strip()
+        raw_permissions = data.get('group_permissions')
+        if not chat_id:
+            return jsonify({'success': False, 'error': 'chat_id is required.'}), 400
+        if not isinstance(raw_permissions, dict):
+            return jsonify({'success': False, 'error': 'group_permissions object is required.'}), 400
+
+        normalized_permissions = normalize_group_permissions_payload(raw_permissions)
+
+        conn = get_db_connection_func()
+        try:
+            if get_chat_type(conn, chat_id) != CHAT_TYPE_GROUP:
+                return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
+            if not is_chat_member(conn, user_id, chat_id):
+                return jsonify({'success': False, 'error': 'Forbidden.'}), 403
+            actor_role = get_group_member_role(conn, user_id, chat_id)
+            group_permissions = load_group_permissions(conn, chat_id=chat_id)
+            can_member_change_info = bool(
+                role_uses_member_permissions(actor_role)
+                and group_permissions.get('members_can_change_info'),
+            )
+            if not can_member_change_info:
+                _, auth_error = authorize_group_action_or_error_func(
+                    conn,
+                    actor_user_id=user_id,
+                    chat_id=chat_id,
+                    action=ACTION_CHANGE_SETTINGS,
+                    denied_message='Only owner/admin can change group settings.',
+                )
+                if auth_error:
+                    return auth_error
+
+            chat_row = conn.execute(
+                '''
+                SELECT *
+                FROM chats
+                WHERE chat_id = ?
+                LIMIT 1
+                ''',
+                (chat_id,),
+            ).fetchone()
+            if not chat_row:
+                return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
+            available_columns = {str(key) for key in chat_row.keys()}
+
+            updates = []
+            params = []
+            for permission_key, column_name in GROUP_PERMISSION_COLUMN_MAP.items():
+                if column_name not in available_columns:
+                    continue
+                updates.append(f'{column_name} = ?')
+                value = normalized_permissions[permission_key]
+                if permission_key == 'slow_mode_seconds':
+                    params.append(int(value))
+                else:
+                    params.append(1 if bool(value) else 0)
+
+            if not updates:
+                return jsonify({'success': False, 'error': 'Group permissions are unavailable in current schema.'}), 503
+
+            params.append(chat_id)
+            conn.execute(
+                f'''
+                UPDATE chats
+                SET {', '.join(updates)}
+                WHERE chat_id = ?
+                ''',
+                tuple(params),
+            )
+            conn.commit()
+
+            next_row = conn.execute(
+                '''
+                SELECT *
+                FROM chats
+                WHERE chat_id = ?
+                LIMIT 1
+                ''',
+                (chat_id,),
+            ).fetchone()
+            emit_group_snapshot(conn, chat_id=chat_id, socketio_emit_func=socketio_emit_func)
+
+            return jsonify(
+                {
+                    'success': True,
+                    'chat_id': chat_id,
+                    'group_permissions': extract_group_permissions_from_chat_row(next_row),
+                }
+            ), 200
+        finally:
+            conn.close()
+
     @chat_bp.route('/api/chats/group/upload_avatar', methods=['POST'])
     @limiter.limit('20 per hour')
     def upload_group_avatar():
@@ -427,15 +552,22 @@ def register_chat_group_management_routes(
                 return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
             if not is_chat_member(conn, user_id, chat_id):
                 return jsonify({'success': False, 'error': 'Forbidden.'}), 403
-            _, auth_error = authorize_group_action_or_error_func(
-                conn,
-                actor_user_id=user_id,
-                chat_id=chat_id,
-                action=ACTION_CHANGE_SETTINGS,
-                denied_message='Only owner/admin can change group settings.',
+            actor_role = get_group_member_role(conn, user_id, chat_id)
+            group_permissions = load_group_permissions(conn, chat_id=chat_id)
+            can_member_change_info = bool(
+                role_uses_member_permissions(actor_role)
+                and group_permissions.get('members_can_change_info'),
             )
-            if auth_error:
-                return auth_error
+            if not can_member_change_info:
+                _, auth_error = authorize_group_action_or_error_func(
+                    conn,
+                    actor_user_id=user_id,
+                    chat_id=chat_id,
+                    action=ACTION_CHANGE_SETTINGS,
+                    denied_message='Only owner/admin can change group settings.',
+                )
+                if auth_error:
+                    return auth_error
 
             old_row = conn.execute(
                 '''

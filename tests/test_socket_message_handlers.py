@@ -652,6 +652,126 @@ def test_handle_send_message_event_group_mute_restriction_blocks_delivery(tmp_pa
     )
 
 
+def test_handle_send_message_event_group_permissions_block_member_messages(tmp_path):
+    db_path = tmp_path / 'socket-message-handler-send-group-perm-messages.db'
+    with _connect(db_path) as conn:
+        _prepare_group_send_schema(conn)
+        conn.execute("ALTER TABLE chats ADD COLUMN group_perm_send_messages INTEGER NOT NULL DEFAULT 1")
+        conn.execute("INSERT INTO users (id, public_key, username, display_name) VALUES (1, 'pk-1', 'owner', 'Owner'), (2, 'pk-2', 'member', 'Member')")
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type, group_perm_send_messages)
+            VALUES ('group-a', 'Perm Group', 'group', 0)
+            '''
+        )
+        conn.execute("INSERT INTO chat_members (user_id, chat_id, role) VALUES (1, 'group-a', 'owner'), (2, 'group-a', 'member')")
+        conn.commit()
+
+    emitted = []
+
+    handle_send_message_event(
+        {'chat_id': 'group-a', 'message': 'hello group'},
+        session_store={'user_id': 2, 'public_key_pem': 'pk-2'},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        count_connected_func=lambda pub: 0,
+        build_block_state_func=lambda conn, sender_id, receiver_id: {'is_blocked': False, 'blocked_by_me': False, 'blocked_me': False},
+        normalize_block_state_func=lambda state: state,
+        sanitize_message_type_func=lambda value: 'text',
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        looks_like_ciphertext_func=lambda raw: True,
+        emit_blocked_error_func=lambda message, state: None,
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+        utc_now_text_func=lambda: '2025-01-01 00:00:00',
+        logger=type('Logger', (), {'warning': lambda self, msg, *args: None, 'error': lambda self, msg, *args: None})(),
+        database_error_cls=DatabaseError,
+        group_restriction_lookup_func=lambda conn, chat_id, user_id: None,
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            '''
+            SELECT COUNT(*) AS cnt
+            FROM messages
+            WHERE chat_id = 'group-a' AND sender_id = 2
+            '''
+        ).fetchone()
+
+    assert int(row['cnt']) == 0
+    assert any(
+        event[0] == 'error' and event[1].get('code') == 'group_permissions_messages_disabled'
+        for event in emitted
+    )
+
+
+def test_handle_send_message_event_group_permissions_slow_mode_blocks_flood(tmp_path):
+    db_path = tmp_path / 'socket-message-handler-send-group-slow-mode.db'
+    with _connect(db_path) as conn:
+        _prepare_group_send_schema(conn)
+        conn.execute("ALTER TABLE chats ADD COLUMN group_slow_mode_seconds INTEGER NOT NULL DEFAULT 0")
+        conn.execute("INSERT INTO users (id, public_key, username, display_name) VALUES (1, 'pk-1', 'owner', 'Owner'), (2, 'pk-2', 'member', 'Member')")
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type, group_slow_mode_seconds)
+            VALUES ('group-a', 'Slow Group', 'group', 60)
+            '''
+        )
+        conn.execute("INSERT INTO chat_members (user_id, chat_id, role) VALUES (1, 'group-a', 'owner'), (2, 'group-a', 'member')")
+        conn.execute(
+            '''
+            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, created_at)
+            VALUES ('group-a', 2, NULL, 'first', 'text', '2025-01-01 00:00:00')
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_send_message_event(
+        {'chat_id': 'group-a', 'message': 'second message'},
+        session_store={'user_id': 2, 'public_key_pem': 'pk-2'},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        count_connected_func=lambda pub: 0,
+        build_block_state_func=lambda conn, sender_id, receiver_id: {'is_blocked': False, 'blocked_by_me': False, 'blocked_me': False},
+        normalize_block_state_func=lambda state: state,
+        sanitize_message_type_func=lambda value: 'text',
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        looks_like_ciphertext_func=lambda raw: True,
+        emit_blocked_error_func=lambda message, state: None,
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+        utc_now_text_func=lambda: '2025-01-01 00:00:10',
+        logger=type('Logger', (), {'warning': lambda self, msg, *args: None, 'error': lambda self, msg, *args: None})(),
+        database_error_cls=DatabaseError,
+        group_restriction_lookup_func=lambda conn, chat_id, user_id: None,
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            '''
+            SELECT COUNT(*) AS cnt
+            FROM messages
+            WHERE chat_id = 'group-a' AND sender_id = 2
+            '''
+        ).fetchone()
+
+    assert int(row['cnt']) == 1
+    assert any(
+        event[0] == 'error'
+        and event[1].get('code') == 'group_permissions_slow_mode'
+        and int(event[1].get('retry_after_seconds') or 0) > 0
+        for event in emitted
+    )
+
+
 def test_handle_send_message_event_group_mentions_emit_and_push(tmp_path):
     db_path = tmp_path / 'socket-message-handler-send-group-mentions.db'
     with _connect(db_path) as conn:

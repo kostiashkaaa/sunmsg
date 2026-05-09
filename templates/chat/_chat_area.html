@@ -258,6 +258,14 @@
                         <label class="group-create-modal__label" for="groupEditDescriptionInput">Описание</label>
                         <textarea id="groupEditDescriptionInput" class="group-create-modal__input group-create-modal__textarea" maxlength="600" rows="3" placeholder="Описание группы"></textarea>
 
+                        <button type="button" class="group-edit-nav-item" id="groupEditOpenPermissionsBtn" aria-haspopup="true">
+                            <span class="group-edit-nav-item__copy">
+                                <span class="group-edit-nav-item__title">Разрешения</span>
+                                <span class="group-edit-nav-item__meta" id="groupEditPermissionsSummary">Загрузка...</span>
+                            </span>
+                            <span class="group-edit-nav-item__chevron" aria-hidden="true">›</span>
+                        </button>
+
                         <div class="group-create-modal__label">Администраторы и участники</div>
                         <div id="groupEditMembersList" class="group-edit-members-list"></div>
                     </div>
@@ -268,6 +276,81 @@
                             <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupEditSubmitBtn" disabled>Сохранить</button>
                         </div>
                     </footer>
+
+                    <section id="groupPermissionsPanel" class="group-permissions-panel" aria-hidden="true" hidden>
+                        <header class="group-permissions-panel__head">
+                            <button type="button" class="btn-icon ripple-target group-permissions-panel__back" id="groupPermissionsBackBtn" aria-label="Назад">
+                                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
+                            </button>
+                            <h3 class="group-permissions-panel__title">Разрешения</h3>
+                        </header>
+
+                        <div class="group-permissions-panel__body">
+                            <div class="group-permissions-panel__section">
+                                <h4 class="group-permissions-panel__section-title">Возможности участников</h4>
+                                <div class="group-perm-item">
+                                    <span>Отправка сообщений</span>
+                                    <label class="group-perm-switch">
+                                        <input id="groupPermSendMessagesToggle" type="checkbox" checked>
+                                        <span class="group-perm-switch__track"></span>
+                                    </label>
+                                </div>
+                                <div class="group-perm-item">
+                                    <span>Отправка медиа</span>
+                                    <label class="group-perm-switch">
+                                        <input id="groupPermSendMediaToggle" type="checkbox" checked>
+                                        <span class="group-perm-switch__track"></span>
+                                    </label>
+                                </div>
+                                <div class="group-perm-item">
+                                    <span>Добавление участников</span>
+                                    <label class="group-perm-switch">
+                                        <input id="groupPermAddMembersToggle" type="checkbox">
+                                        <span class="group-perm-switch__track"></span>
+                                    </label>
+                                </div>
+                                <div class="group-perm-item">
+                                    <span>Закрепление сообщений</span>
+                                    <label class="group-perm-switch">
+                                        <input id="groupPermPinMessagesToggle" type="checkbox">
+                                        <span class="group-perm-switch__track"></span>
+                                    </label>
+                                </div>
+                                <div class="group-perm-item">
+                                    <span>Изменение профиля группы</span>
+                                    <label class="group-perm-switch">
+                                        <input id="groupPermChangeInfoToggle" type="checkbox">
+                                        <span class="group-perm-switch__track"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="group-permissions-panel__section">
+                                <h4 class="group-permissions-panel__section-title">Медленный режим</h4>
+                                <div class="group-perm-slowmode-list" id="groupPermSlowModeList" role="listbox" aria-label="Медленный режим">
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="0">Нет</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="5">5 сек</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="10">10 сек</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="30">30 сек</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="60">1 мин</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="300">5 мин</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="900">15 мин</button>
+                                    <button type="button" class="group-perm-slowmode-chip" data-group-slow-mode="3600">1 ч</button>
+                                </div>
+                                <p class="group-permissions-panel__hint">Выберите, как часто каждый участник сможет писать в группу.</p>
+                            </div>
+
+                            <div class="group-permissions-panel__section">
+                                <h4 class="group-permissions-panel__section-title">Исключения</h4>
+                                <button type="button" class="group-edit-nav-item group-edit-nav-item--disabled" disabled>
+                                    <span class="group-edit-nav-item__copy">
+                                        <span class="group-edit-nav-item__title">Добавить исключение</span>
+                                        <span class="group-edit-nav-item__meta">Нет исключений</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                 </section>
 
                 <div class="profile-scroll profile-layout" id="profileScrollArea">

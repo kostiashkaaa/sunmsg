@@ -330,6 +330,12 @@ def run_migrations() -> None:
         add_column_if_missing(conn, cursor, 'chats', 'chat_description', "chat_description TEXT NOT NULL DEFAULT ''")
         add_column_if_missing(conn, cursor, 'chats', 'chat_avatar_url', 'chat_avatar_url TEXT DEFAULT NULL')
         add_column_if_missing(conn, cursor, 'chats', 'created_by_user_id', 'created_by_user_id BIGINT')
+        add_column_if_missing(conn, cursor, 'chats', 'group_perm_send_messages', 'group_perm_send_messages INTEGER NOT NULL DEFAULT 1')
+        add_column_if_missing(conn, cursor, 'chats', 'group_perm_send_media', 'group_perm_send_media INTEGER NOT NULL DEFAULT 1')
+        add_column_if_missing(conn, cursor, 'chats', 'group_perm_add_members', 'group_perm_add_members INTEGER NOT NULL DEFAULT 0')
+        add_column_if_missing(conn, cursor, 'chats', 'group_perm_pin_messages', 'group_perm_pin_messages INTEGER NOT NULL DEFAULT 0')
+        add_column_if_missing(conn, cursor, 'chats', 'group_perm_change_info', 'group_perm_change_info INTEGER NOT NULL DEFAULT 0')
+        add_column_if_missing(conn, cursor, 'chats', 'group_slow_mode_seconds', 'group_slow_mode_seconds INTEGER NOT NULL DEFAULT 0')
         cursor.execute(
             '''
             CREATE TABLE IF NOT EXISTS group_invite_requests (

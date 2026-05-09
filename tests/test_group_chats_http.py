@@ -538,6 +538,83 @@ def test_group_remove_member_requires_elevated_role(monkeypatch, tmp_path):
     assert [int(row['user_id']) for row in rows] == [1, 2]
 
 
+def test_group_permissions_update_allows_member_to_add_members(monkeypatch, tmp_path):
+    db_path = tmp_path / 'group-chat-permissions-update-http.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = '7' * 64
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'owner', 'Owner'),
+                (2, 'pk-2', 'member', 'Member'),
+                (3, 'pk-3', 'target', 'Target')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type, created_by_user_id)
+            VALUES (?, 'Permissions', 'group', 1)
+            ''',
+            (chat_id,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES
+                (1, ?, 'owner'),
+                (2, ?, 'member')
+            ''',
+            (chat_id, chat_id),
+        )
+        conn.commit()
+
+    owner_client = _authed_client(app, 1, 'pk-1')
+    permissions_response = owner_client.post(
+        '/api/chats/group/update_permissions',
+        json={
+            'chat_id': chat_id,
+            'group_permissions': {
+                'members_can_send_messages': True,
+                'members_can_send_media': True,
+                'members_can_add_members': True,
+                'members_can_pin_messages': False,
+                'members_can_change_info': False,
+                'slow_mode_seconds': 0,
+            },
+        },
+    )
+    permissions_payload = permissions_response.get_json()
+    assert permissions_response.status_code == 200
+    assert permissions_payload['success'] is True
+    assert permissions_payload['group_permissions']['members_can_add_members'] is True
+
+    member_client = _authed_client(app, 2, 'pk-2')
+    add_response = member_client.post(
+        '/api/chats/group/add_members',
+        json={'chat_id': chat_id, 'member_user_ids': [3]},
+    )
+    add_payload = add_response.get_json()
+    assert add_response.status_code == 200
+    assert add_payload['success'] is True
+    assert add_payload['added_member_ids'] == [3]
+
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            '''
+            SELECT user_id
+            FROM chat_members
+            WHERE chat_id = ?
+            ORDER BY user_id
+            ''',
+            (chat_id,),
+        ).fetchall()
+    assert [int(row['user_id']) for row in rows] == [1, 2, 3]
+
+
 def test_group_sanction_can_be_appealed_via_moderation_api(monkeypatch, tmp_path):
     db_path = tmp_path / 'group-chat-sanction-appeal-http.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

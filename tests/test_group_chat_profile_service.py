@@ -135,6 +135,9 @@ def test_build_group_chat_profile_payload_includes_members_permissions_and_appea
     assert payload['my_role'] == 'member'
     assert payload['permissions']['can_invite'] is False
     assert payload['permissions']['can_change_group_settings'] is False
+    assert payload['group_permissions']['members_can_send_messages'] is True
+    assert payload['group_permissions']['members_can_add_members'] is False
+    assert payload['group_permissions']['slow_mode_seconds'] == 0
     assert payload['my_active_group_sanction']['sanction_id'] == 10
     assert payload['my_pending_group_appeal']['appeal_id'] == 11
     assert [m['user_id'] for m in payload['members']] == [1, 2]

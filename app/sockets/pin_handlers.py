@@ -1,3 +1,6 @@
+from app.services.group_permissions import load_group_permissions, role_uses_member_permissions
+
+
 def handle_pin_message_event(
     data,
     *,
@@ -61,33 +64,39 @@ def handle_pin_message_event(
             chat_type = 'group'
 
     if chat_type == 'group':
-        if callable(authorize_group_action_func):
+        role = None
+        if callable(get_group_member_role_func):
+            role = get_group_member_role_func(conn, uid, chat_id)
+        if role is None:
+            try:
+                role_row = conn.execute(
+                    '''
+                    SELECT role
+                    FROM chat_members
+                    WHERE user_id = ? AND chat_id = ?
+                    ''',
+                    (uid, chat_id),
+                ).fetchone()
+                role = str(role_row['role'] or '').strip().lower() if role_row else ''
+            except Exception:  # noqa: BLE001
+                role = None
+        group_permissions = load_group_permissions(conn, chat_id=chat_id)
+        can_member_pin = bool(
+            role_uses_member_permissions(role)
+            and group_permissions.get('members_can_pin_messages'),
+        )
+        if can_member_pin:
+            pass
+        elif callable(authorize_group_action_func):
             allowed, denied_message = authorize_group_action_func(conn, uid, chat_id, 'pin')
             if not allowed:
                 conn.close()
                 emit_func('error', {'message': denied_message or 'Insufficient role for pinning.'})
                 return
-        else:
-            role = None
-            if callable(get_group_member_role_func):
-                role = get_group_member_role_func(conn, uid, chat_id)
-            if role is None:
-                try:
-                    role_row = conn.execute(
-                        '''
-                        SELECT role
-                        FROM chat_members
-                        WHERE user_id = ? AND chat_id = ?
-                        ''',
-                        (uid, chat_id),
-                    ).fetchone()
-                    role = str(role_row['role'] or '').strip().lower() if role_row else ''
-                except Exception:  # noqa: BLE001
-                    role = None
-            if str(role or '').strip().lower() != 'admin':
-                conn.close()
-                emit_func('error', {'message': 'Only group admins can pin messages.'})
-                return
+        elif str(role or '').strip().lower() != 'admin':
+            conn.close()
+            emit_func('error', {'message': 'Only group admins can pin messages.'})
+            return
 
     msg = conn.execute(
         'SELECT m.message, m.created_at, u.public_key as sender_pub FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ? AND m.chat_id = ?',
@@ -190,33 +199,39 @@ def handle_unpin_message_event(
             chat_type = 'group'
 
     if chat_type == 'group':
-        if callable(authorize_group_action_func):
+        role = None
+        if callable(get_group_member_role_func):
+            role = get_group_member_role_func(conn, uid, chat_id)
+        if role is None:
+            try:
+                role_row = conn.execute(
+                    '''
+                    SELECT role
+                    FROM chat_members
+                    WHERE user_id = ? AND chat_id = ?
+                    ''',
+                    (uid, chat_id),
+                ).fetchone()
+                role = str(role_row['role'] or '').strip().lower() if role_row else ''
+            except Exception:  # noqa: BLE001
+                role = None
+        group_permissions = load_group_permissions(conn, chat_id=chat_id)
+        can_member_pin = bool(
+            role_uses_member_permissions(role)
+            and group_permissions.get('members_can_pin_messages'),
+        )
+        if can_member_pin:
+            pass
+        elif callable(authorize_group_action_func):
             allowed, denied_message = authorize_group_action_func(conn, uid, chat_id, 'pin')
             if not allowed:
                 conn.close()
                 emit_func('error', {'message': denied_message or 'Insufficient role for unpinning.'})
                 return
-        else:
-            role = None
-            if callable(get_group_member_role_func):
-                role = get_group_member_role_func(conn, uid, chat_id)
-            if role is None:
-                try:
-                    role_row = conn.execute(
-                        '''
-                        SELECT role
-                        FROM chat_members
-                        WHERE user_id = ? AND chat_id = ?
-                        ''',
-                        (uid, chat_id),
-                    ).fetchone()
-                    role = str(role_row['role'] or '').strip().lower() if role_row else ''
-                except Exception:  # noqa: BLE001
-                    role = None
-            if str(role or '').strip().lower() != 'admin':
-                conn.close()
-                emit_func('error', {'message': 'Only group admins can unpin messages.'})
-                return
+        elif str(role or '').strip().lower() != 'admin':
+            conn.close()
+            emit_func('error', {'message': 'Only group admins can unpin messages.'})
+            return
 
     if message_id is None:
         conn.execute('DELETE FROM chat_pins WHERE chat_id = ?', (chat_id,))
