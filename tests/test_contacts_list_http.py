@@ -618,6 +618,86 @@ def test_upload_chat_media_and_get_chat_media_cover_inline_and_attachment(monkey
     assert response.headers['X-Content-Type-Options'] == 'nosniff'
     assert 'attachment' in response.headers.get('Content-Disposition', '').lower()
 
+
+def test_upload_chat_media_accepts_audio_mpeg_extension_aliases(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-media-audio-aliases.db'
+    media_dir = tmp_path / 'chat_media_aliases'
+    media_dir.mkdir()
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    monkeypatch.setattr(chat_routes, 'CHAT_MEDIA_FOLDER', str(media_dir))
+    chat_id = generate_chat_id('pk-1', 'pk-2')
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, ?), (2, 1, ?)
+            ''',
+            (chat_id, chat_id),
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    mp3_like_payload = b'\xff\xfb\x90\x64' + (b'\x00' * 48)
+
+    response_mpeg = client.post(
+        '/upload_chat_media',
+        data={
+            'chat_id': chat_id,
+            'file': (BytesIO(mp3_like_payload), 'track.mpeg', 'audio/mpeg'),
+        },
+        content_type='multipart/form-data',
+    )
+    payload_mpeg = response_mpeg.get_json()
+    assert response_mpeg.status_code == 200
+    assert payload_mpeg['success'] is True
+    assert payload_mpeg['media_type'] == 'audio'
+    assert payload_mpeg['mime'] == 'audio/mpeg'
+    assert payload_mpeg['name'] == 'track.mpeg'
+
+    response_mpga = client.post(
+        '/upload_chat_media',
+        data={
+            'chat_id': chat_id,
+            'file': (BytesIO(mp3_like_payload), 'track.mpga', 'audio/mpeg'),
+        },
+        content_type='multipart/form-data',
+    )
+    payload_mpga = response_mpga.get_json()
+    assert response_mpga.status_code == 200
+    assert payload_mpga['success'] is True
+    assert payload_mpga['media_type'] == 'audio'
+    assert payload_mpga['mime'] == 'audio/mpeg'
+    assert payload_mpga['name'] == 'track.mpga'
+
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            '''
+            SELECT storage_name, original_name, mime_type
+            FROM chat_media
+            ORDER BY id
+            '''
+        ).fetchall()
+
+    assert len(rows) == 2
+    assert rows[0]['original_name'] == 'track.mpeg'
+    assert rows[1]['original_name'] == 'track.mpga'
+    assert rows[0]['mime_type'] == 'audio/mpeg'
+    assert rows[1]['mime_type'] == 'audio/mpeg'
+    assert rows[0]['storage_name'].endswith('.mp3')
+    assert rows[1]['storage_name'].endswith('.mp3')
+
+
 def test_search_users_enforces_min_query_and_paginates_without_public_key(monkeypatch, tmp_path):
     db_path = tmp_path / 'search-users-http.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

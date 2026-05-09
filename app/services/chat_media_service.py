@@ -31,6 +31,16 @@ def _normalize_scan_extensions(raw_extensions) -> set[str]:
     return normalized
 
 
+def _normalize_media_extension(ext: str, uploaded_mime: str | None) -> str:
+    normalized_ext = str(ext or '').strip().lower()
+    normalized_mime = str(uploaded_mime or '').strip().lower()
+    if normalized_ext == 'mpga':
+        return 'mp3'
+    if normalized_ext == 'mpeg' and normalized_mime.startswith('audio/'):
+        return 'mp3'
+    return normalized_ext
+
+
 def upload_avatar_for_user(
     conn,
     *,
@@ -140,7 +150,10 @@ def upload_chat_media_for_user(
     if not filename or '.' not in filename:
         return {'status': 'invalid', 'error': 'Неподдерживаемое имя файла.', 'code': 400}
 
-    ext = filename.rsplit('.', 1)[1].lower()
+    ext = _normalize_media_extension(
+        filename.rsplit('.', 1)[1],
+        getattr(uploaded_file, 'mimetype', None),
+    )
     if ext not in allowed_extensions:
         return {'status': 'invalid', 'error': 'Неподдерживаемый формат файла.', 'code': 400}
 
