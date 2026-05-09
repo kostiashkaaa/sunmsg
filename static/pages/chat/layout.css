@@ -3068,7 +3068,9 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            flex: 0 0 auto;
+            flex: 0 0 132px;
+            width: 132px;
+            min-width: 132px;
             min-height: 44px;
             padding: 0;
         }
@@ -3124,6 +3126,9 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             line-height: 1;
             color: var(--text);
             white-space: nowrap;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
 
