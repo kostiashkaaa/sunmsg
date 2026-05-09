@@ -58,3 +58,29 @@ def test_process_search_users_uses_defaults_when_limit_offset_invalid():
     assert captured['query'] == ''
     assert captured['limit'] == 20
     assert captured['offset'] == 0
+
+
+def test_process_search_users_normalizes_at_username_query():
+    captured = {}
+
+    def _build_payload(conn, **kwargs):
+        captured.update(kwargs)
+        return {'success': True, 'results': []}
+
+    process_search_users(
+        object(),
+        user_id=7,
+        raw_query='  @Alpha_One  ',
+        raw_limit='20',
+        raw_offset='0',
+        parse_int_func=lambda value: int(value),
+        build_search_users_payload_func=_build_payload,
+        min_query_length=3,
+        default_limit=20,
+        max_limit=50,
+        max_offset=500,
+        like_pattern_func=lambda value: f'%{value}%',
+        get_safe_avatar_url_func=lambda user, viewer_id: None,
+    )
+
+    assert captured['query'] == 'alpha_one'
