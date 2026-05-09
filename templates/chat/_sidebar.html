@@ -82,7 +82,7 @@
                      draggable="{{ 'true' if contact.is_pinned else 'false' }}">
                     <div class="contact-avatar{% if contact.avatar_url %} avatar-loading{% endif %}">
                         {% if contact.avatar_url %}
-                        <img class="contact-avatar__img" src="{{ contact.avatar_url }}" alt="{{ display_name or 'Аватар' }}" loading="lazy" decoding="async" fetchpriority="low">
+                        <img class="contact-avatar__img" src="{{ contact.avatar_url }}" alt="{{ display_name or ('Avatar' if ui_lang == 'en' else 'Аватар') }}" loading="lazy" decoding="async" fetchpriority="low">
                         <span class="contact-avatar-loading" aria-hidden="true">
                             <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
                             <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>

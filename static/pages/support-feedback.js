@@ -11,6 +11,13 @@
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const isAuthedUser = form.dataset.isAuthUser === '1';
     const authedUsername = form.dataset.authUsername || '';
+    const i18nApi = window.SUN_I18N || null;
+    const tr = (value) => {
+        if (!i18nApi || typeof i18nApi.translateText !== 'function') {
+            return String(value || '');
+        }
+        return i18nApi.translateText(String(value || ''));
+    };
 
     const setStatus = (message, mode = '') => {
         if (!(statusEl instanceof HTMLElement)) {
@@ -27,7 +34,7 @@
         }
 
         submitBtn.disabled = true;
-        setStatus('Отправка...');
+        setStatus(tr('Отправка...'));
 
         const payload = Object.fromEntries(new FormData(form).entries());
 
@@ -44,11 +51,11 @@
 
             const data = await response.json().catch(() => ({}));
             if (!response.ok || !data.success) {
-                setStatus(data.error || 'Не удалось отправить запрос', 'err');
+                setStatus(data.error || tr('Не удалось отправить запрос'), 'err');
                 return;
             }
 
-            setStatus(`Запрос отправлен (id #${data.request_id})`, 'ok');
+            setStatus(`${tr('Запрос отправлен')} (id #${data.request_id})`, 'ok');
             form.reset();
 
             if (sourceInput instanceof HTMLInputElement) {
@@ -59,7 +66,7 @@
                 usernameInput.value = authedUsername;
             }
         } catch (_) {
-            setStatus('Сетевая ошибка', 'err');
+            setStatus(tr('Сетевая ошибка'), 'err');
         } finally {
             submitBtn.disabled = false;
         }

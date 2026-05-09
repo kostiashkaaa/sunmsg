@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ session.get('ui_language', 'ru') }}">
+<html lang="{{ ui_language|default('ru') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
     <link rel="stylesheet" href="{{ asset_url('style.css') }}">
     <script src="{{ asset_url('interface-theme.js') }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
     <script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
     <style nonce="{{ csp_nonce }}">
         body.user-card-page {
@@ -323,7 +324,7 @@
         }
     </style>
 </head>
-<body class="user-card-page">
+<body class="user-card-page" data-ui-language="{{ ui_language|default('ru') }}">
     {% include 'chat/_svg_icons_sprite.html' %}
     <div class="auth-orb auth-orb-1" aria-hidden="true"></div>
     <div class="auth-orb auth-orb-2" aria-hidden="true"></div>
@@ -377,7 +378,7 @@
             <div class="profile-hero">
                 <div class="profile-avatar{% if not profile.avatar_url %} profile-avatar--fallback{% endif %}"{% if not profile.avatar_url %} data-avatar-seed="{{ profile.display_name or profile.username or '?' }}"{% endif %} aria-hidden="true">
                     {% if profile.avatar_url %}
-                        <img src="{{ profile.avatar_url }}" alt="Аватар @{{ profile.username }}">
+                        <img src="{{ profile.avatar_url }}" alt="{{ 'Avatar @' if ui_language == 'en' else 'Аватар @' }}{{ profile.username }}">
                     {% else %}
                         {{ (profile.display_name or profile.username or '?')[:1]|upper }}
                     {% endif %}
