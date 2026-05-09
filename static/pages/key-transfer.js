@@ -266,6 +266,12 @@ async function beginScanLoop() {
         return;
     }
 
+    if (typeof window.jsQR !== 'function' && typeof window.ensureJsQrLibrary === 'function') {
+        try {
+            await window.ensureJsQrLibrary();
+        } catch (_) {}
+    }
+
     startJsQrFallbackLoop(video, statusEl);
 }
 
@@ -390,5 +396,4 @@ document.addEventListener('DOMContentLoaded', () => {
         closeScanModal,
     };
 });
-
 

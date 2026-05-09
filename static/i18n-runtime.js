@@ -463,8 +463,9 @@
     window.SUN_I18N = api;
 
     const bootstrap = () => {
-        void loadLocale('ru');
-        void loadLocale('en');
+        if (currentLanguage === 'en') {
+            void loadLocale('en');
+        }
         setLanguage(currentLanguage, { persist: true, apply: true });
 
         if (!window.__sunI18nDialogsPatched) {

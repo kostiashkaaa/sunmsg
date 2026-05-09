@@ -19,14 +19,14 @@ import { showToast, initDialogRequests, sendDialogRequest } from './modules/dial
 import { activateFocusTrap, deactivateFocusTrap } from './modules/focus-trap.js';
 import { showDeleteChatDialog } from './modules/delete-chat.js';
 import { initProfileDrawer, parseUtcDate as _parseUtcDate, formatLastSeenText as _formatLastSeenText, formatRegistrationDate as _formatRegistrationDate, renderProfileHeader as _renderProfileHeader, renderProfileStats as _renderProfileStats, renderProfileMeta as _renderProfileMeta, renderProfileBio as _renderProfileBio, renderPartnerProfile as _renderPartnerProfile, handleProfileAction as _handleProfileAction } from './modules/profile-drawer.js';
-import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js?v=20260508b';
+import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js';
 import { renderMessageLinkPreview } from './modules/message-link-preview.js';
 import { getChatState as _getChatState, createChatState as _createChatState, getMessageKey as _getMessageKey, findMessageIndex as _findMessageIndex, findMessageById as _findMessageById, compareChatMessages as _compareChatMessages, normalizeChatMessageOrder as _normalizeChatMessageOrder, upsertChatMessage as _upsertChatMessage, prependChatMessages as _prependChatMessages, removeChatMessages as _removeChatMessages, setChatMessages as _setChatMessages, estimateMessageHeight as _estimateMessageHeight, CHAT_DEFAULT_MESSAGE_HEIGHT as _CHAT_DEFAULT_MESSAGE_HEIGHT } from './modules/chat-state.js';
-import { REACTION_PICKER_EMOJIS as _REACTION_PICKER_EMOJIS, normalizeReactionReactor as _normalizeReactionReactor, getReactionReactorKey as _getReactionReactorKey, normalizeReactionReactors as _normalizeReactionReactors, isCurrentUserReactionReactor as _isCurrentUserReactionReactor, buildCurrentUserReactionReactor as _buildCurrentUserReactionReactor, buildReactionReactorInitials as _buildReactionReactorInitials, buildReactionReactorsHtml as _buildReactionReactorsHtml, normalizeMessageReactions as _normalizeMessageReactions, areMessageReactionsEqual as _areMessageReactionsEqual, getReactionMessageKey as _getReactionMessageKey, computeOptimisticReactions as _computeOptimisticReactions, buildMessageReactionsHtml as _buildMessageReactionsHtml } from './modules/reactions.js?v=20260501a';
+import { REACTION_PICKER_EMOJIS as _REACTION_PICKER_EMOJIS, normalizeReactionReactor as _normalizeReactionReactor, getReactionReactorKey as _getReactionReactorKey, normalizeReactionReactors as _normalizeReactionReactors, isCurrentUserReactionReactor as _isCurrentUserReactionReactor, buildCurrentUserReactionReactor as _buildCurrentUserReactionReactor, buildReactionReactorInitials as _buildReactionReactorInitials, buildReactionReactorsHtml as _buildReactionReactorsHtml, normalizeMessageReactions as _normalizeMessageReactions, areMessageReactionsEqual as _areMessageReactionsEqual, getReactionMessageKey as _getReactionMessageKey, computeOptimisticReactions as _computeOptimisticReactions, buildMessageReactionsHtml as _buildMessageReactionsHtml } from './modules/reactions.js';
 import { initComposer as _initComposer } from './modules/composer.js';
-import { buildContactItemHtml as _buildContactItemHtml, hydrateContactAvatarLoading as _hydrateContactAvatarLoading, updateSidebarContactTick as _updateSidebarContactTick, updateActiveContactLastMessage as _updateActiveContactLastMessage } from './modules/contacts.js?v=2.1.1';
+import { buildContactItemHtml as _buildContactItemHtml, hydrateContactAvatarLoading as _hydrateContactAvatarLoading, updateSidebarContactTick as _updateSidebarContactTick, updateActiveContactLastMessage as _updateActiveContactLastMessage } from './modules/contacts.js';
 import { applyBlockNoticeUI as _applyBlockNoticeUI, normalizeBlockState as _normalizeBlockState } from './modules/block-ui.js';
-import { getStoredString, setStoredString, hideBootOverlay as _hideBootOverlay, setElementActiveState, openFloatingPanel, closeFloatingPanel, openAnimatedDialog, closeAnimatedDialog, copyTextToClipboard, addTapFeedback } from './modules/chat-shell-ui.js?v=20260501a';
+import { getStoredString, setStoredString, hideBootOverlay as _hideBootOverlay, setElementActiveState, openFloatingPanel, closeFloatingPanel, openAnimatedDialog, closeAnimatedDialog, copyTextToClipboard, addTapFeedback } from './modules/chat-shell-ui.js';
 import { createChatMutePreferences } from './modules/chat-mute-preferences.js';
 import { notifyIncomingChatMessage } from './modules/chat-incoming-notifications.js';
 import { renderMessageTextWithMentions } from './modules/chat-mentions.js';
@@ -67,11 +67,11 @@ import {
     updateJumpToNewMessagesButton as updateJumpToNewMessagesButtonFlow,
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
-import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js?v=20260507a';
+import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
-import { initCaptionModal } from './modules/caption-modal.js?v=20260508a';
+import { initCaptionModal } from './modules/caption-modal.js';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
 import { initMessageSelection } from './modules/message-selection.js';
 import { initMessageContextMenu } from './modules/message-context-menu.js';
@@ -81,12 +81,12 @@ import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
-import { sendFileMessageFlow } from './modules/chat-file-send.js?v=2.1.2';
+import { sendFileMessageFlow } from './modules/chat-file-send.js';
 import { createTypingSignalHeartbeat } from './modules/chat-typing-signal-heartbeat.js';
-import { sendTextMessageFlow } from './modules/chat-text-send.js?v=2.0.11';
-import { handleComposerEditFlow } from './modules/chat-edit-flow.js?v=2.1.1';
-import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js?v=2.0.9';
-import { registerIncomingMessageSocketHandlers } from './modules/chat-incoming-message-events.js?v=2.1.0';
+import { sendTextMessageFlow } from './modules/chat-text-send.js';
+import { handleComposerEditFlow } from './modules/chat-edit-flow.js';
+import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
+import { registerIncomingMessageSocketHandlers } from './modules/chat-incoming-message-events.js';
 import { registerRealtimeUiSocketHandlers } from './modules/chat-realtime-ui-events.js';
 import { registerProfileRealtimeSocketHandlers } from './modules/chat-profile-realtime-events.js';
 import { registerSystemSocketHandlers } from './modules/chat-system-events.js';
@@ -98,7 +98,7 @@ import {
     bindGroupModerationUiHandlers,
 } from './modules/chat-group-moderation.js';
 import { initChatContactsSidebar } from './modules/chat-contacts-sidebar.js';
-import { bindPartnerBlockControls, createChatConnectionStatusPresenter, createOnlineStatusStateController, loadOnlineStatusFlow, markMessagesAsReadFlow } from './modules/chat-partner-network.js?v=20260501a';
+import { bindPartnerBlockControls, createChatConnectionStatusPresenter, createOnlineStatusStateController, loadOnlineStatusFlow, markMessagesAsReadFlow } from './modules/chat-partner-network.js';
 import {
     configureOnlineStatusController,
     applyOnlineStatus as applyOnlineStatusBridge,
@@ -119,7 +119,7 @@ import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } fro
 import { applyDataMemoryPolicy } from './modules/chat-cache-manager.js';
 import { readDataMemoryStore } from './modules/chat-cache-policy.js';
 import { createOutboxRuntime } from './modules/chat-outbox.js';
-import { mountOutboxPill } from './modules/chat-outbox-ui.js?v=20260509b';
+import { mountOutboxPill } from './modules/chat-outbox-ui.js';
 import { createChatHistoryRuntime, mapWithConcurrency } from './modules/chat-history-runtime.js';
 import { bindWindowActivityEvents, createActivityReporter } from './modules/chat-activity.js';
 import { initKeyboardShortcuts } from './modules/keyboard-shortcuts.js';
@@ -130,9 +130,9 @@ import {
     initTelegramRipple,
     waitForMotionEnd,
 } from './modules/motion.js';
-import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js?v=20260501e';
+import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js';
 import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
-import { createMediaHydrationController } from './modules/media-hydration.js?v=20260509a';
+import { createMediaHydrationController } from './modules/media-hydration.js';
 import { createChatMessageMutations } from './modules/chat-message-mutations.js';
 import { initChatMediaRuntime, formatAudioPlayerTime, hasProvidedWaveformPayload } from './modules/chat-media-runtime.js';
 import { createChatMediaCacheRuntime } from './modules/chat-media-cache-runtime.js';
@@ -154,7 +154,7 @@ import { syncE2EPillState as syncE2EPillStateFlow } from './chat/e2e-flows.js';
 import { createThreadShell, createMobileThreadShell } from './chat/thread-shell.js';
 import { createChatStateShell } from './chat/chat-state-shell.js';
 import { initMobileBackSwipe } from './chat/mobile-back-swipe.js';
-import { createMessageEditController } from './chat/message-edit-controller.js?v=2.1.1';
+import { createMessageEditController } from './chat/message-edit-controller.js';
 import { initMessageTouchContext } from './chat/message-touch-context.js';
 import { createProfileOrchestrator } from './chat/profile-orchestrator.js';
 import {
@@ -775,7 +775,7 @@ const initChatPage = async () => {
         if (emojiPickerInitPromise) {
             return emojiPickerInitPromise;
         }
-        emojiPickerInitPromise = import('./modules/emoji.js?v=20260509a')
+        emojiPickerInitPromise = import('./modules/emoji.js')
             .then(({ initEmojiPicker }) => {
                 initEmojiPicker(messageInput);
             })

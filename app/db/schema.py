@@ -49,8 +49,6 @@ def table_exists(cursor, table_name: str) -> bool:
 
 
 def table_columns(cursor, table_name: str) -> set[str]:
-    if not table_exists(cursor, table_name):
-        return set()
     rows = cursor.execute(
         '''
         SELECT column_name
@@ -64,8 +62,6 @@ def table_columns(cursor, table_name: str) -> set[str]:
 
 
 def table_primary_key_columns(cursor, table_name: str) -> list[str]:
-    if not table_exists(cursor, table_name):
-        return []
     rows = cursor.execute(
         '''
         SELECT kcu.column_name

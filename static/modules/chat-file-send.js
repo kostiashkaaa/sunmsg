@@ -7,7 +7,7 @@ import {
     probeAudioDurationSeconds,
     buildAudioWaveformPeaks,
     probeVisualMediaMetadata,
-} from './chat-media-upload.js?v=2.1.0';
+} from './chat-media-upload.js';
 import { createTypingSignalHeartbeat } from './chat-typing-signal-heartbeat.js';
 
 function resolveTransferPresenceKinds(options = {}) {

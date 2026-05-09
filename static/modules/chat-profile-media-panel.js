@@ -1,4 +1,4 @@
-import { collectMediaFromMessages, renderMediaTabs } from './profile-media.js?v=20260430j';
+import { collectMediaFromMessages, renderMediaTabs } from './profile-media.js';
 
 function createEmptyMediaCollections() {
     return { photos: [], videos: [], files: [], audio: [], voices: [], links: [] };

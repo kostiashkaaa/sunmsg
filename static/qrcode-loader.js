@@ -1,5 +1,6 @@
 (() => {
     let qrCodeLoadPromise = null;
+    let jsQrLoadPromise = null;
 
     window.ensureQrCodeLibrary = function ensureQrCodeLibrary() {
         if (typeof window.QRCode !== 'undefined') {
@@ -32,5 +33,38 @@
         });
 
         return qrCodeLoadPromise;
+    };
+
+    window.ensureJsQrLibrary = function ensureJsQrLibrary() {
+        if (typeof window.jsQR === 'function') {
+            return Promise.resolve(window.jsQR);
+        }
+
+        if (jsQrLoadPromise) {
+            return jsQrLoadPromise;
+        }
+
+        jsQrLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const bootstrapJsQrSrc = window.SUN_BOOTSTRAP?.assets?.jsQrSrc;
+            script.src = String(bootstrapJsQrSrc || window.SUN_JSQR_SRC || '/static/vendor/js/jsQR.min.js');
+            script.async = true;
+            script.onload = () => {
+                if (typeof window.jsQR !== 'function') {
+                    reject(new Error('jsQR library did not initialize.'));
+                    return;
+                }
+                resolve(window.jsQR);
+            };
+            script.onerror = () => {
+                reject(new Error('Failed to load jsQR library.'));
+            };
+            document.head.appendChild(script);
+        }).catch((error) => {
+            jsQrLoadPromise = null;
+            throw error;
+        });
+
+        return jsQrLoadPromise;
     };
 })();
