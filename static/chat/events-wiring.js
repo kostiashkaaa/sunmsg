@@ -39,6 +39,7 @@ export function wireBeforeUnloadCleanup({
     chatIdbRuntime,
     getExistingChatHistoryRuntime,
     disposeMediaCacheRuntime,
+    disconnectSocket,
 }) {
     window.addEventListener('beforeunload', () => {
         tabAlertController.stopBlinking();
@@ -62,6 +63,11 @@ export function wireBeforeUnloadCleanup({
         if (typeof disposeMediaCacheRuntime === 'function') {
             try {
                 disposeMediaCacheRuntime();
+            } catch (_) {}
+        }
+        if (typeof disconnectSocket === 'function') {
+            try {
+                disconnectSocket();
             } catch (_) {}
         }
     });
