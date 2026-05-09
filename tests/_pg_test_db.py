@@ -17,6 +17,7 @@ from app.db_backend import (
     rewrite_postgres_sql,
     testing_schema_from_identifier,
 )
+from app.db.schema import ensure_base_schema
 
 
 _SCHEMA_BY_KEY: dict[str, str] = {}
@@ -307,4 +308,7 @@ def connect_test_db(database):
             pass
     schema = _schema_for_key(db_key)
     ensure_postgres_schema(database_url, schema)
-    return _PgTestConnection(database_url, schema)
+    connection = _PgTestConnection(database_url, schema)
+    if db_key == ':memory:':
+        ensure_base_schema(connection)
+    return connection
