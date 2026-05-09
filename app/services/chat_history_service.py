@@ -1,4 +1,9 @@
 from app.services.chat_members import get_chat_type, list_chat_member_public_keys
+from app.services.group_receipts import (
+    build_group_read_updates,
+    collect_group_read_details_map,
+    list_unread_group_receipt_message_ids,
+)
 from app.services.reactions import fetch_reactions_map
 
 
@@ -28,10 +33,16 @@ def load_chat_history(
     else:
         block_state = serialize_block_state_func(build_block_state_func(conn, user_id, partner_id))
     updated_rows = 0
+    group_read_updates: list[dict] = []
     if before_id is None and not block_state['is_blocked']:
         read_at_row = conn.execute('SELECT CURRENT_TIMESTAMP AS read_at').fetchone()
         read_at_value = read_at_row['read_at'] if read_at_row else None
         if is_group_chat:
+            affected_message_ids = list_unread_group_receipt_message_ids(
+                conn,
+                chat_id=chat_id,
+                user_id=user_id,
+            )
             cursor = conn.execute(
                 '''
                 UPDATE message_receipts AS mr
@@ -61,11 +72,27 @@ def load_chat_history(
                 (read_at_value, chat_id, user_id),
             )
         updated_rows = cursor.rowcount
+        if updated_rows > 0 and is_group_chat and affected_message_ids:
+            group_read_updates = build_group_read_updates(
+                conn,
+                chat_id=chat_id,
+                message_ids=affected_message_ids,
+            )
         conn.commit()
-        if updated_rows > 0 and not is_group_chat and partner['public_key']:
-            socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
-        elif updated_rows > 0 and is_group_chat:
+        if updated_rows > 0 and is_group_chat:
+            if group_read_updates:
+                socketio_emit_func(
+                    'group_messages_read',
+                    {
+                        'chat_id': chat_id,
+                        'reader_user_id': int(user_id),
+                        'updates': group_read_updates,
+                    },
+                    room=chat_id,
+                )
             socketio_emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+        elif updated_rows > 0 and partner['public_key']:
+            socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
 
     params = [chat_id]
     history_window_sql = ''
@@ -152,6 +179,19 @@ def load_chat_history(
         messages = list(reversed(messages))
     message_ids = [int(msg['id']) for msg in messages]
     reactions_map = fetch_reactions_map(conn, chat_id, message_ids, user_id)
+    group_read_map: dict[int, dict] = {}
+    if is_group_chat:
+        own_group_message_ids = [
+            int(msg['id'])
+            for msg in messages
+            if int(msg['sender_id']) == int(user_id)
+        ]
+        if own_group_message_ids:
+            group_read_map = collect_group_read_details_map(
+                conn,
+                chat_id=chat_id,
+                message_ids=own_group_message_ids,
+            )
     favorite_message_ids = set()
     if include_favorites and message_ids:
         placeholders = ', '.join('?' * len(message_ids))
@@ -171,33 +211,57 @@ def load_chat_history(
             if row['message_id'] is not None
         }
 
-    messages_list = [
-        {
-            'id': msg['id'],
-            'sender_user_id': msg['sender_id'],
-            'sender_public_key': msg['sender_public_key'],
-            'sender_display_name': str(msg['sender_display_name'] or ''),
-            'sender_username': str(msg['sender_username'] or ''),
-            'sender_avatar_url': msg['sender_avatar_url'],
-            'message': msg['message'],
-            'message_type': msg['message_type'] or 'text',
-            'created_at': msg['created_at'],
-            'is_read': bool(msg['is_read']),
-            'read_at': msg['read_at'],
-            'is_delivered': bool(msg['is_delivered']),
-            'voice_listened_by_partner': bool(msg['voice_listened_by_receiver']),
-            'is_edited': bool(msg['is_edited']),
-            'is_self': msg['sender_id'] == user_id,
-            'reply_to_id': msg['reply_to_id'],
-            'reply_message': msg['reply_message'],
-            'reply_sender_pub': msg['reply_sender_pub'],
-            'forward_from_name': str(msg['forward_from_name'] or '').strip(),
-            'forward_from_user_id': int(msg['forward_from_user_id']) if msg['forward_from_user_id'] is not None else None,
-            'reactions': reactions_map.get(int(msg['id']), []),
-            'is_favorite': int(msg['id']) in favorite_message_ids,
-        }
-        for msg in messages
-    ]
+    messages_list = []
+    for msg in messages:
+        msg_id = int(msg['id'])
+        is_self = int(msg['sender_id']) == int(user_id)
+        base_is_read = bool(msg['is_read'])
+        base_read_at = msg['read_at']
+        group_read_payload = {}
+        if is_group_chat and is_self:
+            read_meta = group_read_map.get(
+                msg_id,
+                {
+                    'read_count': 0,
+                    'readers': [],
+                    'latest_read_at': None,
+                },
+            )
+            read_count = int(read_meta.get('read_count') or 0)
+            group_read_payload = {
+                'group_read_count': read_count,
+                'group_readers': list(read_meta.get('readers') or []),
+            }
+            base_is_read = read_count > 0
+            base_read_at = read_meta.get('latest_read_at') or None
+
+        messages_list.append(
+            {
+                'id': msg_id,
+                'sender_user_id': msg['sender_id'],
+                'sender_public_key': msg['sender_public_key'],
+                'sender_display_name': str(msg['sender_display_name'] or ''),
+                'sender_username': str(msg['sender_username'] or ''),
+                'sender_avatar_url': msg['sender_avatar_url'],
+                'message': msg['message'],
+                'message_type': msg['message_type'] or 'text',
+                'created_at': msg['created_at'],
+                'is_read': bool(base_is_read),
+                'read_at': base_read_at,
+                'is_delivered': bool(msg['is_delivered']),
+                'voice_listened_by_partner': bool(msg['voice_listened_by_receiver']),
+                'is_edited': bool(msg['is_edited']),
+                'is_self': is_self,
+                'reply_to_id': msg['reply_to_id'],
+                'reply_message': msg['reply_message'],
+                'reply_sender_pub': msg['reply_sender_pub'],
+                'forward_from_name': str(msg['forward_from_name'] or '').strip(),
+                'forward_from_user_id': int(msg['forward_from_user_id']) if msg['forward_from_user_id'] is not None else None,
+                'reactions': reactions_map.get(msg_id, []),
+                'is_favorite': msg_id in favorite_message_ids,
+                **group_read_payload,
+            }
+        )
 
     pins_data = []
     if include_pins:
@@ -322,7 +386,14 @@ def mark_messages_as_read(
 
     read_at_row = conn.execute('SELECT CURRENT_TIMESTAMP AS read_at').fetchone()
     read_at_value = read_at_row['read_at'] if read_at_row else None
+    affected_message_ids: list[int] = []
+    group_read_updates: list[dict] = []
     if is_group_chat:
+        affected_message_ids = list_unread_group_receipt_message_ids(
+            conn,
+            chat_id=chat_id,
+            user_id=user_id,
+        )
         cursor = conn.execute(
             '''
             UPDATE message_receipts AS mr
@@ -352,12 +423,28 @@ def mark_messages_as_read(
             (read_at_value, chat_id, user_id),
         )
     updated_rows = cursor.rowcount
+    if updated_rows > 0 and is_group_chat and affected_message_ids:
+        group_read_updates = build_group_read_updates(
+            conn,
+            chat_id=chat_id,
+            message_ids=affected_message_ids,
+        )
     conn.commit()
 
-    if updated_rows > 0 and not is_group_chat and partner and partner['public_key']:
-        socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
-    elif updated_rows > 0 and is_group_chat:
+    if updated_rows > 0 and is_group_chat:
+        if group_read_updates:
+            socketio_emit_func(
+                'group_messages_read',
+                {
+                    'chat_id': chat_id,
+                    'reader_user_id': int(user_id),
+                    'updates': group_read_updates,
+                },
+                room=chat_id,
+            )
         socketio_emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+    elif updated_rows > 0 and partner and partner['public_key']:
+        socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
     return {'status': 'ok'}
 
 

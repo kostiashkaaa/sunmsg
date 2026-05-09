@@ -183,6 +183,8 @@ _PUSH_BODY_BY_TYPE: dict[str, str] = {
     'file': '📎 Файл',
     'sticker': '🖼 Стикер',
 }
+_MENTION_PUSH_BODY = 'Вас упомянули в чате'
+_DEFAULT_PUSH_BODY = 'Новое сообщение'
 
 
 def send_chat_message_push(
@@ -193,6 +195,8 @@ def send_chat_message_push(
     sender_username: str,
     chat_id: str,
     message_type: str = 'text',
+    notification_type: str = 'message',
+    chat_display_name: str = '',
 ) -> dict[str, int]:
     cfg = web_push_config()
     if not cfg['enabled']:
@@ -226,13 +230,24 @@ def send_chat_message_push(
                     resolved_sender_username = str(sender_row['username'] or '').strip()
 
         title = resolved_sender_display_name or resolved_sender_username or 'SUN Messenger'
+        is_mention_notification = str(notification_type or '').strip().lower() == 'mention'
+        mention_scope_name = str(chat_display_name or '').strip()
+        if is_mention_notification and mention_scope_name:
+            title = mention_scope_name
+        if is_mention_notification:
+            body = f'{_MENTION_PUSH_BODY}: {mention_scope_name}' if mention_scope_name else _MENTION_PUSH_BODY
+            tag = f'mention:{str(chat_id or "").strip()}'
+        else:
+            body = _PUSH_BODY_BY_TYPE.get(str(message_type or '').strip(), _DEFAULT_PUSH_BODY)
+            tag = f'chat:{str(chat_id or "").strip()}'
         payload = json.dumps(
             {
                 'title': title,
-                'body': _PUSH_BODY_BY_TYPE.get(str(message_type or '').strip(), 'Новое сообщение'),
+                'body': body,
                 'url': '/chat',
                 'chat_id': str(chat_id or '').strip(),
-                'tag': f'chat:{str(chat_id or "").strip()}',
+                'tag': tag,
+                'kind': 'mention' if is_mention_notification else 'message',
             },
             ensure_ascii=False,
         )

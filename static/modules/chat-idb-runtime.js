@@ -53,6 +53,10 @@ export function buildEncryptedCacheMessageFromSocketPayload(data) {
         reply_sender_pub: data.reply_sender_pub || null,
         forward_from_name: String(data.forward_from_name || '').trim(),
         forward_from_user_id: Number(data.forward_from_user_id) || null,
+        group_read_count: Number(data.group_read_count) || 0,
+        group_readers: Array.isArray(data.group_readers) ? data.group_readers : [],
+        mentioned_user_ids: Array.isArray(data.mentioned_user_ids) ? data.mentioned_user_ids : [],
+        mentioned_usernames: Array.isArray(data.mentioned_usernames) ? data.mentioned_usernames : [],
         reactions: Array.isArray(data.reactions) ? data.reactions : [],
     };
 }

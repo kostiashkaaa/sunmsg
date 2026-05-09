@@ -13,6 +13,7 @@ import {
     STANDARD_SINGLE_CHECK_TICK_HTML,
     STANDARD_DOUBLE_CHECK_TICK_HTML,
 } from './check-glyph.js';
+import { buildGroupReadMetaHtml } from './chat-group-read-receipts.js';
 
 const DEFAULT_AUDIO_WAVEFORM = [
     30, 46, 62, 42, 58, 76, 40, 28, 64, 84, 52, 34,
@@ -815,6 +816,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     const pinnedLabel = isPinned ? '<span class="msg-pin" title="\u0417\u0430\u043A\u0440\u0435\u043F\u043B\u0435\u043D\u043E"><i class="bi bi-pin-angle-fill"></i></span>' : '';
     const favoriteLabel = isFavorite ? '<span class="msg-favorite" title="\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C"><i class="bi bi-star-fill"></i></span>' : '';
     const editedLabel = msg.is_edited ? '<span class="msg-edited">(\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u043E)</span>' : '';
+    const groupReadMetaHtml = buildGroupReadMetaHtml(msg, { isGroupChat, isSelf });
     const audioDurationHtml = isAudioPayload
         ? `<span class="audio-message-duration-wrap" data-audio-listened-wrap="1"><span class="audio-message-duration" data-audio-duration="${audioDurationSeconds > 0 ? String(audioDurationSeconds) : ''}">${formatMediaDuration(audioDurationSeconds)}</span><span class="audio-message-listen-dot" aria-hidden="true"></span></span>`
         : '';
@@ -828,6 +830,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                     ${favoriteLabel}
                     ${pinnedLabel}
                     ${editedLabel}
+                    ${groupReadMetaHtml}
                     <span class="msg-time" title="${formatFullTimestamp(msg.created_at)}" data-created-at="${msg.created_at || ''}">${formatTime(msg.created_at)}</span>
                     ${ticks}
                 </div>`;
@@ -894,7 +897,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         const messageText = String(msg.message ?? '');
         if (textEl) {
             if (typeof renderMessageTextContent === 'function') {
-                renderMessageTextContent(textEl, messageText);
+                renderMessageTextContent(textEl, messageText, { message: msg });
             } else {
                 textEl.textContent = messageText;
             }

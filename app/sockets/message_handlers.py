@@ -1,7 +1,13 @@
+import json
+
 from app.services.chat_members import (
     get_chat_type,
     list_chat_member_public_keys,
     list_chat_member_user_ids,
+)
+from app.services.mentions import (
+    extract_mentioned_usernames,
+    resolve_group_mentioned_members,
 )
 from app.services.user import get_safe_avatar_url
 from app.sockets.idempotency import (
@@ -9,6 +15,23 @@ from app.sockets.idempotency import (
     release_request,
     reserve_request,
 )
+
+
+def _extract_group_mention_usernames(raw_message: str, message_type: str) -> list[str]:
+    normalized_message_type = str(message_type or '').strip().lower()
+    if normalized_message_type in {'text', 'link'}:
+        return extract_mentioned_usernames(raw_message)
+
+    if normalized_message_type not in {'photo', 'video', 'audio', 'file'}:
+        return []
+
+    try:
+        payload = json.loads(str(raw_message or ''))
+    except Exception:  # noqa: BLE001
+        return []
+    if not isinstance(payload, dict) or not payload.get('__sunfile'):
+        return []
+    return extract_mentioned_usernames(str(payload.get('caption') or ''))
 
 
 def handle_edit_message_event(
@@ -548,6 +571,43 @@ def handle_send_message_event(
     forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
     forward_from_user_id = positive_int_func(data.get('forward_from_user_id'))
     group_member_public_keys = []
+    mentioned_members: list[dict] = []
+    mentioned_user_ids: list[int] = []
+    mentioned_usernames: list[str] = []
+    group_chat_display_name = ''
+    if chat_type == 'group':
+        raw_mentioned_usernames = _extract_group_mention_usernames(message, message_type)
+        if raw_mentioned_usernames:
+            mentioned_members = resolve_group_mentioned_members(
+                conn,
+                chat_id=chat_id,
+                mentioned_usernames=raw_mentioned_usernames,
+                exclude_user_id=sender_id,
+            )
+            mentioned_user_ids = [int(member['user_id']) for member in mentioned_members]
+            mentioned_usernames = [
+                str(member.get('username') or '').strip()
+                for member in mentioned_members
+                if str(member.get('username') or '').strip()
+            ]
+            if mentioned_members:
+                try:
+                    chat_name_row = conn.execute(
+                        '''
+                        SELECT chat_name
+                        FROM chats
+                        WHERE chat_id = ?
+                        LIMIT 1
+                        ''',
+                        (chat_id,),
+                    ).fetchone()
+                except Exception:  # noqa: BLE001
+                    try:
+                        conn.rollback()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    chat_name_row = None
+                group_chat_display_name = str(chat_name_row['chat_name'] or '').strip() if chat_name_row else ''
     sender_display_name = str(session_store.get('display_name') or session_store.get('username') or '').strip()
     sender_username = str(session_store.get('username') or '').strip()
     sender_avatar_url = ''
@@ -818,6 +878,11 @@ def handle_send_message_event(
         'forward_from_user_id': forward_from_user_id,
         'reactions': [],
     }
+    if chat_type == 'group':
+        payload['group_read_count'] = 0
+        payload['group_readers'] = []
+        payload['mentioned_user_ids'] = mentioned_user_ids
+        payload['mentioned_usernames'] = mentioned_usernames
 
     if chat_type == 'group':
         emit_func('receive_message', payload, room=chat_id)
@@ -827,6 +892,27 @@ def handle_send_message_event(
             member_pub = str(member['public_key'] or '')
             if member_pub:
                 emit_func('receive_message', payload, room=member_pub)
+        if mentioned_members and callable(send_web_push_notification_func):
+            for member in mentioned_members:
+                member_user_id = int(member['user_id'])
+                member_public_key = str(member.get('public_key') or '').strip()
+                if member_user_id <= 0:
+                    continue
+                if member_public_key and count_connected_func(member_public_key) > 0:
+                    continue
+                try:
+                    send_web_push_notification_func(
+                        receiver_user_id=member_user_id,
+                        sender_user_id=sender_id,
+                        sender_display_name=sender_display_name,
+                        sender_username=sender_username,
+                        chat_id=chat_id,
+                        message_type=message_type,
+                        notification_type='mention',
+                        chat_display_name=group_chat_display_name,
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.warning('Web push mention notification send failed for receiver_id=%s', member_user_id)
     else:
         emit_func('receive_message', payload, room=receiver_pub)
         emit_func('receive_message', payload, room=sender_pub)

@@ -29,6 +29,7 @@ export async function sendFileMessageFlow({
     file,
     caption = '',
     options = {},
+    isGroupChat = false,
     isChatBlocked,
     getBlockedNoticeText,
     currentBlockState,
@@ -135,6 +136,7 @@ export async function sendFileMessageFlow({
         replyToId: snapReplyId,
         replyToText: snapReplyText,
         replyToSender: snapReplySender,
+        ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
         reactions: [],
     }, { renderOptions: { force: true, scrollToBottom: true } });
     setKeepChatPinnedToBottom(true);

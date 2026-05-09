@@ -28,6 +28,64 @@ def _prepare_schema(conn):
     conn.commit()
 
 
+def _prepare_group_schema(conn):
+    conn.execute(
+        '''
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT,
+            display_name TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE messages (
+            id INTEGER PRIMARY KEY,
+            chat_id TEXT NOT NULL,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            is_delivered INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE message_receipts (
+            message_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            is_delivered INTEGER NOT NULL DEFAULT 0,
+            delivered_at TEXT,
+            is_read INTEGER NOT NULL DEFAULT 0,
+            read_at TEXT,
+            deleted_for_user INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE chats (
+            chat_id TEXT PRIMARY KEY,
+            chat_type TEXT NOT NULL
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE chat_members (
+            user_id INTEGER NOT NULL,
+            chat_id TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            PRIMARY KEY(user_id, chat_id)
+        )
+        '''
+    )
+    conn.commit()
+
+
 def test_handle_messages_seen_event_marks_read_and_notifies(tmp_path):
     db_path = tmp_path / 'socket-read-receipt-seen-ok.db'
     with _connect(db_path) as conn:
@@ -183,3 +241,77 @@ def test_handle_voice_message_listened_event_blocked_emits_state(tmp_path):
     assert int(row['voice_listened_by_receiver']) == 0
     assert any(event[0] == 'chat_block_state' and event[1]['chat_id'] == 'chat-a' for event in emitted)
     assert not any(event[0] == 'voice_message_listened' for event in emitted)
+
+
+def test_handle_messages_seen_event_group_emits_detailed_updates(tmp_path):
+    db_path = tmp_path / 'socket-read-receipt-seen-group.db'
+    with _connect(db_path) as conn:
+        _prepare_group_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, username, display_name)
+            VALUES
+                (1, 'alice', 'Alice'),
+                (2, 'bob', 'Bob')
+            '''
+        )
+        conn.execute("INSERT INTO chats (chat_id, chat_type) VALUES ('group-a', 'group')")
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES (1, 'group-a', 'member'), (2, 'group-a', 'member')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, created_at)
+            VALUES (100, 'group-a', 2, NULL, '2025-01-01 10:00:00')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO message_receipts (message_id, user_id, is_delivered, is_read, deleted_for_user)
+            VALUES
+                (100, 1, 0, 0, 0),
+                (100, 2, 1, 1, 0)
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_messages_seen_event(
+        {'chat_id': 'group-a'},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': None, 'public_key': ''}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT is_read, is_delivered FROM message_receipts WHERE message_id = 100 AND user_id = 1'
+        ).fetchone()
+
+    assert int(row['is_read']) == 1
+    assert int(row['is_delivered']) == 1
+    detailed_event = next((event for event in emitted if event[0] == 'group_messages_read'), None)
+    assert detailed_event is not None
+    assert detailed_event[2].get('room') == 'group-a'
+    assert detailed_event[1]['chat_id'] == 'group-a'
+    assert detailed_event[1]['reader_user_id'] == 1
+    assert detailed_event[1]['updates']
+    first_update = detailed_event[1]['updates'][0]
+    assert int(first_update['message_id']) == 100
+    assert int(first_update['read_count']) == 1
+    assert int(first_update['readers'][0]['user_id']) == 1
+    assert any(
+        event[0] == 'messages_read'
+        and event[1] == {'chat_id': 'group-a'}
+        and event[2].get('room') == 'group-a'
+        for event in emitted
+    )
