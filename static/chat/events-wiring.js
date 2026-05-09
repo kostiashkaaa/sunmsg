@@ -34,10 +34,7 @@ export function wireBeforeUnloadCleanup({
     activityController,
     unbindWindowActivityEvents,
     voiceRecorderController,
-    getChatSurfaceEnterRafId,
-    setChatSurfaceEnterRafId,
-    getChatSurfaceEnterTimerId,
-    setChatSurfaceEnterTimerId,
+    disposeChatAnimations,
     isChatIdbReady,
     chatIdbRuntime,
     getExistingChatHistoryRuntime,
@@ -51,13 +48,8 @@ export function wireBeforeUnloadCleanup({
             unbindWindowActivityEvents();
         }
         voiceRecorderController.cleanup();
-        if (getChatSurfaceEnterRafId()) {
-            cancelAnimationFrame(getChatSurfaceEnterRafId());
-            setChatSurfaceEnterRafId(0);
-        }
-        if (getChatSurfaceEnterTimerId()) {
-            window.clearTimeout(getChatSurfaceEnterTimerId());
-            setChatSurfaceEnterTimerId(0);
+        if (typeof disposeChatAnimations === 'function') {
+            disposeChatAnimations();
         }
         if (isChatIdbReady()) {
             chatIdbRuntime.close().catch(() => {});

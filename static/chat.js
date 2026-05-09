@@ -133,6 +133,9 @@ import { createChatDraftsController } from './modules/chat-drafts.js';
 import { createChatReportFlow } from './modules/chat-report-flow.js';
 import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { createChatGroupCreateController } from './modules/chat-group-create.js';
+import { createChatGroupEditController } from './modules/chat-group-edit.js';
+import { createChatAttachMenuController } from './modules/chat-attach-menu.js';
+import { createChatAnimationsController } from './modules/chat-animations.js';
 import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
 import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
@@ -290,6 +293,26 @@ const initChatPage = async () => {
     // Group create controller — initialised below.
     var groupCreateController;
     function openGroupCreateModal() { return groupCreateController?.openGroupCreateModal(); }
+
+    // Group edit controller — initialised below.
+    var groupEditController;
+    function openGroupEditModal() { return groupEditController?.openGroupEditModal(); }
+    function updateGroupEditSubmitState() { return groupEditController?.updateGroupEditSubmitState(); }
+
+    // Attach menu controller — initialised below.
+    var attachMenuPanelController;
+    function closeAttachMenu() { return attachMenuPanelController?.closeAttachMenu(); }
+    function isAttachMenuOpen() { return Boolean(attachMenuPanelController?.isAttachMenuOpen()); }
+    function resolveAttachModeForFile(file, preferredMode = null) {
+        return attachMenuPanelController?.resolveAttachModeForFile(file, preferredMode) || 'file';
+    }
+
+    // Chat animations controller — initialised below.
+    var chatAnimationsController;
+    function triggerChatSurfaceEnterAnimation() { return chatAnimationsController?.triggerChatSurfaceEnterAnimation(); }
+    function triggerChatHistoryRevealAnimation() { return chatAnimationsController?.triggerChatHistoryRevealAnimation(); }
+    function triggerChatAnimateEnter() { return chatAnimationsController?.triggerChatAnimateEnter(); }
+    function triggerDesktopMobileRevealAnimation() { return chatAnimationsController?.triggerDesktopMobileRevealAnimation(); }
 
     // Visual media meta enrichment controller — initialised below.
     var mediaMetaController;
@@ -484,6 +507,34 @@ const initChatPage = async () => {
         buildSearchResultsLoaderHtml: () => buildSearchResultsLoaderHtml(),
         loadContacts: (options) => loadContacts(options),
         openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
+    });
+
+    groupEditController = createChatGroupEditController({
+        groupEditModal,
+        groupEditTitleInput,
+        groupEditDescriptionInput,
+        groupEditAvatarInput,
+        groupEditSubmitBtn,
+        chatTitle,
+        profileLargeAvatar,
+        profileDisplayName,
+        getCurrentGroupProfile: () => currentGroupProfile,
+        getCurrentChatId: () => currentChatId,
+        withAppRoot,
+        getCsrfToken,
+        openAnimatedDialog,
+        closeAnimatedDialog,
+        showToast,
+        renderGroupEditAvatar: (profile) => renderGroupEditAvatar(profile),
+        renderGroupEditMembers: (profile) => renderGroupEditMembers(profile),
+        loadContacts: (options) => loadContacts(options),
+    });
+
+    chatAnimationsController = createChatAnimationsController({
+        chatArea,
+        chatMessages,
+        prefersReducedMotionSetting: () => prefersReducedMotionSetting(),
+        isMobileViewport: () => isMobileViewport(),
     });
 
     // initChatClipboardAndDrop вызывается ниже, после объявления dragDropOverlay.
@@ -2226,135 +2277,6 @@ const initChatPage = async () => {
         });
     }
 
-    let chatSurfaceEnterRafId = 0;
-    let chatSurfaceEnterTimerId = 0;
-    let chatHistoryRevealRafId = 0;
-    let chatHistoryRevealTimerId = 0;
-    let chatAnimateEnterTimerId = 0;
-    let desktopMobileRevealTimerId = 0;
-    function triggerChatSurfaceEnterAnimation() {
-        if (!chatArea) return;
-        if (prefersReducedMotionSetting()) return;
-        if (isMobileViewport()) {
-            chatArea.classList.remove('chat-surface-enter');
-            return;
-        }
-        if (chatSurfaceEnterRafId) {
-            cancelAnimationFrame(chatSurfaceEnterRafId);
-            chatSurfaceEnterRafId = 0;
-        }
-        if (chatSurfaceEnterTimerId) {
-            window.clearTimeout(chatSurfaceEnterTimerId);
-            chatSurfaceEnterTimerId = 0;
-        }
-        chatArea.classList.remove('chat-surface-enter');
-        chatSurfaceEnterRafId = requestAnimationFrame(() => {
-            chatSurfaceEnterRafId = 0;
-            chatArea.classList.add('chat-surface-enter');
-            chatSurfaceEnterTimerId = window.setTimeout(() => {
-                chatArea.classList.remove('chat-surface-enter');
-                chatSurfaceEnterTimerId = 0;
-            }, 460);
-        });
-    }
-
-    function triggerChatHistoryRevealAnimation() {
-        if (!chatArea) return;
-        if (prefersReducedMotionSetting()) return;
-        if (isMobileViewport()) {
-            chatArea.classList.remove('chat-history-reveal', 'is-switching');
-            return;
-        }
-        if (chatHistoryRevealRafId) {
-            cancelAnimationFrame(chatHistoryRevealRafId);
-            chatHistoryRevealRafId = 0;
-        }
-        if (chatHistoryRevealTimerId) {
-            clearTimeout(chatHistoryRevealTimerId);
-            chatHistoryRevealTimerId = 0;
-        }
-        if (chatMessages) {
-            const visibleMessages = chatMessages.querySelectorAll('.message').length;
-            applyListPerfGuard(chatMessages, {
-                total: visibleMessages,
-                dataAttr: 'data-motion-history-guard',
-            });
-        }
-        chatArea.classList.remove('chat-history-reveal');
-        chatHistoryRevealRafId = requestAnimationFrame(() => {
-            chatHistoryRevealRafId = 0;
-            chatArea.classList.remove('is-switching');
-            chatArea.classList.add('chat-history-reveal');
-            chatHistoryRevealTimerId = window.setTimeout(() => {
-                chatArea.classList.remove('chat-history-reveal');
-                chatHistoryRevealTimerId = 0;
-            }, 640);
-        });
-    }
-
-    function triggerChatAnimateEnter() {
-        if (!chatArea) return;
-        if (prefersReducedMotionSetting()) {
-            chatArea.classList.remove('chat-animate-enter');
-            return;
-        }
-        if (isMobileViewport()) {
-            chatArea.classList.remove('chat-animate-enter');
-            return;
-        }
-        if (chatAnimateEnterTimerId) {
-            window.clearTimeout(chatAnimateEnterTimerId);
-            chatAnimateEnterTimerId = 0;
-        }
-        chatArea.classList.remove('chat-animate-enter');
-        void chatArea.offsetWidth;
-        chatArea.classList.add('chat-animate-enter');
-        chatAnimateEnterTimerId = window.setTimeout(() => {
-            chatArea.classList.remove('chat-animate-enter');
-            chatAnimateEnterTimerId = 0;
-        }, 380);
-    }
-
-    function triggerDesktopMobileRevealAnimation() {
-        if (!chatArea) return;
-        if (isMobileViewport()) {
-            chatArea.classList.remove('desktop-mobile-revealing');
-            chatArea.classList.remove('is-switching');
-            chatArea.classList.remove('chat-surface-enter', 'chat-history-reveal', 'chat-animate-enter');
-            return;
-        }
-        if (document.documentElement.classList.contains('perf-lite')) {
-            document.documentElement.classList.remove('perf-lite');
-            document.documentElement.setAttribute('data-performance-mode', 'full');
-            try {
-                localStorage.setItem('sun_performance_mode', 'full');
-            } catch (_) {}
-        }
-        const revealRunId = desktopMobileRevealTimerId + 1;
-        desktopMobileRevealTimerId = revealRunId;
-        const desktopRevealShiftPx = Math.min(Math.max(0, chatArea.clientWidth || 0), 420);
-        chatArea.style.setProperty('--desktop-mobile-reveal-shift', `${desktopRevealShiftPx}px`);
-        chatArea.classList.remove('desktop-mobile-revealing');
-        chatArea.classList.remove('is-switching');
-        chatArea.classList.remove('chat-surface-enter', 'chat-history-reveal', 'chat-animate-enter');
-        void chatArea.offsetWidth;
-        chatArea.classList.add('desktop-mobile-revealing');
-        const revealAnimationDuration = Number.parseFloat(
-            (window.getComputedStyle(chatArea).animationDuration || '0').split(',')[0]
-        );
-        if (!Number.isFinite(revealAnimationDuration) || revealAnimationDuration <= 0) {
-            chatArea.classList.remove('desktop-mobile-revealing');
-            return;
-        }
-        const onDesktopMobileRevealEnd = (event) => {
-            if (event.target !== chatArea) return;
-            if (event.animationName !== 'desktopMobileChatRevealIn') return;
-            chatArea.removeEventListener('animationend', onDesktopMobileRevealEnd);
-            if (revealRunId !== desktopMobileRevealTimerId) return;
-            chatArea.classList.remove('desktop-mobile-revealing');
-        };
-        chatArea.addEventListener('animationend', onDesktopMobileRevealEnd);
-    }
 
     // \u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C/\u0441\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442-\u043A\u043E\u043D\u0442\u0435\u043D\u0442
     function showChatContent(show) {
@@ -2874,7 +2796,10 @@ const initChatPage = async () => {
         return profileMediaPanelController.loadProfileMediaHistory(chatId, loadToken);
     }
     let profileGroupActiveTab = 'members';
-    let currentGroupProfile = null;
+    // var-hoisted: контроллер группы (инициализируется выше) читает это
+    // через геттер ещё до этой строки.
+    // eslint-disable-next-line no-var
+    var currentGroupProfile = null;
     function buildMemberInitials(displayName, username) {
         const source = String(displayName || username || '?').trim();
         return source.split(/\s+/).slice(0, 2).map((chunk) => chunk[0] || '').join('').toUpperCase() || '?';
@@ -5348,114 +5273,16 @@ const initChatPage = async () => {
     const attachBtn = document.getElementById('attachBtn');
     const attachMenu = document.getElementById('attachMenu');
     const attachMenuItems = Array.from(attachMenu?.querySelectorAll('[data-attach-mode]') || []);
-    const ATTACH_MODE_FILE = 'file';
-    const ATTACH_MODE_MEDIA = 'media';
-    const FILE_ATTACH_ACCEPT_ALL = String(fileAttachInput?.getAttribute('accept') || '*/*');
-    const FILE_ATTACH_ACCEPT_MEDIA = 'image/*,video/*';
-    const attachMenuController = initAttachMenuPortal({ attachMenu, trigger: attachBtn });
 
-    function resolveAttachMode(value) {
-        return value === ATTACH_MODE_MEDIA ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
-    }
-
-    function isVisualAttachCandidate(file) {
-        const mime = String(file?.type || '').toLowerCase();
-        if (mime.startsWith('image/') || mime.startsWith('video/')) return true;
-        const name = String(file?.name || '').toLowerCase();
-        return /\.(png|jpe?g|webp|gif|bmp|svg|heic|heif|avif|mp4|mov|m4v|avi|mkv|webm|ogv)$/i.test(name);
-    }
-
-    function resolveAttachModeForFile(file, preferredMode = null) {
-        const normalizedPreferredMode = preferredMode === null || preferredMode === undefined
-            ? null
-            : resolveAttachMode(preferredMode);
-        if (normalizedPreferredMode === ATTACH_MODE_MEDIA) return ATTACH_MODE_MEDIA;
-        if (normalizedPreferredMode === ATTACH_MODE_FILE) return ATTACH_MODE_FILE;
-        return isVisualAttachCandidate(file) ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
-    }
-
-    function setAttachMenuOpen(open) {
-        attachMenuController.setOpen(open);
-    }
-
-    function isAttachMenuOpen() {
-        return attachMenuController.isOpen();
-    }
-
-    function closeAttachMenu() {
-        attachMenuController.close();
-    }
-
-    function applyAttachInputMode(mode) {
-        if (!fileAttachInput) return;
-        const normalizedMode = resolveAttachMode(mode);
-        fileAttachInput.dataset.attachMode = normalizedMode;
-        fileAttachInput.setAttribute(
-            'accept',
-            normalizedMode === ATTACH_MODE_MEDIA ? FILE_ATTACH_ACCEPT_MEDIA : FILE_ATTACH_ACCEPT_ALL,
-        );
-    }
-
-    function openAttachMenu() {
-        if (!attachMenu || !attachBtn || isChatBlocked()) return;
-        if (attachBtn.classList.contains('disabled') || attachBtn.disabled) return;
-        setAttachMenuOpen(true);
-    }
-
-    function triggerAttachPicker(mode) {
-        if (!fileAttachInput) return;
-        applyAttachInputMode(mode);
-        closeAttachMenu();
-        fileAttachInput.click();
-    }
-
-    attachBtn?.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (isAttachMenuOpen()) {
-            closeAttachMenu();
-            return;
-        }
-        openAttachMenu();
+    attachMenuPanelController = createChatAttachMenuController({
+        attachMenu,
+        attachBtn,
+        fileAttachInput,
+        attachMenuItems,
+        isChatBlocked: () => isChatBlocked(),
+        handleFileUpload: (file, options) => handleFileUpload(file, options),
     });
 
-    attachMenuItems.forEach((item) => {
-        item.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const mode = item.getAttribute('data-attach-mode') || ATTACH_MODE_FILE;
-            triggerAttachPicker(mode);
-        });
-    });
-
-    document.addEventListener('pointerdown', (event) => {
-        if (!isAttachMenuOpen()) return;
-        if (!(event.target instanceof Element)) {
-            closeAttachMenu();
-            return;
-        }
-        if (event.target.closest('#attachMenu') || event.target.closest('#attachBtn')) return;
-        closeAttachMenu();
-    });
-
-    if (fileAttachInput) {
-        applyAttachInputMode(ATTACH_MODE_FILE);
-        fileAttachInput.addEventListener('change', async function() {
-            const files = Array.from(this.files || []);
-            if (!files.length) return;
-
-            const attachMode = resolveAttachMode(this.dataset.attachMode);
-            if (files.length === 1) {
-                await handleFileUpload(files[0], { allowCaption: true, attachMode });
-            } else {
-                for (const file of files) {
-                    await handleFileUpload(file, { allowCaption: false, attachMode });
-                }
-            }
-            this.value = '';
-            applyAttachInputMode(ATTACH_MODE_FILE);
-        });
-    }
     if (voiceRecordBtn) {
         voiceRecordBtn.addEventListener('click', () => {
         if (voiceRecordBtn.classList.contains('is-send-state')) {
@@ -5495,7 +5322,7 @@ const initChatPage = async () => {
         }
         if (!file) return;
         const normalizedAttachMode = resolveAttachModeForFile(file, attachMode);
-        if (normalizedAttachMode !== ATTACH_MODE_MEDIA && file.size > MAX_CHAT_MEDIA_SIZE) {
+        if (normalizedAttachMode !== 'media' && file.size > MAX_CHAT_MEDIA_SIZE) {
             showToast(`\u0424\u0430\u0439\u043B "${file.name}" \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441. ${Math.round(MAX_CHAT_MEDIA_SIZE / (1024 * 1024))} \u041C\u0411.`, 'danger');
             return;
         }
@@ -6068,173 +5895,8 @@ const initChatPage = async () => {
     }
 
 
-    let groupEditSubmitting = false;
-    let groupEditAvatarUploading = false;
-
-    function getGroupEditNormalizedTitle() {
-        return String(groupEditTitleInput?.value || '').trim();
-    }
-
-    function getGroupEditNormalizedDescription() {
-        return String(groupEditDescriptionInput?.value || '').trim();
-    }
-
-    function hasGroupEditChanges() {
-        if (!currentGroupProfile) return false;
-        const nextTitle = getGroupEditNormalizedTitle();
-        const nextDescription = getGroupEditNormalizedDescription();
-        const prevTitle = String(currentGroupProfile.display_name || '').trim();
-        const prevDescription = String(currentGroupProfile.description || '').trim();
-        return nextTitle !== prevTitle || nextDescription !== prevDescription;
-    }
-
-    function updateGroupEditSubmitState() {
-        if (!groupEditSubmitBtn) return;
-        const titleLength = getGroupEditNormalizedTitle().length;
-        const descriptionLength = getGroupEditNormalizedDescription().length;
-        const canSubmit = !groupEditSubmitting
-            && !groupEditAvatarUploading
-            && titleLength >= 2
-            && titleLength <= 120
-            && descriptionLength <= 600
-            && hasGroupEditChanges();
-        groupEditSubmitBtn.disabled = !canSubmit;
-        groupEditSubmitBtn.textContent = groupEditSubmitting ? 'Сохранение...' : 'Сохранить';
-    }
-
-    async function uploadGroupAvatar(file) {
-        if (!file || !currentGroupProfile) return;
-        const chatId = String(currentGroupProfile.chat_id || currentChatId || '').trim();
-        if (!chatId) return;
-        groupEditAvatarUploading = true;
-        updateGroupEditSubmitState();
-        try {
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('avatar', file);
-            const response = await fetch(withAppRoot('/api/chats/group/upload_avatar'), {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: formData,
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok || !payload?.success) {
-                throw new Error(payload?.error || 'Не удалось загрузить фото группы.');
-            }
-            const nextAvatarUrl = String(payload.chat_avatar_url || '').trim();
-            if (currentGroupProfile) currentGroupProfile.avatar_url = nextAvatarUrl;
-            if (window.currentPartnerData && window.currentPartnerData._group_profile) {
-                window.currentPartnerData.avatar_url = nextAvatarUrl;
-            }
-            renderGroupEditAvatar(currentGroupProfile);
-            if (profileLargeAvatar && nextAvatarUrl) {
-                profileLargeAvatar.removeAttribute('data-avatar-tint');
-                profileLargeAvatar.innerHTML = `<img src="${escapeHtml(nextAvatarUrl)}" alt="${escapeHtml(currentGroupProfile?.display_name || 'Group')}">`;
-            }
-            await loadContacts({ immediate: true, attemptInitialChatRestore: false });
-            showToast('Фото группы обновлено.', 'success');
-        } catch (error) {
-            showToast(error?.message || 'Не удалось загрузить фото группы.', 'danger');
-        } finally {
-            groupEditAvatarUploading = false;
-            if (groupEditAvatarInput) groupEditAvatarInput.value = '';
-            updateGroupEditSubmitState();
-        }
-    }
-
-    function openGroupEditModal() {
-        if (!groupEditModal || !currentGroupProfile) return;
-        const permissions = currentGroupProfile?.permissions || {};
-        const canOpenManagePanel = Boolean(
-            currentGroupProfile.can_edit_group
-            || permissions?.can_manage_roles
-            || permissions?.can_kick
-            || permissions?.can_ban,
-        );
-        if (!canOpenManagePanel) {
-            showToast('\u0423 \u0432\u0430\u0441 \u043D\u0435\u0442 \u043F\u0440\u0430\u0432 \u043D\u0430 \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0433\u0440\u0443\u043F\u043F\u043E\u0439.', 'warning');
-            return;
-        }
-        groupEditSubmitting = false;
-        groupEditAvatarUploading = false;
-        if (groupEditTitleInput) {
-            groupEditTitleInput.value = String(currentGroupProfile.display_name || '').trim();
-            groupEditTitleInput.setSelectionRange(0, groupEditTitleInput.value.length);
-        }
-        if (groupEditDescriptionInput) {
-            groupEditDescriptionInput.value = String(currentGroupProfile.description || '').trim();
-        }
-        renderGroupEditAvatar(currentGroupProfile);
-        renderGroupEditMembers(currentGroupProfile);
-        updateGroupEditSubmitState();
-        openAnimatedDialog(groupEditModal, { focusTarget: groupEditTitleInput });
-    }
-
-    async function submitGroupEdit() {
-        if (groupEditSubmitting || !currentGroupProfile) return;
-        const nextTitle = getGroupEditNormalizedTitle();
-        const nextDescription = getGroupEditNormalizedDescription();
-        if (nextTitle.length < 2 || nextTitle.length > 120) {
-            showToast('\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0433\u0440\u0443\u043F\u043F\u044B \u0434\u043E\u043B\u0436\u043D\u043E \u0431\u044B\u0442\u044C \u0434\u043B\u0438\u043D\u043E\u0439 \u043E\u0442 2 \u0434\u043E 120 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432.', 'warning');
-            updateGroupEditSubmitState();
-            return;
-        }
-        if (nextDescription.length > 600) {
-            showToast('\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043B\u0438\u043D\u043D\u043E\u0435.', 'warning');
-            updateGroupEditSubmitState();
-            return;
-        }
-        const chatId = String(currentGroupProfile.chat_id || currentChatId || '').trim();
-        if (!chatId) return;
-
-        groupEditSubmitting = true;
-        updateGroupEditSubmitState();
-        try {
-            const response = await fetch(withAppRoot('/api/chats/group/update'), {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({ chat_id: chatId, title: nextTitle, description: nextDescription }),
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok || !payload.success) {
-                throw new Error(String(payload.error || '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443.'));
-            }
-
-            closeAnimatedDialog(groupEditModal);
-            showToast('\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0433\u0440\u0443\u043F\u043F\u044B \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u044B.', 'success');
-            if (chatTitle) chatTitle.textContent = nextTitle;
-            if (currentGroupProfile) {
-                currentGroupProfile.display_name = nextTitle;
-                currentGroupProfile.description = nextDescription;
-            }
-            if (window.currentPartnerData && window.currentPartnerData._group_profile) {
-                window.currentPartnerData.display_name = nextTitle;
-                window.currentPartnerData.description = nextDescription;
-            }
-            if (profileDisplayName) profileDisplayName.textContent = nextTitle;
-            await loadContacts({ immediate: true, attemptInitialChatRestore: false });
-        } catch (error) {
-            showToast(error?.message || '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443.', 'danger');
-        } finally {
-            groupEditSubmitting = false;
-            updateGroupEditSubmitState();
-        }
-    }
 
 
-    groupEditTitleInput?.addEventListener('input', () => {
-        updateGroupEditSubmitState();
-    });
-    groupEditDescriptionInput?.addEventListener('input', () => {
-        updateGroupEditSubmitState();
-    });
 
     bindGroupModerationUiHandlers({
         groupEditMembersList,
@@ -6255,21 +5917,6 @@ const initChatPage = async () => {
         submitGroupSanctionAppeal,
     });
 
-    groupEditAvatarInput?.addEventListener('change', () => {
-        const file = groupEditAvatarInput.files?.[0];
-        if (!file) return;
-        void uploadGroupAvatar(file);
-    });
-
-    groupEditSubmitBtn?.addEventListener('click', () => {
-        void submitGroupEdit();
-    });
-
-    groupEditTitleInput?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        void submitGroupEdit();
-    });
 
     commandPaletteActions?.addEventListener('click', (event) => {
         const actionBtn = event.target.closest('[data-palette-action]');
@@ -6701,10 +6348,7 @@ const initChatPage = async () => {
             messageTouchContextController.dispose();
         },
         voiceRecorderController,
-        getChatSurfaceEnterRafId: () => chatSurfaceEnterRafId,
-        setChatSurfaceEnterRafId: (value) => { chatSurfaceEnterRafId = Number(value) || 0; },
-        getChatSurfaceEnterTimerId: () => chatSurfaceEnterTimerId,
-        setChatSurfaceEnterTimerId: (value) => { chatSurfaceEnterTimerId = Number(value) || 0; },
+        disposeChatAnimations: () => chatAnimationsController?.dispose(),
         isChatIdbReady,
         chatIdbRuntime,
         getExistingChatHistoryRuntime: () => chatHistoryRuntime,
