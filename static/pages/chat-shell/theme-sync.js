@@ -105,9 +105,15 @@ export function initChatShellThemeSync(options = {}) {
     if (sidebarThemeToggleBtn) {
         sidebarThemeToggleBtn.addEventListener('click', (event) => {
             event.stopPropagation();
-            const next = !isDark();
-            localStorage.setItem('darkMode', next);
-            applyDark(next);
+            if (interfaceThemeApi && typeof interfaceThemeApi.toggleThemeMode === 'function') {
+                const applied = interfaceThemeApi.toggleThemeMode({ apply: true });
+                const dark = String(applied?.themeKey || (isDark() ? 'dark' : 'light')) === 'dark';
+                applyDark(dark);
+            } else {
+                const next = !isDark();
+                localStorage.setItem('darkMode', next);
+                applyDark(next);
+            }
             if (window.ChatAppearance) {
                 window.ChatAppearance.applyCurrentTheme();
             }

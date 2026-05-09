@@ -492,36 +492,59 @@
                     <h3>Тема оформления</h3>
                 </div>
 
-                <div class="theme-preview-row">
-                    <div class="theme-preview" id="themeLight" data-theme-choice="light" role="button" tabindex="0">
-                        <div class="theme-preview-inner theme-preview-light">
+                <div class="theme-preview-row" id="themePresetRow">
+                    <button type="button" class="theme-preview theme-preview--light-classic" data-theme-preset="light-classic" aria-label="Светлая классика">
+                        <div class="theme-preview-inner">
                             <div class="theme-preview-sidebar"></div>
                             <div class="theme-preview-chat"></div>
                         </div>
-                        <div class="theme-preview-label">Светлая</div>
-                    </div>
-                    <div class="theme-preview" id="themeDark" data-theme-choice="dark" role="button" tabindex="0">
-                        <div class="theme-preview-inner theme-preview-dark">
+                        <div class="theme-preview-label">Светлая классика</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--light-sky" data-theme-preset="light-sky" aria-label="Светлая прохлада">
+                        <div class="theme-preview-inner">
                             <div class="theme-preview-sidebar"></div>
                             <div class="theme-preview-chat"></div>
                         </div>
-                        <div class="theme-preview-label">Тёмная</div>
-                    </div>
+                        <div class="theme-preview-label">Светлая прохлада</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-classic" data-theme-preset="dark-classic" aria-label="Тёмная классика">
+                        <div class="theme-preview-inner">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Тёмная классика</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-forest" data-theme-preset="dark-forest" aria-label="Тёмный лес">
+                        <div class="theme-preview-inner">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Тёмный лес</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-midnight" data-theme-preset="dark-midnight" aria-label="Тёмная синь">
+                        <div class="theme-preview-inner">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Тёмная синь</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--custom-light" data-theme-preset="custom-light" aria-label="Кастомная светлая">
+                        <div class="theme-preview-inner">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Кастомная светлая</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--custom-dark" data-theme-preset="custom-dark" aria-label="Кастомная тёмная">
+                        <div class="theme-preview-inner">
+                            <div class="theme-preview-sidebar"></div>
+                            <div class="theme-preview-chat"></div>
+                        </div>
+                        <div class="theme-preview-label">Кастомная тёмная</div>
+                    </button>
                 </div>
 
                 <div class="settings-row settings-row-divider-top">
-                    <div class="settings-row-info">
-                        <div class="settings-row-label">Тёмный режим</div>
-                        <div class="settings-row-desc">Переключить сейчас</div>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="darkModeSwitch">
-                        <div class="toggle-track"></div>
-                        <div class="toggle-knob"></div>
-                    </label>
-                </div>
-
-                <div class="settings-row">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Цвет интерфейса</div>
                         <div class="settings-row-desc" id="interfaceAccentScope">Сейчас настраивается: светлая тема</div>
