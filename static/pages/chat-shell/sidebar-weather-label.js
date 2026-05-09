@@ -338,9 +338,8 @@ export function initSidebarWeatherLabel({
     let weatherTimerId = 0;
     let requestSeq = 0;
     let destroyed = false;
-    let showWeatherLabel = false;
     let weatherLabels = [];
-    let weatherLabelCursor = 0;
+    let rotationCursor = 0;
     let geolocationBlocked = false;
     let labelTransitionSeq = 0;
     let activeLabelAnimation = null;
@@ -440,15 +439,23 @@ export function initSidebarWeatherLabel({
         });
     }
 
+    function buildRotationEntries() {
+        if (!prefs.sidebarWeatherEnabled || !weatherLabels.length) {
+            return [base];
+        }
+        return [base, ...weatherLabels];
+    }
+
     function renderLabel() {
-        const currentWeatherLabel = weatherLabels.length
-            ? String(weatherLabels[weatherLabelCursor] || '')
-            : '';
-        if (!prefs.sidebarWeatherEnabled || !currentWeatherLabel) {
+        const entries = buildRotationEntries();
+        if (!entries.length) {
             setLabel(base);
             return;
         }
-        setLabel(showWeatherLabel ? currentWeatherLabel : base);
+        if (!Number.isFinite(rotationCursor) || rotationCursor < 0 || rotationCursor >= entries.length) {
+            rotationCursor = 0;
+        }
+        setLabel(entries[rotationCursor]);
     }
 
     function clearTimers() {
@@ -466,19 +473,18 @@ export function initSidebarWeatherLabel({
         if (!prefs.sidebarWeatherEnabled) return;
         const intervalMs = Math.max(30, Number(prefs.sidebarWeatherRotateSeconds) || 60) * 1000;
         rotationTimerId = window.setInterval(() => {
-            if (!prefs.sidebarWeatherEnabled || !weatherLabels.length) {
-                showWeatherLabel = false;
+            if (!prefs.sidebarWeatherEnabled) {
+                rotationCursor = 0;
                 renderLabel();
                 return;
             }
-            if (showWeatherLabel) {
-                showWeatherLabel = false;
-                weatherLabelCursor = weatherLabels.length > 0
-                    ? (weatherLabelCursor + 1) % weatherLabels.length
-                    : 0;
-            } else {
-                showWeatherLabel = true;
+            const entries = buildRotationEntries();
+            if (entries.length <= 1) {
+                rotationCursor = 0;
+                renderLabel();
+                return;
             }
+            rotationCursor = (rotationCursor + 1) % entries.length;
             renderLabel();
         }, intervalMs);
     }
@@ -510,8 +516,7 @@ export function initSidebarWeatherLabel({
         if (destroyed) return;
         if (!prefs.sidebarWeatherEnabled) {
             weatherLabels = [];
-            weatherLabelCursor = 0;
-            showWeatherLabel = false;
+            rotationCursor = 0;
             renderLabel();
             return;
         }
@@ -522,8 +527,7 @@ export function initSidebarWeatherLabel({
             if (destroyed || seq !== requestSeq) return;
             if (!coords) {
                 weatherLabels = [];
-                weatherLabelCursor = 0;
-                showWeatherLabel = false;
+                rotationCursor = 0;
                 renderLabel();
                 return;
             }
@@ -534,17 +538,18 @@ export function initSidebarWeatherLabel({
             if (destroyed || seq !== requestSeq) return;
             weatherLabels = buildWeatherLabels(snapshot, metricKeys);
             if (!weatherLabels.length) {
-                weatherLabelCursor = 0;
-                showWeatherLabel = false;
-            } else if (weatherLabelCursor >= weatherLabels.length) {
-                weatherLabelCursor = 0;
+                rotationCursor = 0;
+            } else {
+                const entriesLength = weatherLabels.length + 1;
+                if (!Number.isFinite(rotationCursor) || rotationCursor < 0 || rotationCursor >= entriesLength) {
+                    rotationCursor = 0;
+                }
             }
             renderLabel();
         } catch (_) {
             if (destroyed || seq !== requestSeq) return;
             weatherLabels = [];
-            weatherLabelCursor = 0;
-            showWeatherLabel = false;
+            rotationCursor = 0;
             renderLabel();
         }
     }
@@ -566,9 +571,8 @@ export function initSidebarWeatherLabel({
         if (sourceChanged) {
             geolocationBlocked = false;
         }
-        showWeatherLabel = false;
         weatherLabels = [];
-        weatherLabelCursor = 0;
+        rotationCursor = 0;
         clearTimers();
         renderLabel();
         if (prefs.sidebarWeatherEnabled) {
