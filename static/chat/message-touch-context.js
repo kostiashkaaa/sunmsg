@@ -57,7 +57,8 @@ export function initMessageTouchContext(options = {}) {
         return Boolean(target.closest(
             'a,button,input,textarea,select,label,[contenteditable="true"],' +
             '.reaction-pill,.reaction-picker,.file-msg-media-trigger,.file-msg-link,' +
-            '.audio-player,.audio-player-toggle,.audio-player-progress,.audio-player-speed,.reply-quote'
+            '.audio-player,.audio-player-toggle,.audio-player-progress,.audio-player-speed,.reply-quote,' +
+            '[data-open-profile-trigger]'
         ));
     }
 

@@ -397,7 +397,7 @@ def test_presence_store_drives_online_status_for_contacts_and_profiles(monkeypat
         remove_connected('pk-2', sid)
 
 
-def test_private_profile_is_not_exposed_to_non_contacts(monkeypatch, tmp_path):
+def test_private_profile_returns_restricted_stub_for_non_contacts(monkeypatch, tmp_path):
     db_path = tmp_path / 'private-profile-hidden.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
 
@@ -425,9 +425,12 @@ def test_private_profile_is_not_exposed_to_non_contacts(monkeypatch, tmp_path):
 
     response = client.get('/get_user_profile?user_id=2')
 
-    assert response.status_code == 404
+    assert response.status_code == 200
     payload = response.get_json()
-    assert payload['success'] is False
+    assert payload['success'] is True
+    assert payload['restricted'] is True
+    assert payload['private_profile'] is True
+    assert payload['can_send_request'] is False
 
 
 def test_public_profile_remains_available_to_non_contacts(monkeypatch, tmp_path):

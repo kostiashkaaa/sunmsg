@@ -186,6 +186,7 @@ export function bindGroupModerationUiHandlers({
     removeGroupMember,
     applyGroupMemberSanction,
     submitGroupSanctionAppeal,
+    onGroupMemberClick,
 } = {}) {
     groupEditMembersList?.addEventListener('click', (event) => {
         const roleBtn = event.target.closest('[data-group-role-target][data-group-role-next]');
@@ -221,9 +222,32 @@ export function bindGroupModerationUiHandlers({
 
     profileGroupMembers?.addEventListener('click', (event) => {
         const appealBtn = event.target.closest('[data-group-appeal-sanction-id]');
-        if (!appealBtn) return;
-        const sanctionId = Number.parseInt(appealBtn.getAttribute('data-group-appeal-sanction-id') || '', 10);
-        if (!Number.isFinite(sanctionId) || sanctionId <= 0) return;
-        void submitGroupSanctionAppeal(sanctionId);
+        if (appealBtn) {
+            const sanctionId = Number.parseInt(appealBtn.getAttribute('data-group-appeal-sanction-id') || '', 10);
+            if (!Number.isFinite(sanctionId) || sanctionId <= 0) return;
+            void submitGroupSanctionAppeal(sanctionId);
+            return;
+        }
+
+        const memberRow = event.target.closest('[data-group-member-user-id]');
+        if (!memberRow) return;
+        const insideActionButton = event.target.closest('button, a, [role="button"]');
+        if (insideActionButton && !insideActionButton.isSameNode(memberRow)) return;
+
+        const targetUserId = Number.parseInt(memberRow.getAttribute('data-group-member-user-id') || '', 10);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
+        onGroupMemberClick?.(targetUserId, memberRow);
+    });
+
+    profileGroupMembers?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const memberRow = event.target.closest('[data-group-member-user-id]');
+        if (!memberRow) return;
+        const insideActionButton = event.target.closest('button, a, [role="button"]');
+        if (insideActionButton && !insideActionButton.isSameNode(memberRow)) return;
+        event.preventDefault();
+        const targetUserId = Number.parseInt(memberRow.getAttribute('data-group-member-user-id') || '', 10);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
+        onGroupMemberClick?.(targetUserId, memberRow);
     });
 }

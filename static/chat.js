@@ -2588,6 +2588,40 @@ const initChatPage = async () => {
         });
     }
 
+    async function sendProfileContactRequest({ userId, displayName } = {}) {
+        const normalizedUserId = Number.parseInt(String(userId || '').trim(), 10);
+        if (!Number.isFinite(normalizedUserId) || normalizedUserId <= 0) {
+            showToast('Не удалось определить пользователя для запроса.', 'warning');
+            return false;
+        }
+        try {
+            const response = await fetch(withAppRoot('/send_request'), {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ contact_user_id: normalizedUserId }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload?.success) {
+                showToast(`Ошибка: ${getErrorMessage(payload?.error || 'Не удалось отправить запрос.')}`, 'danger');
+                return false;
+            }
+            const safeName = String(displayName || '').trim();
+            showToast(
+                safeName ? `Запрос пользователю ${safeName} отправлен.` : 'Запрос отправлен.',
+                'success',
+            );
+            loadDialogRequests?.();
+            return true;
+        } catch (_) {
+            showToast('Ошибка при отправке запроса.', 'danger');
+            return false;
+        }
+    }
+
     let profileMediaPanelController = null;
     const profileOrchestrator = createProfileOrchestrator({
         profileDrawer: _profileDrawer,
@@ -2634,6 +2668,7 @@ const initChatPage = async () => {
         scheduleComposerFocus,
         copyTextToClipboard,
         showToast,
+        sendContactRequest: sendProfileContactRequest,
         updateBlockButtons,
         bumpProfileLoadToken: () => profileMediaPanelController?.bumpLoadToken?.(),
         getProfileLoadToken: () => profileMediaPanelController?.getLoadToken?.(),
@@ -2645,8 +2680,9 @@ const initChatPage = async () => {
             });
         },
         fetchUserProfile: async (partnerId) => {
+            const normalizedPartnerId = String(partnerId || '').trim();
             const groupChatId = String(currentChatId || '').trim();
-            if (groupChatId && isCurrentChatGroup()) {
+            if (groupChatId && isCurrentChatGroup() && normalizedPartnerId === groupChatId) {
                 try {
                     const groupResponse = await fetch(withAppRoot(`/api/chats/group/info?chat_id=${encodeURIComponent(groupChatId)}`));
                     const groupPayload = await groupResponse.json().catch(() => ({}));
@@ -2699,7 +2735,35 @@ const initChatPage = async () => {
         profileOrchestrator.openPartnerProfileDrawer();
     }
 
+    function resolveDefaultProfileTargetId() {
+        if (isCurrentChatGroup()) {
+            return String(currentChatId || '').trim();
+        }
+        return String(currentContactId || '').trim();
+    }
+
+    function setProfileTargetId(targetId) {
+        const normalized = String(targetId || '').trim();
+        if (!normalized) return false;
+        window.currentPartnerId = normalized;
+        chatPartnerHeaderLink?.setAttribute('data-partner-id', normalized);
+        chatHeader?.setAttribute('data-partner-id', normalized);
+        return true;
+    }
+
+    function openUserProfileById(rawUserId) {
+        const parsedUserId = Number.parseInt(String(rawUserId || '').trim(), 10);
+        if (!Number.isFinite(parsedUserId) || parsedUserId <= 0) return;
+        if (!currentChatId) return;
+        if (!setProfileTargetId(String(parsedUserId))) return;
+        loadAndShowPartnerProfile();
+    }
+
     function closePartnerProfileDrawer() {
+        const defaultTargetId = resolveDefaultProfileTargetId();
+        if (defaultTargetId) {
+            setProfileTargetId(defaultTargetId);
+        }
         return profileOrchestrator.closePartnerProfileDrawer();
     }
 
@@ -2958,6 +3022,7 @@ const initChatPage = async () => {
             const memberUserId = Number(member?.user_id || 0);
             const displayName = resolveMemberDisplayName(member);
             const username = String(member.username || '').trim();
+            const memberRowClickable = memberUserId > 0;
             const role = normalizeGroupRole(member?.role);
             const roleLabel = groupRoleLabel(role);
             const avatarUrl = String(member.avatar_url || '').trim();
@@ -2983,7 +3048,7 @@ const initChatPage = async () => {
                 && pendingAppealId > 0
             ) ? '<div class="profile-group-member-meta">Appeal is pending review.</div>' : '';
             return `
-                <div class="profile-group-member">
+                <div class="profile-group-member${memberRowClickable ? ' profile-group-member--clickable' : ''}"${memberRowClickable ? ` data-group-member-user-id="${memberUserId}" data-group-member-username="${escapeHtml(username)}" role="button" tabindex="0"` : ''}>
                     <div class="profile-group-member-avatar">${avatarHtml}</div>
                     <div class="profile-group-member-copy">
                         <div class="profile-group-member-name">${escapeHtml(displayName)}</div>
@@ -3045,6 +3110,8 @@ const initChatPage = async () => {
         const profileBioLine = document.getElementById('profileBioLine');
         const profileMetaBio = document.getElementById('profileMetaBio');
         const profileBioLabel = profileBioLine?.querySelector('.profile-info-label') || null;
+        const profileRequestLine = document.getElementById('profileRequestLine');
+        const profilePrivateLine = document.getElementById('profilePrivateLine');
         const copyUsernameMenuItem = profileMoreMenu?.querySelector('[data-profile-action="copy-username"]');
         const reportUserMenuItem = profileMoreMenu?.querySelector('[data-profile-action="report-user"]');
         const messageMenuItem = profileMoreMenu?.querySelector('[data-profile-action="message"]');
@@ -3054,6 +3121,12 @@ const initChatPage = async () => {
         profileGroupEditBtn?.classList.toggle('profile-group-edit-btn--hidden', !(isGroupProfile && canOpenGroupManagePanel));
         profileGroupSection?.classList.toggle('profile-group-section--hidden', !isGroupProfile);
         if (profileUsernameLine) profileUsernameLine.style.display = isGroupProfile ? 'none' : '';
+        if (isGroupProfile) {
+            profileRequestLine?.classList.add('profile-info-line--hidden');
+            profilePrivateLine?.classList.add('profile-info-line--hidden');
+            if (profileRequestLine) profileRequestLine.style.display = 'none';
+            if (profilePrivateLine) profilePrivateLine.style.display = 'none';
+        }
         if (profileBioLine) {
             if (!isGroupProfile) {
                 profileBioLine.style.display = '';
@@ -3191,6 +3264,23 @@ const initChatPage = async () => {
     chatMessages?.addEventListener('wheel', stopBottomInertiaOnUserInput, { passive: true });
     chatMessages?.addEventListener('touchstart', stopBottomInertiaOnUserInput, { passive: true });
     chatMessages?.addEventListener('pointerdown', stopBottomInertiaOnUserInput, { passive: true });
+
+    const handleMessageProfileTrigger = (event) => {
+        const trigger = event.target?.closest?.('[data-open-profile-trigger][data-profile-user-id]');
+        if (!trigger || !chatMessages?.contains(trigger)) return;
+        if (messageSelectionController.isSelectionMode()) return;
+        const targetUserId = Number.parseInt(trigger.getAttribute('data-profile-user-id') || '', 10);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openUserProfileById(targetUserId);
+    };
+
+    chatMessages?.addEventListener('click', handleMessageProfileTrigger);
+    chatMessages?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        handleMessageProfileTrigger(event);
+    });
 
     chatMessages?.addEventListener('scroll', () => {
         if (!currentChatId) return;
@@ -4208,6 +4298,7 @@ const initChatPage = async () => {
             currentDisplayName,
             currentUsername,
             currentAvatarUrl,
+            currentUserId: CURRENT_USER_ID,
             isGroupChat: isCurrentChatGroup(),
             useMobileReactionInside: isMobileReactionInsideMode(),
         });
@@ -5915,6 +6006,10 @@ const initChatPage = async () => {
         removeGroupMember,
         applyGroupMemberSanction,
         submitGroupSanctionAppeal,
+        onGroupMemberClick: (targetUserId) => {
+            if (messageSelectionController.isSelectionMode()) return;
+            openUserProfileById(targetUserId);
+        },
     });
 
 

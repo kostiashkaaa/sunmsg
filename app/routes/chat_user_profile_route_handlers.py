@@ -26,8 +26,40 @@ def process_get_user_profile(
 
     is_contact = has_contact_func(conn, current_user_id, target_user_id)
     is_public = bool(user['is_public']) if 'is_public' in user.keys() else True
-    if not is_contact and not is_public:
-        return {'status': 'not_found'}
+    is_self = int(user['id']) == int(current_user_id)
+    if not is_contact and not is_public and not is_self:
+        return {
+            'status': 'ok',
+            'payload': {
+                'success': True,
+                'restricted': True,
+                'private_profile': True,
+                'is_contact': False,
+                'can_send_request': False,
+                'user_id': user['id'],
+                'block_state': {
+                    'is_blocked': False,
+                    'blocked_by_me': False,
+                    'blocked_me': False,
+                },
+                'online': None,
+                'last_seen': None,
+                'created_at': user['created_at'] if 'created_at' in user.keys() else None,
+                'display_name': user['display_name'],
+                'username': user['username'],
+                'public_key': user['public_key'],
+                'avatar_url': get_safe_avatar_url_func(user, current_user_id),
+                'bio': '',
+                'stats': {
+                    'photos': 0,
+                    'videos': 0,
+                    'audio': 0,
+                    'voices': 0,
+                    'files': 0,
+                    'links': 0,
+                },
+            },
+        }
 
     block_state = serialize_block_state_func(
         build_block_state_func(conn, current_user_id, target_user_id)
@@ -40,6 +72,9 @@ def process_get_user_profile(
             'payload': {
                 'success': True,
                 'restricted': True,
+                'private_profile': False,
+                'is_contact': is_contact,
+                'can_send_request': False,
                 'user_id': user['id'],
                 'block_state': block_state,
                 'online': None,
@@ -62,6 +97,12 @@ def process_get_user_profile(
         }
 
     stats = fetch_conversation_stats_func(conn, current_user_id, target_user_id)
+    can_send_request = bool(
+        not is_self
+        and not is_contact
+        and is_public
+        and not block_state['is_blocked']
+    )
     if is_contact and bool(user['hide_online_status']):
         online = False
         last_seen = None
@@ -80,6 +121,9 @@ def process_get_user_profile(
         'payload': {
             'success': True,
             'restricted': False,
+            'private_profile': False,
+            'is_contact': is_contact,
+            'can_send_request': can_send_request,
             'user_id': user['id'],
             'block_state': block_state,
             'online': online,

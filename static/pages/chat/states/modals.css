@@ -1182,6 +1182,17 @@ body.dark-mode #messageForwardModal .forward-target-status {
     padding: 10px 18px;
 }
 
+.profile-group-member--clickable {
+    cursor: pointer;
+    transition: background var(--dur-quick) var(--ease-quick);
+}
+
+.profile-group-member--clickable:hover,
+.profile-group-member--clickable:focus-visible {
+    background: color-mix(in srgb, var(--accent, #2563eb) 8%, transparent);
+    outline: none;
+}
+
 .profile-group-member + .profile-group-member {
     border-top: 1px solid color-mix(in srgb, var(--border, #d1d5db) 52%, transparent);
 }
