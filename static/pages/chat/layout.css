@@ -3472,6 +3472,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             border-radius: 16px;
             border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
             background: color-mix(in srgb, var(--surface) 92%, transparent 8%);
+            pointer-events: auto;
         }
 
 
