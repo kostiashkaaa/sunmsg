@@ -16,6 +16,12 @@ function normalizeLanguage(value) {
     return String(value || '').toLowerCase() === 'en' ? 'en' : 'ru';
 }
 
+function normalizeMessageScale(value) {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(1.3, Math.max(0.9, parsed));
+}
+
 export function initSettingsTransferSection({
     tr,
     showAlert,
@@ -37,7 +43,7 @@ export function initSettingsTransferSection({
         const interfaceThemeStore = window.InterfaceTheme?.readStore?.() || null;
         const chatAppearanceStore = window.ChatAppearance?.readStore?.() || null;
         const darkMode = localStorage.getItem('darkMode') === 'true';
-        const messageScale = Number.parseFloat(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || '1') || 1;
+        const messageScale = normalizeMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || '1');
         return {
             interfaceThemeStore,
             chatAppearanceStore,
@@ -46,23 +52,85 @@ export function initSettingsTransferSection({
         };
     }
 
-    function applyLocalAppearance(payload) {
+    function collectClientPreferences() {
+        const localAppearance = collectLocalAppearance();
+        let performanceMode = 'auto';
+        let motionLevel = 'auto';
+        try {
+            const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
+            if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
+                performanceMode = rawPerformanceMode;
+            }
+            const rawMotionLevel = String(localStorage.getItem('sun_motion_level') || '').trim().toLowerCase();
+            if (rawMotionLevel === 'auto' || rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite') {
+                motionLevel = rawMotionLevel;
+            }
+        } catch (_) {}
+
+        return {
+            darkMode: localAppearance.darkMode,
+            messageScale: localAppearance.messageScale,
+            performanceMode,
+            motionLevel,
+            interfaceThemeStore: localAppearance.interfaceThemeStore || {},
+            chatAppearanceStore: localAppearance.chatAppearanceStore || {},
+        };
+    }
+
+    function resolveClientPreferences(payload) {
+        const direct = payload?.clientPreferences;
+        if (direct && typeof direct === 'object') {
+            return {
+                darkMode: typeof direct.darkMode === 'boolean' ? direct.darkMode : false,
+                messageScale: normalizeMessageScale(direct.messageScale),
+                performanceMode: String(direct.performanceMode || 'auto').toLowerCase() === 'full'
+                    ? 'full'
+                    : String(direct.performanceMode || 'auto').toLowerCase() === 'lite'
+                        ? 'lite'
+                        : 'auto',
+                motionLevel: ['auto', 'full', 'balanced', 'lite'].includes(String(direct.motionLevel || '').toLowerCase())
+                    ? String(direct.motionLevel).toLowerCase()
+                    : 'auto',
+                interfaceThemeStore: direct.interfaceThemeStore && typeof direct.interfaceThemeStore === 'object'
+                    ? direct.interfaceThemeStore
+                    : null,
+                chatAppearanceStore: direct.chatAppearanceStore && typeof direct.chatAppearanceStore === 'object'
+                    ? direct.chatAppearanceStore
+                    : null,
+            };
+        }
+
         const localAppearance = payload?.localAppearance || {};
-        if (localAppearance.interfaceThemeStore && window.InterfaceTheme?.writeStore) {
-            window.InterfaceTheme.writeStore(localAppearance.interfaceThemeStore);
+        return {
+            darkMode: !!localAppearance.darkMode,
+            messageScale: normalizeMessageScale(localAppearance.messageScale),
+            performanceMode: 'auto',
+            motionLevel: 'auto',
+            interfaceThemeStore: localAppearance.interfaceThemeStore && typeof localAppearance.interfaceThemeStore === 'object'
+                ? localAppearance.interfaceThemeStore
+                : null,
+            chatAppearanceStore: localAppearance.chatAppearanceStore && typeof localAppearance.chatAppearanceStore === 'object'
+                ? localAppearance.chatAppearanceStore
+                : null,
+        };
+    }
+
+    function applyLocalAppearance(payload) {
+        const clientPreferences = resolveClientPreferences(payload);
+        if (clientPreferences.interfaceThemeStore && window.InterfaceTheme?.writeStore) {
+            window.InterfaceTheme.writeStore(clientPreferences.interfaceThemeStore);
         }
-        if (localAppearance.chatAppearanceStore && window.ChatAppearance?.writeStore) {
-            window.ChatAppearance.writeStore(localAppearance.chatAppearanceStore);
+        if (clientPreferences.chatAppearanceStore && window.ChatAppearance?.writeStore) {
+            window.ChatAppearance.writeStore(clientPreferences.chatAppearanceStore);
         }
-        if (typeof localAppearance.darkMode === 'boolean') {
-            localStorage.setItem('darkMode', localAppearance.darkMode ? 'true' : 'false');
-            document.documentElement.classList.toggle('dark-mode', localAppearance.darkMode);
-            document.body.classList.toggle('dark-mode', localAppearance.darkMode);
+        if (typeof clientPreferences.darkMode === 'boolean') {
+            localStorage.setItem('darkMode', clientPreferences.darkMode ? 'true' : 'false');
+            document.documentElement.classList.toggle('dark-mode', clientPreferences.darkMode);
+            document.body.classList.toggle('dark-mode', clientPreferences.darkMode);
         }
-        if (Number.isFinite(localAppearance.messageScale)) {
-            const normalized = Math.min(1.3, Math.max(0.9, Number(localAppearance.messageScale)));
-            localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, normalized.toFixed(2));
-        }
+        localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, normalizeMessageScale(clientPreferences.messageScale).toFixed(2));
+        localStorage.setItem('sun_performance_mode', clientPreferences.performanceMode || 'auto');
+        localStorage.setItem('sun_motion_level', clientPreferences.motionLevel || 'auto');
         window.InterfaceTheme?.applyCurrentTheme?.();
         window.ChatAppearance?.applyCurrentTheme?.();
     }
@@ -74,6 +142,7 @@ export function initSettingsTransferSection({
                 version: 1,
                 serverSettings: privacySection.getCommonPayload(),
                 localAppearance: collectLocalAppearance(),
+                clientPreferences: collectClientPreferences(),
             };
             const datePart = new Date().toISOString().slice(0, 10);
             downloadTextFile(`sun-settings-${datePart}.json`, JSON.stringify(payload, null, 2));
@@ -109,7 +178,10 @@ export function initSettingsTransferSection({
                     : 'all',
             };
 
-            await api.saveSettings(serverPayload);
+            await api.saveSettings({
+                ...serverPayload,
+                client_preferences: resolveClientPreferences(parsed),
+            });
             privacySection.applySettingsFromPayload(serverPayload);
             notifyLanguageUpdate(serverPayload.language, true);
 

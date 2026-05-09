@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from app.services.client_preferences import client_preferences_from_db
+
 USERNAME_PATTERN = re.compile(r'^[a-z0-9_]{1,50}$')
 
 
@@ -36,7 +38,7 @@ def fetch_chat_page_context(
 ) -> dict | None:
     user_info = conn.execute(
         '''
-        SELECT username, display_name, public_key, avatar_url, language, mute_dialog_requests
+        SELECT username, display_name, public_key, avatar_url, language, mute_dialog_requests, client_preferences
         FROM users
         WHERE id = ?
         ''',
@@ -61,5 +63,8 @@ def fetch_chat_page_context(
         'current_avatar_url': user_info['avatar_url'],
         'ui_language': ui_language,
         'mute_dialog_requests': bool(user_info['mute_dialog_requests']) if 'mute_dialog_requests' in user_info.keys() else False,
+        'client_preferences': client_preferences_from_db(
+            user_info['client_preferences'] if 'client_preferences' in user_info.keys() else None
+        ),
         'initial_contacts': initial_contacts,
     }

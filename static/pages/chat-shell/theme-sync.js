@@ -2,6 +2,11 @@ export function initChatShellThemeSync(options = {}) {
     const interfaceThemeApi = options.interfaceThemeApi || window.InterfaceTheme || null;
     const chatAppearanceApi = options.chatAppearanceApi || window.ChatAppearance || null;
     const i18nApi = options.i18nApi || window.SUN_I18N || null;
+    const persistClientPreferences = typeof options.persistClientPreferences === 'function'
+        ? options.persistClientPreferences
+        : null;
+    const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
+    let persistTimerId = 0;
 
     const tr = (value) => {
         if (i18nApi && typeof i18nApi.translateText === 'function') {
@@ -11,6 +16,54 @@ export function initChatShellThemeSync(options = {}) {
     };
 
     const isDark = () => localStorage.getItem('darkMode') === 'true';
+
+    function clampMessageScale(value) {
+        const parsed = Number.parseFloat(value);
+        if (!Number.isFinite(parsed)) return 1;
+        return Math.min(1.3, Math.max(0.9, parsed));
+    }
+
+    function collectClientPreferences() {
+        let messageScale = 1;
+        let performanceMode = 'auto';
+        let motionLevel = 'auto';
+
+        try {
+            messageScale = clampMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || 1);
+            const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
+            if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
+                performanceMode = rawPerformanceMode;
+            }
+            const rawMotionLevel = String(localStorage.getItem('sun_motion_level') || '').trim().toLowerCase();
+            if (rawMotionLevel === 'auto' || rawMotionLevel === 'full' || rawMotionLevel === 'balanced' || rawMotionLevel === 'lite') {
+                motionLevel = rawMotionLevel;
+            }
+        } catch (_) {}
+
+        return {
+            darkMode: isDark(),
+            messageScale,
+            performanceMode,
+            motionLevel,
+            interfaceThemeStore: interfaceThemeApi?.readStore?.() || {},
+            chatAppearanceStore: chatAppearanceApi?.readStore?.() || {},
+        };
+    }
+
+    function scheduleClientPreferencesPersist(delayMs = 300) {
+        if (!persistClientPreferences) return;
+        if (persistTimerId) {
+            window.clearTimeout(persistTimerId);
+        }
+        persistTimerId = window.setTimeout(async () => {
+            persistTimerId = 0;
+            try {
+                await persistClientPreferences(collectClientPreferences());
+            } catch (_) {
+                // Ignore background sync failure for non-critical UI toggle.
+            }
+        }, delayMs);
+    }
 
     function applyDark(on) {
         document.documentElement.classList.toggle('dark-mode', on);
@@ -58,6 +111,7 @@ export function initChatShellThemeSync(options = {}) {
             if (window.ChatAppearance) {
                 window.ChatAppearance.applyCurrentTheme();
             }
+            scheduleClientPreferencesPersist();
         });
     }
 

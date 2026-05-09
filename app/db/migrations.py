@@ -323,6 +323,7 @@ def run_migrations() -> None:
         add_column_if_missing(conn, cursor, 'users', 'login_vault', 'login_vault TEXT')
         add_column_if_missing(conn, cursor, 'users', 'bio', "bio TEXT NOT NULL DEFAULT ''")
         add_column_if_missing(conn, cursor, 'users', 'language', "language TEXT NOT NULL DEFAULT 'ru'")
+        add_column_if_missing(conn, cursor, 'users', 'client_preferences', "client_preferences TEXT NOT NULL DEFAULT '{}'")
         add_column_if_missing(conn, cursor, 'chats', 'chat_type', "chat_type TEXT NOT NULL DEFAULT 'direct'")
         add_column_if_missing(conn, cursor, 'chats', 'chat_description', "chat_description TEXT NOT NULL DEFAULT ''")
         add_column_if_missing(conn, cursor, 'chats', 'chat_avatar_url', 'chat_avatar_url TEXT DEFAULT NULL')
