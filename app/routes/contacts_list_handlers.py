@@ -26,6 +26,8 @@ def fetch_contacts_for_user(
     cursor = conn.cursor()
     has_chat_drafts = table_exists(cursor, 'chat_drafts')
     has_pinned_chats = table_exists(cursor, 'pinned_chats')
+    users_columns = table_columns(cursor, 'users')
+    last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
     saved_messages_id = ''
     user_row = cursor.execute(
         '''
@@ -118,6 +120,7 @@ def fetch_contacts_for_user(
             u.avatar_url,
             u.avatar_visibility,
             u.is_online,
+            {last_seen_select_sql},
             u.hide_online_status,
             1 AS is_contact,
             CASE WHEN bm.blocked_id IS NULL THEN 0 ELSE 1 END AS blocked_by_me,
@@ -152,6 +155,7 @@ def fetch_contacts_for_user(
         draft_select_sql=draft_select_sql,
         draft_join_sql=draft_join_sql,
         draft_order_value_sql=draft_order_value_sql,
+        last_seen_select_sql=last_seen_select_sql,
     )
     params = [
         user_id,
@@ -189,6 +193,7 @@ def fetch_contacts_for_user(
             display_name=str(contact['display_name'] or ''),
             username=str(contact['username'] or ''),
         )
+        is_status_hidden = is_blocked or bool(contact['hide_online_status'])
         if (
             not include_self_contact
             and int(contact['id']) == int(user_id)
@@ -218,12 +223,13 @@ def fetch_contacts_for_user(
                 'avatar_url': get_safe_avatar_url_func(contact, user_id),
                 'is_online': (
                     False
-                    if is_blocked or bool(contact['hide_online_status'])
+                    if is_status_hidden
                     else is_effectively_online_func(
                         contact['public_key'],
                         persisted=bool(contact['is_online']),
                     )
                 ),
+                'last_seen': None if is_status_hidden else contact['last_seen'],
                 'last_sender_id': contact['last_sender_id'],
                 'last_message_is_read': bool(contact['last_message_is_read']),
                 'last_message_is_delivered': bool(contact['last_message_is_delivered']),

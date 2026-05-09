@@ -82,7 +82,7 @@ export function createChatForwardFlow(deps = {}) {
                     ? formatGroupMembersCountLabel(membersCount)
                     : (isOnline
                         ? 'в сети'
-                        : (lastSeenRaw ? formatLastSeenText(lastSeenRaw) : 'был(а) недавно')));
+                        : (lastSeenRaw ? formatLastSeenText(lastSeenRaw) : 'не в сети')));
             rows.push({
                 chatId,
                 displayName,
