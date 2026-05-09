@@ -14,6 +14,7 @@
 {% set ui_lang = ui_language|default('ru') %}
 {% set has_initial_contacts = (initial_contacts|length) > 0 %}
 {% include 'chat/_boot_overlay.html' %}
+
 <div class="app">
 {% include 'chat/_sidebar.html' %}
 {% include 'chat/_chat_area.html' %}

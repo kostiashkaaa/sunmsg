@@ -204,8 +204,11 @@ export function initProfileDrawer({
         phase = 'opening';
         transitionPromise = null;
         lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        drawer.hidden = false;
+        drawer.removeAttribute('hidden');
         drawer.classList.remove('active', 'is-closing', 'is-profile-opening');
         drawer.classList.add('is-opening', 'is-profile-opening');
+        drawer.removeAttribute('inert');
         drawer.setAttribute('aria-hidden', 'false');
         setChatProfileMotionState('open');
         resetDragState();
@@ -228,6 +231,9 @@ export function initProfileDrawer({
         if (!drawer) return Promise.resolve(false);
         if (phase === 'closing' && transitionPromise) return transitionPromise;
         if (!drawer.classList.contains('active') && phase === 'closed') {
+            drawer.hidden = true;
+            drawer.setAttribute('aria-hidden', 'true');
+            drawer.setAttribute('inert', '');
             setChatProfileMotionState('closed');
             return Promise.resolve(false);
         }
@@ -239,6 +245,7 @@ export function initProfileDrawer({
         chatArea?.classList.remove('is-profile-drawer-dragging');
         drawer.classList.add('is-closing');
         drawer.classList.remove('is-profile-opening');
+        drawer.setAttribute('inert', '');
         drawer.setAttribute('aria-hidden', 'true');
         setChatProfileMotionState('closing');
 
@@ -247,6 +254,8 @@ export function initProfileDrawer({
         transitionPromise = waitForAnimationEnd(target, waitMs).then(() => {
             if (closeSeq !== transitionSeq) return false;
             drawer.classList.remove('active', 'is-closing', 'is-opening', 'is-profile-opening');
+            drawer.hidden = true;
+            drawer.setAttribute('hidden', '');
             resetDragState();
             setChatProfileMotionState('closed');
             phase = 'closed';

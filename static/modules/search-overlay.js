@@ -62,7 +62,7 @@ export function initSearchOverlay() {
     if (overlay.parentElement !== sidebar) {
         sidebar.insertBefore(overlay, sidebarTopCard.nextSibling);
     }
-    overlay.hidden = false;
+    overlay.hidden = true;
     overlay.setAttribute('aria-hidden', 'true');
 
     // \u0417\u0430\u043C\u0435\u0440 \u0432\u044B\u0441\u043E\u0442\u044B top-card → CSS-\u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u0430\u044F, \u0447\u0442\u043E\u0431\u044B overlay \u043D\u0430\u0447\u0438\u043D\u0430\u043B\u0441\u044F \u0440\u043E\u0432\u043D\u043E
@@ -141,11 +141,12 @@ export function initSearchOverlay() {
         if (isOpen && !overlay.classList.contains(CLOSING_CLASS)) return;
         const openSeq = ++transitionSeq;
         isOpen = true;
+        overlay.hidden = false;
+        overlay.removeAttribute('hidden');
         overlay.classList.remove(CLOSING_CLASS);
         overlay.classList.add(OPENING_CLASS);
         overlay.setAttribute('aria-hidden', 'false');
         sidebar.classList.add(SIDEBAR_DIMMED_CLASS);
-        visibleInput.setAttribute('aria-expanded', 'true');
         if (clearBtn) clearBtn.hidden = false;
         setTab(visibleInput.value.trim() ? 'chats' : 'actions');
         const activePanel = getPanel(activeTab);
@@ -162,6 +163,9 @@ export function initSearchOverlay() {
 
     function close({ keepValue = false, focusTrigger = false } = {}) {
         if (!isOpen) {
+            overlay.hidden = true;
+            overlay.setAttribute('hidden', '');
+            overlay.setAttribute('aria-hidden', 'true');
             if (!keepValue) resetValue();
             return;
         }
@@ -170,11 +174,12 @@ export function initSearchOverlay() {
         overlay.classList.remove(OPEN_CLASS, OPENING_CLASS);
         overlay.classList.add(CLOSING_CLASS);
         overlay.setAttribute('aria-hidden', 'true');
-        visibleInput.setAttribute('aria-expanded', 'false');
         clearAutoSwitch();
         waitForMotionEnd(overlay, 320).then(() => {
             if (closeSeq !== transitionSeq || isOpen) return;
             overlay.classList.remove(CLOSING_CLASS);
+            overlay.hidden = true;
+            overlay.setAttribute('hidden', '');
             sidebar.classList.remove(SIDEBAR_DIMMED_CLASS);
             if (clearBtn) clearBtn.hidden = true;
             if (!keepValue) resetValue();
