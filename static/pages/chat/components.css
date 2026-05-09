@@ -9403,7 +9403,7 @@
     /* Жёстко ограничиваем размер контейнера, иначе .message-stack
        (--chat-bubble-max-width = 448px) распирает бабл на всю ширину. */
     .message-stack:has(.bubble--audio) {
-        max-width: min(72%, 280px) !important;
+        max-width: min(72%, 320px) !important;
     }
     .bubble--audio {
         max-width: 100%;
