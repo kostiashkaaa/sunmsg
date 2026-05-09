@@ -3154,6 +3154,21 @@ const initChatPage = async () => {
         loadOlderMessages,
         openLightbox: (proxyEl) => window._openLightbox?.(proxyEl),
         scrollToMessage: (msgId) => window._scrollToMsg?.(msgId),
+        reportVoiceListened: (msgId) => {
+            const chatId = String(currentChatId || '').trim();
+            const normalizedMessageId = Number(msgId);
+            if (!chatId || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) {
+                return;
+            }
+            emitSocket(
+                'voice_message_listened',
+                {
+                    chat_id: chatId,
+                    msg_id: normalizedMessageId,
+                },
+                { requireConnected: false },
+            );
+        },
     });
 
     function renderProfileMediaPanel(options) {

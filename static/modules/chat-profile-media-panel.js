@@ -17,6 +17,7 @@ export function createProfileMediaPanelController({
     loadOlderMessages = async () => false,
     openLightbox = null,
     scrollToMessage = null,
+    reportVoiceListened = () => {},
 } = {}) {
     let profileMediaActiveTab = null;
     let profileMediaRenderFrame = 0;
@@ -101,6 +102,10 @@ export function createProfileMediaPanelController({
         }
 
         if (kind === 'audio' || kind === 'voice') {
+            if (kind === 'voice' && action === 'play') {
+                reportVoiceListened?.(entry.msgId);
+                return;
+            }
             if (action === 'jump') {
                 jumpToProfileMessage(entry.msgId);
             }
