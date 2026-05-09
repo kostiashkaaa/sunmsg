@@ -3233,7 +3233,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             color: var(--text);
             white-space: nowrap;
             opacity: 1;
-            pointer-events: auto;
+            pointer-events: none;
             transition: none;
         }
 
