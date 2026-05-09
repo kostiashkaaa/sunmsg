@@ -3068,9 +3068,9 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            flex: 0 0 132px;
-            width: 132px;
-            min-width: 132px;
+            flex: 0 0 108px;
+            width: 108px;
+            min-width: 108px;
             min-height: 44px;
             padding: 0;
         }
