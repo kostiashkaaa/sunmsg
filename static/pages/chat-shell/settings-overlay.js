@@ -370,10 +370,20 @@ export function initChatShellSettingsOverlay(options = {}) {
             settingsOverlayFrame.setAttribute('src', nextSrc);
         } else {
             try {
+                const frameWindow = settingsOverlayFrame.contentWindow;
                 const nextHash = `#${encodeURIComponent(section)}`;
-                const frameLocation = settingsOverlayFrame.contentWindow?.location;
+                const frameLocation = frameWindow?.location;
                 if (frameLocation && frameLocation.hash !== nextHash) {
                     frameLocation.hash = nextHash;
+                }
+
+                const searchInput = frameWindow?.document?.getElementById('settingsSearchInput');
+                if (searchInput && searchInput.value) {
+                    searchInput.value = '';
+                    const inputEvent = frameWindow?.Event
+                        ? new frameWindow.Event('input', { bubbles: true })
+                        : new Event('input', { bubbles: true });
+                    searchInput.dispatchEvent(inputEvent);
                 }
             } catch (_) {}
             settingsOverlayLoadTimer = window.setTimeout(() => {
