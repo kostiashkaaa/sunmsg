@@ -40,6 +40,7 @@ export function createProfileOrchestrator(options = {}) {
         scheduleComposerFocus,
         copyTextToClipboard,
         showToast,
+        sendContactRequest,
         updateBlockButtons,
         bumpProfileLoadToken,
         getProfileLoadToken,
@@ -162,6 +163,7 @@ export function createProfileOrchestrator(options = {}) {
             scheduleComposerFocus,
             copyTextToClipboard,
             showToast,
+            sendContactRequest,
         });
     }
 

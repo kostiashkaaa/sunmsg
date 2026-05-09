@@ -2559,6 +2559,21 @@
     pointer-events: none;
 }
 
+.message-sender-label--clickable {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.message-avatar--clickable {
+    cursor: pointer;
+}
+
+.message-sender-label--clickable:focus-visible,
+.message-avatar--clickable:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent, #2563eb) 70%, transparent);
+    outline-offset: 2px;
+}
+
 
         .message.message-group-other .message-sender-label {
             display: block;
@@ -2567,7 +2582,9 @@
         .message.message-group-other .bubble--image > .message-sender-label,
         .message.message-group-other .bubble--video > .message-sender-label {
             margin: 0;
-            padding: 6px 10px 4px;
+            padding: 8px 10px 6px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.36) 0%, rgba(0, 0, 0, 0) 100%);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
 
 

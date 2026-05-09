@@ -141,6 +141,7 @@ export function buildGroupMembersHtml({
         const memberUserId = Number(member?.user_id || 0);
         const displayName = resolveMemberDisplayName(member);
         const username = String(member.username || '').trim();
+        const memberRowClickable = memberUserId > 0;
         const role = normalizeGroupRole(member?.role);
         const roleLabel = groupRoleLabel(role);
         const avatarUrl = String(member.avatar_url || '').trim();
@@ -166,7 +167,7 @@ export function buildGroupMembersHtml({
             && pendingAppealId > 0
         ) ? '<div class="profile-group-member-meta">Appeal is pending review.</div>' : '';
         return `
-            <div class="profile-group-member">
+            <div class="profile-group-member${memberRowClickable ? ' profile-group-member--clickable' : ''}"${memberRowClickable ? ` data-group-member-user-id="${memberUserId}" data-group-member-username="${escapeHtml(username)}" role="button" tabindex="0"` : ''}>
                 <div class="profile-group-member-avatar">${avatarHtml}</div>
                 <div class="profile-group-member-copy">
                     <div class="profile-group-member-name">${escapeHtml(displayName)}</div>

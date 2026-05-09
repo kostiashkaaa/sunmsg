@@ -50,12 +50,18 @@ def test_process_get_user_profile_validates_target_and_not_found():
     assert _run(fetch_user_func=lambda conn, target_user_id: None) == {'status': 'not_found'}
 
 
-def test_process_get_user_profile_hides_private_profiles_from_non_contacts():
+def test_process_get_user_profile_returns_private_stub_for_non_contacts():
     result = _run(
         has_contact_func=lambda conn, current_user_id, target_user_id: False,
         fetch_user_func=lambda conn, target_user_id: _base_user(is_public=0),
     )
-    assert result == {'status': 'not_found'}
+    assert result['status'] == 'ok'
+    payload = result['payload']
+    assert payload['success'] is True
+    assert payload['restricted'] is True
+    assert payload['private_profile'] is True
+    assert payload['is_contact'] is False
+    assert payload['can_send_request'] is False
 
 
 def test_process_get_user_profile_returns_restricted_payload_when_blocked():
@@ -65,6 +71,8 @@ def test_process_get_user_profile_returns_restricted_payload_when_blocked():
     assert result['status'] == 'ok'
     payload = result['payload']
     assert payload['restricted'] is True
+    assert payload['private_profile'] is False
+    assert payload['can_send_request'] is False
     assert payload['online'] is None
     assert payload['last_seen'] is None
     assert payload['bio'] == ''
@@ -76,6 +84,9 @@ def test_process_get_user_profile_returns_unrestricted_payload_for_contact():
     assert result['status'] == 'ok'
     payload = result['payload']
     assert payload['restricted'] is False
+    assert payload['private_profile'] is False
+    assert payload['is_contact'] is True
+    assert payload['can_send_request'] is False
     assert payload['online'] is True
     assert payload['last_seen'] == '2025-01-01 10:00:00'
     assert payload['avatar_url'] == '/safe.png'
@@ -89,6 +100,7 @@ def test_process_get_user_profile_handles_non_contact_public_and_hidden_status()
     assert public_non_contact['status'] == 'ok'
     assert public_non_contact['payload']['online'] is None
     assert public_non_contact['payload']['last_seen'] is None
+    assert public_non_contact['payload']['can_send_request'] is True
 
     hidden_contact = _run(
         fetch_user_func=lambda conn, target_user_id: _base_user(hide_online_status=1),

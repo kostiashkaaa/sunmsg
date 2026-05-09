@@ -539,6 +539,75 @@ export function renderProfileBio(profile) {
     bioLine.style.display = bio ? '' : 'none';
 }
 
+function toggleProfileLineVisibility(lineEl, isVisible) {
+    if (!lineEl) return;
+    lineEl.classList.toggle('profile-info-line--hidden', !isVisible);
+    lineEl.style.display = isVisible ? '' : 'none';
+}
+
+function setProfileLineInteractive(lineEl, isInteractive) {
+    if (!lineEl) return;
+    lineEl.classList.toggle('profile-info-line--disabled', !isInteractive);
+    if (isInteractive) {
+        lineEl.setAttribute('role', 'button');
+        lineEl.setAttribute('tabindex', '0');
+        lineEl.setAttribute('data-profile-action', 'send-request');
+    } else {
+        lineEl.removeAttribute('role');
+        lineEl.removeAttribute('tabindex');
+        lineEl.removeAttribute('data-profile-action');
+    }
+}
+
+export function renderProfileContactAccess(profile) {
+    const requestLine = document.getElementById('profileRequestLine');
+    const requestValue = document.getElementById('profileRequestValue');
+    const requestLabel = document.getElementById('profileRequestLabel');
+    const privateLine = document.getElementById('profilePrivateLine');
+    const privateValue = document.getElementById('profilePrivateValue');
+    const privateLabel = document.getElementById('profilePrivateLabel');
+    if (!requestLine || !privateLine) return;
+
+    const payload = profile || {};
+    const isSavedMessagesProfile = payload._saved_messages_profile === true;
+    const isGroupProfile = payload._group_profile === true;
+    const isContact = Boolean(payload.is_contact);
+    const isPrivateProfile = Boolean(payload.private_profile);
+    const isBlocked = Boolean(payload.block_state?.is_blocked);
+    const requestAlreadySent = Boolean(payload.request_sent || payload.request_pending);
+    const canSendRequest = Boolean(payload.can_send_request) && !requestAlreadySent;
+
+    toggleProfileLineVisibility(requestLine, false);
+    toggleProfileLineVisibility(privateLine, false);
+
+    if (isSavedMessagesProfile || isGroupProfile) return;
+
+    if (isPrivateProfile) {
+        if (privateValue) privateValue.textContent = 'Профиль закрыт';
+        if (privateLabel) privateLabel.textContent = 'Запросы недоступны';
+        privateLine.classList.add('profile-info-line--disabled');
+        toggleProfileLineVisibility(privateLine, true);
+        return;
+    }
+
+    if (isBlocked || isContact) return;
+
+    if (canSendRequest || requestAlreadySent) {
+        if (requestValue) {
+            requestValue.textContent = requestAlreadySent
+                ? 'Запрос отправлен'
+                : 'Отправить запрос';
+        }
+        if (requestLabel) {
+            requestLabel.textContent = requestAlreadySent
+                ? 'Ожидает подтверждения'
+                : 'Пользователь не в контактах';
+        }
+        setProfileLineInteractive(requestLine, canSendRequest);
+        toggleProfileLineVisibility(requestLine, true);
+    }
+}
+
 export function renderProfileMeta(profile, { metaUsername, metaCreatedAt, metaUserId, currentPartnerId } = {}) {
     if (!metaUsername || !metaCreatedAt || !metaUserId) return;
     metaUsername.textContent = profile?.username ? `@${profile.username}` : '@unknown';
@@ -578,6 +647,7 @@ export function renderPartnerProfile(profilePayload, {
         currentPartnerId,
     });
     renderProfileBio(merged);
+    renderProfileContactAccess(merged);
 
     if (typeof onRendered === 'function') {
         onRendered(merged);
@@ -593,6 +663,7 @@ export async function handleProfileAction(action, {
     scheduleComposerFocus,
     copyTextToClipboard,
     showToast,
+    sendContactRequest,
 } = {}) {
     const profile = currentProfile || {};
 
@@ -635,6 +706,28 @@ export async function handleProfileAction(action, {
             muteBtn.click();
         } else {
             showToast?.('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F.', 'warning');
+        }
+        return;
+    }
+
+    if (action === 'send-request') {
+        const targetUserId = Number(profile?.user_id || profile?.userId || 0);
+        if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+            showToast?.('Не удалось определить пользователя для запроса.', 'warning');
+            return;
+        }
+        if (!profile?.can_send_request) {
+            showToast?.('Запрос недоступен для этого профиля.', 'warning');
+            return;
+        }
+        const sent = await sendContactRequest?.({
+            userId: targetUserId,
+            displayName: profile?.display_name || profile?.username || 'пользователь',
+        });
+        if (sent) {
+            profile.can_send_request = false;
+            profile.request_sent = true;
+            renderProfileContactAccess(profile);
         }
         return;
     }

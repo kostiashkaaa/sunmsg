@@ -338,7 +338,12 @@ export function applyTickToElement(tickEl, messageLike) {
 
 // ?? Avatar ????????????????????????????????????????????????????????????????????
 
-export function buildMessageAvatarHtml(msg, { currentDisplayName, currentUsername, currentAvatarUrl } = {}) {
+export function buildMessageAvatarHtml(msg, {
+    currentDisplayName,
+    currentUsername,
+    currentAvatarUrl,
+    profileTriggerAttrs = '',
+} = {}) {
     const isSelf = msg.sender === 'self';
     const activeGroupMembers = Array.isArray(window.currentPartnerData?.members)
         ? window.currentPartnerData.members
@@ -375,10 +380,13 @@ export function buildMessageAvatarHtml(msg, { currentDisplayName, currentUsernam
     const initials = (displayName || '?')
         .trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase() || '?';
 
+    const triggerAttrs = String(profileTriggerAttrs || '');
+    const decorativeAttr = triggerAttrs ? '' : ' aria-hidden="true"';
+
     if (avatarUrl) {
-        return `<span class="message-avatar" aria-hidden="true"><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName)}"></span>`;
+        return `<span class="message-avatar${triggerAttrs ? ' message-avatar--clickable' : ''}"${decorativeAttr}${triggerAttrs}><img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName)}"></span>`;
     }
-    return `<span class="message-avatar message-avatar--fallback" aria-hidden="true">${escapeHtml(initials)}</span>`;
+    return `<span class="message-avatar message-avatar--fallback${triggerAttrs ? ' message-avatar--clickable' : ''}"${decorativeAttr}${triggerAttrs}>${escapeHtml(initials)}</span>`;
 }
 
 // ?? Message grouping ??????????????????????????????????????????????????????????
@@ -678,6 +686,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         currentDisplayName,
         currentUsername,
         currentAvatarUrl,
+        currentUserId = null,
         isGroupChat = false,
         useMobileReactionInside = false,
     } = context;
@@ -717,13 +726,27 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         || memberMatch?.username
         || '\u0423\u0447\u0430\u0441\u0442\u043D\u0438\u043A'
     ));
+    const profileTargetUserIdRaw = isSelf
+        ? Number(currentUserId || 0)
+        : Number(msg.senderUserId || memberMatch?.user_id || 0);
+    const profileTargetUserId = Number.isFinite(profileTargetUserIdRaw) && profileTargetUserIdRaw > 0
+        ? Math.floor(profileTargetUserIdRaw)
+        : 0;
+    const profileTriggerAttrs = profileTargetUserId > 0
+        ? ` data-open-profile-trigger="1" data-profile-user-id="${profileTargetUserId}" role="button" tabindex="0" aria-label="${escapeHtml(tr('\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u044C'))}"`
+        : '';
     const senderColor = showSenderLabel ? resolveGroupSenderColor(msg) : '';
     const senderLabelHtml = showSenderLabel
-        ? `<div class="message-sender-label" data-message-sender-color="${senderColor}">${senderLabel}</div>`
+        ? `<div class="message-sender-label${profileTriggerAttrs ? ' message-sender-label--clickable' : ''}" data-message-sender-color="${senderColor}"${profileTriggerAttrs}>${senderLabel}</div>`
         : '';
     const isPinned = typeof isPinnedMessage === 'function' ? isPinnedMessage(msg) : Boolean(msg.is_pinned);
     const isFavorite = typeof isFavoriteMessage === 'function' ? isFavoriteMessage(msg) : Boolean(msg.is_favorite);
-    const avatarHtml = buildMessageAvatarHtml(msg, { currentDisplayName, currentUsername, currentAvatarUrl });
+    const avatarHtml = buildMessageAvatarHtml(msg, {
+        currentDisplayName,
+        currentUsername,
+        currentAvatarUrl,
+        profileTriggerAttrs,
+    });
     const ticks = isSelf ? buildTickHtml(msg) : '';
 
     // Reply quote
