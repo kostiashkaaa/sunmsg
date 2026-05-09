@@ -95,6 +95,10 @@ export function initVoiceRecorder({
     onComposerStopTyping,
     onVoiceRecordingStateChange,
     sendFileMessage,
+    isUploadInProgress,
+    getUploadProgress,
+    canCancelUpload,
+    cancelActiveUpload,
 } = {}) {
     let recorder = null;
     let recordChunks = [];
@@ -224,6 +228,12 @@ export function initVoiceRecorder({
         }
     }
 
+    function clampUploadProgress(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 0;
+        return Math.max(0, Math.min(100, Math.round(numeric)));
+    }
+
     function updateTimerDisplay() {
         if (!voiceRecordTimer) return;
         if (!isActive()) {
@@ -271,15 +281,22 @@ export function initVoiceRecorder({
         const hasChatTarget = Boolean(getCurrentChatId?.()) && !isChatBlocked();
         const hasComposerText = Boolean(String(getComposerText?.() || '').trim());
         const hasPendingAction = Boolean(hasPendingSendAction?.());
-        const showSendAction = hasChatTarget && !recording && (hasComposerText || hasPendingAction || isEditingMessage());
+        const showUploadAction = hasChatTarget
+            && !recording
+            && Boolean(isUploadInProgress?.());
+        const showSendAction = !showUploadAction
+            && hasChatTarget
+            && !recording
+            && (hasComposerText || hasPendingAction || isEditingMessage());
         const canUseVoice = hasChatTarget
             && !isChatBlocked()
             && !isSendingMessage()
             && isSupported();
         const canSendText = showSendAction && !isSendingMessage();
+        const canCancelActiveUpload = showUploadAction && Boolean(canCancelUpload?.());
         const canUseUnifiedAction = recording
             ? false
-            : (showSendAction ? canSendText : canUseVoice);
+            : (showUploadAction ? canCancelActiveUpload : (showSendAction ? canSendText : canUseVoice));
 
         if (!showSendAction) {
             clearTimeout(handledTextSubmitTimer);
@@ -289,6 +306,7 @@ export function initVoiceRecorder({
         if (composerRow) {
             composerRow.classList.toggle('is-voice-recording', recording);
             composerRow.classList.toggle('show-send-action', showSendAction);
+            composerRow.classList.toggle('show-upload-action', showUploadAction);
         }
         if (voiceRecordComposer) {
             voiceRecordComposer.setAttribute('aria-hidden', recording ? 'false' : 'true');
@@ -300,12 +318,20 @@ export function initVoiceRecorder({
         voiceRecordBtn.disabled = !canUseUnifiedAction;
         const icon = voiceRecordBtn.querySelector('i');
         if (icon) {
-            setActionIconClass(icon, showSendAction ? 'bi bi-send-fill' : 'bi bi-mic-fill');
+            setActionIconClass(icon, showUploadAction
+                ? 'bi bi-x-lg'
+                : (showSendAction ? 'bi bi-send-fill' : 'bi bi-mic-fill'));
         }
+        const uploadProgress = showUploadAction ? clampUploadProgress(getUploadProgress?.()) : 0;
+        voiceRecordBtn.style.setProperty('--composer-upload-progress', String(uploadProgress));
+        voiceRecordBtn.setAttribute('data-upload-progress', String(uploadProgress));
+        voiceRecordBtn.classList.toggle('is-uploading-state', showUploadAction && !recording);
         voiceRecordBtn.classList.toggle('is-send-state', showSendAction && !recording);
-        voiceRecordBtn.classList.toggle('is-mic-state', !showSendAction && !recording);
+        voiceRecordBtn.classList.toggle('is-mic-state', !showSendAction && !showUploadAction && !recording);
         voiceRecordBtn.classList.toggle('is-recording-state', recording);
-        const actionLabel = showSendAction ? '\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435' : '\u0417\u0430\u043F\u0438\u0441\u0430\u0442\u044C \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435';
+        const actionLabel = showUploadAction
+            ? '\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0443'
+            : (showSendAction ? '\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435' : '\u0417\u0430\u043F\u0438\u0441\u0430\u0442\u044C \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0435');
         voiceRecordBtn.setAttribute('aria-hidden', recording ? 'true' : 'false');
         voiceRecordBtn.setAttribute('aria-label', actionLabel);
         voiceRecordBtn.title = actionLabel;
@@ -383,6 +409,15 @@ export function initVoiceRecorder({
             event.stopImmediatePropagation();
             clearTimeout(handledTextSubmitTimer);
             handledTextSubmitPointer = false;
+        }, true);
+
+        voiceRecordBtn.addEventListener('click', (event) => {
+            if (!voiceRecordBtn.classList.contains('is-uploading-state')) return;
+            if (!canCancelUpload?.()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            cancelActiveUpload?.();
         }, true);
     }
 

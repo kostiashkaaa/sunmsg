@@ -3075,11 +3075,13 @@
 
 
         #voiceRecordBtn {
+            position: relative;
             width: 46px;
             height: 46px;
             flex: 0 0 auto;
             flex-basis: 46px;
             max-width: 46px;
+            --composer-upload-progress: 0;
             padding: 0;
             margin-bottom: 0;
             border-radius: 50%;
@@ -3113,6 +3115,33 @@
         #voiceRecordBtn i {
             font-size: 20px;
             line-height: 1;
+        }
+
+        #voiceRecordBtn.is-uploading-state {
+            background:
+                radial-gradient(
+                    circle at center,
+                    rgba(9, 12, 18, 0.98) 62%,
+                    rgba(9, 12, 18, 0.98) 63%,
+                    transparent 64%
+                ),
+                conic-gradient(
+                    rgba(255, 255, 255, 0.96) calc(var(--composer-upload-progress, 0) * 1%),
+                    rgba(255, 255, 255, 0.18) calc(var(--composer-upload-progress, 0) * 1%)
+                ),
+                linear-gradient(
+                    145deg,
+                    color-mix(in srgb, #0d1524 86%, var(--accent) 14%) 0%,
+                    color-mix(in srgb, #060a13 92%, #ffffff 8%) 100%
+                );
+            box-shadow:
+                0 10px 24px color-mix(in srgb, #02060d 74%, transparent),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        }
+
+        #voiceRecordBtn.is-uploading-state i {
+            position: relative;
+            z-index: 1;
         }
 
 
