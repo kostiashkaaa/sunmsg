@@ -9176,8 +9176,7 @@
         height: 19px;
     }
     .voice-playback-bar__play-btn {
-        background: color-mix(in srgb, var(--accent) 16%, transparent);
-        color: var(--text);
+        color: var(--accent);
     }
     .voice-playback-bar__meta {
         margin-left: 4px;
@@ -9232,12 +9231,12 @@
         min-width: 0;
     }
     .bubble--audio .audio-player-toggle {
-        width: 34px;
-        height: 34px;
+        width: 44px;
+        height: 44px;
         flex-shrink: 0;
     }
     .bubble--audio .audio-player-toggle i {
-        font-size: 16px;
+        font-size: 19px;
     }
     .bubble--audio .audio-player-info {
         min-width: 0;
