@@ -123,6 +123,7 @@ export function initPrivacySection({
     const sidebarWeatherEnabledSwitchEl = document.getElementById('sidebarWeatherEnabledSwitch');
     const sidebarWeatherSourceRowEl = document.getElementById('sidebarWeatherSourceRow');
     const sidebarWeatherSourceSelectEl = document.getElementById('sidebarWeatherSourceSelect');
+    const sidebarWeatherCityAutocompleteEl = document.getElementById('sidebarWeatherCityAutocomplete');
     const sidebarWeatherCityInputEl = document.getElementById('sidebarWeatherCityInput');
     const sidebarWeatherCitySuggestionsEl = document.getElementById('sidebarWeatherCitySuggestions');
     const sidebarWeatherCityRowEl = document.getElementById('sidebarWeatherCityRow');
@@ -191,9 +192,31 @@ export function initPrivacySection({
         return language === 'en' ? 'en' : 'ru';
     }
 
-    function clearSidebarWeatherCitySuggestions() {
-        if (!sidebarWeatherCitySuggestionsEl) return;
-        sidebarWeatherCitySuggestionsEl.replaceChildren();
+    function setSidebarWeatherCitySuggestionsExpanded(expanded) {
+        if (sidebarWeatherCitySuggestionsEl) {
+            sidebarWeatherCitySuggestionsEl.hidden = !expanded;
+        }
+        if (sidebarWeatherCityInputEl) {
+            sidebarWeatherCityInputEl.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+    }
+
+    function clearSidebarWeatherCitySuggestions({ close = true } = {}) {
+        if (sidebarWeatherCitySuggestionsEl) {
+            sidebarWeatherCitySuggestionsEl.replaceChildren();
+        }
+        if (close) {
+            setSidebarWeatherCitySuggestionsExpanded(false);
+        }
+    }
+
+    function commitSidebarWeatherCitySuggestion(value) {
+        if (!sidebarWeatherCityInputEl) return;
+        const nextValue = normalizeSidebarWeatherCity(value);
+        if (!nextValue) return;
+        sidebarWeatherCityInputEl.value = nextValue;
+        sidebarWeatherCityInputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        setSidebarWeatherCitySuggestionsExpanded(false);
     }
 
     function buildSidebarWeatherCitySuggestionLabel(rawItem) {
@@ -217,18 +240,30 @@ export function initPrivacySection({
 
     function applySidebarWeatherCitySuggestions(items) {
         if (!sidebarWeatherCitySuggestionsEl) return;
-        sidebarWeatherCitySuggestionsEl.replaceChildren();
+        clearSidebarWeatherCitySuggestions({ close: false });
         const seen = new Set();
+        let hasItems = false;
         items.forEach((item) => {
             const label = buildSidebarWeatherCitySuggestionLabel(item);
             if (!label) return;
             const key = label.toLowerCase();
             if (seen.has(key)) return;
             seen.add(key);
-            const optionEl = document.createElement('option');
-            optionEl.value = label.slice(0, 80);
+            hasItems = true;
+            const optionEl = document.createElement('button');
+            optionEl.type = 'button';
+            optionEl.className = 'settings-city-suggestion';
+            optionEl.setAttribute('role', 'option');
+            optionEl.textContent = label;
+            optionEl.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+            });
+            optionEl.addEventListener('click', () => {
+                commitSidebarWeatherCitySuggestion(label);
+            });
             sidebarWeatherCitySuggestionsEl.appendChild(optionEl);
         });
+        setSidebarWeatherCitySuggestionsExpanded(hasItems);
     }
 
     async function requestSidebarWeatherCitySuggestions(query, seq) {
@@ -663,6 +698,19 @@ export function initPrivacySection({
 
     sidebarWeatherCityInputEl?.addEventListener('focus', () => {
         scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
+    });
+
+    sidebarWeatherCityInputEl?.addEventListener('blur', () => {
+        window.setTimeout(() => {
+            setSidebarWeatherCitySuggestionsExpanded(false);
+        }, 120);
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!sidebarWeatherCitySuggestionsEl || sidebarWeatherCitySuggestionsEl.hidden) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target && sidebarWeatherCityAutocompleteEl?.contains(target)) return;
+        setSidebarWeatherCitySuggestionsExpanded(false);
     });
 
     floatingSaveBtn?.addEventListener('click', function () {

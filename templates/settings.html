@@ -821,8 +821,10 @@
                         <div class="settings-row-label">Город</div>
                         <div class="settings-row-desc">Используется только в ручном режиме</div>
                     </div>
-                    <input type="text" id="sidebarWeatherCityInput" class="settings-input settings-field-input" placeholder="Начните вводить город" maxlength="80" list="sidebarWeatherCitySuggestions" autocomplete="off" spellcheck="false">
-                    <datalist id="sidebarWeatherCitySuggestions"></datalist>
+                    <div class="settings-city-autocomplete" id="sidebarWeatherCityAutocomplete">
+                        <input type="text" id="sidebarWeatherCityInput" class="settings-input settings-field-input" placeholder="Начните вводить город" maxlength="80" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-expanded="false" aria-controls="sidebarWeatherCitySuggestions">
+                        <div id="sidebarWeatherCitySuggestions" class="settings-city-suggestions" role="listbox" hidden></div>
+                    </div>
                 </div>
                 <div class="settings-row" id="sidebarWeatherRotateRow">
                     <div class="settings-row-info">
