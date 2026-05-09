@@ -38,6 +38,12 @@
     transition: transform 0.16s var(--ease-quick);
 }
 
+#messageForm #emojiBtn .sun-icon,
+#messageForm #attachBtn .sun-icon {
+    width: 1.2em;
+    height: 1.2em;
+}
+
 .e2e-pill .sun-icon {
     width: 11px;
     height: 11px;
