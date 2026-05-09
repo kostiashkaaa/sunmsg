@@ -197,7 +197,7 @@ function buildWaveBarsHtml(rawWaveform, maxBars = 28) {
     const waveform = normalizeWaveform(rawWaveform).slice(0, maxBars);
     return waveform.map((value) => {
         const height = Math.max(6, Math.min(22, Math.round((Number(value) / 100) * 22)));
-        return `<span class="profile-audio-wave-bar" style="height:${height}px"></span>`;
+        return `<span class="profile-audio-wave-bar" data-height="${height}"></span>`;
     }).join('');
 }
 

@@ -6951,6 +6951,23 @@
             background: color-mix(in srgb, var(--accent) 74%, #ffffff 26%);
             opacity: 0.92;
         }
+        .profile-audio-wave-bar[data-height="6"] { height: 6px; }
+        .profile-audio-wave-bar[data-height="7"] { height: 7px; }
+        .profile-audio-wave-bar[data-height="8"] { height: 8px; }
+        .profile-audio-wave-bar[data-height="9"] { height: 9px; }
+        .profile-audio-wave-bar[data-height="10"] { height: 10px; }
+        .profile-audio-wave-bar[data-height="11"] { height: 11px; }
+        .profile-audio-wave-bar[data-height="12"] { height: 12px; }
+        .profile-audio-wave-bar[data-height="13"] { height: 13px; }
+        .profile-audio-wave-bar[data-height="14"] { height: 14px; }
+        .profile-audio-wave-bar[data-height="15"] { height: 15px; }
+        .profile-audio-wave-bar[data-height="16"] { height: 16px; }
+        .profile-audio-wave-bar[data-height="17"] { height: 17px; }
+        .profile-audio-wave-bar[data-height="18"] { height: 18px; }
+        .profile-audio-wave-bar[data-height="19"] { height: 19px; }
+        .profile-audio-wave-bar[data-height="20"] { height: 20px; }
+        .profile-audio-wave-bar[data-height="21"] { height: 21px; }
+        .profile-audio-wave-bar[data-height="22"] { height: 22px; }
 
 
         .profile-file-actions {
