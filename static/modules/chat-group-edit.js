@@ -1,12 +1,11 @@
-// Group edit flow: модалка редактирования группы (название, описание,
-// аватар) + permission-guard. Вынесено из chat.js без изменений в
-// поведении.
-
 import { escapeHtml } from './utils.js';
+
+function isDialogSurface(element) {
+    return typeof HTMLDialogElement !== 'undefined' && element instanceof HTMLDialogElement;
+}
 
 export function createChatGroupEditController(deps = {}) {
     const {
-        // DOM
         groupEditModal,
         groupEditTitleInput,
         groupEditDescriptionInput,
@@ -15,10 +14,8 @@ export function createChatGroupEditController(deps = {}) {
         chatTitle,
         profileLargeAvatar,
         profileDisplayName,
-        // state getters/setters
         getCurrentGroupProfile,
         getCurrentChatId,
-        // helpers
         withAppRoot,
         getCsrfToken,
         openAnimatedDialog,
@@ -29,6 +26,7 @@ export function createChatGroupEditController(deps = {}) {
         loadContacts,
     } = deps;
 
+    const groupEditCloseButtons = Array.from(groupEditModal?.querySelectorAll('[data-group-edit-close]') || []);
     let groupEditSubmitting = false;
     let groupEditAvatarUploading = false;
 
@@ -62,6 +60,52 @@ export function createChatGroupEditController(deps = {}) {
             && hasGroupEditChanges();
         groupEditSubmitBtn.disabled = !canSubmit;
         groupEditSubmitBtn.textContent = groupEditSubmitting ? 'Сохранение...' : 'Сохранить';
+    }
+
+    function openGroupEditSurface() {
+        if (!groupEditModal) return false;
+        if (isDialogSurface(groupEditModal)) {
+            openAnimatedDialog(groupEditModal, { focusTarget: groupEditTitleInput });
+            return true;
+        }
+
+        groupEditModal.hidden = false;
+        groupEditModal.classList.remove('is-closing');
+        groupEditModal.classList.add('is-open');
+        groupEditModal.setAttribute('aria-hidden', 'false');
+        groupEditModal.closest('.profile-sheet')?.classList.add('is-group-edit-mode');
+        groupEditTitleInput?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function closeGroupEditSurface({ restoreFocus = true } = {}) {
+        if (!groupEditModal) return Promise.resolve(false);
+        if (isDialogSurface(groupEditModal)) {
+            return closeAnimatedDialog(groupEditModal, { restoreFocus });
+        }
+
+        const shouldRestoreFocus = restoreFocus
+            && groupEditModal.contains(document.activeElement)
+            && document.getElementById('profileGroupEditBtn');
+        groupEditModal.classList.remove('is-open');
+        groupEditModal.classList.add('is-closing');
+        groupEditModal.setAttribute('aria-hidden', 'true');
+        groupEditModal.closest('.profile-sheet')?.classList.remove('is-group-edit-mode');
+
+        return new Promise((resolve) => {
+            window.setTimeout(() => {
+                if (!groupEditModal.classList.contains('is-open')) {
+                    groupEditModal.hidden = true;
+                    groupEditModal.classList.remove('is-closing');
+                }
+                if (shouldRestoreFocus) {
+                    try {
+                        shouldRestoreFocus.focus({ preventScroll: true });
+                    } catch (_) {}
+                }
+                resolve(true);
+            }, 180);
+        });
     }
 
     async function uploadGroupAvatar(file) {
@@ -134,7 +178,7 @@ export function createChatGroupEditController(deps = {}) {
         renderGroupEditAvatar?.(profile);
         renderGroupEditMembers?.(profile);
         updateGroupEditSubmitState();
-        openAnimatedDialog(groupEditModal, { focusTarget: groupEditTitleInput });
+        openGroupEditSurface();
     }
 
     async function submitGroupEdit() {
@@ -172,7 +216,7 @@ export function createChatGroupEditController(deps = {}) {
                 throw new Error(String(payload.error || 'Не удалось обновить группу.'));
             }
 
-            closeAnimatedDialog(groupEditModal);
+            await closeGroupEditSurface({ restoreFocus: false });
             showToast('Настройки группы обновлены.', 'success');
             if (chatTitle) chatTitle.textContent = nextTitle;
             if (profile) {
@@ -193,7 +237,6 @@ export function createChatGroupEditController(deps = {}) {
         }
     }
 
-    // Wiring
     groupEditTitleInput?.addEventListener('input', updateGroupEditSubmitState);
     groupEditDescriptionInput?.addEventListener('input', updateGroupEditSubmitState);
 
@@ -213,8 +256,24 @@ export function createChatGroupEditController(deps = {}) {
         void submitGroupEdit();
     });
 
+    groupEditCloseButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            void closeGroupEditSurface();
+        });
+    });
+
+    if (!isDialogSurface(groupEditModal)) {
+        groupEditModal?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            void closeGroupEditSurface();
+        });
+    }
+
     return {
         openGroupEditModal,
         updateGroupEditSubmitState,
+        closeGroupEditModal: closeGroupEditSurface,
     };
 }
