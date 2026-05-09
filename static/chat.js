@@ -345,6 +345,7 @@ const initChatPage = async () => {
     // Group edit controller — initialised below.
     var groupEditController;
     function openGroupEditModal() { return groupEditController?.openGroupEditModal(); }
+    function closeGroupEditModal(options = {}) { return groupEditController?.closeGroupEditModal?.(options); }
     function updateGroupEditSubmitState() { return groupEditController?.updateGroupEditSubmitState(); }
 
     // Attach menu controller — initialised below.
@@ -2903,6 +2904,7 @@ const initChatPage = async () => {
     }
 
     function closePartnerProfileDrawer() {
+        closeGroupEditModal({ restoreFocus: false });
         const defaultTargetId = resolveDefaultProfileTargetId();
         if (defaultTargetId) {
             setProfileTargetId(defaultTargetId);

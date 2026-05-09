@@ -229,6 +229,45 @@
                     </div>
                 </header>
 
+                <section id="groupEditModal" class="group-edit-side-panel" aria-hidden="true" hidden>
+                    <header class="group-edit-side-panel__head">
+                        <button type="button" class="btn-icon ripple-target group-edit-side-panel__back" data-group-edit-close aria-label="Назад">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
+                        </button>
+                        <h3 id="groupEditModalTitle" class="group-edit-side-panel__title">Изменить</h3>
+                        <button type="button" class="btn-icon ripple-target group-edit-side-panel__close" data-group-edit-close aria-label="Закрыть">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </header>
+
+                    <div class="group-edit-side-panel__body">
+                        <div class="group-edit-avatar-row">
+                            <div id="groupEditAvatarPreview" class="group-edit-avatar-preview">?</div>
+                            <div class="group-edit-avatar-actions">
+                                <label for="groupEditAvatarInput" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary group-edit-avatar-btn">
+                                    <i class="bi bi-camera"></i>
+                                    <span>Сменить фото</span>
+                                </label>
+                                <input id="groupEditAvatarInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="file-attach-input--hidden">
+                            </div>
+                        </div>
+
+                        <label class="group-create-modal__label" for="groupEditTitleInput">Название группы</label>
+                        <input id="groupEditTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Обновите название..." autocomplete="off">
+
+                        <label class="group-create-modal__label" for="groupEditDescriptionInput">Описание</label>
+                        <textarea id="groupEditDescriptionInput" class="group-create-modal__input group-create-modal__textarea" maxlength="600" rows="3" placeholder="Описание группы"></textarea>
+
+                        <div class="group-create-modal__label">Администраторы и участники</div>
+                        <div id="groupEditMembersList" class="group-edit-members-list"></div>
+
+                        <div class="group-create-modal__actions">
+                            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" data-group-edit-close>Отмена</button>
+                            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupEditSubmitBtn" disabled>Сохранить</button>
+                        </div>
+                    </div>
+                </section>
+
                 <div class="profile-scroll profile-layout" id="profileScrollArea">
                     <div class="profile-hero">
                         <div class="profile-hero-avatar" id="profileLargeAvatar"></div>
