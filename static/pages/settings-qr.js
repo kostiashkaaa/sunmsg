@@ -8,19 +8,30 @@ function getPublicKeyTextarea() {
     return document.getElementById('publicKeyTextarea');
 }
 
+function getProfileQrPayload() {
+    const bootstrapUsername = String(window.SUN_BOOTSTRAP?.user?.currentUsername || '').trim().toLowerCase();
+    const datasetUsername = String(document.body?.dataset?.currentUsername || '').trim().toLowerCase();
+    const username = bootstrapUsername || datasetUsername;
+    if (/^[a-z0-9_]{1,50}$/.test(username)) {
+        return `su:${username}`;
+    }
+
+    const pubKeyTextarea = getPublicKeyTextarea();
+    return String(pubKeyTextarea?.value || '').trim();
+}
+
 export async function initSettingsQr() {
     const container = getQrContainer();
     if (!container) return false;
     if (container.querySelector('canvas') || container.querySelector('img')) return true;
 
-    const pubKeyTextarea = getPublicKeyTextarea();
-    const publicKey = String(pubKeyTextarea?.value || '').trim();
-    if (!publicKey) return false;
+    const payload = getProfileQrPayload();
+    if (!payload) return false;
 
     try {
         await window.ensureQrCodeLibrary();
         new QRCode(container, {
-            text: publicKey,
+            text: payload,
             width: 200,
             height: 200,
             colorDark: '#1a1a2e',
