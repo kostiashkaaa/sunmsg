@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Поддержка и обратная связь</title>
-    <style>
+    <style nonce="{{ csp_nonce }}">
         :root {
             color-scheme: light;
             --bg: #f4f6f8;
@@ -177,7 +177,7 @@
         </form>
     </div>
 </main>
-<script>
+<script nonce="{{ csp_nonce }}">
 (() => {
     const form = document.getElementById('supportFeedbackForm');
     const submitBtn = document.getElementById('supportSubmitBtn');
