@@ -271,6 +271,7 @@ export function initPrivacySection({
 
     function getCommonPayload() {
         const bioEl = document.getElementById('bioInput');
+        const weatherPrefs = getSidebarWeatherPreferencesFromControls();
         return {
             username: document.getElementById('username').value.trim(),
             display_name: document.getElementById('displayName').value.trim(),
@@ -284,6 +285,10 @@ export function initPrivacySection({
             group_invite_privacy: (document.getElementById('groupInvitePrivacySelect') || {}).value || 'all',
             send_shortcut: getSendShortcutSelection(),
             time_format: getTimeFormatSelection(),
+            sidebar_weather_enabled: weatherPrefs.sidebarWeatherEnabled,
+            sidebar_weather_source: weatherPrefs.sidebarWeatherSource,
+            sidebar_weather_city: weatherPrefs.sidebarWeatherCity,
+            sidebar_weather_rotate_seconds: weatherPrefs.sidebarWeatherRotateSeconds,
         };
     }
 
