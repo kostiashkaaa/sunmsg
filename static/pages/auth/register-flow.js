@@ -134,7 +134,7 @@ export function initRegisterFlow({
                     qrContainer.innerHTML = '';
                 }
                 if (totpSecretDisplayEl) {
-                    totpSecretDisplayEl.textContent = tr('Настройте TOTP позже в Settings -> Encryption.');
+                    totpSecretDisplayEl.textContent = tr('Настройте TOTP позже в разделе «Шифрование» в настройках.');
                 }
             }
 

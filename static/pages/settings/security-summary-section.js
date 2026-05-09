@@ -33,15 +33,15 @@ export function initSecuritySummarySection({ tr }) {
         if (hideOnline) score += 1;
 
         const tier = score >= 3
-            ? tr('Protection: high')
+            ? tr('Защита: высокая')
             : score >= 1
-                ? tr('Protection: medium')
-                : tr('Protection: low');
+                ? tr('Защита: средняя')
+                : tr('Защита: базовая');
 
         const parts = [
-            `${tr('TOTP')}: ${totpEnabled ? tr('on') : tr('off')}`,
-            `${tr('Public profile')}: ${publicProfile ? tr('on') : tr('off')}`,
-            `${tr('Hide online')}: ${hideOnline ? tr('on') : tr('off')}`,
+            `${tr('TOTP')}: ${totpEnabled ? tr('Вкл') : tr('Выкл')}`,
+            `${tr('Публичный профиль')}: ${publicProfile ? tr('Вкл') : tr('Выкл')}`,
+            `${tr('Скрыть онлайн статус')}: ${hideOnline ? tr('Вкл') : tr('Выкл')}`,
         ];
 
         scoreEl.textContent = tier;

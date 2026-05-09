@@ -41,61 +41,38 @@
     </div>
 </dialog>
 
-<dialog id="groupCreateModal" class="group-create-modal" data-animated-dialog aria-labelledby="groupCreateModalTitle">
+<dialog id="groupCreateModal" class="group-create-modal group-create-modal--tg" data-animated-dialog aria-labelledby="groupCreateModalTitle">
     <div class="group-create-modal__head">
         <h5 id="groupCreateModalTitle" class="group-create-modal__title">
-            <i class="bi bi-people-fill"></i> Создать группу
+            <i class="bi bi-people-fill"></i>
+            <span id="groupCreateTitleText">Добавить участников</span>
         </h5>
+        <span id="groupCreateCountBadge" class="group-create-modal__count-badge">0 / 200000</span>
         <button type="button" data-dialog-close="groupCreateModal" class="dialog-close-plain group-create-modal__close" aria-label="Закрыть">&times;</button>
     </div>
     <div class="group-create-modal__content">
-        <label class="group-create-modal__label" for="groupTitleInput">Название группы</label>
-        <input id="groupTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Команда, семья, проект..." autocomplete="off">
+        <section id="groupCreateMembersStep" class="group-create-step group-create-step--members is-active" aria-label="Выбор участников">
+            <label class="group-create-modal__label" for="groupMemberSearchInput">Поиск</label>
+            <input id="groupMemberSearchInput" class="group-create-modal__input group-create-modal__search" type="text" maxlength="80" placeholder="Поиск" autocomplete="off">
+            <div id="groupCreateSelected" class="group-create-modal__selected" aria-live="polite"></div>
+            <div id="groupCreateSearchResults" class="group-create-modal__results" aria-live="polite"></div>
+        </section>
 
-        <label class="group-create-modal__label" for="groupMemberSearchInput">Добавить участников</label>
-        <input id="groupMemberSearchInput" class="group-create-modal__input" type="text" maxlength="80" placeholder="Введите имя или @username" autocomplete="off">
-
-        <div id="groupCreateSelected" class="group-create-modal__selected" aria-live="polite"></div>
-        <div id="groupCreateSearchResults" class="group-create-modal__results" aria-live="polite"></div>
-
-        <div class="group-create-modal__actions">
-            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" data-dialog-close="groupCreateModal">Отмена</button>
-            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupCreateSubmitBtn" disabled>Создать</button>
-        </div>
-    </div>
-</dialog>
-
-<dialog id="groupEditModal" class="group-create-modal" data-animated-dialog aria-labelledby="groupEditModalTitle">
-    <div class="group-create-modal__head">
-        <h5 id="groupEditModalTitle" class="group-create-modal__title">
-            <i class="bi bi-pencil-square"></i> Редактировать группу
-        </h5>
-        <button type="button" data-dialog-close="groupEditModal" class="dialog-close-plain group-create-modal__close" aria-label="Закрыть">&times;</button>
-    </div>
-    <div class="group-create-modal__content">
-        <div class="group-edit-avatar-row">
-            <div id="groupEditAvatarPreview" class="group-edit-avatar-preview">?</div>
-            <div class="group-edit-avatar-actions">
-                <label for="groupEditAvatarInput" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary group-edit-avatar-btn">
-                    <i class="bi bi-camera"></i>
-                    <span>Сменить фото</span>
-                </label>
-                <input id="groupEditAvatarInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="file-attach-input--hidden">
+        <section id="groupCreateTitleStep" class="group-create-step group-create-step--title" aria-label="Название группы" hidden>
+            <div class="group-create-title-row">
+                <div class="group-create-title-avatar" aria-hidden="true">
+                    <i class="bi bi-camera-fill"></i>
+                </div>
+                <div class="group-create-title-fields">
+                    <label class="group-create-modal__label" for="groupTitleInput">Название группы</label>
+                    <input id="groupTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Название группы" autocomplete="off">
+                </div>
             </div>
-        </div>
-
-        <label class="group-create-modal__label" for="groupEditTitleInput">Название группы</label>
-        <input id="groupEditTitleInput" class="group-create-modal__input" type="text" maxlength="120" placeholder="Обновите название..." autocomplete="off">
-
-        <label class="group-create-modal__label" for="groupEditDescriptionInput">Описание</label>
-        <textarea id="groupEditDescriptionInput" class="group-create-modal__input group-create-modal__textarea" maxlength="600" rows="3" placeholder="Описание группы"></textarea>
-
-        <div class="group-create-modal__label">Администраторы</div>
-        <div id="groupEditMembersList" class="group-edit-members-list"></div>
+        </section>
 
         <div class="group-create-modal__actions">
-            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" data-dialog-close="groupEditModal">Отмена</button>
-            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupEditSubmitBtn" disabled>Сохранить</button>
+            <button type="button" class="dialog-secondary-btn group-create-action-btn group-create-action-btn--secondary" id="groupCreateBackBtn">Отмена</button>
+            <button type="button" class="dialog-primary-btn group-create-action-btn group-create-action-btn--primary" id="groupCreateSubmitBtn" disabled>Далее</button>
         </div>
     </div>
 </dialog>
@@ -113,7 +90,7 @@
                 aria-label="   "
             >
         </h5>
-        <button type="button" data-dialog-close="messageForwardModal" class="dialog-close-plain group-create-modal__close" aria-label="">&times;</button>
+        <button type="button" data-dialog-close="messageForwardModal" class="dialog-close-plain group-create-modal__close" aria-label="Закрыть">&times;</button>
     </div>
     <div class="group-create-modal__content">
         <div id="messageForwardTargets" class="group-create-modal__results" aria-live="polite"></div>
@@ -286,21 +263,21 @@
             </div>
             <div class="caption-modal-header-actions">
                 <div class="caption-modal-options-wrap">
-                    <button type="button" class="btn-icon caption-modal-more-btn" id="captionModalMoreBtn" aria-label="Actions" aria-haspopup="menu" aria-expanded="false">
+                    <button type="button" class="btn-icon caption-modal-more-btn" id="captionModalMoreBtn" aria-label="Действия" aria-haspopup="menu" aria-expanded="false">
                         <span class="caption-more-glyph" aria-hidden="true">⋮</span>
                     </button>
                     <div id="captionOptionsMenu" class="caption-options-menu telegram-popup" aria-hidden="true" role="menu">
                         <button type="button" class="attach-menu-item ripple-target" id="captionAddBtn" role="menuitem">
                             <span class="attach-menu-item__icon"><i class="bi bi-plus-circle"></i></span>
-                            <span class="attach-menu-item__text" id="captionAddLabel">Add</span>
+                            <span class="attach-menu-item__text" id="captionAddLabel">Добавить</span>
                         </button>
                         <button type="button" class="attach-menu-item ripple-target" id="captionToggleCompressionBtn" role="menuitem">
                             <span class="attach-menu-item__icon"><i class="bi bi-file-earmark-arrow-up"></i></span>
-                            <span class="attach-menu-item__text" id="captionCompressionLabel">Send without compression</span>
+                            <span class="attach-menu-item__text" id="captionCompressionLabel">Отправить без сжатия</span>
                         </button>
                     </div>
                 </div>
-                <button type="button" class="btn-icon caption-modal-close-btn" id="captionModalClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                <button type="button" class="btn-icon caption-modal-close-btn" id="captionModalClose" aria-label="Закрыть"><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
         <div class="caption-modal-preview" id="captionPreview"></div>
@@ -312,5 +289,3 @@
     </div>
     <input type="file" id="captionAddInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" />
 </div>
-
-

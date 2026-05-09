@@ -48,13 +48,15 @@ export function initDevicesSection({
             sessionDevicesListEl.innerHTML = devices.map((device) => {
                 const label = describeUserAgent(device.user_agent, device.persistent);
                 const location = device.ip ? `IP ${escapeHtml(device.ip)}` : escapeHtml(tr('IP скрыт'));
-                const persistentLabel = device.persistent ? '30 days' : 'Session only';
+                const persistentLabel = device.persistent ? tr('30 дней') : tr('Сессия');
+                const currentLabel = tr('Текущая');
+                const webLabel = tr('Веб');
                 return `
                     <div class="session-device-item">
                         <div class="session-device-main">
                             <div class="session-device-name">
                                 <span>${escapeHtml(label)}</span>
-                                ${device.is_current ? '<span class="session-device-pill">Current</span>' : ''}
+                                ${device.is_current ? `<span class="session-device-pill">${escapeHtml(currentLabel)}</span>` : ''}
                                 <span class="session-device-pill">${escapeHtml(persistentLabel)}</span>
                             </div>
                             <div class="session-device-meta">
@@ -66,7 +68,7 @@ export function initDevicesSection({
                             ? `<button type="button" class="btn-settings secondary session-revoke-btn" data-family-id="${escapeHtml(device.family_id)}" data-current="${device.is_current ? '1' : '0'}">
                                 ${escapeHtml(tr(device.is_current ? 'Выйти' : 'Завершить'))}
                             </button>`
-                            : '<span class="session-device-pill">Web</span>'
+                            : `<span class="session-device-pill">${escapeHtml(webLabel)}</span>`
                         }
                     </div>
                 `;

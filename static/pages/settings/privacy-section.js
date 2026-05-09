@@ -88,7 +88,7 @@ export function initPrivacySection({
         try {
             const payload = await api.saveSettings(Object.assign(getCommonPayload(), extraPayload || {}));
             if (!payload.success) {
-                showAlert(`Error: ${payload.error || ''}`, 'danger');
+                showAlert(`${tr('Ошибка:')} ${payload.error || ''}`.trim(), 'danger');
                 return;
             }
             state.setBaseline(getCommonPayload());
@@ -151,7 +151,7 @@ export function initPrivacySection({
         if (!el) return;
         navigator.clipboard.writeText(el.value).then(() => {
             const orig = btn.innerHTML;
-            btn.innerHTML = `<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span> ${tr('Copied!')}`;
+            btn.innerHTML = `<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span> ${tr('Скопировано!')}`;
             btn.style.background = 'rgba(16,185,129,0.15)';
             btn.style.color = 'var(--success)';
             setTimeout(() => {

@@ -25,7 +25,7 @@
 <main class="support-feedback-shell">
     <section class="support-feedback-panel sun-surface-enter">
         <div class="support-feedback-topline">
-            <span class="support-feedback-code">support channel</span>
+            <span class="support-feedback-code">{{ 'support channel' if ui_language == 'en' else 'канал поддержки' }}</span>
             <a class="support-feedback-back" href="{{ '/chat' if user_id else '/' }}">{{ 'В чат' if user_id else 'Ко входу' }}</a>
         </div>
 
