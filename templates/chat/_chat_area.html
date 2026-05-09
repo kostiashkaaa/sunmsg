@@ -1,4 +1,5 @@
     <main class="chat-area" id="chatArea">
+        <h1 class="visually-hidden">{{ 'sun messenger chat' if ui_lang == 'en' else 'Чат sun messenger' }}</h1>
         <div class="chat-wallpaper-layer" id="chatWallpaperLayer" aria-hidden="true"></div>
 
         <div class="voice-playback-bar voice-playback-bar--hidden" id="voicePlaybackBar" aria-hidden="true">
@@ -160,7 +161,7 @@
             </div>
         </div>
 
-        <div id="partnerProfileDrawer" class="profile-drawer profile-drawer--tg" aria-hidden="true">
+        <div id="partnerProfileDrawer" class="profile-drawer profile-drawer--tg" aria-hidden="true" hidden inert>
             <button type="button" class="profile-drawer-backdrop" data-profile-close aria-label="Закрыть профиль"></button>
 
             <section class="profile-sheet profile-sheet--tg" role="dialog" aria-modal="true" aria-labelledby="profileDisplayName">
@@ -535,4 +536,3 @@
         <span class="lightbox-zoom-value" id="lightboxZoomValue">100%</span>
     </div>
 </div>
-

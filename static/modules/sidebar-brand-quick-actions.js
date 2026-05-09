@@ -112,7 +112,8 @@ export function initSidebarBrandQuickActions({ openDialog = null } = {}) {
     const panel = document.createElement('div');
     panel.className = 'sidebar-brand-quick-actions';
     panel.id = 'sidebarBrandQuickActions';
-    panel.setAttribute('aria-hidden', 'true');
+    panel.hidden = true;
+    panel.setAttribute('hidden', '');
     panel.setAttribute('role', 'menu');
     panel.innerHTML = `
         <div class="sidebar-brand-quick-actions__logo" aria-hidden="true">
@@ -194,8 +195,9 @@ export function initSidebarBrandQuickActions({ openDialog = null } = {}) {
     function openPanel() {
         if (panelOpen) return;
         panelOpen = true;
+        panel.hidden = false;
+        panel.removeAttribute('hidden');
         panel.classList.add('is-open');
-        panel.setAttribute('aria-hidden', 'false');
         brand.classList.add('has-quick-actions');
         trigger.classList.add('is-active');
         setTriggerExpanded(true);
@@ -206,7 +208,8 @@ export function initSidebarBrandQuickActions({ openDialog = null } = {}) {
         panelOpen = false;
         panel.classList.remove('is-open');
         panel.style.removeProperty('--quick-actions-drag-shift');
-        panel.setAttribute('aria-hidden', 'true');
+        panel.hidden = true;
+        panel.setAttribute('hidden', '');
         brand.classList.remove('has-quick-actions');
         trigger.classList.remove('is-active');
         setTriggerExpanded(false);
