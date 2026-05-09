@@ -448,7 +448,17 @@ export function initChatContactsSidebar({
                                     contactsList?.querySelector('.contact-item[data-chat-id]'),
                                 );
                                 const nextSignature = buildContactsPayloadSignature(orderedContacts);
-                                if (hasRenderedContacts && nextSignature === lastFullContactsPayloadSignature) {
+                                const hasPendingEncryptedPreview = Boolean(
+                                    contactsList?.querySelector('.contact-last-msg-loading'),
+                                );
+                                const canRetryEncryptedPreviewDecrypt = Boolean(
+                                    getPrivateKeyPem() && window.e2e?.decryptMessageE2E,
+                                );
+                                if (
+                                    hasRenderedContacts
+                                    && nextSignature === lastFullContactsPayloadSignature
+                                    && (!hasPendingEncryptedPreview || !canRetryEncryptedPreviewDecrypt)
+                                ) {
                                     if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore()) {
                                         setHasAttemptedInitialChatRestore(true);
                                         restoreLastActiveChatSelection();
