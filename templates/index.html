@@ -59,14 +59,14 @@
             <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
         </div>
 
-        <a class="auth-onboarding-entry" href="{{ url_for('auth.onboarding_guide') }}">
-            <span class="auth-onboarding-entry-kicker">
+        <a class="auth-onboarding-entry" id="authOnboardingEntry" href="{{ url_for('auth.onboarding_guide', lang=ui_language|default('ru')) }}">
+            <span class="auth-onboarding-entry-kicker" id="authOnboardingEntryKicker">
                 {{ 'Need help getting started?' if ui_language == 'en' else 'Впервые в SUN Messenger?' }}
             </span>
-            <span class="auth-onboarding-entry-title">
+            <span class="auth-onboarding-entry-title" id="authOnboardingEntryTitle">
                 {{ 'Open a short registration and sign-in guide' if ui_language == 'en' else 'Откройте короткую инструкцию по регистрации и входу' }}
             </span>
-            <span class="auth-onboarding-entry-action">
+            <span class="auth-onboarding-entry-action" id="authOnboardingEntryAction">
                 {{ 'Open guide' if ui_language == 'en' else 'Открыть инструкцию' }}
             </span>
         </a>

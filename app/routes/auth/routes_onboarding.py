@@ -48,7 +48,7 @@ _ONBOARDING_COPY = {
         'steps_title': 'Step by step',
         'tips_title': 'Common mistakes',
         'actions_title': 'Quick actions',
-        'actions_text': 'After reading, return to auth and create an account from the “Create account” tab.',
+        'actions_text': 'After reading, return to auth and create an account from the "Create account" tab.',
         'go_auth': 'Open sign-in page',
         'steps': [
             {
@@ -72,13 +72,20 @@ _ONBOARDING_COPY = {
             'Do not use spaces or uppercase letters in username: only `a-z`, `0-9`, `_` are valid.',
             'Do not store the 24 words only in phone notes: keep an offline backup.',
             'If TOTP code fails, check your phone time sync.',
-            'If access is lost, try 24-word sign in first, then contact support from the “Feedback” block.',
+            'If access is lost, try 24-word sign in first, then contact support from the "Feedback" block.',
         ],
     },
 }
 
 
 def _resolve_onboarding_language() -> str:
+    requested_language = str(request.args.get('lang') or '').strip().lower()
+    if requested_language in {'ru', 'en'}:
+        session['guest_ui_language'] = requested_language
+        if not session.get('user_id'):
+            session['ui_language'] = requested_language
+        return requested_language
+
     session_language = session.get('ui_language') or session.get('guest_ui_language')
     return normalize_language(session_language, default=detect_auth_language(request))
 

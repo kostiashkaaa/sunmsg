@@ -23,6 +23,11 @@
 </head>
 <body class="onboarding-guide-body" data-ui-language="{{ ui_language|default('ru') }}">
     <main class="onboarding-guide-wrap">
+        <div class="onboarding-guide-language-switch" role="group" aria-label="{{ 'Interface language' if ui_language == 'en' else 'Язык интерфейса' }}">
+            <a href="{{ url_for('auth.onboarding_guide', lang='ru') }}" class="onboarding-guide-language-btn {% if ui_language != 'en' %}is-active{% endif %}">RU</a>
+            <a href="{{ url_for('auth.onboarding_guide', lang='en') }}" class="onboarding-guide-language-btn {% if ui_language == 'en' %}is-active{% endif %}">EN</a>
+        </div>
+
         <header class="onboarding-guide-head">
             <div class="onboarding-guide-copy">
                 <div class="onboarding-guide-eyebrow">{{ ui_copy.eyebrow }}</div>
