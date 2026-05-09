@@ -540,11 +540,14 @@ export function initVoiceRecorder({
             return;
         }
         if (isSendingMessage() || isStopping) return;
+        onComposerStopTyping?.();
+        syncVoiceTypingState(true);
 
         let stream;
         try {
             stream = await requestMicrophoneStream();
         } catch (err) {
+            syncVoiceTypingState(false);
             showToast(getMicAccessErrorMessage(err), 'danger');
             return;
         }
@@ -569,8 +572,6 @@ export function initVoiceRecorder({
             if (document.activeElement === messageInput) {
                 messageInput.blur();
             }
-            onComposerStopTyping?.();
-            syncVoiceTypingState(true);
             startTimer();
             updateButtonState();
         } catch (_) {
