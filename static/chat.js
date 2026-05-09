@@ -187,6 +187,14 @@ const initChatPage = async () => {
         isChatBlocked: () => isChatBlocked(),
         joinChatRoom: (chatId) => joinChatRoom(chatId),
         markCurrentChatSeenIfPossible: () => markCurrentChatSeenIfPossible(),
+        refreshCurrentPresence: () => {
+            const activeContactId = String(currentContactId || '').trim();
+            if (!activeContactId) return;
+            if (window.currentPartnerData?._saved_messages_profile) return;
+            if (window.currentPartnerData?._group_profile) return;
+            onlineStatusController.reset({ loading: true });
+            loadOnlineStatus(activeContactId);
+        },
         syncSidebarStatusBar: () => syncSidebarStatusBar(),
         loadContacts: () => loadContacts(),
         loadDialogRequests: () => loadDialogRequests(),

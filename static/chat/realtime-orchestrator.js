@@ -9,6 +9,7 @@ export function wireSocketLifecycleHandlers({
     syncSidebarStatusBar,
     loadContacts,
     loadDialogRequests,
+    refreshCurrentPresence,
     getHasSocketConnectedOnce,
     setHasSocketConnectedOnce,
     setHasSocketConnectionIssue,
@@ -22,6 +23,7 @@ export function wireSocketLifecycleHandlers({
         if (currentChatId && !isChatBlocked()) {
             joinChatRoom(currentChatId);
             markCurrentChatSeenIfPossible();
+            refreshCurrentPresence?.();
         }
 
         syncSidebarStatusBar();
