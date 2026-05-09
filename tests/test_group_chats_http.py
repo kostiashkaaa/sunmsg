@@ -77,6 +77,91 @@ def test_create_group_chat_persists_chat_and_members(monkeypatch, tmp_path):
     assert str(created_for_bob['payload']['chat_id']) == payload['chat_id']
 
 
+def test_create_group_chat_creates_join_request_when_invitee_allows_contacts_only(monkeypatch, tmp_path):
+    db_path = tmp_path / 'group-chat-create-join-request-http.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, group_invite_privacy)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice', 'all'),
+                (2, 'pk-2', 'bob', 'Bob', 'contacts')
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+    monkeypatch.setattr(
+        chat_routes.socketio,
+        'emit',
+        lambda name, payload=None, *args, **kwargs: emitted.append(
+            {'name': name, 'payload': payload, 'args': args, 'kwargs': kwargs}
+        ),
+    )
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post(
+        '/api/chats/group/create',
+        json={'title': 'Invite Gate', 'member_user_ids': [2]},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 201
+    assert payload['success'] is True
+    assert payload['members_count'] == 1
+    assert payload['requested_member_ids'] == [2]
+
+    with _connect(db_path) as conn:
+        member_rows = conn.execute(
+            '''
+            SELECT user_id, role
+            FROM chat_members
+            WHERE chat_id = ?
+            ORDER BY user_id ASC
+            ''',
+            (payload['chat_id'],),
+        ).fetchall()
+        invite_row = conn.execute(
+            '''
+            SELECT chat_id, inviter_user_id, invitee_user_id, status
+            FROM group_invite_requests
+            WHERE chat_id = ?
+            ''',
+            (payload['chat_id'],),
+        ).fetchone()
+
+    assert [(int(row['user_id']), str(row['role'])) for row in member_rows] == [
+        (1, 'owner'),
+    ]
+    assert invite_row is not None
+    assert str(invite_row['chat_id']) == payload['chat_id']
+    assert int(invite_row['inviter_user_id']) == 1
+    assert int(invite_row['invitee_user_id']) == 2
+    assert str(invite_row['status']) == 'pending'
+
+    created_for_bob = next(
+        (
+            event for event in emitted
+            if event['name'] == 'group_chat_created' and event['kwargs'].get('room') == 'pk-2'
+        ),
+        None,
+    )
+    invite_for_bob = next(
+        (
+            event for event in emitted
+            if event['name'] == 'new_group_invite_request' and event['kwargs'].get('room') == 'pk-2'
+        ),
+        None,
+    )
+    assert created_for_bob is None
+    assert invite_for_bob is not None
+    assert invite_for_bob['payload']['request_kind'] == 'group_invite'
+    assert int(invite_for_bob['payload']['request_id']) > 0
+
+
 def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
     db_path = tmp_path / 'group-chat-history-http.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

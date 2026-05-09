@@ -138,3 +138,139 @@ def test_start_dialog_from_public_card_sends_request_or_opens_existing_chat(monk
     open_chat_response = client.post('/u/bob/start')
     assert open_chat_response.status_code == 302
     assert open_chat_response.headers['Location'].endswith('/chat/bob')
+
+
+def test_get_dialog_requests_includes_group_invite_requests(monkeypatch, tmp_path):
+    db_path = tmp_path / 'group-invite-requests-http.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type, created_by_user_id)
+            VALUES (?, 'Core Team', 'group', 1)
+            ''',
+            ('a' * 64,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES (1, ?, 'owner')
+            ''',
+            ('a' * 64,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO group_invite_requests (chat_id, inviter_user_id, invitee_user_id, status)
+            VALUES (?, 1, 2, 'pending')
+            ''',
+            ('a' * 64,),
+        )
+        conn.commit()
+
+    bob_client = _authed_client(app, 2, 'pk-2')
+    response = bob_client.get('/get_dialog_requests')
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload['success'] is True
+    assert len(payload['dialog_requests']) == 1
+    assert payload['dialog_requests'][0]['request_kind'] == 'group_invite'
+    assert payload['dialog_requests'][0]['chat_id'] == 'a' * 64
+    assert payload['dialog_requests'][0]['chat_name'] == 'Core Team'
+    assert payload['dialog_requests'][0]['sender_public_key'] == 'pk-1'
+
+
+def test_accept_group_invite_request_adds_member(monkeypatch, tmp_path):
+    db_path = tmp_path / 'group-invite-accept-http.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    emitted = _capture_socket_emits(monkeypatch)
+    chat_id = 'b' * 64
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type, created_by_user_id)
+            VALUES (?, 'Core Team', 'group', 1)
+            ''',
+            (chat_id,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES (1, ?, 'owner')
+            ''',
+            (chat_id,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO group_invite_requests (id, chat_id, inviter_user_id, invitee_user_id, status)
+            VALUES (77, ?, 1, 2, 'pending')
+            ''',
+            (chat_id,),
+        )
+        conn.commit()
+
+    bob_client = _authed_client(app, 2, 'pk-2')
+    response = bob_client.post(
+        '/accept_request',
+        json={'request_kind': 'group_invite', 'request_id': 77},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload == {'success': True, 'chat_id': chat_id}
+
+    with _connect(db_path) as conn:
+        request_row = conn.execute(
+            '''
+            SELECT status
+            FROM group_invite_requests
+            WHERE id = 77
+            '''
+        ).fetchone()
+        member_row = conn.execute(
+            '''
+            SELECT role
+            FROM chat_members
+            WHERE chat_id = ? AND user_id = 2
+            ''',
+            (chat_id,),
+        ).fetchone()
+
+    assert request_row['status'] == 'accepted'
+    assert member_row is not None
+    assert str(member_row['role']) == 'member'
+    assert any(
+        event['name'] == 'group_invite_request_updated'
+        and event['payload']['request_kind'] == 'group_invite'
+        and event['payload']['request_id'] == 77
+        and event['payload']['action'] == 'accepted'
+        for event in emitted
+    )
+    assert any(
+        event['name'] == 'group_members_added'
+        and event['payload']['chat_id'] == chat_id
+        and event['payload']['added_member_ids'] == [2]
+        for event in emitted
+    )

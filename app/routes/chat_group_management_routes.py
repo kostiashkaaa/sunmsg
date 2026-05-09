@@ -23,6 +23,11 @@ from app.services.chat_members import (
     list_chat_member_public_keys,
 )
 from app.services.chat_media_service import delete_file_quietly
+from app.services.group_invite_requests import (
+    build_group_invite_request_payload,
+    ensure_group_invite_request,
+    should_route_group_invite_to_request,
+)
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS, ACTION_INVITE
 
 
@@ -77,6 +82,22 @@ def register_chat_group_management_routes(
             if len(member_ids) != len(requested_member_ids):
                 return jsonify({'success': False, 'error': 'Some members were not found.'}), 404
 
+            public_key_by_user_id = {
+                int(row['id']): str(row['public_key'] or '').strip()
+                for row in rows
+            }
+            auto_add_member_ids: list[int] = []
+            requested_member_ids: list[int] = []
+            for candidate_user_id in member_ids:
+                if should_route_group_invite_to_request(
+                    conn,
+                    inviter_user_id=creator_id,
+                    invitee_user_id=int(candidate_user_id),
+                ):
+                    requested_member_ids.append(int(candidate_user_id))
+                else:
+                    auto_add_member_ids.append(int(candidate_user_id))
+
             chat_id = new_group_chat_id(creator_user_id=creator_id)
             conn.execute(
                 '''
@@ -95,10 +116,20 @@ def register_chat_group_management_routes(
             ensure_chat_members(
                 conn,
                 chat_id,
-                member_ids,
+                auto_add_member_ids,
                 role='member',
                 added_by_user_id=creator_id,
             )
+            created_request_ids: dict[int, int] = {}
+            for candidate_user_id in requested_member_ids:
+                request_id = ensure_group_invite_request(
+                    conn,
+                    chat_id=chat_id,
+                    inviter_user_id=creator_id,
+                    invitee_user_id=int(candidate_user_id),
+                )
+                if request_id > 0:
+                    created_request_ids[int(candidate_user_id)] = int(request_id)
             conn.commit()
 
             creator_pub = str(session.get('public_key_pem') or '').strip()
@@ -108,7 +139,7 @@ def register_chat_group_management_routes(
                 'chat_description': description,
                 'chat_avatar_url': '',
                 'chat_type': CHAT_TYPE_GROUP,
-                'members_count': len(member_ids) + 1,
+                'members_count': len(auto_add_member_ids) + 1,
             }
             if creator_pub:
                 socketio_emit_func('group_chat_created', payload, room=creator_pub)
@@ -116,6 +147,13 @@ def register_chat_group_management_routes(
                 member_pub = str(member['public_key'] or '')
                 if member_pub:
                     socketio_emit_func('group_chat_created', payload, room=member_pub)
+            for requested_user_id, request_id in created_request_ids.items():
+                target_pub = public_key_by_user_id.get(int(requested_user_id), '')
+                if not target_pub:
+                    continue
+                request_payload = build_group_invite_request_payload(conn, request_id=request_id)
+                if request_payload:
+                    socketio_emit_func('new_group_invite_request', request_payload, room=target_pub)
 
             return jsonify(
                 {
@@ -125,7 +163,8 @@ def register_chat_group_management_routes(
                     'chat_description': description,
                     'chat_avatar_url': '',
                     'chat_type': CHAT_TYPE_GROUP,
-                    'members_count': len(member_ids) + 1,
+                    'members_count': len(auto_add_member_ids) + 1,
+                    'requested_member_ids': requested_member_ids,
                 }
             ), 201
         finally:
@@ -170,7 +209,7 @@ def register_chat_group_management_routes(
             placeholders = ', '.join('?' * len(member_ids))
             rows = conn.execute(
                 f'''
-                SELECT id
+                SELECT id, public_key
                 FROM users
                 WHERE id IN ({placeholders})
                 ''',
@@ -179,6 +218,10 @@ def register_chat_group_management_routes(
             resolved_ids = sorted({int(row['id']) for row in rows})
             if len(resolved_ids) != len(member_ids):
                 return jsonify({'success': False, 'error': 'Some members were not found.'}), 404
+            public_key_by_user_id = {
+                int(row['id']): str(row['public_key'] or '').strip()
+                for row in rows
+            }
 
             for candidate_user_id in resolved_ids:
                 restriction = moderation_service.active_group_restriction(
@@ -196,32 +239,65 @@ def register_chat_group_management_routes(
                         }
                     ), 403
 
-            ensure_chat_members(
-                conn,
-                chat_id,
-                resolved_ids,
-                role='member',
-                added_by_user_id=user_id,
-            )
+            auto_add_ids: list[int] = []
+            request_only_ids: list[int] = []
+            for candidate_user_id in resolved_ids:
+                if should_route_group_invite_to_request(
+                    conn,
+                    inviter_user_id=user_id,
+                    invitee_user_id=int(candidate_user_id),
+                ):
+                    request_only_ids.append(int(candidate_user_id))
+                else:
+                    auto_add_ids.append(int(candidate_user_id))
+
+            if auto_add_ids:
+                ensure_chat_members(
+                    conn,
+                    chat_id,
+                    auto_add_ids,
+                    role='member',
+                    added_by_user_id=user_id,
+                )
+
+            created_request_ids: dict[int, int] = {}
+            for candidate_user_id in request_only_ids:
+                request_id = ensure_group_invite_request(
+                    conn,
+                    chat_id=chat_id,
+                    inviter_user_id=user_id,
+                    invitee_user_id=int(candidate_user_id),
+                )
+                if request_id > 0:
+                    created_request_ids[int(candidate_user_id)] = int(request_id)
             conn.commit()
 
-            payload = {
-                'chat_id': chat_id,
-                'added_member_ids': resolved_ids,
-            }
-            emit_group_event(
-                conn,
-                chat_id=chat_id,
-                event_name='group_members_added',
-                payload=payload,
-                socketio_emit_func=socketio_emit_func,
-            )
+            if auto_add_ids:
+                payload = {
+                    'chat_id': chat_id,
+                    'added_member_ids': auto_add_ids,
+                }
+                emit_group_event(
+                    conn,
+                    chat_id=chat_id,
+                    event_name='group_members_added',
+                    payload=payload,
+                    socketio_emit_func=socketio_emit_func,
+                )
+            for requested_user_id, request_id in created_request_ids.items():
+                target_pub = public_key_by_user_id.get(int(requested_user_id), '')
+                if not target_pub:
+                    continue
+                request_payload = build_group_invite_request_payload(conn, request_id=request_id)
+                if request_payload:
+                    socketio_emit_func('new_group_invite_request', request_payload, room=target_pub)
 
             return jsonify(
                 {
                     'success': True,
                     'chat_id': chat_id,
-                    'added_member_ids': resolved_ids,
+                    'added_member_ids': auto_add_ids,
+                    'requested_member_ids': request_only_ids,
                 }
             ), 200
         finally:

@@ -41,6 +41,34 @@ function buildDialogRequestItemHtml(data, escapeHtml) {
     `;
 }
 
+function buildGroupInviteRequestItemHtml(data, escapeHtml) {
+    const displayName = data.sender_display_name || data.sender_username || '';
+    const username = data.sender_username || '';
+    const avatar = data.sender_avatar || '';
+    const requestId = Number.parseInt(String(data.request_id || '').trim(), 10);
+    const chatName = String(data.chat_name || '').trim();
+    const initials = getInitials(displayName || username);
+    const avatarHtml = avatar
+        ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : escapeHtml(initials);
+    const subtitle = chatName
+        ? `\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443: ${escapeHtml(chatName)}`
+        : '\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443';
+
+    return `
+        <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${avatarHtml}</div>
+        <div class="req-info">
+            <div class="req-name">${escapeHtml(displayName)}</div>
+            <div class="req-username">@${escapeHtml(username)}</div>
+            <div class="req-username">${subtitle}</div>
+        </div>
+        <div class="req-actions">
+            <button class="req-btn accept" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
+            <button class="req-btn decline" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
+        </div>
+    `;
+}
+
 function findDialogRequestActionButtonBySenderKey(dialogRequestsList, senderPublicKey) {
     if (!dialogRequestsList) return null;
     const normalizedSenderKey = String(senderPublicKey || '');
@@ -49,6 +77,20 @@ function findDialogRequestActionButtonBySenderKey(dialogRequestsList, senderPubl
     const actionButtons = dialogRequestsList.querySelectorAll('.req-btn[data-key]');
     for (const button of actionButtons) {
         if (String(button.getAttribute('data-key') || '') === normalizedSenderKey) {
+            return button;
+        }
+    }
+    return null;
+}
+
+function findDialogRequestActionButtonByRequestId(dialogRequestsList, requestId) {
+    if (!dialogRequestsList) return null;
+    const normalizedRequestId = String(requestId || '').trim();
+    if (!normalizedRequestId) return null;
+
+    const actionButtons = dialogRequestsList.querySelectorAll('.req-btn[data-request-id]');
+    for (const button of actionButtons) {
+        if (String(button.getAttribute('data-request-id') || '') === normalizedRequestId) {
             return button;
         }
     }
@@ -139,6 +181,35 @@ export function registerSystemSocketHandlers({
         updateDialogRequestsBadge();
     });
 
+    socket.on('new_group_invite_request', (data) => {
+        const senderDisplayName = String(data?.sender_display_name || data?.sender_username || '').trim() || '?';
+        const groupName = String(data?.chat_name || '').trim();
+        if (!isDialogRequestsMuted()) {
+            const summary = groupName
+                ? `${tr('\u041D\u043E\u0432\u043E\u0435 \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443')} ${groupName}`
+                : tr('\u041D\u043E\u0432\u043E\u0435 \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443');
+            showToast(`${summary} (${senderDisplayName})`, 'warning', { scopeKey: 'dialog-request' });
+        }
+        if (!dialogRequestsList || !dialogRequestsSection) return;
+
+        const existingButton = findDialogRequestActionButtonByRequestId(
+            dialogRequestsList,
+            data?.request_id,
+        );
+        if (existingButton) existingButton.closest('.request-item')?.remove();
+
+        const item = document.createElement('div');
+        item.className = 'request-item';
+        item.innerHTML = buildGroupInviteRequestItemHtml(data, escapeHtml).trim();
+        applyFallbackAvatarTint(
+            item.querySelector('.contact-avatar'),
+            data?.sender_display_name || data?.sender_username || '?',
+        );
+        dialogRequestsList.appendChild(item);
+        dialogRequestsSection.classList.add('has-requests');
+        updateDialogRequestsBadge();
+    });
+
     socket.on('error', (data) => {
         const requestId = String(data?.request_id || '').trim();
         if (requestId) {
@@ -169,6 +240,16 @@ export function registerSystemSocketHandlers({
         const btn = findDialogRequestActionButtonBySenderKey(
             dialogRequestsList,
             data?.sender_public_key,
+        );
+        const item = btn?.closest('.request-item');
+        if (item) item.remove();
+        updateDialogRequestsBadge();
+    });
+
+    socket.on('group_invite_request_updated', (data) => {
+        const btn = findDialogRequestActionButtonByRequestId(
+            dialogRequestsList,
+            data?.request_id,
         );
         const item = btn?.closest('.request-item');
         if (item) item.remove();

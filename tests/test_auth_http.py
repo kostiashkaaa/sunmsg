@@ -1176,6 +1176,67 @@ def test_api_save_settings_rejects_invalid_avatar_visibility(monkeypatch, tmp_pa
     assert row['avatar_visibility'] == 'all'
 
 
+def test_api_save_settings_updates_group_invite_privacy(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-save-settings-group-invite-privacy.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, group_invite_privacy)
+            VALUES (1, 'pk-1', 'alice', 'Alice', 'all')
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post('/api/save_settings', json={'group_invite_privacy': 'contacts'})
+
+    assert response.status_code == 200
+    assert response.get_json() == {'success': True}
+
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT group_invite_privacy FROM users WHERE id = 1').fetchone()
+
+    assert row['group_invite_privacy'] == 'contacts'
+
+    response = client.get('/api/get_settings')
+    assert response.status_code == 200
+    assert response.get_json()['group_invite_privacy'] == 'contacts'
+
+
+def test_api_save_settings_rejects_invalid_group_invite_privacy(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-save-settings-invalid-group-invite-privacy.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, group_invite_privacy)
+            VALUES (1, 'pk-1', 'alice', 'Alice', 'all')
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post('/api/save_settings', json={'group_invite_privacy': 'unknown'})
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        'success': False,
+        'error': 'Недопустимое значение приватности приглашений в группы.',
+    }
+
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT group_invite_privacy FROM users WHERE id = 1').fetchone()
+
+    assert row['group_invite_privacy'] == 'all'
+
+
 def test_api_save_settings_requires_complete_session(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-save-settings-session-guard.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

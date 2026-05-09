@@ -20,6 +20,7 @@ from app.routes.dialog_request_workflows import (
     decline_dialog_request_workflow,
     send_dialog_request_workflow,
 )
+from app.routes.chat_group_events import emit_group_event
 from app.routes.send_request_route_handlers import (
     process_send_request,
     process_send_request_route,
@@ -27,6 +28,11 @@ from app.routes.send_request_route_handlers import (
 from app.services.blocking import block_forbidden_response
 from app.services.blocking import build_block_state, normalize_block_state
 from app.services.crypto import generate_chat_id
+from app.services.group_invite_requests import (
+    accept_group_invite_request,
+    decline_group_invite_request,
+    fetch_pending_group_invite_requests_for_user,
+)
 from app.services.user import get_safe_avatar_url
 
 from .context import (
@@ -169,12 +175,14 @@ def get_dialog_requests():
         user_id=user_id,
         fetch_pending_dialog_requests_for_user_func=fetch_pending_dialog_requests_for_user,
     )
-    conn.close()
 
     if result['status'] == 'error':
+        conn.close()
         return jsonify({'success': False, 'error': DIALOG_REQUESTS_FETCH_FAILED_ERROR}), 500
 
-    return jsonify({'success': True, 'dialog_requests': result['dialog_requests']}), 200
+    group_requests = fetch_pending_group_invite_requests_for_user(conn, user_id=int(user_id))
+    conn.close()
+    return jsonify({'success': True, 'dialog_requests': [*result['dialog_requests'], *group_requests]}), 200
 
 
 @contacts_bp.route('/accept_request', methods=['POST'])
@@ -187,6 +195,62 @@ def accept_request():
     user_id = session['user_id']
 
     conn = get_db_connection()
+    request_kind = str(data.get('request_kind') or '').strip().lower()
+    if request_kind == 'group_invite':
+        request_id = parse_int(data.get('request_id'))
+        if request_id is None or request_id <= 0:
+            conn.close()
+            return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
+
+        processed_group = accept_group_invite_request(
+            conn,
+            request_id=int(request_id),
+            invitee_user_id=int(user_id),
+        )
+        if processed_group['status'] == 'request_missing':
+            conn.close()
+            return jsonify({'success': False}), 404
+        if processed_group['status'] == 'chat_missing':
+            conn.close()
+            return jsonify({'success': False, 'error': CHAT_NOT_FOUND_ERROR}), 404
+
+        conn.commit()
+        update_payload = {
+            'request_kind': 'group_invite',
+            'request_id': int(request_id),
+            'action': 'accepted',
+            'chat_id': str(processed_group['chat_id']),
+        }
+        my_public_key = str(session.get('public_key_pem') or '').strip()
+        if my_public_key:
+            socketio.emit('group_invite_request_updated', update_payload, room=my_public_key)
+
+        inviter_row = conn.execute(
+            '''
+            SELECT public_key
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+            ''',
+            (int(processed_group['inviter_user_id']),),
+        ).fetchone()
+        inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
+        if inviter_public_key:
+            socketio.emit('group_invite_request_updated', update_payload, room=inviter_public_key)
+
+        emit_group_event(
+            conn,
+            chat_id=str(processed_group['chat_id']),
+            event_name='group_members_added',
+            payload={
+                'chat_id': str(processed_group['chat_id']),
+                'added_member_ids': [int(user_id)],
+            },
+            socketio_emit_func=socketio.emit,
+        )
+        conn.close()
+        return jsonify({'success': True, 'chat_id': str(processed_group['chat_id'])}), 200
+
     processed = process_accept_request_route(
         conn,
         receiver_user_id=user_id,
@@ -230,6 +294,49 @@ def decline_request():
     user_id = session['user_id']
 
     conn = get_db_connection()
+    request_kind = str(data.get('request_kind') or '').strip().lower()
+    if request_kind == 'group_invite':
+        request_id = parse_int(data.get('request_id'))
+        if request_id is None or request_id <= 0:
+            conn.close()
+            return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
+
+        processed_group = decline_group_invite_request(
+            conn,
+            request_id=int(request_id),
+            invitee_user_id=int(user_id),
+        )
+        if processed_group['status'] == 'request_missing':
+            conn.close()
+            return jsonify({'success': False}), 404
+
+        conn.commit()
+        update_payload = {
+            'request_kind': 'group_invite',
+            'request_id': int(request_id),
+            'action': 'declined',
+            'chat_id': str(processed_group['chat_id']),
+        }
+        my_public_key = str(session.get('public_key_pem') or '').strip()
+        if my_public_key:
+            socketio.emit('group_invite_request_updated', update_payload, room=my_public_key)
+
+        inviter_row = conn.execute(
+            '''
+            SELECT public_key
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+            ''',
+            (int(processed_group['inviter_user_id']),),
+        ).fetchone()
+        inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
+        if inviter_public_key:
+            socketio.emit('group_invite_request_updated', update_payload, room=inviter_public_key)
+
+        conn.close()
+        return jsonify({'success': True}), 200
+
     processed = process_decline_request_route(
         conn,
         receiver_user_id=user_id,
