@@ -236,6 +236,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         hasRuntimePrivateKey: () => false,
     };
     let weatherLabelApi = {
+        refresh: () => {},
         updatePreferences: () => {},
     };
 
@@ -408,6 +409,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
     window.addEventListener('sun-ui-language-changed', () => {
         themeSyncApi.applyDark(themeSyncApi.isDark());
+        weatherLabelApi.refresh();
         syncEmptyStateUi();
     });
 
