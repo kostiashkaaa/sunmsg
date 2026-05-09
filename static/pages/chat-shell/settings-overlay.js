@@ -21,7 +21,93 @@ export function initChatShellSettingsOverlay(options = {}) {
     let settingsOverlayScrollLocked = false;
     let settingsOverlayBodyOverflow = '';
     let settingsOverlayBodyPaddingRight = '';
+    const SETTINGS_ASSETS_WARMED_STORAGE_KEY = 'sun.settings.assets.warmed.v1';
+    const SETTINGS_ASSETS_REQUIRED_PATHS = new Set([
+        '/static/pages/settings.css',
+        '/static/pages/settings.js',
+    ]);
+    let settingsAssetsWarmupPromise = null;
     const dialogTransitionState = new WeakMap();
+
+    function isSettingsAssetsWarmed() {
+        try {
+            return window.localStorage.getItem(SETTINGS_ASSETS_WARMED_STORAGE_KEY) === '1';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function markSettingsAssetsWarmed() {
+        try {
+            window.localStorage.setItem(SETTINGS_ASSETS_WARMED_STORAGE_KEY, '1');
+        } catch (_) {}
+    }
+
+    function collectSettingsAssetUrls(html, baseUrl) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(String(html || ''), 'text/html');
+        const urls = new Set();
+        doc.querySelectorAll('link[rel="stylesheet"][href], script[src]').forEach((node) => {
+            const rawUrl = node.getAttribute('href') || node.getAttribute('src') || '';
+            if (!rawUrl) return;
+            try {
+                const absoluteUrl = new URL(rawUrl, baseUrl);
+                if (absoluteUrl.origin !== window.location.origin) return;
+                urls.add(absoluteUrl.toString());
+            } catch (_) {}
+        });
+        return urls;
+    }
+
+    function warmSettingsAssets() {
+        if (navigator.onLine === false || isSettingsAssetsWarmed()) {
+            return Promise.resolve(false);
+        }
+        if (settingsAssetsWarmupPromise) return settingsAssetsWarmupPromise;
+
+        settingsAssetsWarmupPromise = (async () => {
+            const settingsDocUrl = withAppRoot('/settings?embed=1');
+            const response = await fetch(settingsDocUrl, {
+                method: 'GET',
+                credentials: 'include',
+                cache: 'reload',
+            });
+            if (!response.ok) return false;
+
+            const html = await response.text();
+            const assetUrls = collectSettingsAssetUrls(html, response.url || window.location.href);
+            if (!assetUrls.size) return false;
+
+            const loadedPaths = new Set();
+            const warmupResults = await Promise.allSettled(
+                Array.from(assetUrls).map(async (assetUrl) => {
+                    const assetResponse = await fetch(assetUrl, {
+                        method: 'GET',
+                        credentials: 'include',
+                        cache: 'reload',
+                    });
+                    if (!assetResponse.ok) {
+                        throw new Error(`HTTP ${assetResponse.status}`);
+                    }
+                    const assetPath = new URL(assetUrl, window.location.href).pathname;
+                    loadedPaths.add(assetPath);
+                    return assetPath;
+                }),
+            );
+
+            const hasLoadErrors = warmupResults.some((result) => result.status === 'rejected');
+            if (hasLoadErrors) return false;
+            const hasRequiredAssets = Array.from(SETTINGS_ASSETS_REQUIRED_PATHS).every((requiredPath) => loadedPaths.has(requiredPath));
+            if (!hasRequiredAssets) return false;
+
+            markSettingsAssetsWarmed();
+            return true;
+        })().catch(() => false).finally(() => {
+            settingsAssetsWarmupPromise = null;
+        });
+
+        return settingsAssetsWarmupPromise;
+    }
 
     function prefersReducedMotion() {
         if (document.documentElement.classList.contains('perf-lite')) {
@@ -254,6 +340,9 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     function openSettingsOverlay(section = 'profile') {
         if (!settingsOverlay || !settingsOverlayFrame) return;
+        if (navigator.onLine !== false) {
+            void warmSettingsAssets();
+        }
         clearSettingsOverlayTimers();
         const nextSrc = withAppRoot(`/settings?embed=1#${encodeURIComponent(section)}`);
         const openSeq = ++settingsOverlayTransitionSeq;
@@ -376,6 +465,13 @@ export function initChatShellSettingsOverlay(options = {}) {
             closeSettingsOverlay();
         }
     });
+    window.addEventListener('online', () => {
+        void warmSettingsAssets();
+    });
+
+    if (navigator.onLine !== false) {
+        void warmSettingsAssets();
+    }
 
     window.openCommandPalette = openCommandPalette;
     window.openSettingsOverlay = openSettingsOverlay;
