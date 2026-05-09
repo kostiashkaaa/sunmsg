@@ -4463,8 +4463,27 @@ const initChatPage = async () => {
             const alreadyRendered = state.renderedKeys.has(msgKey);
             const previousTailMessage = lastIdx > 0 ? state.messages[lastIdx - 1] : null;
             const tailGroupWouldChange = isSameMessageGroup(previousTailMessage, inserted);
+            const findRenderedMessageNodeByKey = (rawKey) => {
+                const normalizedKey = String(rawKey || '');
+                if (!normalizedKey) return null;
+                const escapedKey = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+                    ? CSS.escape(normalizedKey)
+                    : normalizedKey.replace(/["\\]/g, '\\$&');
+                return chatMessages.querySelector(`.message[data-message-key="${escapedKey}"]`);
+            };
 
-            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
+            if (isAtTail && rangeCoversTail && !alreadyRendered) {
+                if (tailGroupWouldChange && previousTailMessage) {
+                    const previousTailKey = getMessageKey(previousTailMessage);
+                    const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);
+                    if (!previousTailNode) {
+                        scheduleVirtualChatRender(currentChatId, renderOptions);
+                        return inserted;
+                    }
+                    const previousTailLayout = MessageGroup(state.messages, lastIdx - 1);
+                    syncReusedMessageNodeState(previousTailNode, previousTailMessage, previousTailLayout);
+                }
+
                 const wasNearBottom = isChatNearBottom();
                 const bottomSpacer = chatMessages.querySelector('.chat-virtual-spacer:last-child');
                 const groupLayout = MessageGroup(state.messages, lastIdx);
