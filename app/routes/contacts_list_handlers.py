@@ -181,6 +181,7 @@ def fetch_contacts_for_user(
         draft_text = str(contact['draft_text'] or '')
         has_draft = bool(draft_text.strip())
         preview_timestamp = contact['draft_updated_at'] if has_draft else contact['last_message_time']
+        is_saved_messages = str(contact['chat_id'] or '') == str(saved_messages_id or '')
         resolved_display_name = resolve_contact_display_name(
             viewer_user_id=user_id,
             contact_user_id=int(contact['id']),
@@ -213,7 +214,7 @@ def fetch_contacts_for_user(
                     blocked_me=blocked_me,
                     language=resolved_language,
                 ),
-                'unreadCount': contact['unread_count'],
+                'unreadCount': 0 if is_saved_messages else contact['unread_count'],
                 'avatar_url': get_safe_avatar_url_func(contact, user_id),
                 'is_online': (
                     False
@@ -229,11 +230,12 @@ def fetch_contacts_for_user(
                 'blocked_by_me': blocked_by_me,
                 'blocked_me': blocked_me,
                 'is_blocked': is_blocked,
-                'is_pinned': bool(contact['is_pinned']),
-                'pin_order': contact['pin_order'],
+                'is_pinned': False if is_saved_messages else bool(contact['is_pinned']),
+                'pin_order': 0 if is_saved_messages else contact['pin_order'],
                 'draft_text': draft_text if has_draft else '',
                 'has_draft': has_draft,
                 'draft_updated_at': contact['draft_updated_at'] if has_draft else None,
+                'is_saved_messages': is_saved_messages,
             }
         )
 

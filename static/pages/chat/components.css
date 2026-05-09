@@ -9048,6 +9048,12 @@
     display: none !important;
 }
 
+.chat-area.is-saved-messages-chat #muteChatBtn,
+.chat-area.is-saved-messages-chat #reportUserMenuBtn,
+.chat-area.is-saved-messages-chat #deleteChatBtn {
+    display: none !important;
+}
+
 #partnerProfileDrawer.is-saved-messages-profile .profile-topbar-more,
 #partnerProfileDrawer.is-saved-messages-profile .profile-info-card {
     display: none !important;

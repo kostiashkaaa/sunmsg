@@ -154,6 +154,7 @@ export function hydrateContactAvatarLoading(root = document) {
 
 export function buildContactItemHtml(contact, currentChatId) {
     const chatId = contact?.chatId ?? '';
+    const isSavedMessages = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
     const displayName = contact?.display_name || contact?.username || '';
     const initials = displayName
         .trim()
@@ -166,11 +167,11 @@ export function buildContactItemHtml(contact, currentChatId) {
     const blockedMe = Boolean(contact?.blocked_me);
     const isBlocked = blockedByMe || blockedMe;
     const isSelf = Boolean(contact?.is_self_last_sender ?? contact?.isSelfLastSender);
-    const unreadCountRaw = Number(contact?.unreadCount || 0);
+    const unreadCountRaw = isSavedMessages ? 0 : Number(contact?.unreadCount || 0);
     const unreadCount = Number.isFinite(unreadCountRaw) && unreadCountRaw > 0 ? unreadCountRaw : 0;
     const unread = unreadCount > 0;
     const unreadText = unreadCount > 99 ? '99+' : String(unreadCount);
-    const muted = Boolean(contact?.is_muted);
+    const muted = isSavedMessages ? false : Boolean(contact?.is_muted);
     const hasAvatar = Boolean(contact?.avatar_url);
     const avatarHtml = contact?.avatar_url
         ? `<img class="contact-avatar__img" src="${escapeHtml(contact.avatar_url)}" alt="${escapeHtml(displayName || 'Avatar')}" loading="lazy" decoding="async">`
@@ -190,7 +191,7 @@ export function buildContactItemHtml(contact, currentChatId) {
     const hasDraft = Boolean(contact?.has_draft) && Boolean(draftTextRaw.trim());
     const draftText = hasDraft ? draftTextRaw : '';
     const lastMessageText = hasDraft ? draftText : (contact?.last_message || '');
-    const previewIsSelf = hasDraft ? false : isSelf;
+    const previewIsSelf = hasDraft || isSavedMessages ? false : isSelf;
     const draftUpdatedAtRaw = String(contact?.draft_updated_at || '').trim();
     const lastMessageTimeRaw = String(contact?.last_message_time || '').trim();
     const previewTimestampRaw = hasDraft ? (draftUpdatedAtRaw || lastMessageTimeRaw) : lastMessageTimeRaw;
@@ -206,7 +207,7 @@ export function buildContactItemHtml(contact, currentChatId) {
     });
 
     return `
-<div class="contact-item ripple-target${isActive ? ' active' : ''}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}">
+<div class="contact-item ripple-target${isActive ? ' active' : ''}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-saved-messages="${isSavedMessages ? '1' : '0'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}">
     <div class="contact-avatar${hasAvatar ? ' avatar-loading' : ''}">
         ${avatarHtml}
         ${avatarLoadingBarsHtml}
@@ -267,9 +268,10 @@ export function updateSidebarContactTick(chatId, tickStatus, contactsRoot = docu
 export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, createdAt, options = {}) {
     if (!el) return;
     const isDraft = Boolean(options?.isDraft);
+    const isSavedMessages = String(el.getAttribute('data-saved-messages') || '') === '1';
     const draftText = String(options?.draftText ?? text ?? '');
     const normalizedText = isDraft ? draftText : String(text ?? '');
-    const effectiveIsSelf = isDraft ? false : Boolean(isSelf);
+    const effectiveIsSelf = isDraft || isSavedMessages ? false : Boolean(isSelf);
     const draftLabel = options?.draftLabel;
 
     if (isDraft) {

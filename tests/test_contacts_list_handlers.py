@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from app.routes.contacts_list_handlers import fetch_contacts_for_user
+from app.services.crypto import generate_chat_id
 from tests._pg_test_db import connect_test_db
 
 
@@ -164,6 +165,8 @@ def test_fetch_contacts_for_user_builds_projection_and_block_flags(tmp_path):
 
     assert contacts[0]['userId'] == 1
     assert self_contact['display_name'] == '\u0418\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435'
+    assert self_contact['unreadCount'] == 0
+    assert self_contact['is_saved_messages'] is True
 
     assert blocked_contact['userId'] == 3
     assert blocked_contact['blocked_by_me'] is True
@@ -239,6 +242,55 @@ def test_fetch_contacts_for_user_applies_limit(tmp_path):
 
     assert len(contacts) == 1
     assert contacts[0]['userId'] == 1
+
+
+def test_fetch_contacts_for_user_forces_zero_unread_for_saved_messages(tmp_path):
+    db_path = tmp_path / 'contacts-list-handlers-saved-unread.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (
+                id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, hide_online_status
+            )
+            VALUES
+                (1, 'alice', 'Alice', 'pk-1', NULL, 'all', 1, 0)
+            '''
+        )
+        saved_chat_id = generate_chat_id('pk-1', 'pk-1')
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 1, ?)
+            ''',
+            (saved_chat_id,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (
+                chat_id, sender_id, receiver_id, message, is_read, is_delivered, created_at
+            )
+            VALUES (?, 1, 1, 'self note', 0, 1, '2026-01-02 09:00:00')
+            ''',
+            (saved_chat_id,),
+        )
+        conn.commit()
+
+        contacts = fetch_contacts_for_user(
+            1,
+            conn,
+            language='ru',
+            normalize_language_func=lambda language, default='ru': language,
+            ensure_pinned_chats_table_func=lambda conn: None,
+            format_sidebar_time_func=lambda raw, *, language: '',
+            build_initial_last_message_preview_func=lambda raw, *, blocked_by_me, blocked_me, language: '',
+            get_safe_avatar_url_func=lambda row, viewer_id: None,
+            is_effectively_online_func=lambda pub, *, persisted=False: bool(persisted),
+        )
+
+    self_contact = next(item for item in contacts if item['userId'] == 1)
+    assert self_contact['is_saved_messages'] is True
+    assert self_contact['unreadCount'] == 0
 
 
 def test_fetch_contacts_for_user_renames_self_chat_to_saved_messages(tmp_path):
