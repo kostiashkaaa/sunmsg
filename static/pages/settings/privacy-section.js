@@ -52,6 +52,7 @@ export function initPrivacySection({
     markSettingsReady,
     persistMuteDialogRequestsPreference,
     notifyLanguageUpdate,
+    notifyMotionUpdate,
     applyAvatarFromSettings,
     downloadSettingsQr,
 }) {
@@ -65,6 +66,7 @@ export function initPrivacySection({
     const timeFormat24hEl = document.getElementById('timeFormat24hOption');
     const timeFormat12hSampleEl = document.getElementById('timeFormat12hSample');
     const timeFormat24hSampleEl = document.getElementById('timeFormat24hSample');
+    const animationsEnabledSwitchEl = document.getElementById('animationsEnabledSwitch');
     let persistedClientPreferences = {};
 
     function resolveLocale() {
@@ -122,6 +124,58 @@ export function initPrivacySection({
             window.localStorage.setItem(SEND_SHORTCUT_STORAGE_KEY, normalizeSendShortcut(sendShortcut));
             window.localStorage.setItem(TIME_FORMAT_STORAGE_KEY, normalizeTimeFormat(timeFormat));
         } catch (_) {}
+    }
+
+    function resolveCurrentAppliedMotionLevel() {
+        const current = String(document.documentElement.getAttribute('data-motion-level') || '').trim().toLowerCase();
+        if (current === 'full' || current === 'balanced' || current === 'lite') return current;
+        return 'full';
+    }
+
+    function applyMotionPreferences(
+        { performanceMode, motionLevel },
+        { persist = false, notify = false, syncToggle = false } = {},
+    ) {
+        const safePerformanceMode = normalizePerformanceMode(performanceMode);
+        const safeMotionLevel = normalizeMotionLevel(motionLevel);
+        const animationsEnabled = safePerformanceMode !== 'lite' && safeMotionLevel !== 'lite';
+        const effectiveMotionLevel = animationsEnabled
+            ? (safeMotionLevel === 'auto' ? resolveCurrentAppliedMotionLevel() : safeMotionLevel)
+            : 'lite';
+
+        document.documentElement.classList.toggle('perf-lite', !animationsEnabled);
+        document.documentElement.setAttribute('data-performance-mode', animationsEnabled ? 'full' : 'lite');
+        document.documentElement.setAttribute('data-motion-level', effectiveMotionLevel);
+
+        window.SUN_PERFORMANCE_MODE = {
+            ...(window.SUN_PERFORMANCE_MODE || {}),
+            preference: safePerformanceMode,
+            isLite: !animationsEnabled,
+        };
+        window.SUN_MOTION = {
+            ...(window.SUN_MOTION || {}),
+            preference: safeMotionLevel,
+            level: effectiveMotionLevel,
+            forceAnimations: animationsEnabled,
+        };
+
+        if (persist) {
+            try {
+                window.localStorage.setItem('sun_performance_mode', safePerformanceMode);
+                window.localStorage.setItem('sun_motion_level', safeMotionLevel);
+            } catch (_) {}
+        }
+        if (syncToggle && animationsEnabledSwitchEl) {
+            animationsEnabledSwitchEl.checked = animationsEnabled;
+        }
+        if (notify && typeof notifyMotionUpdate === 'function') {
+            notifyMotionUpdate({
+                animationsEnabled,
+                performanceMode: safePerformanceMode,
+                motionLevel: safeMotionLevel,
+                appliedMotionLevel: effectiveMotionLevel,
+            });
+        }
     }
 
     function collectClientPreferencesForSave() {
@@ -206,8 +260,18 @@ export function initPrivacySection({
         const nextTimeFormat = setTimeFormatSelection(
             rawClientPreferences.timeFormat || readStorageValue(TIME_FORMAT_STORAGE_KEY, TIME_FORMAT_24H)
         );
+        const nextPerformanceMode = normalizePerformanceMode(
+            readStorageValue('sun_performance_mode', rawClientPreferences.performanceMode || 'auto')
+        );
+        const nextMotionLevel = normalizeMotionLevel(
+            readStorageValue('sun_motion_level', rawClientPreferences.motionLevel || 'auto')
+        );
         syncTimeFormatSamples();
         persistInputBehaviorLocally({ sendShortcut: nextSendShortcut, timeFormat: nextTimeFormat });
+        applyMotionPreferences(
+            { performanceMode: nextPerformanceMode, motionLevel: nextMotionLevel },
+            { persist: true, notify: true, syncToggle: true },
+        );
 
         if (bioEl && bioCounterEl) {
             bioCounterEl.textContent = `${bioEl.value.length}/280`;
@@ -299,6 +363,17 @@ export function initPrivacySection({
             syncTimeFormatSamples();
         });
     }
+
+    animationsEnabledSwitchEl?.addEventListener('change', () => {
+        const animationsEnabled = !!animationsEnabledSwitchEl.checked;
+        applyMotionPreferences(
+            {
+                performanceMode: animationsEnabled ? 'full' : 'lite',
+                motionLevel: animationsEnabled ? 'full' : 'lite',
+            },
+            { persist: true, notify: true, syncToggle: true },
+        );
+    });
 
     floatingSaveBtn?.addEventListener('click', function () {
         if (!state.isDirty() || this.disabled) return;
