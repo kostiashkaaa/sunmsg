@@ -65,6 +65,9 @@
             gap: 10px;
             margin-bottom: 14px;
         }
+        .user-metrics {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
         .metric {
             background: var(--card);
             border: 1px solid var(--line);
@@ -220,6 +223,20 @@
             <div class="value">{{ metrics.resolved_cases }}</div>
         </article>
     </section>
+    <section class="metrics user-metrics">
+        <article class="metric">
+            <div class="label">Зарегистрировано пользователей</div>
+            <div class="value" data-live-metric="total_registered">{{ metrics.user_stats.total_registered if metrics.user_stats else 0 }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Онлайн сейчас</div>
+            <div class="value" data-live-metric="online_now">{{ metrics.user_stats.online_now if metrics.user_stats else 0 }}</div>
+        </article>
+        <article class="metric">
+            <div class="label">Активны за 24 часа</div>
+            <div class="value" data-live-metric="active_last_24h">{{ metrics.user_stats.active_last_24h if metrics.user_stats else 0 }}</div>
+        </article>
+    </section>
 
     <form class="filters" method="get" action="/moderation/console">
         <label for="state">Состояние</label>
@@ -336,6 +353,12 @@
 (() => {
     const refreshSeconds = Math.max(5, Math.min(300, Number({{ refresh_seconds|int }}) || 15));
     const rows = Array.from(document.querySelectorAll('tr[data-created-at][data-sla-seconds]'));
+    const liveUserMetricElements = {
+        total_registered: document.querySelector('[data-live-metric="total_registered"]'),
+        online_now: document.querySelector('[data-live-metric="online_now"]'),
+        active_last_24h: document.querySelector('[data-live-metric="active_last_24h"]'),
+    };
+    let userMetricsRequestInFlight = false;
 
     function parseTimestamp(raw) {
         const text = String(raw || '').trim();
@@ -374,8 +397,39 @@
         }
     }
 
+    function renderLiveUserMetrics(payload) {
+        const userStats = payload?.user_stats;
+        if (!userStats || typeof userStats !== 'object') return;
+        for (const [key, el] of Object.entries(liveUserMetricElements)) {
+            if (!el) continue;
+            const nextValue = Number(userStats[key]);
+            el.textContent = Number.isFinite(nextValue) ? String(Math.max(0, Math.trunc(nextValue))) : '0';
+        }
+    }
+
+    async function refreshLiveUserMetrics() {
+        if (userMetricsRequestInFlight) return;
+        userMetricsRequestInFlight = true;
+        try {
+            const response = await fetch('/api/moderation/metrics?hours=24', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' },
+            });
+            if (!response.ok) return;
+            const payload = await response.json();
+            if (!payload || payload.success !== true) return;
+            renderLiveUserMetrics(payload);
+        } catch (_) {
+            // keep last shown values when transient network/API errors happen
+        } finally {
+            userMetricsRequestInFlight = false;
+        }
+    }
+
     updateTimers();
     window.setInterval(updateTimers, 1000);
+    refreshLiveUserMetrics();
+    window.setInterval(refreshLiveUserMetrics, 5000);
     window.setInterval(() => {
         window.location.reload();
     }, refreshSeconds * 1000);

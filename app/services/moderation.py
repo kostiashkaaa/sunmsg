@@ -1757,6 +1757,7 @@ def apply_group_member_sanction(
 def moderation_metrics(conn, *, since_hours: int = 24) -> dict[str, Any]:
     safe_hours = max(1, min(int(since_hours), 24 * 90))
     since_ts = to_db_timestamp(utc_now() - timedelta(hours=safe_hours))
+    active_users_since_ts = to_db_timestamp(utc_now() - timedelta(hours=24))
 
     tta_row = conn.execute(
         '''
@@ -1811,6 +1812,23 @@ def moderation_metrics(conn, *, since_hours: int = 24) -> dict[str, Any]:
         '''
     ).fetchone()
 
+    users_row = conn.execute(
+        '''
+        SELECT
+            COUNT(*) AS total_registered,
+            COUNT(*) FILTER (WHERE COALESCE(is_online, 0) = 1) AS online_now,
+            COUNT(*) FILTER (
+                WHERE COALESCE(is_online, 0) = 1
+                   OR (
+                        NULLIF(last_seen, '') IS NOT NULL
+                        AND NULLIF(last_seen, '') >= ?
+                   )
+            ) AS active_last_24h
+        FROM users
+        ''',
+        (active_users_since_ts,),
+    ).fetchone()
+
     resolved_total = int((appeals_row['resolved_total'] or 0) if appeals_row else 0)
     reversed_total = int((appeals_row['reversed_total'] or 0) if appeals_row else 0)
     reversal_rate = (float(reversed_total) / float(resolved_total)) if resolved_total > 0 else 0.0
@@ -1833,6 +1851,11 @@ def moderation_metrics(conn, *, since_hours: int = 24) -> dict[str, Any]:
             'pending': int((queue_row['pending_jobs'] or 0) if queue_row else 0),
             'processing': int((queue_row['processing_jobs'] or 0) if queue_row else 0),
             'failed': int((queue_row['failed_jobs'] or 0) if queue_row else 0),
+        },
+        'user_stats': {
+            'total_registered': int((users_row['total_registered'] or 0) if users_row else 0),
+            'online_now': int((users_row['online_now'] or 0) if users_row else 0),
+            'active_last_24h': int((users_row['active_last_24h'] or 0) if users_row else 0),
         },
     }
 
