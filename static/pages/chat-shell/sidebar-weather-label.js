@@ -206,7 +206,10 @@ function resolveCoordinatesFromGeolocation() {
 }
 
 async function resolveCoordinatesFromCity(city, language = 'ru') {
-    const cityQuery = String(city || '').trim();
+    const cityQuery = String(city || '')
+        .split(',')[0]
+        .replace(/\s+/g, ' ')
+        .trim();
     if (cityQuery.length < 2) return null;
 
     const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
