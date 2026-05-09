@@ -147,7 +147,7 @@ export function initChatMediaRuntime(deps = {}) {
                 chat_id: chatId,
                 msg_id: Number(msgId),
             },
-            { requireConnected: true },
+            { requireConnected: false },
         );
         if (sent) {
             messageEl.setAttribute('data-audio-listen-sent', '1');
