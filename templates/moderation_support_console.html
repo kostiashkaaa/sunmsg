@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Консоль поддержки</title>
-    <style>
+    <style nonce="{{ csp_nonce }}">
         :root {
             color-scheme: light;
             --bg: #f4f6f8;
@@ -475,7 +475,7 @@
         </div>
     </section>
 </main>
-<script>
+<script nonce="{{ csp_nonce }}">
 (() => {
     const refreshSeconds = Math.max(5, Math.min(300, Number({{ refresh_seconds|int }}) || 20));
     window.setInterval(() => window.location.reload(), refreshSeconds * 1000);
