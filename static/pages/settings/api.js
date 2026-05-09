@@ -86,22 +86,6 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
             method: 'POST',
             json: { totp_code: totpCode },
         }, 'Не удалось подтвердить TOTP-код.'),
-        listPasskeys: () => requestSuccess('/api/passkeys', {}, 'Не удалось загрузить passkey.'),
-        getPasskeyRegisterOptions: () => requestSuccess('/api/passkeys/register/options', {
-            method: 'POST',
-            json: {},
-        }, 'Не удалось начать регистрацию passkey.'),
-        verifyPasskeyRegister: (credential, label) => requestSuccess('/api/passkeys/register/verify', {
-            method: 'POST',
-            json: {
-                credential,
-                label,
-            },
-        }, 'Не удалось сохранить passkey.'),
-        deletePasskey: (credentialId) => requestSuccess('/api/passkeys/delete', {
-            method: 'POST',
-            json: { credential_id: credentialId },
-        }, 'Не удалось удалить passkey.'),
         getChallenge: (username) => requestSuccess('/api/get_challenge', {
             method: 'POST',
             json: { username },

@@ -8,12 +8,6 @@ export function initSecuritySummarySection({ tr }) {
         };
     }
 
-    function hasPasskeys() {
-        const list = document.getElementById('passkeyList');
-        if (!list) return false;
-        return Boolean(list.querySelector('.passkey-item'));
-    }
-
     function isTotpEnabled() {
         const status = document.getElementById('totpStatusText');
         const text = String(status?.textContent || '').toLowerCase();
@@ -30,25 +24,22 @@ export function initSecuritySummarySection({ tr }) {
 
     function refreshSecuritySummary() {
         const totpEnabled = isTotpEnabled();
-        const passkeysEnabled = hasPasskeys();
         const publicProfile = isPublicProfileEnabled();
         const hideOnline = isOnlineHidden();
 
         let score = 0;
         if (totpEnabled) score += 1;
-        if (passkeysEnabled) score += 1;
         if (!publicProfile) score += 1;
         if (hideOnline) score += 1;
 
-        const tier = score >= 4
+        const tier = score >= 3
             ? tr('Protection: high')
-            : score >= 2
+            : score >= 1
                 ? tr('Protection: medium')
                 : tr('Protection: low');
 
         const parts = [
             `${tr('TOTP')}: ${totpEnabled ? tr('on') : tr('off')}`,
-            `${tr('Passkeys')}: ${passkeysEnabled ? tr('on') : tr('off')}`,
             `${tr('Public profile')}: ${publicProfile ? tr('on') : tr('off')}`,
             `${tr('Hide online')}: ${hideOnline ? tr('on') : tr('off')}`,
         ];
@@ -59,7 +50,6 @@ export function initSecuritySummarySection({ tr }) {
 
     const observerTargets = [
         document.getElementById('totpStatusText'),
-        document.getElementById('passkeyList'),
         document.getElementById('isPublicSwitch'),
         document.getElementById('hideOnlineStatusSwitch'),
     ].filter(Boolean);
