@@ -10,6 +10,8 @@ _PERFORMANCE_MODES = {'auto', 'full', 'lite'}
 _MOTION_LEVELS = {'auto', 'full', 'balanced', 'lite'}
 _SEND_SHORTCUT_MODES = {'enter', 'ctrl_enter'}
 _TIME_FORMATS = {'24h', '12h'}
+_SIDEBAR_WEATHER_SOURCES = {'auto', 'city'}
+_SIDEBAR_WEATHER_ROTATE_SECONDS = {30, 60}
 
 
 def _clamp_message_scale(value: float) -> float:
@@ -61,6 +63,34 @@ def normalize_client_preferences(raw_value) -> dict:
     time_format = str(src.get('timeFormat') or '').strip().lower()
     if time_format in _TIME_FORMATS:
         normalized['timeFormat'] = time_format
+
+    sidebar_weather_enabled = src.get('sidebarWeatherEnabled')
+    if isinstance(sidebar_weather_enabled, bool):
+        normalized['sidebarWeatherEnabled'] = sidebar_weather_enabled
+
+    sidebar_weather_source = str(src.get('sidebarWeatherSource') or '').strip().lower()
+    if sidebar_weather_source in _SIDEBAR_WEATHER_SOURCES:
+        normalized['sidebarWeatherSource'] = sidebar_weather_source
+
+    sidebar_weather_city = src.get('sidebarWeatherCity')
+    if isinstance(sidebar_weather_city, str):
+        city = ' '.join(sidebar_weather_city.strip().split())
+        normalized['sidebarWeatherCity'] = city[:80]
+
+    sidebar_weather_rotate = src.get('sidebarWeatherRotateSeconds')
+    sidebar_weather_rotate_value = None
+    if isinstance(sidebar_weather_rotate, bool):
+        sidebar_weather_rotate_value = None
+    elif isinstance(sidebar_weather_rotate, (int, float)):
+        sidebar_weather_rotate_num = int(sidebar_weather_rotate)
+        sidebar_weather_rotate_value = sidebar_weather_rotate_num
+    elif isinstance(sidebar_weather_rotate, str):
+        try:
+            sidebar_weather_rotate_value = int(sidebar_weather_rotate.strip())
+        except (TypeError, ValueError):
+            sidebar_weather_rotate_value = None
+    if sidebar_weather_rotate_value in _SIDEBAR_WEATHER_ROTATE_SECONDS:
+        normalized['sidebarWeatherRotateSeconds'] = sidebar_weather_rotate_value
 
     interface_theme_store = _normalize_json_object(
         src.get('interfaceThemeStore'),

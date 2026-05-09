@@ -5,6 +5,9 @@ const SEND_SHORTCUT_ENTER = 'enter';
 const SEND_SHORTCUT_CTRL_ENTER = 'ctrl_enter';
 const TIME_FORMAT_24H = '24h';
 const TIME_FORMAT_12H = '12h';
+const SIDEBAR_WEATHER_SOURCE_AUTO = 'auto';
+const SIDEBAR_WEATHER_SOURCE_CITY = 'city';
+const SIDEBAR_WEATHER_ROTATE_DEFAULT = 60;
 const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
 const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
 
@@ -16,6 +19,25 @@ function normalizeSendShortcut(value) {
 function normalizeTimeFormat(value) {
     const raw = String(value || '').trim().toLowerCase();
     return raw === TIME_FORMAT_12H ? TIME_FORMAT_12H : TIME_FORMAT_24H;
+}
+
+function normalizeSidebarWeatherSource(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    return raw === SIDEBAR_WEATHER_SOURCE_CITY
+        ? SIDEBAR_WEATHER_SOURCE_CITY
+        : SIDEBAR_WEATHER_SOURCE_AUTO;
+}
+
+function normalizeSidebarWeatherRotateSeconds(value) {
+    const parsed = Number.parseInt(String(value || ''), 10);
+    return parsed === 30 ? 30 : SIDEBAR_WEATHER_ROTATE_DEFAULT;
+}
+
+function normalizeSidebarWeatherCity(value) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
 }
 
 function clampMessageScale(value) {
@@ -53,6 +75,7 @@ export function initPrivacySection({
     persistMuteDialogRequestsPreference,
     notifyLanguageUpdate,
     notifyMotionUpdate,
+    notifyWeatherLabelUpdate,
     applyAvatarFromSettings,
     downloadSettingsQr,
 }) {
@@ -67,6 +90,11 @@ export function initPrivacySection({
     const timeFormat12hSampleEl = document.getElementById('timeFormat12hSample');
     const timeFormat24hSampleEl = document.getElementById('timeFormat24hSample');
     const animationsEnabledSwitchEl = document.getElementById('animationsEnabledSwitch');
+    const sidebarWeatherEnabledSwitchEl = document.getElementById('sidebarWeatherEnabledSwitch');
+    const sidebarWeatherSourceSelectEl = document.getElementById('sidebarWeatherSourceSelect');
+    const sidebarWeatherCityInputEl = document.getElementById('sidebarWeatherCityInput');
+    const sidebarWeatherCityRowEl = document.getElementById('sidebarWeatherCityRow');
+    const sidebarWeatherRotateSelectEl = document.getElementById('sidebarWeatherRotateSelect');
     let persistedClientPreferences = {};
 
     function resolveLocale() {
@@ -117,6 +145,47 @@ export function initPrivacySection({
                 hour12: false,
             });
         }
+    }
+
+    function syncSidebarWeatherCityRow() {
+        if (!sidebarWeatherCityRowEl) return;
+        const enabled = !!sidebarWeatherEnabledSwitchEl?.checked;
+        const source = normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value);
+        const visible = enabled && source === SIDEBAR_WEATHER_SOURCE_CITY;
+        sidebarWeatherCityRowEl.style.display = visible ? '' : 'none';
+        if (sidebarWeatherCityInputEl) {
+            sidebarWeatherCityInputEl.disabled = !visible;
+        }
+    }
+
+    function getSidebarWeatherPreferencesFromControls() {
+        return {
+            sidebarWeatherEnabled: !!sidebarWeatherEnabledSwitchEl?.checked,
+            sidebarWeatherSource: normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value),
+            sidebarWeatherCity: normalizeSidebarWeatherCity(sidebarWeatherCityInputEl?.value),
+            sidebarWeatherRotateSeconds: normalizeSidebarWeatherRotateSeconds(sidebarWeatherRotateSelectEl?.value),
+        };
+    }
+
+    function applySidebarWeatherPreferencesToControls(rawPreferences) {
+        const source = normalizeSidebarWeatherSource(rawPreferences?.sidebarWeatherSource);
+        const enabled = rawPreferences?.sidebarWeatherEnabled === true;
+        const city = normalizeSidebarWeatherCity(rawPreferences?.sidebarWeatherCity);
+        const rotateSeconds = normalizeSidebarWeatherRotateSeconds(rawPreferences?.sidebarWeatherRotateSeconds);
+
+        if (sidebarWeatherEnabledSwitchEl) {
+            sidebarWeatherEnabledSwitchEl.checked = enabled;
+        }
+        if (sidebarWeatherSourceSelectEl) {
+            sidebarWeatherSourceSelectEl.value = source;
+        }
+        if (sidebarWeatherCityInputEl) {
+            sidebarWeatherCityInputEl.value = city;
+        }
+        if (sidebarWeatherRotateSelectEl) {
+            sidebarWeatherRotateSelectEl.value = String(rotateSeconds);
+        }
+        syncSidebarWeatherCityRow();
     }
 
     function persistInputBehaviorLocally({ sendShortcut, timeFormat }) {
@@ -194,6 +263,7 @@ export function initPrivacySection({
             motionLevel,
             sendShortcut: getSendShortcutSelection(),
             timeFormat: getTimeFormatSelection(),
+            ...getSidebarWeatherPreferencesFromControls(),
             interfaceThemeStore: window.InterfaceTheme?.readStore?.() || base.interfaceThemeStore || {},
             chatAppearanceStore: window.ChatAppearance?.readStore?.() || base.chatAppearanceStore || {},
         };
@@ -254,6 +324,7 @@ export function initPrivacySection({
             ? payload.client_preferences
             : {};
         persistedClientPreferences = { ...rawClientPreferences };
+        applySidebarWeatherPreferencesToControls(rawClientPreferences);
         const nextSendShortcut = setSendShortcutSelection(
             rawClientPreferences.sendShortcut || readStorageValue(SEND_SHORTCUT_STORAGE_KEY, SEND_SHORTCUT_ENTER)
         );
@@ -279,6 +350,12 @@ export function initPrivacySection({
         persistMuteDialogRequestsPreference(!!payload.mute_dialog_requests);
         if (languageEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
             i18nApi.setLanguage(languageEl.value, { persist: true, apply: true });
+        }
+        if (typeof notifyWeatherLabelUpdate === 'function') {
+            notifyWeatherLabelUpdate({
+                clientPreferences: collectClientPreferencesForSave(),
+                persisted: true,
+            });
         }
         state.syncDirtyState();
     }
@@ -315,6 +392,12 @@ export function initPrivacySection({
                 i18nApi.setLanguage(nextBaseline.language, { persist: true, apply: true });
             }
             notifyLanguageUpdate(nextBaseline.language, true);
+            if (typeof notifyWeatherLabelUpdate === 'function') {
+                notifyWeatherLabelUpdate({
+                    clientPreferences: collectClientPreferencesForSave(),
+                    persisted: true,
+                });
+            }
             state.syncDirtyState();
             state.animateFloatingSaveSuccess();
         } catch (_err) {
@@ -343,6 +426,10 @@ export function initPrivacySection({
         sendShortcutCtrlEnterEl,
         timeFormat12hEl,
         timeFormat24hEl,
+        sidebarWeatherEnabledSwitchEl,
+        sidebarWeatherSourceSelectEl,
+        sidebarWeatherCityInputEl,
+        sidebarWeatherRotateSelectEl,
     ].forEach((field) => {
         if (!field) return;
         field.addEventListener('input', () => state.syncDirtyState());
@@ -373,6 +460,14 @@ export function initPrivacySection({
             },
             { persist: true, notify: true, syncToggle: true },
         );
+    });
+
+    sidebarWeatherEnabledSwitchEl?.addEventListener('change', () => {
+        syncSidebarWeatherCityRow();
+    });
+
+    sidebarWeatherSourceSelectEl?.addEventListener('change', () => {
+        syncSidebarWeatherCityRow();
     });
 
     floatingSaveBtn?.addEventListener('click', function () {
@@ -413,6 +508,7 @@ export function initPrivacySection({
     });
 
     syncTimeFormatSamples();
+    syncSidebarWeatherCityRow();
 
     api.getSettings()
         .then((s) => {

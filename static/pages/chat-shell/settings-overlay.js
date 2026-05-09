@@ -5,6 +5,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     const onLanguageUpdated = options.onLanguageUpdated || (() => {});
     const onAvatarUpdated = options.onAvatarUpdated || (() => {});
     const onRedecrypt = options.onRedecrypt || (() => {});
+    const onWeatherLabelUpdated = options.onWeatherLabelUpdated || (() => {});
     const isPrivateKeyUnlocked = options.isPrivateKeyUnlocked || (() => false);
 
     const commandLauncherInput = document.getElementById('searchInput');
@@ -506,6 +507,9 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (event.data?.type === 'sun-settings-redecrypt') {
             onRedecrypt();
             closeSettingsOverlay();
+        }
+        if (event.data?.type === 'sun-settings-weather-label-updated') {
+            onWeatherLabelUpdated(event.data?.detail || {});
         }
     });
     window.addEventListener('online', () => {

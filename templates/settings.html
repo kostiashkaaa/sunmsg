@@ -795,6 +795,44 @@
                         <div class="toggle-knob"></div>
                     </label>
                 </div>
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Погода в верхнем лейбле</div>
+                        <div class="settings-row-desc">Ротация sun ↔ температура в заголовке слева</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="sidebarWeatherEnabledSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Источник погоды</div>
+                        <div class="settings-row-desc">Авто по геолокации или вручную по городу</div>
+                    </div>
+                    <select id="sidebarWeatherSourceSelect" class="settings-select settings-select-control">
+                        <option value="auto">Автоматически (геолокация)</option>
+                        <option value="city">Город вручную</option>
+                    </select>
+                </div>
+                <div class="settings-row" id="sidebarWeatherCityRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Город</div>
+                        <div class="settings-row-desc">Используется только в ручном режиме</div>
+                    </div>
+                    <input type="text" id="sidebarWeatherCityInput" class="settings-input settings-field-input" placeholder="Например: Москва" maxlength="80">
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Интервал смены</div>
+                        <div class="settings-row-desc">Как часто менять sun и температуру</div>
+                    </div>
+                    <select id="sidebarWeatherRotateSelect" class="settings-select settings-select-control">
+                        <option value="30">30 секунд</option>
+                        <option value="60">1 минута</option>
+                    </select>
+                </div>
             </div>
 
             <div class="settings-card">

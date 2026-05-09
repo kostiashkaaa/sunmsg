@@ -235,6 +235,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         openDeviceQrHub: () => {},
         hasRuntimePrivateKey: () => false,
     };
+    let weatherLabelApi = {
+        updatePreferences: () => {},
+    };
 
     try {
         const [
@@ -242,11 +245,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             settingsOverlayModule,
             qrModule,
             themeSyncModule,
+            weatherLabelModule,
         ] = await Promise.all([
             import(withAppRoot('/static/pages/chat-shell/sidebar.js')),
             import(withAppRoot('/static/pages/chat-shell/settings-overlay.js')),
             import(withAppRoot('/static/pages/chat-shell/qr.js')),
             import(withAppRoot('/static/pages/chat-shell/theme-sync.js')),
+            import(withAppRoot('/static/pages/chat-shell/sidebar-weather-label.js')),
         ]);
 
         themeSyncApi = themeSyncModule.initChatShellThemeSync({
@@ -270,6 +275,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                     window.syncSidebarStatusBar();
                 }
             },
+            onWeatherLabelUpdated: (detail) => {
+                weatherLabelApi.updatePreferences(detail);
+            },
             isPrivateKeyUnlocked: () => qrApi.hasRuntimePrivateKey(),
         });
 
@@ -281,6 +289,16 @@ document.addEventListener('DOMContentLoaded', async function () {
             closeAnimatedDialog: settingsOverlayApi.closeAnimatedDialog,
             attachAnimatedDialog: settingsOverlayApi.attachAnimatedDialog,
         });
+
+        weatherLabelApi = weatherLabelModule.initSidebarWeatherLabel({
+            labelEl: document.querySelector('.sidebar-brand-name'),
+            baseLabel: 'sun',
+            clientPreferences: bootstrapUser.clientPreferences || {},
+            language: () => (
+                window.SUN_I18N?.getLanguage?.()
+                || String(document.documentElement.lang || 'ru').toLowerCase()
+            ),
+        }) || weatherLabelApi;
 
         sidebarModule.initChatShellSidebar();
     } catch (error) {

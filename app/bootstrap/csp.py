@@ -16,6 +16,8 @@ def _csp_connect_sources(app: Flask) -> str:
         if not is_production:
             sources.append(f"ws://{host}")
         sources.append(f"wss://{host}")
+    sources.append("https://api.open-meteo.com")
+    sources.append("https://geocoding-api.open-meteo.com")
     sources.append(app.config.get("CONNECT_SRC_HOSTS"))
     return _csp_sources(*sources)
 
@@ -47,7 +49,7 @@ def register_security_headers(app: Flask, *, is_production: bool) -> None:
         response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_settings_embed else "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=()"
+        response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(self)"
         if is_production:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         frame_ancestors = "'self'" if is_settings_embed else "'none'"
