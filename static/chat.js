@@ -28,6 +28,7 @@ import { applyBlockNoticeUI as _applyBlockNoticeUI, normalizeBlockState as _norm
 import { getStoredString, setStoredString, hideBootOverlay as _hideBootOverlay, setElementActiveState, openFloatingPanel, closeFloatingPanel, openAnimatedDialog, closeAnimatedDialog, copyTextToClipboard, addTapFeedback } from './modules/chat-shell-ui.js?v=20260501a';
 import { createChatMutePreferences } from './modules/chat-mute-preferences.js';
 import { notifyIncomingChatMessage } from './modules/chat-incoming-notifications.js';
+import { renderMessageTextWithMentions } from './modules/chat-mentions.js';
 import { markCurrentChatSeenIfPossible as markCurrentChatSeenFlow } from './modules/chat-seen-flow.js';
 import { isWindowActiveForUnreadHandling } from './modules/chat-window-activity.js';
 import { createChatMuteUiController } from './modules/chat-mute-ui.js';
@@ -4483,7 +4484,7 @@ const initChatPage = async () => {
                 return chatMessages.querySelector(`.message[data-message-key="${escapedKey}"]`);
             };
 
-            if (isAtTail && rangeCoversTail && !alreadyRendered) {
+            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
                 if (tailGroupWouldChange && previousTailMessage) {
                     const previousTailKey = getMessageKey(previousTailMessage);
                     const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);
@@ -4733,39 +4734,12 @@ const initChatPage = async () => {
         reactionPickerController.openReactionPickerForMessage(messageId, anchorEl);
     }
 
-    function renderMessageTextContent(targetEl, content) {
-        if (!targetEl) return;
-        const rawText = String(content ?? '');
-        const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi;
-        const fragment = document.createDocumentFragment();
-        let cursor = 0;
-        let match;
-
-        while ((match = urlRegex.exec(rawText)) !== null) {
-            const index = match.index;
-            const rawUrl = match[0];
-            if (index > cursor) {
-                fragment.appendChild(document.createTextNode(rawText.slice(cursor, index)));
-            }
-            const href = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
-            if (/^https?:\/\//i.test(href)) {
-                const anchor = document.createElement('a');
-                anchor.href = href;
-                anchor.target = '_blank';
-                anchor.rel = 'noopener noreferrer';
-                anchor.textContent = rawUrl;
-                fragment.appendChild(anchor);
-            } else {
-                fragment.appendChild(document.createTextNode(rawUrl));
-            }
-            cursor = index + rawUrl.length;
-        }
-
-        if (cursor < rawText.length) {
-            fragment.appendChild(document.createTextNode(rawText.slice(cursor)));
-        }
-
-        targetEl.replaceChildren(fragment);
+    function renderMessageTextContent(targetEl, content, options = {}) {
+        renderMessageTextWithMentions(targetEl, content, {
+            ...options,
+            currentUserId: CURRENT_USER_ID,
+            currentUsername,
+        });
     }
 
     function resetComposer() {
@@ -5273,6 +5247,7 @@ const initChatPage = async () => {
 
         return sendTextMessageFlow({
             message,
+            isGroupChat: sourceChatIsGroup,
             isChatBlocked,
             getBlockedNoticeText: getChatBlockNoticeText,
             currentBlockState,
@@ -5339,6 +5314,7 @@ const initChatPage = async () => {
             file,
             caption,
             options,
+            isGroupChat: sourceChatIsGroup,
             isChatBlocked,
             getBlockedNoticeText: getChatBlockNoticeText,
             currentBlockState,
@@ -5706,6 +5682,15 @@ const initChatPage = async () => {
             updateSidebarContactTick: _updateSidebarContactTick,
             getContactsRoot: () => contactsList || document,
             markAllTicksRead,
+            isGroupChatById: (chatId) => {
+                const normalizedChatId = String(chatId || '').trim();
+                if (!normalizedChatId) return false;
+                if (String(currentChatId || '') === normalizedChatId && window.currentPartnerData?._group_profile) {
+                    return true;
+                }
+                const contactItem = resolveContactItemByChatId(normalizedChatId);
+                return contactItem?.getAttribute('data-is-group') === '1';
+            },
         },
         incomingOptions: {
             socket,
@@ -5746,15 +5731,19 @@ const initChatPage = async () => {
             loadContacts,
             isChatMuted,
             enrichVisualMediaMessage: enrichVisualMediaMessageText,
-            notifyIncomingMessage: ({ chatId, isCurrentChat }) => {
+            getCurrentUserId: () => CURRENT_USER_ID,
+            getCurrentUsername: () => currentUsername,
+            notifyIncomingMessage: ({ chatId, isCurrentChat, isMention = false }) => {
                 notifyIncomingChatMessage({
                     chatId,
                     isCurrentChat,
+                    isMention,
                     isChatMuted,
                     isWindowActive: isWindowActiveForUnreadHandling,
                     pushTabAlert: (targetChatId) => tabAlertController.pushAlert(targetChatId),
                     showToast,
                     newMessageToastText: '\u041D\u043E\u0432\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435',
+                    mentionToastText: '\u0412\u0430\u0441 \u0443\u043F\u043E\u043C\u044F\u043D\u0443\u043B\u0438',
                 });
             },
             onIncomingRawMessage: ({ chatId, rawMessage }) => {
