@@ -116,7 +116,7 @@ import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
 import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } from './modules/chat-idb-runtime.js';
 import { createOutboxRuntime } from './modules/chat-outbox.js';
-import { mountOutboxPill } from './modules/chat-outbox-ui.js';
+import { mountOutboxPill } from './modules/chat-outbox-ui.js?v=20260509a';
 import { createChatHistoryRuntime, mapWithConcurrency } from './modules/chat-history-runtime.js';
 import { bindWindowActivityEvents, createActivityReporter } from './modules/chat-activity.js';
 import { initKeyboardShortcuts } from './modules/keyboard-shortcuts.js';
@@ -659,7 +659,7 @@ const initChatPage = async () => {
         if (emojiPickerInitPromise) {
             return emojiPickerInitPromise;
         }
-        emojiPickerInitPromise = import('./modules/emoji.js?v=20260501b')
+        emojiPickerInitPromise = import('./modules/emoji.js?v=20260509a')
             .then(({ initEmojiPicker }) => {
                 initEmojiPicker(messageInput);
             })
