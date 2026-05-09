@@ -25,6 +25,7 @@ export async function sendTextMessageFlow({
     resizeComposerInput,
     restoreComposerFocus,
     prewarmMessageLinkPreview,
+    enqueueOutbox,
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -53,15 +54,29 @@ export async function sendTextMessageFlow({
         } = getReplyState();
         cancelReply();
 
-        const emitted = emitSocket('send_message', {
+        const sendPayload = {
             message: encryptedPayloadStr,
             chat_id: currentChatId,
             message_type: msgType,
             client_id: clientId,
             reply_to_id: snapReplyId,
-        }, { requireConnected: true });
+            request_id: clientId,
+        };
+        const emitted = emitSocket('send_message', sendPayload, { requireConnected: true });
         if (!emitted) {
-            return;
+            if (typeof enqueueOutbox !== 'function') {
+                return;
+            }
+            try {
+                const queued = await enqueueOutbox({
+                    clientId,
+                    eventName: 'send_message',
+                    payload: sendPayload,
+                });
+                if (!queued) return;
+            } catch (_) {
+                return;
+            }
         }
 
         const sentAt = new Date().toISOString();

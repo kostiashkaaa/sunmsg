@@ -115,6 +115,7 @@ import { createChatSocketClient, createSocketEmitter } from './modules/chat-sock
 import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
 import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } from './modules/chat-idb-runtime.js';
+import { createOutboxRuntime } from './modules/chat-outbox.js';
 import { createChatHistoryRuntime, mapWithConcurrency } from './modules/chat-history-runtime.js';
 import { bindWindowActivityEvents, createActivityReporter } from './modules/chat-activity.js';
 import { initKeyboardShortcuts } from './modules/keyboard-shortcuts.js';
@@ -255,6 +256,23 @@ const initChatPage = async () => {
     }
     window.clearChatHistoryCacheOnLogout = () => chatIdbRuntime.clearOnLogout();
     chatIdbRuntime.init();
+
+    const outboxRuntime = createOutboxRuntime({ currentUserId: CURRENT_USER_ID });
+    outboxRuntime.init();
+    const enqueueOutboxMessage = (entry) => outboxRuntime.enqueue(entry);
+    const drainOutboxOnce = () => outboxRuntime.drainOnce(emitSocket);
+    const removeOutboxByClientId = (clientId) => outboxRuntime.remove(clientId);
+    socket.on('connect', () => { void drainOutboxOnce(); });
+    window.addEventListener('online', () => { void drainOutboxOnce(); });
+    socket.on('message_sent', (data) => {
+        const clientId = String(data?.client_id || '').trim();
+        if (clientId) void removeOutboxByClientId(clientId);
+    });
+    const previousClearChatHistoryCacheOnLogout = window.clearChatHistoryCacheOnLogout;
+    window.clearChatHistoryCacheOnLogout = async () => {
+        try { await previousClearChatHistoryCacheOnLogout?.(); } catch (_) {}
+        try { await outboxRuntime.clearOnLogout(); } catch (_) {}
+    };
     const uiState = { messageScale: 1 };
     let isEditingMessageId = null; // ID \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u0443\u0435\u043C\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F
     // Lightbox gallery state
@@ -5263,6 +5281,7 @@ const initChatPage = async () => {
             getReplyState,
             cancelReply,
             emitSocket,
+            enqueueOutbox: enqueueOutboxMessage,
             currentChatId: sourceChatId,
             appendMessage,
             setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
