@@ -673,6 +673,9 @@
                 z-index: 50;
                 padding-bottom: env(safe-area-inset-bottom, 0px);
             }
+            #sidebarScrollArea {
+                scrollbar-gutter: auto;
+            }
             .chat-area {
                 --floating-composer-gap: 4px;
                 --floating-composer-reserve: 84px;
