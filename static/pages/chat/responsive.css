@@ -494,11 +494,22 @@
                 gap: 9px;
                 padding: 10px;
             }
-            .group-edit-member-role-btn {
+            .group-edit-member-actions {
                 grid-column: 1 / -1;
-                justify-self: end;
+                gap: 6px;
+            }
+            .group-edit-member-role-btn {
                 min-height: 34px;
-                padding: 0 12px;
+                padding: 0 10px;
+            }
+            .group-edit-side-panel__actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+            .group-edit-side-panel__actions .group-create-action-btn {
+                width: 100%;
+                min-width: 0;
             }
             .group-create-modal__actions,
             .report-content-modal__actions {
