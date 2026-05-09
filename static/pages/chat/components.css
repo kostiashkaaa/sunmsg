@@ -1165,23 +1165,23 @@
 
         .sidebar.sidebar--compact .sidebar-search-bar {
             flex: 0 0 auto;
-            width: 40px;
-            min-width: 40px;
-            max-width: 40px;
+            width: 48px;
+            min-width: 48px;
+            max-width: 48px;
         }
 
         .sidebar.sidebar--compact .search-input-wrapper {
             position: relative;
             grid-template-columns: 1fr;
             gap: 0;
-            width: 40px;
-            min-height: 40px;
+            width: 48px;
+            min-height: 48px;
             padding: 0;
-            border-radius: 12px;
+            border-radius: 14px;
         }
 
         .sidebar.sidebar--compact .search-input-wrapper i {
-            font-size: 15px;
+            font-size: 17px;
             opacity: 0.88;
         }
 
@@ -1211,13 +1211,13 @@
         .sidebar.sidebar--compact .contact-item::before {
             left: 3px;
             width: 2px;
-            height: 18px;
+            height: 24px;
         }
 
         .sidebar.sidebar--compact .contact-avatar {
-            width: 42px;
-            height: 42px;
-            font-size: 14px;
+            width: 54px;
+            height: 54px;
+            font-size: 18px;
         }
 
         .sidebar.sidebar--compact .contact-info {
@@ -1237,28 +1237,28 @@
         }
 
         .sidebar.sidebar--compact .sidebar-profile-card {
-            padding: 6px;
-            border-radius: 12px;
+            padding: 7px;
+            border-radius: 14px;
         }
 
         .sidebar.sidebar--compact .sidebar-bottom-main {
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
         }
 
         .sidebar.sidebar--compact .sidebar-bottom-identity {
             flex: 0 0 auto;
-            width: 40px;
-            min-width: 40px;
+            width: 48px;
+            min-width: 48px;
             padding: 4px;
             justify-content: center;
-            border-radius: 12px;
+            border-radius: 14px;
         }
 
         .sidebar.sidebar--compact .sidebar-bottom-avatar {
-            width: 30px;
-            height: 30px;
-            font-size: 12px;
+            width: 38px;
+            height: 38px;
+            font-size: 15px;
         }
 
         .sidebar.sidebar--compact .sidebar-bottom-info {
@@ -1266,10 +1266,10 @@
         }
 
         .sidebar.sidebar--compact .sidebar-status-bar--compact {
-            width: 32px;
-            min-width: 32px;
-            height: 32px;
-            border-radius: 10px;
+            width: 40px;
+            min-width: 40px;
+            height: 40px;
+            border-radius: 12px;
         }
 
         #sidebarScrollArea {
