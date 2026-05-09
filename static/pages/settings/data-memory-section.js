@@ -24,12 +24,12 @@ function parseNumber(value, fallback) {
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function retentionLabel(days) {
+function retentionLabel(days, tr) {
     const value = Number(days) || 0;
-    if (value <= 0) return 'Никогда';
-    if (value === 1) return '1 день';
-    if (value >= 2 && value <= 4) return `${value} дня`;
-    return `${value} дней`;
+    if (value <= 0) return tr('Никогда');
+    if (value === 1) return tr('1 день');
+    if (value >= 2 && value <= 4) return `${value} ${tr('дня')}`;
+    return `${value} ${tr('дней')}`;
 }
 
 export function initDataMemorySection({
@@ -74,13 +74,13 @@ export function initDataMemorySection({
 
     function updateRetentionLabel(days) {
         if (!retentionValueEl) return;
-        retentionValueEl.textContent = retentionLabel(days);
+        retentionValueEl.textContent = retentionLabel(days, tr);
     }
 
     function updateMaxCacheLabel(value) {
         if (!maxCacheValueEl) return;
         const numeric = Number(value) || 0;
-        maxCacheValueEl.textContent = numeric <= 0 ? 'Авто' : `${numeric} MB`;
+        maxCacheValueEl.textContent = numeric <= 0 ? tr('Авто') : `${numeric} MB`;
     }
 
     function updateAutoDownloadChildrenEnabled() {
