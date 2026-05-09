@@ -1,0 +1,192 @@
+.onboarding-guide-body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    background:
+        radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 46%),
+        radial-gradient(circle at 100% 0, color-mix(in srgb, var(--ink) 10%, transparent) 0%, transparent 42%),
+        var(--bg);
+    color: var(--text);
+}
+
+.onboarding-guide-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 42px 24px 52px;
+}
+
+.onboarding-guide-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 26px;
+}
+
+.onboarding-guide-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sub-text);
+    margin-bottom: 10px;
+}
+
+.onboarding-guide-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 3.2vw, 2.8rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+}
+
+.onboarding-guide-subtitle {
+    margin: 10px 0 0;
+    max-width: 740px;
+    color: var(--sub-text);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.onboarding-guide-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--paper) 84%, transparent);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.onboarding-guide-back:hover {
+    border-color: color-mix(in srgb, var(--text) 34%, var(--rule));
+    background: color-mix(in srgb, var(--paper-alt) 82%, transparent);
+}
+
+.onboarding-guide-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.onboarding-card {
+    background: color-mix(in srgb, var(--paper) 68%, transparent);
+    border: 1px solid var(--rule-soft);
+    border-radius: 14px;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent),
+                0 16px 32px -26px color-mix(in srgb, var(--ink) 30%, transparent);
+    padding: 20px 20px 18px;
+}
+
+.onboarding-card h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.onboarding-step-list {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.onboarding-step-item {
+    border: 1px solid color-mix(in srgb, var(--rule) 72%, transparent);
+    border-radius: 12px;
+    padding: 12px 12px 11px;
+    background: color-mix(in srgb, var(--surface-2) 68%, transparent);
+}
+
+.onboarding-step-item h3 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.onboarding-step-item p {
+    margin: 7px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+}
+
+.onboarding-tip-list {
+    margin: 12px 0 0;
+    padding-left: 18px;
+}
+
+.onboarding-tip-list li {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+}
+
+.onboarding-card-actions {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.onboarding-card-actions p {
+    margin: 8px 0 0;
+    color: var(--sub-text);
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 760px;
+}
+
+.onboarding-primary-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--rule));
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: transform var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick);
+}
+
+.onboarding-primary-action:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--rule));
+}
+
+@media (max-width: 900px) {
+    .onboarding-guide-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .onboarding-guide-wrap {
+        padding: 24px 12px 34px;
+    }
+
+    .onboarding-guide-head {
+        flex-direction: column;
+        margin-bottom: 18px;
+    }
+
+    .onboarding-card {
+        padding: 16px 14px 14px;
+    }
+}

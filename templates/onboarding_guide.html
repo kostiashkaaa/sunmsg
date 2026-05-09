@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="{{ ui_language|default('ru') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>sun — {{ ui_copy.title }}</title>
+    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/onboarding-guide.css') }}">
+    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
+        'page': 'onboarding-guide',
+        'user': {
+            'uiLanguage': ui_language|default('ru'),
+        },
+        'app': {
+            'root': request.script_root or '',
+        },
+    } | tojson }}</script>
+    <script src="{{ asset_url('bootstrap.js') }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}"></script>
+</head>
+<body class="onboarding-guide-body" data-ui-language="{{ ui_language|default('ru') }}">
+    <main class="onboarding-guide-wrap">
+        <header class="onboarding-guide-head">
+            <div class="onboarding-guide-copy">
+                <div class="onboarding-guide-eyebrow">{{ ui_copy.eyebrow }}</div>
+                <h1 class="onboarding-guide-title">{{ ui_copy.title }}</h1>
+                <p class="onboarding-guide-subtitle">{{ ui_copy.subtitle }}</p>
+            </div>
+            <a href="{{ url_for('auth.index') }}" class="onboarding-guide-back">{{ ui_copy.back }}</a>
+        </header>
+
+        <section class="onboarding-guide-grid">
+            <article class="onboarding-card">
+                <h2>{{ ui_copy.steps_title }}</h2>
+                <ol class="onboarding-step-list">
+                    {% for step in ui_copy.steps %}
+                        <li class="onboarding-step-item">
+                            <h3>{{ step.title }}</h3>
+                            <p>{{ step.text }}</p>
+                        </li>
+                    {% endfor %}
+                </ol>
+            </article>
+
+            <article class="onboarding-card onboarding-card-side">
+                <h2>{{ ui_copy.tips_title }}</h2>
+                <ul class="onboarding-tip-list">
+                    {% for tip in ui_copy.tips %}
+                        <li>{{ tip }}</li>
+                    {% endfor %}
+                </ul>
+            </article>
+        </section>
+
+        <section class="onboarding-card onboarding-card-actions">
+            <h2>{{ ui_copy.actions_title }}</h2>
+            <p>{{ ui_copy.actions_text }}</p>
+            <a href="{{ url_for('auth.index') }}" class="onboarding-primary-action">{{ ui_copy.go_auth }}</a>
+        </section>
+    </main>
+</body>
+</html>

@@ -13,6 +13,7 @@ from . import routes_settings  # noqa: F401
 from . import routes_sessions  # noqa: F401
 from . import routes_web_push  # noqa: F401
 from . import routes_trust  # noqa: F401
+from . import routes_onboarding  # noqa: F401
 
 
 _ROUTE_MODULES = (
@@ -25,6 +26,7 @@ _ROUTE_MODULES = (
     routes_sessions,
     routes_web_push,
     routes_trust,
+    routes_onboarding,
 )
 
 
