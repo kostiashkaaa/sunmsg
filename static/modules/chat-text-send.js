@@ -6,6 +6,7 @@ function shouldKeepMobileComposerEnabled() {
 
 export async function sendTextMessageFlow({
     message,
+    isGroupChat = false,
     isChatBlocked,
     getBlockedNoticeText,
     currentBlockState,
@@ -76,8 +77,9 @@ export async function sendTextMessageFlow({
             replyToId: snapReplyId,
             replyToText: snapReplyText,
             replyToSender: snapReplySender,
+            ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
             reactions: [],
-        }, { renderOptions: { scrollToBottom: true } });
+        }, { renderOptions: { force: true, scrollToBottom: true } });
 
         setKeepChatPinnedToBottom(true);
         updateActiveContactLastMessage(
