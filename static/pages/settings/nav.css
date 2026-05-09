@@ -84,7 +84,7 @@
 
 .nav-divider {
     border: 0;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
     margin: 8px 0;
 }
 
