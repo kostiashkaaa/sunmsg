@@ -1638,7 +1638,18 @@ const initChatPage = async () => {
         const effectiveScrollTop = options.scrollToBottom
             ? sumEstimatedHeights(state, 0, state.messages.length)
             : (forcedScrollTop ?? chatMessages.scrollTop);
-        const range = getDesiredRenderRange(state, effectiveScrollTop);
+        let range = getDesiredRenderRange(state, effectiveScrollTop);
+        const activeVoiceMessageEl = chatMessages.querySelector('.file-msg-audio-player.is-playing')?.closest('.message[data-message-key]');
+        const activeVoiceMessageKey = String(activeVoiceMessageEl?.getAttribute('data-message-key') || '');
+        if (activeVoiceMessageKey) {
+            const activeVoiceIndex = findMessageIndex(state, (msg) => getMessageKey(msg) === activeVoiceMessageKey);
+            if (activeVoiceIndex >= 0 && (activeVoiceIndex < range.start || activeVoiceIndex >= range.end)) {
+                range = {
+                    start: Math.min(range.start, activeVoiceIndex),
+                    end: Math.max(range.end, activeVoiceIndex + 1),
+                };
+            }
+        }
         const needsForcedRender = Boolean(options.force || options.preserveHeightDelta || forcedScrollTop !== null || options.scrollToBottom);
         if (!needsForcedRender && state.lastRenderRange && state.lastRenderRange.start === range.start && state.lastRenderRange.end === range.end) {
             schedulePostRenderUiRefresh({ jumpButton: true });
