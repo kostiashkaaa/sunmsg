@@ -806,7 +806,7 @@
                         <div class="toggle-knob"></div>
                     </label>
                 </div>
-                <div class="settings-row">
+                <div class="settings-row" id="sidebarWeatherSourceRow">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Источник погоды</div>
                         <div class="settings-row-desc">Авто по геолокации или вручную по городу</div>
@@ -823,7 +823,7 @@
                     </div>
                     <input type="text" id="sidebarWeatherCityInput" class="settings-input settings-field-input" placeholder="Например: Москва" maxlength="80">
                 </div>
-                <div class="settings-row settings-row-borderless">
+                <div class="settings-row" id="sidebarWeatherRotateRow">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Интервал смены</div>
                         <div class="settings-row-desc">Как часто менять sun и температуру</div>
@@ -832,6 +832,50 @@
                         <option value="30">30 секунд</option>
                         <option value="60">1 минута</option>
                     </select>
+                </div>
+                <div class="settings-row settings-row-borderless" id="sidebarWeatherMetricsRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Показатели в ротации</div>
+                        <div class="settings-row-desc">Выберите, какие значения показывать в верхнем лейбле</div>
+                    </div>
+                    <div class="settings-weather-metrics-grid" role="group" aria-label="Показатели погоды для верхнего лейбла">
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricTemperature">
+                            <input type="checkbox" id="sidebarWeatherMetricTemperature" name="sidebarWeatherMetricOption" value="temperature">
+                            <span>Температура</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricFeelsLike">
+                            <input type="checkbox" id="sidebarWeatherMetricFeelsLike" name="sidebarWeatherMetricOption" value="feels_like">
+                            <span>Ощущается как</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricHumidity">
+                            <input type="checkbox" id="sidebarWeatherMetricHumidity" name="sidebarWeatherMetricOption" value="humidity">
+                            <span>Влажность</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricWind">
+                            <input type="checkbox" id="sidebarWeatherMetricWind" name="sidebarWeatherMetricOption" value="wind">
+                            <span>Ветер</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricPrecip">
+                            <input type="checkbox" id="sidebarWeatherMetricPrecip" name="sidebarWeatherMetricOption" value="precip">
+                            <span>Вероятность дождя</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricUv">
+                            <input type="checkbox" id="sidebarWeatherMetricUv" name="sidebarWeatherMetricOption" value="uv">
+                            <span>UV индекс</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricAqi">
+                            <input type="checkbox" id="sidebarWeatherMetricAqi" name="sidebarWeatherMetricOption" value="aqi">
+                            <span>Качество воздуха (AQI)</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricPressure">
+                            <input type="checkbox" id="sidebarWeatherMetricPressure" name="sidebarWeatherMetricOption" value="pressure">
+                            <span>Давление</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricSunCycle">
+                            <input type="checkbox" id="sidebarWeatherMetricSunCycle" name="sidebarWeatherMetricOption" value="sun_cycle">
+                            <span>Рассвет / закат</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 

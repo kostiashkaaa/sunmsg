@@ -5,10 +5,47 @@ const GEOLOCATION_TIMEOUT_MS = 8000;
 const GEOLOCATION_MAX_AGE_MS = 10 * 60 * 1000;
 const VALID_SOURCES = new Set(['auto', 'city']);
 const VALID_ROTATE_SECONDS = new Set([30, 60]);
+const VALID_METRICS = new Set([
+    'temperature',
+    'feels_like',
+    'humidity',
+    'wind',
+    'precip',
+    'uv',
+    'aqi',
+    'pressure',
+    'sun_cycle',
+]);
+const DEFAULT_METRICS = Object.freeze(['temperature']);
+const FORECAST_CURRENT_FIELDS = Object.freeze([
+    'temperature_2m',
+    'apparent_temperature',
+    'relative_humidity_2m',
+    'wind_speed_10m',
+    'pressure_msl',
+    'uv_index',
+    'precipitation_probability',
+]);
+const FORECAST_DAILY_FIELDS = Object.freeze(['sunrise', 'sunset']);
 const LABEL_SWAP_OUT_DURATION_MS = 160;
 const LABEL_SWAP_IN_DURATION_MS = 220;
 const LABEL_SWAP_OUT_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const LABEL_SWAP_IN_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+function normalizeMetricList(rawValue, { fallbackToDefault = true } = {}) {
+    if (!Array.isArray(rawValue)) {
+        return fallbackToDefault ? [...DEFAULT_METRICS] : [];
+    }
+    const result = [];
+    const seen = new Set();
+    rawValue.forEach((entry) => {
+        const metric = String(entry || '').trim().toLowerCase();
+        if (!VALID_METRICS.has(metric) || seen.has(metric)) return;
+        seen.add(metric);
+        result.push(metric);
+    });
+    return result;
+}
 
 export function normalizeSidebarWeatherPreferences(rawValue) {
     const raw = rawValue && typeof rawValue === 'object'
@@ -24,12 +61,17 @@ export function normalizeSidebarWeatherPreferences(rawValue) {
 
     const rotateRaw = Number.parseInt(String(raw.sidebarWeatherRotateSeconds || ''), 10);
     const rotateSeconds = VALID_ROTATE_SECONDS.has(rotateRaw) ? rotateRaw : 60;
+    const hasExplicitMetrics = Object.prototype.hasOwnProperty.call(raw, 'sidebarWeatherMetrics');
+    const sidebarWeatherMetrics = normalizeMetricList(raw.sidebarWeatherMetrics, {
+        fallbackToDefault: !hasExplicitMetrics,
+    });
 
     return {
         sidebarWeatherEnabled: enabled,
         sidebarWeatherSource: source,
         sidebarWeatherCity: city,
         sidebarWeatherRotateSeconds: rotateSeconds,
+        sidebarWeatherMetrics,
     };
 }
 
@@ -38,6 +80,84 @@ function formatTemperatureLabel(value) {
     const rounded = Math.round(value);
     const prefix = rounded > 0 ? '+' : '';
     return `${prefix}${rounded}°`;
+}
+
+function formatFeelsLikeLabel(value) {
+    const temp = formatTemperatureLabel(value);
+    if (!temp) return '';
+    return `ощ ${temp}`;
+}
+
+function formatHumidityLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    return `вл ${Math.round(value)}%`;
+}
+
+function formatWindLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    return `вет ${Math.round(value)}м/с`;
+}
+
+function formatPrecipitationLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    return `дождь ${Math.round(value)}%`;
+}
+
+function formatUvLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    return `UV ${Math.round(value)}`;
+}
+
+function formatAqiLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    return `AQI ${Math.round(value)}`;
+}
+
+function formatPressureLabel(value) {
+    if (!Number.isFinite(value)) return '';
+    const mmHg = Math.round(value * 0.75006156);
+    return `давл ${mmHg}`;
+}
+
+function extractClockPart(value) {
+    const text = String(value || '');
+    const match = text.match(/T(\d{2}:\d{2})/);
+    return match ? match[1] : '';
+}
+
+function formatSunCycleLabel(snapshot) {
+    if (!snapshot) return '';
+    const now = String(snapshot.currentTime || '');
+    const sunriseToday = String(snapshot.sunriseToday || '');
+    const sunsetToday = String(snapshot.sunsetToday || '');
+    const sunriseTomorrow = String(snapshot.sunriseTomorrow || '');
+
+    if (now && sunriseToday && now < sunriseToday) {
+        const time = extractClockPart(sunriseToday);
+        return time ? `☀ ${time}` : '';
+    }
+    if (now && sunsetToday && now < sunsetToday) {
+        const time = extractClockPart(sunsetToday);
+        return time ? `🌙 ${time}` : '';
+    }
+    if (sunriseTomorrow) {
+        const time = extractClockPart(sunriseTomorrow);
+        return time ? `☀ ${time}` : '';
+    }
+    if (sunriseToday) {
+        const time = extractClockPart(sunriseToday);
+        return time ? `☀ ${time}` : '';
+    }
+    if (sunsetToday) {
+        const time = extractClockPart(sunsetToday);
+        return time ? `🌙 ${time}` : '';
+    }
+    return '';
+}
+
+function firstNumeric(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
 }
 
 function resolveCoordinatesFromGeolocation() {
@@ -98,17 +218,17 @@ async function resolveCoordinatesFromCity(city, language = 'ru') {
     return { latitude, longitude };
 }
 
-async function fetchTemperatureByCoordinates(coords) {
+async function fetchAqiByCoordinates(coords) {
     if (!coords) return null;
     const latitude = Number(coords.latitude);
     const longitude = Number(coords.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
 
-    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    const url = new URL('https://air-quality-api.open-meteo.com/v1/air-quality');
     url.searchParams.set('latitude', String(latitude));
     url.searchParams.set('longitude', String(longitude));
-    url.searchParams.set('current', 'temperature_2m');
-    url.searchParams.set('temperature_unit', 'celsius');
+    url.searchParams.set('current', 'us_aqi');
+    url.searchParams.set('timezone', 'auto');
 
     const response = await fetch(url.toString(), {
         method: 'GET',
@@ -117,11 +237,91 @@ async function fetchTemperatureByCoordinates(coords) {
     if (!response.ok) return null;
 
     const payload = await response.json().catch(() => null);
-    const fromCurrent = Number(payload?.current?.temperature_2m);
-    if (Number.isFinite(fromCurrent)) return fromCurrent;
-    const fromLegacy = Number(payload?.current_weather?.temperature);
-    if (Number.isFinite(fromLegacy)) return fromLegacy;
-    return null;
+    return firstNumeric(payload?.current?.us_aqi);
+}
+
+async function fetchWeatherSnapshotByCoordinates(coords, { includeAqi = false } = {}) {
+    if (!coords) return null;
+    const latitude = Number(coords.latitude);
+    const longitude = Number(coords.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.searchParams.set('latitude', String(latitude));
+    url.searchParams.set('longitude', String(longitude));
+    url.searchParams.set('current', FORECAST_CURRENT_FIELDS.join(','));
+    url.searchParams.set('daily', FORECAST_DAILY_FIELDS.join(','));
+    url.searchParams.set('temperature_unit', 'celsius');
+    url.searchParams.set('wind_speed_unit', 'ms');
+    url.searchParams.set('timezone', 'auto');
+
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        cache: 'no-store',
+    });
+    if (!response.ok) return null;
+
+    const payload = await response.json().catch(() => null);
+    const current = payload?.current || {};
+    const daily = payload?.daily || {};
+    const sunrise = Array.isArray(daily?.sunrise) ? daily.sunrise : [];
+    const sunset = Array.isArray(daily?.sunset) ? daily.sunset : [];
+
+    const snapshot = {
+        temperature: firstNumeric(current?.temperature_2m),
+        apparentTemperature: firstNumeric(current?.apparent_temperature),
+        humidity: firstNumeric(current?.relative_humidity_2m),
+        windSpeed: firstNumeric(current?.wind_speed_10m),
+        pressureMsl: firstNumeric(current?.pressure_msl),
+        uvIndex: firstNumeric(current?.uv_index),
+        precipitationProbability: firstNumeric(current?.precipitation_probability),
+        currentTime: String(current?.time || ''),
+        sunriseToday: String(sunrise[0] || ''),
+        sunriseTomorrow: String(sunrise[1] || ''),
+        sunsetToday: String(sunset[0] || ''),
+        usAqi: null,
+    };
+
+    if (includeAqi) {
+        try {
+            snapshot.usAqi = await fetchAqiByCoordinates(coords);
+        } catch (_) {
+            snapshot.usAqi = null;
+        }
+    }
+
+    return snapshot;
+}
+
+function buildWeatherLabels(snapshot, metricKeys) {
+    if (!snapshot || !Array.isArray(metricKeys) || !metricKeys.length) return [];
+    const labels = [];
+    metricKeys.forEach((metric) => {
+        let label = '';
+        if (metric === 'temperature') {
+            label = formatTemperatureLabel(snapshot.temperature);
+        } else if (metric === 'feels_like') {
+            label = formatFeelsLikeLabel(snapshot.apparentTemperature);
+        } else if (metric === 'humidity') {
+            label = formatHumidityLabel(snapshot.humidity);
+        } else if (metric === 'wind') {
+            label = formatWindLabel(snapshot.windSpeed);
+        } else if (metric === 'precip') {
+            label = formatPrecipitationLabel(snapshot.precipitationProbability);
+        } else if (metric === 'uv') {
+            label = formatUvLabel(snapshot.uvIndex);
+        } else if (metric === 'aqi') {
+            label = formatAqiLabel(snapshot.usAqi);
+        } else if (metric === 'pressure') {
+            label = formatPressureLabel(snapshot.pressureMsl);
+        } else if (metric === 'sun_cycle') {
+            label = formatSunCycleLabel(snapshot);
+        }
+        if (label) {
+            labels.push(label);
+        }
+    });
+    return labels;
 }
 
 export function initSidebarWeatherLabel({
@@ -139,7 +339,8 @@ export function initSidebarWeatherLabel({
     let requestSeq = 0;
     let destroyed = false;
     let showWeatherLabel = false;
-    let weatherLabel = '';
+    let weatherLabels = [];
+    let weatherLabelCursor = 0;
     let geolocationBlocked = false;
     let labelTransitionSeq = 0;
     let activeLabelAnimation = null;
@@ -240,11 +441,14 @@ export function initSidebarWeatherLabel({
     }
 
     function renderLabel() {
-        if (!prefs.sidebarWeatherEnabled || !weatherLabel) {
+        const currentWeatherLabel = weatherLabels.length
+            ? String(weatherLabels[weatherLabelCursor] || '')
+            : '';
+        if (!prefs.sidebarWeatherEnabled || !currentWeatherLabel) {
             setLabel(base);
             return;
         }
-        setLabel(showWeatherLabel ? weatherLabel : base);
+        setLabel(showWeatherLabel ? currentWeatherLabel : base);
     }
 
     function clearTimers() {
@@ -262,12 +466,19 @@ export function initSidebarWeatherLabel({
         if (!prefs.sidebarWeatherEnabled) return;
         const intervalMs = Math.max(30, Number(prefs.sidebarWeatherRotateSeconds) || 60) * 1000;
         rotationTimerId = window.setInterval(() => {
-            if (!prefs.sidebarWeatherEnabled || !weatherLabel) {
+            if (!prefs.sidebarWeatherEnabled || !weatherLabels.length) {
                 showWeatherLabel = false;
                 renderLabel();
                 return;
             }
-            showWeatherLabel = !showWeatherLabel;
+            if (showWeatherLabel) {
+                showWeatherLabel = false;
+                weatherLabelCursor = weatherLabels.length > 0
+                    ? (weatherLabelCursor + 1) % weatherLabels.length
+                    : 0;
+            } else {
+                showWeatherLabel = true;
+            }
             renderLabel();
         }, intervalMs);
     }
@@ -298,7 +509,8 @@ export function initSidebarWeatherLabel({
     async function refreshWeatherNow() {
         if (destroyed) return;
         if (!prefs.sidebarWeatherEnabled) {
-            weatherLabel = '';
+            weatherLabels = [];
+            weatherLabelCursor = 0;
             showWeatherLabel = false;
             renderLabel();
             return;
@@ -309,23 +521,29 @@ export function initSidebarWeatherLabel({
             const coords = await resolveWeatherCoordinates();
             if (destroyed || seq !== requestSeq) return;
             if (!coords) {
-                weatherLabel = '';
+                weatherLabels = [];
+                weatherLabelCursor = 0;
                 showWeatherLabel = false;
                 renderLabel();
                 return;
             }
 
-            const temperature = await fetchTemperatureByCoordinates(coords);
+            const metricKeys = normalizeMetricList(prefs.sidebarWeatherMetrics, { fallbackToDefault: false });
+            const includeAqi = metricKeys.includes('aqi');
+            const snapshot = await fetchWeatherSnapshotByCoordinates(coords, { includeAqi });
             if (destroyed || seq !== requestSeq) return;
-            const formatted = formatTemperatureLabel(temperature);
-            weatherLabel = formatted;
-            if (!formatted) {
+            weatherLabels = buildWeatherLabels(snapshot, metricKeys);
+            if (!weatherLabels.length) {
+                weatherLabelCursor = 0;
                 showWeatherLabel = false;
+            } else if (weatherLabelCursor >= weatherLabels.length) {
+                weatherLabelCursor = 0;
             }
             renderLabel();
         } catch (_) {
             if (destroyed || seq !== requestSeq) return;
-            weatherLabel = '';
+            weatherLabels = [];
+            weatherLabelCursor = 0;
             showWeatherLabel = false;
             renderLabel();
         }
@@ -349,7 +567,8 @@ export function initSidebarWeatherLabel({
             geolocationBlocked = false;
         }
         showWeatherLabel = false;
-        weatherLabel = '';
+        weatherLabels = [];
+        weatherLabelCursor = 0;
         clearTimers();
         renderLabel();
         if (prefs.sidebarWeatherEnabled) {

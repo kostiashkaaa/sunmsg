@@ -12,6 +12,17 @@ _SEND_SHORTCUT_MODES = {'enter', 'ctrl_enter'}
 _TIME_FORMATS = {'24h', '12h'}
 _SIDEBAR_WEATHER_SOURCES = {'auto', 'city'}
 _SIDEBAR_WEATHER_ROTATE_SECONDS = {30, 60}
+_SIDEBAR_WEATHER_METRICS = {
+    'temperature',
+    'feels_like',
+    'humidity',
+    'wind',
+    'precip',
+    'uv',
+    'aqi',
+    'pressure',
+    'sun_cycle',
+}
 
 
 def _clamp_message_scale(value: float) -> float:
@@ -91,6 +102,17 @@ def normalize_client_preferences(raw_value) -> dict:
             sidebar_weather_rotate_value = None
     if sidebar_weather_rotate_value in _SIDEBAR_WEATHER_ROTATE_SECONDS:
         normalized['sidebarWeatherRotateSeconds'] = sidebar_weather_rotate_value
+
+    sidebar_weather_metrics = src.get('sidebarWeatherMetrics')
+    if isinstance(sidebar_weather_metrics, list):
+        metrics: list[str] = []
+        seen_metrics: set[str] = set()
+        for raw_metric in sidebar_weather_metrics:
+            metric = str(raw_metric or '').strip().lower()
+            if metric in _SIDEBAR_WEATHER_METRICS and metric not in seen_metrics:
+                metrics.append(metric)
+                seen_metrics.add(metric)
+        normalized['sidebarWeatherMetrics'] = metrics
 
     interface_theme_store = _normalize_json_object(
         src.get('interfaceThemeStore'),

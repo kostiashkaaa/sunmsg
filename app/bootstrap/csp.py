@@ -18,6 +18,7 @@ def _csp_connect_sources(app: Flask) -> str:
         sources.append(f"wss://{host}")
     sources.append("https://api.open-meteo.com")
     sources.append("https://geocoding-api.open-meteo.com")
+    sources.append("https://air-quality-api.open-meteo.com")
     sources.append(app.config.get("CONNECT_SRC_HOSTS"))
     return _csp_sources(*sources)
 
