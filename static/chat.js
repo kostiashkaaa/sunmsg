@@ -68,7 +68,6 @@ import {
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js?v=20260507a';
-import { initSidebarActiveChatLabel } from './modules/sidebar-active-chat-label.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
@@ -722,10 +721,6 @@ const initChatPage = async () => {
 
     const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
     initKeyboardShortcuts();
-    initSidebarActiveChatLabel({
-        chatTitleEl: chatTitle,
-        chatHeaderEl: chatHeader,
-    });
     initSidebarBrandQuickActions({
         openDialog: openAnimatedDialog,
     });
@@ -954,7 +949,15 @@ const initChatPage = async () => {
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const MUTE_CHAT_STORAGE_KEY = 'sun_chat_muted_v1';
     const MUTE_DIALOG_REQUESTS_STORAGE_KEY = 'sun_mute_dialog_requests_v1';
-    const BASE_TAB_TITLE = document.title || 'sun';
+    const BASE_TAB_TITLE = String(document.title || 'sun').trim() || 'sun';
+    const TITLE_SEPARATOR = ' • ';
+    const normalizeTabLabel = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+    const buildTabBaseTitle = () => {
+        const activeChatToken = String(chatHeader?.getAttribute('data-partner-id') || '').trim();
+        const activeChatName = normalizeTabLabel(chatTitle?.textContent);
+        if (!activeChatToken || !activeChatName) return BASE_TAB_TITLE;
+        return `${activeChatName}${TITLE_SEPARATOR}${BASE_TAB_TITLE}`;
+    };
     let isE2EPillPinnedOpen = false;
     const tabAlertController = createTabAlertController({
         baseTitle: BASE_TAB_TITLE,
@@ -966,6 +969,27 @@ const initChatPage = async () => {
         setIntervalFn: (handler, delay) => window.setInterval(handler, delay),
         clearIntervalFn: (timerId) => window.clearInterval(timerId),
     });
+    tabAlertController.setBaseTitle(buildTabBaseTitle());
+    if (window.MutationObserver) {
+        const syncTabBaseTitle = () => {
+            tabAlertController.setBaseTitle(buildTabBaseTitle());
+        };
+        if (chatTitle) {
+            const chatTitleObserver = new MutationObserver(syncTabBaseTitle);
+            chatTitleObserver.observe(chatTitle, {
+                childList: true,
+                characterData: true,
+                subtree: true,
+            });
+        }
+        if (chatHeader) {
+            const chatHeaderObserver = new MutationObserver(syncTabBaseTitle);
+            chatHeaderObserver.observe(chatHeader, {
+                attributes: true,
+                attributeFilter: ['data-partner-id'],
+            });
+        }
+    }
 
     const mutePreferences = createChatMutePreferences({
         storage: window.localStorage,

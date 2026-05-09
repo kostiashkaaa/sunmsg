@@ -15,7 +15,8 @@ export function createTabAlertController({
     }
 
     const alertsByChatId = new Map();
-    const normalizedBaseTitle = String(baseTitle || getTitle() || 'sun');
+    const normalizeBaseTitle = (value) => String(value || '').trim() || 'sun';
+    let currentBaseTitle = normalizeBaseTitle(baseTitle || getTitle() || 'sun');
     let blinkTimer = 0;
     let blinkPhase = false;
 
@@ -29,20 +30,20 @@ export function createTabAlertController({
 
     function getAlertTitle() {
         const count = getAlertCount();
-        if (count <= 0) return normalizedBaseTitle;
+        if (count <= 0) return currentBaseTitle;
         if (count === 1) {
-            return `(1) ${tr('\u041D\u043E\u0432\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435')} • ${normalizedBaseTitle}`;
+            return `(1) ${tr('\u041D\u043E\u0432\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435')} • ${currentBaseTitle}`;
         }
-        return `(${count}) ${tr('\u041D\u043E\u0432\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439')} • ${normalizedBaseTitle}`;
+        return `(${count}) ${tr('\u041D\u043E\u0432\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439')} • ${currentBaseTitle}`;
     }
 
     function applyTitleFrame() {
         const count = getAlertCount();
         if (count <= 0) {
-            setTitle(normalizedBaseTitle);
+            setTitle(currentBaseTitle);
             return;
         }
-        setTitle(blinkPhase ? getAlertTitle() : normalizedBaseTitle);
+        setTitle(blinkPhase ? getAlertTitle() : currentBaseTitle);
     }
 
     function startBlinking() {
@@ -69,7 +70,7 @@ export function createTabAlertController({
         alertsByChatId.delete(normalizedChatId);
         if (getAlertCount() <= 0) {
             stopBlinking();
-            setTitle(normalizedBaseTitle);
+            setTitle(currentBaseTitle);
             return;
         }
         applyTitleFrame();
@@ -78,7 +79,7 @@ export function createTabAlertController({
     function clearAllAlerts() {
         alertsByChatId.clear();
         stopBlinking();
-        setTitle(normalizedBaseTitle);
+        setTitle(currentBaseTitle);
     }
 
     function pushAlert(chatId) {
@@ -90,10 +91,16 @@ export function createTabAlertController({
         applyTitleFrame();
     }
 
+    function setBaseTitle(nextBaseTitle) {
+        currentBaseTitle = normalizeBaseTitle(nextBaseTitle);
+        applyTitleFrame();
+    }
+
     return {
         getAlertCount,
         getAlertTitle,
         applyTitleFrame,
+        setBaseTitle,
         startBlinking,
         stopBlinking,
         clearAlertForChat,
