@@ -319,7 +319,7 @@ async function populateEmojiList(emojiList, messageInput, category, options = {}
         if (targetCategory === DEFAULT_CATEGORY) {
             setEmojiStatus(
                 emojiList,
-                '<i class="bi bi-clock-history" style="margin-right:6px;"></i>\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0427\u0430\u0441\u0442\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u043E\u044F\u0432\u044F\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0432\u044B\u0431\u043E\u0440\u0430 \u044D\u043C\u043E\u0434\u0437\u0438.'
+                '<i class="bi bi-clock-history"></i> \u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0427\u0430\u0441\u0442\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u043E\u044F\u0432\u044F\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0432\u044B\u0431\u043E\u0440\u0430 \u044D\u043C\u043E\u0434\u0437\u0438.'
             );
             return;
         }
