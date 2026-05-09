@@ -1664,6 +1664,12 @@ const initChatPage = async () => {
                 if (!key || reusableMessageNodesByKey.has(key)) return;
                 reusableMessageNodesByKey.set(key, node);
             });
+        } else if (activeVoiceMessageEl && activeVoiceMessageKey) {
+            // При force-перерисовке всё равно переиспользуем DOM-узел играющего
+            // голосового, иначе HTMLAudioElement отсоединится от дерева и браузер
+            // принудительно вызовет pause() на нём — голосовое встанет на паузу
+            // ровно в момент отправки обычного сообщения.
+            reusableMessageNodesByKey.set(activeVoiceMessageKey, activeVoiceMessageEl);
         }
 
         const fragment = document.createDocumentFragment();
