@@ -1323,7 +1323,7 @@
             align-items: center;
             gap: 12px;
             padding: 11px 14px;
-            margin: 0 10px 4px;
+            margin: 0 4px 4px;
             cursor: pointer;
             transition:
                 background var(--dur-quick) var(--ease-quick),
