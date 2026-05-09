@@ -255,10 +255,11 @@ export function initChatContactsSidebar({
             }
 
             const isSelfContact = String(contact.last_sender_id) === String(getCurrentUserId());
+            const isSavedMessagesContact = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
             const hasDraft = hasContactDraft(contact);
             const draftText = hasDraft ? String(contact.draft_text || '') : '';
             const previewMessage = hasDraft ? draftText : displayLastMessage;
-            const previewIsSelf = hasDraft ? false : isSelfContact;
+            const previewIsSelf = hasDraft || isSavedMessagesContact ? false : isSelfContact;
             const previewTimestamp = hasDraft
                 ? String(contact.draft_updated_at || contact.last_message_time || '').trim()
                 : contact.last_message_time;
@@ -268,7 +269,10 @@ export function initChatContactsSidebar({
                     is_read: isStatusTrueFlag(contact.last_message_is_read),
                     is_delivered: isStatusTrueFlag(contact.last_message_is_delivered),
                 };
-            const unread = contact.unreadCount > 0;
+            const unreadCount = isSavedMessagesContact
+                ? 0
+                : Math.max(0, Number(contact.unreadCount) || 0);
+            const unread = unreadCount > 0;
             const currentChatId = getCurrentChatId();
             const existing = document.querySelector(`.contact-item[data-chat-id="${contact.chatId}"]`);
             if (existing) {
@@ -291,6 +295,7 @@ export function initChatContactsSidebar({
                 existing.setAttribute('data-last-seen', String(contact.last_seen || ''));
                 existing.setAttribute('data-last-message-is-read', isStatusTrueFlag(contact.last_message_is_read) ? '1' : '0');
                 existing.setAttribute('data-last-message-is-delivered', isStatusTrueFlag(contact.last_message_is_delivered) ? '1' : '0');
+                existing.setAttribute('data-saved-messages', isSavedMessagesContact ? '1' : '0');
                 existing.setAttribute('data-has-draft', hasDraft ? '1' : '0');
                 existing.setAttribute('data-draft-text', draftText);
                 existing.setAttribute('data-draft-updated-at', String(contact.draft_updated_at || ''));
@@ -325,7 +330,7 @@ export function initChatContactsSidebar({
                 existing.querySelector('.status-dot')?.classList.toggle('online', shouldShowOnline);
                 const badge = existing.querySelector('.unread-badge');
                 if (badge) {
-                    badge.textContent = contact.unreadCount > 0 ? (contact.unreadCount > 99 ? '99+' : contact.unreadCount) : '';
+                    badge.textContent = unread ? (unreadCount > 99 ? '99+' : unreadCount) : '';
                     badge.style.display = unread ? '' : 'none';
                     badge.classList.toggle('unread-badge--hidden', !unread);
                 }
@@ -358,6 +363,8 @@ export function initChatContactsSidebar({
                     is_self_last_sender: isSelfContact,
                     blocked_by_me: blockedByMe,
                     blocked_me: blockedMe,
+                    unreadCount,
+                    is_saved_messages: isSavedMessagesContact,
                 },
                 currentChatId,
             );

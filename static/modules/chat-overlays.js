@@ -15,6 +15,7 @@ export function initContactContextMenu({
     onReloadChats,
     onPinStateChange,
     onToggleMute,
+    isChatActionRestricted = (contactItem) => String(contactItem?.getAttribute?.('data-saved-messages') || '') === '1',
     isChatMuted = () => false,
     maxPinnedCount = null,
     getPinnedCount = () => 0,
@@ -58,10 +59,37 @@ export function initContactContextMenu({
         return Number(getPinnedCount?.() || 0) < Number(maxPinnedCount);
     }
 
-    function showContactContextMenu(x, y, chatId, isPinned) {
+    function escapeSelectorValue(value) {
+        const raw = String(value || '');
+        if (window.CSS?.escape) return window.CSS.escape(raw);
+        return raw.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    function resolveContactItemByChatId(chatId) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId || !contactsList) return null;
+        return contactsList.querySelector(`.contact-item[data-chat-id="${escapeSelectorValue(normalizedChatId)}"]`);
+    }
+
+    function isChatRestricted(chatId, contactItem = null) {
+        const normalizedChatId = String(chatId || '').trim();
+        const item = contactItem || resolveContactItemByChatId(normalizedChatId);
+        try {
+            return Boolean(isChatActionRestricted(item, normalizedChatId));
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function showContactContextMenu(x, y, chatId, isPinned, contactItem = null) {
         if (!menuEl) return;
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId || isChatRestricted(normalizedChatId, contactItem)) {
+            hideContactContextMenu();
+            return;
+        }
         const openSeq = ++menuTransitionSeq;
-        targetChatId = chatId;
+        targetChatId = normalizedChatId;
         if (pinButtonEl) pinButtonEl.hidden = isPinned;
         if (unpinButtonEl) unpinButtonEl.hidden = !isPinned;
         if (pinButtonEl) {
@@ -135,6 +163,7 @@ export function initContactContextMenu({
             event.clientY,
             item.getAttribute('data-chat-id'),
             item.getAttribute('data-pinned') === '1',
+            item,
         );
     });
 
@@ -165,7 +194,7 @@ export function initContactContextMenu({
         const timerId = window.setTimeout(() => {
             if (!pendingLongPress) return;
             suppressClickUntil = Date.now() + 650;
-            showContactContextMenu(startX, startY, chatId, isPinned);
+            showContactContextMenu(startX, startY, chatId, isPinned, item);
             pendingLongPress = null;
         }, LONG_PRESS_DELAY_MS);
         pendingLongPress = {
@@ -216,6 +245,7 @@ export function initContactContextMenu({
         const chatId = targetChatId;
         hideContactContextMenu();
         if (!chatId) return;
+        if (isChatRestricted(chatId)) return;
         if (!canPinMoreChats()) {
             showToast(hasPinnedLimit()
                 ? `\u041C\u043E\u0436\u043D\u043E \u0437\u0430\u043A\u0440\u0435\u043F\u0438\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u0435\u0435 ${Number(maxPinnedCount)} \u0447\u0430\u0442\u043E\u0432.`
@@ -229,6 +259,7 @@ export function initContactContextMenu({
         const chatId = targetChatId;
         hideContactContextMenu();
         if (!chatId) return;
+        if (isChatRestricted(chatId)) return;
         updatePinnedState(chatId, withAppRoot('/unpin_chat'), false);
     });
 
@@ -236,6 +267,7 @@ export function initContactContextMenu({
         const chatId = targetChatId;
         hideContactContextMenu();
         if (!chatId) return;
+        if (isChatRestricted(chatId)) return;
         try {
             await onToggleMute?.({ chatId, muted: Boolean(isChatMuted?.(chatId)) });
         } catch (_) {
@@ -247,7 +279,8 @@ export function initContactContextMenu({
         const chatId = targetChatId;
         hideContactContextMenu();
         if (!chatId) return;
-        const targetItem = contactsList?.querySelector(`.contact-item[data-chat-id="${chatId}"]`);
+        if (isChatRestricted(chatId)) return;
+        const targetItem = resolveContactItemByChatId(chatId);
         const isGroup = String(targetItem?.getAttribute('data-is-group') || '') === '1';
         showDeleteChatDialog(chatId, {
             onDeleted: onDeleteChat,

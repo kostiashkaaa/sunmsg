@@ -2,6 +2,7 @@ export function createChatMuteUiController({
     contactsList = null,
     muteChatBtn = null,
     resolveContactItemByChatId = () => null,
+    isContactMuteRestricted = (contactItem) => String(contactItem?.getAttribute?.('data-saved-messages') || '') === '1',
     isChatMuted = () => false,
     getMutedChatIds = () => [],
     setMutedChatIds = () => {},
@@ -10,14 +11,37 @@ export function createChatMuteUiController({
     showToast = () => {},
     doc = document,
 } = {}) {
-    function applyContactMuteState(contactItem, muted) {
+    function resolveContactItem(chatId) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) return null;
+        return resolveContactItemByChatId(normalizedChatId);
+    }
+
+    function isMuteRestricted(chatId, contactItem = null) {
+        const normalizedChatId = String(chatId || '').trim();
+        const item = contactItem || resolveContactItem(normalizedChatId);
+        try {
+            return Boolean(isContactMuteRestricted(item, normalizedChatId));
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function applyContactMuteState(contactItem, muted, options = {}) {
         if (!contactItem) return;
-        contactItem.setAttribute('data-muted', muted ? '1' : '0');
+        const normalizedChatId = String(
+            options?.chatId
+            || contactItem.getAttribute('data-chat-id')
+            || '',
+        ).trim();
+        const mutedAllowed = !isMuteRestricted(normalizedChatId, contactItem);
+        const effectiveMuted = mutedAllowed ? Boolean(muted) : false;
+        contactItem.setAttribute('data-muted', effectiveMuted ? '1' : '0');
         const nameMain = contactItem.querySelector('.contact-name-main');
         const nameEl = nameMain?.querySelector('.contact-name');
         const pinIcon = nameMain?.querySelector('.pin-icon');
         let muteIcon = contactItem.querySelector('.mute-icon');
-        if (muted) {
+        if (effectiveMuted) {
             if (!muteIcon) {
                 muteIcon = doc.createElement('i');
                 muteIcon.className = 'bi bi-bell-slash-fill mute-icon';
@@ -37,7 +61,7 @@ export function createChatMuteUiController({
         const unreadBadge = contactItem.querySelector('.unread-badge');
         const hasUnread = Boolean(unreadBadge && unreadBadge.style.display !== 'none' && unreadBadge.textContent.trim() !== '');
         if (timeMetaEl) {
-            if (muted) {
+            if (effectiveMuted) {
                 timeMetaEl.style.color = 'var(--text-muted)';
             } else if (hasUnread) {
                 timeMetaEl.style.color = 'var(--accent)';
@@ -46,26 +70,30 @@ export function createChatMuteUiController({
             }
         }
         if (unreadBadge) {
-            unreadBadge.classList.toggle('unread-badge--muted', Boolean(muted && hasUnread));
+            unreadBadge.classList.toggle('unread-badge--muted', Boolean(effectiveMuted && hasUnread));
         }
     }
 
     function syncContactMuteState(chatId) {
-        const item = resolveContactItemByChatId(chatId);
+        const normalizedChatId = String(chatId || '').trim();
+        const item = resolveContactItem(normalizedChatId);
         if (!item) return;
-        applyContactMuteState(item, isChatMuted(chatId));
+        applyContactMuteState(item, isChatMuted(normalizedChatId), { chatId: normalizedChatId });
     }
 
     function syncAllContactsMuteState() {
         const items = Array.from(contactsList?.querySelectorAll('.contact-item[data-chat-id]') || []);
         items.forEach((item) => {
-            applyContactMuteState(item, isChatMuted(item.getAttribute('data-chat-id')));
+            const chatId = String(item.getAttribute('data-chat-id') || '').trim();
+            applyContactMuteState(item, isChatMuted(chatId), { chatId });
         });
     }
 
     function syncMuteButton() {
         const currentChatId = getCurrentChatId();
-        const muted = isChatMuted(currentChatId);
+        const muted = isMuteRestricted(currentChatId, resolveContactItem(currentChatId))
+            ? false
+            : isChatMuted(currentChatId);
         if (muteChatBtn) {
             const icon = muteChatBtn.querySelector('i');
             if (icon) {
@@ -94,7 +122,23 @@ export function createChatMuteUiController({
     function toggleChatMuted(chatId, { showFeedback = true } = {}) {
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) return false;
+        const contactItem = resolveContactItem(normalizedChatId);
         const next = getMutedChatIds();
+        if (isMuteRestricted(normalizedChatId, contactItem)) {
+            const filtered = next.filter((id) => String(id || '').trim() !== normalizedChatId);
+            if (filtered.length !== next.length) {
+                setMutedChatIds(filtered);
+            }
+            if (contactItem) {
+                applyContactMuteState(contactItem, false, { chatId: normalizedChatId });
+            }
+            if (String(getCurrentChatId() || '') === normalizedChatId) {
+                syncMuteButton();
+            } else {
+                syncProfileMoreMenuChatActions();
+            }
+            return false;
+        }
         const index = next.indexOf(normalizedChatId);
         let muted = false;
         if (index >= 0) {
