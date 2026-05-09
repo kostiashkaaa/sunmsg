@@ -307,6 +307,12 @@ export function closeAnimatedDialog(dialog, { restoreFocus = true, fallbackMs = 
     const closeSeq = ++state.seq;
     dialog.classList.remove('is-opening', 'is-open');
     dialog.classList.add('is-closing');
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && dialog.contains(activeElement)) {
+        try {
+            activeElement.blur();
+        } catch (_) {}
+    }
     dialog.setAttribute('aria-hidden', 'true');
 
     const waitMs = _readMotionMs(dialog, {
