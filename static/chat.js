@@ -406,6 +406,7 @@ const initChatPage = async () => {
     const voicePlaybackForwardBtn = document.getElementById('voicePlaybackForwardBtn');
     const voicePlaybackVolume = document.getElementById('voicePlaybackVolume');
     const voicePlaybackSpeedBtn = document.getElementById('voicePlaybackSpeedBtn');
+    const voicePlaybackRepeatBtn = document.getElementById('voicePlaybackRepeatBtn');
     const voicePlaybackCloseBtn = document.getElementById('voicePlaybackCloseBtn');
     const voicePlaybackProgress = document.getElementById('voicePlaybackProgress');
     const voicePlaybackProgressFill = document.getElementById('voicePlaybackProgressFill');
@@ -5450,10 +5451,12 @@ const initChatPage = async () => {
         voicePlaybackPlayBtn,
         voicePlaybackBackBtn,
         voicePlaybackForwardBtn,
+        voicePlaybackSender,
         voicePlaybackDetails,
         voicePlaybackProgress,
         voicePlaybackProgressFill,
         voicePlaybackSpeedBtn,
+        voicePlaybackRepeatBtn,
         voicePlaybackVolume,
         voicePlaybackCloseBtn,
         ensureMediaElementHydrated,
