@@ -67,31 +67,31 @@ def test_build_initial_last_message_preview_for_media_payloads():
         blocked_by_me=False,
         blocked_me=False,
         language='ru',
-    ) == '[photo]'
+    ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
     assert build_initial_last_message_preview(
         '{"__sunfile":true,"name":"clip.mp4","mime":"video/mp4"}',
         blocked_by_me=False,
         blocked_me=False,
         language='en',
-    ) == '[video]'
+    ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
     assert build_initial_last_message_preview(
         '{"__sunfile":true,"name":"memo.ogg","mime":"audio/ogg"}',
         blocked_by_me=False,
         blocked_me=False,
         language='en',
-    ) == '[voice]'
+    ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
     assert build_initial_last_message_preview(
         '{"__sunfile":true,"name":"report.pdf","mime":"application/pdf"}',
         blocked_by_me=False,
         blocked_me=False,
         language='en',
-    ) == '[file] report.pdf'
+    ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
     assert build_initial_last_message_preview(
         '{"__sunfile":true,"name":"image.png","mime":"image/png","caption":"My caption"}',
         blocked_by_me=False,
         blocked_me=False,
         language='ru',
-    ) == 'My caption'
+    ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
 
 
 def test_parse_int_like_pattern_and_canonical_username():
