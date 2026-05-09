@@ -511,6 +511,17 @@
                 width: 100%;
                 min-width: 0;
             }
+            .group-permissions-panel__section-title {
+                font-size: 16px;
+            }
+            .group-perm-item > span {
+                font-size: 15px;
+            }
+            .group-perm-slowmode-chip {
+                min-height: 32px;
+                padding: 0 10px;
+                font-size: 12px;
+            }
             .group-create-modal__actions,
             .report-content-modal__actions {
                 position: sticky;
@@ -1608,5 +1619,4 @@
     }
 
 }
-
 

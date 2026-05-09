@@ -1138,6 +1138,54 @@ body.dark-mode #messageForwardModal .forward-target-status {
     min-width: 120px;
 }
 
+.group-edit-nav-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--group-edit-border);
+    background: color-mix(in srgb, var(--surface, #ffffff) 82%, transparent);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.group-edit-nav-item:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-soft, #bfdbfe) 28%, var(--surface, #ffffff) 72%);
+}
+
+.group-edit-nav-item--disabled {
+    cursor: default;
+    opacity: 0.82;
+}
+
+.group-edit-nav-item__copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.group-edit-nav-item__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.group-edit-nav-item__meta {
+    font-size: 13px;
+    color: var(--group-edit-sub-text);
+    line-height: 1.25;
+}
+
+.group-edit-nav-item__chevron {
+    font-size: 22px;
+    line-height: 1;
+    color: color-mix(in srgb, var(--sub-text, #6b7280) 88%, var(--text, #111827) 12%);
+}
+
 .group-edit-side-panel .group-create-modal__label {
     color: var(--group-edit-sub-text);
 }
@@ -1287,6 +1335,159 @@ body.dark-mode #messageForwardModal .forward-target-status {
 .group-edit-member-role-btn:disabled {
     opacity: 0.56;
     cursor: not-allowed;
+}
+
+.group-permissions-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    background: var(--group-edit-bg);
+    color: var(--text, #111827);
+    transform: translate3d(100%, 0, 0);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--dur-medium) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick);
+}
+
+.group-permissions-panel.is-open {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.group-permissions-panel__head {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 58px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--group-edit-border);
+    background: var(--group-edit-head-bg);
+}
+
+.group-permissions-panel__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.group-permissions-panel__body {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.group-permissions-panel__section {
+    border: 1px solid var(--group-edit-border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface, #ffffff) 82%, transparent);
+    overflow: hidden;
+}
+
+.group-permissions-panel__section-title {
+    margin: 0;
+    padding: 12px 12px 8px;
+    font-size: 17px;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--accent, #2563eb) 70%, var(--text, #111827) 30%);
+}
+
+.group-perm-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+}
+
+.group-perm-item + .group-perm-item {
+    border-top: 1px solid color-mix(in srgb, var(--group-edit-border) 82%, transparent);
+}
+
+.group-perm-item > span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.group-perm-switch {
+    position: relative;
+    display: inline-flex;
+    width: 42px;
+    height: 24px;
+    flex: 0 0 auto;
+}
+
+.group-perm-switch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.group-perm-switch__track {
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border, #d1d5db) 76%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border, #d1d5db) 68%, transparent);
+    transition: background-color var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick);
+}
+
+.group-perm-switch__track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    transition: transform var(--dur-quick) var(--ease-quick);
+}
+
+.group-perm-switch input:checked + .group-perm-switch__track {
+    background: color-mix(in srgb, var(--accent, #2563eb) 72%, #6d5ed8 28%);
+    border-color: color-mix(in srgb, var(--accent, #2563eb) 68%, transparent);
+}
+
+.group-perm-switch input:checked + .group-perm-switch__track::after {
+    transform: translateX(18px);
+}
+
+.group-perm-slowmode-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 12px 12px;
+}
+
+.group-perm-slowmode-chip {
+    border: 1px solid var(--group-edit-chip-border);
+    background: var(--group-edit-chip-bg);
+    color: inherit;
+    border-radius: 999px;
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.group-perm-slowmode-chip.is-active {
+    border-color: color-mix(in srgb, var(--accent, #2563eb) 54%, var(--group-edit-border) 46%);
+    background: color-mix(in srgb, var(--accent-soft, #bfdbfe) 54%, var(--surface-2, #eef2f7) 46%);
+    color: color-mix(in srgb, var(--accent, #2563eb) 78%, var(--text, #111827) 22%);
+}
+
+.group-permissions-panel__hint {
+    margin: 0;
+    padding: 0 12px 12px;
+    font-size: 13px;
+    color: var(--group-edit-sub-text);
 }
 
 .profile-group-edit-btn--hidden,
@@ -1617,4 +1818,3 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .btn-icon:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
-

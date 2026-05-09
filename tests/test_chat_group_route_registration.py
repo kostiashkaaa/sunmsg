@@ -42,6 +42,7 @@ def test_register_chat_group_routes_exposes_expected_group_endpoints():
         '/api/chats/group/add_members',
         '/api/chats/group/info',
         '/api/chats/group/update',
+        '/api/chats/group/update_permissions',
         '/api/chats/group/set_role',
         '/api/chats/group/leave',
         '/api/chats/group/remove_member',

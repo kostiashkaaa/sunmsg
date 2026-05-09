@@ -1,9 +1,16 @@
 import json
+from datetime import datetime, timezone
 
 from app.services.chat_members import (
     get_chat_type,
+    get_group_member_role,
     list_chat_member_public_keys,
     list_chat_member_user_ids,
+)
+from app.services.group_permissions import (
+    is_media_message_type,
+    load_group_permissions,
+    role_uses_member_permissions,
 )
 from app.services.mentions import (
     extract_mentioned_usernames,
@@ -32,6 +39,25 @@ def _extract_group_mention_usernames(raw_message: str, message_type: str) -> lis
     if not isinstance(payload, dict) or not payload.get('__sunfile'):
         return []
     return extract_mentioned_usernames(str(payload.get('caption') or ''))
+
+
+def _parse_utc_timestamp(raw_value: str | None) -> datetime | None:
+    value = str(raw_value or '').strip()
+    if not value:
+        return None
+    normalized = value.replace('T', ' ')
+    if normalized.endswith('Z'):
+        normalized = normalized[:-1]
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(normalized, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def handle_edit_message_event(
@@ -90,6 +116,7 @@ def handle_edit_message_event(
     if not is_valid_chat_id_func(chat_id):
         emit_func('error', {'message': 'Invalid chat ID.'})
         return
+    message_type = sanitize_message_type_func(data.get('message_type', 'text'))
     raw_request_id = data.get('request_id') if isinstance(data, dict) else ''
     request_id = (
         normalize_request_id_func(raw_request_id)
@@ -452,6 +479,7 @@ def handle_send_message_event(
     sender_pub = session_store['public_key_pem']
     message = (data.get('message') or '').strip()
     chat_id = (data.get('chat_id') or '').strip()
+    message_type = sanitize_message_type_func(data.get('message_type', 'text'))
 
     if not socket_rate_ok_func(sender_id, 'send_message'):
         emit_func('error', {'message': 'Too many messages. Please wait a little.'})
@@ -553,6 +581,58 @@ def handle_send_message_event(
                     )
                     conn.close()
                     return
+        group_permissions = load_group_permissions(conn, chat_id=chat_id)
+        sender_role = get_group_member_role(conn, sender_id, chat_id)
+        if role_uses_member_permissions(sender_role):
+            if not bool(group_permissions.get('members_can_send_messages')):
+                conn.close()
+                emit_func(
+                    'error',
+                    {
+                        'message': 'Participants cannot send messages in this group.',
+                        'code': 'group_permissions_messages_disabled',
+                    },
+                )
+                return
+            if is_media_message_type(message_type) and not bool(group_permissions.get('members_can_send_media')):
+                conn.close()
+                emit_func(
+                    'error',
+                    {
+                        'message': 'Participants cannot send media in this group.',
+                        'code': 'group_permissions_media_disabled',
+                    },
+                )
+                return
+
+            slow_mode_seconds = int(group_permissions.get('slow_mode_seconds') or 0)
+            if slow_mode_seconds > 0:
+                last_message_row = conn.execute(
+                    '''
+                    SELECT created_at
+                    FROM messages
+                    WHERE chat_id = ? AND sender_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    ''',
+                    (chat_id, sender_id),
+                ).fetchone()
+                last_message_ts = _parse_utc_timestamp(last_message_row['created_at'] if last_message_row else '')
+                now_ts = _parse_utc_timestamp(utc_now_text_func())
+                if last_message_ts and now_ts:
+                    elapsed_seconds = max(0, int((now_ts - last_message_ts).total_seconds()))
+                    if elapsed_seconds < slow_mode_seconds:
+                        remaining_seconds = slow_mode_seconds - elapsed_seconds
+                        conn.close()
+                        emit_func(
+                            'error',
+                            {
+                                'message': 'Slow mode is enabled. Please wait before sending another message.',
+                                'code': 'group_permissions_slow_mode',
+                                'retry_after_seconds': remaining_seconds,
+                            },
+                        )
+                        return
 
     receiver_id = contact['contact_id'] if contact else None
     receiver_pub = contact['public_key'] if contact else ''
@@ -565,7 +645,6 @@ def handle_send_message_event(
             conn.close()
             return
 
-    message_type = sanitize_message_type_func(data.get('message_type', 'text'))
     reply_to_id = positive_int_func(data.get('reply_to_id'))
     raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
     forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
