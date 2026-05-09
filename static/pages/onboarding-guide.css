@@ -15,6 +15,45 @@
     padding: 42px 24px 52px;
 }
 
+.onboarding-guide-language-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid var(--rule-soft);
+    background: color-mix(in srgb, var(--paper) 80%, transparent);
+    margin-bottom: 12px;
+}
+
+.onboarding-guide-language-btn {
+    min-width: 40px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: var(--sub-text);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+}
+
+.onboarding-guide-language-btn:hover {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--rule) 82%, transparent);
+}
+
+.onboarding-guide-language-btn.is-active {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--accent) 62%, var(--rule));
+    background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+}
+
 .onboarding-guide-head {
     display: flex;
     align-items: flex-start;
