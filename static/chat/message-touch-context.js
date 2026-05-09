@@ -287,6 +287,8 @@ export function initMessageTouchContext(options = {}) {
         }
         if (gesture.longPressTriggered) return;
 
+        if (gesture.audioControlTarget) return;
+
         const shouldDrag = dx > 10 && absDx > (absDy * 1.2);
         if (!gesture.dragging && !shouldDrag) return;
 
