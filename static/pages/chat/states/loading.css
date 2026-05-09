@@ -498,18 +498,6 @@
             box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
         }
 
-        /* Keep system connection diagnostics out of the production chat UI. */
-        .sidebar-status-chip--inline,
-        #sidebarStatusBar {
-            display: none !important;
-        }
-
-        #chatOnlineStatus[data-connection-state="warning"],
-        #chatOnlineStatus[data-connection-state="muted"] {
-            display: none !important;
-        }
-
-
         .sidebar-bottom-btn:hover {
             background: color-mix(in srgb, var(--contact-hover) 88%, transparent);
             color: var(--text);
