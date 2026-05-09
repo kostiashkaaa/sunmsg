@@ -66,7 +66,6 @@ export function initSettingsNavShell({
 
     function scrollNavItemIntoView(item) {
         if (!item || typeof item.scrollIntoView !== 'function') return;
-        if (isCompactNav()) return;
         const reducedMotion = prefersReducedMotion();
         item.scrollIntoView({
             block: 'nearest',
