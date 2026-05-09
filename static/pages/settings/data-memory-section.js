@@ -128,7 +128,7 @@ export function initDataMemorySection({
         if (token !== refreshSeq) return;
 
         const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
-        const breakdown = snapshot.chatCache || buildChatCacheBreakdown(rows);
+        const breakdown = snapshot.filesCache || snapshot.chatCache || buildChatCacheBreakdown(rows);
         if (cacheTotalEl) cacheTotalEl.textContent = formatBytesCompact(breakdown.totalBytes);
         if (cachePhotosEl) cachePhotosEl.textContent = formatBytesCompact(breakdown.categories.photos);
         if (cacheVideosEl) cacheVideosEl.textContent = formatBytesCompact(breakdown.categories.videos);

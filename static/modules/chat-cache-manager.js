@@ -1,5 +1,11 @@
 import * as ChatIdb from './chat-idb.js';
 import {
+    clearAllCachedMedia,
+    deleteCachedMediaEntry,
+    openMediaCacheDb,
+    readAllCachedMediaEntries,
+} from './chat-media-cache-db.js';
+import {
     CACHE_CATEGORY_OTHER,
     CACHE_CATEGORY_PHOTOS,
     CACHE_CATEGORY_STICKERS,
@@ -22,6 +28,64 @@ async function ensureChatDbReady(userId) {
     if (!normalizedUserId) return false;
     const db = await ChatIdb.openChatDb(normalizedUserId);
     return Boolean(db);
+}
+
+async function ensureMediaDbReady(userId) {
+    const normalizedUserId = normalizeUserId(userId);
+    if (!normalizedUserId) return false;
+    const db = await openMediaCacheDb(normalizedUserId);
+    return Boolean(db);
+}
+
+function resolveCacheCategory(category) {
+    const normalized = String(category || '').trim().toLowerCase();
+    if (normalized === CACHE_CATEGORY_PHOTOS) return CACHE_CATEGORY_PHOTOS;
+    if (normalized === CACHE_CATEGORY_VIDEOS) return CACHE_CATEGORY_VIDEOS;
+    if (normalized === CACHE_CATEGORY_STICKERS) return CACHE_CATEGORY_STICKERS;
+    return CACHE_CATEGORY_OTHER;
+}
+
+function buildMediaCacheBreakdown(entries) {
+    const categories = {
+        [CACHE_CATEGORY_PHOTOS]: 0,
+        [CACHE_CATEGORY_VIDEOS]: 0,
+        [CACHE_CATEGORY_STICKERS]: 0,
+        [CACHE_CATEGORY_OTHER]: 0,
+    };
+    const safeEntries = Array.isArray(entries) ? entries : [];
+    let totalBytes = 0;
+    let entryCount = 0;
+    for (const entry of safeEntries) {
+        const cacheKey = String(entry?.cacheKey || '').trim();
+        if (!cacheKey) continue;
+        const size = Math.max(0, Number(entry?.size) || Number(entry?.blob?.size) || 0);
+        const category = resolveCacheCategory(entry?.category);
+        categories[category] += size;
+        totalBytes += size;
+        entryCount += 1;
+    }
+    return {
+        totalBytes,
+        entryCount,
+        categories,
+    };
+}
+
+function mergeCategoryBreakdown(...categoryMaps) {
+    const result = {
+        [CACHE_CATEGORY_PHOTOS]: 0,
+        [CACHE_CATEGORY_VIDEOS]: 0,
+        [CACHE_CATEGORY_STICKERS]: 0,
+        [CACHE_CATEGORY_OTHER]: 0,
+    };
+    categoryMaps.forEach((categories) => {
+        if (!categories || typeof categories !== 'object') return;
+        result[CACHE_CATEGORY_PHOTOS] += Math.max(0, Number(categories[CACHE_CATEGORY_PHOTOS]) || 0);
+        result[CACHE_CATEGORY_VIDEOS] += Math.max(0, Number(categories[CACHE_CATEGORY_VIDEOS]) || 0);
+        result[CACHE_CATEGORY_STICKERS] += Math.max(0, Number(categories[CACHE_CATEGORY_STICKERS]) || 0);
+        result[CACHE_CATEGORY_OTHER] += Math.max(0, Number(categories[CACHE_CATEGORY_OTHER]) || 0);
+    });
+    return result;
 }
 
 async function estimateResponseBytes(response) {
@@ -82,15 +146,55 @@ async function listCachedRows(userId) {
     return ChatIdb.readAllCachedChats();
 }
 
+async function listCachedMediaEntries(userId) {
+    const ready = await ensureMediaDbReady(userId);
+    if (!ready) return [];
+    return readAllCachedMediaEntries();
+}
+
+function parseMediaUpdatedAt(entry) {
+    const updatedAt = Number(entry?.updatedAt);
+    if (Number.isFinite(updatedAt) && updatedAt > 0) return updatedAt;
+    const accessedAt = Number(entry?.accessedAt);
+    if (Number.isFinite(accessedAt) && accessedAt > 0) return accessedAt;
+    const createdAt = Number(entry?.createdAt);
+    if (Number.isFinite(createdAt) && createdAt > 0) return createdAt;
+    return 0;
+}
+
+function estimateChatRowBytes(row) {
+    return buildChatCacheBreakdown([row]).totalBytes;
+}
+
+async function removeMediaEntriesByKey(keys) {
+    const list = Array.from(
+        new Set((Array.isArray(keys) ? keys : []).map((key) => String(key || '').trim()).filter(Boolean))
+    );
+    if (!list.length) return 0;
+    await Promise.all(list.map((key) => deleteCachedMediaEntry(key).catch(() => false)));
+    return list.length;
+}
+
 export async function computeDataMemorySnapshot({ userId } = {}) {
-    const rows = await listCachedRows(userId);
+    const [rows, mediaEntries, streamCacheBytes] = await Promise.all([
+        listCachedRows(userId),
+        listCachedMediaEntries(userId),
+        estimatePrefixedCacheStorageBytes(),
+    ]);
     const chatCache = buildChatCacheBreakdown(rows);
-    const streamCacheBytes = await estimatePrefixedCacheStorageBytes();
+    const mediaCache = buildMediaCacheBreakdown(mediaEntries);
+    const filesCache = {
+        totalBytes: chatCache.totalBytes + mediaCache.totalBytes,
+        categories: mergeCategoryBreakdown(chatCache.categories, mediaCache.categories),
+    };
     return {
         rows,
+        mediaEntries,
         chatCache,
+        mediaCache,
+        filesCache,
         streamCacheBytes,
-        totalManagedBytes: chatCache.totalBytes + streamCacheBytes,
+        totalManagedBytes: filesCache.totalBytes + streamCacheBytes,
     };
 }
 
@@ -108,14 +212,7 @@ export async function applyDataMemoryPolicy({
 } = {}) {
     const prefs = normalizeDataMemoryStore(preferences || readDataMemoryStore());
     const rows = await listCachedRows(userId);
-    if (!rows.length) {
-        return {
-            deletedChatsByAge: 0,
-            deletedChatsByLimit: 0,
-            remainingRows: 0,
-        };
-    }
-
+    const mediaEntries = await listCachedMediaEntries(userId);
     const nowMs = Date.now();
     const cutoffMs = prefs.cacheRetentionDays > 0
         ? nowMs - (prefs.cacheRetentionDays * DAY_MS)
@@ -130,30 +227,64 @@ export async function applyDataMemoryPolicy({
             .map((row) => row.chat_id)
         : [];
     const deletedChatsByAge = await removeChatsById(ageExpiredIds);
+    const ageExpiredMediaKeys = cutoffMs > 0
+        ? mediaEntries
+            .filter((entry) => {
+                const updatedAt = parseMediaUpdatedAt(entry);
+                return updatedAt > 0 && updatedAt < cutoffMs;
+            })
+            .map((entry) => entry.cacheKey || entry.sourceUrl)
+        : [];
+    const deletedMediaByAge = await removeMediaEntriesByKey(ageExpiredMediaKeys);
 
-    let sizeCandidates = await listCachedRows(userId);
+    let rowCandidates = await listCachedRows(userId);
+    let mediaCandidates = await listCachedMediaEntries(userId);
     let deletedChatsByLimit = 0;
+    let deletedMediaByLimit = 0;
     const maxBytes = prefs.maxCacheMb > 0 ? prefs.maxCacheMb * 1024 * 1024 : 0;
-    if (maxBytes > 0 && sizeCandidates.length) {
-        let breakdown = buildChatCacheBreakdown(sizeCandidates);
-        if (breakdown.totalBytes > maxBytes) {
-            const sortedByAge = [...sizeCandidates].sort((a, b) => parseRowUpdatedAt(a) - parseRowUpdatedAt(b));
-            const idsToDelete = [];
-            for (const row of sortedByAge) {
-                if (breakdown.totalBytes <= maxBytes) break;
-                idsToDelete.push(row.chat_id);
-                const rowBreakdown = buildChatCacheBreakdown([row]);
-                breakdown.totalBytes = Math.max(0, breakdown.totalBytes - rowBreakdown.totalBytes);
+    if (maxBytes > 0 && (rowCandidates.length || mediaCandidates.length)) {
+        const chatCandidates = rowCandidates.map((row) => ({
+            type: 'chat',
+            key: String(row?.chat_id || '').trim(),
+            updatedAt: parseRowUpdatedAt(row),
+            bytes: estimateChatRowBytes(row),
+        })).filter((item) => item.key && item.bytes > 0);
+        const mediaLimitCandidates = mediaCandidates.map((entry) => ({
+            type: 'media',
+            key: String(entry?.cacheKey || entry?.sourceUrl || '').trim(),
+            updatedAt: parseMediaUpdatedAt(entry),
+            bytes: Math.max(0, Number(entry?.size) || Number(entry?.blob?.size) || 0),
+        })).filter((item) => item.key && item.bytes > 0);
+        const allCandidates = [...chatCandidates, ...mediaLimitCandidates]
+            .sort((a, b) => a.updatedAt - b.updatedAt);
+
+        let totalBytes = allCandidates.reduce((sum, item) => sum + item.bytes, 0);
+        if (totalBytes > maxBytes) {
+            const chatIdsToDelete = [];
+            const mediaKeysToDelete = [];
+            for (const item of allCandidates) {
+                if (totalBytes <= maxBytes) break;
+                if (item.type === 'chat') {
+                    chatIdsToDelete.push(item.key);
+                } else if (item.type === 'media') {
+                    mediaKeysToDelete.push(item.key);
+                }
+                totalBytes = Math.max(0, totalBytes - item.bytes);
             }
-            deletedChatsByLimit = await removeChatsById(idsToDelete);
+            deletedChatsByLimit = await removeChatsById(chatIdsToDelete);
+            deletedMediaByLimit = await removeMediaEntriesByKey(mediaKeysToDelete);
         }
-        sizeCandidates = await listCachedRows(userId);
+        rowCandidates = await listCachedRows(userId);
+        mediaCandidates = await listCachedMediaEntries(userId);
     }
 
     return {
         deletedChatsByAge,
+        deletedMediaByAge,
         deletedChatsByLimit,
-        remainingRows: sizeCandidates.length,
+        deletedMediaByLimit,
+        remainingRows: rowCandidates.length,
+        remainingMediaEntries: mediaCandidates.length,
     };
 }
 
@@ -206,7 +337,13 @@ export async function clearCachedCategory({ userId, category } = {}) {
         ).catch(() => {});
     }
 
-    return { affectedChats };
+    const mediaEntries = await listCachedMediaEntries(userId);
+    const mediaKeysToDelete = mediaEntries
+        .filter((entry) => resolveCacheCategory(entry?.category) === targetCategory)
+        .map((entry) => entry.cacheKey || entry.sourceUrl);
+    const deletedMediaEntries = await removeMediaEntriesByKey(mediaKeysToDelete);
+
+    return { affectedChats, deletedMediaEntries };
 }
 
 export async function clearAllManagedCache({ userId } = {}) {
@@ -214,13 +351,22 @@ export async function clearAllManagedCache({ userId } = {}) {
     if (ready) {
         await ChatIdb.clearAllCache().catch(() => {});
     }
+    const mediaReady = await ensureMediaDbReady(userId);
+    if (mediaReady) {
+        await clearAllCachedMedia().catch(() => {});
+    }
     await clearPrefixedCacheStorage();
 }
 
 export async function clearChatCacheOnly({ userId } = {}) {
     const ready = await ensureChatDbReady(userId);
-    if (!ready) return;
-    await ChatIdb.clearAllCache().catch(() => {});
+    if (ready) {
+        await ChatIdb.clearAllCache().catch(() => {});
+    }
+    const mediaReady = await ensureMediaDbReady(userId);
+    if (mediaReady) {
+        await clearAllCachedMedia().catch(() => {});
+    }
 }
 
 export async function clearStreamFragmentCacheOnly() {
