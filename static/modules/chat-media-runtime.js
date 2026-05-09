@@ -455,7 +455,7 @@ export function initChatMediaRuntime(deps = {}) {
         const waveformSource = String(player.dataset.waveformSource || '').trim();
         if (waveformSource !== 'fallback') return;
 
-        const sourceUrl = String(audio.getAttribute('src') || '').trim();
+        const sourceUrl = String(audio.getAttribute('src') || audio.dataset.src || '').trim();
         if (!sourceUrl) return;
         if (player.dataset.waveformGeneratedSrc === sourceUrl) return;
 
