@@ -90,6 +90,41 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
     const dialogRequestsList    = document.getElementById('dialogRequestsList');
     const dialogRequestsSection = document.getElementById('dialogRequestsSection');
 
+    function buildDialogRequestItem(req) {
+        const initials = (req.sender_display_name || req.sender_username || '?')
+            .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        return `
+            <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${escapeHtml(initials)}</div>
+            <div class="req-info">
+                <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
+                <div class="req-username">@${escapeHtml(req.sender_username)}</div>
+            </div>
+            <div class="req-actions">
+                <button class="req-btn accept" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
+                <button class="req-btn decline" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
+            </div>`;
+    }
+
+    function buildGroupInviteRequestItem(req) {
+        const initials = (req.sender_display_name || req.sender_username || '?')
+            .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        const requestId = Number.parseInt(String(req.request_id || '').trim(), 10);
+        const groupLabel = String(req.chat_name || '').trim()
+            ? `\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443: ${escapeHtml(String(req.chat_name || '').trim())}`
+            : '\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443';
+        return `
+            <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${escapeHtml(initials)}</div>
+            <div class="req-info">
+                <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
+                <div class="req-username">@${escapeHtml(req.sender_username)}</div>
+                <div class="req-username">${groupLabel}</div>
+            </div>
+            <div class="req-actions">
+                <button class="req-btn accept" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
+                <button class="req-btn decline" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
+            </div>`;
+    }
+
     function loadDialogRequests() {
         fetch(withAppRoot('/get_dialog_requests'))
             .then(r => r.json())
@@ -106,18 +141,9 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                     requests.forEach(function(req) {
                         const item = document.createElement('div');
                         item.className = 'request-item';
-                        const initials = (req.sender_display_name || req.sender_username || '?')
-                            .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                        item.innerHTML = `
-                            <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${escapeHtml(initials)}</div>
-                            <div class="req-info">
-                                <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
-                                <div class="req-username">@${escapeHtml(req.sender_username)}</div>
-                            </div>
-                            <div class="req-actions">
-                                <button class="req-btn accept" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">Принять</span></button>
-                                <button class="req-btn decline" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">Отклонить</span></button>
-                            </div>`;
+                        item.innerHTML = req.request_kind === 'group_invite'
+                            ? buildGroupInviteRequestItem(req)
+                            : buildDialogRequestItem(req);
                         applyFallbackAvatarTint(
                             item.querySelector('.contact-avatar'),
                             req.sender_display_name || req.sender_username || '?',
@@ -129,34 +155,48 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                 }
                 onListUpdated?.();
             })
-            .catch(() => showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441\u044B \u043D\u0430 \u0434\u0438\u0430\u043B\u043E\u0433', 'danger'));
+            .catch(() => showToast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0437\u0430\u043f\u0440\u043e\u0441\u044b.', 'danger'));
     }
 
-    function handleDialogRequest(senderPublicKey, action) {
+    function handleDialogRequest({ senderPublicKey, action, requestKind, requestId }) {
         const url = action === 'accept' ? withAppRoot('/accept_request') : withAppRoot('/decline_request');
+        const payload = requestKind === 'group_invite'
+            ? { request_kind: 'group_invite', request_id: Number(requestId || 0) }
+            : { sender_public_key: senderPublicKey };
         fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-            body: JSON.stringify({ sender_public_key: senderPublicKey }),
+            body: JSON.stringify(payload),
         }).then(r => r.json()).then(function(response) {
             if (response.success) {
-                showToast(action === 'accept' ? '\u0417\u0430\u043F\u0440\u043E\u0441 \u043F\u0440\u0438\u043D\u044F\u0442' : '\u0417\u0430\u043F\u0440\u043E\u0441 \u043E\u0442\u043A\u043B\u043E\u043D\u0451\u043D', 'success');
+                showToast(action === 'accept' ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043f\u0440\u0438\u043d\u044f\u0442' : '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043a\u043b\u043e\u043d\u0451\u043d', 'success');
                 loadDialogRequests();
                 if (action === 'accept') onAccepted?.(response);
             } else {
-                showToast('\u041E\u0448\u0438\u0431\u043A\u0430: ' + getErrorMessage(response.error), 'danger');
+                showToast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + getErrorMessage(response.error), 'danger');
             }
-        }).catch(() => showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0435 \u0437\u0430\u043F\u0440\u043E\u0441\u0430', 'danger'));
+        }).catch(() => showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u0438 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0435 \u0437\u0430\u043f\u0440\u043e\u0441\u0430', 'danger'));
     }
 
     if (dialogRequestsList) {
         dialogRequestsList.addEventListener('click', function(e) {
             const btn = e.target.closest('.req-btn');
             if (!btn) return;
-            const key    = btn.getAttribute('data-key');
+            const requestKind = String(btn.getAttribute('data-request-kind') || '').trim().toLowerCase();
+            const requestIdRaw = String(btn.getAttribute('data-request-id') || '').trim();
+            const key = btn.getAttribute('data-key');
             const action = btn.classList.contains('accept') ? 'accept' : 'decline';
+            if (requestKind === 'group_invite' && (!requestIdRaw || !Number.isFinite(Number(requestIdRaw)))) {
+                showToast('\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 \u0437\u0430\u043f\u0440\u043e\u0441 \u043d\u0430 \u0432\u0441\u0442\u0443\u043f\u043b\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443.', 'danger');
+                return;
+            }
             btn.disabled = true;
-            handleDialogRequest(key, action);
+            handleDialogRequest({
+                senderPublicKey: key,
+                action,
+                requestKind,
+                requestId: requestIdRaw,
+            });
         });
     }
 

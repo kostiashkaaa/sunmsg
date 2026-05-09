@@ -28,6 +28,7 @@ export function initPrivacySection({
             mute_dialog_requests: document.getElementById('muteDialogRequestsSwitch').checked,
             hide_online_status: document.getElementById('hideOnlineStatusSwitch').checked,
             avatar_visibility: (document.getElementById('avatarVisibilitySelect') || {}).value || 'all',
+            group_invite_privacy: (document.getElementById('groupInvitePrivacySelect') || {}).value || 'all',
         };
     }
 
@@ -43,6 +44,7 @@ export function initPrivacySection({
         const autoDeclineEl = document.getElementById('autoDeclineSwitch');
         const muteRequestsEl = document.getElementById('muteDialogRequestsSwitch');
         const avatarVisibilityEl = document.getElementById('avatarVisibilitySelect');
+        const groupInvitePrivacyEl = document.getElementById('groupInvitePrivacySelect');
 
         if (usernameEl && typeof payload.username === 'string') usernameEl.value = payload.username.trim();
         if (displayNameEl && typeof payload.display_name === 'string') displayNameEl.value = payload.display_name.trim();
@@ -55,6 +57,12 @@ export function initPrivacySection({
         if (avatarVisibilityEl) {
             const nextVisibility = String(payload.avatar_visibility || 'all').toLowerCase();
             avatarVisibilityEl.value = ['all', 'contacts', 'nobody'].includes(nextVisibility) ? nextVisibility : 'all';
+        }
+        if (groupInvitePrivacyEl) {
+            const nextGroupInvitePrivacy = String(payload.group_invite_privacy || 'all').toLowerCase();
+            groupInvitePrivacyEl.value = ['all', 'contacts', 'nobody'].includes(nextGroupInvitePrivacy)
+                ? nextGroupInvitePrivacy
+                : 'all';
         }
 
         if (bioEl && bioCounterEl) {
@@ -112,6 +120,7 @@ export function initPrivacySection({
         document.getElementById('autoDeclineSwitch'),
         document.getElementById('muteDialogRequestsSwitch'),
         document.getElementById('avatarVisibilitySelect'),
+        document.getElementById('groupInvitePrivacySelect'),
     ].forEach((field) => {
         if (!field) return;
         field.addEventListener('input', () => state.syncDirtyState());

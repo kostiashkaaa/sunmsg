@@ -176,6 +176,9 @@ export function initSettingsTransferSection({
                 avatar_visibility: ['all', 'contacts', 'nobody'].includes(String(server.avatar_visibility || '').toLowerCase())
                     ? String(server.avatar_visibility).toLowerCase()
                     : 'all',
+                group_invite_privacy: ['all', 'contacts', 'nobody'].includes(String(server.group_invite_privacy || '').toLowerCase())
+                    ? String(server.group_invite_privacy).toLowerCase()
+                    : 'all',
             };
 
             await api.saveSettings({

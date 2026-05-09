@@ -49,7 +49,7 @@ def settings():
         user = conn.execute(
             '''
             SELECT id, username, display_name, public_key, is_public,
-                   auto_decline_requests, hide_online_status, avatar_url, avatar_visibility, bio, language,
+                   auto_decline_requests, hide_online_status, avatar_url, avatar_visibility, group_invite_privacy, bio, language,
                    client_preferences
             FROM users
             WHERE public_key = ?
@@ -123,6 +123,7 @@ def get_settings():
         '''
         SELECT id, username, display_name, public_key, is_public,
                auto_decline_requests, mute_dialog_requests, hide_online_status, avatar_url, avatar_visibility,
+               group_invite_privacy,
                bio, language, client_preferences
         FROM users
         WHERE public_key = ?
@@ -143,6 +144,11 @@ def get_settings():
         'hide_online_status':   bool(user['hide_online_status']),
         'avatar_url':           user['avatar_url'] if 'avatar_url' in user.keys() else None,
         'avatar_visibility':    user['avatar_visibility'] if 'avatar_visibility' in user.keys() else 'all',
+        'group_invite_privacy': (
+            str(user['group_invite_privacy'] or '').strip().lower()
+            if 'group_invite_privacy' in user.keys() and str(user['group_invite_privacy'] or '').strip().lower() in {'all', 'contacts', 'nobody'}
+            else 'all'
+        ),
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
         'client_preferences':   client_preferences_from_db(
@@ -199,6 +205,12 @@ def api_save_settings():
         avatar_visibility = str(avatar_visibility).strip().lower()
         if avatar_visibility not in {'all', 'contacts', 'nobody'}:
             return jsonify({'success': False, 'error': 'Недопустимое значение видимости аватара.'}), 400
+
+    group_invite_privacy = data.get('group_invite_privacy')
+    if group_invite_privacy is not None:
+        group_invite_privacy = str(group_invite_privacy).strip().lower()
+        if group_invite_privacy not in {'all', 'contacts', 'nobody'}:
+            return jsonify({'success': False, 'error': 'Недопустимое значение приватности приглашений в группы.'}), 400
 
     new_language = data.get('language')
     if new_language is not None:
@@ -263,6 +275,7 @@ def api_save_settings():
                     mute_dialog_requests = COALESCE(?, mute_dialog_requests),
                     hide_online_status   = COALESCE(?, hide_online_status),
                     avatar_visibility    = COALESCE(?, avatar_visibility),
+                    group_invite_privacy = COALESCE(?, group_invite_privacy),
                     bio                  = COALESCE(?, bio),
                     language             = COALESCE(?, language),
                     client_preferences   = COALESCE(?, client_preferences)
@@ -275,6 +288,7 @@ def api_save_settings():
                 mute_dialog_requests_db,
                 hide_online_status_db,
                 avatar_visibility,
+                group_invite_privacy,
                 bio_value,
                 new_language,
                 client_preferences_json,
