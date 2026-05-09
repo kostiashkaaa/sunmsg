@@ -395,7 +395,7 @@ export function initMessageTouchContext(options = {}) {
 
     chatMessages.addEventListener('touchstart', handleMessageTouchStart, { passive: true });
     chatMessages.addEventListener('touchmove', handleMessageTouchMove, { passive: false });
-    chatMessages.addEventListener('touchend', handleMessageTouchEnd, { passive: true });
+    chatMessages.addEventListener('touchend', handleMessageTouchEnd, { passive: false });
     chatMessages.addEventListener('touchcancel', handleMessageTouchCancel, { passive: true });
     chatMessages.addEventListener('contextmenu', handleContextMenu);
     chatMessages.addEventListener('click', handleReactionPillClick);
