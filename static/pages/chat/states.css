@@ -3744,6 +3744,27 @@ body.dark-mode #messageForwardModal .forward-target-status {
     justify-content: center;
 }
 
+.my-qr-modal__placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    color: #15140e;
+}
+
+.my-qr-modal__placeholder-skeleton {
+    width: 176px;
+    height: 176px;
+    border-radius: 20px;
+    background: rgba(21, 20, 14, 0.08);
+    border-color: rgba(21, 20, 14, 0.08);
+}
+
+.my-qr-modal__error {
+    font-size: 12px;
+    color: var(--danger);
+}
+
 .my-qr-modal__identity {
     text-align: center;
     line-height: 1.4;
