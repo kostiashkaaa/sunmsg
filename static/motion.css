@@ -230,7 +230,7 @@ html[data-motion-level="lite"] {
 }
 /* Самоотправленное — bubble pop с overshoot */
 .message.msg-animate-in.msg-animate-self .bubble {
-    animation: m-pop-overshoot-soft var(--motion-duration-pop-bouncy) var(--m-decel) both;
+    animation: m-pop-overshoot 260ms var(--m-decel) both;
     transform-origin: bottom right;
 }
 
