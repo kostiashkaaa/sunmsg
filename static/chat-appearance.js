@@ -437,4 +437,10 @@
     };
 
     global.ChatAppearance = api;
+
+    try {
+        void applyCurrentTheme().catch(() => {});
+    } catch (_error) {
+        // Ignore early-load errors.
+    }
 })(window);
