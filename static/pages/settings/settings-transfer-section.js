@@ -1,6 +1,18 @@
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
 const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
+const SIDEBAR_WEATHER_METRIC_KEYS = Object.freeze([
+    'temperature',
+    'feels_like',
+    'humidity',
+    'wind',
+    'precip',
+    'uv',
+    'aqi',
+    'pressure',
+    'sun_cycle',
+]);
+const SIDEBAR_WEATHER_DEFAULT_METRICS = Object.freeze(['temperature']);
 
 function downloadTextFile(filename, text) {
     const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
@@ -46,6 +58,21 @@ function normalizeSidebarWeatherCity(value) {
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 80);
+}
+
+function normalizeSidebarWeatherMetrics(value, { fallbackToDefault = true } = {}) {
+    if (!Array.isArray(value)) {
+        return fallbackToDefault ? [...SIDEBAR_WEATHER_DEFAULT_METRICS] : [];
+    }
+    const result = [];
+    const seen = new Set();
+    value.forEach((entry) => {
+        const metric = String(entry || '').trim().toLowerCase();
+        if (!SIDEBAR_WEATHER_METRIC_KEYS.includes(metric) || seen.has(metric)) return;
+        seen.add(metric);
+        result.push(metric);
+    });
+    return result;
 }
 
 function readLocalPreference(key, fallback = '') {
@@ -96,6 +123,7 @@ export function initSettingsTransferSection({
         let sidebarWeatherSource = 'auto';
         let sidebarWeatherCity = '';
         let sidebarWeatherRotateSeconds = 60;
+        let sidebarWeatherMetrics = [...SIDEBAR_WEATHER_DEFAULT_METRICS];
         try {
             const rawPerformanceMode = String(localStorage.getItem('sun_performance_mode') || '').trim().toLowerCase();
             if (rawPerformanceMode === 'auto' || rawPerformanceMode === 'full' || rawPerformanceMode === 'lite') {
@@ -112,10 +140,17 @@ export function initSettingsTransferSection({
         const sidebarWeatherSourceEl = document.getElementById('sidebarWeatherSourceSelect');
         const sidebarWeatherCityEl = document.getElementById('sidebarWeatherCityInput');
         const sidebarWeatherRotateEl = document.getElementById('sidebarWeatherRotateSelect');
+        const sidebarWeatherMetricEls = SIDEBAR_WEATHER_METRIC_KEYS
+            .map((metricKey) => document.querySelector(`input[name="sidebarWeatherMetricOption"][value="${metricKey}"]`))
+            .filter((el) => el instanceof HTMLInputElement);
         sidebarWeatherEnabled = !!sidebarWeatherEnabledEl?.checked;
         sidebarWeatherSource = normalizeSidebarWeatherSource(sidebarWeatherSourceEl?.value);
         sidebarWeatherCity = normalizeSidebarWeatherCity(sidebarWeatherCityEl?.value);
         sidebarWeatherRotateSeconds = normalizeSidebarWeatherRotateSeconds(sidebarWeatherRotateEl?.value);
+        sidebarWeatherMetrics = normalizeSidebarWeatherMetrics(
+            sidebarWeatherMetricEls.filter((el) => el.checked).map((el) => el.value),
+            { fallbackToDefault: false },
+        );
 
         return {
             darkMode: localAppearance.darkMode,
@@ -128,6 +163,7 @@ export function initSettingsTransferSection({
             sidebarWeatherSource,
             sidebarWeatherCity,
             sidebarWeatherRotateSeconds,
+            sidebarWeatherMetrics,
             interfaceThemeStore: localAppearance.interfaceThemeStore || {},
             chatAppearanceStore: localAppearance.chatAppearanceStore || {},
         };
@@ -136,6 +172,7 @@ export function initSettingsTransferSection({
     function resolveClientPreferences(payload) {
         const direct = payload?.clientPreferences;
         if (direct && typeof direct === 'object') {
+            const hasExplicitMetrics = Object.prototype.hasOwnProperty.call(direct, 'sidebarWeatherMetrics');
             return {
                 darkMode: typeof direct.darkMode === 'boolean' ? direct.darkMode : false,
                 messageScale: normalizeMessageScale(direct.messageScale),
@@ -153,6 +190,9 @@ export function initSettingsTransferSection({
                 sidebarWeatherSource: normalizeSidebarWeatherSource(direct.sidebarWeatherSource),
                 sidebarWeatherCity: normalizeSidebarWeatherCity(direct.sidebarWeatherCity),
                 sidebarWeatherRotateSeconds: normalizeSidebarWeatherRotateSeconds(direct.sidebarWeatherRotateSeconds),
+                sidebarWeatherMetrics: normalizeSidebarWeatherMetrics(direct.sidebarWeatherMetrics, {
+                    fallbackToDefault: !hasExplicitMetrics,
+                }),
                 interfaceThemeStore: direct.interfaceThemeStore && typeof direct.interfaceThemeStore === 'object'
                     ? direct.interfaceThemeStore
                     : null,
@@ -174,6 +214,7 @@ export function initSettingsTransferSection({
             sidebarWeatherSource: 'auto',
             sidebarWeatherCity: '',
             sidebarWeatherRotateSeconds: 60,
+            sidebarWeatherMetrics: [...SIDEBAR_WEATHER_DEFAULT_METRICS],
             interfaceThemeStore: localAppearance.interfaceThemeStore && typeof localAppearance.interfaceThemeStore === 'object'
                 ? localAppearance.interfaceThemeStore
                 : null,

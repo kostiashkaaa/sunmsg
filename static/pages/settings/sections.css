@@ -1505,6 +1505,32 @@ select.settings-select-control:focus-visible {
     outline-offset: 2px;
 }
 
+.settings-weather-metrics-grid {
+    width: min(360px, 100%);
+    display: grid;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.settings-weather-metric-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+.settings-weather-metric-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
 .settings-preference-copy {
     display: grid;
     gap: 3px;

@@ -8,6 +8,18 @@ const TIME_FORMAT_12H = '12h';
 const SIDEBAR_WEATHER_SOURCE_AUTO = 'auto';
 const SIDEBAR_WEATHER_SOURCE_CITY = 'city';
 const SIDEBAR_WEATHER_ROTATE_DEFAULT = 60;
+const SIDEBAR_WEATHER_METRIC_KEYS = Object.freeze([
+    'temperature',
+    'feels_like',
+    'humidity',
+    'wind',
+    'precip',
+    'uv',
+    'aqi',
+    'pressure',
+    'sun_cycle',
+]);
+const SIDEBAR_WEATHER_DEFAULT_METRICS = Object.freeze(['temperature']);
 const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
 const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
 
@@ -38,6 +50,21 @@ function normalizeSidebarWeatherCity(value) {
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 80);
+}
+
+function normalizeSidebarWeatherMetrics(value, { fallbackToDefault = true } = {}) {
+    if (!Array.isArray(value)) {
+        return fallbackToDefault ? [...SIDEBAR_WEATHER_DEFAULT_METRICS] : [];
+    }
+    const result = [];
+    const seen = new Set();
+    value.forEach((entry) => {
+        const metric = String(entry || '').trim().toLowerCase();
+        if (!SIDEBAR_WEATHER_METRIC_KEYS.includes(metric) || seen.has(metric)) return;
+        seen.add(metric);
+        result.push(metric);
+    });
+    return result;
 }
 
 function clampMessageScale(value) {
@@ -91,10 +118,16 @@ export function initPrivacySection({
     const timeFormat24hSampleEl = document.getElementById('timeFormat24hSample');
     const animationsEnabledSwitchEl = document.getElementById('animationsEnabledSwitch');
     const sidebarWeatherEnabledSwitchEl = document.getElementById('sidebarWeatherEnabledSwitch');
+    const sidebarWeatherSourceRowEl = document.getElementById('sidebarWeatherSourceRow');
     const sidebarWeatherSourceSelectEl = document.getElementById('sidebarWeatherSourceSelect');
     const sidebarWeatherCityInputEl = document.getElementById('sidebarWeatherCityInput');
     const sidebarWeatherCityRowEl = document.getElementById('sidebarWeatherCityRow');
+    const sidebarWeatherRotateRowEl = document.getElementById('sidebarWeatherRotateRow');
     const sidebarWeatherRotateSelectEl = document.getElementById('sidebarWeatherRotateSelect');
+    const sidebarWeatherMetricsRowEl = document.getElementById('sidebarWeatherMetricsRow');
+    const sidebarWeatherMetricInputEls = SIDEBAR_WEATHER_METRIC_KEYS
+        .map((metricKey) => document.querySelector(`input[name="sidebarWeatherMetricOption"][value="${metricKey}"]`))
+        .filter((el) => el instanceof HTMLInputElement);
     let persistedClientPreferences = {};
 
     function resolveLocale() {
@@ -147,23 +180,48 @@ export function initPrivacySection({
         }
     }
 
-    function syncSidebarWeatherCityRow() {
-        if (!sidebarWeatherCityRowEl) return;
+    function syncSidebarWeatherControls() {
         const enabled = !!sidebarWeatherEnabledSwitchEl?.checked;
         const source = normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value);
         const visible = enabled && source === SIDEBAR_WEATHER_SOURCE_CITY;
-        sidebarWeatherCityRowEl.style.display = visible ? '' : 'none';
+
+        if (sidebarWeatherSourceRowEl) {
+            sidebarWeatherSourceRowEl.style.display = enabled ? '' : 'none';
+        }
+        if (sidebarWeatherRotateRowEl) {
+            sidebarWeatherRotateRowEl.style.display = enabled ? '' : 'none';
+        }
+        if (sidebarWeatherMetricsRowEl) {
+            sidebarWeatherMetricsRowEl.style.display = enabled ? '' : 'none';
+        }
+        if (sidebarWeatherSourceSelectEl) {
+            sidebarWeatherSourceSelectEl.disabled = !enabled;
+        }
+        if (sidebarWeatherRotateSelectEl) {
+            sidebarWeatherRotateSelectEl.disabled = !enabled;
+        }
+        if (sidebarWeatherCityRowEl) {
+            sidebarWeatherCityRowEl.style.display = visible ? '' : 'none';
+        }
         if (sidebarWeatherCityInputEl) {
             sidebarWeatherCityInputEl.disabled = !visible;
         }
+        sidebarWeatherMetricInputEls.forEach((inputEl) => {
+            inputEl.disabled = !enabled;
+        });
     }
 
     function getSidebarWeatherPreferencesFromControls() {
+        const selectedMetrics = normalizeSidebarWeatherMetrics(
+            sidebarWeatherMetricInputEls.filter((inputEl) => inputEl.checked).map((inputEl) => inputEl.value),
+            { fallbackToDefault: false },
+        );
         return {
             sidebarWeatherEnabled: !!sidebarWeatherEnabledSwitchEl?.checked,
             sidebarWeatherSource: normalizeSidebarWeatherSource(sidebarWeatherSourceSelectEl?.value),
             sidebarWeatherCity: normalizeSidebarWeatherCity(sidebarWeatherCityInputEl?.value),
             sidebarWeatherRotateSeconds: normalizeSidebarWeatherRotateSeconds(sidebarWeatherRotateSelectEl?.value),
+            sidebarWeatherMetrics: selectedMetrics,
         };
     }
 
@@ -172,6 +230,11 @@ export function initPrivacySection({
         const enabled = rawPreferences?.sidebarWeatherEnabled === true;
         const city = normalizeSidebarWeatherCity(rawPreferences?.sidebarWeatherCity);
         const rotateSeconds = normalizeSidebarWeatherRotateSeconds(rawPreferences?.sidebarWeatherRotateSeconds);
+        const hasExplicitMetrics = rawPreferences && typeof rawPreferences === 'object'
+            && Object.prototype.hasOwnProperty.call(rawPreferences, 'sidebarWeatherMetrics');
+        const metrics = normalizeSidebarWeatherMetrics(rawPreferences?.sidebarWeatherMetrics, {
+            fallbackToDefault: !hasExplicitMetrics,
+        });
 
         if (sidebarWeatherEnabledSwitchEl) {
             sidebarWeatherEnabledSwitchEl.checked = enabled;
@@ -185,7 +248,11 @@ export function initPrivacySection({
         if (sidebarWeatherRotateSelectEl) {
             sidebarWeatherRotateSelectEl.value = String(rotateSeconds);
         }
-        syncSidebarWeatherCityRow();
+        const metricSet = new Set(metrics);
+        sidebarWeatherMetricInputEls.forEach((inputEl) => {
+            inputEl.checked = metricSet.has(String(inputEl.value || '').toLowerCase());
+        });
+        syncSidebarWeatherControls();
     }
 
     function persistInputBehaviorLocally({ sendShortcut, timeFormat }) {
@@ -289,6 +356,7 @@ export function initPrivacySection({
             sidebar_weather_source: weatherPrefs.sidebarWeatherSource,
             sidebar_weather_city: weatherPrefs.sidebarWeatherCity,
             sidebar_weather_rotate_seconds: weatherPrefs.sidebarWeatherRotateSeconds,
+            sidebar_weather_metrics: weatherPrefs.sidebarWeatherMetrics.join(','),
         };
     }
 
@@ -435,6 +503,7 @@ export function initPrivacySection({
         sidebarWeatherSourceSelectEl,
         sidebarWeatherCityInputEl,
         sidebarWeatherRotateSelectEl,
+        ...sidebarWeatherMetricInputEls,
     ].forEach((field) => {
         if (!field) return;
         field.addEventListener('input', () => state.syncDirtyState());
@@ -468,11 +537,11 @@ export function initPrivacySection({
     });
 
     sidebarWeatherEnabledSwitchEl?.addEventListener('change', () => {
-        syncSidebarWeatherCityRow();
+        syncSidebarWeatherControls();
     });
 
     sidebarWeatherSourceSelectEl?.addEventListener('change', () => {
-        syncSidebarWeatherCityRow();
+        syncSidebarWeatherControls();
     });
 
     floatingSaveBtn?.addEventListener('click', function () {
@@ -513,7 +582,7 @@ export function initPrivacySection({
     });
 
     syncTimeFormatSamples();
-    syncSidebarWeatherCityRow();
+    syncSidebarWeatherControls();
 
     api.getSettings()
         .then((s) => {

@@ -838,6 +838,11 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
                 'motionLevel': 'balanced',
                 'sendShortcut': 'ctrl_enter',
                 'timeFormat': '12h',
+                'sidebarWeatherEnabled': True,
+                'sidebarWeatherSource': 'city',
+                'sidebarWeatherCity': 'Москва',
+                'sidebarWeatherRotateSeconds': 30,
+                'sidebarWeatherMetrics': ['temperature', 'humidity', 'aqi', 'aqi', 'invalid'],
                 'interfaceThemeStore': {
                     'version': 2,
                     'themes': {
@@ -869,6 +874,11 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
     assert stored_preferences['motionLevel'] == 'balanced'
     assert stored_preferences['sendShortcut'] == 'ctrl_enter'
     assert stored_preferences['timeFormat'] == '12h'
+    assert stored_preferences['sidebarWeatherEnabled'] is True
+    assert stored_preferences['sidebarWeatherSource'] == 'city'
+    assert stored_preferences['sidebarWeatherCity'] == 'Москва'
+    assert stored_preferences['sidebarWeatherRotateSeconds'] == 30
+    assert stored_preferences['sidebarWeatherMetrics'] == ['temperature', 'humidity', 'aqi']
     assert 'interfaceThemeStore' in stored_preferences
     assert 'chatAppearanceStore' in stored_preferences
     assert 'unknown' not in stored_preferences

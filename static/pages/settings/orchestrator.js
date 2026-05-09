@@ -158,6 +158,15 @@ export function initSettingsPage() {
         document.getElementById('sidebarWeatherSourceSelect'),
         document.getElementById('sidebarWeatherCityInput'),
         document.getElementById('sidebarWeatherRotateSelect'),
+        document.getElementById('sidebarWeatherMetricTemperature'),
+        document.getElementById('sidebarWeatherMetricFeelsLike'),
+        document.getElementById('sidebarWeatherMetricHumidity'),
+        document.getElementById('sidebarWeatherMetricWind'),
+        document.getElementById('sidebarWeatherMetricPrecip'),
+        document.getElementById('sidebarWeatherMetricUv'),
+        document.getElementById('sidebarWeatherMetricAqi'),
+        document.getElementById('sidebarWeatherMetricPressure'),
+        document.getElementById('sidebarWeatherMetricSunCycle'),
     ];
 
     const avatarUploadLabel = document.getElementById('avatarUploadLabel');
