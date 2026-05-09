@@ -133,7 +133,7 @@ export function initSidebarBrandQuickActions({ openDialog = null } = {}) {
             <span class="sidebar-brand-quick-action__label">${copy.qr}</span>
         </button>
         <button type="button" class="sidebar-brand-quick-action" data-quick-action="support">
-            <i class="bi bi-life-preserver" aria-hidden="true"></i>
+            <i class="bi bi-chat-square-text" aria-hidden="true"></i>
             <span class="sidebar-brand-quick-action__label">${copy.support}</span>
         </button>
         <button type="button" class="sidebar-brand-quick-action" data-quick-action="profile">
