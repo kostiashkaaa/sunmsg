@@ -1,5 +1,14 @@
 from app.services.chat_members import get_chat_type
 
+ALLOWED_TYPING_KINDS = {
+    'text',
+    'voice',
+    'upload_file',
+    'upload_voice',
+    'send_file',
+    'send_voice',
+}
+
 
 def _handle_typing_signal_event(
     data,
@@ -66,7 +75,7 @@ def _handle_typing_signal_event(
         'sender_username': sender_username,
     }
     typing_kind = str(data.get('typing_kind') or '').strip().lower()
-    if typing_kind in {'text', 'voice'}:
+    if typing_kind in ALLOWED_TYPING_KINDS:
         payload['typing_kind'] = typing_kind
     if is_group_chat:
         emit_func(partner_event_name, payload, room=chat_id, include_self=False)

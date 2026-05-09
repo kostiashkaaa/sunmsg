@@ -512,7 +512,7 @@ export function initVoiceRecorder({
                 type: normalizedMime || 'audio/webm',
             });
             recordChunks = [];
-            await sendFileMessage(file, '', { audioDurationSeconds: recordedSeconds });
+            await sendFileMessage(file, '', { audioDurationSeconds: recordedSeconds, typingKindHint: 'voice' });
             return file;
         } finally {
             isStopping = false;
