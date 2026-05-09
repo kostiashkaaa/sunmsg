@@ -1404,6 +1404,7 @@
     .chat-messages {
         padding-left: max(6px, env(safe-area-inset-left, 0px));
         padding-right: max(6px, env(safe-area-inset-right, 0px));
+        scrollbar-gutter: auto;
         --selection-row-bleed-left: 10px;
         --selection-row-bleed-right: 10px;
     }
