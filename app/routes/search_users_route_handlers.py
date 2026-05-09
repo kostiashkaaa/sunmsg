@@ -1,3 +1,14 @@
+def _normalize_search_query(raw_query: str | None) -> str:
+    query = str(raw_query or '').strip()
+    if not query:
+        return ''
+    if query.startswith('@'):
+        normalized_username = query.lstrip('@').strip().lower()
+        if normalized_username:
+            return normalized_username
+    return query
+
+
 def process_search_users(
     conn,
     *,
@@ -14,7 +25,7 @@ def process_search_users(
     like_pattern_func,
     get_safe_avatar_url_func,
 ):
-    query = str(raw_query or '').strip()
+    query = _normalize_search_query(raw_query)
     parsed_limit = parse_int_func(raw_limit)
     parsed_offset = parse_int_func(raw_offset)
 
