@@ -1108,7 +1108,7 @@
                 box-sizing: border-box;
                 font-size: var(--chat-message-font-size);
                 padding: var(--chat-message-pad-y) var(--chat-message-pad-x);
-                line-height: var(--chat-message-line-height);
+                line-height: 1.4;
                 letter-spacing: var(--chat-message-letter-spacing);
             }
             .reply-bar,
