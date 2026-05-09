@@ -666,7 +666,7 @@
 
 
         #typingIndicator .typing-indicator-inline {
-            font-size: 11px;
+            font-size: 12.5px;
             line-height: 1.25;
             color: color-mix(in srgb, var(--text) 72%, var(--accent) 28%);
             text-shadow: var(--text-shadow-glow-accent);
