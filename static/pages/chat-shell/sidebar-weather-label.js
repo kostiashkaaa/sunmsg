@@ -1,8 +1,14 @@
+import { prefersReducedMotion } from '../../modules/motion.js';
+
 const WEATHER_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 const GEOLOCATION_TIMEOUT_MS = 8000;
 const GEOLOCATION_MAX_AGE_MS = 10 * 60 * 1000;
 const VALID_SOURCES = new Set(['auto', 'city']);
 const VALID_ROTATE_SECONDS = new Set([30, 60]);
+const LABEL_SWAP_OUT_DURATION_MS = 160;
+const LABEL_SWAP_IN_DURATION_MS = 220;
+const LABEL_SWAP_OUT_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+const LABEL_SWAP_IN_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 export function normalizeSidebarWeatherPreferences(rawValue) {
     const raw = rawValue && typeof rawValue === 'object'
@@ -135,14 +141,102 @@ export function initSidebarWeatherLabel({
     let showWeatherLabel = false;
     let weatherLabel = '';
     let geolocationBlocked = false;
+    let labelTransitionSeq = 0;
+    let activeLabelAnimation = null;
+    let hasRenderedLabel = false;
     const cityCoordinatesCache = new Map();
 
-    function setLabel(value) {
-        const next = String(value || base).trim() || base;
+    function applyLabelText(next) {
         if (labelEl.textContent !== next) {
             labelEl.textContent = next;
         }
         labelEl.setAttribute('title', next);
+    }
+
+    function stopActiveLabelAnimation() {
+        if (!activeLabelAnimation) return;
+        try {
+            activeLabelAnimation.cancel();
+        } catch (_) {}
+        activeLabelAnimation = null;
+    }
+
+    function canAnimateLabelTransition() {
+        return typeof labelEl.animate === 'function' && !prefersReducedMotion();
+    }
+
+    async function animateLabelChange(next, seq) {
+        stopActiveLabelAnimation();
+        activeLabelAnimation = labelEl.animate(
+            [
+                {
+                    opacity: 1,
+                    transform: 'translate3d(0, 0, 0) scale(1)',
+                    filter: 'blur(0px)',
+                },
+                {
+                    opacity: 0,
+                    transform: 'translate3d(0, -5px, 0) scale(0.985)',
+                    filter: 'blur(1px)',
+                },
+            ],
+            {
+                duration: LABEL_SWAP_OUT_DURATION_MS,
+                easing: LABEL_SWAP_OUT_EASING,
+                fill: 'forwards',
+            },
+        );
+        try {
+            await activeLabelAnimation.finished;
+        } catch (_) {}
+        if (destroyed || seq !== labelTransitionSeq) return;
+
+        applyLabelText(next);
+        activeLabelAnimation = labelEl.animate(
+            [
+                {
+                    opacity: 0,
+                    transform: 'translate3d(0, 5px, 0) scale(0.985)',
+                    filter: 'blur(1px)',
+                },
+                {
+                    opacity: 1,
+                    transform: 'translate3d(0, 0, 0) scale(1)',
+                    filter: 'blur(0px)',
+                },
+            ],
+            {
+                duration: LABEL_SWAP_IN_DURATION_MS,
+                easing: LABEL_SWAP_IN_EASING,
+                fill: 'forwards',
+            },
+        );
+        try {
+            await activeLabelAnimation.finished;
+        } catch (_) {}
+        if (seq === labelTransitionSeq) {
+            activeLabelAnimation = null;
+        }
+    }
+
+    function setLabel(value, { immediate = false } = {}) {
+        const next = String(value || base).trim() || base;
+        if (!hasRenderedLabel || immediate || !canAnimateLabelTransition()) {
+            stopActiveLabelAnimation();
+            applyLabelText(next);
+            hasRenderedLabel = true;
+            return;
+        }
+        if (labelEl.textContent === next) {
+            labelEl.setAttribute('title', next);
+            return;
+        }
+        const seq = ++labelTransitionSeq;
+        void animateLabelChange(next, seq).catch(() => {
+            if (destroyed || seq !== labelTransitionSeq) return;
+            stopActiveLabelAnimation();
+            applyLabelText(next);
+        });
     }
 
     function renderLabel() {
@@ -275,7 +369,7 @@ export function initSidebarWeatherLabel({
         destroy() {
             destroyed = true;
             clearTimers();
-            setLabel(base);
+            setLabel(base, { immediate: true });
         },
     };
 }
