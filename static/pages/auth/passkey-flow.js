@@ -20,6 +20,7 @@ export function initPasskeyFlow({
         event.preventDefault();
         const button = event.currentTarget;
         const rememberDevice = !!document.getElementById('rememberDeviceCheckbox')?.checked;
+        const username = String(document.getElementById('login_username')?.value || '').trim();
 
         if (!supportsPasskeyAuth()) {
             showToast('\u041f\u0430\u0441\u0441\u043a\u0435\u0439 \u043d\u0435 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u044d\u0442\u0438\u043c \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u043e\u043c.', 'error');
@@ -39,6 +40,7 @@ export function initPasskeyFlow({
                     'X-CSRFToken': getCsrfToken(),
                 },
                 body: JSON.stringify({
+                    username,
                     remember_device: rememberDevice,
                 }),
             });
