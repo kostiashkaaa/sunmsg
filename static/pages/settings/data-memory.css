@@ -1,0 +1,36 @@
+/* Data and memory section */
+
+.settings-range {
+    width: min(240px, 42vw);
+    accent-color: var(--accent, #7c6dff);
+}
+
+.data-memory-range-row {
+    align-items: center;
+}
+
+.settings-list-stat {
+    display: grid;
+    gap: 8px;
+    padding: 4px 0 14px;
+}
+
+.settings-list-stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-primary, #fff);
+}
+
+.settings-list-stat-row strong {
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .settings-range {
+        width: 100%;
+        margin-top: 6px;
+    }
+}
+
