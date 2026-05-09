@@ -3703,6 +3703,9 @@ const initChatPage = async () => {
                 currentChatId = contactItem.getAttribute('data-chat-id');
                 currentContactId = contactItem.getAttribute('data-contact-id');
                 const isSwitchingChat = String(previousChatId || '') !== String(currentChatId || '');
+                if (isSwitchingChat) {
+                    hideTyping();
+                }
                 if (isSwitchingChat && previousChatId) {
                     syncDraftPreviewForContact(previousChatId, previousDraftValue, new Date().toISOString());
                 }
