@@ -79,9 +79,9 @@ export function createVisualViewportCssSyncer({
             && (rawComposerBottomInset > 24 || vvHeight < viewportBaseHeight * 0.82);
         const keyboardInset = hasKeyboardViewport ? rawComposerBottomInset : 0;
         const appHeight = hasKeyboardViewport ? vvHeight : layoutViewportHeight;
-        const appTopOffset = hasKeyboardViewport ? vvTop : 0;
+        const appTopOffset = 0;
         const appWidth = hasKeyboardViewport && vvWidth > 0 ? vvWidth : layoutViewportWidth;
-        const appLeftOffset = hasKeyboardViewport ? vvLeft : 0;
+        const appLeftOffset = 0;
 
         root.style.setProperty(appVhVar, `${appHeight}px`);
         root.style.setProperty(appVwVar, `${appWidth}px`);
