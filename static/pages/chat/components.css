@@ -902,20 +902,6 @@
             box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
         }
 
-        .sidebar.sidebar--collapsed {
-            width: var(--sidebar-collapsed-width, 300px);
-            min-width: var(--sidebar-collapsed-width, 300px);
-            max-width: var(--sidebar-collapsed-width, 300px);
-        }
-
-
-
-        .side-resizer {
-            display: none;
-        }
-
-
-
         /* --- Шапка сайдбара --- */
         .sidebar-header {
             display: flex;
@@ -1161,40 +1147,6 @@
         .sidebar-requests-shortcut--hidden {
             display: none !important;
         }
-
-        .sidebar-collapse-toggle {
-            position: relative;
-            flex: 0 0 auto;
-            width: 44px;
-            height: 44px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            border-radius: 10px;
-            background: transparent;
-            color: color-mix(in srgb, var(--text) 76%, var(--sub-text) 24%);
-            cursor: pointer;
-            transition:
-                color var(--dur-quick) var(--ease-quick),
-                transform var(--dur-quick) var(--ease-quick);
-        }
-
-        .sidebar-collapse-toggle i {
-            font-size: 16px;
-            line-height: 1;
-            opacity: 0.92;
-            transition: transform var(--dur-medium) var(--ease-quick);
-        }
-
-        .sidebar-collapse-toggle[aria-pressed="true"] {
-            color: var(--accent);
-        }
-
-        .sidebar-collapse-toggle[aria-pressed="true"] i {
-            transform: rotate(180deg);
-        }
-
 
         #sidebarScrollArea {
             padding: 4px 10px 12px;
