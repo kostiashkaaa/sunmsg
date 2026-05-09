@@ -4346,6 +4346,7 @@ const initChatPage = async () => {
 
     function applyMessageEnterAnimation(node, msg) {
         if (!node) return;
+        if (isMobileViewport()) return;
         const senderClass = msg?.sender === 'self' ? 'msg-animate-self' : 'msg-animate-other';
         node.classList.add('msg-animate-in', senderClass);
 
