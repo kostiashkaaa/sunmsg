@@ -691,6 +691,10 @@
             margin-top: 14px;
         }
 
+        #paletteFrequentSection.command-palette-section {
+            margin-top: 8px;
+        }
+
 
         .command-palette-section-title {
             margin-bottom: 8px;

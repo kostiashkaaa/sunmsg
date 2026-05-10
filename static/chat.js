@@ -6719,8 +6719,8 @@ const initChatPage = async () => {
                 .trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
                 
             const avatarHtml = user.avatar_url
-                ? `<div class="contact-avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;"><img class="contact-avatar__img" src="${escapeHtml(user.avatar_url)}"></div>`
-                : `<div class="contact-avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;">${escapeHtml(initials)}</div>`;
+                ? `<div class="contact-avatar command-palette-result-avatar"><img class="contact-avatar__img" src="${escapeHtml(user.avatar_url)}"></div>`
+                : `<div class="contact-avatar command-palette-result-avatar">${escapeHtml(initials)}</div>`;
 
             listItem.className = 'command-palette-result';
             listItem.innerHTML = `

@@ -516,6 +516,11 @@ export function initSearchOverlayGlobalContent({
         });
     }
 
+    function isTargetChatActive(chatId) {
+        const activeItem = document.querySelector('#contactsList .contact-item.active[data-chat-id]');
+        return String(activeItem?.getAttribute('data-chat-id') || '').trim() === String(chatId || '').trim();
+    }
+
     async function openChatAndFocusMessage(chatId, messageId) {
         const normalizedChatId = String(chatId || '').trim();
         const normalizedMessageId = Number(messageId);
@@ -524,14 +529,20 @@ export function initSearchOverlayGlobalContent({
         closeOverlay?.();
         await openChatById(normalizedChatId);
 
-        for (let attempt = 0; attempt < 8; attempt += 1) {
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+            if (!isTargetChatActive(normalizedChatId)) {
+                await new Promise((resolve) => setTimeout(resolve, 120));
+                continue;
+            }
             const focused = await focusMessageInCurrentChat(normalizedMessageId, {
                 align: 'center',
                 smooth: true,
             });
-            if (focused) break;
-            await new Promise((resolve) => setTimeout(resolve, 160));
+            if (focused) return;
+            await new Promise((resolve) => setTimeout(resolve, attempt < 8 ? 160 : 240));
         }
+
+        showToast?.(tr('Не удалось перейти к сообщению.'), 'warning');
     }
 
     function onOverlayClick(event) {
