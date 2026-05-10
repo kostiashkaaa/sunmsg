@@ -28,6 +28,38 @@ def _grant_moderator_role(conn, *, user_id: int = 99):
     conn.commit()
 
 
+def _seed_direct_chat_bundle(conn):
+    conn.execute(
+        '''
+        INSERT INTO chats (chat_id, chat_name, chat_type)
+        VALUES ('chat-admin-1', 'Admin Chat', 'direct')
+        '''
+    )
+    conn.execute(
+        '''
+        INSERT INTO contacts (user_id, contact_id, chat_id)
+        VALUES
+            (1, 2, 'chat-admin-1'),
+            (2, 1, 'chat-admin-1')
+        '''
+    )
+    conn.execute(
+        '''
+        INSERT INTO messages (chat_id, sender_id, receiver_id, message)
+        VALUES
+            ('chat-admin-1', 2, 1, 'hello from bob'),
+            ('chat-admin-1', 1, 2, 'hello from alice')
+        '''
+    )
+    conn.execute(
+        '''
+        INSERT INTO chat_media (chat_id, uploader_id, storage_name, original_name, mime_type, size)
+        VALUES ('chat-admin-1', 2, 'bob-admin.png', 'bob-admin.png', 'image/png', 16)
+        '''
+    )
+    conn.commit()
+
+
 def test_support_request_guest_submit(monkeypatch, tmp_path):
     db_path = tmp_path / 'support-guest-submit.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -172,3 +204,98 @@ def test_support_console_resolve_and_manual_user_action(monkeypatch, tmp_path):
     assert 'moderation_summary' in first_user
     assert 'recent_sanctions' in first_user
     assert isinstance(first_user['recent_sanctions'], list)
+
+
+def test_support_console_user_rename_clear_and_delete(monkeypatch, tmp_path):
+    db_path = tmp_path / 'support-console-user-admin.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app(
+        'testing',
+        overrides={
+            'DATABASE_PATH': str(db_path),
+            'MODERATOR_USER_IDS': '',
+        },
+    )
+
+    with _connect(db_path) as conn:
+        _seed_users(conn)
+        _grant_moderator_role(conn, user_id=99)
+        _seed_direct_chat_bundle(conn)
+
+    moderator_client = _authed_client(app, 99, 'pk-99')
+
+    rename_response = moderator_client.post(
+        '/moderation/console/users/2/rename',
+        data={
+            'new_username': 'bob_admin',
+            'lookup_query': 'bob',
+        },
+        follow_redirects=True,
+    )
+    assert rename_response.status_code == 200
+    rename_html = rename_response.get_data(as_text=True)
+    assert 'Никнейм изменён' in rename_html
+
+    sanction_response = moderator_client.post(
+        '/moderation/console/users/2/action',
+        data={
+            'action_type': 'ban_temp',
+            'reason_code': 'manual_action',
+            'duration_sec': '3600',
+            'note': 'manual moderation',
+            'lookup_query': 'bob_admin',
+        },
+        follow_redirects=True,
+    )
+    assert sanction_response.status_code == 200
+    assert 'User action applied' in sanction_response.get_data(as_text=True)
+
+    clear_response = moderator_client.post(
+        '/moderation/console/users/2/clear_restrictions',
+        data={
+            'note': 'cleanup',
+            'lookup_query': 'bob_admin',
+        },
+        follow_redirects=True,
+    )
+    assert clear_response.status_code == 200
+    assert 'Снято активных ограничений' in clear_response.get_data(as_text=True)
+
+    delete_response = moderator_client.post(
+        '/moderation/console/users/2/delete',
+        data={
+            'confirm_text': 'DELETE',
+            'lookup_query': 'bob_admin',
+        },
+        follow_redirects=True,
+    )
+    assert delete_response.status_code == 200
+    assert 'удалён' in delete_response.get_data(as_text=True)
+
+    with _connect(db_path) as conn:
+        renamed_row = conn.execute(
+            'SELECT id, username FROM users WHERE id = 2',
+        ).fetchone()
+        assert renamed_row is None
+
+        sanctions = conn.execute(
+            '''
+            SELECT status
+            FROM moderation_sanctions
+            WHERE subject_type = 'user' AND subject_id = '2'
+            ORDER BY id ASC
+            '''
+        ).fetchall()
+        assert sanctions
+        assert all(str(row['status']) == 'reversed' for row in sanctions)
+
+        assert conn.execute(
+            "SELECT 1 FROM messages WHERE chat_id = 'chat-admin-1'"
+        ).fetchone() is None
+        assert conn.execute(
+            "SELECT 1 FROM contacts WHERE chat_id = 'chat-admin-1'"
+        ).fetchone() is None
+        assert conn.execute(
+            "SELECT 1 FROM chat_media WHERE chat_id = 'chat-admin-1'"
+        ).fetchone() is None

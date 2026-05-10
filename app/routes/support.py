@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 
 from app.database import get_db_connection
 from app.extensions import limiter
+from app.services import admin_user_management as admin_user_service
 from app.services import moderation as moderation_service
 from app.services import support as support_service
 from app.services.locale import detect_auth_language, normalize_language
@@ -48,6 +49,13 @@ def _require_moderator_page():
     if not _is_moderator_user(user_id):
         return None, redirect('/chat')
     return user_id, None
+
+
+def _redirect_support_console_with_lookup(lookup_query: str):
+    clean_lookup_query = str(lookup_query or '').strip()
+    if clean_lookup_query:
+        return redirect(url_for('support.moderation_support_console', user_query=clean_lookup_query))
+    return redirect(url_for('support.moderation_support_console'))
 
 
 @support_bp.route('/support/feedback', methods=['GET'])
@@ -261,6 +269,93 @@ def apply_manual_user_action_json(target_user_id: int):
     return jsonify({'success': True, **result})
 
 
+@support_bp.route('/api/support/users/<int:target_user_id>/rename', methods=['POST'])
+@limiter.limit('120 per minute')
+def rename_user_json(target_user_id: int):
+    moderator_user_id, auth_error = _require_moderator_json()
+    if auth_error:
+        return auth_error
+    payload = request.get_json(silent=True) or {}
+    new_username = str(payload.get('new_username') or '').strip()
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.rename_user_username(
+            conn,
+            target_user_id=int(target_user_id),
+            new_username=new_username,
+            moderator_user_id=int(moderator_user_id),
+        )
+    except ValueError as exc:
+        conn.rollback()
+        message = str(exc)
+        status_code = 404 if message == 'target_user_not_found' else 400
+        return jsonify({'success': False, 'error': message}), status_code
+    except Exception:
+        conn.rollback()
+        return jsonify({'success': False, 'error': 'user_rename_failed'}), 500
+    finally:
+        conn.close()
+    return jsonify({'success': True, **result})
+
+
+@support_bp.route('/api/support/users/<int:target_user_id>/clear_restrictions', methods=['POST'])
+@limiter.limit('120 per minute')
+def clear_user_restrictions_json(target_user_id: int):
+    moderator_user_id, auth_error = _require_moderator_json()
+    if auth_error:
+        return auth_error
+    payload = request.get_json(silent=True) or {}
+    note = moderation_service.normalize_comment(payload.get('note'), max_length=512)
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.clear_user_active_sanctions(
+            conn,
+            target_user_id=int(target_user_id),
+            moderator_user_id=int(moderator_user_id),
+            note=note,
+        )
+    except ValueError as exc:
+        conn.rollback()
+        message = str(exc)
+        status_code = 404 if message == 'target_user_not_found' else 400
+        return jsonify({'success': False, 'error': message}), status_code
+    except Exception:
+        conn.rollback()
+        return jsonify({'success': False, 'error': 'clear_restrictions_failed'}), 500
+    finally:
+        conn.close()
+    return jsonify({'success': True, **result})
+
+
+@support_bp.route('/api/support/users/<int:target_user_id>/delete', methods=['POST'])
+@limiter.limit('30 per minute')
+def delete_user_json(target_user_id: int):
+    moderator_user_id, auth_error = _require_moderator_json()
+    if auth_error:
+        return auth_error
+    if int(target_user_id) == int(moderator_user_id):
+        return jsonify({'success': False, 'error': 'cannot_delete_self'}), 400
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.delete_user_account_hard(
+            conn,
+            target_user_id=int(target_user_id),
+            moderator_user_id=int(moderator_user_id),
+            remote_addr=str(request.remote_addr or ''),
+        )
+    except ValueError as exc:
+        conn.rollback()
+        message = str(exc)
+        status_code = 404 if message == 'target_user_not_found' else 400
+        return jsonify({'success': False, 'error': message}), status_code
+    except Exception:
+        conn.rollback()
+        return jsonify({'success': False, 'error': 'user_delete_failed'}), 500
+    finally:
+        conn.close()
+    return jsonify({'success': True, **result})
+
+
 @support_bp.route('/moderation/console/support', methods=['GET'])
 @limiter.limit('120 per minute')
 def moderation_support_console():
@@ -375,6 +470,122 @@ def moderation_console_apply_manual_user_action(target_user_id: int):
     finally:
         conn.close()
 
-    if lookup_query:
-        return redirect(url_for('support.moderation_support_console', user_query=lookup_query))
-    return redirect(url_for('support.moderation_support_console'))
+    return _redirect_support_console_with_lookup(lookup_query)
+
+
+@support_bp.route('/moderation/console/users/<int:target_user_id>/rename', methods=['POST'])
+@limiter.limit('120 per minute')
+def moderation_console_rename_user(target_user_id: int):
+    moderator_user_id, page_error = _require_moderator_page()
+    if page_error:
+        return page_error
+
+    lookup_query = str(request.form.get('lookup_query') or '').strip()
+    new_username = str(request.form.get('new_username') or '').strip()
+
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.rename_user_username(
+            conn,
+            target_user_id=int(target_user_id),
+            new_username=new_username,
+            moderator_user_id=int(moderator_user_id),
+        )
+    except ValueError as exc:
+        conn.rollback()
+        error_map = {
+            'target_user_not_found': 'Пользователь не найден.',
+            'username_too_short': 'Никнейм должен содержать минимум 2 символа.',
+            'username_too_long': 'Никнейм не должен превышать 50 символов.',
+            'invalid_username': 'Никнейм может содержать только a-z, 0-9 и _.',
+            'username_taken': 'Этот никнейм уже занят.',
+        }
+        flash(error_map.get(str(exc), f'Rename failed: {str(exc)}'), 'error')
+    except Exception:
+        conn.rollback()
+        flash('Rename failed: internal error', 'error')
+    else:
+        if result.get('updated'):
+            flash(f'Никнейм изменён: @{result["old_username"]} -> @{result["new_username"]}', 'success')
+        else:
+            flash('Никнейм не изменён: уже установлено это значение.', 'success')
+    finally:
+        conn.close()
+
+    return _redirect_support_console_with_lookup(lookup_query)
+
+
+@support_bp.route('/moderation/console/users/<int:target_user_id>/clear_restrictions', methods=['POST'])
+@limiter.limit('120 per minute')
+def moderation_console_clear_user_restrictions(target_user_id: int):
+    moderator_user_id, page_error = _require_moderator_page()
+    if page_error:
+        return page_error
+
+    lookup_query = str(request.form.get('lookup_query') or '').strip()
+    note = moderation_service.normalize_comment(request.form.get('note'), max_length=512)
+
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.clear_user_active_sanctions(
+            conn,
+            target_user_id=int(target_user_id),
+            moderator_user_id=int(moderator_user_id),
+            note=note,
+        )
+    except ValueError as exc:
+        conn.rollback()
+        error_map = {
+            'target_user_not_found': 'Пользователь не найден.',
+        }
+        flash(error_map.get(str(exc), f'Clear restrictions failed: {str(exc)}'), 'error')
+    except Exception:
+        conn.rollback()
+        flash('Clear restrictions failed: internal error', 'error')
+    else:
+        flash(f'Снято активных ограничений: {int(result["reversed_count"])}', 'success')
+    finally:
+        conn.close()
+
+    return _redirect_support_console_with_lookup(lookup_query)
+
+
+@support_bp.route('/moderation/console/users/<int:target_user_id>/delete', methods=['POST'])
+@limiter.limit('30 per minute')
+def moderation_console_delete_user(target_user_id: int):
+    moderator_user_id, page_error = _require_moderator_page()
+    if page_error:
+        return page_error
+
+    lookup_query = str(request.form.get('lookup_query') or '').strip()
+    confirm_text = str(request.form.get('confirm_text') or '').strip().upper()
+    if confirm_text != 'DELETE':
+        flash('Для удаления введите DELETE в поле подтверждения.', 'error')
+        return _redirect_support_console_with_lookup(lookup_query)
+    if int(target_user_id) == int(moderator_user_id):
+        flash('Нельзя удалить самого себя через админ-консоль.', 'error')
+        return _redirect_support_console_with_lookup(lookup_query)
+
+    conn = get_db_connection()
+    try:
+        result = admin_user_service.delete_user_account_hard(
+            conn,
+            target_user_id=int(target_user_id),
+            moderator_user_id=int(moderator_user_id),
+            remote_addr=str(request.remote_addr or ''),
+        )
+    except ValueError as exc:
+        conn.rollback()
+        error_map = {
+            'target_user_not_found': 'Пользователь не найден.',
+        }
+        flash(error_map.get(str(exc), f'Delete failed: {str(exc)}'), 'error')
+    except Exception:
+        conn.rollback()
+        flash('Delete failed: internal error', 'error')
+    else:
+        flash(f'Пользователь @{result["target_username"]} удалён.', 'success')
+    finally:
+        conn.close()
+
+    return _redirect_support_console_with_lookup(lookup_query)
