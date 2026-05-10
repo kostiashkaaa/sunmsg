@@ -386,6 +386,28 @@ export function initRegisterFlow({
         setSubmitButtonState(registerSubmitBtn, true);
 
         try {
+            const username = document.getElementById('reg_username')?.value.trim() || '';
+            const displayName = document.getElementById('reg_display_name')?.value.trim() || '';
+            const hasCachedRegistration = Boolean(
+                flowState.mnemonic
+                && flowState.privateKeyPem
+                && flowState.profile.username
+                && flowState.profile.username === username,
+            );
+
+            if (hasCachedRegistration) {
+                resetMnemonicPhase(flowState.mnemonic);
+                setRegisterStep(2);
+                showToast(
+                    isEnglish()
+                        ? 'Continuing with your existing 24-word recovery phrase.'
+                        : 'Продолжаем с уже созданной 24-словной фразой восстановления.',
+                    'info',
+                );
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+
             assertWebCryptoSupport();
             const mnemonic = await window.mnemonic.generateMnemonic();
 
@@ -419,9 +441,6 @@ export function initRegisterFlow({
                 throw new Error(tr(challengeData.error || 'Не удалось получить challenge для регистрации'));
             }
             const registerSignature = await window.e2e.signChallenge(privKeyPem, challengeData.challenge);
-
-            const username = document.getElementById('reg_username')?.value.trim() || '';
-            const displayName = document.getElementById('reg_display_name')?.value.trim() || '';
 
             const registerRes = await fetch(withAppRoot('/api/register_client'), {
                 method: 'POST',
