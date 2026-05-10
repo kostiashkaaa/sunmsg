@@ -76,8 +76,8 @@
 
                 <div class="auth-login-intro">
                     <h2 class="auth-login-intro-title" id="loginIntroTitle">
-                        <span>Войти</span>
-                        <em class="auth-login-intro-em">за три секунды.</em>
+                        <span id="loginIntroTitleMain">Войти</span>
+                        <em class="auth-login-intro-em" id="loginIntroTitleAccent">за три секунды.</em>
                     </h2>
                     <p class="auth-login-intro-sub" id="loginIntroSub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
                 </div>
@@ -244,8 +244,8 @@
                 <div class="auth-key-box-header auth-key-box-header--qrfirst">
                     <div class="auth-key-box-icon"><i class="bi bi-key"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Ваш ключ от дома</div>
-                        <div class="auth-key-box-sub">24 слова. Запишите на бумаге — это всё, что нужно для входа с любого устройства.</div>
+                        <div class="auth-key-box-title" id="registerStep2Title">Ваш ключ от дома</div>
+                        <div class="auth-key-box-sub" id="registerStep2Sub">24 слова. Запишите на бумаге — это всё, что нужно для входа с любого устройства.</div>
                     </div>
                 </div>
                 <div class="auth-form-group auth-private-key-group">
@@ -253,16 +253,16 @@
                     <div class="auth-register-words-wrap" id="registerWordsWrap">
                         <div class="auth-register-words-grid auth-register-words-grid--blurred" id="registerWordsGrid"></div>
                         <button type="button" class="auth-btn auth-btn-accent auth-register-reveal-btn" id="registerMnemonicRevealBtn">
-                            <span>Показать</span>
+                            <span id="registerMnemonicRevealText">Показать</span>
                             <span class="auth-btn-arrow">&rarr;</span>
                         </button>
                     </div>
                 </div>
                 <button type="button" class="auth-btn auth-btn-secondary auth-copy-key-btn" id="copyPrivateKeyBtn">
-                    <i class="bi bi-clipboard"></i> Скопировать
+                    <i class="bi bi-clipboard"></i> <span id="copyPrivateKeyBtnLabel">Скопировать</span>
                 </button>
                 <button type="button" class="auth-btn auth-btn-primary" id="registerStep2NextBtn">
-                    <span>Я записал, дальше</span>
+                    <span id="registerStep2NextLabel">Я записал, дальше</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
             </section>
@@ -280,8 +280,8 @@
                 <div class="auth-key-box-header auth-key-box-header--qrfirst">
                     <div class="auth-key-box-icon"><i class="bi bi-check2-circle"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Маленькая проверка</div>
-                        <div class="auth-key-box-sub">Хотим убедиться, что вы записали слова, а не пролистали.</div>
+                        <div class="auth-key-box-title" id="registerStep3Title">Маленькая проверка</div>
+                        <div class="auth-key-box-sub" id="registerStep3Sub">Хотим убедиться, что вы записали слова, а не пролистали.</div>
                     </div>
                 </div>
                 <div class="auth-register-confirm-grid">
@@ -296,7 +296,7 @@
                 </div>
                 <div class="auth-register-inline-error" id="registerMnemonicConfirmError" hidden></div>
                 <button type="button" class="auth-btn auth-btn-primary" id="registerMnemonicConfirmBtn">
-                    <span>Продолжить</span>
+                    <span id="registerStep3ContinueLabel">Продолжить</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
                 <button type="button" class="auth-btn auth-btn-text-link" id="registerStep3ShowWordsBtn">Показать слова ещё раз</button>
@@ -306,24 +306,24 @@
                 <div class="auth-key-box-header">
                     <div class="auth-key-box-icon accent"><i class="bi bi-check2-circle"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Шаг 4 — Готово</div>
-                        <div class="auth-key-box-sub">Регистрация завершена, можно переходить в мессенджер</div>
+                        <div class="auth-key-box-title" id="registerStep4Title">Шаг 4 — Готово</div>
+                        <div class="auth-key-box-sub" id="registerStep4Sub">Регистрация завершена, можно переходить в мессенджер</div>
                     </div>
                 </div>
                 <div class="auth-register-done-note" id="registerDoneSubtext">
                     Аккаунт создан. Вы можете войти в защищённый чат.
                 </div>
                 <button type="button" class="auth-btn auth-btn-primary" id="registerDoneLoginBtn">
-                    <span>Войти</span>
+                    <span id="registerDoneLoginLabel">Войти</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
             </section>
         </div>
 
         <div class="auth-footer">
-            <div class="auth-footer-eyebrow"><span class="auth-footer-dot"></span>Сквозное шифрование ・ Нулевое знание</div>
+            <div class="auth-footer-eyebrow" id="authFooterEyebrow"><span class="auth-footer-dot"></span>Сквозное шифрование ・ Нулевое знание</div>
             <div class="auth-footer-rule"></div>
-            <p class="auth-footer-quote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
+            <p class="auth-footer-quote" id="authFooterQuote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
         </div>
 
     </main>
