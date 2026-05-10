@@ -3733,8 +3733,8 @@
             max-height: var(--composer-max-height);
             border: none;
             border-radius: 0;
-            padding: 8px 0;
-            font-size: 15px;
+            padding: var(--chat-message-pad-y, 8px) var(--chat-message-pad-x, 0px);
+            font-size: var(--chat-message-font-size, 15px);
             font-family:
                 var(--font),
                 'Segoe UI Emoji',
@@ -3756,7 +3756,7 @@
         border-color var(--dur-quick) var(--ease-quick),
         box-shadow var(--dur-quick) var(--ease-quick),
                 color var(--dur-quick) var(--ease-quick);
-            letter-spacing: -0.005em;
+            letter-spacing: var(--chat-message-letter-spacing, -0.005em);
             text-align: start;
             word-spacing: normal;
         }
