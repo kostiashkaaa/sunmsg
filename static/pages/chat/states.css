@@ -3449,15 +3449,19 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .context-menu-item:hover {
-            background: var(--accent);
-            color: #fff;
+            background: color-mix(in srgb, var(--contact-hover) 82%, transparent);
+            color: var(--text);
+            transform: translateX(1px);
         }
 
 
-        .context-menu-item.danger { color: #f87171; }
+        .context-menu-item.danger { color: #f07178; }
 
 
-        .context-menu-item.danger:hover { background: #ef4444; color: #fff; }
+        .context-menu-item.danger:hover {
+            background: color-mix(in srgb, #ef4444 22%, transparent);
+            color: #ff9aa1;
+        }
 
 
         .contact-item[data-favorite="1"] .contact-name {
@@ -3484,19 +3488,19 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .reaction-picker.active {
-            animation: m-pop-overshoot var(--m-dur-fast) var(--m-bouncy) both;
+            animation: none;
         }
 
         @media (max-width: 768px) {
             .reaction-picker.active {
-                animation: reactionPickerIn var(--dur-quick) var(--ease-quick) both;
+                animation: none;
             }
         }
 
 
         .reaction-picker__item:hover {
-            transform: translateY(-2px) scale(1.08);
-            background: color-mix(in srgb, var(--accent-light) 74%, transparent);
+            transform: scale(1.08);
+            background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
         }
 
 

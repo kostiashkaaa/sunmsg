@@ -613,7 +613,7 @@ img.is-loaded,
 .reaction-picker.active,
 .context-menu.is-opening,
 .context-menu.active {
-    animation: m-pop-overshoot var(--m-dur-base) var(--m-bouncy) both;
+    animation: none;
 }
 
 .header-dropdown.is-opening,
@@ -1100,7 +1100,7 @@ select {
 
 .context-menu-item:active,
 .message-context-menu .menu-item:active {
-    transform: scale(0.96);
+    transform: scale(0.985);
 }
 
 .profile-drawer.profile-content-revealing .profile-hero,
@@ -1200,7 +1200,7 @@ select {
 }
 
 .reaction-picker__item:hover {
-    transform: translateY(-2px) scale(1.08);
+    transform: scale(1.08);
 }
 
 .reaction-pill.reaction-pill--pulse,
@@ -2370,6 +2370,12 @@ button > i[class*=" bi-"],
     }
 
     .reaction-picker.active {
+        animation: none;
+    }
+
+    .context-menu.is-open,
+    #messageContextMenu.is-open,
+    #contactContextMenu.is-open {
         animation: none;
     }
 
