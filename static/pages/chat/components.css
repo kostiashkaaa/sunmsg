@@ -3773,6 +3773,7 @@
         }
 
         #messageInput.composer-input-emoji-layer::selection {
+            background: color-mix(in srgb, var(--accent) 34%, transparent);
             color: transparent;
             -webkit-text-fill-color: transparent;
         }
