@@ -67,10 +67,6 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
     const authLanguageSwitchEl = document.getElementById('authLanguageSwitch');
     const authLanguageButtons = Array.from(document.querySelectorAll('#authLanguageSwitch [data-lang]'));
-    const onboardingEntryEl = document.getElementById('authOnboardingEntry');
-    const onboardingEntryKickerEl = document.getElementById('authOnboardingEntryKicker');
-    const onboardingEntryTitleEl = document.getElementById('authOnboardingEntryTitle');
-    const onboardingEntryActionEl = document.getElementById('authOnboardingEntryAction');
     const normalizeLanguageCode = (raw) => (String(raw || '').toLowerCase() === 'en' ? 'en' : 'ru');
 
     function syncAuthLanguageButtons(language = activeLanguage()) {
@@ -81,27 +77,6 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
-    }
-
-    function syncOnboardingEntry(language = activeLanguage()) {
-        if (!onboardingEntryEl) return;
-        const current = normalizeLanguageCode(language);
-        onboardingEntryEl.setAttribute('href', `${withAppRoot('/onboarding-guide')}?lang=${current}`);
-        if (onboardingEntryKickerEl) {
-            onboardingEntryKickerEl.textContent = current === 'en'
-                ? 'Need help getting started?'
-                : 'Впервые в SUN Messenger?';
-        }
-        if (onboardingEntryTitleEl) {
-            onboardingEntryTitleEl.textContent = current === 'en'
-                ? 'Open a short registration and sign-in guide'
-                : 'Откройте короткую инструкцию по регистрации и входу';
-        }
-        if (onboardingEntryActionEl) {
-            onboardingEntryActionEl.textContent = current === 'en'
-                ? 'Open guide'
-                : 'Открыть инструкцию';
-        }
     }
 
     async function persistGuestLanguage(language) {
@@ -129,7 +104,6 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             document.body.dataset.uiLanguage = nextLanguage;
         }
         syncAuthLanguageButtons(nextLanguage);
-        syncOnboardingEntry(nextLanguage);
         await persistGuestLanguage(nextLanguage);
     }
 
@@ -144,10 +118,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     window.addEventListener('sun-ui-language-changed', () => {
         const current = activeLanguage();
         syncAuthLanguageButtons(current);
-        syncOnboardingEntry(current);
     });
     syncAuthLanguageButtons(activeLanguage());
-    syncOnboardingEntry(activeLanguage());
 
     (function applySavedTheme() {
         const saved = localStorage.getItem('darkMode');

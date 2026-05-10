@@ -60,18 +60,6 @@
             <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
         </div>
 
-        <a class="auth-onboarding-entry" id="authOnboardingEntry" href="{{ url_for('auth.onboarding_guide', lang=ui_language|default('ru')) }}">
-            <span class="auth-onboarding-entry-kicker" id="authOnboardingEntryKicker">
-                {{ 'Need help getting started?' if ui_language == 'en' else 'Впервые в SUN Messenger?' }}
-            </span>
-            <span class="auth-onboarding-entry-title" id="authOnboardingEntryTitle">
-                {{ 'Open a short registration and sign-in guide' if ui_language == 'en' else 'Откройте короткую инструкцию по регистрации и входу' }}
-            </span>
-            <span class="auth-onboarding-entry-action" id="authOnboardingEntryAction">
-                {{ 'Open guide' if ui_language == 'en' else 'Открыть инструкцию' }}
-            </span>
-        </a>
-
         <div class="auth-card">
             <div class="auth-tabs auth-tabs--auth" role="tablist">
                 <button class="auth-tab-btn active" id="tab-login-btn" role="tab"
@@ -300,37 +288,6 @@
             <span>Нулевое знание</span>
             <span>v1.0</span>
         </div>
-        <nav class="auth-legal-links" aria-label="Юридическая информация">
-            <a href="{{ url_for('auth.privacy_policy') }}">Политика конфиденциальности</a>
-            <a href="{{ url_for('auth.terms_of_service') }}">Пользовательское соглашение</a>
-            <a href="{{ url_for('auth.security_faq') }}">FAQ по безопасности</a>
-            <a href="{{ url_for('auth.about_project') }}">О проекте</a>
-        </nav>
-
-        <details class="auth-feedback-dock" id="authSupportBox">
-            <summary class="auth-feedback-summary">
-                <i class="bi bi-life-preserver"></i>
-                <span>Обратная связь</span>
-            </summary>
-            <div class="auth-feedback-panel">
-                <div class="auth-support-grid">
-                    <select id="authSupportCategory" class="auth-input auth-support-input">
-                        <option value="registration">Регистрация</option>
-                        <option value="login">Вход</option>
-                        <option value="access">Доступ к аккаунту</option>
-                        <option value="bug">Ошибка</option>
-                        <option value="other">Другое</option>
-                    </select>
-                    <input type="text" id="authSupportContact" class="auth-input auth-support-input" maxlength="120" placeholder="Контакт (email/@username)">
-                    <input type="text" id="authSupportSubject" class="auth-input auth-support-input auth-support-input-full" maxlength="160" placeholder="Тема обращения">
-                    <textarea id="authSupportBody" class="auth-input auth-support-input auth-support-input-full" rows="3" maxlength="8000" placeholder="Кратко опишите проблему"></textarea>
-                </div>
-                <div class="auth-support-actions">
-                    <button type="button" class="auth-btn auth-btn-secondary" id="authSupportSubmitBtn">Отправить обращение</button>
-                </div>
-                <div class="auth-support-status" id="authSupportStatus" aria-live="polite"></div>
-            </div>
-        </details>
 
     </main>
 

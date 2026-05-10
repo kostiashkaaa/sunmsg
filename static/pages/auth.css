@@ -1713,11 +1713,8 @@
         grid-template-columns: minmax(0, 1fr) 430px;
         grid-template-areas:
             "brand card"
-            "entry card"
             "key key"
-            "footer footer"
-            "legal legal"
-            "feedback feedback";
+            "footer footer";
         column-gap: 64px;
         row-gap: 14px;
         align-items: start;
@@ -1733,11 +1730,6 @@
     .auth-brand-headline {
         font-size: clamp(3rem, 5vw, 4.5rem);
         line-height: 0.97;
-    }
-
-    .auth-onboarding-entry {
-        grid-area: entry;
-        max-width: 430px;
     }
 
     .auth-card {
@@ -1764,14 +1756,6 @@
         grid-area: footer;
     }
 
-    .auth-legal-links {
-        grid-area: legal;
-    }
-
-    .auth-feedback-dock {
-        grid-area: feedback;
-        max-width: 760px;
-    }
 }
 
 @media (max-width: 820px) {
