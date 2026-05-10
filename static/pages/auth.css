@@ -2601,6 +2601,11 @@ body[data-ui-language="en"] #registerStep1Sub::before {
         flex-direction: column;
         overflow: hidden;
     }
+
+    .auth-card,
+    #keyResultBox {
+        align-self: start;
+    }
 }
 
 body.auth-register-flow-active .auth-card {
