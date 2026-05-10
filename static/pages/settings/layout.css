@@ -33,7 +33,7 @@ html, body {
             min-height: 100vh;
             min-height: 100dvh;
             width: min(430px, 100vw);
-            min-width: 360px;
+            min-width: 0;
             margin-left: auto;
             background: var(--bg);
             box-shadow: var(--profile-sheet-shadow);
@@ -168,6 +168,11 @@ html, body {
             border-color: color-mix(in srgb, var(--rule) 78%, transparent);
             color: var(--text);
             background: color-mix(in srgb, var(--paper-alt) 48%, transparent);
+        }
+        .settings-panel-close .sun-icon,
+        .settings-panel-tool-btn .sun-icon {
+            width: 18px;
+            height: 18px;
         }
         .settings-panel-esc {
             margin-left: auto;

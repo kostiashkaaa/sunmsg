@@ -82,17 +82,17 @@
 
     <header class="settings-panel-head">
         <button type="button" class="settings-panel-close" id="settingsPanelCloseBtn" aria-label="Закрыть">
-            <i class="bi bi-arrow-left"></i>
+            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
         </button>
         <div class="settings-panel-head-copy">
             <div class="settings-panel-title" id="settingsPanelTitle">Настройки</div>
         </div>
         <div class="settings-panel-tools" id="settingsPanelTools">
             <button type="button" class="settings-panel-tool-btn" id="settingsHeaderEditBtn" aria-label="Редактировать профиль">
-                <i class="bi bi-pencil" aria-hidden="true"></i>
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-pencil"></use></svg>
             </button>
             <button type="button" class="settings-panel-tool-btn" id="settingsHeaderMoreBtn" aria-label="Дополнительные действия">
-                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
             </button>
         </div>
         <span class="settings-panel-esc settings-hidden" id="settingsPanelEscHint">Esc · закрыть</span>
@@ -101,33 +101,37 @@
     <div class="settings-panel-body">
 
     <nav class="settings-nav" id="settingsNav" aria-label="Разделы настроек">
-        <section class="settings-nav-profile" id="settingsNavProfile" data-section-target="profile" role="button" tabindex="0" aria-label="Открыть профиль">
+        <section class="settings-nav-profile" id="settingsNavProfile" aria-label="Профиль">
             <div class="settings-nav-avatar-wrap">
                 <div class="avatar-preview settings-nav-avatar" id="settingsNavAvatarPreview">?</div>
             </div>
-            <div class="settings-nav-display-name" id="settingsNavDisplayName">{{ current_display_name }}</div>
-            <div class="settings-nav-presence">в сети</div>
             <button type="button" class="settings-nav-profile-action" id="settingsNavEditProfileBtn" aria-label="Редактировать профиль">
-                <i class="bi bi-camera" aria-hidden="true"></i>
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-camera"></use></svg>
             </button>
             <div class="settings-nav-profile-rows">
                 <div class="settings-nav-profile-row">
-                    <i class="bi bi-telephone" aria-hidden="true"></i>
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value">Не указан</div>
-                        <div class="settings-nav-profile-row-label">Телефон</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavNameValue">{{ current_display_name }}</div>
+                        <div class="settings-nav-profile-row-label">Отображаемое имя</div>
                     </div>
                 </div>
                 <div class="settings-nav-profile-row">
-                    <i class="bi bi-at" aria-hidden="true"></i>
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
                     <div class="settings-nav-profile-row-copy">
                         <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username }}</div>
-                        <div class="settings-nav-profile-row-label">Имя пользователя</div>
+                        <div class="settings-nav-profile-row-label">Юзернейм</div>
+                    </div>
+                </div>
+                <div class="settings-nav-profile-row">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-info-circle"></use></svg>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value settings-nav-profile-row-value--bio" id="settingsNavBioValue">—</div>
+                        <div class="settings-nav-profile-row-label">Био</div>
                     </div>
                 </div>
             </div>
         </section>
-        <div class="settings-nav-block-divider" aria-hidden="true"></div>
         <button
             type="button"
             class="settings-nav-toggle"
@@ -137,57 +141,48 @@
         >
             <span class="settings-nav-toggle-kicker">Раздел</span>
             <span class="settings-nav-toggle-label" id="settingsNavToggleLabel">Профиль</span>
-            <i class="bi bi-chevron-down settings-nav-toggle-icon" aria-hidden="true"></i>
+            <svg class="sun-icon settings-nav-toggle-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg>
         </button>
         <div class="settings-nav-list" id="settingsNavList">
-            <a href="#profile" class="nav-item" data-section="profile">
-                <i class="bi bi-person" aria-hidden="true"></i>
+            <a href="#profile" class="nav-item" data-section="profile" data-nav-key="profile">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
                 <span>Профиль</span>
             </a>
-            <a href="#notifications" class="nav-item" data-section="notifications">
-                <i class="bi bi-bell" aria-hidden="true"></i>
+            <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
                 <span>Уведомления и звук</span>
             </a>
-            <a href="#data-memory" class="nav-item" data-section="data-memory">
-                <i class="bi bi-database" aria-hidden="true"></i>
+            <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg>
                 <span>Данные и память</span>
             </a>
-            <a href="#privacy" class="nav-item" data-section="privacy">
-                <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-lock"></use></svg>
                 <span>Конфиденциальность</span>
             </a>
-            <a href="#appearance" class="nav-item" data-section="appearance">
-                <i class="bi bi-sliders2" aria-hidden="true"></i>
+            <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="appearance">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-gear"></use></svg>
                 <span>Общие настройки</span>
             </a>
-            <a href="#chat-style" class="nav-item" data-section="chat-style">
-                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+            <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chat-square-text"></use></svg>
                 <span>Папки с чатами</span>
             </a>
-            <a href="#keys" class="nav-item" data-section="keys">
-                <i class="bi bi-key" aria-hidden="true"></i>
-                <span>Безопасность</span>
-            </a>
-            <a href="#account" class="nav-item" data-section="account">
-                <i class="bi bi-pc-display-horizontal" aria-hidden="true"></i>
+            <a href="#account" class="nav-item" data-section="account" data-nav-key="account">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
                 <span>Устройства</span>
                 <span class="nav-item-meta" aria-hidden="true">7</span>
             </a>
-            <a href="#support" class="nav-item" data-section="support">
-                <i class="bi bi-translate" aria-hidden="true"></i>
+            <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
                 <span>Язык</span>
                 <span class="nav-item-meta" aria-hidden="true">Русский</span>
             </a>
-            <div class="settings-nav-block-divider" aria-hidden="true"></div>
-            <button type="button" class="nav-item settings-premium-item" id="settingsPremiumBtn">
-                <i class="bi bi-stars" aria-hidden="true"></i>
-                <span>Telegram Premium</span>
-            </button>
 
             <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="nav-item danger" data-logout-trigger>
-                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg>
                     <span>Выйти</span>
                 </button>
             </form>
@@ -775,7 +770,7 @@
                     <i class="bi bi-translate"></i>
                     <h3>Язык интерфейса</h3>
                 </div>
-                <div class="settings-row settings-row-borderless">
+                <div class="settings-row settings-row-borderless" id="appearanceLanguageRow">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Язык интерфейса</div>
                         <div class="settings-row-desc">Применится после повторного входа</div>
