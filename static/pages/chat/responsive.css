@@ -1268,16 +1268,6 @@
                 gap: 8px;
             }
 
-            .emoji-picker-tabstrip {
-                padding: 3px;
-                border-radius: 12px;
-            }
-
-            .emoji-tab-btn {
-                min-height: 30px;
-                font-size: 12px;
-            }
-
             .emoji-picker-search {
                 min-height: 38px;
                 border-radius: 11px;
@@ -1386,59 +1376,9 @@
                 height: 25px;
             }
 
-            .emoji-sticker-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 7px;
-            }
-
-            .emoji-sticker-item {
-                min-height: 84px;
-                border-radius: 13px;
-            }
-
-            .emoji-sticker-item__emoji {
-                font-size: 32px;
-            }
-
-            .emoji-sticker-item__label {
-                font-size: 10px;
-            }
-
-            .emoji-gif-grid {
-                gap: 7px;
-            }
-
-            .emoji-gif-item {
-                min-height: 74px;
-                border-radius: 13px;
-                padding: 9px 9px 8px;
-            }
-
-            .emoji-gif-item__label {
-                font-size: 11px;
-            }
-
-            .emoji-item:active,
-            .emoji-sticker-item:active,
-            .emoji-gif-item:active,
-            .emoji-mode-btn:active {
+            .emoji-item:active {
                 background: color-mix(in srgb, var(--accent-glow) 24%, var(--contact-hover) 76%);
                 transform: scale(0.95);
-            }
-
-            .emoji-picker-footer {
-                padding: 8px var(--emoji-mobile-gutter) calc(10px + env(safe-area-inset-bottom));
-                gap: 6px;
-            }
-
-            .emoji-mode-btn {
-                min-height: 38px;
-                border-radius: 12px;
-            }
-
-            .emoji-mode-btn .sun-icon {
-                width: 20px;
-                height: 20px;
             }
 
             @media (max-width: 360px) {
