@@ -13,6 +13,7 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
         body,
         headers = {},
         credentials = 'include',
+        keepalive = false,
     } = {}) {
         const finalHeaders = { ...headers };
         let finalBody = body;
@@ -29,6 +30,7 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
         const response = await fetch(withAppRoot(path), {
             method,
             credentials,
+            keepalive: !!keepalive,
             headers: finalHeaders,
             body: finalBody,
         });
@@ -47,7 +49,11 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
     return {
         logout: () => request('/api/logout', { method: 'POST', json: {} }),
         getSettings: () => requestSuccess('/api/get_settings', {}, 'Не удалось загрузить настройки.'),
-        saveSettings: (payload) => requestSuccess('/api/save_settings', { method: 'POST', json: payload }, 'Не удалось сохранить настройки.'),
+        saveSettings: (payload, requestOptions = {}) => requestSuccess('/api/save_settings', {
+            method: 'POST',
+            json: payload,
+            keepalive: requestOptions.keepalive === true,
+        }, 'Не удалось сохранить настройки.'),
         getWebPushPublicKey: () => requestSuccess('/api/web_push/public_key', {}, 'Не удалось загрузить настройки push.'),
         subscribeWebPush: (subscription) => requestSuccess('/api/web_push/subscribe', {
             method: 'POST',

@@ -245,9 +245,9 @@ export function initSettingsPage() {
         showAlert,
         chatAppearanceApi: window.ChatAppearance || null,
         interfaceThemeApi: window.InterfaceTheme || null,
-        persistClientPreferences: (clientPreferences) => api.saveSettings({
+        persistClientPreferences: (clientPreferences, requestOptions = {}) => api.saveSettings({
             client_preferences: clientPreferences,
-        }),
+        }, requestOptions),
     });
 
     const devicesSection = initDevicesSection({

@@ -218,7 +218,18 @@
     }
 
     function writeStore(store) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeStore(store)));
+        const normalizedStore = normalizeStore(store);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStore));
+        if (window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.merge === 'function') {
+            try {
+                window.SUN_CLIENT_PREFERENCES.merge({
+                    chatAppearanceStore: normalizedStore,
+                    darkMode: detectDarkMode(),
+                });
+            } catch (_error) {
+                // Ignore unified preference sync errors.
+            }
+        }
     }
 
     function getPresetById(id) {

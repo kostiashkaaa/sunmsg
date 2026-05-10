@@ -9,6 +9,7 @@ export function initChatShellThemeSync(options = {}) {
     const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     let persistTimerId = 0;
+    let pendingClientPreferences = null;
 
     const tr = (value) => {
         if (i18nApi && typeof i18nApi.translateText === 'function') {
@@ -18,6 +19,26 @@ export function initChatShellThemeSync(options = {}) {
     };
 
     const isDark = () => localStorage.getItem('darkMode') === 'true';
+
+    const resolveCurrentLanguage = () => {
+        if (i18nApi && typeof i18nApi.getLanguage === 'function') {
+            return String(i18nApi.getLanguage() || 'ru').toLowerCase() === 'en' ? 'en' : 'ru';
+        }
+        return String(document.documentElement?.lang || 'ru').toLowerCase() === 'en' ? 'en' : 'ru';
+    };
+
+    const syncClientPreferencesLocal = (preferences) => {
+        if (!window.SUN_CLIENT_PREFERENCES || typeof window.SUN_CLIENT_PREFERENCES.collect !== 'function') {
+            return;
+        }
+        try {
+            window.SUN_CLIENT_PREFERENCES.collect(preferences || collectClientPreferences(), {
+                touchUpdatedAt: true,
+            });
+        } catch (_) {
+            // Ignore local preference sync errors.
+        }
+    };
 
     function clampMessageScale(value) {
         const parsed = Number.parseFloat(value);
@@ -56,6 +77,8 @@ export function initChatShellThemeSync(options = {}) {
 
         return {
             darkMode: isDark(),
+            language: resolveCurrentLanguage(),
+            updatedAt: new Date().toISOString(),
             messageScale,
             performanceMode,
             motionLevel,
@@ -67,6 +90,9 @@ export function initChatShellThemeSync(options = {}) {
     }
 
     function scheduleClientPreferencesPersist(delayMs = 300) {
+        const payload = collectClientPreferences();
+        pendingClientPreferences = payload;
+        syncClientPreferencesLocal(payload);
         if (!persistClientPreferences) return;
         if (persistTimerId) {
             window.clearTimeout(persistTimerId);
@@ -74,11 +100,26 @@ export function initChatShellThemeSync(options = {}) {
         persistTimerId = window.setTimeout(async () => {
             persistTimerId = 0;
             try {
-                await persistClientPreferences(collectClientPreferences());
+                const outgoing = pendingClientPreferences || collectClientPreferences();
+                pendingClientPreferences = null;
+                await persistClientPreferences(outgoing);
             } catch (_) {
                 // Ignore background sync failure for non-critical UI toggle.
             }
         }, delayMs);
+    }
+
+    function flushClientPreferencesPersist(options = {}) {
+        const payload = pendingClientPreferences || collectClientPreferences();
+        pendingClientPreferences = payload;
+        syncClientPreferencesLocal(payload);
+        if (persistTimerId) {
+            window.clearTimeout(persistTimerId);
+            persistTimerId = 0;
+        }
+        if (!persistClientPreferences) return Promise.resolve();
+        return persistClientPreferences(payload, options)
+            .catch(() => {});
     }
 
     function applyDark(on) {
@@ -110,6 +151,7 @@ export function initChatShellThemeSync(options = {}) {
         const nextLanguage = String(language || '').toLowerCase() === 'en' ? 'en' : 'ru';
         const shouldPersist = options.persist !== false;
         i18nApi.setLanguage(nextLanguage, { persist: shouldPersist, apply: true });
+        scheduleClientPreferencesPersist(120);
     }
 
     applyDark(isDark());
@@ -143,5 +185,6 @@ export function initChatShellThemeSync(options = {}) {
         applyDark,
         applyEmbeddedThemeUpdates,
         applyEmbeddedLanguageUpdates,
+        flushClientPreferencesPersist,
     };
 }

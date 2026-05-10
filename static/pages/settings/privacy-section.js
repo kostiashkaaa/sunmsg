@@ -36,6 +36,10 @@ function normalizeTimeFormat(value) {
     return raw === TIME_FORMAT_12H ? TIME_FORMAT_12H : TIME_FORMAT_24H;
 }
 
+function normalizeLanguage(value) {
+    return String(value || '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
+}
+
 function normalizeSidebarWeatherSource(value) {
     const raw = String(value || '').trim().toLowerCase();
     return raw === SIDEBAR_WEATHER_SOURCE_CITY
@@ -136,6 +140,38 @@ export function initPrivacySection({
     let persistedClientPreferences = {};
     let sidebarWeatherCitySuggestionsTimerId = 0;
     let sidebarWeatherCitySuggestionsRequestSeq = 0;
+    const CLIENT_PREFERENCES_FIELD_IDS = new Set([
+        'languageSelect',
+        'sendShortcutEnterOption',
+        'sendShortcutCtrlEnterOption',
+        'timeFormat12hOption',
+        'timeFormat24hOption',
+        'animationsEnabledSwitch',
+        'sidebarWeatherEnabledSwitch',
+        'sidebarWeatherSourceSelect',
+        'sidebarWeatherCityInput',
+        'sidebarWeatherRotateSelect',
+        'sidebarWeatherMetricTemperature',
+        'sidebarWeatherMetricFeelsLike',
+        'sidebarWeatherMetricHumidity',
+        'sidebarWeatherMetricWind',
+        'sidebarWeatherMetricPrecip',
+        'sidebarWeatherMetricUv',
+        'sidebarWeatherMetricAqi',
+        'sidebarWeatherMetricPressure',
+        'sidebarWeatherMetricSunCycle',
+    ]);
+
+    function syncClientPreferencesLocal(touchUpdatedAt = true) {
+        if (!window.SUN_CLIENT_PREFERENCES || typeof window.SUN_CLIENT_PREFERENCES.collect !== 'function') {
+            return;
+        }
+        try {
+            window.SUN_CLIENT_PREFERENCES.collect(collectClientPreferencesForSave(), { touchUpdatedAt });
+        } catch (_) {
+            // Ignore local preference sync errors.
+        }
+    }
 
     function resolveLocale() {
         const language = i18nApi && typeof i18nApi.getLanguage === 'function'
@@ -469,6 +505,8 @@ export function initPrivacySection({
 
         return {
             darkMode,
+            language: normalizeLanguage(languageSelectEl?.value || document.documentElement.lang || 'ru'),
+            updatedAt: new Date().toISOString(),
             messageScale,
             performanceMode,
             motionLevel,
@@ -560,6 +598,7 @@ export function initPrivacySection({
             { performanceMode: nextPerformanceMode, motionLevel: nextMotionLevel },
             { persist: true, notify: true, syncToggle: true },
         );
+        syncClientPreferencesLocal(false);
 
         if (bioEl && bioCounterEl) {
             bioCounterEl.textContent = `${bioEl.value.length}/280`;
@@ -650,8 +689,19 @@ export function initPrivacySection({
         ...sidebarWeatherMetricInputEls,
     ].forEach((field) => {
         if (!field) return;
-        field.addEventListener('input', () => state.syncDirtyState());
-        field.addEventListener('change', () => state.syncDirtyState());
+        const maybeSyncClientPreferences = () => {
+            if (CLIENT_PREFERENCES_FIELD_IDS.has(String(field.id || ''))) {
+                syncClientPreferencesLocal(true);
+            }
+        };
+        field.addEventListener('input', () => {
+            state.syncDirtyState();
+            maybeSyncClientPreferences();
+        });
+        field.addEventListener('change', () => {
+            state.syncDirtyState();
+            maybeSyncClientPreferences();
+        });
     });
 
     if (bioInputEl && bioCounterEl) {
@@ -666,6 +716,7 @@ export function initPrivacySection({
             i18nApi.setLanguage(nextLanguage, { persist: false, apply: true });
             notifyLanguageUpdate(nextLanguage, false);
             syncTimeFormatSamples();
+            syncClientPreferencesLocal(true);
         });
     }
 
@@ -682,6 +733,7 @@ export function initPrivacySection({
             },
             { persist: true, notify: true, syncToggle: true },
         );
+        syncClientPreferencesLocal(true);
     });
 
     sidebarWeatherEnabledSwitchEl?.addEventListener('change', () => {
