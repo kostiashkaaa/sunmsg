@@ -3245,8 +3245,8 @@ body.auth-page-body--sunrise-v3 .auth-register-progress-text {
     display: none !important;
 }
 
-body.auth-page-body--sunrise-v3 #panel-login,
-body.auth-page-body--sunrise-v3 #panel-register,
+body.auth-page-body--sunrise-v3 .tab-panel.active#panel-login,
+body.auth-page-body--sunrise-v3 .tab-panel.active#panel-register,
 body.auth-page-body--sunrise-v3 #panel-login #ajaxLoginForm,
 body.auth-page-body--sunrise-v3 #panel-register #ajaxRegisterForm,
 body.auth-page-body--sunrise-v3 #registerStep2Block,
