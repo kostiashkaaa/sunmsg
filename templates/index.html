@@ -86,19 +86,12 @@
 
             <div class="tab-panel active" id="panel-login" role="tabpanel">
 
-                <div class="auth-method-switcher">
-                    <button class="auth-method-btn active" id="methodQrBtn"
-                            type="button">
-                        <i class="bi bi-qr-code-scan"></i> QR вход
-                    </button>
-                    <button class="auth-method-btn" id="methodKeyBtn"
-                            type="button">
-                        <i class="bi bi-shield-lock"></i> 24 слова (мнемоническая фраза)
-                    </button>
+                <div class="auth-login-intro">
+                    <h2 class="auth-login-intro-title">Войти за три секунды</h2>
+                    <p class="auth-login-intro-sub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
                 </div>
 
                 <form id="ajaxLoginForm">
-
                     <div class="auth-form-group" id="loginQrGroup">
                         <div class="auth-qr-login-card">
                             <div id="loginQrCodeContainer" class="auth-qr-login-code">
@@ -113,41 +106,61 @@
                         </div>
                     </div>
 
-                    <div class="auth-form-group" id="loginKeyGroup">
-                        <label class="auth-label" for="login_username">Имя пользователя</label>
-                        <div class="auth-input-wrap auth-input-wrap-compact">
-                            <input type="text" class="auth-input" id="login_username"
-                                   placeholder="ваш_username" autocomplete="username"
-                                   pattern="[a-z0-9_]+" maxlength="50">
-                            <i class="bi bi-at auth-input-icon"></i>
-                        </div>
-                        <label class="auth-label">24 слова (мнемоническая фраза)</label>
-                        <div class="mnemonic-grid" id="mnemonicInputGrid">
-                        </div>
+                    <div class="auth-login-actions">
+                        <button type="button" class="auth-btn auth-btn-accent" id="loginGoRegisterBtn">
+                            <span>Я ещё не зарегистрирован</span>
+                            <span class="auth-btn-arrow">&rarr;</span>
+                        </button>
                     </div>
 
-                    <div class="auth-form-group" id="loginTotpGroup">
-                        <label class="auth-label" for="login_totp_code">Код из приложения-аутентификатора</label>
-                        <div class="auth-input-wrap">
-                            <input type="text" class="auth-input totp-input" id="login_totp_code"
-                                   placeholder="000000" maxlength="6" inputmode="numeric"
-                                   autocomplete="one-time-code">
+                    <details class="auth-login-other-details" id="loginOtherMethodsDetails">
+                        <summary class="auth-login-other-summary" id="loginOtherMethodsSummary">Другие способы входа</summary>
+                        <div class="auth-login-other-content">
+                            <div class="auth-method-switcher">
+                                <button class="auth-method-btn active" id="methodQrBtn" type="button">
+                                    <i class="bi bi-qr-code-scan"></i> QR вход
+                                </button>
+                                <button class="auth-method-btn" id="methodKeyBtn" type="button">
+                                    <i class="bi bi-shield-lock"></i> 24 слова
+                                </button>
+                            </div>
+
+                            <div class="auth-form-group" id="loginKeyGroup">
+                                <label class="auth-label" for="login_username">Имя пользователя</label>
+                                <div class="auth-input-wrap auth-input-wrap-compact">
+                                    <input type="text" class="auth-input" id="login_username"
+                                           placeholder="ваш_username" autocomplete="username"
+                                           pattern="[a-z0-9_]+" maxlength="50">
+                                    <i class="bi bi-at auth-input-icon"></i>
+                                </div>
+                                <label class="auth-label">24 слова (мнемоническая фраза)</label>
+                                <div class="mnemonic-grid" id="mnemonicInputGrid"></div>
+                            </div>
+
+                            <div class="auth-form-group" id="loginTotpGroup">
+                                <label class="auth-label" for="login_totp_code">Код из приложения-аутентификатора</label>
+                                <div class="auth-input-wrap">
+                                    <input type="text" class="auth-input totp-input" id="login_totp_code"
+                                           placeholder="000000" maxlength="6" inputmode="numeric"
+                                           autocomplete="one-time-code">
+                                </div>
+                                <p class="auth-totp-help">
+                                    Откройте Google Authenticator или Microsoft Authenticator &rarr; введите 6-значный код
+                                </p>
+                            </div>
+
+                            <label class="auth-trust-row">
+                                <input type="checkbox" id="rememberDeviceCheckbox" class="auth-trust-checkbox">
+                                <span class="auth-trust-box"><span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span></span>
+                                <span>Запомнить это устройство на 30 дней</span>
+                            </label>
+
+                            <button type="submit" class="auth-btn auth-btn-primary" id="loginSubmitBtn">
+                                <span id="loginBtnText">Войти</span>
+                                <span class="auth-btn-arrow">&rarr;</span>
+                            </button>
                         </div>
-                        <p class="auth-totp-help">
-                            Откройте Google Authenticator или Microsoft Authenticator &rarr; введите 6-значный код
-                        </p>
-                    </div>
-
-                    <label class="auth-trust-row">
-                        <input type="checkbox" id="rememberDeviceCheckbox" class="auth-trust-checkbox">
-                        <span class="auth-trust-box"><span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span></span>
-                        <span>Запомнить это устройство на 30 дней</span>
-                    </label>
-
-                    <button type="submit" class="auth-btn auth-btn-primary" id="loginSubmitBtn">
-                        <span id="loginBtnText">Войти</span>
-                        <span class="auth-btn-arrow">&rarr;</span>
-                    </button>
+                    </details>
                 </form>
             </div>
 

@@ -263,13 +263,20 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
         const headline = document.getElementById('authHeadline');
         if (!headline) return;
+        const language = activeLanguage();
         if (tab === 'register') {
-            headline.innerHTML = 'Создайте тихое место.'
-                + '<br><em class="auth-brand-headline-em">Для тех, кому доверяете.</em>';
+            headline.innerHTML = language === 'en'
+                ? 'Create your quiet space.'
+                    + '<br><em class="auth-brand-headline-em">For people you trust.</em>'
+                : 'Создайте тихое место.'
+                    + '<br><em class="auth-brand-headline-em">Для тех, кому доверяете.</em>';
             return;
         }
-        headline.innerHTML = 'Добро пожаловать'
-            + '<br><em class="auth-brand-headline-em">в тихую сеть.</em>';
+        headline.innerHTML = language === 'en'
+            ? 'Sign in'
+                + '<br><em class="auth-brand-headline-em">in three seconds.</em>'
+            : 'Войти'
+                + '<br><em class="auth-brand-headline-em">за три секунды.</em>';
     }
 
     document.getElementById('tab-login-btn')?.addEventListener('click', () => switchTab('login'));
