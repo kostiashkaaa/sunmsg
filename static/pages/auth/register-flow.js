@@ -10,6 +10,7 @@ export function initRegisterFlow({
     setMnemonicToGrid,
 }) {
     const registerFlowProgress = document.getElementById('registerFlowProgress');
+    const registerFlowProgressText = document.getElementById('registerFlowProgressText');
     const regUsernameInput = document.getElementById('reg_username');
     const regUsernameHint = document.getElementById('reg_username_hint');
     const registerForm = document.getElementById('ajaxRegisterForm');
@@ -63,9 +64,16 @@ export function initRegisterFlow({
         };
         const language = activeLanguage() === 'en' ? 'en' : 'ru';
         const title = language === 'en' ? en[step] : ru[step];
-        registerFlowProgress.textContent = language === 'en'
+        const progressText = language === 'en'
             ? `Step ${step} of 4 — ${title}`
             : `Шаг ${step} из 4 — ${title}`;
+
+        registerFlowProgress.dataset.step = String(step);
+        if (registerFlowProgressText) {
+            registerFlowProgressText.textContent = progressText;
+            return;
+        }
+        registerFlowProgress.textContent = progressText;
     }
 
     function setElementHidden(element, hidden) {

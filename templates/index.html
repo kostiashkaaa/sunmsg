@@ -75,8 +75,8 @@
             <div class="tab-panel active" id="panel-login" role="tabpanel">
 
                 <div class="auth-login-intro">
-                    <h2 class="auth-login-intro-title">Войти за три секунды</h2>
-                    <p class="auth-login-intro-sub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
+                    <h2 class="auth-login-intro-title" id="loginIntroTitle">Войти за три секунды</h2>
+                    <p class="auth-login-intro-sub" id="loginIntroSub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
                 </div>
 
                 <form id="ajaxLoginForm">
@@ -96,7 +96,7 @@
 
                     <div class="auth-login-actions">
                         <button type="button" class="auth-btn auth-btn-accent" id="loginGoRegisterBtn">
-                            <span>Я ещё не зарегистрирован</span>
+                            <span id="loginGoRegisterLabel">Я ещё не зарегистрирован</span>
                             <span class="auth-btn-arrow">&rarr;</span>
                         </button>
                     </div>
@@ -106,10 +106,10 @@
                         <div class="auth-login-other-content">
                             <div class="auth-method-switcher">
                                 <button class="auth-method-btn active" id="methodQrBtn" type="button">
-                                    <i class="bi bi-qr-code-scan"></i> QR вход
+                                    <i class="bi bi-qr-code-scan"></i> <span id="methodQrBtnLabel">QR вход</span>
                                 </button>
                                 <button class="auth-method-btn" id="methodKeyBtn" type="button">
-                                    <i class="bi bi-shield-lock"></i> 24 слова
+                                    <i class="bi bi-shield-lock"></i> <span id="methodKeyBtnLabel">24 слова</span>
                                 </button>
                             </div>
 
@@ -147,16 +147,33 @@
                                 <span id="loginBtnText">Войти</span>
                                 <span class="auth-btn-arrow">&rarr;</span>
                             </button>
+
+                            <div class="auth-login-other-tip" id="loginOtherMethodsTip">
+                                <strong>Совет:</strong> QR на главном экране — самый безопасный и быстрый способ входа.
+                            </div>
                         </div>
                     </details>
                 </form>
             </div>
 
             <div class="tab-panel" id="panel-register" role="tabpanel">
-                <div class="auth-register-progress" id="registerFlowProgress" aria-live="polite">
-                    Шаг 1 из 4 — Данные аккаунта
+                <div class="auth-register-progress" id="registerFlowProgress" aria-live="polite" data-step="1">
+                    <div class="auth-register-progress-dots" aria-hidden="true">
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                    </div>
+                    <div class="auth-register-progress-text" id="registerFlowProgressText">Шаг 1 из 4 — Данные аккаунта</div>
                 </div>
                 <form id="ajaxRegisterForm" class="auth-register-step1" autocomplete="off">
+                    <div class="auth-key-box-header auth-key-box-header--intro">
+                        <div class="auth-key-box-icon"><i class="bi bi-person-circle"></i></div>
+                        <div>
+                            <div class="auth-key-box-title" id="registerStep1Title">Шаг 1 — Данные аккаунта</div>
+                            <div class="auth-key-box-sub" id="registerStep1Sub">Username нужен для входа, отображаемое имя видят ваши контакты.</div>
+                        </div>
+                    </div>
                     <div class="auth-form-group">
                         <label class="auth-label" for="reg_username">Имя пользователя</label>
                         <div class="auth-input-wrap">

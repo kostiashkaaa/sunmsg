@@ -67,6 +67,17 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
     const authLanguageSwitchEl = document.getElementById('authLanguageSwitch');
     const authLanguageButtons = Array.from(document.querySelectorAll('#authLanguageSwitch [data-lang]'));
+    const tabLoginBtn = document.getElementById('tab-login-btn');
+    const tabRegisterBtn = document.getElementById('tab-register-btn');
+    const loginIntroTitleEl = document.getElementById('loginIntroTitle');
+    const loginIntroSubEl = document.getElementById('loginIntroSub');
+    const loginGoRegisterLabelEl = document.getElementById('loginGoRegisterLabel');
+    const loginOtherMethodsSummaryEl = document.getElementById('loginOtherMethodsSummary');
+    const loginOtherMethodsTipEl = document.getElementById('loginOtherMethodsTip');
+    const methodQrBtnLabelEl = document.getElementById('methodQrBtnLabel');
+    const methodKeyBtnLabelEl = document.getElementById('methodKeyBtnLabel');
+    const registerStep1TitleEl = document.getElementById('registerStep1Title');
+    const registerStep1SubEl = document.getElementById('registerStep1Sub');
     const normalizeLanguageCode = (raw) => (String(raw || '').toLowerCase() === 'en' ? 'en' : 'ru');
 
     function syncAuthLanguageButtons(language = activeLanguage()) {
@@ -77,6 +88,37 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
+    }
+
+    function syncAuthSurfaceCopy(language = activeLanguage()) {
+        const current = normalizeLanguageCode(language);
+        const isEn = current === 'en';
+
+        if (tabLoginBtn) tabLoginBtn.textContent = isEn ? 'Sign in' : 'Войти';
+        if (tabRegisterBtn) tabRegisterBtn.textContent = isEn ? 'Create account' : 'Создать аккаунт';
+        if (loginIntroTitleEl) loginIntroTitleEl.textContent = isEn ? 'Sign in in three seconds' : 'Войти за три секунды';
+        if (loginIntroSubEl) loginIntroSubEl.textContent = isEn
+            ? 'Open SUN on your phone → scan the QR code.'
+            : 'Откройте SUN на телефоне → отсканируйте QR-код.';
+        if (loginGoRegisterLabelEl) loginGoRegisterLabelEl.textContent = isEn
+            ? "I'm new here"
+            : 'Я ещё не зарегистрирован';
+        if (loginOtherMethodsSummaryEl) loginOtherMethodsSummaryEl.textContent = isEn
+            ? 'Other ways to sign in'
+            : 'Другие способы входа';
+        if (methodQrBtnLabelEl) methodQrBtnLabelEl.textContent = isEn ? 'QR sign in' : 'QR вход';
+        if (methodKeyBtnLabelEl) methodKeyBtnLabelEl.textContent = isEn ? '24-word phrase' : '24 слова';
+        if (loginOtherMethodsTipEl) {
+            loginOtherMethodsTipEl.innerHTML = isEn
+                ? '<strong>Tip:</strong> QR on the main screen is the safest and fastest sign-in method.'
+                : '<strong>Совет:</strong> QR на главном экране — самый безопасный и быстрый способ входа.';
+        }
+        if (registerStep1TitleEl) registerStep1TitleEl.textContent = isEn
+            ? 'Step 1 — Account details'
+            : 'Шаг 1 — Данные аккаунта';
+        if (registerStep1SubEl) registerStep1SubEl.textContent = isEn
+            ? 'Username is used for sign-in, display name is visible to contacts.'
+            : 'Username нужен для входа, отображаемое имя видят ваши контакты.';
     }
 
     async function persistGuestLanguage(language) {
@@ -104,6 +146,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             document.body.dataset.uiLanguage = nextLanguage;
         }
         syncAuthLanguageButtons(nextLanguage);
+        syncAuthSurfaceCopy(nextLanguage);
         await persistGuestLanguage(nextLanguage);
     }
 
@@ -118,8 +161,10 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     window.addEventListener('sun-ui-language-changed', () => {
         const current = activeLanguage();
         syncAuthLanguageButtons(current);
+        syncAuthSurfaceCopy(current);
     });
     syncAuthLanguageButtons(activeLanguage());
+    syncAuthSurfaceCopy(activeLanguage());
 
     (function applySavedTheme() {
         const saved = localStorage.getItem('darkMode');
@@ -254,6 +299,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     document.getElementById('tab-login-btn')?.addEventListener('click', () => switchTab('login'));
     document.getElementById('tab-register-btn')?.addEventListener('click', () => switchTab('register'));
     window.switchTab = switchTab;
+    const initialTab = document.getElementById('panel-register')?.classList.contains('active') ? 'register' : 'login';
+    switchTab(initialTab);
 
     const totpInput = document.getElementById('login_totp_code');
     totpInput?.addEventListener('input', function onTotpInput() {
