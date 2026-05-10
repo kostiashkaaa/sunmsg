@@ -25,6 +25,8 @@ export function initLoginFlow({
     const loginOtherMenu = document.getElementById('loginOtherMenu');
     const loginOtherForm = document.getElementById('loginOtherForm');
     const loginPanel = document.getElementById('panel-login');
+    const isEnglishUi = () => String(document.body?.dataset?.uiLanguage || document.documentElement.lang || '').toLowerCase() === 'en';
+    const pickCopy = (ruText, enText) => (isEnglishUi() ? enText : ruText);
 
     function setOtherMethodsView(view) {
         const nextView = view === 'form' ? 'form' : 'menu';
@@ -118,7 +120,7 @@ export function initLoginFlow({
             avatarUrl: profileForOverlay?.avatarUrl,
         });
         if (!overlayShown) {
-            showToast('Добро пожаловать!', 'success');
+            showToast(pickCopy('Добро пожаловать!', 'Welcome!'), 'success');
         }
         redirectToChat(overlayShown);
     }
@@ -210,7 +212,7 @@ export function initLoginFlow({
             totpStepUnlocked = true;
             qrFlow.setLoginQrPulse(false);
             setLoginMethod('totp');
-            showToast('Введите код Authenticator для завершения входа.', 'info');
+            showToast(pickCopy('Введите код Authenticator для завершения входа.', 'Enter the authenticator code to complete sign-in.'), 'info');
             return;
         }
 
@@ -241,7 +243,7 @@ export function initLoginFlow({
             avatarUrl: profile?.avatarUrl,
         });
         if (!overlayShown) {
-            showToast('Добро пожаловать!', 'success');
+            showToast(pickCopy('Добро пожаловать!', 'Welcome!'), 'success');
         }
         redirectToChat(overlayShown);
     }
@@ -258,7 +260,7 @@ export function initLoginFlow({
         setLoginMethod('key');
     });
     methodTotpCardBtn?.addEventListener('click', () => {
-        showToast('Этот способ доступен после ввода 24 слов.', 'info');
+        showToast(pickCopy('Этот способ доступен после ввода 24 слов.', 'This method is available after entering your 24 words.'), 'info');
     });
     loginOtherBackBtn?.addEventListener('click', () => {
         setLoginMethod('qr');
@@ -317,7 +319,7 @@ export function initLoginFlow({
             }
 
             if (currentLoginMethod === 'qr') {
-                throw new Error(tr('Нажмите «Показать QR» и подтвердите вход на другом устройстве.'));
+                throw new Error(pickCopy('Подтвердите вход, отсканировав QR на другом устройстве.', 'Confirm sign-in by scanning the QR on your other device.'));
             }
 
             assertWebCryptoSupport();

@@ -2913,3 +2913,98 @@ body.auth-register-flow-active .auth-card {
     backdrop-filter: blur(11px);
     -webkit-backdrop-filter: blur(11px);
 }
+
+/* Auth bottom legal/support section */
+.auth-legal-section {
+    width: 100%;
+    max-width: 760px;
+    margin-top: clamp(140px, 24vh, 280px);
+    padding: 18px 18px 16px;
+    border: 1px solid color-mix(in srgb, var(--rule) 88%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    box-shadow: var(--shadow);
+    z-index: 1;
+}
+
+.auth-legal-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(1.28rem, 2.4vw, 1.86rem);
+    line-height: 1.04;
+    color: var(--ink);
+}
+
+.auth-legal-sub {
+    margin: 8px 0 0;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--sub-text);
+    max-width: 64ch;
+}
+
+.auth-legal-links {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.auth-legal-link {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    color: var(--ink-soft);
+    text-decoration: none;
+    text-align: center;
+    transition: border-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.auth-legal-link:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--accent) 54%, var(--border));
+    background: color-mix(in srgb, var(--accent-soft) 34%, var(--surface));
+}
+
+.auth-legal-link--feedback {
+    grid-column: 1 / -1;
+    font-weight: 600;
+    color: var(--accent-deep);
+}
+
+@media (min-width: 1000px) {
+    .auth-legal-section {
+        grid-column: 1 / -1;
+        margin-top: clamp(180px, 28vh, 340px);
+        max-width: none;
+        padding: 20px 22px 18px;
+    }
+
+    .auth-legal-links {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .auth-legal-link--feedback {
+        grid-column: 3 / span 2;
+    }
+}
+
+@media (max-width: 640px) {
+    .auth-legal-section {
+        margin-top: 112px;
+        padding: 14px 12px 12px;
+    }
+
+    .auth-legal-links {
+        grid-template-columns: 1fr;
+    }
+}
