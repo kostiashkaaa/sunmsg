@@ -13,6 +13,8 @@ let emojiLoadFailed = false;
 let lastPopulateRequestId = 0;
 
 const RECENT_STORAGE_KEY = 'sun_recent_emojis_v1';
+const EMOJI_DATA_CACHE_KEY = 'sun_emoji_data_cache_v1';
+const EMOJI_DATA_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_RECENT_EMOJIS = 48;
 const DISALLOWED_PICKER_EMOJIS = new Set([
     '\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08', // rainbow flag
@@ -216,6 +218,50 @@ function getRecentEmojis() {
     }
 }
 
+function normalizeEmojiDataPayload(value) {
+    if (!value || typeof value !== 'object') return null;
+    const normalized = {};
+    let hasData = false;
+    EMOJI_CATEGORY_ORDER.forEach((category) => {
+        const source = value[category];
+        if (!Array.isArray(source)) return;
+        const list = source
+            .map((item) => (typeof item === 'string' ? item.trim() : ''))
+            .filter((emoji) => isAllowedPickerEmoji(emoji));
+        if (!list.length) return;
+        normalized[category] = list;
+        hasData = true;
+    });
+    return hasData ? normalized : null;
+}
+
+function readCachedEmojiData() {
+    try {
+        const raw = localStorage.getItem(EMOJI_DATA_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        const savedAt = Number(parsed.savedAt || 0);
+        if (!Number.isFinite(savedAt) || savedAt <= 0) return null;
+        if ((Date.now() - savedAt) > EMOJI_DATA_CACHE_TTL_MS) return null;
+        return normalizeEmojiDataPayload(parsed.data);
+    } catch (error) {
+        console.warn('Failed to read emoji data cache', error);
+        return null;
+    }
+}
+
+function saveCachedEmojiData(data) {
+    try {
+        localStorage.setItem(EMOJI_DATA_CACHE_KEY, JSON.stringify({
+            savedAt: Date.now(),
+            data,
+        }));
+    } catch (error) {
+        console.warn('Failed to persist emoji data cache', error);
+    }
+}
+
 function saveRecentEmojis(values) {
     try {
         localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(values.slice(0, MAX_RECENT_EMOJIS)));
@@ -259,10 +305,19 @@ async function loadEmojiData() {
     if (emojiData) return emojiData;
     if (emojiLoadFailed) return null;
 
+    const cachedData = readCachedEmojiData();
+    if (cachedData) {
+        emojiData = cachedData;
+        return emojiData;
+    }
+
     try {
         const resp = await fetch(withAppRoot('/static/emojis.json'));
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        emojiData = await resp.json();
+        const nextData = normalizeEmojiDataPayload(await resp.json());
+        if (!nextData) throw new Error('Invalid emoji payload');
+        emojiData = nextData;
+        saveCachedEmojiData(emojiData);
         return emojiData;
     } catch (error) {
         console.error('Failed to load emojis', error);
