@@ -918,6 +918,30 @@
         return keys.length > 0;
     }
 
+    function applyServerThemePreferences(basePrefs, serverPrefs) {
+        const base = asObject(basePrefs);
+        const server = asObject(serverPrefs);
+        const merged = { ...base };
+        let patched = false;
+
+        if (typeof server.darkMode === 'boolean') {
+            merged.darkMode = server.darkMode;
+            patched = true;
+        }
+        if (server.interfaceThemeStore && typeof server.interfaceThemeStore === 'object') {
+            merged.interfaceThemeStore = server.interfaceThemeStore;
+            patched = true;
+        }
+        if (server.chatAppearanceStore && typeof server.chatAppearanceStore === 'object') {
+            merged.chatAppearanceStore = server.chatAppearanceStore;
+            patched = true;
+        }
+        if (patched && typeof server.updatedAt === 'string' && server.updatedAt) {
+            merged.updatedAt = server.updatedAt;
+        }
+        return merged;
+    }
+
     function resolveEffectiveClientPreferences(serverPrefs, localPrefs, fallbackLanguage) {
         const server = finalizeClientPreferences(serverPrefs || {}, { touchUpdatedAt: false, defaultLanguage: fallbackLanguage });
         const local = finalizeClientPreferences(localPrefs || {}, {
@@ -928,20 +952,27 @@
         });
         const serverTs = toTimestampMs(server.updatedAt);
         const localTs = toTimestampMs(local.updatedAt);
+        let preferred = server;
 
         if (localTs > 0 && serverTs > 0) {
-            return localTs > serverTs ? local : server;
+            preferred = localTs > serverTs ? local : server;
+        } else if (localTs > 0 && serverTs === 0) {
+            preferred = local;
+        } else if (serverTs > 0 && localTs === 0) {
+            preferred = server;
+        } else if (hasMeaningfulClientPreferences(local)) {
+            preferred = local;
         }
-        if (localTs > 0 && serverTs === 0) {
-            return local;
-        }
-        if (serverTs > 0 && localTs === 0) {
-            return server;
-        }
-        if (hasMeaningfulClientPreferences(local)) {
-            return local;
-        }
-        return server;
+
+        return finalizeClientPreferences(
+            applyServerThemePreferences(preferred, server),
+            {
+                touchUpdatedAt: false,
+                ensureUpdatedAt: false,
+                ensureLanguage: false,
+                defaultLanguage: fallbackLanguage,
+            },
+        );
     }
 
     function readLegacyJsonFromStorage(key, maxLength) {
