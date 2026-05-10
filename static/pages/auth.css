@@ -3225,6 +3225,8 @@ body.auth-page-body--sunrise-v3 #keyResultBox {
     display: flex;
     flex-direction: column;
     align-self: stretch;
+    position: relative;
+    overflow: hidden;
 }
 
 body.auth-page-body--sunrise-v3 #keyResultBox {
@@ -3258,6 +3260,13 @@ body.auth-page-body--sunrise-v3 #registerStep4Block {
     min-height: 0 !important;
     height: 100%;
     margin: 0;
+}
+
+body.auth-page-body--sunrise-v3 .tab-panel.tab-panel-leaving {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 2;
 }
 
 body.auth-page-body--sunrise-v3 #panel-login #ajaxLoginForm,
@@ -3864,6 +3873,7 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn {
     }
 
     body.auth-page-body--sunrise-v3 .auth-hero-panel {
+        height: auto;
         min-height: 250px;
         border-radius: 18px;
         padding: 22px 20px;
