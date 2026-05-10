@@ -82,18 +82,52 @@
 
     <header class="settings-panel-head">
         <button type="button" class="settings-panel-close" id="settingsPanelCloseBtn" aria-label="Закрыть">
-            <i class="bi bi-x-lg"></i>
+            <i class="bi bi-arrow-left"></i>
         </button>
         <div class="settings-panel-head-copy">
-            <div class="settings-panel-pre">Настройки</div>
-            <div class="settings-panel-title" id="settingsPanelTitle">Профиль и приватность</div>
+            <div class="settings-panel-title" id="settingsPanelTitle">Настройки</div>
         </div>
-        <span class="settings-panel-esc" id="settingsPanelEscHint">Esc · закрыть</span>
+        <div class="settings-panel-tools" id="settingsPanelTools">
+            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderEditBtn" aria-label="Редактировать профиль">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderMoreBtn" aria-label="Дополнительные действия">
+                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+            </button>
+        </div>
+        <span class="settings-panel-esc settings-hidden" id="settingsPanelEscHint">Esc · закрыть</span>
     </header>
 
     <div class="settings-panel-body">
 
     <nav class="settings-nav" id="settingsNav" aria-label="Разделы настроек">
+        <section class="settings-nav-profile" id="settingsNavProfile" data-section-target="profile" role="button" tabindex="0" aria-label="Открыть профиль">
+            <div class="settings-nav-avatar-wrap">
+                <div class="avatar-preview settings-nav-avatar" id="settingsNavAvatarPreview">?</div>
+            </div>
+            <div class="settings-nav-display-name" id="settingsNavDisplayName">{{ current_display_name }}</div>
+            <div class="settings-nav-presence">в сети</div>
+            <button type="button" class="settings-nav-profile-action" id="settingsNavEditProfileBtn" aria-label="Редактировать профиль">
+                <i class="bi bi-camera" aria-hidden="true"></i>
+            </button>
+            <div class="settings-nav-profile-rows">
+                <div class="settings-nav-profile-row">
+                    <i class="bi bi-telephone" aria-hidden="true"></i>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value">Не указан</div>
+                        <div class="settings-nav-profile-row-label">Телефон</div>
+                    </div>
+                </div>
+                <div class="settings-nav-profile-row">
+                    <i class="bi bi-at" aria-hidden="true"></i>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username }}</div>
+                        <div class="settings-nav-profile-row-label">Имя пользователя</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="settings-nav-block-divider" aria-hidden="true"></div>
         <button
             type="button"
             class="settings-nav-toggle"
@@ -128,20 +162,27 @@
             </a>
             <a href="#chat-style" class="nav-item" data-section="chat-style">
                 <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-                <span>Папки и стиль чатов</span>
+                <span>Папки с чатами</span>
             </a>
             <a href="#keys" class="nav-item" data-section="keys">
                 <i class="bi bi-key" aria-hidden="true"></i>
                 <span>Безопасность</span>
             </a>
             <a href="#account" class="nav-item" data-section="account">
-                <i class="bi bi-phone" aria-hidden="true"></i>
+                <i class="bi bi-pc-display-horizontal" aria-hidden="true"></i>
                 <span>Устройства</span>
+                <span class="nav-item-meta" aria-hidden="true">7</span>
             </a>
             <a href="#support" class="nav-item" data-section="support">
                 <i class="bi bi-translate" aria-hidden="true"></i>
-                <span>Язык и поддержка</span>
+                <span>Язык</span>
+                <span class="nav-item-meta" aria-hidden="true">Русский</span>
             </a>
+            <div class="settings-nav-block-divider" aria-hidden="true"></div>
+            <button type="button" class="nav-item settings-premium-item" id="settingsPremiumBtn">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>Telegram Premium</span>
+            </button>
 
             <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

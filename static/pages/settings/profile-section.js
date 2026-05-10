@@ -12,18 +12,31 @@ export function initProfileSection({
     onFieldDirtyChange,
 }) {
     const avatarPreviewEl = document.getElementById('avatarPreview');
+    const settingsNavAvatarPreviewEl = document.getElementById('settingsNavAvatarPreview');
     const displayNameEl = document.getElementById('displayName');
     const usernameEl = document.getElementById('username');
     const previewNameEl = document.getElementById('previewName');
+    const settingsNavDisplayNameEl = document.getElementById('settingsNavDisplayName');
+    const settingsNavUsernameValueEl = document.getElementById('settingsNavUsernameValue');
     const avatarFileInputEl = document.getElementById('avatarFileInput');
 
     const preview = createProfilePreviewController({
         avatarPreviewEl,
         displayNameEl,
         previewNameEl,
+        usernameEl,
+        previewUsernameEl: settingsNavUsernameValueEl,
+        secondaryAvatarEls: [settingsNavAvatarPreviewEl],
+        secondaryNameEls: [settingsNavDisplayNameEl],
     });
 
     displayNameEl?.addEventListener('input', () => {
+        preview.updateAvatarInitials();
+        if (typeof onFieldDirtyChange === 'function') {
+            onFieldDirtyChange();
+        }
+    });
+    usernameEl?.addEventListener('input', () => {
         preview.updateAvatarInitials();
         if (typeof onFieldDirtyChange === 'function') {
             onFieldDirtyChange();

@@ -17,15 +17,21 @@ export function initSettingsNavShell({
     const sections = document.querySelectorAll('section[id^="section-"]');
     const settingsContentEl = document.querySelector('.settings-content');
     const panelTitleEl = document.getElementById('settingsPanelTitle');
+    const panelCloseBtn = document.getElementById('settingsPanelCloseBtn');
+    const panelToolsEl = document.getElementById('settingsPanelTools');
     const settingsNavEl = document.getElementById('settingsNav');
     const settingsNavToggleEl = document.getElementById('settingsNavToggle');
     const settingsNavToggleLabelEl = document.getElementById('settingsNavToggleLabel');
-    const settingsNavListEl = document.getElementById('settingsNavList');
+    const settingsNavProfileEl = document.getElementById('settingsNavProfile');
+    const settingsNavEditProfileBtnEl = document.getElementById('settingsNavEditProfileBtn');
+    const settingsHeaderEditBtnEl = document.getElementById('settingsHeaderEditBtn');
+    const settingsHeaderMoreBtnEl = document.getElementById('settingsHeaderMoreBtn');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
     let mobileNavOpen = false;
     let activeSectionId = '';
     let sectionTransitionSeq = 0;
+    let detailViewOpen = false;
 
     const sectionTitles = {
         profile: 'Профиль',
@@ -33,11 +39,13 @@ export function initSettingsNavShell({
         'data-memory': 'Данные и память',
         privacy: 'Конфиденциальность',
         appearance: 'Общие настройки',
-        'chat-style': 'Папки и стиль чатов',
+        'chat-style': 'Папки с чатами',
         keys: 'Безопасность',
         account: 'Устройства',
-        support: 'Язык и поддержка',
+        support: 'Язык',
     };
+
+    const sectionIdSet = new Set(Object.keys(sectionTitles));
 
     function isCompactNav() {
         return compactNavMedia.matches;
@@ -50,10 +58,13 @@ export function initSettingsNavShell({
         settingsNavToggleEl.setAttribute('aria-expanded', mobileNavOpen ? 'true' : 'false');
     }
 
-    function updateNavToggleLabel(activeItem) {
-        if (!settingsNavToggleLabelEl) return;
-        const candidate = activeItem || document.querySelector('.nav-item[data-section].active');
-        settingsNavToggleLabelEl.textContent = candidate?.textContent?.trim() || tr('Профиль');
+    function setDetailView(nextState) {
+        detailViewOpen = !!nextState;
+        document.body.classList.toggle('settings-detail-open', detailViewOpen);
+        document.body.classList.toggle('settings-home-open', !detailViewOpen);
+        settingsNavEl?.classList.toggle('is-detail-open', detailViewOpen);
+        settingsContentEl?.classList.toggle('is-detail-open', detailViewOpen);
+        panelToolsEl?.classList.toggle('settings-hidden', detailViewOpen);
     }
 
     function prefersReducedMotion() {
@@ -63,14 +74,12 @@ export function initSettingsNavShell({
         return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
     }
 
-    function scrollNavItemIntoView(item) {
-        if (!item || typeof item.scrollIntoView !== 'function') return;
-        const reducedMotion = prefersReducedMotion();
-        item.scrollIntoView({
-            block: 'nearest',
-            inline: 'center',
-            behavior: reducedMotion ? 'auto' : 'smooth',
-        });
+    function updateNavToggleLabel(activeItem) {
+        if (!settingsNavToggleLabelEl) return;
+        const label = activeItem?.querySelector('span:not(.nav-item-meta)')?.textContent?.trim()
+            || activeItem?.textContent?.trim()
+            || tr('Разделы');
+        settingsNavToggleLabelEl.textContent = label;
     }
 
     function syncCompactNavState() {
@@ -80,54 +89,15 @@ export function initSettingsNavShell({
         }
     }
 
-    function bindDesktopHorizontalWheelScroll() {
-        if (!settingsNavListEl) return;
-        settingsNavListEl.addEventListener('wheel', (event) => {
-            if (isCompactNav()) return;
-            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-            const maxScrollLeft = settingsNavListEl.scrollWidth - settingsNavListEl.clientWidth;
-            if (maxScrollLeft <= 1) return;
-            const atLeftEdge = settingsNavListEl.scrollLeft <= 0;
-            const atRightEdge = settingsNavListEl.scrollLeft >= (maxScrollLeft - 1);
-            if ((event.deltaY < 0 && atLeftEdge) || (event.deltaY > 0 && atRightEdge)) return;
-            event.preventDefault();
-            settingsNavListEl.scrollLeft += event.deltaY;
-        }, { passive: false });
-    }
-
-    sections.forEach((section) => {
-        section.classList.add('settings-section');
-    });
-
-    function ensureVisibleActiveSection(preferredId = 'profile') {
-        const active = Array.from(sections).find((section) => section.classList.contains('section-active'));
-        if (active) return;
-        const preferred = document.getElementById(`section-${preferredId}`);
-        const fallback = preferred || sections[0];
-        if (!fallback) return;
-        sections.forEach((section) => {
-            const isFallback = section === fallback;
-            section.style.display = isFallback ? 'block' : 'none';
-            section.classList.toggle('section-active', isFallback);
-            section.classList.remove('section-entering', 'section-leaving');
-        });
-        if (settingsContentEl) {
-            settingsContentEl.classList.remove('is-transitioning');
-            settingsContentEl.style.minHeight = '';
-        }
-        activeSectionId = fallback.id.replace('section-', '') || preferredId;
-    }
-
     function syncSectionTitle(id) {
-        if (panelTitleEl) {
-            panelTitleEl.textContent = tr(sectionTitles[id] || 'Настройки');
-        }
+        if (!panelTitleEl) return;
+        panelTitleEl.textContent = tr(sectionTitles[id] || 'Настройки');
     }
 
     function syncSectionNav(id) {
         let activeItem = null;
         navItems.forEach((item) => {
-            const isActive = item.dataset.section === id;
+            const isActive = Boolean(id) && item.dataset.section === id;
             item.classList.toggle('active', isActive);
             if (isActive) {
                 item.setAttribute('aria-current', 'page');
@@ -137,8 +107,23 @@ export function initSettingsNavShell({
             }
         });
         updateNavToggleLabel(activeItem);
-        if (activeItem) {
-            scrollNavItemIntoView(activeItem);
+        if (activeItem && typeof activeItem.scrollIntoView === 'function') {
+            activeItem.scrollIntoView({
+                block: 'nearest',
+                inline: 'nearest',
+                behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            });
+        }
+    }
+
+    function hideAllSections() {
+        sections.forEach((section) => {
+            section.style.display = 'none';
+            section.classList.remove('section-active', 'section-entering', 'section-leaving');
+        });
+        if (settingsContentEl) {
+            settingsContentEl.classList.remove('is-transitioning');
+            settingsContentEl.style.minHeight = '';
         }
     }
 
@@ -256,16 +241,36 @@ export function initSettingsNavShell({
         }
     }
 
+    function normalizeHashSection(hashValue) {
+        const value = String(hashValue || '').trim().replace(/^#/, '');
+        return sectionIdSet.has(value) ? value : '';
+    }
+
+    function showHome(pushState = true) {
+        sectionTransitionSeq += 1;
+        activeSectionId = '';
+        hideAllSections();
+        syncSectionTitle('');
+        syncSectionNav('');
+        setDetailView(false);
+        if (pushState) {
+            history.pushState(null, null, '#settings');
+        }
+    }
+
     function showSection(id, pushState = true, { immediate = false } = {}) {
-        const target = document.getElementById(`section-${id}`) || document.getElementById('section-profile');
-        const resolvedId = target?.id?.replace('section-', '') || 'profile';
-        const current = activeSectionId ? document.getElementById(`section-${activeSectionId}`) : null;
-        const isSectionChange = activeSectionId !== resolvedId;
+        const resolvedId = normalizeHashSection(id) || 'profile';
+        const target = document.getElementById(`section-${resolvedId}`) || document.getElementById('section-profile');
+        if (!target) {
+            showHome(pushState);
+            return;
+        }
 
-        if (!target) return;
-
+        setDetailView(true);
         sectionTransitionSeq += 1;
         runSectionSideEffects(resolvedId);
+        const current = activeSectionId ? document.getElementById(`section-${activeSectionId}`) : null;
+        const isSectionChange = activeSectionId !== resolvedId;
 
         if (!current || immediate || current === target) {
             sections.forEach((section) => {
@@ -279,7 +284,6 @@ export function initSettingsNavShell({
                 settingsContentEl.style.minHeight = '';
             }
             activeSectionId = resolvedId;
-            ensureVisibleActiveSection(resolvedId);
         } else {
             if (settingsContentEl) {
                 const currentHeight = current.offsetHeight || 0;
@@ -310,7 +314,6 @@ export function initSettingsNavShell({
             ]).then(() => {
                 if (transitionSeq !== sectionTransitionSeq) return;
                 finalizeSectionTransition(current, target);
-                ensureVisibleActiveSection(resolvedId);
             });
             activeSectionId = resolvedId;
         }
@@ -323,12 +326,43 @@ export function initSettingsNavShell({
             settingsContentEl.scrollTop = 0;
         }
     }
+
+    function openSection(sectionId, { immediate = false } = {}) {
+        const normalized = normalizeHashSection(sectionId);
+        if (!normalized) return;
+        showSection(normalized, true, { immediate });
+        if (isCompactNav()) {
+            setMobileNavOpen(false);
+        }
+    }
+
+    settingsNavProfileEl?.addEventListener('click', () => {
+        openSection('profile');
+    });
+    settingsNavProfileEl?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openSection('profile');
+    });
+    settingsNavEditProfileBtnEl?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openSection('profile');
+    });
+    settingsHeaderEditBtnEl?.addEventListener('click', (event) => {
+        event.preventDefault();
+        openSection('profile');
+    });
+    settingsHeaderMoreBtnEl?.addEventListener('click', (event) => {
+        event.preventDefault();
+        openSection('support');
+    });
+
     if (settingsNavToggleEl) {
         settingsNavToggleEl.addEventListener('click', () => {
             setMobileNavOpen(!mobileNavOpen);
         });
     }
-    bindDesktopHorizontalWheelScroll();
 
     if (typeof compactNavMedia.addEventListener === 'function') {
         compactNavMedia.addEventListener('change', syncCompactNavState);
@@ -346,36 +380,51 @@ export function initSettingsNavShell({
     navItems.forEach((item) => {
         item.addEventListener('click', function (event) {
             event.preventDefault();
-            showSection(this.dataset.section);
-            if (isCompactNav()) {
-                setMobileNavOpen(false);
-            }
+            openSection(this.dataset.section);
         });
     });
 
+    panelCloseBtn?.addEventListener('click', (event) => {
+        if (!detailViewOpen) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showHome(true);
+    }, true);
+
     syncCompactNavState();
-    const initialHash = window.location.hash.substring(1);
-    showSection(initialHash || 'profile', false, { immediate: true });
-    ensureVisibleActiveSection(initialHash || 'profile');
+    const initialSection = normalizeHashSection(window.location.hash.substring(1));
+    if (initialSection) {
+        showSection(initialSection, false, { immediate: true });
+    } else {
+        showHome(false);
+    }
 
     window.addEventListener('hashchange', () => {
-        const nextHash = window.location.hash.substring(1) || 'profile';
-        if (nextHash === activeSectionId) return;
-        showSection(nextHash, false);
+        const nextSection = normalizeHashSection(window.location.hash.substring(1));
+        if (!nextSection) {
+            if (detailViewOpen) showHome(false);
+            return;
+        }
+        if (nextSection === activeSectionId && detailViewOpen) return;
+        showSection(nextSection, false);
         if (isCompactNav()) {
             setMobileNavOpen(false);
         }
     });
 
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            if (mobileNavOpen && isCompactNav()) {
-                event.preventDefault();
-                setMobileNavOpen(false);
-                return;
-            }
+        if (event.key !== 'Escape') return;
+        if (mobileNavOpen && isCompactNav()) {
             event.preventDefault();
-            closeSettingsSurface();
+            setMobileNavOpen(false);
+            return;
         }
+        if (detailViewOpen) {
+            event.preventDefault();
+            showHome(true);
+            return;
+        }
+        event.preventDefault();
+        closeSettingsSurface();
     });
 }

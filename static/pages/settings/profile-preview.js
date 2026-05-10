@@ -4,32 +4,50 @@ export function createProfilePreviewController({
     avatarPreviewEl,
     displayNameEl,
     previewNameEl,
+    usernameEl = null,
+    previewUsernameEl = null,
+    secondaryAvatarEls = [],
+    secondaryNameEls = [],
 }) {
-    function setAvatarPreviewImage(avatarUrl) {
-        if (!avatarPreviewEl || !avatarUrl) return;
-        const cleanUrl = String(avatarUrl).trim();
+    const avatarTargets = [avatarPreviewEl, ...secondaryAvatarEls].filter(Boolean);
+    const nameTargets = [previewNameEl, ...secondaryNameEls].filter(Boolean);
+
+    function setAvatarImageForTargets(avatarUrl) {
+        const cleanUrl = String(avatarUrl || '').trim();
         if (!cleanUrl) return;
-        const sep = cleanUrl.includes('?') ? '&' : '?';
-        const img = document.createElement('img');
-        img.src = `${cleanUrl}${sep}t=${Date.now()}`;
-        img.alt = 'Avatar';
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '50%';
-        avatarPreviewEl.replaceChildren(img);
-        avatarPreviewEl.removeAttribute('data-avatar-tint');
+        avatarTargets.forEach((target) => {
+            const sep = cleanUrl.includes('?') ? '&' : '?';
+            const img = document.createElement('img');
+            img.src = `${cleanUrl}${sep}t=${Date.now()}`;
+            img.alt = 'Avatar';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '50%';
+            target.replaceChildren(img);
+            target.removeAttribute('data-avatar-tint');
+        });
+    }
+
+    function setAvatarPreviewImage(avatarUrl) {
+        if (!avatarUrl) return;
+        setAvatarImageForTargets(avatarUrl);
     }
 
     function updateAvatarInitials() {
         const name = String(displayNameEl?.value || '').trim();
         const initials = buildAvatarInitials(name);
-        if (avatarPreviewEl && !avatarPreviewEl.querySelector('img')) {
-            avatarPreviewEl.textContent = initials;
-            applyFallbackAvatarTint(avatarPreviewEl, name || initials);
-        }
-        if (previewNameEl) {
-            previewNameEl.textContent = name || '—';
+        avatarTargets.forEach((target) => {
+            if (target.querySelector('img')) return;
+            target.textContent = initials;
+            applyFallbackAvatarTint(target, name || initials);
+        });
+        nameTargets.forEach((target) => {
+            target.textContent = name || '-';
+        });
+        if (previewUsernameEl) {
+            const username = String(usernameEl?.value || '').trim();
+            previewUsernameEl.textContent = username ? `@${username}` : '@-';
         }
     }
 
