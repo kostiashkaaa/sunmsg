@@ -6,29 +6,25 @@
 
         /* Карточки-пузыри: каждая секция настройки — выделенный блок */
         .settings-card {
-            background: color-mix(in srgb, var(--paper) 65%, transparent);
-            border: 1px solid var(--rule-soft);
-            border-radius: 8px;
+            background: color-mix(in srgb, var(--paper) 62%, transparent);
+            border: 0;
+            border-radius: 14px;
             overflow: visible;
-            margin-bottom: 18px;
-            padding: 18px 22px;
-            box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent),
-                        0 8px 24px -18px color-mix(in srgb, var(--ink) 35%, transparent);
-            transition: border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+            margin-bottom: 14px;
+            padding: 16px 18px;
+            box-shadow: none;
+            transition: background var(--dur-quick) var(--ease-quick);
         }
         body.dark-mode .settings-card {
-            background: color-mix(in srgb, var(--paper-alt) 55%, transparent);
-            border-color: color-mix(in srgb, var(--rule) 70%, transparent);
-            box-shadow: 0 1px 0 color-mix(in srgb, #000 18%, transparent),
-                        0 12px 30px -22px rgba(0, 0, 0, 0.6);
+            background: color-mix(in srgb, var(--paper-alt) 52%, transparent);
         }
         .settings-card:hover {
-            border-color: color-mix(in srgb, var(--rule) 90%, var(--ink) 10%);
+            background: color-mix(in srgb, var(--paper-alt) 72%, transparent);
         }
         .settings-card-header {
-            padding: 0 0 14px;
-            margin: 0 0 12px;
-            border-bottom: 1px dashed var(--rule-soft);
+            padding: 0;
+            margin: 0 0 10px;
+            border-bottom: 0;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -46,12 +42,12 @@
             background: color-mix(in srgb, var(--accent) 12%, transparent);
         }
         .settings-card-header h3 {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            font-weight: 500;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: var(--ink-mute);
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0;
+            text-transform: none;
+            color: var(--accent);
             margin: 0;
         }
 

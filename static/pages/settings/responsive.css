@@ -701,3 +701,118 @@
     }
 }
 
+/* Telegram-style vertical settings navigation */
+@media (min-width: 1025px) {
+    .settings-panel-body {
+        flex-direction: row;
+    }
+
+    .settings-nav {
+        width: 264px;
+        flex: 0 0 264px;
+        padding: 16px 12px 20px;
+        border-right: 1px solid color-mix(in srgb, var(--rule) 44%, transparent);
+        border-bottom: 0;
+        overflow: hidden;
+        background: transparent;
+    }
+
+    .settings-nav-list {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0;
+        margin-top: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .settings-nav-list .settings-logout-form {
+        margin-left: 0;
+    }
+
+    .settings-nav-list .nav-item,
+    .settings-nav-list .settings-logout-form .nav-item {
+        width: 100%;
+        min-height: 44px;
+        border-radius: 12px;
+        white-space: normal;
+    }
+
+    .settings-content {
+        border-left: 0;
+    }
+}
+
+@media (max-width: 1024px) {
+    .settings-panel-body {
+        flex-direction: column;
+    }
+
+    .settings-nav {
+        width: 100%;
+        height: auto;
+        position: static;
+        top: auto;
+        z-index: auto;
+        padding: 10px 12px;
+        border-right: 0;
+        border-bottom: 0;
+        overflow: hidden;
+        background: transparent;
+        backdrop-filter: none;
+    }
+
+    .settings-nav-list {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        max-height: 260px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        padding: 0;
+        margin-top: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .settings-nav-list .settings-logout-form {
+        margin-left: 0;
+    }
+
+    .settings-nav-list .nav-item,
+    .settings-nav-list .settings-logout-form,
+    .settings-nav-list .settings-logout-form .nav-item {
+        width: 100%;
+        flex: 0 0 auto;
+    }
+
+    .settings-nav-list .nav-item {
+        justify-content: flex-start;
+        min-height: 42px;
+        border-radius: 12px;
+        white-space: normal;
+    }
+
+    .settings-content {
+        border-left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-nav-list {
+        max-height: 220px;
+    }
+
+    .settings-nav-list .nav-item {
+        min-height: 40px;
+        border-radius: 12px;
+    }
+}
+
