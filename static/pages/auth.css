@@ -2983,7 +2983,7 @@ body.auth-register-flow-active .auth-card {
 @media (min-width: 1000px) {
     .auth-legal-section {
         grid-column: 1 / -1;
-        margin-top: clamp(180px, 28vh, 340px);
+        margin-top: clamp(220px, 34vh, 420px);
         max-width: none;
         padding: 20px 22px 18px;
     }
@@ -2995,6 +2995,15 @@ body.auth-register-flow-active .auth-card {
 
     .auth-legal-link--feedback {
         grid-column: 3 / span 2;
+    }
+
+    .auth-footer {
+        margin-top: 8px;
+    }
+
+    .auth-footer-quote {
+        max-width: none;
+        white-space: nowrap;
     }
 }
 

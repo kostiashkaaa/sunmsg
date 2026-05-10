@@ -83,6 +83,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     const registerStep1TitleEl = document.getElementById('registerStep1Title');
     const registerStep1SubEl = document.getElementById('registerStep1Sub');
     const registerStep1BackBtn = document.getElementById('registerStep1BackBtn');
+    const authHeadlineEl = document.getElementById('authHeadline');
     const normalizeLanguageCode = (raw) => (String(raw || '').toLowerCase() === 'en' ? 'en' : 'ru');
 
     function syncAuthLanguageButtons(language = activeLanguage()) {
@@ -131,6 +132,11 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             ? 'Username is used for sign-in, display name is visible to contacts.'
             : 'Username нужен для входа, отображаемое имя видят ваши контакты.';
         if (registerStep1BackBtn) registerStep1BackBtn.innerHTML = isEn ? '&larr; Back' : '&larr; Назад';
+        if (authHeadlineEl) {
+            authHeadlineEl.innerHTML = isEn
+                ? 'A quiet network<br><em class="auth-brand-headline-em">for your people.</em>'
+                : 'Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em>';
+        }
     }
 
     async function persistGuestLanguage(language) {
