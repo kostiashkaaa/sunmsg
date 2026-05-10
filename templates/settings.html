@@ -93,17 +93,7 @@
 
     <div class="settings-panel-body">
 
-    <nav class="settings-nav" id="settingsNav">
-        <div class="settings-search-wrap">
-            <input
-                id="settingsSearchInput"
-                class="settings-search-input"
-                type="search"
-                placeholder="Поиск настроек"
-                autocomplete="off"
-                spellcheck="false"
-            >
-        </div>
+    <nav class="settings-nav" id="settingsNav" aria-label="Разделы настроек">
         <button
             type="button"
             class="settings-nav-toggle"
@@ -117,43 +107,47 @@
         </button>
         <div class="settings-nav-list" id="settingsNavList">
             <a href="#profile" class="nav-item" data-section="profile">
-                Профиль
-            </a>
-            <a href="#privacy" class="nav-item" data-section="privacy">
-                Приватность
-            </a>
-            <a href="#keys" class="nav-item" data-section="keys">
-                Безопасность
+                <i class="bi bi-person" aria-hidden="true"></i>
+                <span>Профиль</span>
             </a>
             <a href="#notifications" class="nav-item" data-section="notifications">
-                Уведомления
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span>Уведомления и звук</span>
             </a>
             <a href="#data-memory" class="nav-item" data-section="data-memory">
-                Данные и память
+                <i class="bi bi-database" aria-hidden="true"></i>
+                <span>Данные и память</span>
             </a>
-
-            <hr class="nav-divider">
-
+            <a href="#privacy" class="nav-item" data-section="privacy">
+                <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                <span>Конфиденциальность</span>
+            </a>
             <a href="#appearance" class="nav-item" data-section="appearance">
-                Внешний вид
+                <i class="bi bi-sliders2" aria-hidden="true"></i>
+                <span>Общие настройки</span>
             </a>
-
             <a href="#chat-style" class="nav-item" data-section="chat-style">
-                Обои
+                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                <span>Папки и стиль чатов</span>
+            </a>
+            <a href="#keys" class="nav-item" data-section="keys">
+                <i class="bi bi-key" aria-hidden="true"></i>
+                <span>Безопасность</span>
             </a>
             <a href="#account" class="nav-item" data-section="account">
-                Устройства
+                <i class="bi bi-phone" aria-hidden="true"></i>
+                <span>Устройства</span>
             </a>
             <a href="#support" class="nav-item" data-section="support">
-                Поддержка
+                <i class="bi bi-translate" aria-hidden="true"></i>
+                <span>Язык и поддержка</span>
             </a>
-
-            <hr class="nav-divider">
 
             <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="nav-item danger" data-logout-trigger>
-                    Выйти
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    <span>Выйти</span>
                 </button>
             </form>
         </div>
