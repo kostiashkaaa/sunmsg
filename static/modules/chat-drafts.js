@@ -170,7 +170,7 @@ export function createChatDraftsController(deps = {}) {
             if (savedUpdatedAt) {
                 lastDraftUpdatedAtByChatId.set(normalizedChatId, toDraftTimestampMs(savedUpdatedAt));
             }
-            syncDraftPreviewForContact(normalizedChatId, savedText, savedUpdatedAt, { showWhileActive: true });
+            syncDraftPreviewForContact(normalizedChatId, savedText, savedUpdatedAt);
             return payload;
         } catch (_) {
             return null;
