@@ -2603,6 +2603,10 @@ body[data-ui-language="en"] #registerStep1Sub::before {
     }
 }
 
+body.auth-register-flow-active .auth-card {
+    display: none;
+}
+
 #panel-login #ajaxLoginForm {
     display: flex;
     flex-direction: column;
@@ -2751,7 +2755,11 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 }
 
 #registerStep2Block #registerStep2NextBtn {
-    margin-top: 8px;
+    margin-top: 0;
+}
+
+#registerStep2Block {
+    gap: 8px;
 }
 
 .auth-register-word {
