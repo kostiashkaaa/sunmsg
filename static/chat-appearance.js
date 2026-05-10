@@ -1,5 +1,20 @@
 (function (global) {
     const STORAGE_KEY = 'sun.chatAppearance.v2';
+    const BASE_BUBBLE_PALETTES = {
+        light: { inBg: '#fffaf1', inText: '#17130d', outBg: '#2b2417', outText: '#fff4dc' },
+        dark: { inBg: '#242016', inText: '#f4ecd9', outBg: '#d7a84d', outText: '#1d160b' },
+    };
+    const PRESET_BUBBLE_PALETTES = Object.freeze({
+        'light-classic': BASE_BUBBLE_PALETTES.light,
+        'light-sky': { inBg: '#f7fbff', inText: '#12233a', outBg: '#3d85e0', outText: '#f5f9ff' },
+        'light-mist': { inBg: '#f7f8fa', inText: '#1a1f28', outBg: '#6d7f99', outText: '#f5f7fb' },
+        'custom-light': { inBg: '#fffaf0', inText: '#20180f', outBg: '#c58a22', outText: '#fff6e8' },
+        'dark-classic': BASE_BUBBLE_PALETTES.dark,
+        'dark-forest': { inBg: '#1a2a23', inText: '#e1efe9', outBg: '#34b381', outText: '#08180f' },
+        'dark-midnight': { inBg: '#1a2442', inText: '#e6edff', outBg: '#5b7dff', outText: '#f1f4ff' },
+        'dark-graphite': { inBg: '#20242a', inText: '#e5e9ef', outBg: '#8a98ad', outText: '#0f141a' },
+        'custom-dark': { inBg: '#251d15', inText: '#f1e4cc', outBg: '#d6a449', outText: '#1b1309' },
+    });
 
     const DEFAULTS = {
         light: {
@@ -9,6 +24,13 @@
             gradientA: '#f5f7fb',
             gradientB: '#e4ebf3',
             bubbleOpacity: 0.9,
+            bubbleColors: {
+                mode: 'auto',
+                inBg: '#fffaf1',
+                inText: '#17130d',
+                outBg: '#2b2417',
+                outText: '#fff4dc',
+            },
             custom: {
                 imageDataUrl: null,
                 darken: 8,
@@ -26,6 +48,13 @@
             gradientA: '#141a23',
             gradientB: '#10141c',
             bubbleOpacity: 0.88,
+            bubbleColors: {
+                mode: 'auto',
+                inBg: '#242016',
+                inText: '#f4ecd9',
+                outBg: '#d7a84d',
+                outText: '#1d160b',
+            },
             custom: {
                 imageDataUrl: null,
                 darken: 18,
@@ -92,6 +121,21 @@
 
     function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
+    }
+
+    function normalizeHex(value) {
+        if (typeof value !== 'string') return null;
+        const trimmed = value.trim();
+        const shortMatch = trimmed.match(/^#([0-9a-f]{3})$/i);
+        if (shortMatch) {
+            const short = shortMatch[1].toLowerCase();
+            return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+        }
+        const fullMatch = trimmed.match(/^#([0-9a-f]{6})$/i);
+        if (fullMatch) {
+            return `#${fullMatch[1].toLowerCase()}`;
+        }
+        return null;
     }
 
     function rgbaFromHex(hex, alpha) {
@@ -185,11 +229,66 @@
             || localStorage.getItem('darkMode') === 'true';
     }
 
+    function normalizeThemeKey(themeKey) {
+        return String(themeKey || '').trim().toLowerCase() === 'dark' ? 'dark' : 'light';
+    }
+
+    function resolveInterfacePresetId(themeKey) {
+        const normalizedTheme = normalizeThemeKey(themeKey);
+        const interfaceThemeApi = global.InterfaceTheme || null;
+        if (interfaceThemeApi && typeof interfaceThemeApi.getActivePreset === 'function') {
+            const activePreset = interfaceThemeApi.getActivePreset(normalizedTheme);
+            const presetId = String(activePreset?.id || '').trim();
+            if (presetId) return presetId;
+        }
+        try {
+            const parsed = JSON.parse(localStorage.getItem('sun.interfaceTheme.v1') || '{}');
+            const modePresets = parsed && typeof parsed.modePresets === 'object' ? parsed.modePresets : {};
+            const fromMode = String(modePresets[normalizedTheme] || '').trim();
+            if (fromMode) return fromMode;
+            const fromActive = String(parsed.activePresetId || '').trim();
+            if (fromActive && fromActive.startsWith(`${normalizedTheme}-`)) return fromActive;
+            if (fromActive === 'custom-light' || fromActive === 'custom-dark') return fromActive;
+        } catch (_error) {
+            // Ignore invalid persisted interface theme state.
+        }
+        return normalizedTheme === 'dark' ? 'dark-classic' : 'light-classic';
+    }
+
+    function getThemeBubbleDefaults(themeKey) {
+        const normalizedTheme = normalizeThemeKey(themeKey);
+        const presetId = resolveInterfacePresetId(normalizedTheme);
+        const presetPalette = PRESET_BUBBLE_PALETTES[presetId];
+        const fallback = BASE_BUBBLE_PALETTES[normalizedTheme];
+        return Object.assign({
+            mode: 'auto',
+            presetId: presetId || null,
+        }, presetPalette || fallback);
+    }
+
+    function normalizeBubbleColors(input, fallbackPalette) {
+        const fallback = fallbackPalette && typeof fallbackPalette === 'object'
+            ? fallbackPalette
+            : BASE_BUBBLE_PALETTES.light;
+        const source = input && typeof input === 'object' ? input : {};
+        return {
+            mode: source.mode === 'custom' ? 'custom' : 'auto',
+            inBg: normalizeHex(source.inBg) || fallback.inBg,
+            inText: normalizeHex(source.inText) || fallback.inText,
+            outBg: normalizeHex(source.outBg) || fallback.outBg,
+            outText: normalizeHex(source.outText) || fallback.outText,
+        };
+    }
+
     function mergeThemeState(input, theme) {
         const base = deepClone(DEFAULTS[theme]);
         const src = input && typeof input === 'object' ? input : {};
         const out = Object.assign(base, src);
         out.custom = Object.assign({}, base.custom, src.custom || {});
+        out.bubbleColors = normalizeBubbleColors(
+            src.bubbleColors,
+            getThemeBubbleDefaults(theme)
+        );
         out.bubbleOpacity = clamp(Number(out.bubbleOpacity ?? base.bubbleOpacity), 0.35, 1);
         out.custom.darken = clamp(Number(out.custom.darken ?? base.custom.darken), 0, 70);
         out.custom.blur = clamp(Number(out.custom.blur ?? base.custom.blur), 0, 18);
@@ -333,17 +432,23 @@
         return themeState.mode === 'default' ? DEFAULT_BACKGROUNDS[theme].luminance : fromColor;
     }
 
-    function computeBubblePalette(theme, luminance, bubbleOpacity) {
-        const lightPalette = { inBg: '#fffaf1', inText: '#17130d', outBg: '#2b2417', outText: '#fff4dc' };
-        const darkPalette = { inBg: '#242016', inText: '#f4ecd9', outBg: '#d7a84d', outText: '#1d160b' };
-        const base = theme === 'dark' ? darkPalette : lightPalette;
+    function computeBubblePalette(theme, luminance, bubbleOpacity, state) {
+        const normalizedTheme = normalizeThemeKey(theme);
+        const lightPalette = BASE_BUBBLE_PALETTES.light;
+        const darkPalette = BASE_BUBBLE_PALETTES.dark;
+        const basePresetPalette = getThemeBubbleDefaults(normalizedTheme);
 
-        let palette = Object.assign({}, base);
+        let autoPalette = Object.assign({}, basePresetPalette);
         if (luminance >= 0.72) {
-            palette = lightPalette;
+            autoPalette = Object.assign({}, lightPalette);
         } else if (luminance <= 0.22) {
-            palette = darkPalette;
+            autoPalette = Object.assign({}, darkPalette);
         }
+
+        const normalizedBubbleColors = normalizeBubbleColors(state?.bubbleColors, autoPalette);
+        const palette = normalizedBubbleColors.mode === 'custom'
+            ? normalizedBubbleColors
+            : autoPalette;
 
         return {
             inBg: rgbaFromHex(palette.inBg, bubbleOpacity),
@@ -378,10 +483,11 @@
 
     async function applyThemeState(themeKey, target = document.documentElement) {
         const store = readStore();
-        const state = mergeThemeState(store.themes[themeKey], themeKey);
-        const wallpaper = buildWallpaper(state, themeKey);
-        const luminance = await resolveLuminance(state, wallpaper, themeKey);
-        const bubblePalette = computeBubblePalette(themeKey, luminance, state.bubbleOpacity);
+        const normalizedTheme = normalizeThemeKey(themeKey);
+        const state = mergeThemeState(store.themes[normalizedTheme], normalizedTheme);
+        const wallpaper = buildWallpaper(state, normalizedTheme);
+        const luminance = await resolveLuminance(state, wallpaper, normalizedTheme);
+        const bubblePalette = computeBubblePalette(normalizedTheme, luminance, state.bubbleOpacity, state);
         applyCssVars(target, wallpaper, bubblePalette);
         return { state, wallpaper, luminance, bubblePalette };
     }
@@ -391,9 +497,10 @@
     }
 
     function saveThemeState(themeKey, patch) {
+        const normalizedTheme = normalizeThemeKey(themeKey);
         const store = readStore();
-        const merged = mergeThemeState(Object.assign({}, store.themes[themeKey], patch || {}), themeKey);
-        store.themes[themeKey] = merged;
+        const merged = mergeThemeState(Object.assign({}, store.themes[normalizedTheme], patch || {}), normalizedTheme);
+        store.themes[normalizedTheme] = merged;
         writeStore(store);
         return merged;
     }
@@ -403,13 +510,15 @@
     }
 
     function getThemeState(themeKey) {
+        const normalizedTheme = normalizeThemeKey(themeKey);
         const store = readStore();
-        return mergeThemeState(store.themes[themeKey], themeKey);
+        return mergeThemeState(store.themes[normalizedTheme], normalizedTheme);
     }
 
     function resetTheme(themeKey) {
+        const normalizedTheme = normalizeThemeKey(themeKey);
         const store = readStore();
-        store.themes[themeKey] = deepClone(DEFAULTS[themeKey]);
+        store.themes[normalizedTheme] = deepClone(DEFAULTS[normalizedTheme]);
         writeStore(store);
     }
 
@@ -450,6 +559,7 @@
         setMode,
         resetTheme,
         resetAll,
+        getThemeBubbleDefaults,
         applyThemeState,
         applyCurrentTheme,
         applyAcrossThemes,
