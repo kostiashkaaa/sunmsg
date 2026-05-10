@@ -2580,7 +2580,7 @@
 
         .message.self .message-row-track {
             justify-content: flex-end;
-            padding-right: 56px;
+            padding-right: 60px;
         }
 
         .message.other .message-row-track {
