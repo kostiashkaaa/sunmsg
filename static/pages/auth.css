@@ -2554,14 +2554,6 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 }
 
 /* Auth screen parity overrides (desktop-first, based on approved mock) */
-#themeToggleBtn {
-    display: none !important;
-}
-
-.auth-language-switch {
-    display: none !important;
-}
-
 @media (min-width: 1000px) {
     .auth-page-body {
         padding: 34px 52px 28px;
