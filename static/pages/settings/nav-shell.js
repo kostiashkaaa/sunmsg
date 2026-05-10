@@ -291,6 +291,9 @@ export function initSettingsNavShell({
                 settingsContentEl.classList.remove('is-transitioning');
                 settingsContentEl.style.minHeight = '';
             }
+            if (!current && !immediate && isSectionChange) {
+                animateSectionTransition(null, target);
+            }
             activeSectionId = resolvedId;
         } else {
             if (settingsContentEl) {
