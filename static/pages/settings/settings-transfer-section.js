@@ -83,10 +83,6 @@ function readLocalPreference(key, fallback = '') {
     }
 }
 
-function normalizeLanguage(value) {
-    return String(value || '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
-}
-
 export function initSettingsTransferSection({
     tr,
     showAlert,
