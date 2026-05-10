@@ -6403,7 +6403,7 @@
         .composer-input-visual {
             position: absolute;
             inset: 0;
-            z-index: 3;
+            z-index: 1;
             padding: var(--chat-message-pad-y, 8px) var(--chat-message-pad-x, 0px);
             color: var(--text);
             font-size: var(--chat-message-font-size, 15px);
