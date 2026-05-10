@@ -2434,3 +2434,103 @@ body[data-ui-language="en"] #registerStep1Sub::before {
         font-size: clamp(2rem, 9vw, 2.5rem);
     }
 }
+
+/* Stability fixes: translation-driven headings + QR fit */
+#loginIntroTitle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.018em;
+    font-size: clamp(2.2rem, 3.2vw, 3.1rem);
+    line-height: 0.94;
+    color: var(--ink);
+}
+
+#loginIntroTitle::before,
+#loginIntroTitle::after {
+    content: none !important;
+}
+
+#loginIntroTitleMain {
+    display: block;
+}
+
+#loginIntroTitleAccent {
+    display: block;
+    margin-top: 4px;
+    font-style: italic;
+    color: var(--ink-mute);
+}
+
+#registerStep1Title,
+#registerStep1Sub {
+    font-size: inherit;
+    line-height: inherit;
+}
+
+#registerStep1Title::before,
+#registerStep1Sub::before {
+    content: none !important;
+}
+
+#registerStep1Title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: clamp(2rem, 3vw, 3rem);
+    line-height: 0.96;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    margin: 0;
+}
+
+#registerStep1Sub {
+    margin-top: 2px;
+    font-size: 1.03rem;
+    line-height: 1.45;
+    color: var(--sub-text);
+}
+
+#loginQrCodeContainer.sun-qr-brand-mode {
+    width: min(100%, 240px);
+    max-width: 240px;
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 1 / 1;
+}
+
+#loginQrCodeContainer.sun-qr-brand-mode .auth-qr-login-layer {
+    inset: 0;
+}
+
+#loginQrCodeContainer.sun-qr-brand-mode .auth-qr-login-layer canvas,
+#loginQrCodeContainer.sun-qr-brand-mode .auth-qr-login-layer img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    padding: 12px !important;
+    box-sizing: border-box;
+}
+
+#loginQrCodeContainer.sun-qr-brand-mode .auth-qr-login-ring {
+    width: 100%;
+    height: 100%;
+}
+
+.auth-register-words-wrap {
+    max-height: min(42vh, 336px);
+    overflow: auto;
+}
+
+@media (max-width: 640px) {
+    #loginQrCodeContainer.sun-qr-brand-mode {
+        width: min(100%, 220px);
+        max-width: 220px;
+    }
+
+    .auth-register-words-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

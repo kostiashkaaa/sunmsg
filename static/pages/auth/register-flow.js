@@ -55,6 +55,10 @@ export function initRegisterFlow({
         return String(value || '').trim().toLowerCase();
     }
 
+    function isEnglish() {
+        return activeLanguage() === 'en';
+    }
+
     function pickTwoIndexes(maxExclusive) {
         const max = Math.max(2, Number(maxExclusive || 0));
         const first = Math.floor(Math.random() * max);
@@ -106,7 +110,7 @@ export function initRegisterFlow({
 
     function renderWordsGrid(words) {
         if (!registerWordsGrid) return;
-        const list = words.slice(0, 12);
+        const list = words.slice(0, 24);
         registerWordsGrid.innerHTML = list
             .map((word, index) => `<div class="auth-register-word"><span class="auth-register-word-num">${index + 1}</span>${word}</div>`)
             .join('');
@@ -147,11 +151,12 @@ export function initRegisterFlow({
         renderWordsGrid(flowState.words);
         syncWordsVisibility();
 
+        const wordLabel = isEnglish() ? 'Word' : 'Слово';
         if (registerMnemonicConfirmPromptA) {
-            registerMnemonicConfirmPromptA.textContent = `${tr('Слово')} № ${flowState.confirmIndexes[0] + 1}`;
+            registerMnemonicConfirmPromptA.textContent = `${wordLabel} № ${flowState.confirmIndexes[0] + 1}`;
         }
         if (registerMnemonicConfirmPromptB) {
-            registerMnemonicConfirmPromptB.textContent = `${tr('Слово')} № ${flowState.confirmIndexes[1] + 1}`;
+            registerMnemonicConfirmPromptB.textContent = `${wordLabel} № ${flowState.confirmIndexes[1] + 1}`;
         }
         if (registerMnemonicConfirmA) registerMnemonicConfirmA.value = '';
         if (registerMnemonicConfirmB) registerMnemonicConfirmB.value = '';
@@ -227,7 +232,12 @@ export function initRegisterFlow({
 
     registerStep2NextBtn?.addEventListener('click', () => {
         if (!flowState.wordsRevealed) {
-            showToast('Сначала откройте и сохраните 24 слова.', 'error');
+            showToast(
+                isEnglish()
+                    ? 'Reveal and save all 24 words first.'
+                    : 'Сначала откройте и сохраните 24 слова.',
+                'error',
+            );
             return;
         }
         setRegisterStep(3);
@@ -243,8 +253,17 @@ export function initRegisterFlow({
         const actualB = normalizeWord(registerMnemonicConfirmB?.value || '');
 
         if (actualA !== expectedA || actualB !== expectedB) {
-            setConfirmError('Проверка не пройдена: слова не совпадают.');
-            showToast('Проверьте сохранённые 24 слова и повторите ввод.', 'error');
+            setConfirmError(
+                isEnglish()
+                    ? 'Check failed: the words do not match.'
+                    : 'Проверка не пройдена: слова не совпадают.',
+            );
+            showToast(
+                isEnglish()
+                    ? 'Check your saved 24 words and try again.'
+                    : 'Проверьте сохранённые 24 слова и повторите ввод.',
+                'error',
+            );
             return;
         }
 
@@ -339,7 +358,12 @@ export function initRegisterFlow({
             resetMnemonicPhase(mnemonic);
             setRegisterStep(2);
 
-            showToast('Аккаунт создан. Сохраните 24 слова и продолжите.', 'success');
+            showToast(
+                isEnglish()
+                    ? 'Account created. Save all 24 words and continue.'
+                    : 'Аккаунт создан. Сохраните 24 слова и продолжите.',
+                'success',
+            );
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             showToast(`${tr('Ошибка:')} ${tr(err?.message || '')}`.trim(), 'error');
