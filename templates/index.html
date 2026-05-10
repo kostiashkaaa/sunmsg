@@ -39,27 +39,36 @@
     <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
 </head>
 
-<body id="authBody" class="auth-page-body" data-ui-language="{{ ui_language|default('ru') }}">
+<body id="authBody" class="auth-page-body auth-page-body--sunrise-v3" data-ui-language="{{ ui_language|default('ru') }}">
     {% include 'chat/_svg_icons_sprite.html' %}
     <div class="auth-orb auth-orb-1"></div>
     <div class="auth-orb auth-orb-2"></div>
 
     <div class="auth-toast-container" id="toastContainer"></div>
 
-    <div class="auth-corner-eyebrow">
-        <div class="auth-corner-dot"></div>
-        <span>sun</span>
-    </div>
     <div class="auth-language-switch" id="authLanguageSwitch" role="group" aria-label="Язык интерфейса">
         <button type="button" class="auth-language-btn" data-lang="ru" aria-pressed="false">RU</button>
         <button type="button" class="auth-language-btn" data-lang="en" aria-pressed="false">EN</button>
     </div>
 
     <main class="auth-wrapper">
-        <div class="auth-brand">
-            <div class="auth-brand-pre">Сквозное шифрование &bull; Нулевое знание</div>
-            <h1 class="auth-brand-headline" id="authHeadline">Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em></h1>
-        </div>
+        <section class="auth-hero-panel" id="authHeroPanel">
+            <div class="auth-hero-header">
+                <div class="auth-hero-brand-mark">
+                    <span class="auth-hero-brand-dot" aria-hidden="true"></span>
+                    <span class="auth-hero-brand-text">sun</span>
+                </div>
+                <div class="auth-hero-eyebrow" id="authFooterEyebrow">Сквозное шифрование ・ Нулевое знание</div>
+            </div>
+            <div class="auth-hero-body">
+                <h1 class="auth-brand-headline" id="authHeadline">Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em></h1>
+                <p class="auth-hero-quote" id="authFooterQuote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
+            </div>
+            <div class="auth-hero-hint" id="authHeroHint">
+                <span class="auth-hero-hint-dot" aria-hidden="true"></span>
+                <span id="authHeroHintText">наведите камеру на QR справа &rarr;</span>
+            </div>
+        </section>
 
         <div class="auth-card">
             <div class="auth-tabs auth-tabs--auth" role="tablist">
@@ -336,27 +345,97 @@
             </section>
         </div>
 
-        <div class="auth-footer">
-            <div class="auth-footer-eyebrow" id="authFooterEyebrow"><span class="auth-footer-dot"></span>Сквозное шифрование ・ Нулевое знание</div>
-            <div class="auth-footer-rule"></div>
-            <p class="auth-footer-quote" id="authFooterQuote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
-        </div>
-
-        <section class="auth-legal-section" id="authLegalSection" aria-labelledby="authLegalTitle">
-            <h2 class="auth-legal-title" id="authLegalTitle">Документы и поддержка</h2>
-            <p class="auth-legal-sub" id="authLegalSub">Ниже собраны юридические документы и обратная связь.</p>
-            <nav class="auth-legal-links" id="authLegalLinks" aria-label="Юридические документы">
-                <a class="auth-legal-link" id="authLegalLinkTrust" href="{{ url_for('auth.trust_center') }}">Trust Center</a>
-                <a class="auth-legal-link" id="authLegalLinkPrivacy" href="{{ url_for('auth.privacy_policy') }}">Политика конфиденциальности</a>
-                <a class="auth-legal-link" id="authLegalLinkTerms" href="{{ url_for('auth.terms_of_service') }}">Пользовательское соглашение</a>
-                <a class="auth-legal-link" id="authLegalLinkFaq" href="{{ url_for('auth.security_faq') }}">FAQ по безопасности</a>
-                <a class="auth-legal-link" id="authLegalLinkAbout" href="{{ url_for('auth.about_project') }}">О проекте и приватности</a>
-                <a class="auth-legal-link" id="authLegalLinkGuide" href="{{ url_for('auth.onboarding_guide') }}">Гид по запуску</a>
-                <a class="auth-legal-link auth-legal-link--feedback" id="authLegalLinkFeedback" href="{{ url_for('support.feedback_page') }}">Обратная связь</a>
-            </nav>
-        </section>
-
     </main>
+
+    <section class="auth-docs-support" id="authLegalSection" aria-labelledby="authLegalTitle">
+        <div class="auth-docs-shell">
+            <div class="auth-docs-head">
+                <div class="auth-docs-headline-col">
+                    <div class="auth-docs-eyebrow" id="authLegalEyebrow">— документы и поддержка —</div>
+                    <h2 class="auth-docs-title" id="authLegalTitle">
+                        Если хочется
+                        <em id="authLegalTitleAccent">разобраться глубже.</em>
+                    </h2>
+                </div>
+                <p class="auth-docs-sub" id="authLegalSub">Юридические документы, безопасность и обратная связь — собрали всё в одном месте, без бесконечного скролла мелким шрифтом.</p>
+            </div>
+
+            <nav class="auth-docs-grid" id="authLegalLinks" aria-label="Юридические документы">
+                <a class="auth-doc-card" id="authLegalLinkTrust" href="{{ url_for('auth.trust_center') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-shield-check"></i></span>
+                        <span class="auth-doc-card-index">01</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkTrustTitle">Центр доверия</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkTrustDesc">Как мы храним данные и кто видит что</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+
+                <a class="auth-doc-card" id="authLegalLinkPrivacy" href="{{ url_for('auth.privacy_policy') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-eye"></i></span>
+                        <span class="auth-doc-card-index">02</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkPrivacyTitle">Политика приватности</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkPrivacyDesc">Какие данные собираем и зачем</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+
+                <a class="auth-doc-card" id="authLegalLinkTerms" href="{{ url_for('auth.terms_of_service') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-file-earmark-text"></i></span>
+                        <span class="auth-doc-card-index">03</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkTermsTitle">Условия сервиса</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkTermsDesc">Правила использования SUN</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+
+                <a class="auth-doc-card" id="authLegalLinkFaq" href="{{ url_for('auth.security_faq') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-lock"></i></span>
+                        <span class="auth-doc-card-index">04</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkFaqTitle">FAQ по безопасности</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkFaqDesc">Шифрование, ключи, восстановление</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+
+                <a class="auth-doc-card" id="authLegalLinkAbout" href="{{ url_for('auth.about_project') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-compass"></i></span>
+                        <span class="auth-doc-card-index">05</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkAboutTitle">О проекте</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkAboutDesc">Команда, миссия, открытый код</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+
+                <a class="auth-doc-card" id="authLegalLinkGuide" href="{{ url_for('auth.onboarding_guide') }}">
+                    <div class="auth-doc-card-top">
+                        <span class="auth-doc-card-icon"><i class="bi bi-stars"></i></span>
+                        <span class="auth-doc-card-index">06</span>
+                    </div>
+                    <div class="auth-doc-card-title" id="authLegalLinkGuideTitle">Гид по началу</div>
+                    <div class="auth-doc-card-sub" id="authLegalLinkGuideDesc">Что делать после регистрации</div>
+                    <span class="auth-doc-card-arrow">&rarr;</span>
+                </a>
+            </nav>
+
+            <a class="auth-feedback-bar" id="authLegalLinkFeedback" href="{{ url_for('support.feedback_page') }}">
+                <div class="auth-feedback-copy">
+                    <div class="auth-feedback-eyebrow" id="authFeedbackEyebrow">обратная связь</div>
+                    <div class="auth-feedback-title" id="authFeedbackTitle">Что-то непонятно? Напишите нам — мы читаем каждое сообщение.</div>
+                </div>
+                <span class="auth-feedback-action" id="authFeedbackAction">Написать &rarr;</span>
+            </a>
+
+            <div class="auth-docs-bottom-row">
+                <span id="authDocsCopyright">&copy; SUN, 2026</span>
+                <span id="authDocsTagline">тихая сеть для своих</span>
+            </div>
+        </div>
+    </section>
 
     <div class="auth-success-overlay" id="authSuccessOverlay" aria-hidden="true" role="status">
         <div class="auth-success-card">

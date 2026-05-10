@@ -110,43 +110,63 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
             ? 'Registration is complete. You can now open messenger.'
             : 'Регистрация завершена, можно переходить в мессенджер',
     );
-    setText(
-        'registerDoneSubtext',
-        isEn
-            ? 'Account created. You can now sign in to secure chat.'
-            : 'Аккаунт создан. Вы можете войти в защищённый чат.',
-    );
-    setText('registerDoneLoginLabel', isEn ? 'Sign in' : 'Войти');
+    setText('registerDoneLoginLabel', isEn ? 'Open messenger' : 'Открыть мессенджер');
 
-    setText('authLegalTitle', isEn ? 'Documents and support' : 'Документы и поддержка');
+    setText('authLegalEyebrow', isEn ? '— documents & support —' : '— документы и поддержка —');
+    setHtml(
+        'authLegalTitle',
+        isEn
+            ? 'If you want to<em id="authLegalTitleAccent">dig deeper.</em>'
+            : 'Если хочется<em id="authLegalTitleAccent">разобраться глубже.</em>',
+    );
     setText(
         'authLegalSub',
         isEn
-            ? 'Legal documents and a direct feedback page are collected below.'
-            : 'Ниже собраны юридические документы и обратная связь.',
+            ? 'Legal documents, security details and feedback — all in one place, no fine-print scroll wall.'
+            : 'Юридические документы, безопасность и обратная связь — собрали всё в одном месте, без бесконечного скролла мелким шрифтом.',
     );
-    setText('authLegalLinkTrust', isEn ? 'Trust center' : 'Trust Center');
-    setText('authLegalLinkPrivacy', isEn ? 'Privacy policy' : 'Политика конфиденциальности');
-    setText('authLegalLinkTerms', isEn ? 'Terms of service' : 'Пользовательское соглашение');
-    setText('authLegalLinkFaq', isEn ? 'Security FAQ' : 'FAQ по безопасности');
-    setText('authLegalLinkAbout', isEn ? 'About project and privacy' : 'О проекте и приватности');
-    setText('authLegalLinkGuide', isEn ? 'Onboarding guide' : 'Гид по запуску');
-    setText('authLegalLinkFeedback', isEn ? 'Feedback' : 'Обратная связь');
+    setText('authLegalLinkTrustTitle', isEn ? 'Trust center' : 'Центр доверия');
+    setText('authLegalLinkPrivacyTitle', isEn ? 'Privacy policy' : 'Политика приватности');
+    setText('authLegalLinkTermsTitle', isEn ? 'Terms of service' : 'Условия сервиса');
+    setText('authLegalLinkFaqTitle', isEn ? 'Security FAQ' : 'FAQ по безопасности');
+    setText('authLegalLinkAboutTitle', isEn ? 'About the project' : 'О проекте');
+    setText('authLegalLinkGuideTitle', isEn ? 'Onboarding guide' : 'Гид по началу');
+    setText('authLegalLinkTrustDesc', isEn ? 'How we store data and who sees what' : 'Как мы храним данные и кто видит что');
+    setText('authLegalLinkPrivacyDesc', isEn ? 'What we collect and why' : 'Какие данные собираем и зачем');
+    setText('authLegalLinkTermsDesc', isEn ? 'Rules for using SUN' : 'Правила использования SUN');
+    setText('authLegalLinkFaqDesc', isEn ? 'Encryption, keys, recovery' : 'Шифрование, ключи, восстановление');
+    setText('authLegalLinkAboutDesc', isEn ? 'Team, mission, open source' : 'Команда, миссия, открытый код');
+    setText('authLegalLinkGuideDesc', isEn ? 'What to do after signing up' : 'Что делать после регистрации');
+    setText('authFeedbackEyebrow', isEn ? 'feedback' : 'обратная связь');
+    setText(
+        'authFeedbackTitle',
+        isEn
+            ? 'Something unclear? Write to us — we read every message.'
+            : 'Что-то непонятно? Напишите нам — мы читаем каждое сообщение.',
+    );
+    setText('authFeedbackAction', isEn ? 'Send feedback →' : 'Написать →');
+    setText('authDocsTagline', isEn ? 'a quiet network for your own' : 'тихая сеть для своих');
     setAttr('authLegalLinks', 'aria-label', isEn ? 'Legal and support links' : 'Юридические документы');
     setAttr('authLanguageSwitch', 'aria-label', isEn ? 'Interface language' : 'Язык интерфейса');
     setAttr('themeToggleBtn', 'title', isEn ? 'Switch theme' : 'Переключить тему');
 
-    setHtml(
+    setText(
         'authFooterEyebrow',
         isEn
-            ? '<span class="auth-footer-dot"></span>End-to-end encryption ・ Zero knowledge'
-            : '<span class="auth-footer-dot"></span>Сквозное шифрование ・ Нулевое знание',
+            ? 'END-TO-END ENCRYPTION ・ ZERO KNOWLEDGE'
+            : 'СКВОЗНОЕ ШИФРОВАНИЕ ・ НУЛЕВОЕ ЗНАНИЕ',
     );
     setText(
         'authFooterQuote',
         isEn
             ? "\"The server can't see your messages. Just you and the person you're talking to.\""
             : '«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»',
+    );
+    setText(
+        'authHeroHintText',
+        isEn
+            ? 'point your camera at the QR on the right →'
+            : 'наведите камеру на QR справа →',
     );
 
     const progressTextNode = document.getElementById('registerFlowProgressText');

@@ -102,7 +102,11 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
         if (tabLoginBtn) tabLoginBtn.textContent = isEn ? 'Sign in' : 'Войти';
         if (tabRegisterBtn) tabRegisterBtn.textContent = isEn ? 'Create account' : 'Создать аккаунт';
-        if (loginIntroTitleEl) loginIntroTitleEl.textContent = isEn ? 'Sign in in three seconds' : 'Войти за три секунды';
+        if (loginIntroTitleEl) {
+            loginIntroTitleEl.innerHTML = isEn
+                ? '<span id="loginIntroTitleMain">Sign in</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">in three seconds.</em>'
+                : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">за три секунды.</em>';
+        }
         if (loginIntroSubEl) loginIntroSubEl.textContent = isEn
             ? 'Open SUN on your phone → scan.'
             : 'Откройте SUN на телефоне → сканируйте.';
@@ -125,16 +129,14 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
                 ? '<strong>Tip:</strong> QR on the main screen is the safest option. Other methods are fallback only.'
                 : '<strong>Совет:</strong> QR на главном экране — самый защищённый способ. Эти варианты — на крайний случай.';
         }
-        if (registerStep1TitleEl) registerStep1TitleEl.textContent = isEn
-            ? 'Step 1 — Account details'
-            : 'Шаг 1 — Данные аккаунта';
+        if (registerStep1TitleEl) registerStep1TitleEl.textContent = isEn ? 'Quick intro' : 'Знакомимся';
         if (registerStep1SubEl) registerStep1SubEl.textContent = isEn
-            ? 'Username is used for sign-in, display name is visible to contacts.'
-            : 'Username нужен для входа, отображаемое имя видят ваши контакты.';
+            ? 'Your name is shown to contacts. @handle is how people find you.'
+            : 'Имя видят ваши собеседники. @ник — по нему вас находят.';
         if (registerStep1BackBtn) registerStep1BackBtn.innerHTML = isEn ? '&larr; Back' : '&larr; Назад';
         if (authHeadlineEl) {
             authHeadlineEl.innerHTML = isEn
-                ? 'A quiet network<br><em class="auth-brand-headline-em">for your people.</em>'
+                ? 'A quiet network<br><em class="auth-brand-headline-em">for the people<br>you trust.</em>'
                 : 'Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em>';
         }
     }
@@ -313,7 +315,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         const language = activeLanguage();
         headline.innerHTML = language === 'en'
             ? 'A quiet network'
-                + '<br><em class="auth-brand-headline-em">for your people.</em>'
+                + '<br><em class="auth-brand-headline-em">for the people<br>you trust.</em>'
             : 'Тихая сеть'
                 + '<br><em class="auth-brand-headline-em">для своих.</em>';
     }
