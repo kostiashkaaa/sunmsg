@@ -103,8 +103,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (tabRegisterBtn) tabRegisterBtn.textContent = isEn ? 'Create account' : 'Создать аккаунт';
         if (loginIntroTitleEl) loginIntroTitleEl.textContent = isEn ? 'Sign in in three seconds' : 'Войти за три секунды';
         if (loginIntroSubEl) loginIntroSubEl.textContent = isEn
-            ? 'Open SUN on your phone → scan the QR code.'
-            : 'Откройте SUN на телефоне → отсканируйте QR-код.';
+            ? 'Open SUN on your phone → scan.'
+            : 'Откройте SUN на телефоне → сканируйте.';
         if (loginGoRegisterLabelEl) loginGoRegisterLabelEl.textContent = isEn
             ? "I'm new here"
             : 'Я ещё не зарегистрирован';
@@ -221,6 +221,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
     window.toggleTheme = toggleTheme;
 
+    const loginMnemonicTextarea = document.getElementById('loginMnemonicTextarea');
     const mnemonicGrid = document.getElementById('mnemonicInputGrid');
     if (mnemonicGrid) {
         for (let i = 1; i <= 24; i += 1) {
@@ -249,6 +250,13 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     }
 
     function getMnemonicFromGrid() {
+        if (loginMnemonicTextarea) {
+            const text = String(loginMnemonicTextarea.value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+            return text;
+        }
         const inputs = document.querySelectorAll('.mnemonic-word-input');
         const words = [];
         inputs.forEach((input) => {
@@ -259,6 +267,10 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     }
 
     function setMnemonicToGrid(mnemonic) {
+        if (loginMnemonicTextarea) {
+            loginMnemonicTextarea.value = String(mnemonic || '').trim();
+            return;
+        }
         const words = String(mnemonic || '').trim().split(/\s+/);
         const inputs = document.querySelectorAll('.mnemonic-word-input');
         inputs.forEach((input, idx) => {

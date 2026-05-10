@@ -135,15 +135,18 @@
 
                             <div class="auth-login-other-form" id="loginOtherForm">
                             <div class="auth-form-group" id="loginKeyGroup">
-                                <label class="auth-label" for="login_username">Имя пользователя</label>
+                                <label class="auth-label" for="login_username">@ ник</label>
                                 <div class="auth-input-wrap auth-input-wrap-compact">
                                     <input type="text" class="auth-input" id="login_username"
-                                           placeholder="ваш_username" autocomplete="username"
+                                           placeholder="anna_quiet" autocomplete="username"
                                            pattern="[a-z0-9_]+" maxlength="50">
                                     <i class="bi bi-at auth-input-icon"></i>
                                 </div>
-                                <label class="auth-label">24 слова (мнемоническая фраза)</label>
-                                <div class="mnemonic-grid" id="mnemonicInputGrid"></div>
+                                <label class="auth-label" for="loginMnemonicTextarea">24 слова через пробел</label>
+                                <div class="auth-input-wrap auth-input-wrap-textarea">
+                                    <textarea class="auth-input auth-input-textarea auth-mnemonic-textarea" id="loginMnemonicTextarea"
+                                              rows="4" placeholder="river quiet north..." autocomplete="off"></textarea>
+                                </div>
                             </div>
 
                             <div class="auth-form-group" id="loginTotpGroup">

@@ -2552,3 +2552,145 @@ body[data-ui-language="en"] #registerStep1Sub::before {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* Auth screen parity overrides (desktop-first, based on approved mock) */
+#themeToggleBtn {
+    display: none !important;
+}
+
+.auth-language-switch {
+    display: none !important;
+}
+
+@media (min-width: 1000px) {
+    .auth-page-body {
+        padding: 34px 52px 28px;
+    }
+
+    .auth-wrapper {
+        width: 100%;
+        max-width: none;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        column-gap: 66px;
+        row-gap: 24px;
+        min-height: calc(100vh - 64px);
+    }
+
+    .auth-brand-headline {
+        font-size: clamp(4.35rem, 6.3vw, 6.0rem);
+        line-height: 0.92;
+        margin-top: 30px;
+    }
+
+    .auth-card,
+    .auth-key-box {
+        width: 100%;
+        min-height: 640px;
+        height: min(744px, calc(100vh - 68px));
+        padding: 28px 28px 26px;
+        border-radius: 14px;
+    }
+}
+
+#panel-login #ajaxLoginForm {
+    min-height: 642px;
+}
+
+.auth-login-intro {
+    margin-bottom: 16px;
+}
+
+.auth-login-other-details[data-view="form"] #loginOtherMethodsTip,
+.auth-login-other-details[data-view="form"] .auth-trust-row,
+.auth-login-other-details[data-view="form"] #loginTotpGroup {
+    display: none !important;
+}
+
+.auth-login-other-form {
+    min-height: 540px;
+    gap: 14px;
+}
+
+#loginOtherForm #loginSubmitBtn {
+    margin-top: auto;
+}
+
+#loginOtherForm #loginKeyGroup {
+    margin-bottom: 0;
+}
+
+#loginOtherForm .auth-label {
+    margin-bottom: 10px;
+}
+
+.auth-input-wrap-textarea {
+    margin-top: 2px;
+}
+
+.auth-mnemonic-textarea {
+    min-height: 94px;
+    max-height: 94px;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.45;
+    font-family: var(--font-mono);
+    font-size: 1.02rem !important;
+    padding-bottom: 12px !important;
+}
+
+.auth-register-progress-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auth-register-progress-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rule) 90%, transparent);
+}
+
+.auth-register-progress[data-step="1"] .auth-register-progress-dot:nth-child(1),
+.auth-register-progress[data-step="2"] .auth-register-progress-dot:nth-child(2),
+.auth-register-progress[data-step="3"] .auth-register-progress-dot:nth-child(3),
+.auth-register-progress[data-step="4"] .auth-register-progress-dot:nth-child(4) {
+    width: 20px;
+    height: 6px;
+    background: var(--ink);
+}
+
+.auth-register-progress[data-step="1"] .auth-register-progress-dot:nth-child(n+2),
+.auth-register-progress[data-step="2"] .auth-register-progress-dot:nth-child(n+3),
+.auth-register-progress[data-step="3"] .auth-register-progress-dot:nth-child(n+4) {
+    background: color-mix(in srgb, var(--rule) 90%, transparent);
+}
+
+.auth-register-step {
+    min-height: 642px;
+}
+
+.auth-register-words-wrap {
+    max-height: 320px;
+}
+
+.auth-register-word {
+    min-height: 33px;
+    border-radius: 7px;
+}
+
+.auth-register-confirm-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.auth-register-confirm-label .auth-input {
+    font-size: 2rem !important;
+}
+
+.auth-success-overlay {
+    background: color-mix(in srgb, var(--paper) 95%, transparent);
+    backdrop-filter: blur(11px);
+    -webkit-backdrop-filter: blur(11px);
+}
