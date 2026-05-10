@@ -1,5 +1,15 @@
 /* Flattened font-face declarations to avoid render-blocking @import chains. */
 
+/* local emoji face used by chat input and picker glyph fallbacks */
+@font-face {
+  font-family: 'Twemoji COLR';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./fonts/noto-emoji/files/noto-emoji-emoji-400-normal.woff2) format('woff2'),
+       url(./fonts/noto-emoji/files/noto-emoji-emoji-400-normal.woff) format('woff');
+}
+
 /* inter-cyrillic-ext-300-normal */
 @font-face {
   font-family: 'Inter';
