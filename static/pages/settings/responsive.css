@@ -723,7 +723,7 @@
         gap: 2px;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 10px 12px 14px;
+        padding: 8px 8px 12px;
         margin-top: 0;
         border: 0;
         border-radius: 0;
@@ -737,9 +737,9 @@
     .settings-nav-list .nav-item,
     .settings-nav-list .settings-logout-form .nav-item {
         width: 100%;
-        min-height: 46px;
+        min-height: 44px;
         padding: 0 12px;
-        border-radius: 12px;
+        border-radius: 10px;
         white-space: normal;
     }
 
@@ -776,7 +776,7 @@
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
-        padding: 10px 12px 14px;
+        padding: 8px 8px 12px;
         margin-top: 0;
         border: 0;
         border-radius: 0;
@@ -796,9 +796,9 @@
 
     .settings-nav-list .nav-item {
         justify-content: flex-start;
-        min-height: 46px;
+        min-height: 44px;
         padding: 0 12px;
-        border-radius: 12px;
+        border-radius: 10px;
         white-space: normal;
     }
 
@@ -810,33 +810,36 @@
 
 @media (max-width: 768px) {
     .settings-panel-head {
-        padding: calc(14px + env(safe-area-inset-top, 0px)) 14px 12px;
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;
     }
 
     .settings-panel-title {
-        font-size: clamp(26px, 6.8vw, 34px);
+        font-size: clamp(20px, 6vw, 22px);
     }
 
     .settings-nav-profile {
-        padding: 14px 14px 12px;
+        grid-template-columns: 64px minmax(0, 1fr) auto;
+        padding: 14px 14px 10px;
     }
 
     .settings-nav-avatar {
-        width: 72px;
-        height: 72px;
-        font-size: 26px;
+        width: 64px;
+        height: 64px;
+        font-size: 22px;
     }
 
     .settings-nav-profile-action {
-        top: 20px;
-        right: 14px;
         width: 36px;
         height: 36px;
     }
 
+    .settings-nav-profile-name {
+        font-size: 22px;
+    }
+
     .settings-nav-list .nav-item {
-        min-height: 40px;
-        border-radius: 12px;
+        min-height: 42px;
+        border-radius: 10px;
     }
 }
 
