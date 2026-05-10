@@ -608,6 +608,17 @@
         applyCssVars(root, buildLegacyChatWallpaper(themeKey));
     }
 
+    function readStoredDarkModeFlag() {
+        try {
+            const raw = localStorage.getItem('darkMode');
+            if (raw === 'true') return true;
+            if (raw === 'false') return false;
+        } catch (_error) {
+            // Ignore storage read errors.
+        }
+        return null;
+    }
+
     function applyBootState(rawBoot, rawPreferences) {
         const boot = asObject(rawBoot);
         const preferences = asObject(rawPreferences);
@@ -616,9 +627,12 @@
 
         applyStoredSidebarWidth(root);
 
-        const darkMode = typeof boot.darkMode === 'boolean'
+        const storedDarkMode = readStoredDarkModeFlag();
+        const darkMode = storedDarkMode !== null
+            ? storedDarkMode
+            : (typeof boot.darkMode === 'boolean'
             ? boot.darkMode
-            : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : null);
+            : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : null));
         if (darkMode !== null) {
             root.classList.toggle('dark-mode', darkMode);
         }
