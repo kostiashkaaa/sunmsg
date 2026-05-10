@@ -114,6 +114,16 @@
             align-items: center;
             flex-wrap: wrap;
         }
+        .action-stack {
+            display: grid;
+            gap: 8px;
+            min-width: 320px;
+        }
+        .action-group-title {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: -2px;
+        }
         .filters select, .filters input, .inline-form select, .inline-form input, .inline-form textarea {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -125,6 +135,11 @@
         }
         .inline-form textarea {
             min-height: 44px;
+        }
+        .btn.danger {
+            border-color: #d24b43;
+            color: #fff;
+            background: #d24b43;
         }
         .table-wrap {
             overflow: auto;
@@ -343,20 +358,55 @@
                                 </div>
                             </td>
                             <td>
-                                <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/action">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
-                                    <select name="action_type">
-                                        <option value="warn">предупреждение</option>
-                                        <option value="mute_temp">временный мут</option>
-                                        <option value="ban_temp">временный бан</option>
-                                        <option value="ban_perma">постоянный бан</option>
-                                    </select>
-                                    <input name="reason_code" value="manual_action" maxlength="64">
-                                    <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
-                                    <input name="note" maxlength="512" placeholder="заметка">
-                                    <button class="btn primary" type="submit">Применить</button>
-                                </form>
+                                <div class="action-stack">
+                                    <div>
+                                        <div class="action-group-title">Санкция</div>
+                                        <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/action">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
+                                            <select name="action_type">
+                                                <option value="warn">предупреждение</option>
+                                                <option value="mute_temp">временный мут</option>
+                                                <option value="ban_temp">временный бан</option>
+                                                <option value="ban_perma">постоянный бан</option>
+                                            </select>
+                                            <input name="reason_code" value="manual_action" maxlength="64">
+                                            <input name="duration_sec" type="number" min="0" max="31536000" value="3600">
+                                            <input name="note" maxlength="512" placeholder="заметка">
+                                            <button class="btn primary" type="submit">Применить</button>
+                                        </form>
+                                    </div>
+
+                                    <div>
+                                        <div class="action-group-title">Сменить никнейм</div>
+                                        <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/rename">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
+                                            <input name="new_username" maxlength="50" placeholder="новый username" required>
+                                            <button class="btn" type="submit">Сменить</button>
+                                        </form>
+                                    </div>
+
+                                    <div>
+                                        <div class="action-group-title">Очистить активные ограничения</div>
+                                        <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/clear_restrictions">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
+                                            <input name="note" maxlength="512" placeholder="заметка (опционально)">
+                                            <button class="btn" type="submit">Снять ограничения</button>
+                                        </form>
+                                    </div>
+
+                                    <div>
+                                        <div class="action-group-title">Полное удаление аккаунта</div>
+                                        <form class="inline-form" method="post" action="/moderation/console/users/{{ user.id }}/delete">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="lookup_query" value="{{ lookup_query }}">
+                                            <input name="confirm_text" maxlength="16" placeholder="введите DELETE" required>
+                                            <button class="btn danger" type="submit">Удалить аккаунт</button>
+                                        </form>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
