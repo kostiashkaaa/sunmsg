@@ -93,6 +93,7 @@ export function initSearchOverlay() {
     }
 
     const tabs = Array.from(overlay.querySelectorAll('[data-search-tab]'));
+    const tabsScroller = overlay.querySelector('.search-overlay__tabs');
     const panels = Array.from(overlay.querySelectorAll('[data-search-panel]'));
 
     let isOpen = false;
@@ -267,6 +268,26 @@ export function initSearchOverlay() {
             setTab(tab.getAttribute('data-search-tab'), { userInitiated: true });
         });
     });
+
+    tabsScroller?.addEventListener('wheel', (event) => {
+        const hasOverflowX = tabsScroller.scrollWidth > tabsScroller.clientWidth + 1;
+        if (!hasOverflowX) return;
+
+        const deltaMode = Number(event.deltaMode) || 0;
+        const unit = deltaMode === 1
+            ? 16
+            : (deltaMode === 2 ? tabsScroller.clientWidth : 1);
+        const deltaX = Number(event.deltaX || 0) * unit;
+        const deltaY = Number(event.deltaY || 0) * unit;
+        const primaryDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+        if (!Number.isFinite(primaryDelta) || primaryDelta === 0) return;
+
+        const before = tabsScroller.scrollLeft;
+        tabsScroller.scrollLeft += primaryDelta;
+        if (tabsScroller.scrollLeft !== before) {
+            event.preventDefault();
+        }
+    }, { passive: false });
 
     function syncOverlayPerfGuards() {
         applyListPerfGuard(localResults);
