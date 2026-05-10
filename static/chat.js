@@ -68,6 +68,7 @@ import {
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
+import { initSearchOverlayGlobalContent } from './modules/search-overlay-global-content.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
@@ -527,6 +528,9 @@ const initChatPage = async () => {
     const modalSearchResults = document.getElementById('searchUserResults');
     const paletteLocalSection = document.getElementById('paletteLocalSection');
     const paletteLocalResults = document.getElementById('paletteLocalResults');
+    const paletteFrequentSection = document.getElementById('paletteFrequentSection');
+    const paletteFrequentChats = document.getElementById('paletteFrequentChats');
+    const chatsSearchHint = document.querySelector('.search-overlay__hint[data-search-hint=\"chats\"]');
     const commandPaletteActions = document.getElementById('commandPaletteActions');
     const groupCreateModal = document.getElementById('groupCreateModal');
     const groupTitleInput = document.getElementById('groupTitleInput');
@@ -1146,6 +1150,7 @@ const initChatPage = async () => {
     const reactionUpdateStampByMessage = new Map();
     const pendingReactionOpsById = new Map();
     const pendingReactionOpByMessage = new Map();
+    const supersededReactionRequestIds = new Map();
     let baseUpdateOnlineStatusUI = () => {};
     let hideTyping = () => {};
     let hideSidebarTyping = () => {};
@@ -4601,13 +4606,96 @@ const initChatPage = async () => {
             return;
         }
 
-        if (currentRow) {
-            currentRow.outerHTML = nextMarkup;
-        } else {
+        const template = document.createElement('template');
+        template.innerHTML = nextMarkup.trim();
+        const nextRow = Array.from(template.content.children)
+            .find((child) => child?.classList?.contains('message-reactions')) || null;
+
+        let updatedRow = currentRow;
+        if (!nextRow) {
+            currentRow?.remove();
             targetContainer.insertAdjacentHTML('beforeend', nextMarkup);
+            updatedRow = Array.from(targetContainer.children).find((child) => child?.classList?.contains('message-reactions')) || null;
+        } else if (!updatedRow) {
+            targetContainer.append(nextRow);
+            updatedRow = nextRow;
+        } else {
+            updatedRow.className = nextRow.className;
+            updatedRow.setAttribute('data-msg-id', String(msgId));
+
+            const syncPill = (targetPill, sourcePill) => {
+                if (!targetPill || !sourcePill) return;
+                const nextEmoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
+                targetPill.className = sourcePill.className;
+                targetPill.setAttribute('data-msg-id', String(msgId));
+                targetPill.setAttribute('data-emoji', nextEmoji);
+
+                const sourceEmoji = sourcePill.querySelector('.reaction-pill__emoji');
+                const targetEmoji = targetPill.querySelector('.reaction-pill__emoji');
+                if (sourceEmoji && targetEmoji) {
+                    targetEmoji.textContent = sourceEmoji.textContent || '';
+                }
+
+                const sourceReactors = sourcePill.querySelector('.reaction-pill__reactors');
+                const targetReactors = targetPill.querySelector('.reaction-pill__reactors');
+                if (sourceReactors) {
+                    const clonedReactors = sourceReactors.cloneNode(true);
+                    if (targetReactors) {
+                        targetReactors.replaceWith(clonedReactors);
+                    } else if (targetEmoji) {
+                        targetEmoji.insertAdjacentElement('afterend', clonedReactors);
+                    } else {
+                        targetPill.prepend(clonedReactors);
+                    }
+                } else {
+                    targetReactors?.remove();
+                }
+
+                const sourceCount = sourcePill.querySelector('.reaction-pill__count');
+                const targetCount = targetPill.querySelector('.reaction-pill__count');
+                if (sourceCount) {
+                    if (targetCount) {
+                        targetCount.textContent = sourceCount.textContent || '';
+                    } else {
+                        targetPill.append(sourceCount.cloneNode(true));
+                    }
+                } else {
+                    targetCount?.remove();
+                }
+            };
+
+            const currentPills = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'));
+            const currentPillByEmoji = new Map();
+            currentPills.forEach((pill) => {
+                const emoji = String(pill.getAttribute('data-emoji') || '').trim();
+                if (!emoji || currentPillByEmoji.has(emoji)) return;
+                currentPillByEmoji.set(emoji, pill);
+            });
+
+            const nextPills = Array.from(nextRow.querySelectorAll(':scope > .reaction-pill'));
+            const nextEmojiSet = new Set();
+            nextPills.forEach((sourcePill) => {
+                const emoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
+                if (!emoji) return;
+                nextEmojiSet.add(emoji);
+
+                const existingPill = currentPillByEmoji.get(emoji);
+                if (existingPill) {
+                    syncPill(existingPill, sourcePill);
+                    updatedRow.append(existingPill);
+                    return;
+                }
+
+                updatedRow.append(sourcePill.cloneNode(true));
+            });
+
+            currentPillByEmoji.forEach((pill, emoji) => {
+                if (!nextEmojiSet.has(emoji)) {
+                    pill.remove();
+                }
+            });
         }
 
-        const updatedRow = Array.from(targetContainer.children).find((child) => child?.classList?.contains('message-reactions')) || null;
         if (updatedRow && animate) {
             updatedRow.classList.add('is-updated');
             window.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
@@ -4865,12 +4953,50 @@ const initChatPage = async () => {
         );
     }
 
-    function clearPendingReactionOp(requestId, { rollback = false } = {}) {
+    function rememberSupersededReactionRequest(requestId, ttlMs = 30000) {
         const token = String(requestId || '').trim();
         if (!token) return;
+        const existingTimeoutId = supersededReactionRequestIds.get(token);
+        if (existingTimeoutId) {
+            clearTimeout(existingTimeoutId);
+        }
+        const timeoutId = window.setTimeout(() => {
+            supersededReactionRequestIds.delete(token);
+        }, ttlMs);
+        supersededReactionRequestIds.set(token, timeoutId);
+    }
 
+    function isSupersededReactionRequest(requestId) {
+        const token = String(requestId || '').trim();
+        if (!token) return false;
+        return supersededReactionRequestIds.has(token);
+    }
+
+    function forgetSupersededReactionRequest(requestId) {
+        const token = String(requestId || '').trim();
+        if (!token) return;
+        const timeoutId = supersededReactionRequestIds.get(token);
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        supersededReactionRequestIds.delete(token);
+    }
+
+    function markPendingReactionOpSuperseded(requestId) {
+        const token = String(requestId || '').trim();
+        if (!token) return;
         const operation = pendingReactionOpsById.get(token);
         if (!operation) return;
+        operation.superseded = true;
+        rememberSupersededReactionRequest(token);
+    }
+
+    function clearPendingReactionOp(requestId, { rollback = false } = {}) {
+        const token = String(requestId || '').trim();
+        if (!token) return null;
+
+        const operation = pendingReactionOpsById.get(token);
+        if (!operation) return null;
 
         pendingReactionOpsById.delete(token);
         if (operation.timeoutId) {
@@ -4883,14 +5009,17 @@ const initChatPage = async () => {
         if (rollback) {
             rollbackPendingReactionOp(operation);
         }
+
+        return operation;
     }
 
     function clearPendingReactionOpByMessage(chatId, messageId, { rollback = false } = {}) {
         const key = getReactionMessageKey(chatId, messageId);
         const requestId = pendingReactionOpByMessage.get(key);
         if (requestId) {
-            clearPendingReactionOp(requestId, { rollback });
+            return clearPendingReactionOp(requestId, { rollback });
         }
+        return null;
     }
 
     function registerPendingReactionOp(chatId, messageId, previousReactions, requestId) {
@@ -4903,7 +5032,7 @@ const initChatPage = async () => {
         const key = getReactionMessageKey(chatId, numericMessageId);
         const existing = pendingReactionOpByMessage.get(key);
         if (existing) {
-            clearPendingReactionOp(existing);
+            markPendingReactionOpSuperseded(existing);
         }
 
         const timeoutId = window.setTimeout(() => {
@@ -4916,6 +5045,7 @@ const initChatPage = async () => {
             messageId: numericMessageId,
             messageKey: key,
             previousReactions: normalizeMessageReactions(previousReactions),
+            superseded: false,
             timeoutId,
         });
         pendingReactionOpByMessage.set(key, token);
@@ -5064,6 +5194,8 @@ const initChatPage = async () => {
         reactionUpdateStampByMessage,
         clearPendingReactionOp,
         clearPendingReactionOpByMessage,
+        isSupersededReactionRequest,
+        forgetSupersededReactionRequest,
         updateMessageReactionsState,
         getActiveReactionMessageId: () => reactionPickerController.getActiveMessageId(),
         closeReactionPicker,
@@ -6233,6 +6365,64 @@ const initChatPage = async () => {
         return getChatHistoryRuntime().loadOlderMessages(chatId);
     }
 
+    function setChatsSearchHintVisible(visible) {
+        if (!chatsSearchHint) return;
+        chatsSearchHint.style.display = visible ? '' : 'none';
+    }
+
+    function renderFrequentChats() {
+        if (!paletteFrequentSection || !paletteFrequentChats) return;
+
+        const frequentItems = Array.from(document.querySelectorAll('#contactsList .contact-item[data-chat-id]'))
+            .sort((a, b) => {
+                const aPinned = String(a.getAttribute('data-pinned') || '') === '1';
+                const bPinned = String(b.getAttribute('data-pinned') || '') === '1';
+                if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
+                const aTs = Number(a.getAttribute('data-last-message-ts') || 0);
+                const bTs = Number(b.getAttribute('data-last-message-ts') || 0);
+                if (aTs !== bTs) return bTs - aTs;
+
+                const aName = String(a.querySelector('.contact-name')?.textContent || '').toLowerCase();
+                const bName = String(b.querySelector('.contact-name')?.textContent || '').toLowerCase();
+                return aName.localeCompare(bName);
+            })
+            .slice(0, 10);
+
+        if (!frequentItems.length) {
+            paletteFrequentSection.style.display = 'none';
+            paletteFrequentChats.innerHTML = '';
+            return;
+        }
+
+        paletteFrequentSection.style.display = '';
+        paletteFrequentChats.innerHTML = frequentItems.map((item) => {
+            const sourceAvatarEl = item.querySelector('.contact-avatar');
+            const avatarHtml = sourceAvatarEl?.innerHTML || '?';
+            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
+            const avatarTintAttr = avatarTint
+                ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
+                : '';
+            const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
+            const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || 'Чат'));
+            return `
+                <button type="button" class="search-frequent-chat-btn" data-chat-id="${chatId}">
+                    <div class="contact-avatar search-frequent-chat-btn-avatar"${avatarTintAttr}>${avatarHtml}</div>
+                    <span class="search-frequent-chat-btn-name">${name}</span>
+                </button>
+            `;
+        }).join('');
+
+        paletteFrequentChats.querySelectorAll('.search-frequent-chat-btn .contact-avatar').forEach((avatarEl) => {
+            if (avatarEl.querySelector('img')) return;
+            const label = String(
+                avatarEl.closest('.search-frequent-chat-btn')?.querySelector('.search-frequent-chat-btn-name')?.textContent
+                || '',
+            ).trim();
+            applyFallbackAvatarTint(avatarEl, label);
+        });
+    }
+
     function renderPaletteLocalMatches(query) {
         if (!paletteLocalSection || !paletteLocalResults) return;
 
@@ -6240,7 +6430,13 @@ const initChatPage = async () => {
         if (!normalizedQuery) {
             paletteLocalSection.style.display = 'none';
             paletteLocalResults.innerHTML = '';
+            renderFrequentChats();
+            setChatsSearchHintVisible(true);
             return;
+        }
+
+        if (paletteFrequentSection) {
+            paletteFrequentSection.style.display = 'none';
         }
 
         const items = Array.from(document.querySelectorAll('#contactsList .contact-item'));
@@ -6249,14 +6445,16 @@ const initChatPage = async () => {
             const username = String(item.querySelector('.contact-last-msg')?.textContent || '').toLowerCase();
             const publicKey = String(item.getAttribute('data-public-key') || '').toLowerCase();
             return name.includes(normalizedQuery) || username.includes(normalizedQuery) || publicKey.includes(normalizedQuery);
-        }).slice(0, 6);
+        }).slice(0, 8);
 
         if (!matches.length) {
             paletteLocalSection.style.display = 'none';
             paletteLocalResults.innerHTML = '';
+            setChatsSearchHintVisible(true);
             return;
         }
 
+        setChatsSearchHintVisible(false);
         paletteLocalSection.style.display = '';
         paletteLocalResults.innerHTML = matches.map((item) => {
             const sourceAvatarEl = item.querySelector('.contact-avatar');
@@ -6297,7 +6495,11 @@ const initChatPage = async () => {
         if (!chatId || !contactsList) return;
         const item = resolveContactItemByChatId(chatId);
         if (!item) return;
-        closeAnimatedDialog(document.getElementById('newChatModal'));
+        if (typeof window.closeCommandPalette === 'function') {
+            window.closeCommandPalette();
+        } else {
+            closeAnimatedDialog(document.getElementById('newChatModal'));
+        }
         item.click();
     }
 
@@ -6358,6 +6560,34 @@ const initChatPage = async () => {
             }
         }
     }
+
+    const searchOverlayGlobalContentController = initSearchOverlayGlobalContent({
+        overlayEl: document.getElementById('newChatModal'),
+        resolveAppUrl: withAppRoot,
+        fetchImpl: window.authFetch || window.fetch?.bind(window) || fetch,
+        decodeMessages: (messages) => decodeChatMessages(messages),
+        contactsRoot: contactsList,
+        openChatById: (chatId) => openChatByIdWhenReady(chatId),
+        focusMessageInCurrentChat: (msgId, options) => window._scrollToMsg?.(msgId, options),
+        closeOverlay: () => {
+            if (typeof window.closeCommandPalette === 'function') {
+                window.closeCommandPalette();
+                return;
+            }
+            closeAnimatedDialog(document.getElementById('newChatModal'));
+        },
+        showToast,
+    });
+
+    document.getElementById('newChatModal')?.addEventListener('sun-search-overlay-tab-changed', (event) => {
+        const tabId = String(event?.detail?.tabId || '').trim();
+        if (tabId === 'chats') {
+            const visibleSearchInput = document.getElementById('searchInput');
+            const query = String(visibleSearchInput?.value || '').trim();
+            renderPaletteLocalMatches(query);
+            searchOverlayGlobalContentController?.refreshChatLookup?.();
+        }
+    });
 
 
 
@@ -6424,6 +6654,12 @@ const initChatPage = async () => {
 
     paletteLocalResults?.addEventListener('click', (event) => {
         const openBtn = event.target.closest('.open-chat-btn');
+        if (!openBtn) return;
+        openPaletteChat(openBtn.getAttribute('data-chat-id'));
+    });
+
+    paletteFrequentChats?.addEventListener('click', (event) => {
+        const openBtn = event.target.closest('.search-frequent-chat-btn');
         if (!openBtn) return;
         openPaletteChat(openBtn.getAttribute('data-chat-id'));
     });
@@ -6531,6 +6767,10 @@ const initChatPage = async () => {
     const emptyStateSecondaryBtn = document.getElementById('emptyStateSecondaryBtn');
 
     function openCommandPaletteModal() {
+        if (typeof window.openCommandPalette === 'function' && window.openCommandPalette !== openCommandPaletteModal) {
+            window.openCommandPalette('');
+            return;
+        }
         const modal = document.getElementById('newChatModal');
         const input = document.getElementById('searchUserInput');
         const results = document.getElementById('searchUserResults');
@@ -6543,11 +6783,13 @@ const initChatPage = async () => {
         });
     }
 
-    // Expose to window so sidebar-brand-quick-actions.js can find it
-    window.openCommandPalette = openCommandPaletteModal;
+    // Expose fallback API only when overlay module did not register modern handlers.
+    if (typeof window.openCommandPalette !== 'function') {
+        window.openCommandPalette = openCommandPaletteModal;
+    }
 
     emptyStatePrimaryBtn?.addEventListener('click', () => {
-        openCommandPaletteModal();
+        window.openCommandPalette?.();
     });
 
     emptyStateSecondaryBtn?.addEventListener('click', () => {
