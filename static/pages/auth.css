@@ -2255,6 +2255,24 @@ body[data-ui-language="en"] #loginIntroTitle::after {
     display: none !important;
 }
 
+.auth-qr-login-code.is-expired .auth-qr-login-layer.is-active {
+    filter: grayscale(0.72) opacity(0.56);
+}
+
+.auth-qr-login-refresh-btn {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 152px;
+    z-index: 4;
+    box-shadow: var(--shadow-md);
+}
+
+.auth-qr-login-refresh-btn[hidden] {
+    display: none !important;
+}
+
 .auth-login-other-title {
     font-size: clamp(2.0rem, 2.8vw, 2.9rem);
 }

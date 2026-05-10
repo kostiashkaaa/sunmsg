@@ -1,5 +1,7 @@
 import { applySunQrBrand, clearSunQrBrand } from '../qr-brand.js';
 
+const DESIGN_QR_LIFETIME_MS = 14_000;
+
 function ensureLoginQrSkeleton(container) {
     if (!container) return null;
     let skeleton = container.querySelector('.auth-qr-login-skeleton');
@@ -31,7 +33,7 @@ export function createQrLoginFlow({
         autoStartTimer: 0,
         busy: false,
         qrText: '',
-        expiresInMs: 75_000,
+        expiresInMs: DESIGN_QR_LIFETIME_MS,
         flowSeq: 0,
         activeLayer: 0,
     };
@@ -114,10 +116,77 @@ export function createQrLoginFlow({
         container.classList.toggle('is-pulsing', !!active);
     }
 
+    function isEnglishUi() {
+        const raw = document.body?.dataset?.uiLanguage || document.documentElement.lang || '';
+        return String(raw).toLowerCase() === 'en';
+    }
+
+    function qrRefreshButtonLabel() {
+        return isEnglishUi() ? '↻ Refresh QR' : '↻ Обновить QR';
+    }
+
+    function defaultQrHelperText() {
+        const intro = document.getElementById('loginIntroSub');
+        const text = String(intro?.textContent || '').trim();
+        return text || tr('Сканируйте QR');
+    }
+
+    function setLoginQrExpiredVisual(expired) {
+        const container = document.getElementById('loginQrCodeContainer');
+        if (!container) return;
+        container.classList.toggle('is-expired', !!expired);
+    }
+
+    function hideLoginQrRefreshButton() {
+        const button = document.getElementById('loginQrRefreshBtn');
+        if (button) {
+            button.hidden = true;
+        }
+    }
+
+    function showLoginQrRefreshButton(onRefresh) {
+        const container = document.getElementById('loginQrCodeContainer');
+        if (!container) return;
+        let button = document.getElementById('loginQrRefreshBtn');
+        if (!button) {
+            button = document.createElement('button');
+            button.id = 'loginQrRefreshBtn';
+            button.type = 'button';
+            button.className = 'auth-btn auth-btn-accent auth-qr-login-refresh-btn';
+            button.hidden = true;
+            container.appendChild(button);
+        }
+        button.textContent = qrRefreshButtonLabel();
+        button.hidden = false;
+        button.onclick = () => {
+            button.hidden = true;
+            setLoginQrStatus('Готовим QR…');
+            setLoginQrExpiredVisual(false);
+            if (typeof onRefresh === 'function') {
+                onRefresh();
+            }
+        };
+    }
+
+    function enterExpiredQrState() {
+        clearLoginQrTimers();
+        setLoginQrPulse(false);
+        setLoginQrStatus(tr('QR-сессия завершена. Обновите QR.'));
+        setLoginQrExpiredVisual(true);
+        wipeLoginQrSecrets();
+        showLoginQrRefreshButton(() => {
+            startLoginQrFlow().catch((err) => {
+                setLoginQrStatus(String(err?.message || 'Не удалось обновить QR.'));
+                showToast(String(err?.message || 'Не удалось обновить QR.'), 'error');
+            });
+        });
+    }
+
     function resetLoginQrUi() {
         const container = document.getElementById('loginQrCodeContainer');
         if (container) {
             container.classList.remove('sun-qr-login-brand-mode');
+            container.classList.remove('is-expired');
             const ring = container.querySelector('.auth-qr-login-ring');
             container.innerHTML = '';
             delete container.dataset.qrLayersReady;
@@ -127,6 +196,7 @@ export function createQrLoginFlow({
         loginQrState.activeLayer = 0;
         setLoginQrRing('reset');
         setLoginQrPulse(false);
+        hideLoginQrRefreshButton();
     }
 
     function wipeLoginQrSecrets() {
@@ -154,6 +224,8 @@ export function createQrLoginFlow({
             container.dataset.qrLayersReady = '1';
             loginQrState.activeLayer = 0;
         }
+        setLoginQrExpiredVisual(false);
+        hideLoginQrRefreshButton();
         const skeleton = ensureLoginQrSkeleton(container);
         if (typeof window.ensureQrCodeLibrary === 'function') {
             await window.ensureQrCodeLibrary();
@@ -227,13 +299,19 @@ export function createQrLoginFlow({
         loginQrState.receiverPrivateKey = keyPair.privateKey;
         loginQrState.qrText = String(payload.qr_text);
         const expiresInSeconds = Number(payload.expires_in_seconds);
+        const serverExpiresMs = Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+            ? Math.round(expiresInSeconds * 1000)
+            : 0;
         if (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
-            loginQrState.expiresInMs = Math.max(15_000, Math.round(expiresInSeconds * 1000));
+            loginQrState.expiresInMs = Math.max(
+                8_000,
+                Math.min(DESIGN_QR_LIFETIME_MS, serverExpiresMs),
+            );
         } else {
-            loginQrState.expiresInMs = 75_000;
+            loginQrState.expiresInMs = DESIGN_QR_LIFETIME_MS;
         }
         await renderLoginQrCode(loginQrState.qrText);
-        setLoginQrStatus('Сканируйте QR');
+        setLoginQrStatus(defaultQrHelperText());
     }
 
     async function pollLoginQrClaim() {
@@ -258,10 +336,7 @@ export function createQrLoginFlow({
             const payload = await response.json().catch(() => ({}));
             if (response.status === 404) {
                 if (seq !== loginQrState.flowSeq) return;
-                clearLoginQrTimers();
-                startLoginQrFlow().catch((err) => {
-                    setLoginQrStatus(String(err?.message || 'Не удалось обновить QR.'));
-                });
+                enterExpiredQrState();
                 return;
             }
             if (response.status === 410) {
@@ -334,9 +409,12 @@ export function createQrLoginFlow({
         const seq = loginQrState.flowSeq + 1;
         loginQrState.flowSeq = seq;
         clearLoginQrTimers();
+        setLoginQrExpiredVisual(false);
+        hideLoginQrRefreshButton();
+        setLoginQrStatus('Готовим QR…');
 
         await createAndRenderLoginQr();
-        const refreshMs = Math.max(15_000, Number(loginQrState.expiresInMs) || 75_000);
+        const refreshMs = Math.max(8_000, Number(loginQrState.expiresInMs) || DESIGN_QR_LIFETIME_MS);
         setLoginQrRing('start', refreshMs);
         const fastPollMs = 600;
         const slowPollMs = 1800;
@@ -366,10 +444,7 @@ export function createQrLoginFlow({
 
         loginQrState.refreshTimer = window.setTimeout(() => {
             if (seq !== loginQrState.flowSeq) return;
-            startLoginQrFlow().catch((err) => {
-                setLoginQrStatus(String(err?.message || 'Не удалось обновить QR.'));
-                showToast(String(err?.message || 'Не удалось обновить QR.'), 'error');
-            });
+            enterExpiredQrState();
         }, refreshMs);
     }
 
