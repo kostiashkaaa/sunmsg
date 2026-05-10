@@ -57,7 +57,7 @@
     <main class="auth-wrapper">
         <div class="auth-brand">
             <div class="auth-brand-pre">Сквозное шифрование &bull; Нулевое знание</div>
-            <h1 class="auth-brand-headline" id="authHeadline">Добро пожаловать<br><em class="auth-brand-headline-em">в тихую сеть.</em></h1>
+            <h1 class="auth-brand-headline" id="authHeadline">Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em></h1>
         </div>
 
         <div class="auth-card">
@@ -75,7 +75,10 @@
             <div class="tab-panel active" id="panel-login" role="tabpanel">
 
                 <div class="auth-login-intro">
-                    <h2 class="auth-login-intro-title" id="loginIntroTitle">Войти за три секунды</h2>
+                    <h2 class="auth-login-intro-title" id="loginIntroTitle">
+                        <span>Войти</span>
+                        <em class="auth-login-intro-em">за три секунды.</em>
+                    </h2>
                     <p class="auth-login-intro-sub" id="loginIntroSub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
                 </div>
 
@@ -102,17 +105,34 @@
                     </div>
 
                     <details class="auth-login-other-details" id="loginOtherMethodsDetails">
-                        <summary class="auth-login-other-summary" id="loginOtherMethodsSummary">Другие способы входа</summary>
+                        <summary class="auth-login-other-summary" id="loginOtherMethodsSummary">Другие способы войти</summary>
                         <div class="auth-login-other-content">
-                            <div class="auth-method-switcher">
-                                <button class="auth-method-btn active" id="methodQrBtn" type="button">
-                                    <i class="bi bi-qr-code-scan"></i> <span id="methodQrBtnLabel">QR вход</span>
+                            <button type="button" class="auth-other-back" id="loginOtherBackBtn">&larr; Назад</button>
+                            <h3 class="auth-login-other-title" id="loginOtherTitle">Другие способы войти</h3>
+
+                            <div class="auth-login-other-menu" id="loginOtherMenu">
+                                <button class="auth-method-btn auth-method-btn-card" id="methodKeyBtn" type="button">
+                                    <span class="auth-method-btn-icon"><i class="bi bi-journal-text"></i></span>
+                                    <span class="auth-method-btn-copy">
+                                        <span class="auth-method-btn-title" id="methodKeyBtnLabel">Войти 24 словами</span>
+                                        <span class="auth-method-btn-sub" id="methodKeyBtnSub">Если потерян телефон</span>
+                                    </span>
+                                    <span class="auth-method-btn-arrow">&rarr;</span>
                                 </button>
-                                <button class="auth-method-btn" id="methodKeyBtn" type="button">
-                                    <i class="bi bi-shield-lock"></i> <span id="methodKeyBtnLabel">24 слова</span>
+
+                                <button class="auth-method-btn auth-method-btn-card auth-method-btn-passive" id="methodTotpCardBtn" type="button">
+                                    <span class="auth-method-btn-icon"><i class="bi bi-shield-check"></i></span>
+                                    <span class="auth-method-btn-copy">
+                                        <span class="auth-method-btn-title" id="methodTotpTitle">Только 6-значный код</span>
+                                        <span class="auth-method-btn-sub" id="methodTotpSub">Authenticator</span>
+                                    </span>
+                                    <span class="auth-method-btn-arrow">&rarr;</span>
                                 </button>
+
+                                <button class="auth-method-btn auth-method-btn-hidden" id="methodQrBtn" type="button" tabindex="-1" aria-hidden="true"></button>
                             </div>
 
+                            <div class="auth-login-other-form" id="loginOtherForm">
                             <div class="auth-form-group" id="loginKeyGroup">
                                 <label class="auth-label" for="login_username">Имя пользователя</label>
                                 <div class="auth-input-wrap auth-input-wrap-compact">
@@ -151,6 +171,7 @@
                             <div class="auth-login-other-tip" id="loginOtherMethodsTip">
                                 <strong>Совет:</strong> QR на главном экране — самый безопасный и быстрый способ входа.
                             </div>
+                            </div>
                         </div>
                     </details>
                 </form>
@@ -158,6 +179,7 @@
 
             <div class="tab-panel" id="panel-register" role="tabpanel">
                 <div class="auth-register-progress" id="registerFlowProgress" aria-live="polite" data-step="1">
+                    <button type="button" class="auth-other-back" id="registerStep1BackBtn">&larr; Назад</button>
                     <div class="auth-register-progress-dots" aria-hidden="true">
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
@@ -170,8 +192,8 @@
                     <div class="auth-key-box-header auth-key-box-header--intro">
                         <div class="auth-key-box-icon"><i class="bi bi-person-circle"></i></div>
                         <div>
-                            <div class="auth-key-box-title" id="registerStep1Title">Шаг 1 — Данные аккаунта</div>
-                            <div class="auth-key-box-sub" id="registerStep1Sub">Username нужен для входа, отображаемое имя видят ваши контакты.</div>
+                            <div class="auth-key-box-title" id="registerStep1Title">Знакомимся</div>
+                            <div class="auth-key-box-sub" id="registerStep1Sub">Имя видят ваши собеседники. @ник — по нему вас находят.</div>
                         </div>
                     </div>
                     <div class="auth-form-group">
@@ -201,7 +223,7 @@
                         </p>
                     </div>
                     <button type="submit" class="auth-btn auth-btn-primary" id="registerSubmitBtn">
-                        <span id="registerBtnText">Создать и продолжить</span>
+                        <span id="registerBtnText">Продолжить</span>
                         <span class="auth-btn-arrow">&rarr;</span>
                     </button>
                 </form>
@@ -210,76 +232,74 @@
 
         <div class="auth-key-box" id="keyResultBox">
             <section class="auth-register-step" id="registerStep2Block" hidden>
-                <div class="auth-key-box-header">
-                    <div class="auth-key-box-icon"><i class="bi bi-shield-lock"></i></div>
+                <div class="auth-register-progress auth-register-progress-inline" data-step="2">
+                    <button type="button" class="auth-other-back" id="registerStep2BackBtn">&larr; Назад</button>
+                    <div class="auth-register-progress-dots" aria-hidden="true">
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                    </div>
+                </div>
+                <div class="auth-key-box-header auth-key-box-header--qrfirst">
+                    <div class="auth-key-box-icon"><i class="bi bi-key"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Шаг 2 — Сохраните 24 слова</div>
-                        <div class="auth-key-box-sub">Без этой фразы восстановить доступ невозможно</div>
+                        <div class="auth-key-box-title">Ваш ключ от дома</div>
+                        <div class="auth-key-box-sub">24 слова. Запишите на бумаге — это всё, что нужно для входа с любого устройства.</div>
                     </div>
                 </div>
                 <div class="auth-form-group auth-private-key-group">
-                    <textarea id="privateKeyContent" class="auth-input mono" rows="4" readonly></textarea>
+                    <textarea id="privateKeyContent" class="auth-input mono" rows="4" readonly hidden></textarea>
+                    <div class="auth-register-words-wrap" id="registerWordsWrap">
+                        <div class="auth-register-words-grid auth-register-words-grid--blurred" id="registerWordsGrid"></div>
+                        <button type="button" class="auth-btn auth-btn-accent auth-register-reveal-btn" id="registerMnemonicRevealBtn">
+                            <span>Показать</span>
+                            <span class="auth-btn-arrow">&rarr;</span>
+                        </button>
+                    </div>
                 </div>
                 <button type="button" class="auth-btn auth-btn-secondary auth-copy-key-btn" id="copyPrivateKeyBtn">
-                    <i class="bi bi-clipboard"></i> Скопировать 24 слова
+                    <i class="bi bi-clipboard"></i> Скопировать
                 </button>
-                <div class="auth-register-check-wrap">
-                    <div class="auth-register-check-title">Подтвердите, что вы действительно сохранили фразу</div>
-                    <div class="auth-register-confirm-grid">
-                        <label class="auth-register-confirm-label" for="registerMnemonicConfirmA">
-                            <span id="registerMnemonicConfirmPromptA">Слово №1</span>
-                            <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmA" autocomplete="off">
-                        </label>
-                        <label class="auth-register-confirm-label" for="registerMnemonicConfirmB">
-                            <span id="registerMnemonicConfirmPromptB">Слово №2</span>
-                            <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmB" autocomplete="off">
-                        </label>
-                    </div>
-                    <div class="auth-register-inline-error" id="registerMnemonicConfirmError" hidden></div>
-                </div>
-                <button type="button" class="auth-btn auth-btn-primary" id="registerMnemonicConfirmBtn">
-                    <span>Подтвердить фразу и продолжить</span>
+                <button type="button" class="auth-btn auth-btn-primary" id="registerStep2NextBtn">
+                    <span>Я записал, дальше</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
             </section>
 
             <section class="auth-register-step" id="registerStep3Block" hidden>
-                <div class="auth-key-box-header auth-key-box-header--qr">
-                    <div class="auth-key-box-icon accent"><i class="bi bi-phone"></i></div>
+                <div class="auth-register-progress auth-register-progress-inline" data-step="3">
+                    <button type="button" class="auth-other-back" id="registerStep3BackBtn">&larr; Назад</button>
+                    <div class="auth-register-progress-dots" aria-hidden="true">
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                    </div>
+                </div>
+                <div class="auth-key-box-header auth-key-box-header--qrfirst">
+                    <div class="auth-key-box-icon"><i class="bi bi-check2-circle"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Шаг 3 — Подключите приложение-аутентификатор</div>
-                        <div class="auth-key-box-sub">Введите 6-значный код, чтобы завершить подключение TOTP</div>
+                        <div class="auth-key-box-title">Маленькая проверка</div>
+                        <div class="auth-key-box-sub">Хотим убедиться, что вы записали слова, а не пролистали.</div>
                     </div>
                 </div>
-                <div class="auth-totp-layout">
-                    <div id="totpQrContainer" class="auth-totp-qr"></div>
-                    <div class="auth-totp-copy">
-                        <p class="qr-instructions">
-                            1. Откройте <strong>Google Authenticator</strong> или <strong>Microsoft Authenticator</strong><br>
-                            2. Нажмите <strong>"+"</strong> и отсканируйте QR-код<br>
-                            3. Введите текущий 6-значный код ниже
-                        </p>
-                        <p class="auth-totp-manual-label">Или введите секрет вручную:</p>
-                        <div class="totp-secret-box" id="totpSecretDisplay"></div>
-                    </div>
+                <div class="auth-register-confirm-grid">
+                    <label class="auth-register-confirm-label" for="registerMnemonicConfirmA">
+                        <span id="registerMnemonicConfirmPromptA">Слово №1</span>
+                        <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmA" autocomplete="off">
+                    </label>
+                    <label class="auth-register-confirm-label" for="registerMnemonicConfirmB">
+                        <span id="registerMnemonicConfirmPromptB">Слово №2</span>
+                        <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmB" autocomplete="off">
+                    </label>
                 </div>
-                <div class="auth-form-group auth-register-totp-verify-group">
-                    <label class="auth-label" for="registerTotpVerifyCode">Код из Authenticator</label>
-                    <div class="auth-input-wrap">
-                        <input type="text" class="auth-input totp-input" id="registerTotpVerifyCode"
-                               placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-                    </div>
-                </div>
-                <div class="auth-register-totp-actions">
-                    <button type="button" class="auth-btn auth-btn-primary" id="registerTotpVerifyBtn">
-                        <span>Проверить код</span>
-                        <span class="auth-btn-arrow">&rarr;</span>
-                    </button>
-                    <button type="button" class="auth-btn auth-btn-secondary" id="registerTotpSkipBtn">
-                        Настроить позже
-                    </button>
-                </div>
-                <div class="auth-register-status" id="registerTotpStatus" aria-live="polite"></div>
+                <div class="auth-register-inline-error" id="registerMnemonicConfirmError" hidden></div>
+                <button type="button" class="auth-btn auth-btn-primary" id="registerMnemonicConfirmBtn">
+                    <span>Продолжить</span>
+                    <span class="auth-btn-arrow">&rarr;</span>
+                </button>
+                <button type="button" class="auth-btn auth-btn-text-link" id="registerStep3ShowWordsBtn">Показать слова ещё раз</button>
             </section>
 
             <section class="auth-register-step" id="registerStep4Block" hidden>
@@ -301,9 +321,9 @@
         </div>
 
         <div class="auth-footer">
-            <span>Сервер не видит сообщения</span>
-            <span>Нулевое знание</span>
-            <span>v1.0</span>
+            <div class="auth-footer-eyebrow"><span class="auth-footer-dot"></span>Сквозное шифрование ・ Нулевое знание</div>
+            <div class="auth-footer-rule"></div>
+            <p class="auth-footer-quote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
         </div>
 
     </main>

@@ -22,6 +22,26 @@ export function initLoginFlow({
 
     const loginSubmitBtn = document.getElementById('loginSubmitBtn');
     const loginOtherMethodsDetails = document.getElementById('loginOtherMethodsDetails');
+    const loginOtherMenu = document.getElementById('loginOtherMenu');
+    const loginOtherForm = document.getElementById('loginOtherForm');
+    const loginPanel = document.getElementById('panel-login');
+
+    function setOtherMethodsView(view) {
+        const nextView = view === 'form' ? 'form' : 'menu';
+        if (loginOtherMethodsDetails) {
+            loginOtherMethodsDetails.dataset.view = nextView;
+        }
+        if (loginOtherMenu) {
+            loginOtherMenu.hidden = nextView !== 'menu';
+        }
+        if (loginOtherForm) {
+            loginOtherForm.hidden = nextView !== 'form';
+        }
+        if (loginPanel) {
+            const open = !!loginOtherMethodsDetails?.open;
+            loginPanel.classList.toggle('is-other-open', open);
+        }
+    }
 
     function setMethodGroupVisibility(group, visible) {
         if (!group) return;
@@ -123,8 +143,14 @@ export function initLoginFlow({
         if (loginSubmitBtn) {
             loginSubmitBtn.style.display = nextMethod === 'qr' ? 'none' : '';
         }
-        if (loginOtherMethodsDetails && nextMethod !== 'qr') {
-            loginOtherMethodsDetails.open = true;
+        if (loginOtherMethodsDetails) {
+            if (nextMethod === 'qr') {
+                loginOtherMethodsDetails.open = false;
+                setOtherMethodsView('menu');
+            } else {
+                loginOtherMethodsDetails.open = true;
+                setOtherMethodsView('form');
+            }
         }
 
         if (nextMethod !== 'qr') {
@@ -222,10 +248,21 @@ export function initLoginFlow({
 
     const methodQrBtn = document.getElementById('methodQrBtn');
     const methodKeyBtn = document.getElementById('methodKeyBtn');
+    const methodTotpCardBtn = document.getElementById('methodTotpCardBtn');
+    const loginOtherBackBtn = document.getElementById('loginOtherBackBtn');
     const loginGoRegisterBtn = document.getElementById('loginGoRegisterBtn');
     const loginUsernameInput = document.getElementById('login_username');
     methodQrBtn?.addEventListener('click', () => setLoginMethod('qr'));
-    methodKeyBtn?.addEventListener('click', () => setLoginMethod('key'));
+    methodKeyBtn?.addEventListener('click', () => {
+        setOtherMethodsView('form');
+        setLoginMethod('key');
+    });
+    methodTotpCardBtn?.addEventListener('click', () => {
+        showToast('Этот способ доступен после ввода 24 слов.', 'info');
+    });
+    loginOtherBackBtn?.addEventListener('click', () => {
+        setLoginMethod('qr');
+    });
     loginGoRegisterBtn?.addEventListener('click', () => {
         if (typeof window.switchTab === 'function') {
             window.switchTab('register');
@@ -234,6 +271,16 @@ export function initLoginFlow({
     });
     loginUsernameInput?.addEventListener('input', () => {
         qrFlow.scheduleLoginQrAutoStart(520);
+    });
+    loginOtherMethodsDetails?.addEventListener('toggle', () => {
+        if (loginPanel) {
+            loginPanel.classList.toggle('is-other-open', loginOtherMethodsDetails.open);
+        }
+        if (loginOtherMethodsDetails.open) {
+            setOtherMethodsView(currentLoginMethod === 'qr' ? 'menu' : 'form');
+            return;
+        }
+        setOtherMethodsView('menu');
     });
 
     const loginForm = document.getElementById('ajaxLoginForm');
@@ -318,6 +365,7 @@ export function initLoginFlow({
 
     window.setLoginMethod = setLoginMethod;
     qrFlow.initialize();
+    setOtherMethodsView('menu');
     setLoginMethod('qr');
 
     return {
