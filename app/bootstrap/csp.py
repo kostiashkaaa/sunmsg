@@ -112,4 +112,10 @@ def register_security_headers(app: Flask, *, is_production: bool) -> None:
                 response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=86400"
                 response.headers.pop("Pragma", None)
                 response.headers.pop("Expires", None)
+        elif mimetype == "text/html":
+            # Dynamic HTML contains embedded bootstrap state and versioned asset URLs.
+            # Prevent document caching so a normal reload fetches fresh server state.
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         return response
