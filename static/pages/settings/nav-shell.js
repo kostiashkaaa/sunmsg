@@ -95,6 +95,8 @@ export function initSettingsNavShell({
 
     function runSearchFilter() {
         const query = String(settingsSearchInputEl?.value || '').trim().toLowerCase();
+        const canFilterCards = String(settingsSearchInputEl?.dataset?.filterScope || '') === 'settings-cards';
+        if (!canFilterCards) return;
         const cards = document.querySelectorAll('.settings-card');
         if (!cards.length) return;
         if (!query) {
