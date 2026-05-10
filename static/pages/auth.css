@@ -2570,6 +2570,7 @@ body[data-ui-language="en"] #registerStep1Sub::before {
         width: 100%;
         max-width: none;
         grid-template-columns: minmax(0, 1fr) 420px;
+        grid-template-rows: minmax(0, 1fr) auto;
         column-gap: 66px;
         row-gap: 24px;
         min-height: calc(100vh - 64px);
