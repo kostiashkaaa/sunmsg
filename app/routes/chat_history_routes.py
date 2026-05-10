@@ -110,6 +110,147 @@ def register_chat_history_routes(
         finally:
             conn.close()
 
+    @chat_bp.route('/search_global_content', methods=['GET'])
+    @limiter.limit("30 per minute")
+    def search_global_content():
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
+
+        try:
+            limit = int(request.args.get('limit', 1800))
+        except (TypeError, ValueError):
+            limit = 1800
+        limit = max(200, min(limit, 4000))
+
+        user_id = session['user_id']
+        conn = get_db_connection_func()
+        try:
+            rows = conn.execute(
+                '''
+                WITH direct_chats AS (
+                    SELECT
+                        c.chat_id,
+                        COALESCE(
+                            NULLIF(c.contact_display_name, ''),
+                            NULLIF(u.display_name, ''),
+                            NULLIF(u.username, ''),
+                            'Chat'
+                        ) AS chat_title,
+                        u.avatar_url AS chat_avatar_url
+                    FROM contacts c
+                    JOIN users u ON u.id = c.contact_id
+                    WHERE c.user_id = ?
+                ),
+                group_chats AS (
+                    SELECT
+                        ch.chat_id,
+                        COALESCE(NULLIF(ch.chat_name, ''), 'Group chat') AS chat_title,
+                        ch.chat_avatar_url AS chat_avatar_url
+                    FROM chat_members cm
+                    JOIN chats ch ON ch.chat_id = cm.chat_id
+                    WHERE cm.user_id = ?
+                      AND COALESCE(NULLIF(ch.chat_type, ''), 'group') = 'group'
+                ),
+                visible_chats AS (
+                    SELECT chat_id, chat_title, chat_avatar_url, 0 AS is_group
+                    FROM direct_chats
+                    UNION
+                    SELECT chat_id, chat_title, chat_avatar_url, 1 AS is_group
+                    FROM group_chats
+                ),
+                direct_messages AS (
+                    SELECT
+                        m.id,
+                        m.chat_id,
+                        m.sender_id,
+                        m.message,
+                        COALESCE(NULLIF(m.message_type, ''), 'text') AS message_type,
+                        m.created_at,
+                        m.reply_to_id
+                    FROM messages m
+                    JOIN visible_chats vc ON vc.chat_id = m.chat_id
+                    WHERE vc.is_group = 0
+                      AND (
+                        (m.sender_id = ? AND m.deleted_by_sender = 0)
+                        OR
+                        (m.receiver_id = ? AND m.deleted_by_receiver = 0)
+                      )
+                ),
+                group_messages AS (
+                    SELECT
+                        m.id,
+                        m.chat_id,
+                        m.sender_id,
+                        m.message,
+                        COALESCE(NULLIF(m.message_type, ''), 'text') AS message_type,
+                        m.created_at,
+                        m.reply_to_id
+                    FROM messages m
+                    JOIN visible_chats vc ON vc.chat_id = m.chat_id
+                    JOIN message_receipts mr ON mr.message_id = m.id
+                    WHERE vc.is_group = 1
+                      AND mr.user_id = ?
+                      AND mr.deleted_for_user = 0
+                ),
+                all_messages AS (
+                    SELECT * FROM direct_messages
+                    UNION ALL
+                    SELECT * FROM group_messages
+                )
+                SELECT
+                    am.id,
+                    am.chat_id,
+                    am.message,
+                    am.message_type,
+                    am.created_at,
+                    am.reply_to_id,
+                    rm.message AS reply_message,
+                    ur.public_key AS reply_sender_pub,
+                    us.id AS sender_user_id,
+                    us.public_key AS sender_public_key,
+                    COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
+                    COALESCE(us.username, '') AS sender_username,
+                    us.avatar_url AS sender_avatar_url,
+                    vc.chat_title,
+                    vc.chat_avatar_url
+                FROM all_messages am
+                JOIN visible_chats vc ON vc.chat_id = am.chat_id
+                LEFT JOIN users us ON us.id = am.sender_id
+                LEFT JOIN messages rm ON rm.id = am.reply_to_id
+                LEFT JOIN users ur ON ur.id = rm.sender_id
+                ORDER BY am.id DESC
+                LIMIT ?
+                ''',
+                (user_id, user_id, user_id, user_id, user_id, limit),
+            ).fetchall()
+
+            messages = [
+                {
+                    'id': int(row['id']),
+                    'chat_id': row['chat_id'],
+                    'message': row['message'],
+                    'message_type': row['message_type'] or 'text',
+                    'created_at': row['created_at'],
+                    'reply_to_id': row['reply_to_id'],
+                    'reply_message': row['reply_message'],
+                    'reply_sender_pub': row['reply_sender_pub'],
+                    'sender_user_id': row['sender_user_id'],
+                    'sender_public_key': row['sender_public_key'],
+                    'sender_display_name': row['sender_display_name'],
+                    'sender_username': row['sender_username'],
+                    'sender_avatar_url': row['sender_avatar_url'],
+                    'chat_title': row['chat_title'],
+                    'chat_avatar_url': row['chat_avatar_url'],
+                }
+                for row in rows
+            ]
+            return jsonify({'success': True, 'messages': messages}), 200
+        except DatabaseError as exc:
+            logger.error('search_global_content error: %s', exc)
+            return jsonify({'success': False, 'error': 'Ошибка сервера.'}), 500
+        finally:
+            conn.close()
+
     @chat_bp.route('/mark_messages_read', methods=['POST'])
     @limiter.limit("180 per minute")
     def mark_messages_read():
