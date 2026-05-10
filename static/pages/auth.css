@@ -2742,15 +2742,15 @@ body.auth-register-flow-active .auth-card {
 }
 
 #registerStep2Block .auth-register-words-wrap {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
-    max-height: min(320px, calc(100vh - 560px));
-    overflow: hidden;
-    scrollbar-gutter: stable;
+    max-height: none;
+    height: auto;
+    overflow: visible;
 }
 
 #registerStep2Block .auth-register-words-wrap.is-revealed {
-    overflow: auto;
+    overflow: visible;
 }
 
 #copyPrivateKeyBtn,
@@ -2768,6 +2768,20 @@ body.auth-register-flow-active .auth-card {
 
 #registerStep2Block {
     gap: 8px;
+}
+
+#registerStep2Block .auth-register-words-grid {
+    gap: 6px;
+}
+
+#registerStep2Block .auth-register-word {
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 0.76rem;
+}
+
+#registerStep2Block .auth-register-reveal-btn {
+    z-index: 3;
 }
 
 .auth-register-word {
@@ -2862,6 +2876,31 @@ body.auth-register-flow-active .auth-card {
 
 #registerDoneLoginBtn {
     margin-top: auto;
+}
+
+#panel-register #ajaxRegisterForm,
+#registerStep2Block,
+#registerStep3Block,
+#registerStep4Block {
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
+}
+
+@media (min-width: 1000px) {
+    #panel-register #ajaxRegisterForm,
+    #registerStep2Block,
+    #registerStep3Block,
+    #registerStep4Block {
+        min-height: 640px;
+    }
+}
+
+@media (max-width: 999px) {
+    .auth-card,
+    .auth-key-box {
+        min-height: 600px;
+    }
 }
 
 .auth-success-overlay {
