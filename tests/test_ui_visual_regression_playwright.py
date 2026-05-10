@@ -276,7 +276,10 @@ def _stub_qr_login_api(context: BrowserContext) -> None:
 
 
 def _switch_auth_to_key_mode(page: Page) -> None:
-    page.wait_for_selector('#methodKeyBtn')
+    page.wait_for_selector('#loginOtherMethodsDetails')
+    if not page.is_visible('#methodKeyBtn'):
+        page.click('#loginOtherMethodsSummary')
+    page.wait_for_selector('#methodKeyBtn', state='visible')
     page.wait_for_function('() => typeof window.setLoginMethod === "function"')
     page.evaluate("window.setLoginMethod && window.setLoginMethod('key')")
     page.wait_for_selector('#loginKeyGroup', state='visible')

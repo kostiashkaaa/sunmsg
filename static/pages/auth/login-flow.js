@@ -146,10 +146,11 @@ export function initLoginFlow({
             loginSubmitBtn.style.display = nextMethod === 'qr' ? 'none' : '';
         }
         if (loginOtherMethodsDetails) {
-            loginOtherMethodsDetails.open = true;
             if (nextMethod === 'qr') {
+                loginOtherMethodsDetails.open = false;
                 setOtherMethodsView('menu');
             } else {
+                loginOtherMethodsDetails.open = true;
                 setOtherMethodsView('form');
             }
         }

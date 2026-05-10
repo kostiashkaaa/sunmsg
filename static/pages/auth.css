@@ -1724,9 +1724,6 @@
 }
 
 /* Claude V2 fidelity overrides */
-.auth-tabs--auth {
-    display: none !important;
-}
 
 .auth-brand-pre {
     display: none;
@@ -3250,8 +3247,6 @@ body.auth-page-body--sunrise-v3.auth-register-flow-active .auth-card {
     display: none;
 }
 
-body.auth-page-body--sunrise-v3 .auth-tabs--auth,
-body.auth-page-body--sunrise-v3 #methodQrBtn,
 body.auth-page-body--sunrise-v3 .auth-register-progress-text {
     display: none !important;
 }

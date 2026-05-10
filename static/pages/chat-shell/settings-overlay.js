@@ -514,10 +514,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         void warmSettingsAssets();
     });
 
-    if (navigator.onLine !== false) {
-        void warmSettingsAssets();
-    }
-
     window.openCommandPalette = openCommandPalette;
     window.openSettingsOverlay = openSettingsOverlay;
     window.sunDialogController = {

@@ -820,30 +820,6 @@ const initChatPage = async () => {
             });
         return sidebarSearchInitPromise;
     }
-    const sidebarSearchInput = document.getElementById('searchInput');
-    sidebarSearchInput?.addEventListener('click', async (event) => {
-        if (sidebarSearchInitPromise) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        try {
-            await ensureSidebarSearch();
-            queueMicrotask(() => sidebarSearchInput.click());
-        } catch (error) {
-            console.warn('Failed to initialize sidebar search', error);
-        }
-    }, { capture: true });
-    sidebarSearchInput?.addEventListener('focus', async (event) => {
-        if (sidebarSearchInitPromise) return;
-        event.stopImmediatePropagation();
-        try {
-            await ensureSidebarSearch();
-            queueMicrotask(() => {
-                try { sidebarSearchInput.focus({ preventScroll: true }); } catch (_) {}
-            });
-        } catch (error) {
-            console.warn('Failed to initialize sidebar search', error);
-        }
-    }, { capture: true });
     function ensureSidebarResize() {
         if (sidebarResizeInitPromise) {
             return sidebarResizeInitPromise;
@@ -1501,6 +1477,11 @@ const initChatPage = async () => {
     _hydrateContactAvatarLoading(contactsList);
     requestAnimationFrame(refreshVisibleEmojiGraphics);
     window.addEventListener('load', refreshVisibleEmojiGraphics, { once: true });
+    scheduleNonCriticalTask(() => {
+        ensureSidebarSearch().catch((error) => {
+            console.warn('Deferred sidebar search init failed', error);
+        });
+    });
     SettingsPanel();
     ({
         updateOnlineStatusUI: baseUpdateOnlineStatusUI,
