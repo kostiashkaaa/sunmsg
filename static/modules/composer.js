@@ -8,6 +8,7 @@ const COMPOSER_EMOJI_VISUAL_WRAP_CLASS = 'composer-input-visual-wrap';
 const COMPOSER_EMOJI_VISUAL_CLASS = 'composer-input-visual';
 const COMPOSER_EMOJI_INPUT_CLASS = 'composer-input-emoji-layer';
 const COMPOSER_EMOJI_VISUAL_SYNC_EVENT = 'sun-composer-sync-visual';
+let composerEmojiMeasureCtx = null;
 
 function normalizeSendShortcutMode(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -24,6 +25,63 @@ function readSendShortcutMode() {
 
 function normalizeComposerVisualText(value) {
     return String(value || '').replace(/\r\n/g, '\n');
+}
+
+function getComposerEmojiMeasureContext() {
+    if (composerEmojiMeasureCtx) return composerEmojiMeasureCtx;
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    composerEmojiMeasureCtx = canvas.getContext('2d');
+    return composerEmojiMeasureCtx;
+}
+
+function buildComposerMeasureFont(style) {
+    const shorthand = String(style?.font || '').trim();
+    if (shorthand) return shorthand;
+    const fontStyle = style?.fontStyle || 'normal';
+    const fontVariant = style?.fontVariant || 'normal';
+    const fontWeight = style?.fontWeight || '400';
+    const fontSize = style?.fontSize || '15px';
+    const lineHeight = style?.lineHeight || 'normal';
+    const fontFamily = style?.fontFamily || 'sans-serif';
+    return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}/${lineHeight} ${fontFamily}`;
+}
+
+function measureComposerEmojiAdvancePx(emoji, fontShorthand, fontSizePx) {
+    const ctx = getComposerEmojiMeasureContext();
+    if (!ctx || !emoji) return null;
+    try {
+        if (fontShorthand) ctx.font = fontShorthand;
+    } catch (_) {
+        // Keep previous context font if assignment is rejected by the runtime.
+    }
+    const width = Number(ctx.measureText(emoji).width || 0);
+    if (!(width > 0)) return null;
+    const minWidth = Math.max(1, fontSizePx * 0.82);
+    const maxWidth = fontSizePx * 1.6;
+    return Math.min(maxWidth, Math.max(minWidth, width));
+}
+
+function syncComposerEmojiAdvance(visual, messageInput) {
+    if (!visual || !messageInput || typeof window === 'undefined') return;
+    const emojiNodes = visual.querySelectorAll?.('img.emoji-graphic[data-emoji-raw]');
+    if (!emojiNodes?.length) return;
+    const inputStyle = window.getComputedStyle(messageInput);
+    const fontShorthand = buildComposerMeasureFont(inputStyle);
+    const fontSizePx = Number.parseFloat(inputStyle.fontSize) || 15;
+    const localCache = new Map();
+    emojiNodes.forEach((emojiNode) => {
+        const raw = String(emojiNode.getAttribute('data-emoji-raw') || emojiNode.getAttribute('alt') || '').trim();
+        if (!raw) return;
+        const cacheKey = `${fontShorthand}\u0001${raw}`;
+        let advanceWidth = localCache.get(cacheKey);
+        if (!Number.isFinite(advanceWidth)) {
+            advanceWidth = measureComposerEmojiAdvancePx(raw, fontShorthand, fontSizePx);
+            localCache.set(cacheKey, advanceWidth);
+        }
+        if (!Number.isFinite(advanceWidth)) return;
+        emojiNode.style.width = `${advanceWidth}px`;
+    });
 }
 
 function bindInputValueObserver(input, onValueChange) {
@@ -96,6 +154,7 @@ function initComposerEmojiVisualLayer(messageInput) {
             } else {
                 visual.textContent = nextText;
                 applyEmojiGraphics(visual);
+                syncComposerEmojiAdvance(visual, messageInput);
             }
             lastText = nextText;
         }
