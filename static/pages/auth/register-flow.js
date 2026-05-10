@@ -2,10 +2,12 @@ export function initRegisterFlow({
     tr,
     showToast,
     setSubmitButtonState,
+    showAuthSuccessOverlay,
     assertWebCryptoSupport,
     withAppRoot,
     getCsrfToken,
     setCsrfToken,
+    stagePrivateKeyForRedirect,
     activeLanguage,
     setMnemonicToGrid,
 }) {
@@ -49,6 +51,12 @@ export function initRegisterFlow({
         words: [],
         confirmIndexes: [0, 1],
         wordsRevealed: false,
+        profile: {
+            username: '',
+            displayName: '',
+            avatarUrl: '',
+        },
+        privateKeyPem: '',
     };
 
     function normalizeWord(value) {
@@ -57,6 +65,31 @@ export function initRegisterFlow({
 
     function isEnglish() {
         return activeLanguage() === 'en';
+    }
+
+    function redirectToChat(overlayShown) {
+        setTimeout(
+            () => {
+                window.location.href = withAppRoot('/chat');
+            },
+            overlayShown ? 1400 : 600,
+        );
+    }
+
+    async function stageRegistrationPrivateKey() {
+        const pem = String(flowState.privateKeyPem || '').trim();
+        if (!pem || typeof stagePrivateKeyForRedirect !== 'function') {
+            return false;
+        }
+        try {
+            const staged = await stagePrivateKeyForRedirect(pem, {
+                rememberDevice: true,
+                notify: true,
+            });
+            return Boolean(staged);
+        } catch (_) {
+            return false;
+        }
     }
 
     function pickTwoIndexes(maxExclusive) {
@@ -272,8 +305,34 @@ export function initRegisterFlow({
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    registerDoneLoginBtn?.addEventListener('click', () => {
-        window.location.href = withAppRoot('/chat');
+    registerDoneLoginBtn?.addEventListener('click', async () => {
+        registerDoneLoginBtn.disabled = true;
+        try {
+            const staged = await stageRegistrationPrivateKey();
+            if (!staged) {
+                showToast(
+                    isEnglish()
+                        ? 'Signed in, but key activation on this device did not complete. Open chat and restore access with your 24 words.'
+                        : 'Вход выполнен, но ключ на этом устройстве не активирован. Откройте чат и восстановите доступ по 24 словам.',
+                    'info',
+                );
+            }
+
+            const overlayShown = typeof showAuthSuccessOverlay === 'function'
+                ? showAuthSuccessOverlay({
+                    username: flowState.profile.username,
+                    displayName: flowState.profile.displayName,
+                    avatarUrl: flowState.profile.avatarUrl,
+                })
+                : false;
+
+            if (!overlayShown) {
+                showToast(isEnglish() ? 'Welcome!' : 'Добро пожаловать!', 'success');
+            }
+            redirectToChat(overlayShown);
+        } finally {
+            registerDoneLoginBtn.disabled = false;
+        }
     });
 
     registerForm?.addEventListener('submit', async (event) => {
@@ -348,6 +407,13 @@ export function initRegisterFlow({
             if (typeof data.csrf_token === 'string' && data.csrf_token.trim()) {
                 setCsrfToken(data.csrf_token.trim());
             }
+
+            flowState.profile = {
+                username,
+                displayName,
+                avatarUrl: '',
+            };
+            flowState.privateKeyPem = privKeyPem;
 
             setMnemonicToGrid(mnemonic);
             const loginUsernameInput = document.getElementById('login_username');
