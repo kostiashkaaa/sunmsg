@@ -4,7 +4,7 @@ import hashlib
 import os
 import re
 from time import perf_counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from typing import Any
@@ -14,6 +14,8 @@ from app.db.sql_profile import profile_sql_query
 BEGIN_IMMEDIATE_RE = re.compile(r'^\s*BEGIN\s+IMMEDIATE\s*;?\s*$', re.IGNORECASE)
 INSERT_OR_IGNORE_RE = re.compile(r'^\s*INSERT\s+OR\s+IGNORE\s+INTO\s+', re.IGNORECASE)
 ON_CONFLICT_RE = re.compile(r'\bON\s+CONFLICT\b', re.IGNORECASE)
+MESSAGE_REACTIONS_RE = re.compile(r'\bmessage_reactions\b', re.IGNORECASE)
+REACTION_EMOJI_TOKEN_RE = re.compile(r'__sun_emoji_u([0-9A-F]{4,8})__')
 
 
 class DatabaseError(Exception):
@@ -66,6 +68,83 @@ def _normalize_db_value(value: Any) -> Any:
             value = value.replace(tzinfo=None)
         return value.strftime('%H:%M:%S')
     return value
+
+
+def _encode_win1251_unrepresentable_chars(text: str) -> str:
+    value = str(text or '')
+    if not value:
+        return value
+    escaped: list[str] = []
+    changed = False
+    for char in value:
+        try:
+            char.encode('cp1251')
+            escaped.append(char)
+        except UnicodeEncodeError:
+            escaped.append(f'__sun_emoji_u{ord(char):08X}__')
+            changed = True
+    if not changed:
+        return value
+    return ''.join(escaped)
+
+
+def _decode_reaction_emoji_tokens(text: str) -> str:
+    value = str(text or '')
+    if '__sun_emoji_u' not in value:
+        return value
+
+    def _replace(match: re.Match[str]) -> str:
+        try:
+            return chr(int(match.group(1), 16))
+        except Exception:
+            return match.group(0)
+
+    return REACTION_EMOJI_TOKEN_RE.sub(_replace, value)
+
+
+def _rewrite_reaction_payload(
+    sql: str,
+    params: Sequence[Any] | Mapping[str, Any] | None,
+):
+    if not MESSAGE_REACTIONS_RE.search(sql):
+        return sql, params
+
+    normalized_sql = _encode_win1251_unrepresentable_chars(sql)
+    if params is None:
+        return normalized_sql, params
+
+    if isinstance(params, Mapping):
+        normalized_params = {
+            key: _encode_win1251_unrepresentable_chars(value) if isinstance(value, str) else value
+            for key, value in params.items()
+        }
+        return normalized_sql, normalized_params
+
+    normalized_params = tuple(
+        _encode_win1251_unrepresentable_chars(value) if isinstance(value, str) else value
+        for value in params
+    )
+    return normalized_sql, normalized_params
+
+
+def _decode_emoji_columns(values: tuple[Any, ...], columns: tuple[str, ...]) -> tuple[Any, ...]:
+    if not values or not columns:
+        return values
+    decoded = list(values)
+    changed = False
+    for index, column_name in enumerate(columns):
+        if not isinstance(column_name, str) or column_name.lower() != 'emoji':
+            continue
+        value = decoded[index]
+        if not isinstance(value, str):
+            continue
+        normalized = _decode_reaction_emoji_tokens(value)
+        if normalized != value:
+            decoded[index] = normalized
+            changed = True
+    if not changed:
+        return values
+    return tuple(decoded)
 
 
 def _raise_database_compatible_error(exc: Exception) -> None:
@@ -227,18 +306,19 @@ class PostgresCursorAdapter:
 
     def execute(self, query: str, params: Sequence[Any] | None = None):
         sql = rewrite_postgres_sql(query)
+        sql, normalized_params = _rewrite_reaction_payload(sql, params)
         started_at = perf_counter()
         try:
-            if params is None:
+            if normalized_params is None:
                 self._cursor.execute(sql)
             else:
-                self._cursor.execute(sql, params)
+                self._cursor.execute(sql, normalized_params)
         except Exception as exc:
             duration_ms = (perf_counter() - started_at) * 1000.0
             profile_sql_query(
                 query=sql,
                 duration_ms=duration_ms,
-                params_count=len(params) if params is not None else 0,
+                params_count=len(normalized_params) if normalized_params is not None else 0,
                 rowcount=getattr(self._cursor, 'rowcount', None),
                 ok=False,
             )
@@ -247,7 +327,7 @@ class PostgresCursorAdapter:
         profile_sql_query(
             query=sql,
             duration_ms=duration_ms,
-            params_count=len(params) if params is not None else 0,
+            params_count=len(normalized_params) if normalized_params is not None else 0,
             rowcount=getattr(self._cursor, 'rowcount', None),
             ok=True,
         )
@@ -255,9 +335,15 @@ class PostgresCursorAdapter:
 
     def executemany(self, query: str, seq_of_params: Iterable[Sequence[Any]]):
         sql = rewrite_postgres_sql(query)
+        normalized_seq_of_params = seq_of_params
+        if MESSAGE_REACTIONS_RE.search(sql):
+            normalized_seq_of_params = [
+                _rewrite_reaction_payload(sql, params)[1] or ()
+                for params in seq_of_params
+            ]
         started_at = perf_counter()
         try:
-            self._cursor.executemany(sql, seq_of_params)
+            self._cursor.executemany(sql, normalized_seq_of_params)
         except Exception as exc:
             duration_ms = (perf_counter() - started_at) * 1000.0
             profile_sql_query(
@@ -288,7 +374,8 @@ class PostgresCursorAdapter:
             return None
 
         columns = tuple(column.name for column in self._cursor.description or [])
-        return CompatRow(tuple(_normalize_db_value(value) for value in row), columns)
+        values = tuple(_normalize_db_value(value) for value in row)
+        return CompatRow(_decode_emoji_columns(values, columns), columns)
 
     def fetchall(self):
         try:
@@ -298,7 +385,10 @@ class PostgresCursorAdapter:
 
         columns = tuple(column.name for column in self._cursor.description or [])
         return [
-            CompatRow(tuple(_normalize_db_value(value) for value in row), columns)
+            CompatRow(
+                _decode_emoji_columns(tuple(_normalize_db_value(value) for value in row), columns),
+                columns,
+            )
             for row in rows
         ]
 
@@ -310,7 +400,10 @@ class PostgresCursorAdapter:
 
         columns = tuple(column.name for column in self._cursor.description or [])
         return [
-            CompatRow(tuple(_normalize_db_value(value) for value in row), columns)
+            CompatRow(
+                _decode_emoji_columns(tuple(_normalize_db_value(value) for value in row), columns),
+                columns,
+            )
             for row in rows
         ]
 

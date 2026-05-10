@@ -11,7 +11,9 @@ from app.db_backend import (
     DatabaseError,
     IntegrityError,
     OperationalError,
+    _decode_reaction_emoji_tokens,
     _normalize_db_value,
+    _rewrite_reaction_payload,
     _split_sql_statements,
     ensure_postgres_schema,
     rewrite_postgres_sql,
@@ -161,13 +163,18 @@ def _rewrite_sql(sql: str, params):
     rewritten = re.sub(r'\bDATETIME\b', 'TIMESTAMP', rewritten, flags=re.IGNORECASE)
     if rewritten.lstrip().upper().startswith('CREATE TABLE'):
         rewritten = re.sub(r'\bINTEGER\b', 'BIGINT', rewritten, flags=re.IGNORECASE)
-    return rewritten, params
+    return _rewrite_reaction_payload(rewritten, params)
 
 
 def _to_compat_row(raw_row, description):
     columns = tuple(col.name for col in (description or []))
-    values = tuple(_normalize_db_value(raw_row.get(column)) for column in columns)
-    return CompatRow(values, columns)
+    values: list[Any] = []
+    for column in columns:
+        normalized = _normalize_db_value(raw_row.get(column))
+        if isinstance(normalized, str) and column.lower() == 'emoji':
+            normalized = _decode_reaction_emoji_tokens(normalized)
+        values.append(normalized)
+    return CompatRow(tuple(values), columns)
 
 
 class _PgTestCursor:
@@ -198,8 +205,9 @@ class _PgTestCursor:
 
     def executemany(self, sql: str, seq_of_params):
         query, _ = _rewrite_sql(sql, ())
+        mapped_rows = [_rewrite_sql(sql, params)[1] for params in seq_of_params]
         try:
-            self._cursor.executemany(query, seq_of_params)
+            self._cursor.executemany(query, mapped_rows)
         except Exception as exc:  # noqa: BLE001
             raise _map_exception(exc) from exc
         return self
