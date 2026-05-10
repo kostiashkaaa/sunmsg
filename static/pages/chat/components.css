@@ -9310,19 +9310,26 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
+            flex: 0 0 24px;
             padding: 0;
             border: none;
             border-radius: 50%;
             background: color-mix(in srgb, var(--sub-text) 14%, transparent);
             color: var(--sub-text);
             cursor: pointer;
-            font-size: 11px;
+            font-size: 12px;
+            line-height: 1;
             opacity: 0.7;
             transition: opacity var(--dur-quick) var(--ease-quick),
                         background var(--dur-quick) var(--ease-quick),
                         color var(--dur-quick) var(--ease-quick);
+        }
+
+        .search-clear-btn .sun-icon {
+            width: 12px;
+            height: 12px;
         }
 
 
