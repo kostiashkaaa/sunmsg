@@ -264,8 +264,11 @@ def _login_context_via_challenge(context: 'BrowserContext', *, username: str, pr
 
 
 def _open_group_create_modal(page: 'Page') -> None:
-    page.locator('#searchInput').click()
-    page.locator('[data-palette-action="group"]').click()
+    page.wait_for_function('() => typeof window.openCommandPalette === "function"')
+    page.evaluate('window.openCommandPalette && window.openCommandPalette("")')
+    group_action = page.locator('[data-palette-action="group"]')
+    group_action.wait_for(state='visible', timeout=10_000)
+    group_action.click()
     page.locator('#groupCreateModal').wait_for(state='visible', timeout=10_000)
 
 
