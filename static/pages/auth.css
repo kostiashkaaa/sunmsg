@@ -1781,7 +1781,7 @@
 #panel-login.is-other-open .auth-login-intro,
 #panel-login.is-other-open #loginQrGroup,
 #panel-login.is-other-open .auth-login-actions {
-    display: none;
+    display: none !important;
 }
 
 #panel-login.is-other-open .auth-login-other-details {
@@ -1903,6 +1903,7 @@
 }
 
 .auth-register-progress {
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -2697,7 +2698,7 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 #panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-intro,
 #panel-login:has(#loginOtherMethodsDetails[open]) #loginQrGroup,
 #panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-actions {
-    display: none;
+    display: none !important;
 }
 
 #panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-other-details {
@@ -2712,6 +2713,26 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 
 .auth-register-words-wrap {
     max-height: 320px;
+}
+
+#registerStep2Block .auth-private-key-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-bottom: 0;
+}
+
+#registerStep2Block .auth-register-words-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(320px, calc(100vh - 560px));
+    overflow: auto;
+}
+
+#copyPrivateKeyBtn,
+#registerStep2NextBtn {
+    flex-shrink: 0;
 }
 
 .auth-register-word {
