@@ -2,6 +2,7 @@
 (() => {
     'use strict';
 
+    const SERVER_CLIENT_PREFERENCES = {{ client_preferences|default({})|tojson }};
     const STORAGE_KEY = 'sun.clientPreferences.v1';
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
     const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
@@ -691,7 +692,45 @@
         }
     }
 
+    function syncServerThemePreferencesIntoStorage() {
+        const server = asObject(SERVER_CLIENT_PREFERENCES);
+        if (Object.keys(server).length === 0) return;
+        try {
+            let touched = false;
+
+            if (typeof server.darkMode === 'boolean') {
+                localStorage.setItem('darkMode', server.darkMode ? 'true' : 'false');
+                touched = true;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(server, 'language')) {
+                const language = asLanguage(server.language);
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+                touched = true;
+            }
+
+            const interfaceThemeStore = asObject(server.interfaceThemeStore);
+            if (Object.keys(interfaceThemeStore).length > 0) {
+                localStorage.setItem(INTERFACE_THEME_STORAGE_KEY, JSON.stringify(interfaceThemeStore));
+                touched = true;
+            }
+
+            const chatAppearanceStore = asObject(server.chatAppearanceStore);
+            if (Object.keys(chatAppearanceStore).length > 0) {
+                localStorage.setItem(CHAT_APPEARANCE_STORAGE_KEY, JSON.stringify(chatAppearanceStore));
+                touched = true;
+            }
+
+            if (touched) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(server));
+            }
+        } catch (_error) {
+            // Ignore storage write errors.
+        }
+    }
+
     try {
+        syncServerThemePreferencesIntoStorage();
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
             applyLegacyFallback();
