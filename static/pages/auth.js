@@ -96,7 +96,7 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setText(
         'authFooterQuote',
         isEn
-            ? '"The server can\\'t see your messages. Just you and the person you\\'re talking to."'
+            ? "\"The server can't see your messages. Just you and the person you're talking to.\""
             : '«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»',
     );
 
