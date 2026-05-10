@@ -813,8 +813,8 @@ def test_message_alignment_self_vs_other_on_chat_page() -> None:
     assert 'transform-origin: left bottom' in other_body, (
         'chat.css: incoming messages should keep a left-edge transform origin'
     )
-    assert '--chat-mobile-outgoing-edge-offset: 0px' in css, (
-        'chat.css: mobile outgoing messages should not have extra right-edge inset drift'
+    assert '--chat-mobile-outgoing-edge-offset: calc(var(--composer-action-size) + 8px)' in css, (
+        'chat.css: mobile outgoing messages should align to the composer input right edge'
     )
     assert 'padding-right: var(--chat-mobile-outgoing-edge-offset, 12px)' in css, (
         'chat.css: mobile outgoing row track should apply the outgoing edge inset'
