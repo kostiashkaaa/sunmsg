@@ -2736,7 +2736,7 @@ body.auth-register-flow-active .auth-card {
 #registerStep2Block .auth-private-key-group {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
     margin-bottom: 0;
 }
@@ -2781,7 +2781,12 @@ body.auth-register-flow-active .auth-card {
 }
 
 #registerStep2Block .auth-register-reveal-btn {
+    position: static;
+    transform: none;
+    inset: auto;
     z-index: 3;
+    align-self: center;
+    margin-top: 10px;
 }
 
 .auth-register-word {
