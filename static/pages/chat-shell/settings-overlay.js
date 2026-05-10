@@ -341,8 +341,55 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     function openSettingsOverlay(section = 'profile') {
         const targetSection = String(section || 'profile').trim() || 'profile';
-        const targetUrl = withAppRoot(`/settings#${encodeURIComponent(targetSection)}`);
-        window.location.href = targetUrl;
+        const sectionHash = `#${encodeURIComponent(targetSection)}`;
+        const embeddedUrl = withAppRoot(`/settings?embed=1${sectionHash}`);
+        const fallbackUrl = withAppRoot(`/settings${sectionHash}`);
+
+        if (!settingsOverlay || !settingsOverlayFrame) {
+            window.location.href = fallbackUrl;
+            markFirstRunCompleted();
+            return;
+        }
+
+        const frameWindow = settingsOverlayFrame.contentWindow;
+        if (settingsOverlay.classList.contains('active') && frameWindow) {
+            try {
+                const frameLocation = new URL(frameWindow.location.href, window.location.href);
+                const settingsPath = new URL(withAppRoot('/settings'), window.location.href).pathname;
+                if (frameLocation.pathname === settingsPath) {
+                    frameWindow.location.hash = sectionHash;
+                    settingsOverlayPhase = 'open';
+                    settingsOverlayAwaitingReadySignal = false;
+                    clearSettingsOverlayTimers();
+                    setSettingsOverlayLoading(false);
+                    markFirstRunCompleted();
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        clearSettingsOverlayTimers();
+        settingsOverlayAwaitingReadySignal = true;
+        settingsOverlayPhase = 'opening';
+        setSettingsOverlayLoading(true);
+        lockSettingsOverlayScroll();
+        settingsOverlay.setAttribute('aria-hidden', 'false');
+        settingsOverlay.classList.remove('is-closing');
+        settingsOverlay.classList.add('is-opening');
+
+        const openSeq = ++settingsOverlayTransitionSeq;
+        requestAnimationFrame(() => {
+            if (openSeq !== settingsOverlayTransitionSeq) return;
+            settingsOverlay.classList.add('active');
+            settingsOverlay.classList.remove('is-opening');
+            settingsOverlayPhase = 'open';
+        });
+
+        settingsOverlayReadyTimer = window.setTimeout(() => {
+            if (!settingsOverlayAwaitingReadySignal) return;
+            resolveSettingsOverlayReady();
+        }, 2600);
+        settingsOverlayFrame.setAttribute('src', embeddedUrl);
         markFirstRunCompleted();
     }
 

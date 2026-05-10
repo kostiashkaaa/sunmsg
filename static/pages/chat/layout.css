@@ -1401,8 +1401,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 .settings-overlay-panel {
     position: relative;
     z-index: 1;
-    width: min(920px, 62vw);
-    min-width: 720px;
+    width: clamp(360px, 34vw, 38vw);
+    min-width: 360px;
     height: 100vh;
     height: 100dvh;
     margin-left: auto;
@@ -3324,8 +3324,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         .settings-overlay-panel {
             position: relative;
             margin-left: auto;
-            width: min(920px, 60vw);
-            min-width: 720px;
+            width: clamp(360px, 34vw, 38vw);
+            min-width: 360px;
             height: 100vh;
             height: 100dvh;
             display: flex;
