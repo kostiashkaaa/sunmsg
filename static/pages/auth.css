@@ -3179,6 +3179,14 @@ body.auth-page-body--sunrise-v3 .auth-brand-headline-em {
     color: rgba(31, 16, 9, 0.66);
 }
 
+body.auth-page-body--sunrise-v3 .auth-brand-headline-em,
+body.auth-page-body--sunrise-v3 .auth-hero-quote,
+body.auth-page-body--sunrise-v3 .auth-login-intro-em,
+body.auth-page-body--sunrise-v3 .auth-docs-title em,
+body.auth-page-body--sunrise-v3 .auth-docs-sub {
+    font-style: normal !important;
+}
+
 body.auth-page-body--sunrise-v3 .auth-hero-quote {
     margin: 24px 0 0;
     max-width: 520px;
