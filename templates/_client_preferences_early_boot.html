@@ -14,6 +14,66 @@
         light: 'light-classic',
         dark: 'dark-classic',
     };
+    const LEGACY_MODE_BASE_VARS = Object.freeze({
+        light: {
+            '--bg': '#f3f0e8',
+            '--paper': '#fbf8f1',
+            '--paper-alt': '#efeae0',
+            '--surface': '#fbf8f1',
+            '--surface-2': '#efeae0',
+            '--sidebar-bg': '#f3f0e8',
+            '--sidebar-hdr': '#efeae0',
+            '--chat-bg': '#f2ede2',
+            '--chat-hdr-bg': '#f3f0e8',
+            '--input-bg': '#fbf8f1',
+            '--overlay-bg': '#fbf8f1',
+            '--modal-bg': '#fbf8f1',
+            '--ink': '#15140e',
+            '--ink-soft': '#3f3a2d',
+            '--ink-mute': '#7a7363',
+            '--ink-faint': '#aba493',
+            '--text': '#15140e',
+            '--sub-text': '#7a7363',
+            '--text-muted': '#aba493',
+            '--text-inv': '#f3f0e8',
+            '--rule': '#d9d2bf',
+            '--rule-soft': '#e8e1cd',
+            '--border': '#d9d2bf',
+            '--border-focus': 'rgba(196,148,60,0.45)',
+            '--chat-hdr': '#f3f0e8',
+            '--overlay-menu-bg': '#fbf8f1',
+            '--profile-backdrop-bg': 'rgba(20,16,8,0.32)',
+        },
+        dark: {
+            '--bg': '#1c1a14',
+            '--paper': '#221f17',
+            '--paper-alt': '#2a261c',
+            '--surface': '#221f17',
+            '--surface-2': '#2a261c',
+            '--sidebar-bg': '#1c1a14',
+            '--sidebar-hdr': '#221f17',
+            '--chat-bg': '#100e09',
+            '--chat-hdr-bg': '#1c1a14',
+            '--input-bg': '#221f17',
+            '--overlay-bg': '#221f17',
+            '--modal-bg': '#221f17',
+            '--ink': '#ece6d5',
+            '--ink-soft': '#c4bfaf',
+            '--ink-mute': '#9b9586',
+            '--ink-faint': '#6f6a5b',
+            '--text': '#ece6d5',
+            '--sub-text': '#9b9586',
+            '--text-muted': '#6f6a5b',
+            '--text-inv': '#1c1a14',
+            '--rule': '#332f24',
+            '--rule-soft': '#2a261c',
+            '--border': '#332f24',
+            '--border-focus': 'rgba(196,148,60,0.45)',
+            '--chat-hdr': '#1c1a14',
+            '--overlay-menu-bg': '#221f17',
+            '--profile-backdrop-bg': 'rgba(8,7,5,0.62)',
+        },
+    });
     const LEGACY_DEFAULT_ACCENT_BY_MODE = {
         light: '#c58a22',
         dark: '#d6a449',
@@ -445,6 +505,10 @@
     }
 
     function applyLegacyInterfacePreset(root, themeKey) {
+        const modeBaseVars = LEGACY_MODE_BASE_VARS[asThemeKey(themeKey)];
+        if (modeBaseVars) {
+            applyCssVars(root, modeBaseVars);
+        }
         const preset = resolveLegacyPreset(themeKey);
         if (!preset || !preset.vars) return;
         applyCssVars(root, preset.vars);
