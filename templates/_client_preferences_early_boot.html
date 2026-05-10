@@ -5,10 +5,54 @@
     const STORAGE_KEY = 'sun.clientPreferences.v1';
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
     const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
+    const CHAT_APPEARANCE_STORAGE_KEY = 'sun.chatAppearance.v2';
     const LEGACY_DEFAULT_PRESET_BY_MODE = {
         light: 'light-classic',
         dark: 'dark-classic',
     };
+    const LEGACY_DEFAULT_ACCENT_BY_MODE = {
+        light: '#c58a22',
+        dark: '#d6a449',
+    };
+    const LEGACY_CHAT_PRESET_MAP = Object.freeze({
+        'dark-graphite': { mode: 'color', color: '#18140f' },
+        'dark-slate': { mode: 'color', color: '#211a14' },
+        'dark-forest': { mode: 'color', color: '#10211f' },
+        'light-cloud': { mode: 'color', color: '#f6f2ea' },
+        'light-sand': { mode: 'color', color: '#efe7d8' },
+        'light-mist': { mode: 'color', color: '#e8eef0' },
+        'grad-mint': { mode: 'gradient', gradient: 'linear-gradient(145deg,#eef6f1 0%,#ddebe7 52%,#e8f0ec 100%)' },
+        'grad-dusk': { mode: 'gradient', gradient: 'linear-gradient(145deg,#17130f 0%,#1f1914 46%,#0f2321 100%)' },
+        'grad-blush': { mode: 'gradient', gradient: 'linear-gradient(140deg,#f3ece2 0%,#ece8df 42%,#e8efef 100%)' },
+        'pattern-grid': {
+            mode: 'pattern',
+            baseColor: '#f4efe5',
+            pattern: 'linear-gradient(rgba(122,115,99,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(122,115,99,0.08) 1px, transparent 1px)',
+            size: '24px 24px',
+            repeat: 'repeat',
+        },
+        'pattern-diag-dark': {
+            mode: 'pattern',
+            baseColor: '#14110d',
+            pattern: 'radial-gradient(circle at 0 0, rgba(196,148,60,0.07) 0 2px, transparent 2px),radial-gradient(circle at 18px 18px, rgba(214,164,73,0.055) 0 2px, transparent 2px)',
+            size: '36px 36px',
+            repeat: 'repeat',
+        },
+        'texture-paper': {
+            mode: 'texture',
+            baseColor: '#f3eee4',
+            texture: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'220\' height=\'220\' viewBox=\'0 0 220 220\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.82\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'220\' height=\'220\' filter=\'url(%23n)\' opacity=\'0.05\'/%3E%3C/svg%3E")',
+            size: '280px 280px',
+            repeat: 'repeat',
+        },
+        'texture-carbon': {
+            mode: 'texture',
+            baseColor: '#120f0c',
+            texture: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'260\' height=\'260\' viewBox=\'0 0 260 260\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.68\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'260\' height=\'260\' filter=\'url(%23n)\' opacity=\'0.08\'/%3E%3C/svg%3E")',
+            size: '320px 320px',
+            repeat: 'repeat',
+        },
+    });
     const LEGACY_PRESET_MAP = Object.freeze({
         'light-classic': { mode: 'light', vars: {} },
         'light-sky': {
@@ -271,6 +315,57 @@
         return value === 'dark' ? 'dark' : 'light';
     }
 
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function normalizeHex(value) {
+        if (typeof value !== 'string') return null;
+        const trimmed = value.trim();
+        const shortMatch = trimmed.match(/^#([0-9a-f]{3})$/i);
+        if (shortMatch) {
+            const short = shortMatch[1].toLowerCase();
+            return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+        }
+        const fullMatch = trimmed.match(/^#([0-9a-f]{6})$/i);
+        if (fullMatch) return `#${fullMatch[1].toLowerCase()}`;
+        return null;
+    }
+
+    function hexToRgb(hex) {
+        const normalized = normalizeHex(hex);
+        if (!normalized) return null;
+        const n = parseInt(normalized.slice(1), 16);
+        return {
+            r: (n >> 16) & 255,
+            g: (n >> 8) & 255,
+            b: n & 255,
+        };
+    }
+
+    function rgbToHex(rgb) {
+        const r = clamp(Math.round(rgb.r), 0, 255).toString(16).padStart(2, '0');
+        const g = clamp(Math.round(rgb.g), 0, 255).toString(16).padStart(2, '0');
+        const b = clamp(Math.round(rgb.b), 0, 255).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+    }
+
+    function mixColors(colorA, colorB, weightToB) {
+        const a = hexToRgb(colorA) || { r: 0, g: 0, b: 0 };
+        const b = hexToRgb(colorB) || { r: 0, g: 0, b: 0 };
+        const w = clamp(Number(weightToB || 0), 0, 1);
+        return rgbToHex({
+            r: a.r * (1 - w) + b.r * w,
+            g: a.g * (1 - w) + b.g * w,
+            b: a.b * (1 - w) + b.b * w,
+        });
+    }
+
+    function rgbaFromHex(hex, alpha) {
+        const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clamp(Number(alpha || 0), 0, 1).toFixed(3)})`;
+    }
+
     function applyCssVars(root, cssVars) {
         Object.entries(asObject(cssVars)).forEach(([name, value]) => {
             if (!name || typeof name !== 'string' || !name.startsWith('--')) return;
@@ -291,6 +386,17 @@
     function readLegacyInterfaceStore() {
         try {
             const raw = localStorage.getItem(INTERFACE_THEME_STORAGE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return asObject(parsed);
+        } catch (_error) {
+            return {};
+        }
+    }
+
+    function readLegacyChatAppearanceStore() {
+        try {
+            const raw = localStorage.getItem(CHAT_APPEARANCE_STORAGE_KEY);
             if (!raw) return {};
             const parsed = JSON.parse(raw);
             return asObject(parsed);
@@ -327,6 +433,165 @@
         applyCssVars(root, preset.vars);
     }
 
+    function applyLegacyInterfaceAccent(root, themeKey) {
+        const key = asThemeKey(themeKey);
+        const store = readLegacyInterfaceStore();
+        const themes = asObject(store.themes);
+        const themeState = asObject(themes[key]);
+        const accent = normalizeHex(themeState.accent) || LEGACY_DEFAULT_ACCENT_BY_MODE[key];
+        const hover = key === 'dark'
+            ? mixColors(accent, '#ffffff', 0.18)
+            : mixColors(accent, '#000000', 0.2);
+        const bright = key === 'dark'
+            ? mixColors(accent, '#ffffff', 0.32)
+            : mixColors(accent, '#ffffff', 0.24);
+        const light = key === 'dark'
+            ? mixColors(accent, '#0b1f21', 0.72)
+            : mixColors(accent, '#ffffff', 0.86);
+        const glow = rgbaFromHex(accent, key === 'dark' ? 0.24 : 0.2);
+        const gradient = `linear-gradient(135deg, ${accent} 0%, ${bright} 100%)`;
+
+        applyCssVars(root, {
+            '--accent': accent,
+            '--accent-hover': hover,
+            '--accent-bright': bright,
+            '--accent-light': light,
+            '--accent-glow': glow,
+            '--accent-gradient': gradient,
+        });
+    }
+
+    function buildLegacyChatWallpaper(themeKey) {
+        const key = asThemeKey(themeKey);
+        const store = readLegacyChatAppearanceStore();
+        const themes = asObject(store.themes);
+        const state = asObject(themes[key]);
+        const mode = String(state.mode || 'default').trim();
+
+        if (mode === 'preset') {
+            const preset = LEGACY_CHAT_PRESET_MAP[String(state.presetId || '').trim()];
+            if (preset) {
+                if (preset.mode === 'color') {
+                    return {
+                        '--chat-wallpaper-base': preset.color,
+                        '--chat-wallpaper-image': 'none',
+                        '--chat-wallpaper-size': 'auto',
+                        '--chat-wallpaper-position': 'center center',
+                        '--chat-wallpaper-repeat': 'no-repeat',
+                        '--chat-wallpaper-opacity': '1',
+                        '--chat-wallpaper-blur': '0px',
+                        '--chat-wallpaper-dim': '0',
+                    };
+                }
+                if (preset.mode === 'gradient') {
+                    return {
+                        '--chat-wallpaper-base': 'transparent',
+                        '--chat-wallpaper-image': preset.gradient,
+                        '--chat-wallpaper-size': 'cover',
+                        '--chat-wallpaper-position': 'center center',
+                        '--chat-wallpaper-repeat': 'no-repeat',
+                        '--chat-wallpaper-opacity': '1',
+                        '--chat-wallpaper-blur': '0px',
+                        '--chat-wallpaper-dim': '0',
+                    };
+                }
+                if (preset.mode === 'pattern') {
+                    return {
+                        '--chat-wallpaper-base': preset.baseColor || 'var(--chat-bg)',
+                        '--chat-wallpaper-image': preset.pattern || 'none',
+                        '--chat-wallpaper-size': preset.size || 'auto',
+                        '--chat-wallpaper-position': 'center center',
+                        '--chat-wallpaper-repeat': preset.repeat || 'repeat',
+                        '--chat-wallpaper-opacity': '1',
+                        '--chat-wallpaper-blur': '0px',
+                        '--chat-wallpaper-dim': '0',
+                    };
+                }
+                if (preset.mode === 'texture') {
+                    return {
+                        '--chat-wallpaper-base': preset.baseColor || 'var(--chat-bg)',
+                        '--chat-wallpaper-image': preset.texture || 'none',
+                        '--chat-wallpaper-size': preset.size || 'auto',
+                        '--chat-wallpaper-position': 'center center',
+                        '--chat-wallpaper-repeat': preset.repeat || 'repeat',
+                        '--chat-wallpaper-opacity': '1',
+                        '--chat-wallpaper-blur': '0px',
+                        '--chat-wallpaper-dim': '0',
+                    };
+                }
+            }
+        }
+
+        if (mode === 'color') {
+            const color = String(state.color || '').trim() || (key === 'dark' ? '#141920' : '#eef2f8');
+            return {
+                '--chat-wallpaper-base': color,
+                '--chat-wallpaper-image': 'none',
+                '--chat-wallpaper-size': 'auto',
+                '--chat-wallpaper-position': 'center center',
+                '--chat-wallpaper-repeat': 'no-repeat',
+                '--chat-wallpaper-opacity': '1',
+                '--chat-wallpaper-blur': '0px',
+                '--chat-wallpaper-dim': '0',
+            };
+        }
+
+        if (mode === 'gradient') {
+            const a = String(state.gradientA || '').trim() || (key === 'dark' ? '#131a24' : '#f3f6fb');
+            const b = String(state.gradientB || '').trim() || (key === 'dark' ? '#10151e' : '#e7edf6');
+            return {
+                '--chat-wallpaper-base': 'transparent',
+                '--chat-wallpaper-image': `linear-gradient(135deg, ${a} 0%, ${b} 100%)`,
+                '--chat-wallpaper-size': 'cover',
+                '--chat-wallpaper-position': 'center center',
+                '--chat-wallpaper-repeat': 'no-repeat',
+                '--chat-wallpaper-opacity': '1',
+                '--chat-wallpaper-blur': '0px',
+                '--chat-wallpaper-dim': '0',
+            };
+        }
+
+        if (mode === 'custom') {
+            const custom = asObject(state.custom);
+            const imageDataUrl = String(custom.imageDataUrl || '').trim();
+            if (imageDataUrl) {
+                const scale = clamp(Number.parseFloat(String(custom.scale || '100')) || 100, 30, 240);
+                const repeat = Boolean(custom.repeat);
+                const opacity = clamp(Number.parseFloat(String(custom.opacity || '1')) || 1, 0.2, 1);
+                const blur = clamp(Number.parseFloat(String(custom.blur || '0')) || 0, 0, 18);
+                const darken = clamp(Number.parseFloat(String(custom.darken || (key === 'dark' ? '18' : '8'))) || 0, 0, 70);
+                const customSize = repeat
+                    ? `${Math.round(scale * 0.9)}px ${Math.round(scale * 0.9)}px`
+                    : `min(${scale}vw, 1800px) auto`;
+                return {
+                    '--chat-wallpaper-base': key === 'dark' ? '#0f131a' : '#edf2f7',
+                    '--chat-wallpaper-image': `url("${imageDataUrl}")`,
+                    '--chat-wallpaper-size': customSize,
+                    '--chat-wallpaper-position': String(custom.position || 'center center'),
+                    '--chat-wallpaper-repeat': repeat ? 'repeat' : 'no-repeat',
+                    '--chat-wallpaper-opacity': String(opacity),
+                    '--chat-wallpaper-blur': `${blur.toFixed(1)}px`,
+                    '--chat-wallpaper-dim': String(clamp(darken / 100, 0, 0.75)),
+                };
+            }
+        }
+
+        return {
+            '--chat-wallpaper-base': 'var(--chat-bg)',
+            '--chat-wallpaper-image': 'none',
+            '--chat-wallpaper-size': 'cover',
+            '--chat-wallpaper-position': 'center center',
+            '--chat-wallpaper-repeat': 'no-repeat',
+            '--chat-wallpaper-opacity': '1',
+            '--chat-wallpaper-blur': '0px',
+            '--chat-wallpaper-dim': '0',
+        };
+    }
+
+    function applyLegacyChatWallpaper(root, themeKey) {
+        applyCssVars(root, buildLegacyChatWallpaper(themeKey));
+    }
+
     function applyBootState(rawBoot, rawPreferences) {
         const boot = asObject(rawBoot);
         const preferences = asObject(rawPreferences);
@@ -341,10 +606,20 @@
         }
 
         const cssVars = asObject(boot.cssVars);
+        const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
         if (Object.keys(cssVars).length > 0) {
             applyCssVars(root, cssVars);
         } else {
-            applyLegacyInterfacePreset(root, root.classList.contains('dark-mode') ? 'dark' : 'light');
+            applyLegacyInterfacePreset(root, themeKey);
+            applyLegacyInterfaceAccent(root, themeKey);
+            applyLegacyChatWallpaper(root, themeKey);
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(cssVars, '--accent')) {
+            applyLegacyInterfaceAccent(root, themeKey);
+        }
+        if (!Object.prototype.hasOwnProperty.call(cssVars, '--chat-wallpaper-base')) {
+            applyLegacyChatWallpaper(root, themeKey);
         }
 
         const language = asLanguage(
@@ -370,7 +645,10 @@
                 if (modeHint === 'dark') root.classList.add('dark-mode');
                 if (modeHint === 'light') root.classList.remove('dark-mode');
             }
-            applyLegacyInterfacePreset(root, root.classList.contains('dark-mode') ? 'dark' : 'light');
+            const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
+            applyLegacyInterfacePreset(root, themeKey);
+            applyLegacyInterfaceAccent(root, themeKey);
+            applyLegacyChatWallpaper(root, themeKey);
             const language = asLanguage(
                 localStorage.getItem(LANGUAGE_STORAGE_KEY) || root.getAttribute('lang') || 'ru',
             );

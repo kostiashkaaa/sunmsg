@@ -1120,9 +1120,10 @@
 
     const bootstrap = buildBootstrap();
     const localUnifiedPreferences = readUnifiedClientPreferences();
+    const localRuntimePreferences = readRuntimeClientPreferencesSnapshot(localUnifiedPreferences);
     const effectiveClientPreferences = resolveEffectiveClientPreferences(
         bootstrap.user?.clientPreferences || {},
-        localUnifiedPreferences,
+        localRuntimePreferences,
         bootstrap.user?.uiLanguage || 'ru',
     );
     const appliedClientPreferences = applyClientPreferences(effectiveClientPreferences, {

@@ -536,7 +536,6 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
         nav_before = member_page.evaluate('performance.getEntriesByType("navigation").length')
 
         _open_group_create_modal(owner_page)
-        owner_page.locator('#groupTitleInput').fill(group_name)
         _add_member_to_group_create(
             owner_page,
             query=str(users['member']['username']),
@@ -547,6 +546,8 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
             query=str(users['spare']['username']),
             target_user_id=int(users['spare']['id']),
         )
+        owner_page.locator('#groupCreateSubmitBtn').click()
+        owner_page.locator('#groupTitleInput').fill(group_name)
         owner_page.locator('#groupCreateSubmitBtn').click()
         owner_page.locator('#groupCreateModal').wait_for(state='hidden', timeout=15_000)
 
@@ -593,4 +594,3 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
         member_page.close()
         owner_ctx.close()
         member_ctx.close()
-
