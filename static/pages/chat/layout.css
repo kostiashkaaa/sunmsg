@@ -14,7 +14,7 @@
 }
 
 .contact-item {
-    min-height: 60px;
+    min-height: 56px;
     position: relative;
 }
 
@@ -386,7 +386,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 /* normalized: removed mojibake comment */
 .sidebar {
-    width: var(--sidebar-width, 420px);
+    width: var(--sidebar-width, 332px);
     background: var(--sidebar-bg);
     border-right: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
     display: flex;

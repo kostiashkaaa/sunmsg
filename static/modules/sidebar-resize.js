@@ -5,9 +5,9 @@ export function initSidebarResize() {
     const sidebar     = document.getElementById('sidebar');
     if (!sideResizer || !sidebar) return;
 
-    const DESKTOP_DEFAULT_WIDTH = 420;
+    const DESKTOP_DEFAULT_WIDTH = 332;
     const DESKTOP_MIN_WIDTH = 132;
-    const DESKTOP_MAX_WIDTH = 700;
+    const DESKTOP_MAX_WIDTH = 460;
     const SIDEBAR_COMPACT_THRESHOLD = 170;
     const clampWidth = (value) => Math.max(DESKTOP_MIN_WIDTH, Math.min(DESKTOP_MAX_WIDTH, value));
     const mobileSidebarQuery = typeof window.matchMedia === 'function'

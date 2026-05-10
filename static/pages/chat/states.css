@@ -609,14 +609,14 @@
 
 
         .contact-item:hover {
-            background: color-mix(in srgb, var(--contact-hover) 78%, var(--paper-alt) 22%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, rgba(255, 255, 255, 0.05) 50%, transparent);
-            transform: translateY(-1px);
+            background: color-mix(in srgb, var(--contact-hover) 64%, transparent);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 68%, transparent);
+            transform: none;
         }
 
 
         .contact-item:hover::after {
-            opacity: 0.42;
+            opacity: 0.22;
         }
 
 
@@ -626,13 +626,8 @@
 
 
         .contact-item.active {
-            background:
-                linear-gradient(
-                    135deg,
-                    color-mix(in srgb, var(--accent) 72%, var(--paper-alt) 28%) 0%,
-                    color-mix(in srgb, var(--accent) 58%, var(--paper-alt) 42%) 100%
-                );
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+            background: color-mix(in srgb, var(--accent) 18%, var(--surface) 82%);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, var(--border) 74%);
             transform: none;
         }
 
@@ -643,68 +638,66 @@
 
 
         body.dark-mode .contact-item.active {
-            background:
-                linear-gradient(
-                    135deg,
-                    color-mix(in srgb, var(--accent) 80%, var(--paper-alt) 20%) 0%,
-                    color-mix(in srgb, var(--accent) 66%, var(--paper-alt) 34%) 100%
-                );
+            background: color-mix(in srgb, var(--accent) 28%, var(--surface) 72%);
         }
 
 
         .contact-item.active .contact-name,
-        .contact-item.active .contact-last-msg,
         .contact-item.active .contact-time,
         .contact-item.active .contact-time-meta,
         .contact-item.active .pin-icon,
         .contact-item.active .mute-icon,
         .contact-item.active .favorite-icon {
-            color: rgba(255, 255, 255, 0.96) !important;
+            color: var(--text) !important;
         }
 
 
         .contact-item.active .contact-last-msg {
-            opacity: 0.94;
+            color: color-mix(in srgb, var(--text) 72%, var(--sub-text) 28%) !important;
+            opacity: 0.98;
         }
 
         .contact-item.active .contact-last-msg .typing-indicator-inline {
-            color: rgba(255, 255, 255, 0.98) !important;
+            color: var(--accent) !important;
         }
 
         .contact-item.active .contact-draft-label {
-            color: rgba(255, 215, 215, 0.98);
+            color: color-mix(in srgb, #e35555 84%, var(--text) 16%);
         }
 
 
         .contact-item.active .contact-time-meta .sidebar-tick {
-            color: rgba(255, 255, 255, 0.92);
-            text-shadow: var(--text-shadow-contrast);
+            color: color-mix(in srgb, var(--text) 72%, var(--sub-text) 28%);
+            text-shadow: none;
         }
 
 
         .contact-item.active .contact-time-meta .sidebar-tick.sent,
         .contact-item.active .contact-time-meta .sidebar-tick.delivered {
-            color: rgba(255, 255, 255, 0.88);
+            color: color-mix(in srgb, var(--text) 66%, var(--sub-text) 34%);
         }
 
 
         .contact-item.active .contact-time-meta .sidebar-tick.read {
-            color: #ffffff;
-            text-shadow: var(--text-shadow-contrast);
+            color: var(--msg-meta-read-color, color-mix(in srgb, var(--accent) 72%, var(--text) 28%));
+            text-shadow: none;
         }
 
 
         .contact-item.active .contact-time-meta .sidebar-tick.pending,
         .contact-item.active .contact-time-meta .sidebar-tick.pending i {
-            color: rgba(255, 255, 255, 0.9);
+            color: color-mix(in srgb, var(--text) 66%, var(--sub-text) 34%);
         }
 
 
         .contact-item.active .unread-badge {
-            background: rgba(255, 255, 255, 0.24);
-            border-color: rgba(255, 255, 255, 0.36);
+            background:
+                linear-gradient(145deg, color-mix(in srgb, var(--accent) 90%, #fff 10%) 0%, color-mix(in srgb, var(--accent-deep) 86%, var(--accent) 14%) 100%);
+            border-color: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.42) 38%);
             color: #fff;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+            box-shadow:
+                0 3px 8px color-mix(in srgb, var(--accent) 18%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
         }
 
 
@@ -1002,7 +995,7 @@
         #messageForm:focus-within {
             border-color: color-mix(in srgb, var(--accent) 48%, var(--border) 52%);
             box-shadow: none;
-            transform: translateY(-1px);
+            transform: none;
         }
 
 
@@ -1012,7 +1005,7 @@
         #messageForm .btn-icon:hover {
             color: var(--text);
             background: color-mix(in srgb, var(--contact-hover) 88%, transparent);
-            transform: translateY(-1px);
+            transform: none;
         }
 
 
@@ -1065,7 +1058,7 @@
         #voiceRecordBtn:hover {
             color: #fff;
             filter: brightness(1.05);
-            transform: translateY(-1px);
+            transform: none;
         }
 
 
@@ -1227,7 +1220,7 @@
                     rgba(255, 255, 255, 0.03) 100%
                 ),
                 color-mix(in srgb, var(--surface-2) 60%, #3a2024 40%);
-            transform: translateY(-1px);
+            transform: none;
         }
 
 
@@ -1412,7 +1405,7 @@
         .emoji-category-btn:hover {
             background: color-mix(in srgb, var(--contact-hover) 90%, transparent);
             border-color: color-mix(in srgb, var(--border) 72%, transparent);
-            transform: translateY(-1px);
+            transform: none;
         }
 
 
@@ -3449,9 +3442,9 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .context-menu-item:hover {
-            background: color-mix(in srgb, var(--contact-hover) 82%, transparent);
+            background: color-mix(in srgb, var(--contact-hover) 68%, transparent);
             color: var(--text);
-            transform: translateX(1px);
+            transform: none;
         }
 
 
@@ -3499,7 +3492,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         .reaction-picker__item:hover {
-            transform: scale(1.08);
+            transform: scale(1.04);
             background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
         }
 

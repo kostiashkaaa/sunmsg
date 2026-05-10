@@ -10,7 +10,7 @@ import { applyEmojiGraphics } from './utils.js';
 
 const RECENT_STORAGE_KEY = 'sun_recent_reaction_emojis_v1';
 const MAX_RECENT = 40;
-const GRID_CHUNK_SIZE = 120;
+const GRID_CHUNK_SIZE = 72;
 const GRID_SCROLL_PRELOAD_PX = 140;
 
 function normalizeEmojiList(values, allowedSet) {
