@@ -6,11 +6,12 @@ import {
     EMOJI_PICKER_I18N,
     resolvePickerLocale,
 } from './emoji-picker-data.js';
+import { waitForMotionEnd } from './motion.js';
 import { applyEmojiGraphics } from './utils.js';
 
 const RECENT_STORAGE_KEY = 'sun_recent_reaction_emojis_v1';
 const MAX_RECENT = 40;
-const GRID_CHUNK_SIZE = 72;
+const GRID_CHUNK_SIZE = 48;
 const GRID_SCROLL_PRELOAD_PX = 140;
 
 function normalizeEmojiList(values, allowedSet) {
@@ -157,6 +158,7 @@ export function initReactionEmojiPopup({
     let activeCategory = DEFAULT_EMOJI_CATEGORY;
     let searchQuery = '';
     let visible = false;
+    let popupTransitionSeq = 0;
     let renderedList = [];
     let renderedCount = 0;
     let renderFrameId = 0;
@@ -412,23 +414,25 @@ export function initReactionEmojiPopup({
     function close() {
         ensurePopupElement();
         if (!visible) return;
+        const closeSeq = ++popupTransitionSeq;
         visible = false;
         cancelPendingChunkRender();
         popupEl.classList.remove('active', 'is-opening');
         popupEl.classList.add('is-closing');
         popupEl.setAttribute('aria-hidden', 'true');
-        window.setTimeout(() => {
-            if (visible) return;
+        waitForMotionEnd(popupEl, 180).then(() => {
+            if (closeSeq !== popupTransitionSeq || visible) return;
             popupEl.classList.remove('is-closing');
             popupEl.style.left = '-9999px';
             popupEl.style.top = '-9999px';
-        }, 180);
+        });
         onClose?.();
     }
 
     async function open() {
         ensurePopupElement();
-        await ensureCategoryBuckets();
+        const hadBuckets = categoryBuckets.size > 0;
+        const bucketsPromise = ensureCategoryBuckets();
         const { strings } = getLocaleStrings();
         if (searchInputEl) {
             searchInputEl.placeholder = strings.searchPlaceholder;
@@ -441,6 +445,7 @@ export function initReactionEmojiPopup({
         if (clearSearchEl) {
             clearSearchEl.hidden = true;
         }
+        popupTransitionSeq += 1;
         renderCategoryButtons();
         rebuildGrid();
 
@@ -455,6 +460,15 @@ export function initReactionEmojiPopup({
             popupEl.classList.remove('is-opening');
         });
         onOpen?.();
+
+        if (!hadBuckets) {
+            bucketsPromise.then(() => {
+                if (!visible) return;
+                renderCategoryButtons();
+                rebuildGrid();
+                position();
+            }).catch(() => {});
+        }
     }
 
     function isOpen() {

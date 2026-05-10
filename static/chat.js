@@ -938,6 +938,7 @@ const initChatPage = async () => {
     const CHAT_VIRTUAL_WINDOW_SIZE = 80;
     const CHAT_VIRTUAL_BUFFER = 12;
     const CHAT_VIRTUALIZATION_MIN_MESSAGES = 220;
+    const CHAT_HEIGHT_MEASURE_SAMPLE_LIMIT = 24;
     const CHAT_DEFAULT_MESSAGE_HEIGHT = 88;
     const CHAT_DECRYPT_CONCURRENCY = 6;
     const CHAT_DECRYPT_WORKER_TIMEOUT_MS = 30000;
@@ -1789,11 +1790,28 @@ const initChatPage = async () => {
         const rendered = chatMessages.querySelectorAll('.message[data-message-key]');
         if (!rendered.length) return;
 
+        const totalRendered = rendered.length;
+        const sampleLimit = Math.max(4, Math.min(CHAT_HEIGHT_MEASURE_SAMPLE_LIMIT, totalRendered));
+        const sampleIndexes = [];
+        if (totalRendered <= sampleLimit) {
+            for (let index = 0; index < totalRendered; index += 1) {
+                sampleIndexes.push(index);
+            }
+        } else {
+            const seen = new Set([0, totalRendered - 1]);
+            const step = (totalRendered - 1) / Math.max(1, sampleLimit - 1);
+            for (let slot = 1; slot < sampleLimit - 1; slot += 1) {
+                seen.add(Math.round(slot * step));
+            }
+            sampleIndexes.push(...Array.from(seen).sort((left, right) => left - right));
+        }
+
         let totalHeight = 0;
         let count = 0;
-        rendered.forEach((node) => {
+        sampleIndexes.forEach((index) => {
+            const node = rendered[index];
             const key = node.getAttribute('data-message-key');
-            const height = Math.ceil(node.getBoundingClientRect().height);
+            const height = Math.ceil(node.offsetHeight || node.getBoundingClientRect().height);
             if (!key || !Number.isFinite(height) || height <= 0) return;
             state.messageHeights.set(key, height);
             totalHeight += height;

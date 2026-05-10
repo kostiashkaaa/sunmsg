@@ -2392,9 +2392,9 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, -6px, 0) scale(0.972);
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
-            visibility 0s linear var(--tg3-dur-exit);
+            opacity var(--motion-duration-fast) var(--tg3-ease-exit),
+            transform var(--motion-duration-fast) var(--tg3-ease-exit),
+            visibility 0s linear var(--motion-duration-fast);
     }
 
     .attach-menu.is-closing,
@@ -2406,9 +2406,9 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, 6px, 0) scale(0.972);
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
-            visibility 0s linear var(--tg3-dur-exit);
+            opacity var(--motion-duration-fast) var(--tg3-ease-exit),
+            transform var(--motion-duration-fast) var(--tg3-ease-exit),
+            visibility 0s linear var(--motion-duration-fast);
     }
 
     .header-dropdown.active,

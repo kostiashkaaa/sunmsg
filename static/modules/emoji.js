@@ -885,10 +885,21 @@ export function initEmojiPicker(messageInput) {
     window.visualViewport?.addEventListener('resize', reposition);
     window.visualViewport?.addEventListener('scroll', reposition);
     window.addEventListener('sun-ui-language-changed', () => {
-        renderEmojiList();
         syncEmojiButtonMode();
+        const pickerVisible = emojiPicker.classList.contains('active') || emojiPicker.classList.contains('is-closing');
+        if (!pickerVisible) return;
+        renderEmojiList();
     });
 
     updateSearchUi(getLocaleStrings().strings);
     syncEmojiButtonMode(false);
+
+    const prewarmEmojiData = () => {
+        loadEmojiData().catch(() => {});
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => prewarmEmojiData(), { timeout: 1400 });
+    } else {
+        window.setTimeout(prewarmEmojiData, 320);
+    }
 }

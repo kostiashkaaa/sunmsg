@@ -177,7 +177,7 @@ export function initMessageContextMenu({
         menuEl.classList.remove('is-opening', 'is-open');
         menuEl.classList.add('is-closing');
         menuEl.setAttribute('aria-hidden', 'true');
-        waitForMotionEnd(menuEl, 220).then(() => {
+        waitForMotionEnd(menuEl, 180).then(() => {
             if (!menuEl || closeSeq !== menuTransitionSeq) return;
             menuEl.classList.remove('is-closing');
         });
