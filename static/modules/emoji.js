@@ -470,6 +470,10 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
         const sheetWidth = Math.max(0, viewportWidth);
         const left = Math.round(viewportOffsetLeft);
         const top = Math.round(viewportOffsetTop + mobileViewportHeight - sheetHeight);
+        const chatAreaBottom = resolveEmojiChatArea(emojiPicker)?.getBoundingClientRect?.().bottom;
+        const layoutSheetHeight = Number.isFinite(chatAreaBottom)
+            ? Math.max(0, Math.round(chatAreaBottom - top))
+            : sheetHeight;
 
         emojiPicker.style.setProperty('--emoji-left', `${left}px`);
         emojiPicker.style.setProperty('--emoji-top', `${top}px`);
@@ -477,7 +481,7 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
         emojiPicker.style.setProperty('--emoji-height', `${sheetHeight}px`);
         emojiPicker.style.transformOrigin = 'bottom center';
         emojiPicker.dataset.side = 'mobile-sheet';
-        setMobileEmojiSheetState(emojiPicker, true, sheetHeight);
+        setMobileEmojiSheetState(emojiPicker, true, layoutSheetHeight);
         return;
     }
 
