@@ -1241,5 +1241,7 @@
   "Кэш видеофрагментов очищен.": "Video fragment cache cleared.",
   "Не удалось очистить кэш видеофрагментов.": "Failed to clear video fragment cache.",
   "Весь кэш очищен.": "All cache cleared.",
-  "Не удалось очистить весь кэш.": "Failed to clear all cache."
+  "Не удалось очистить весь кэш.": "Failed to clear all cache.",
+  "Серая дымка": "Gray mist",
+  "Тёмный графит": "Dark graphite"
 }

@@ -4,6 +4,260 @@
 
     const STORAGE_KEY = 'sun.clientPreferences.v1';
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
+    const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
+    const LEGACY_DEFAULT_PRESET_BY_MODE = {
+        light: 'light-classic',
+        dark: 'dark-classic',
+    };
+    const LEGACY_PRESET_MAP = Object.freeze({
+        'light-classic': { mode: 'light', vars: {} },
+        'light-sky': {
+            mode: 'light',
+            vars: {
+                '--bg': '#eaf2fb',
+                '--paper': '#f7fbff',
+                '--paper-alt': '#e3edf8',
+                '--surface': '#f7fbff',
+                '--surface-2': '#e3edf8',
+                '--sidebar-bg': '#eaf2fb',
+                '--sidebar-hdr': '#e3edf8',
+                '--chat-bg': '#e6eff9',
+                '--chat-hdr-bg': '#eaf2fb',
+                '--input-bg': '#f7fbff',
+                '--overlay-bg': '#f7fbff',
+                '--modal-bg': '#f7fbff',
+                '--auth-bg': '#eaf2fb',
+                '--auth-card-bg': 'rgba(247,251,255,0.95)',
+                '--auth-card-border': 'rgba(165,188,216,0.45)',
+                '--ink': '#131d2e',
+                '--ink-soft': '#374f6d',
+                '--ink-mute': '#6881a0',
+                '--ink-faint': '#97adc4',
+                '--text': '#131d2e',
+                '--sub-text': '#6881a0',
+                '--text-muted': '#97adc4',
+                '--text-inv': '#eaf2fb',
+                '--rule': '#cfdced',
+                '--rule-soft': '#deebf7',
+                '--border': '#cfdced',
+                '--border-focus': 'rgba(61,133,224,0.45)',
+                '--chat-hdr': '#eaf2fb',
+                '--overlay-menu-bg': '#f7fbff',
+                '--profile-backdrop-bg': 'rgba(20,35,62,0.28)',
+            },
+        },
+        'light-mist': {
+            mode: 'light',
+            vars: {
+                '--bg': '#eef0f3',
+                '--paper': '#f7f8fa',
+                '--paper-alt': '#e4e7ec',
+                '--surface': '#f7f8fa',
+                '--surface-2': '#e4e7ec',
+                '--sidebar-bg': '#eef0f3',
+                '--sidebar-hdr': '#e4e7ec',
+                '--chat-bg': '#e9edf2',
+                '--chat-hdr-bg': '#eef0f3',
+                '--input-bg': '#f7f8fa',
+                '--overlay-bg': '#f7f8fa',
+                '--modal-bg': '#f7f8fa',
+                '--auth-bg': '#eef0f3',
+                '--auth-card-bg': 'rgba(247,248,250,0.95)',
+                '--auth-card-border': 'rgba(150,160,175,0.42)',
+                '--ink': '#1a1f28',
+                '--ink-soft': '#3f4755',
+                '--ink-mute': '#6b7484',
+                '--ink-faint': '#98a2b3',
+                '--text': '#1a1f28',
+                '--sub-text': '#6b7484',
+                '--text-muted': '#98a2b3',
+                '--text-inv': '#eef0f3',
+                '--rule': '#ccd3dd',
+                '--rule-soft': '#dde2e9',
+                '--border': '#ccd3dd',
+                '--border-focus': 'rgba(109,127,153,0.42)',
+                '--chat-hdr': '#eef0f3',
+                '--overlay-menu-bg': '#f7f8fa',
+                '--profile-backdrop-bg': 'rgba(19,26,36,0.30)',
+            },
+        },
+        'dark-classic': { mode: 'dark', vars: {} },
+        'dark-forest': {
+            mode: 'dark',
+            vars: {
+                '--bg': '#101815',
+                '--paper': '#15201c',
+                '--paper-alt': '#1b2a24',
+                '--surface': '#15201c',
+                '--surface-2': '#1b2a24',
+                '--sidebar-bg': '#101815',
+                '--sidebar-hdr': '#15201c',
+                '--chat-bg': '#0b120f',
+                '--chat-hdr-bg': '#101815',
+                '--input-bg': '#15201c',
+                '--overlay-bg': '#15201c',
+                '--modal-bg': '#15201c',
+                '--auth-bg': '#101815',
+                '--auth-card-bg': 'rgba(21,32,28,0.95)',
+                '--auth-card-border': 'rgba(76,151,122,0.24)',
+                '--ink': '#ddefe6',
+                '--ink-soft': '#b3d0c3',
+                '--ink-mute': '#87a99a',
+                '--ink-faint': '#678576',
+                '--text': '#ddefe6',
+                '--sub-text': '#87a99a',
+                '--text-muted': '#678576',
+                '--text-inv': '#101815',
+                '--rule': '#2a3d34',
+                '--rule-soft': '#223228',
+                '--border': '#2a3d34',
+                '--border-focus': 'rgba(52,179,129,0.42)',
+                '--chat-hdr': '#101815',
+                '--overlay-menu-bg': '#15201c',
+                '--profile-backdrop-bg': 'rgba(7,11,9,0.62)',
+            },
+        },
+        'dark-midnight': {
+            mode: 'dark',
+            vars: {
+                '--bg': '#10162a',
+                '--paper': '#151d36',
+                '--paper-alt': '#1a2442',
+                '--surface': '#151d36',
+                '--surface-2': '#1a2442',
+                '--sidebar-bg': '#10162a',
+                '--sidebar-hdr': '#151d36',
+                '--chat-bg': '#0a1020',
+                '--chat-hdr-bg': '#10162a',
+                '--input-bg': '#151d36',
+                '--overlay-bg': '#151d36',
+                '--modal-bg': '#151d36',
+                '--auth-bg': '#10162a',
+                '--auth-card-bg': 'rgba(21,29,54,0.95)',
+                '--auth-card-border': 'rgba(113,139,255,0.24)',
+                '--ink': '#e2e8ff',
+                '--ink-soft': '#bac4ef',
+                '--ink-mute': '#8f9fd6',
+                '--ink-faint': '#6f7fae',
+                '--text': '#e2e8ff',
+                '--sub-text': '#8f9fd6',
+                '--text-muted': '#6f7fae',
+                '--text-inv': '#10162a',
+                '--rule': '#293456',
+                '--rule-soft': '#202b47',
+                '--border': '#293456',
+                '--border-focus': 'rgba(91,125,255,0.42)',
+                '--chat-hdr': '#10162a',
+                '--overlay-menu-bg': '#151d36',
+                '--profile-backdrop-bg': 'rgba(6,10,21,0.66)',
+            },
+        },
+        'dark-graphite': {
+            mode: 'dark',
+            vars: {
+                '--bg': '#121416',
+                '--paper': '#181b1f',
+                '--paper-alt': '#20242a',
+                '--surface': '#181b1f',
+                '--surface-2': '#20242a',
+                '--sidebar-bg': '#121416',
+                '--sidebar-hdr': '#181b1f',
+                '--chat-bg': '#0d1013',
+                '--chat-hdr-bg': '#121416',
+                '--input-bg': '#181b1f',
+                '--overlay-bg': '#181b1f',
+                '--modal-bg': '#181b1f',
+                '--auth-bg': '#121416',
+                '--auth-card-bg': 'rgba(24,27,31,0.95)',
+                '--auth-card-border': 'rgba(126,139,156,0.24)',
+                '--ink': '#e5e9ef',
+                '--ink-soft': '#b8c0cc',
+                '--ink-mute': '#8f99a8',
+                '--ink-faint': '#6b7482',
+                '--text': '#e5e9ef',
+                '--sub-text': '#8f99a8',
+                '--text-muted': '#6b7482',
+                '--text-inv': '#121416',
+                '--rule': '#2b3139',
+                '--rule-soft': '#232930',
+                '--border': '#2b3139',
+                '--border-focus': 'rgba(138,152,173,0.40)',
+                '--chat-hdr': '#121416',
+                '--overlay-menu-bg': '#181b1f',
+                '--profile-backdrop-bg': 'rgba(5,7,10,0.68)',
+            },
+        },
+        'custom-light': {
+            mode: 'light',
+            vars: {
+                '--bg': '#f6f0e6',
+                '--paper': '#fffaf0',
+                '--paper-alt': '#ece2d3',
+                '--surface': '#fffaf0',
+                '--surface-2': '#ece2d3',
+                '--sidebar-bg': '#f6f0e6',
+                '--sidebar-hdr': '#ece2d3',
+                '--chat-bg': '#f3e9d8',
+                '--chat-hdr-bg': '#f6f0e6',
+                '--input-bg': '#fffaf0',
+                '--overlay-bg': '#fffaf0',
+                '--modal-bg': '#fffaf0',
+                '--auth-bg': '#f6f0e6',
+                '--auth-card-bg': 'rgba(255,250,240,0.95)',
+                '--auth-card-border': 'rgba(206,188,160,0.52)',
+                '--ink': '#20180f',
+                '--ink-soft': '#4c3c2a',
+                '--ink-mute': '#7f6b53',
+                '--ink-faint': '#b19e85',
+                '--text': '#20180f',
+                '--sub-text': '#7f6b53',
+                '--text-muted': '#b19e85',
+                '--text-inv': '#f6f0e6',
+                '--rule': '#dbc9af',
+                '--rule-soft': '#e9ddc9',
+                '--border': '#dbc9af',
+                '--border-focus': 'rgba(181,138,74,0.45)',
+                '--chat-hdr': '#f6f0e6',
+                '--overlay-menu-bg': '#fffaf0',
+                '--profile-backdrop-bg': 'rgba(31,21,11,0.30)',
+            },
+        },
+        'custom-dark': {
+            mode: 'dark',
+            vars: {
+                '--bg': '#16110c',
+                '--paper': '#1d1711',
+                '--paper-alt': '#251d15',
+                '--surface': '#1d1711',
+                '--surface-2': '#251d15',
+                '--sidebar-bg': '#16110c',
+                '--sidebar-hdr': '#1d1711',
+                '--chat-bg': '#120d09',
+                '--chat-hdr-bg': '#16110c',
+                '--input-bg': '#1d1711',
+                '--overlay-bg': '#1d1711',
+                '--modal-bg': '#1d1711',
+                '--auth-bg': '#16110c',
+                '--auth-card-bg': 'rgba(29,23,17,0.95)',
+                '--auth-card-border': 'rgba(162,128,86,0.24)',
+                '--ink': '#f1e4cc',
+                '--ink-soft': '#d3c0a0',
+                '--ink-mute': '#ab936f',
+                '--ink-faint': '#856f50',
+                '--text': '#f1e4cc',
+                '--sub-text': '#ab936f',
+                '--text-muted': '#856f50',
+                '--text-inv': '#16110c',
+                '--rule': '#34291d',
+                '--rule-soft': '#2a2017',
+                '--border': '#34291d',
+                '--border-focus': 'rgba(181,138,74,0.42)',
+                '--chat-hdr': '#16110c',
+                '--overlay-menu-bg': '#1d1711',
+                '--profile-backdrop-bg': 'rgba(8,5,3,0.64)',
+            },
+        },
+    });
 
     function asObject(value) {
         return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -11,6 +265,66 @@
 
     function asLanguage(value) {
         return String(value ?? '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
+    }
+
+    function asThemeKey(value) {
+        return value === 'dark' ? 'dark' : 'light';
+    }
+
+    function applyCssVars(root, cssVars) {
+        Object.entries(asObject(cssVars)).forEach(([name, value]) => {
+            if (!name || typeof name !== 'string' || !name.startsWith('--')) return;
+            if (typeof value !== 'string' && typeof value !== 'number') return;
+            root.style.setProperty(name, String(value));
+        });
+    }
+
+    function normalizeLegacyPresetId(value, expectedMode) {
+        const id = typeof value === 'string' ? value.trim() : '';
+        if (!id) return null;
+        const preset = LEGACY_PRESET_MAP[id];
+        if (!preset) return null;
+        if (expectedMode && preset.mode !== expectedMode) return null;
+        return id;
+    }
+
+    function readLegacyInterfaceStore() {
+        try {
+            const raw = localStorage.getItem(INTERFACE_THEME_STORAGE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return asObject(parsed);
+        } catch (_error) {
+            return {};
+        }
+    }
+
+    function resolveLegacyPreset(themeKey) {
+        const key = asThemeKey(themeKey);
+        const store = readLegacyInterfaceStore();
+        const modePresets = asObject(store.modePresets);
+        const activePresetId = normalizeLegacyPresetId(store.activePresetId, key);
+        if (activePresetId) return LEGACY_PRESET_MAP[activePresetId] || null;
+
+        const modePresetId = normalizeLegacyPresetId(modePresets[key], key);
+        if (modePresetId) return LEGACY_PRESET_MAP[modePresetId] || null;
+
+        return LEGACY_PRESET_MAP[LEGACY_DEFAULT_PRESET_BY_MODE[key]] || null;
+    }
+
+    function resolveLegacyThemeModeHint() {
+        const store = readLegacyInterfaceStore();
+        const activeDarkPresetId = normalizeLegacyPresetId(store.activePresetId, 'dark');
+        if (activeDarkPresetId) return 'dark';
+        const activeLightPresetId = normalizeLegacyPresetId(store.activePresetId, 'light');
+        if (activeLightPresetId) return 'light';
+        return null;
+    }
+
+    function applyLegacyInterfacePreset(root, themeKey) {
+        const preset = resolveLegacyPreset(themeKey);
+        if (!preset || !preset.vars) return;
+        applyCssVars(root, preset.vars);
     }
 
     function applyBootState(rawBoot, rawPreferences) {
@@ -27,11 +341,11 @@
         }
 
         const cssVars = asObject(boot.cssVars);
-        Object.entries(cssVars).forEach(([name, value]) => {
-            if (!name || typeof name !== 'string' || !name.startsWith('--')) return;
-            if (typeof value !== 'string' && typeof value !== 'number') return;
-            root.style.setProperty(name, String(value));
-        });
+        if (Object.keys(cssVars).length > 0) {
+            applyCssVars(root, cssVars);
+        } else {
+            applyLegacyInterfacePreset(root, root.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
 
         const language = asLanguage(
             boot.language || preferences.language || root.getAttribute('lang') || 'ru',
@@ -51,6 +365,12 @@
             const storedDark = localStorage.getItem('darkMode');
             if (storedDark === 'true') root.classList.add('dark-mode');
             if (storedDark === 'false') root.classList.remove('dark-mode');
+            if (storedDark !== 'true' && storedDark !== 'false') {
+                const modeHint = resolveLegacyThemeModeHint();
+                if (modeHint === 'dark') root.classList.add('dark-mode');
+                if (modeHint === 'light') root.classList.remove('dark-mode');
+            }
+            applyLegacyInterfacePreset(root, root.classList.contains('dark-mode') ? 'dark' : 'light');
             const language = asLanguage(
                 localStorage.getItem(LANGUAGE_STORAGE_KEY) || root.getAttribute('lang') || 'ru',
             );
