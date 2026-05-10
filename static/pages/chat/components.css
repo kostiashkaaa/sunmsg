@@ -3761,6 +3761,15 @@
             word-spacing: normal;
         }
 
+        #messageInput.composer-input-emoji-layer {
+            position: relative;
+            z-index: 2;
+            display: block;
+            width: 100%;
+            color: transparent;
+            caret-color: var(--text);
+        }
+
 
         #messageInput::placeholder {
             color: color-mix(in srgb, var(--sub-text) 90%, var(--text) 10%);
@@ -6369,6 +6378,42 @@
             z-index: 1;
             overflow: visible;
             transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-spring);
+        }
+
+        .composer-input-visual-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            align-self: center;
+            min-height: 32px;
+        }
+
+        .composer-input-visual {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            padding: var(--chat-message-pad-y, 8px) var(--chat-message-pad-x, 0px);
+            color: var(--text);
+            font-size: var(--chat-message-font-size, 15px);
+            font-family: var(--font), sans-serif;
+            line-height: 1.4;
+            letter-spacing: var(--chat-message-letter-spacing, -0.005em);
+            text-align: start;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            overflow-y: hidden;
+            overflow-x: hidden;
+            pointer-events: none;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        .composer-input-visual .emoji-graphic {
+            width: 1.18em;
+            height: 1.18em;
+            margin: 0 0.02em;
+            vertical-align: -0.18em;
         }
 
 

@@ -1,7 +1,12 @@
 // Composer event wiring and submit orchestration for chat input.
+import { applyEmojiGraphics } from './utils.js';
+
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
 const SEND_SHORTCUT_ENTER = 'enter';
 const SEND_SHORTCUT_CTRL_ENTER = 'ctrl_enter';
+const COMPOSER_EMOJI_VISUAL_WRAP_CLASS = 'composer-input-visual-wrap';
+const COMPOSER_EMOJI_VISUAL_CLASS = 'composer-input-visual';
+const COMPOSER_EMOJI_INPUT_CLASS = 'composer-input-emoji-layer';
 
 function normalizeSendShortcutMode(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -14,6 +19,101 @@ function readSendShortcutMode() {
     } catch (_) {
         return SEND_SHORTCUT_ENTER;
     }
+}
+
+function normalizeComposerVisualText(value) {
+    return String(value || '').replace(/\r\n/g, '\n');
+}
+
+function bindInputValueObserver(input, onValueChange) {
+    if (!input || typeof onValueChange !== 'function') return;
+    if (input.dataset.composerEmojiValueObserved === '1') return;
+    const proto = Object.getPrototypeOf(input);
+    const valueDescriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+    if (!valueDescriptor?.get || !valueDescriptor?.set) return;
+    try {
+        Object.defineProperty(input, 'value', {
+            configurable: true,
+            enumerable: valueDescriptor.enumerable ?? true,
+            get() {
+                return valueDescriptor.get.call(this);
+            },
+            set(nextValue) {
+                valueDescriptor.set.call(this, nextValue);
+                onValueChange();
+            },
+        });
+        input.dataset.composerEmojiValueObserved = '1';
+    } catch (_) {
+        // Some hardened runtimes may deny overriding instance accessors.
+    }
+}
+
+function initComposerEmojiVisualLayer(messageInput) {
+    if (!messageInput) return () => {};
+    if (messageInput.dataset.composerEmojiVisualBound === '1') {
+        return () => {};
+    }
+
+    const originalParent = messageInput.parentElement;
+    if (!originalParent) return () => {};
+
+    let wrap = originalParent.classList.contains(COMPOSER_EMOJI_VISUAL_WRAP_CLASS)
+        ? originalParent
+        : null;
+    let visual = wrap?.querySelector(`.${COMPOSER_EMOJI_VISUAL_CLASS}`) || null;
+
+    if (!wrap || !visual) {
+        wrap = document.createElement('div');
+        wrap.className = COMPOSER_EMOJI_VISUAL_WRAP_CLASS;
+        visual = document.createElement('div');
+        visual.className = COMPOSER_EMOJI_VISUAL_CLASS;
+        visual.setAttribute('aria-hidden', 'true');
+        originalParent.insertBefore(wrap, messageInput);
+        wrap.appendChild(visual);
+        wrap.appendChild(messageInput);
+    }
+
+    messageInput.classList.add(COMPOSER_EMOJI_INPUT_CLASS);
+
+    let lastText = null;
+    let lastScrollTop = -1;
+    let lastScrollLeft = -1;
+
+    const syncVisual = (force = false) => {
+        const nextText = normalizeComposerVisualText(messageInput.value);
+        const nextScrollTop = messageInput.scrollTop;
+        const nextScrollLeft = messageInput.scrollLeft;
+
+        if (!force && nextText === lastText && nextScrollTop === lastScrollTop && nextScrollLeft === lastScrollLeft) {
+            return;
+        }
+
+        if (force || nextText !== lastText) {
+            if (!nextText) {
+                visual.textContent = '';
+            } else {
+                visual.textContent = nextText;
+                applyEmojiGraphics(visual);
+            }
+            lastText = nextText;
+        }
+
+        visual.scrollTop = nextScrollTop;
+        visual.scrollLeft = nextScrollLeft;
+        lastScrollTop = nextScrollTop;
+        lastScrollLeft = nextScrollLeft;
+    };
+
+    bindInputValueObserver(messageInput, () => syncVisual(true));
+    messageInput.addEventListener('input', () => syncVisual(true));
+    messageInput.addEventListener('scroll', () => syncVisual(false), { passive: true });
+    messageInput.addEventListener('focus', () => syncVisual(false), { passive: true });
+    messageInput.addEventListener('blur', () => syncVisual(false), { passive: true });
+
+    messageInput.dataset.composerEmojiVisualBound = '1';
+    syncVisual(true);
+    return syncVisual;
 }
 
 export function initComposer(opts = {}) {
@@ -41,6 +141,7 @@ export function initComposer(opts = {}) {
     if (!messageInput || !messageForm) return;
     if (messageInput.dataset.composerBound === '1') return;
     messageInput.dataset.composerBound = '1';
+    const syncComposerEmojiVisual = initComposerEmojiVisualLayer(messageInput);
 
     const resolveChatId = () => (typeof getChatId === 'function' ? getChatId() : null);
     const resolveEditing = () => (typeof isEditingMessageId === 'function' ? Boolean(isEditingMessageId()) : Boolean(isEditingMessageId));
@@ -113,6 +214,7 @@ export function initComposer(opts = {}) {
     messageForm.addEventListener('submit', handleComposerSubmit);
     messageInput.addEventListener('input', () => {
         resizeComposerInput?.();
+        syncComposerEmojiVisual(true);
         if (!resolveChatId() || resolveEditing() || resolveBlocked()) return;
         onTyping?.();
     });
@@ -148,5 +250,6 @@ export function initComposer(opts = {}) {
     replyCancelBtn?.addEventListener('click', () => cancelReply?.());
     editCancelBtn?.addEventListener('click', () => cancelEdit?.());
     resizeComposerInput?.();
+    syncComposerEmojiVisual(true);
 }
 
