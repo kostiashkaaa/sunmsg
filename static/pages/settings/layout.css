@@ -101,12 +101,12 @@ html, body {
             transform: translateY(0);
         }
         .settings-panel-head {
-            padding: 20px 32px;
+            padding: 14px 20px;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
             display: flex;
             align-items: center;
-            gap: 16px;
-            min-height: 61px;
+            gap: 12px;
+            min-height: 64px;
             background: var(--bg);
             flex-shrink: 0;
         }
@@ -139,21 +139,21 @@ html, body {
         }
         .settings-panel-title {
             font-family: var(--font);
-            font-size: 36px;
-            line-height: 1.1;
-            letter-spacing: -0.01em;
+            font-size: 22px;
+            line-height: 1.2;
+            letter-spacing: 0;
             margin: 0;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text);
         }
         .settings-panel-tools {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .settings-panel-tool-btn {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             border: 1px solid transparent;
             border-radius: 50%;
             background: transparent;
@@ -192,11 +192,11 @@ html, body {
         }
         .settings-content {
             flex: 1;
-            padding: 24px 30px;
+            padding: 22px 20px;
             max-width: none;
             overflow-y: auto;
             position: relative;
-            border-left: 1px solid color-mix(in srgb, var(--rule) 44%, transparent);
+            border-left: 0;
             padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
         }
         body.settings-home-open .settings-content {
@@ -291,9 +291,9 @@ html, body {
         }
 
 .settings-panel-close {
-    width: 40px;
-    height: 40px;
-    border: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
     border-radius: 999px;
     background: transparent;
     color: var(--sub-text);
