@@ -2261,9 +2261,9 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, -8px, 0) scale(0.965);
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
-            visibility 0s linear var(--tg3-dur-panel);
+            opacity var(--motion-duration-fast) var(--tg3-ease-enter),
+            transform var(--motion-duration-fast) var(--tg3-ease-surface),
+            visibility 0s linear var(--motion-duration-fast);
         will-change: auto;
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
@@ -2277,9 +2277,9 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, 8px, 0) scale(0.965);
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
-            visibility 0s linear var(--tg3-dur-panel);
+            opacity var(--motion-duration-fast) var(--tg3-ease-enter),
+            transform var(--motion-duration-fast) var(--tg3-ease-surface),
+            visibility 0s linear var(--motion-duration-fast);
         will-change: auto;
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
@@ -2366,7 +2366,7 @@ button > i[class*=" bi-"],
     #contactContextMenu.is-open,
     .message-context-menu.active,
     .attach-menu.is-open {
-        animation: m-pop-overshoot var(--m-dur-base) var(--m-bouncy) both;
+        animation: none;
     }
 
     .reaction-picker.active {
