@@ -5140,6 +5140,7 @@ const initChatPage = async () => {
 
     function resetComposer() {
         messageInput.value = '';
+        messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
         linkDraftBarController?.syncFromInput?.({ force: true });
         resizeComposerInput();
         updateVoiceRecordButtonState();
@@ -5667,6 +5668,7 @@ const initChatPage = async () => {
             clearComposerInput: () => {
                 if (String(currentChatId || '') === sourceChatId) {
                     messageInput.value = '';
+                    messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
                     linkDraftBarController?.syncFromInput?.({ force: true });
                 }
                 // Keep local draft state in sync after send, so stale realtime draft

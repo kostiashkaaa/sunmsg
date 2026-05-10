@@ -68,6 +68,7 @@ export function createChatDraftsController(deps = {}) {
         const normalized = normalizeDraftText(value);
         if (messageInput.value === normalized) return;
         messageInput.value = normalized;
+        messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
         getLinkDraftBarController?.()?.syncFromInput?.({ force: true });
         resizeComposerInput?.();
         updateVoiceRecordButtonState?.();
