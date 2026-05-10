@@ -21,7 +21,6 @@ export function initSettingsNavShell({
     const settingsNavToggleEl = document.getElementById('settingsNavToggle');
     const settingsNavToggleLabelEl = document.getElementById('settingsNavToggleLabel');
     const settingsNavListEl = document.getElementById('settingsNavList');
-    const settingsSearchInputEl = document.getElementById('settingsSearchInput');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
     let mobileNavOpen = false;
@@ -30,14 +29,14 @@ export function initSettingsNavShell({
 
     const sectionTitles = {
         profile: 'Профиль',
-        privacy: 'Приватность',
-        keys: 'Безопасность',
-        notifications: 'Уведомления',
+        notifications: 'Уведомления и звук',
         'data-memory': 'Данные и память',
-        appearance: 'Внешний вид',
-        'chat-style': 'Обои',
+        privacy: 'Конфиденциальность',
+        appearance: 'Общие настройки',
+        'chat-style': 'Папки и стиль чатов',
+        keys: 'Безопасность',
         account: 'Устройства',
-        support: 'Поддержка',
+        support: 'Язык и поддержка',
     };
 
     function isCompactNav() {
@@ -323,61 +322,6 @@ export function initSettingsNavShell({
         if (isSectionChange && settingsContentEl) {
             settingsContentEl.scrollTop = 0;
         }
-
-        applySearchFilter();
-    }
-
-
-    function normalizeText(value) {
-        return String(value || '').trim().toLowerCase();
-    }
-
-    function applySearchFilter() {
-        const query = normalizeText(settingsSearchInputEl?.value);
-        const activeSection = document.getElementById(`section-${activeSectionId}`) || null;
-        const sectionMatchMap = new Map();
-
-        if (!query) {
-            sections.forEach((section) => {
-                section.querySelectorAll('.settings-card').forEach((card) => {
-                    card.hidden = false;
-                });
-            });
-        }
-
-        sections.forEach((section) => {
-            const sectionId = section.id.replace('section-', '');
-            const hasMatch = !query || normalizeText(section.textContent).includes(query);
-            sectionMatchMap.set(sectionId, hasMatch);
-        });
-
-        // Keep section tabs always visible; search filters settings content, not navigation.
-        navItems.forEach((item) => {
-            item.hidden = false;
-        });
-
-        if (!activeSection) return;
-
-        if (query && sectionMatchMap.get(activeSectionId) !== true) {
-            const firstMatch = Array.from(navItems).find((item) => {
-                const sectionId = item.dataset.section || '';
-                const labelMatch = normalizeText(item.textContent).includes(query);
-                return sectionMatchMap.get(sectionId) === true || labelMatch;
-            });
-            if (firstMatch && firstMatch.dataset.section && firstMatch.dataset.section !== activeSectionId) {
-                showSection(firstMatch.dataset.section, false, { immediate: true });
-                return;
-            }
-        }
-
-        const cards = Array.from(activeSection.querySelectorAll('.settings-card'));
-        cards.forEach((card) => {
-            if (!query) {
-                card.hidden = false;
-                return;
-            }
-            card.hidden = !normalizeText(card.textContent).includes(query);
-        });
     }
     if (settingsNavToggleEl) {
         settingsNavToggleEl.addEventListener('click', () => {
@@ -409,18 +353,10 @@ export function initSettingsNavShell({
         });
     });
 
-    const runSearchFilter = () => {
-        applySearchFilter();
-    };
-    settingsSearchInputEl?.addEventListener('input', runSearchFilter);
-    settingsSearchInputEl?.addEventListener('search', runSearchFilter);
-    settingsSearchInputEl?.addEventListener('change', runSearchFilter);
-
     syncCompactNavState();
     const initialHash = window.location.hash.substring(1);
     showSection(initialHash || 'profile', false, { immediate: true });
     ensureVisibleActiveSection(initialHash || 'profile');
-    applySearchFilter();
 
     window.addEventListener('hashchange', () => {
         const nextHash = window.location.hash.substring(1) || 'profile';
