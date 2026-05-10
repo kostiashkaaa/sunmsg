@@ -76,7 +76,7 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         } else if (attachMenu.classList.contains('is-open') || attachMenu.classList.contains('is-opening')) {
             attachMenu.classList.remove('is-open', 'is-opening');
             attachMenu.classList.add('is-closing');
-            waitForMotionEnd(attachMenu, 300).then(() => {
+            waitForMotionEnd(attachMenu, 180).then(() => {
                 if (seq !== transitionSeq) return;
                 attachMenu.classList.remove('is-closing');
             });
@@ -90,10 +90,10 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
                 attachMenu.classList.add('is-open');
                 requestAnimationFrame(() => {
                     if (seq !== transitionSeq) return;
+                    position();
                     attachMenu.classList.remove('is-opening');
                 });
             });
-            window.setTimeout(position, 190);
         }
     }
 

@@ -103,7 +103,7 @@ export function createMediaHydrationController(options = {}) {
             });
         }, {
             root: rootElement,
-            rootMargin: '280px 0px',
+            rootMargin: '180px 0px',
             threshold: 0.01,
         });
         return lazyHydrationObserver;
