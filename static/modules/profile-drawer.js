@@ -91,6 +91,27 @@ function ensureProfileLocaleListener() {
     profileLocaleListenerBound = true;
 }
 
+function ensureProfileHeroUsernameElement() {
+    const heroEl = document.querySelector('#partnerProfileDrawer .profile-hero');
+    if (!heroEl) return null;
+
+    let usernameEl = heroEl.querySelector('#profileHeroUsername');
+    if (!usernameEl) {
+        usernameEl = document.createElement('div');
+        usernameEl.id = 'profileHeroUsername';
+        usernameEl.className = 'profile-hero-username profile-hero-username--hidden';
+
+        const statusEl = heroEl.querySelector('#profileLastSeen');
+        if (statusEl && statusEl.parentNode === heroEl) {
+            heroEl.insertBefore(usernameEl, statusEl);
+        } else {
+            heroEl.appendChild(usernameEl);
+        }
+    }
+
+    return usernameEl;
+}
+
 export function initProfileDrawer({
     drawerEl,
     profileSheetEl,
@@ -472,12 +493,22 @@ export function renderProfileHeader(profile, { isChatBlocked, profileOnlineDot }
     const displayName = payload.display_name || payload.username || '\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C';
     const username = payload.username || '';
     const isSavedMessagesProfile = payload._saved_messages_profile === true;
+    const isGroupProfile = payload._group_profile === true;
     const largeAvatar = document.getElementById('profileLargeAvatar');
     const nameEl = document.getElementById('profileDisplayName');
     const userEl = document.getElementById('profileMetaUsername');
+    const heroUsernameEl = ensureProfileHeroUsernameElement();
 
     if (nameEl) nameEl.textContent = displayName;
     if (userEl) userEl.textContent = isSavedMessagesProfile ? '' : (username ? `@${username}` : '@unknown');
+
+    if (heroUsernameEl) {
+        const heroUsernameText = (!isSavedMessagesProfile && !isGroupProfile && username)
+            ? `@${username}`
+            : '';
+        heroUsernameEl.textContent = heroUsernameText;
+        heroUsernameEl.classList.toggle('profile-hero-username--hidden', !heroUsernameText);
+    }
 
     if (largeAvatar) {
         if (isSavedMessagesProfile) {
