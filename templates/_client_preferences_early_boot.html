@@ -1,0 +1,79 @@
+<script nonce="{{ csp_nonce }}">
+(() => {
+    'use strict';
+
+    const STORAGE_KEY = 'sun.clientPreferences.v1';
+    const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
+
+    function asObject(value) {
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    }
+
+    function asLanguage(value) {
+        return String(value ?? '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
+    }
+
+    function applyBootState(rawBoot, rawPreferences) {
+        const boot = asObject(rawBoot);
+        const preferences = asObject(rawPreferences);
+        const root = document.documentElement;
+        if (!root) return;
+
+        const darkMode = typeof boot.darkMode === 'boolean'
+            ? boot.darkMode
+            : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : null);
+        if (darkMode !== null) {
+            root.classList.toggle('dark-mode', darkMode);
+        }
+
+        const cssVars = asObject(boot.cssVars);
+        Object.entries(cssVars).forEach(([name, value]) => {
+            if (!name || typeof name !== 'string' || !name.startsWith('--')) return;
+            if (typeof value !== 'string' && typeof value !== 'number') return;
+            root.style.setProperty(name, String(value));
+        });
+
+        const language = asLanguage(
+            boot.language || preferences.language || root.getAttribute('lang') || 'ru',
+        );
+        root.setAttribute('lang', language);
+        try {
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+        } catch (_error) {
+            // Ignore storage write errors.
+        }
+    }
+
+    function applyLegacyFallback() {
+        const root = document.documentElement;
+        if (!root) return;
+        try {
+            const storedDark = localStorage.getItem('darkMode');
+            if (storedDark === 'true') root.classList.add('dark-mode');
+            if (storedDark === 'false') root.classList.remove('dark-mode');
+            const language = asLanguage(
+                localStorage.getItem(LANGUAGE_STORAGE_KEY) || root.getAttribute('lang') || 'ru',
+            );
+            root.setAttribute('lang', language);
+        } catch (_error) {
+            // Ignore storage read errors.
+        }
+    }
+
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            applyLegacyFallback();
+            return;
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') {
+            applyLegacyFallback();
+            return;
+        }
+        applyBootState(parsed.boot, parsed);
+    } catch (_error) {
+        applyLegacyFallback();
+    }
+})();
+</script>

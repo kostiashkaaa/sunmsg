@@ -24,10 +24,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     };
     const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-    async function persistClientPreferences(clientPreferences) {
+    async function persistClientPreferences(clientPreferences, options = {}) {
+        const keepalive = options && options.keepalive === true;
         const response = await fetch(withAppRoot('/api/save_settings'), {
             method: 'POST',
             credentials: 'include',
+            keepalive,
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCsrfToken(),
@@ -38,6 +40,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
+        }
+        if (keepalive) {
+            return;
         }
         const payload = await response.json().catch(() => ({}));
         if (!payload || payload.success === false) {
@@ -397,6 +402,17 @@ document.addEventListener('DOMContentLoaded', async function () {
     window.addEventListener('online', syncEmptyStateUi);
     window.addEventListener('offline', syncEmptyStateUi);
     window.addEventListener('focus', syncEmptyStateUi);
+    const flushClientPreferencesOnBackground = () => {
+        if (themeSyncApi && typeof themeSyncApi.flushClientPreferencesPersist === 'function') {
+            void themeSyncApi.flushClientPreferencesPersist({ keepalive: true });
+        }
+    };
+    window.addEventListener('pagehide', flushClientPreferencesOnBackground);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flushClientPreferencesOnBackground();
+        }
+    });
     window.addEventListener('storage', function (event) {
         const key = String(event.key || '');
         if (key === 'darkMode' || key === 'sun.interfaceTheme.v1' || key === 'sun.chatAppearance.v2') {

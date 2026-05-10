@@ -360,10 +360,21 @@
     }
 
     function writeStore(store) {
+        const normalizedStore = normalizeStore(store);
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeStore(store)));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedStore));
         } catch (_error) {
             // Ignore write errors in private browsing modes.
+        }
+        if (window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.merge === 'function') {
+            try {
+                window.SUN_CLIENT_PREFERENCES.merge({
+                    interfaceThemeStore: normalizedStore,
+                    darkMode: getThemeKey() === 'dark',
+                });
+            } catch (_error) {
+                // Ignore unified preference sync errors.
+            }
         }
     }
 
@@ -430,6 +441,13 @@
         document.documentElement.classList.toggle('dark-mode', isDark);
         if (document.body) {
             document.body.classList.toggle('dark-mode', isDark);
+        }
+        if (window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.merge === 'function') {
+            try {
+                window.SUN_CLIENT_PREFERENCES.merge({ darkMode: isDark });
+            } catch (_error) {
+                // Ignore unified preference sync errors.
+            }
         }
     }
 

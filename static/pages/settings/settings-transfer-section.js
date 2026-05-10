@@ -83,6 +83,10 @@ function readLocalPreference(key, fallback = '') {
     }
 }
 
+function normalizeLanguage(value) {
+    return String(value || '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
+}
+
 export function initSettingsTransferSection({
     tr,
     showAlert,
@@ -101,6 +105,7 @@ export function initSettingsTransferSection({
     }
 
     function collectLocalAppearance() {
+        const unifiedPrefs = window.SUN_CLIENT_PREFERENCES?.read?.() || null;
         const interfaceThemeStore = window.InterfaceTheme?.readStore?.() || null;
         const chatAppearanceStore = window.ChatAppearance?.readStore?.() || null;
         const darkMode = localStorage.getItem('darkMode') === 'true';
@@ -110,6 +115,8 @@ export function initSettingsTransferSection({
             chatAppearanceStore,
             darkMode,
             messageScale,
+            language: normalizeLanguage(unifiedPrefs?.language || document.documentElement?.lang || 'ru'),
+            updatedAt: String(unifiedPrefs?.updatedAt || '').trim() || null,
         };
     }
 
@@ -154,6 +161,7 @@ export function initSettingsTransferSection({
 
         return {
             darkMode: localAppearance.darkMode,
+            language: normalizeLanguage(localAppearance.language || document.documentElement?.lang || 'ru'),
             messageScale: localAppearance.messageScale,
             performanceMode,
             motionLevel,
@@ -166,6 +174,7 @@ export function initSettingsTransferSection({
             sidebarWeatherMetrics,
             interfaceThemeStore: localAppearance.interfaceThemeStore || {},
             chatAppearanceStore: localAppearance.chatAppearanceStore || {},
+            updatedAt: String(localAppearance.updatedAt || '').trim() || undefined,
         };
     }
 
@@ -184,6 +193,7 @@ export function initSettingsTransferSection({
                 motionLevel: ['auto', 'full', 'balanced', 'lite'].includes(String(direct.motionLevel || '').toLowerCase())
                     ? String(direct.motionLevel).toLowerCase()
                     : 'auto',
+                language: normalizeLanguage(direct.language || document.documentElement?.lang || 'ru'),
                 sendShortcut: normalizeSendShortcut(direct.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
                 timeFormat: normalizeTimeFormat(direct.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
                 sidebarWeatherEnabled: direct.sidebarWeatherEnabled === true,
@@ -199,6 +209,7 @@ export function initSettingsTransferSection({
                 chatAppearanceStore: direct.chatAppearanceStore && typeof direct.chatAppearanceStore === 'object'
                     ? direct.chatAppearanceStore
                     : null,
+                updatedAt: String(direct.updatedAt || '').trim() || undefined,
             };
         }
 
@@ -208,6 +219,7 @@ export function initSettingsTransferSection({
             messageScale: normalizeMessageScale(localAppearance.messageScale),
             performanceMode: 'auto',
             motionLevel: 'auto',
+            language: normalizeLanguage(localAppearance.language || document.documentElement?.lang || 'ru'),
             sendShortcut: normalizeSendShortcut(payload?.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
             timeFormat: normalizeTimeFormat(payload?.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
             sidebarWeatherEnabled: false,
@@ -221,6 +233,7 @@ export function initSettingsTransferSection({
             chatAppearanceStore: localAppearance.chatAppearanceStore && typeof localAppearance.chatAppearanceStore === 'object'
                 ? localAppearance.chatAppearanceStore
                 : null,
+            updatedAt: String(localAppearance.updatedAt || '').trim() || undefined,
         };
     }
 
@@ -242,8 +255,16 @@ export function initSettingsTransferSection({
         localStorage.setItem('sun_motion_level', clientPreferences.motionLevel || 'auto');
         localStorage.setItem(SEND_SHORTCUT_STORAGE_KEY, normalizeSendShortcut(clientPreferences.sendShortcut));
         localStorage.setItem(TIME_FORMAT_STORAGE_KEY, normalizeTimeFormat(clientPreferences.timeFormat));
+        localStorage.setItem('sun_ui_language', normalizeLanguage(clientPreferences.language || document.documentElement?.lang || 'ru'));
         window.InterfaceTheme?.applyCurrentTheme?.();
         window.ChatAppearance?.applyCurrentTheme?.();
+        if (window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.collect === 'function') {
+            try {
+                window.SUN_CLIENT_PREFERENCES.collect(clientPreferences, { touchUpdatedAt: true });
+            } catch (_) {
+                // Ignore unified preference sync errors.
+            }
+        }
     }
 
     async function exportSettings() {

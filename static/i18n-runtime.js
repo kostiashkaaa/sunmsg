@@ -412,6 +412,16 @@
         if (opts.persist !== false) {
             localStorage.setItem(STORAGE_KEY, currentLanguage);
         }
+        if (window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.merge === 'function') {
+            try {
+                window.SUN_CLIENT_PREFERENCES.merge(
+                    { language: currentLanguage },
+                    { touchUpdatedAt: previousLanguage !== currentLanguage },
+                );
+            } catch (_error) {
+                // Ignore local preference sync errors.
+            }
+        }
         if (opts.apply !== false) {
             applyTranslations(document.body || document.documentElement, currentLanguage);
         }

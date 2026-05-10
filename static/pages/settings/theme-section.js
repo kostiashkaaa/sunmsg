@@ -20,6 +20,28 @@ export function initThemeSection({
     let persistTimerId = 0;
     let persistInFlight = false;
     let persistQueued = false;
+    let pendingClientPreferences = null;
+
+    function resolveCurrentLanguage() {
+        const i18nApi = window.SUN_I18N || null;
+        if (i18nApi && typeof i18nApi.getLanguage === 'function') {
+            return String(i18nApi.getLanguage() || 'ru').toLowerCase() === 'en' ? 'en' : 'ru';
+        }
+        return String(document.documentElement?.lang || 'ru').toLowerCase() === 'en' ? 'en' : 'ru';
+    }
+
+    function syncClientPreferencesLocal(preferences) {
+        if (!window.SUN_CLIENT_PREFERENCES || typeof window.SUN_CLIENT_PREFERENCES.collect !== 'function') {
+            return;
+        }
+        try {
+            window.SUN_CLIENT_PREFERENCES.collect(preferences || collectClientPreferences(), {
+                touchUpdatedAt: true,
+            });
+        } catch (_) {
+            // Ignore local preference sync errors.
+        }
+    }
 
     function clampMessageScale(value) {
         const parsed = Number.parseFloat(value);
@@ -58,6 +80,8 @@ export function initThemeSection({
 
         return {
             darkMode: isDark(),
+            language: resolveCurrentLanguage(),
+            updatedAt: new Date().toISOString(),
             messageScale,
             performanceMode,
             motionLevel,
@@ -76,7 +100,8 @@ export function initThemeSection({
         }
 
         persistInFlight = true;
-        const payload = collectClientPreferences();
+        const payload = pendingClientPreferences || collectClientPreferences();
+        pendingClientPreferences = null;
         try {
             await persistClientPreferences(payload);
         } catch (_) {
@@ -91,6 +116,9 @@ export function initThemeSection({
     }
 
     function scheduleClientPreferencesPersist(delayMs = 360) {
+        const payload = collectClientPreferences();
+        pendingClientPreferences = payload;
+        syncClientPreferencesLocal(payload);
         if (typeof persistClientPreferences !== 'function') return;
         if (persistTimerId) {
             window.clearTimeout(persistTimerId);
@@ -515,5 +543,25 @@ export function initThemeSection({
             renderMessageScaleControls(event.newValue || 1);
         });
     })();
+
+    const flushOnPageHide = () => {
+        if (persistTimerId) {
+            window.clearTimeout(persistTimerId);
+            persistTimerId = 0;
+        }
+        const payload = pendingClientPreferences || collectClientPreferences();
+        pendingClientPreferences = payload;
+        syncClientPreferencesLocal(payload);
+        if (typeof persistClientPreferences === 'function') {
+            void persistClientPreferences(payload, { keepalive: true }).catch(() => {});
+        }
+    };
+
+    window.addEventListener('pagehide', flushOnPageHide);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            flushOnPageHide();
+        }
+    });
 }
 

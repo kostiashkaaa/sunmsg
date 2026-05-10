@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+from datetime import datetime, timezone
 
 MAX_CLIENT_PREFERENCES_JSON_LENGTH = 512_000
 _MAX_INTERFACE_THEME_STORE_JSON_LENGTH = 32_000
@@ -27,6 +28,60 @@ _SIDEBAR_WEATHER_METRICS = {
 
 def _clamp_message_scale(value: float) -> float:
     return max(0.9, min(1.3, value))
+
+
+def _normalize_updated_at(raw_value):
+    if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool):
+        raw_num = float(raw_value)
+        if math.isfinite(raw_num) and raw_num > 0:
+            if raw_num > 1e12:
+                timestamp_seconds = raw_num / 1000.0
+            elif raw_num > 1e9:
+                timestamp_seconds = raw_num
+            else:
+                timestamp_seconds = None
+            if timestamp_seconds:
+                try:
+                    dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+                    return dt.isoformat().replace('+00:00', 'Z')
+                except (OverflowError, OSError, ValueError):
+                    return None
+        return None
+
+    if not isinstance(raw_value, str):
+        return None
+
+    raw_text = raw_value.strip()
+    if not raw_text or len(raw_text) > 64:
+        return None
+
+    try:
+        as_number = float(raw_text)
+    except (TypeError, ValueError):
+        as_number = None
+
+    if as_number is not None and math.isfinite(as_number) and as_number > 0:
+        if as_number > 1e12:
+            timestamp_seconds = as_number / 1000.0
+        elif as_number > 1e9:
+            timestamp_seconds = as_number
+        else:
+            timestamp_seconds = None
+        if timestamp_seconds:
+            try:
+                dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+                return dt.isoformat().replace('+00:00', 'Z')
+            except (OverflowError, OSError, ValueError):
+                return None
+
+    normalized_text = raw_text[:-1] + '+00:00' if raw_text.endswith('Z') else raw_text
+    try:
+        dt = datetime.fromisoformat(normalized_text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
 def _normalize_json_object(raw_value, *, max_json_length: int):
@@ -74,6 +129,10 @@ def normalize_client_preferences(raw_value) -> dict:
     time_format = str(src.get('timeFormat') or '').strip().lower()
     if time_format in _TIME_FORMATS:
         normalized['timeFormat'] = time_format
+
+    language = str(src.get('language') or '').strip().lower()
+    if language in {'ru', 'en'}:
+        normalized['language'] = language
 
     sidebar_weather_enabled = src.get('sidebarWeatherEnabled')
     if isinstance(sidebar_weather_enabled, bool):
@@ -127,6 +186,10 @@ def normalize_client_preferences(raw_value) -> dict:
     )
     if chat_appearance_store is not None:
         normalized['chatAppearanceStore'] = chat_appearance_store
+
+    updated_at = _normalize_updated_at(src.get('updatedAt'))
+    if updated_at:
+        normalized['updatedAt'] = updated_at
 
     return normalized
 
