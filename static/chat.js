@@ -2789,6 +2789,9 @@ const initChatPage = async () => {
         resolveContactItemByChatId,
         updateActiveContactLastMessage: _updateActiveContactLastMessage,
         sortContactsList,
+        getPrivateKeyPem,
+        isEncryptedPayload,
+        decryptForDisplay,
     });
     const pinnedBarController = initPinnedBar({
         barEl: document.getElementById('pinnedBar'),
