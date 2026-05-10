@@ -38,17 +38,247 @@ export function applyFallbackAvatarTint(element, label = '') {
     element.setAttribute('data-avatar-tint', String(computeAvatarTintIndex(initials, 8)));
 }
 
+const DEFAULT_CUSTOM_EMOJI_BASE_PATH = '/static/emoji/custom';
+const DEFAULT_CUSTOM_EMOJI_EXTENSION = 'webp';
+const EMOJI_FLAG_RE = /^\p{Regional_Indicator}{2}$/u;
+const EMOJI_KEYCAP_RE = /^[#*0-9]\uFE0F?\u20E3$/u;
+const EMOJI_TAG_FLAG_RE = /^\u{1F3F4}(?:[\u{E0061}-\u{E007A}])+\u{E007F}$/u;
+const EMOJI_PICTOGRAPH_RE = /\p{Extended_Pictographic}/u;
+const EMOJI_VARIANT_RE = /^(?:fe0e|fe0f)$/i;
+const EMOJI_GRAPHEME_SEGMENTER = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null;
+
+const failedEmojiSources = new Set();
+let emojiImageErrorListenerBound = false;
+
+function normalizeAppRootPath(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw || raw === '/') return '';
+    const prefixed = raw.startsWith('/') ? raw : `/${raw}`;
+    return prefixed.replace(/\/+$/, '');
+}
+
+function withCustomEmojiAppRoot(path) {
+    const raw = String(path ?? '').trim();
+    if (!raw) return '/';
+    if (/^[a-z][a-z0-9+\-.]*:/i.test(raw) || raw.startsWith('//') || raw.startsWith('#')) {
+        return raw;
+    }
+
+    if (typeof window === 'undefined') {
+        return raw.startsWith('/') ? raw : `/${raw.replace(/^\/+/, '')}`;
+    }
+
+    const bodyRoot = typeof document !== 'undefined' ? document.body?.dataset?.appRoot : '';
+    const htmlRoot = typeof document !== 'undefined' ? document.documentElement?.dataset?.appRoot : '';
+    const root = normalizeAppRootPath(window.SUN_BOOTSTRAP?.app?.root || window.SUN_APP_ROOT || bodyRoot || htmlRoot || '');
+    if (!root) {
+        return raw.startsWith('/') ? raw : `/${raw.replace(/^\/+/, '')}`;
+    }
+    if (raw.startsWith('/')) {
+        if (raw === root || raw.startsWith(`${root}/`) || raw.startsWith(`${root}?`) || raw.startsWith(`${root}#`)) {
+            return raw;
+        }
+        return `${root}${raw}`;
+    }
+    return `${root}/${raw.replace(/^\/+/, '')}`;
+}
+
+function splitGraphemes(value) {
+    if (!value) return [];
+    if (EMOJI_GRAPHEME_SEGMENTER) {
+        return Array.from(EMOJI_GRAPHEME_SEGMENTER.segment(value), (item) => item.segment);
+    }
+    return Array.from(value);
+}
+
+function isEmojiGrapheme(segment) {
+    if (!segment) return false;
+    return EMOJI_PICTOGRAPH_RE.test(segment)
+        || EMOJI_FLAG_RE.test(segment)
+        || EMOJI_KEYCAP_RE.test(segment)
+        || EMOJI_TAG_FLAG_RE.test(segment);
+}
+
+function toEmojiCodePoints(emoji) {
+    return Array.from(emoji).map((symbol) => symbol.codePointAt(0).toString(16).toLowerCase());
+}
+
+function buildEmojiCodepointCandidates(emoji) {
+    const all = toEmojiCodePoints(emoji);
+    if (!all.length) return [];
+    const full = all.join('-');
+    const stripped = all.filter((value) => !EMOJI_VARIANT_RE.test(value)).join('-');
+    return stripped && stripped !== full ? [full, stripped] : [full];
+}
+
+function readCustomEmojiConfig() {
+    const rawConfig = (typeof window !== 'undefined' && window.SUN_CUSTOM_EMOJI_CONFIG && typeof window.SUN_CUSTOM_EMOJI_CONFIG === 'object')
+        ? window.SUN_CUSTOM_EMOJI_CONFIG
+        : {};
+    const basePathRaw = typeof rawConfig.basePath === 'string' ? rawConfig.basePath.trim() : DEFAULT_CUSTOM_EMOJI_BASE_PATH;
+    const extensionRaw = typeof rawConfig.extension === 'string' ? rawConfig.extension.trim().toLowerCase() : DEFAULT_CUSTOM_EMOJI_EXTENSION;
+    const basePath = (basePathRaw || DEFAULT_CUSTOM_EMOJI_BASE_PATH).replace(/\/+$/, '');
+    const extension = (extensionRaw || DEFAULT_CUSTOM_EMOJI_EXTENSION).replace(/^\.+/, '') || DEFAULT_CUSTOM_EMOJI_EXTENSION;
+    const enabled = rawConfig.enabled !== false;
+    return { enabled, basePath, extension };
+}
+
+function buildEmojiSourceCandidates(emoji, options = {}) {
+    const config = options.config || readCustomEmojiConfig();
+    const codepoints = buildEmojiCodepointCandidates(emoji);
+    return codepoints.map((code) => withCustomEmojiAppRoot(`${config.basePath}/${code}.${config.extension}`));
+}
+
+function createEmojiGraphicElement(emoji, options = {}) {
+    const normalized = typeof emoji === 'string' ? emoji.trim() : '';
+    if (!normalized || typeof document === 'undefined') return null;
+
+    const config = options.config || readCustomEmojiConfig();
+    if (!config.enabled) return null;
+
+    const candidates = buildEmojiSourceCandidates(normalized, { config });
+    const primarySource = candidates.find((source) => !failedEmojiSources.has(source));
+    if (!primarySource) return null;
+    const fallbackSource = candidates.find((source) => source !== primarySource && !failedEmojiSources.has(source)) || '';
+
+    const className = options.className || 'emoji-graphic';
+    const alt = options.alt || normalized;
+    const img = document.createElement('img');
+    img.className = className;
+    img.src = primarySource;
+    img.alt = alt;
+    img.draggable = false;
+    img.setAttribute('data-emoji-raw', normalized);
+    img.setAttribute('decoding', 'async');
+    if (options.title) {
+        img.setAttribute('title', options.title);
+    }
+    if (fallbackSource) {
+        img.setAttribute('data-emoji-fallback-src', fallbackSource);
+    }
+    return img;
+}
+
+function bindEmojiImageErrorListener() {
+    if (emojiImageErrorListenerBound || typeof document === 'undefined') return;
+    emojiImageErrorListenerBound = true;
+    document.addEventListener('error', (event) => {
+        const target = event?.target;
+        if (!target || typeof target !== 'object') return;
+        if (typeof target.matches !== 'function' || !target.matches('img.emoji-graphic')) return;
+
+        const failedSrc = String(target.currentSrc || target.getAttribute('src') || '');
+        if (failedSrc) {
+            failedEmojiSources.add(failedSrc);
+        }
+
+        const fallbackSrc = String(target.getAttribute('data-emoji-fallback-src') || '');
+        if (fallbackSrc && !failedEmojiSources.has(fallbackSrc) && fallbackSrc !== failedSrc) {
+            target.removeAttribute('data-emoji-fallback-src');
+            target.setAttribute('src', fallbackSrc);
+            return;
+        }
+
+        const fallbackText = target.getAttribute('data-emoji-raw') || target.getAttribute('alt') || '';
+        target.replaceWith(document.createTextNode(fallbackText));
+    }, true);
+}
+
+function replaceEmojiInTextNode(node, options = {}) {
+    const original = node?.nodeValue || '';
+    if (!original) return false;
+    const segments = splitGraphemes(original);
+    if (!segments.length) return false;
+
+    let hasEmoji = false;
+    const fragment = document.createDocumentFragment();
+    segments.forEach((segment) => {
+        if (!isEmojiGrapheme(segment)) {
+            fragment.appendChild(document.createTextNode(segment));
+            return;
+        }
+        const emojiNode = createEmojiGraphicElement(segment, options);
+        if (emojiNode) {
+            hasEmoji = true;
+            fragment.appendChild(emojiNode);
+            return;
+        }
+        fragment.appendChild(document.createTextNode(segment));
+    });
+
+    if (!hasEmoji) return false;
+    node.replaceWith(fragment);
+    return true;
+}
+
+function shouldSkipEmojiNode(parentNode) {
+    if (!parentNode || parentNode.nodeType !== 1) return true;
+    if (parentNode.closest('.emoji-graphic')) return true;
+    const tagName = String(parentNode.tagName || '').toLowerCase();
+    return tagName === 'script' || tagName === 'style' || tagName === 'textarea';
+}
+
 export function renderEmojiGraphicHtml(emoji, options = {}) {
     const normalized = typeof emoji === 'string' ? emoji.trim() : '';
     if (!normalized) return '';
-    const className = options.className || 'emoji-graphic';
     const alt = options.alt || normalized;
     const titleAttr = options.title ? ` title="${escapeHtml(options.title)}"` : '';
+    const config = readCustomEmojiConfig();
+    if (config.enabled) {
+        const className = options.className || 'emoji-graphic';
+        const candidates = buildEmojiSourceCandidates(normalized, { config });
+        const primarySource = candidates.find((source) => !failedEmojiSources.has(source));
+        const fallbackSource = candidates.find((source) => source !== primarySource && !failedEmojiSources.has(source));
+        if (primarySource) {
+            const fallbackAttr = fallbackSource ? ` data-emoji-fallback-src="${escapeHtml(fallbackSource)}"` : '';
+            return `<img class="${escapeHtml(className)}" src="${escapeHtml(primarySource)}" alt="${escapeHtml(alt)}" data-emoji-raw="${escapeHtml(normalized)}" decoding="async" draggable="false"${fallbackAttr}${titleAttr}>`;
+        }
+    }
+    const className = options.className || 'emoji-graphic';
     return `<span class="${escapeHtml(className)}" role="img" aria-label="${escapeHtml(alt)}"${titleAttr}>${escapeHtml(normalized)}</span>`;
 }
 
 export function applyEmojiGraphics(root) {
-    return Boolean(root);
+    if (!root || typeof document === 'undefined' || typeof window === 'undefined') return false;
+    const config = readCustomEmojiConfig();
+    if (!config.enabled) return false;
+
+    bindEmojiImageErrorListener();
+
+    const textNodeType = typeof Node !== 'undefined' ? Node.TEXT_NODE : 3;
+    const showText = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_TEXT : 4;
+    const acceptFilter = typeof NodeFilter !== 'undefined'
+        ? { acceptNode: (node) => (shouldSkipEmojiNode(node?.parentNode) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) }
+        : {
+            acceptNode: (node) => {
+                if (shouldSkipEmojiNode(node?.parentNode)) return 2;
+                return 1;
+            },
+        };
+
+    if (root.nodeType === textNodeType) {
+        return replaceEmojiInTextNode(root, { config });
+    }
+    if (!root.querySelectorAll || !root.ownerDocument?.createTreeWalker) {
+        return false;
+    }
+
+    const walker = root.ownerDocument.createTreeWalker(root, showText, acceptFilter);
+    const textNodes = [];
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+    }
+    if (!textNodes.length) return false;
+
+    let changed = false;
+    textNodes.forEach((node) => {
+        if (replaceEmojiInTextNode(node, { config })) {
+            changed = true;
+        }
+    });
+    return changed;
 }
 
 function tr(value) {
