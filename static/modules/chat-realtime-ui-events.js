@@ -19,6 +19,8 @@ export function registerRealtimeUiSocketHandlers({
     reactionUpdateStampByMessage,
     clearPendingReactionOp,
     clearPendingReactionOpByMessage,
+    isSupersededReactionRequest,
+    forgetSupersededReactionRequest,
     updateMessageReactionsState,
     getActiveReactionMessageId,
     closeReactionPicker,
@@ -120,11 +122,32 @@ export function registerRealtimeUiSocketHandlers({
         reactionUpdateStampByMessage.set(reactionKey, incomingStamp);
 
         const requestId = String(data?.request_id || '').trim();
+        let settledOperation = null;
         if (requestId) {
-            clearPendingReactionOp(requestId);
+            settledOperation = clearPendingReactionOp(requestId);
         } else {
-            clearPendingReactionOpByMessage(chatId, messageId);
+            settledOperation = clearPendingReactionOpByMessage(chatId, messageId);
         }
+        const isSupersededLocalEcho = Boolean(
+            requestId
+            && (
+                settledOperation?.superseded
+                || isSupersededReactionRequest?.(requestId)
+            )
+        );
+        if (isSupersededLocalEcho) {
+            forgetSupersededReactionRequest?.(requestId);
+            return;
+        }
+
+        if (requestId) {
+            forgetSupersededReactionRequest?.(requestId);
+        }
+        const isLocalOptimisticEcho = Boolean(
+            settledOperation
+            && String(settledOperation.chatId || '') === chatId
+            && Number(settledOperation.messageId) === messageId
+        );
 
         const changed = updateMessageReactionsState(chatId, messageId, data.reactions);
         if (String(chatId || '') !== String(getCurrentChatId() || '')) return;
@@ -134,7 +157,7 @@ export function registerRealtimeUiSocketHandlers({
 
         const messageEl = resolveCurrentChatMessageElement(messageId);
         if (messageEl) {
-            patchMessageReactions(messageEl, data.reactions, { animate: changed });
+            patchMessageReactions(messageEl, data.reactions, { animate: changed && !isLocalOptimisticEcho });
             return;
         }
         if (changed) {
