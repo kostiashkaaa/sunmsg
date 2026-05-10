@@ -578,8 +578,14 @@ export function initPrivacySection({
         const rawClientPreferences = payload.client_preferences && typeof payload.client_preferences === 'object'
             ? payload.client_preferences
             : {};
+        const unifiedClientPreferences = window.SUN_CLIENT_PREFERENCES && typeof window.SUN_CLIENT_PREFERENCES.read === 'function'
+            ? window.SUN_CLIENT_PREFERENCES.read()
+            : null;
+        const weatherClientPreferences = unifiedClientPreferences && typeof unifiedClientPreferences === 'object'
+            ? unifiedClientPreferences
+            : rawClientPreferences;
         persistedClientPreferences = { ...rawClientPreferences };
-        applySidebarWeatherPreferencesToControls(rawClientPreferences);
+        applySidebarWeatherPreferencesToControls(weatherClientPreferences);
         const nextSendShortcut = setSendShortcutSelection(
             rawClientPreferences.sendShortcut || readStorageValue(SEND_SHORTCUT_STORAGE_KEY, SEND_SHORTCUT_ENTER)
         );
