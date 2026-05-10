@@ -720,10 +720,10 @@
     .settings-nav-list {
         flex-direction: column;
         align-items: stretch;
-        gap: 4px;
+        gap: 2px;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 12px 10px;
+        padding: 10px 12px 14px;
         margin-top: 0;
         border: 0;
         border-radius: 0;
@@ -737,7 +737,8 @@
     .settings-nav-list .nav-item,
     .settings-nav-list .settings-logout-form .nav-item {
         width: 100%;
-        min-height: 44px;
+        min-height: 46px;
+        padding: 0 12px;
         border-radius: 12px;
         white-space: normal;
     }
@@ -770,12 +771,12 @@
     .settings-nav-list {
         flex-direction: column;
         align-items: stretch;
-        gap: 4px;
+        gap: 2px;
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
-        padding: 10px;
+        padding: 10px 12px 14px;
         margin-top: 0;
         border: 0;
         border-radius: 0;
@@ -795,7 +796,8 @@
 
     .settings-nav-list .nav-item {
         justify-content: flex-start;
-        min-height: 42px;
+        min-height: 46px;
+        padding: 0 12px;
         border-radius: 12px;
         white-space: normal;
     }

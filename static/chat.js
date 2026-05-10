@@ -1568,7 +1568,7 @@ const initChatPage = async () => {
     }
 
     sidebarProfileShortcut?.addEventListener('click', () => {
-        window.openSettingsOverlay?.('profile');
+        window.openSettingsOverlay?.('settings');
     });
 
     sidebarStatusBar?.addEventListener('click', () => {
@@ -1576,7 +1576,7 @@ const initChatPage = async () => {
         runSidebarStatusAction(action);
     });
     sidebarStatusSettingsBtn?.addEventListener('click', () => {
-        window.openSettingsOverlay?.('profile');
+        window.openSettingsOverlay?.('settings');
     });
 
     const syncConnectionUi = () => {
@@ -6641,7 +6641,7 @@ const initChatPage = async () => {
         }
         if (action === 'settings') {
             window.closeCommandPalette?.() || closeAnimatedDialog(document.getElementById('newChatModal'));
-            window.openSettingsOverlay?.('profile');
+            window.openSettingsOverlay?.('settings');
             return;
         }
         if (action === 'qr') {
