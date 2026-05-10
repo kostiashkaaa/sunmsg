@@ -135,14 +135,14 @@
 
                             <div class="auth-login-other-form" id="loginOtherForm">
                             <div class="auth-form-group" id="loginKeyGroup">
-                                <label class="auth-label" for="login_username">@ ник</label>
+                                <label class="auth-label" id="loginUsernameLabel" for="login_username">@ ник</label>
                                 <div class="auth-input-wrap auth-input-wrap-compact">
                                     <input type="text" class="auth-input" id="login_username"
                                            placeholder="anna_quiet" autocomplete="username"
                                            pattern="[a-z0-9_]+" maxlength="50">
                                     <i class="bi bi-at auth-input-icon"></i>
                                 </div>
-                                <label class="auth-label" for="loginMnemonicTextarea">24 слова через пробел</label>
+                                <label class="auth-label" id="loginMnemonicLabel" for="loginMnemonicTextarea">24 слова через пробел</label>
                                 <div class="auth-input-wrap auth-input-wrap-textarea">
                                     <textarea class="auth-input auth-input-textarea auth-mnemonic-textarea" id="loginMnemonicTextarea"
                                               rows="4" placeholder="river quiet north..." autocomplete="off"></textarea>
@@ -150,13 +150,13 @@
                             </div>
 
                             <div class="auth-form-group" id="loginTotpGroup">
-                                <label class="auth-label" for="login_totp_code">Код из приложения-аутентификатора</label>
+                                <label class="auth-label" id="loginTotpCodeLabel" for="login_totp_code">Код из приложения-аутентификатора</label>
                                 <div class="auth-input-wrap">
                                     <input type="text" class="auth-input totp-input" id="login_totp_code"
                                            placeholder="000000" maxlength="6" inputmode="numeric"
                                            autocomplete="one-time-code">
                                 </div>
-                                <p class="auth-totp-help">
+                                <p class="auth-totp-help" id="loginTotpHelpText">
                                     Откройте Google Authenticator или Microsoft Authenticator &rarr; введите 6-значный код
                                 </p>
                             </div>
@@ -164,7 +164,7 @@
                             <label class="auth-trust-row">
                                 <input type="checkbox" id="rememberDeviceCheckbox" class="auth-trust-checkbox">
                                 <span class="auth-trust-box"><span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span></span>
-                                <span>Запомнить это устройство на 30 дней</span>
+                                <span id="rememberDeviceLabel">Запомнить это устройство на 30 дней</span>
                             </label>
 
                             <button type="submit" class="auth-btn auth-btn-primary" id="loginSubmitBtn">
@@ -211,7 +211,7 @@
                         <div id="reg_username_hint" class="auth-username-hint">
                             Допустимые символы: a-z, 0-9, _
                         </div>
-                        <p class="auth-field-note">
+                        <p class="auth-field-note" id="registerUsernameNote">
                             Username используется для входа и должен быть уникальным.
                         </p>
                     </div>
@@ -222,7 +222,7 @@
                                    placeholder="Ваше имя" maxlength="50" required>
                             <i class="bi bi-person-badge auth-input-icon"></i>
                         </div>
-                        <p class="auth-field-note">
+                        <p class="auth-field-note" id="registerDisplayNameNote">
                             Отображаемое имя видят ваши контакты в чатах.
                         </p>
                     </div>
@@ -341,6 +341,20 @@
             <div class="auth-footer-rule"></div>
             <p class="auth-footer-quote" id="authFooterQuote">«Сервер не видит сообщения. Только вы и тот, с кем вы говорите.»</p>
         </div>
+
+        <section class="auth-legal-section" id="authLegalSection" aria-labelledby="authLegalTitle">
+            <h2 class="auth-legal-title" id="authLegalTitle">Документы и поддержка</h2>
+            <p class="auth-legal-sub" id="authLegalSub">Ниже собраны юридические документы и обратная связь.</p>
+            <nav class="auth-legal-links" id="authLegalLinks" aria-label="Юридические документы">
+                <a class="auth-legal-link" id="authLegalLinkTrust" href="{{ url_for('auth.trust_center') }}">Trust Center</a>
+                <a class="auth-legal-link" id="authLegalLinkPrivacy" href="{{ url_for('auth.privacy_policy') }}">Политика конфиденциальности</a>
+                <a class="auth-legal-link" id="authLegalLinkTerms" href="{{ url_for('auth.terms_of_service') }}">Пользовательское соглашение</a>
+                <a class="auth-legal-link" id="authLegalLinkFaq" href="{{ url_for('auth.security_faq') }}">FAQ по безопасности</a>
+                <a class="auth-legal-link" id="authLegalLinkAbout" href="{{ url_for('auth.about_project') }}">О проекте и приватности</a>
+                <a class="auth-legal-link" id="authLegalLinkGuide" href="{{ url_for('auth.onboarding_guide') }}">Гид по запуску</a>
+                <a class="auth-legal-link auth-legal-link--feedback" id="authLegalLinkFeedback" href="{{ url_for('support.feedback_page') }}">Обратная связь</a>
+            </nav>
+        </section>
 
     </main>
 

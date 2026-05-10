@@ -38,15 +38,17 @@ export function createQrLoginFlow({
         activeLayer: 0,
     };
 
+    const pickCopy = (ruText, enText) => (isEnglishUi() ? enText : ruText);
+
     function setLoginQrStatus(text) {
         const statusEl = document.getElementById('loginQrStatus');
         if (!statusEl) return;
         const value = String(text || '').trim();
         const hiddenStatuses = new Set([
-            'Готовим QR…',
-            'Сканируйте QR',
-            'Подтверждение…',
-            'Вход…',
+            pickCopy('Готовим QR…', 'Preparing QR…'),
+            pickCopy('Сканируйте QR', 'Scan the QR'),
+            pickCopy('Подтверждение…', 'Confirming…'),
+            pickCopy('Вход…', 'Signing in…'),
         ]);
         if (!value || hiddenStatuses.has(value)) {
             statusEl.textContent = '';
@@ -124,7 +126,7 @@ export function createQrLoginFlow({
     function defaultQrHelperText() {
         const intro = document.getElementById('loginIntroSub');
         const text = String(intro?.textContent || '').trim();
-        return text || tr('Сканируйте QR');
+        return text || pickCopy('Сканируйте QR', 'Scan the QR');
     }
 
     function setLoginQrExpiredVisual(expired) {
@@ -143,7 +145,7 @@ export function createQrLoginFlow({
     function enterExpiredQrState() {
         clearLoginQrTimers();
         setLoginQrPulse(false);
-        setLoginQrStatus(isEnglishUi() ? 'Refreshing QR…' : 'Обновляем QR…');
+        setLoginQrStatus(pickCopy('Обновляем QR…', 'Refreshing QR…'));
         setLoginQrExpiredVisual(true);
         wipeLoginQrSecrets();
         scheduleLoginQrAutoStart(260);
@@ -198,7 +200,7 @@ export function createQrLoginFlow({
             await window.ensureQrCodeLibrary();
         }
         if (typeof window.QRCode !== 'function') {
-            throw new Error('QR библиотека не загружена.');
+            throw new Error(pickCopy('QR библиотека не загружена.', 'QR library is not loaded.'));
         }
         const inactiveLayer = container.querySelector(`.auth-qr-login-layer[data-layer="${loginQrState.activeLayer ? 0 : 1}"]`);
         const activeLayer = container.querySelector(`.auth-qr-login-layer[data-layer="${loginQrState.activeLayer}"]`);
@@ -259,7 +261,7 @@ export function createQrLoginFlow({
         });
         const payload = await response.json();
         if (!response.ok || !payload.success || !payload.session_id || !payload.qr_text) {
-            throw new Error(tr(payload.error || 'Не удалось подготовить QR вход.'));
+            throw new Error(tr(payload.error || pickCopy('Не удалось подготовить QR вход.', 'Failed to prepare QR sign-in.')));
         }
 
         loginQrState.sessionId = String(payload.session_id);
@@ -312,14 +314,14 @@ export function createQrLoginFlow({
                 return;
             }
             if (!response.ok) {
-                throw new Error(tr(payload.error || 'Ошибка проверки QR-сессии.'));
+                throw new Error(tr(payload.error || pickCopy('Ошибка проверки QR-сессии.', 'Failed to verify QR session.')));
             }
             if (!payload.success || payload.state !== 'submitted') {
                 return;
             }
 
             setLoginQrPulse(true);
-            setLoginQrStatus('Подтверждение…');
+            setLoginQrStatus(pickCopy('Подтверждение…', 'Confirming…'));
 
             const senderPublicKey = await crypto.subtle.importKey(
                 'jwk',
@@ -339,15 +341,15 @@ export function createQrLoginFlow({
                 aesKey,
             });
             if (!String(privateKeyPem || '').trim()) {
-                throw new Error('Получен некорректный ключ.');
+                throw new Error(pickCopy('Получен некорректный ключ.', 'Received an invalid key.'));
             }
             const claimUsername = String(payload.username || '').trim().toLowerCase();
             if (!claimUsername) {
-                throw new Error('Не удалось определить аккаунт для QR-входа.');
+                throw new Error(pickCopy('Не удалось определить аккаунт для QR-входа.', 'Unable to resolve account for QR sign-in.'));
             }
 
             clearLoginQrTimers();
-            setLoginQrStatus('Вход…');
+            setLoginQrStatus(pickCopy('Вход…', 'Signing in…'));
             const profile = {
                 username: claimUsername,
                 displayName: String(payload.display_name || '').trim(),
@@ -380,7 +382,7 @@ export function createQrLoginFlow({
         clearLoginQrTimers();
         setLoginQrExpiredVisual(false);
         hideLoginQrRefreshButton();
-        setLoginQrStatus('Готовим QR…');
+        setLoginQrStatus(pickCopy('Готовим QR…', 'Preparing QR…'));
 
         await createAndRenderLoginQr();
         const refreshMs = Math.max(8_000, Number(loginQrState.expiresInMs) || DESIGN_QR_LIFETIME_MS);
@@ -400,8 +402,9 @@ export function createQrLoginFlow({
                     await pollLoginQrClaim();
                 } catch (err) {
                     clearLoginQrTimers();
-                    setLoginQrStatus(String(err?.message || 'QR вход прерван.'));
-                    showToast(String(err?.message || 'QR вход прерван.'), 'error');
+                    const message = String(err?.message || pickCopy('QR вход прерван.', 'QR sign-in interrupted.'));
+                    setLoginQrStatus(message);
+                    showToast(message, 'error');
                     return;
                 }
                 if (seq === loginQrState.flowSeq && loginQrState.sessionId) {
@@ -425,8 +428,9 @@ export function createQrLoginFlow({
         }
         loginQrState.autoStartTimer = window.setTimeout(() => {
             startLoginQrFlow().catch((err) => {
-                setLoginQrStatus(String(err?.message || 'Не удалось запустить QR вход.'));
-                showToast(String(err?.message || 'Не удалось запустить QR вход.'), 'error');
+                const message = String(err?.message || pickCopy('Не удалось запустить QR вход.', 'Unable to start QR sign-in.'));
+                setLoginQrStatus(message);
+                showToast(message, 'error');
             });
         }, Math.max(0, Number(delayMs) || 0));
     }
