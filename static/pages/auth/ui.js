@@ -73,11 +73,16 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
     const loginIntroSubEl = document.getElementById('loginIntroSub');
     const loginGoRegisterLabelEl = document.getElementById('loginGoRegisterLabel');
     const loginOtherMethodsSummaryEl = document.getElementById('loginOtherMethodsSummary');
+    const loginOtherTitleEl = document.getElementById('loginOtherTitle');
     const loginOtherMethodsTipEl = document.getElementById('loginOtherMethodsTip');
     const methodQrBtnLabelEl = document.getElementById('methodQrBtnLabel');
     const methodKeyBtnLabelEl = document.getElementById('methodKeyBtnLabel');
+    const methodKeyBtnSubEl = document.getElementById('methodKeyBtnSub');
+    const methodTotpTitleEl = document.getElementById('methodTotpTitle');
+    const methodTotpSubEl = document.getElementById('methodTotpSub');
     const registerStep1TitleEl = document.getElementById('registerStep1Title');
     const registerStep1SubEl = document.getElementById('registerStep1Sub');
+    const registerStep1BackBtn = document.getElementById('registerStep1BackBtn');
     const normalizeLanguageCode = (raw) => (String(raw || '').toLowerCase() === 'en' ? 'en' : 'ru');
 
     function syncAuthLanguageButtons(language = activeLanguage()) {
@@ -105,13 +110,19 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             : 'Я ещё не зарегистрирован';
         if (loginOtherMethodsSummaryEl) loginOtherMethodsSummaryEl.textContent = isEn
             ? 'Other ways to sign in'
-            : 'Другие способы входа';
+            : 'Другие способы войти';
+        if (loginOtherTitleEl) loginOtherTitleEl.textContent = isEn
+            ? 'Other ways to sign in'
+            : 'Другие способы войти';
         if (methodQrBtnLabelEl) methodQrBtnLabelEl.textContent = isEn ? 'QR sign in' : 'QR вход';
-        if (methodKeyBtnLabelEl) methodKeyBtnLabelEl.textContent = isEn ? '24-word phrase' : '24 слова';
+        if (methodKeyBtnLabelEl) methodKeyBtnLabelEl.textContent = isEn ? 'Sign in with 24 words' : 'Войти 24 словами';
+        if (methodKeyBtnSubEl) methodKeyBtnSubEl.textContent = isEn ? 'If your phone is lost' : 'Если потерян телефон';
+        if (methodTotpTitleEl) methodTotpTitleEl.textContent = isEn ? '6-digit code only' : 'Только 6-значный код';
+        if (methodTotpSubEl) methodTotpSubEl.textContent = 'Authenticator';
         if (loginOtherMethodsTipEl) {
             loginOtherMethodsTipEl.innerHTML = isEn
-                ? '<strong>Tip:</strong> QR on the main screen is the safest and fastest sign-in method.'
-                : '<strong>Совет:</strong> QR на главном экране — самый безопасный и быстрый способ входа.';
+                ? '<strong>Tip:</strong> QR on the main screen is the safest option. Other methods are fallback only.'
+                : '<strong>Совет:</strong> QR на главном экране — самый защищённый способ. Эти варианты — на крайний случай.';
         }
         if (registerStep1TitleEl) registerStep1TitleEl.textContent = isEn
             ? 'Step 1 — Account details'
@@ -119,6 +130,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (registerStep1SubEl) registerStep1SubEl.textContent = isEn
             ? 'Username is used for sign-in, display name is visible to contacts.'
             : 'Username нужен для входа, отображаемое имя видят ваши контакты.';
+        if (registerStep1BackBtn) registerStep1BackBtn.innerHTML = isEn ? '&larr; Back' : '&larr; Назад';
     }
 
     async function persistGuestLanguage(language) {
@@ -281,19 +293,11 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         const headline = document.getElementById('authHeadline');
         if (!headline) return;
         const language = activeLanguage();
-        if (tab === 'register') {
-            headline.innerHTML = language === 'en'
-                ? 'Create your quiet space.'
-                    + '<br><em class="auth-brand-headline-em">For people you trust.</em>'
-                : 'Создайте тихое место.'
-                    + '<br><em class="auth-brand-headline-em">Для тех, кому доверяете.</em>';
-            return;
-        }
         headline.innerHTML = language === 'en'
-            ? 'Sign in'
-                + '<br><em class="auth-brand-headline-em">in three seconds.</em>'
-            : 'Войти'
-                + '<br><em class="auth-brand-headline-em">за три секунды.</em>';
+            ? 'A quiet network'
+                + '<br><em class="auth-brand-headline-em">for your people.</em>'
+            : 'Тихая сеть'
+                + '<br><em class="auth-brand-headline-em">для своих.</em>';
     }
 
     document.getElementById('tab-login-btn')?.addEventListener('click', () => switchTab('login'));
