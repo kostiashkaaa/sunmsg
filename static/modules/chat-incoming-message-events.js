@@ -93,6 +93,7 @@ export function registerIncomingMessageSocketHandlers({
     normalizeMessageReactions,
     getCurrentPartnerDisplayName,
     markCurrentChatSeenIfPossible,
+    markOutgoingReadByPartnerMessage = () => {},
     setKeepChatPinnedToBottom,
     incrementOpenChatUnreadCount,
     updateJumpToNewMessagesButton,
@@ -276,6 +277,12 @@ export function registerIncomingMessageSocketHandlers({
                 },
                 data.created_at,
             );
+            if (!isSelf) {
+                markOutgoingReadByPartnerMessage({
+                    chatId: currentChatId,
+                    messageCreatedAt: data.created_at,
+                });
+            }
             if (!isSelf && (!isChatMuted(data.chat_id) || mentionForCurrentUser)) {
                 notifyIncomingMessage?.({
                     chatId: data.chat_id,

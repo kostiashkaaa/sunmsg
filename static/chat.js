@@ -6081,6 +6081,14 @@ const initChatPage = async () => {
             normalizeMessageReactions,
             getCurrentPartnerDisplayName: () => window.currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
             markCurrentChatSeenIfPossible,
+            markOutgoingReadByPartnerMessage: ({ chatId, messageCreatedAt } = {}) => {
+                const normalizedChatId = String(chatId || '').trim();
+                if (!normalizedChatId) return;
+                if (String(normalizedChatId) !== String(currentChatId || '')) return;
+                if (isCurrentChatGroup()) return;
+                markAllTicksRead(messageCreatedAt);
+                _updateSidebarContactTick(normalizedChatId, 'read', contactsList || document);
+            },
             setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
             incrementOpenChatUnreadCount: () => { openChatUnreadCount += 1; },
             updateJumpToNewMessagesButton,
