@@ -44,6 +44,12 @@ export function initRegisterFlow({
     const registerStep3ShowWordsBtn = document.getElementById('registerStep3ShowWordsBtn');
 
     const registerDoneLoginBtn = document.getElementById('registerDoneLoginBtn');
+    const registerDoneLoginLabel = document.getElementById('registerDoneLoginLabel');
+    const registerStep4Title = document.getElementById('registerStep4Title');
+    const registerStep4Sub = document.getElementById('registerStep4Sub');
+    const registerDoneName = document.getElementById('registerDoneName');
+    const registerDoneUsername = document.getElementById('registerDoneUsername');
+    const registerDoneAvatar = document.getElementById('registerDoneAvatar');
 
     const flowState = {
         step: 1,
@@ -100,6 +106,40 @@ export function initRegisterFlow({
             second = Math.floor(Math.random() * max);
         }
         return first < second ? [first, second] : [second, first];
+    }
+
+    function renderDoneStepCopy() {
+        const en = isEnglish();
+        if (registerStep4Title) {
+            registerStep4Title.textContent = en ? 'Done.' : 'Готово.';
+        }
+        if (registerStep4Sub) {
+            registerStep4Sub.textContent = en
+                ? 'Account created. Message history is stored only on your devices.'
+                : 'Аккаунт создан. История пишется только на ваших устройствах.';
+        }
+        if (registerDoneLoginLabel) {
+            registerDoneLoginLabel.textContent = en ? 'Open messenger' : 'Открыть мессенджер';
+        }
+    }
+
+    function renderDoneProfileCard() {
+        const username = String(flowState.profile.username || '').trim();
+        const displayName = String(flowState.profile.displayName || '').trim();
+        const fallbackName = isEnglish() ? 'New user' : 'Новый пользователь';
+        const fallbackUsername = isEnglish() ? '@new_user' : '@новый_пользователь';
+        const baseForInitial = (displayName || username || 'S').trim();
+        const avatarInitial = baseForInitial ? baseForInitial.charAt(0).toUpperCase() : 'S';
+
+        if (registerDoneName) {
+            registerDoneName.textContent = displayName || username || fallbackName;
+        }
+        if (registerDoneUsername) {
+            registerDoneUsername.textContent = username ? `@${username}` : fallbackUsername;
+        }
+        if (registerDoneAvatar) {
+            registerDoneAvatar.textContent = avatarInitial;
+        }
     }
 
     function setElementHidden(element, hidden) {
@@ -220,6 +260,8 @@ export function initRegisterFlow({
             registerMnemonicConfirmA?.focus();
         }
         if (step === 4) {
+            renderDoneStepCopy();
+            renderDoneProfileCard();
             registerDoneLoginBtn?.focus();
         }
     }

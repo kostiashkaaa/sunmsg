@@ -306,19 +306,31 @@
                 <button type="button" class="auth-btn auth-btn-text-link" id="registerStep3ShowWordsBtn">Показать слова ещё раз</button>
             </section>
 
-            <section class="auth-register-step" id="registerStep4Block" hidden>
-                <div class="auth-key-box-header">
-                    <div class="auth-key-box-icon accent"><i class="bi bi-check2-circle"></i></div>
-                    <div>
-                        <div class="auth-key-box-title" id="registerStep4Title">Шаг 4 — Готово</div>
-                        <div class="auth-key-box-sub" id="registerStep4Sub">Регистрация завершена, можно переходить в мессенджер</div>
+            <section class="auth-register-step auth-register-step4" id="registerStep4Block" hidden>
+                <div class="auth-register-progress auth-register-progress-inline auth-register-progress-inline-end" data-step="4">
+                    <div class="auth-register-progress-dots" aria-hidden="true">
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
+                        <span class="auth-register-progress-dot"></span>
                     </div>
                 </div>
-                <div class="auth-register-done-note" id="registerDoneSubtext">
-                    Аккаунт создан. Вы можете войти в защищённый чат.
+                <div class="auth-key-box-header auth-key-box-header--qrfirst auth-key-box-header--done">
+                    <div class="auth-key-box-icon"><i class="bi bi-stars"></i></div>
+                    <div>
+                        <div class="auth-key-box-title" id="registerStep4Title">Готово.</div>
+                        <div class="auth-key-box-sub" id="registerStep4Sub">Аккаунт создан. История пишется только на ваших устройствах.</div>
+                    </div>
+                </div>
+                <div class="auth-register-profile-card" id="registerDoneProfileCard">
+                    <div class="auth-register-profile-avatar" id="registerDoneAvatar">S</div>
+                    <div class="auth-register-profile-copy">
+                        <div class="auth-register-profile-name" id="registerDoneName">SUN User</div>
+                        <div class="auth-register-profile-username" id="registerDoneUsername">@sun_user</div>
+                    </div>
                 </div>
                 <button type="button" class="auth-btn auth-btn-primary" id="registerDoneLoginBtn">
-                    <span id="registerDoneLoginLabel">Войти</span>
+                    <span id="registerDoneLoginLabel">Открыть мессенджер</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
             </section>

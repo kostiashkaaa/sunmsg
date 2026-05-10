@@ -2585,15 +2585,46 @@ body[data-ui-language="en"] #registerStep1Sub::before {
     .auth-card,
     .auth-key-box {
         width: 100%;
-        min-height: 640px;
+        min-height: 0;
         height: min(744px, calc(100vh - 68px));
         padding: 28px 28px 26px;
         border-radius: 14px;
     }
+
+    .auth-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .auth-key-box.visible {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
 }
 
 #panel-login #ajaxLoginForm {
-    min-height: 642px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+}
+
+.tab-panel.active#panel-login,
+.tab-panel.active#panel-register {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#panel-register #ajaxRegisterForm,
+.auth-register-step1 {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .auth-login-intro {
@@ -2607,7 +2638,7 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 }
 
 .auth-login-other-form {
-    min-height: 540px;
+    min-height: 0;
     gap: 14px;
 }
 
@@ -2667,7 +2698,24 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 }
 
 .auth-register-step {
-    min-height: 642px;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+#panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-intro,
+#panel-login:has(#loginOtherMethodsDetails[open]) #loginQrGroup,
+#panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-actions {
+    display: none;
+}
+
+#panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-other-details {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+}
+
+#panel-login:has(#loginOtherMethodsDetails[open]) .auth-login-other-summary {
+    display: none;
 }
 
 .auth-register-words-wrap {
@@ -2687,6 +2735,85 @@ body[data-ui-language="en"] #registerStep1Sub::before {
 
 .auth-register-confirm-label .auth-input {
     font-size: 2rem !important;
+}
+
+.auth-register-step4 {
+    gap: 12px;
+}
+
+.auth-register-progress-inline-end {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.auth-key-box-header--done {
+    margin-bottom: 4px;
+}
+
+.auth-register-step4 .auth-key-box-title {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 3.2vw, 3rem);
+    line-height: 0.95;
+    letter-spacing: -0.018em;
+    font-weight: 400;
+    color: var(--ink);
+}
+
+.auth-register-step4 .auth-key-box-sub {
+    margin-top: 8px;
+    font-size: 1.03rem;
+    line-height: 1.44;
+    color: var(--sub-text);
+}
+
+.auth-register-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    padding: 12px 14px;
+}
+
+.auth-register-profile-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    font-family: var(--font-serif);
+    font-size: 1.7rem;
+    line-height: 1;
+}
+
+.auth-register-profile-copy {
+    min-width: 0;
+}
+
+.auth-register-profile-name {
+    font-size: 2rem;
+    line-height: 1.06;
+    color: var(--ink);
+    font-family: var(--font-serif);
+}
+
+.auth-register-profile-username {
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--sub-text);
+}
+
+#registerDoneLoginBtn {
+    margin-top: auto;
 }
 
 .auth-success-overlay {
