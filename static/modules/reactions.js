@@ -154,18 +154,25 @@ export function normalizeMessageReactions(rawReactions, { currentUserPublicKey }
 export function areMessageReactionsEqual(a, b, opts = {}) {
     const left = normalizeMessageReactions(a, opts);
     const right = normalizeMessageReactions(b, opts);
+    const serializeReactor = (reactor) => [
+        getReactionReactorKey(reactor),
+        String(reactor?.avatarUrl || ''),
+        String(reactor?.displayName || ''),
+        String(reactor?.username || ''),
+        String(reactor?.publicKey || ''),
+        Number.isFinite(reactor?.userId) ? String(reactor.userId) : '',
+    ].join('\u0001');
+
     if (left.length !== right.length) return false;
     for (let i = 0; i < left.length; i += 1) {
         if (left[i].emoji !== right[i].emoji) return false;
         if (left[i].count !== right[i].count) return false;
         if (left[i].reactedByMe !== right[i].reactedByMe) return false;
-        const lr = normalizeReactionReactors(left[i].reactors);
-        const rr = normalizeReactionReactors(right[i].reactors);
+        const lr = normalizeReactionReactors(left[i].reactors).map(serializeReactor).sort();
+        const rr = normalizeReactionReactors(right[i].reactors).map(serializeReactor).sort();
         if (lr.length !== rr.length) return false;
         for (let r = 0; r < lr.length; r += 1) {
-            if (getReactionReactorKey(lr[r]) !== getReactionReactorKey(rr[r])) return false;
-            if (String(lr[r].avatarUrl || '') !== String(rr[r].avatarUrl || '')) return false;
-            if (String(lr[r].displayName || '') !== String(rr[r].displayName || '')) return false;
+            if (lr[r] !== rr[r]) return false;
         }
     }
     return true;
