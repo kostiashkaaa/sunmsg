@@ -2289,7 +2289,7 @@
 
 
         .jump-to-new-btn {
-            --jump-to-new-size: 46px;
+            --jump-to-new-size: var(--composer-action-size);
             --jump-to-new-row-right: max(
                 22px,
                 calc(((100% - var(--chat-track-max-width)) / 2))
