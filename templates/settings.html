@@ -1006,6 +1006,39 @@
                     <input type="range" id="chatBubbleOpacity" min="35" max="100" value="90">
                 </div>
 
+                <div class="settings-row settings-row-chat-bubble-colors">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Цвета сообщений</div>
+                        <div class="settings-row-desc">Ручные или автоматически от выбранной темы</div>
+                    </div>
+                    <div class="chat-bubble-color-controls">
+                        <div class="chat-bubble-color-grid">
+                            <label class="chat-bubble-color-field">
+                                <span>Входящий фон</span>
+                                <input type="color" id="chatBubbleInBg" class="chat-style-color-input" value="#fffaf1">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Входящий текст</span>
+                                <input type="color" id="chatBubbleInText" class="chat-style-color-input" value="#17130d">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Исходящий фон</span>
+                                <input type="color" id="chatBubbleOutBg" class="chat-style-color-input" value="#2b2417">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Исходящий текст</span>
+                                <input type="color" id="chatBubbleOutText" class="chat-style-color-input" value="#fff4dc">
+                            </label>
+                        </div>
+                        <div class="chat-bubble-color-actions">
+                            <span id="chatBubbleModeBadge" class="chat-style-meta">Цвета по теме</span>
+                            <button type="button" class="btn-settings secondary chat-bubble-theme-btn" id="chatBubbleUseThemeBtn">
+                                Цвета темы
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="settings-row">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Масштаб сообщений</div>

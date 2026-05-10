@@ -259,6 +259,12 @@ export function initThemeSection({
         const gradientA = document.getElementById('chatGradientColorA');
         const gradientB = document.getElementById('chatGradientColorB');
         const bubbleOpacity = document.getElementById('chatBubbleOpacity');
+        const bubbleInBgInput = document.getElementById('chatBubbleInBg');
+        const bubbleInTextInput = document.getElementById('chatBubbleInText');
+        const bubbleOutBgInput = document.getElementById('chatBubbleOutBg');
+        const bubbleOutTextInput = document.getElementById('chatBubbleOutText');
+        const bubbleUseThemeBtn = document.getElementById('chatBubbleUseThemeBtn');
+        const bubbleModeBadge = document.getElementById('chatBubbleModeBadge');
         const messageScaleRange = document.getElementById('chatMessageScaleRange');
         const messageScaleValue = document.getElementById('chatMessageScaleValue');
         const messageScalePresetButtons = Array.from(document.querySelectorAll('#chatMessageScalePresets .chat-scale-chip'));
@@ -322,6 +328,55 @@ export function initThemeSection({
                 : tr('Файл не выбран');
         }
 
+        function normalizeHexColor(value, fallback) {
+            const safeFallback = String(fallback || '#000000').trim();
+            const normalized = String(value || '').trim().toLowerCase();
+            if (/^#[0-9a-f]{6}$/.test(normalized)) return normalized;
+            if (/^#[0-9a-f]{3}$/.test(normalized)) {
+                return `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`;
+            }
+            return safeFallback;
+        }
+
+        function getThemeBubbleDefaults() {
+            if (typeof chatAppearanceApi.getThemeBubbleDefaults === 'function') {
+                return chatAppearanceApi.getThemeBubbleDefaults(activeThemeKey());
+            }
+            return activeThemeKey() === 'dark'
+                ? { inBg: '#242016', inText: '#f4ecd9', outBg: '#d7a84d', outText: '#1d160b' }
+                : { inBg: '#fffaf1', inText: '#17130d', outBg: '#2b2417', outText: '#fff4dc' };
+        }
+
+        function resolveBubbleColorsForUi(state) {
+            const defaults = getThemeBubbleDefaults();
+            const bubbleState = state && typeof state.bubbleColors === 'object' ? state.bubbleColors : {};
+            const mode = bubbleState.mode === 'custom' ? 'custom' : 'auto';
+            const source = mode === 'custom' ? bubbleState : defaults;
+            return {
+                mode,
+                inBg: normalizeHexColor(source.inBg, defaults.inBg),
+                inText: normalizeHexColor(source.inText, defaults.inText),
+                outBg: normalizeHexColor(source.outBg, defaults.outBg),
+                outText: normalizeHexColor(source.outText, defaults.outText),
+            };
+        }
+
+        function patchBubbleColors(partialPatch, mode = 'custom') {
+            const state = getCurrentState();
+            const current = resolveBubbleColorsForUi(state);
+            const defaults = getThemeBubbleDefaults();
+            const patch = partialPatch && typeof partialPatch === 'object' ? partialPatch : {};
+            patchState({
+                bubbleColors: {
+                    mode: mode === 'custom' ? 'custom' : 'auto',
+                    inBg: normalizeHexColor(patch.inBg ?? current.inBg, defaults.inBg),
+                    inText: normalizeHexColor(patch.inText ?? current.inText, defaults.inText),
+                    outBg: normalizeHexColor(patch.outBg ?? current.outBg, defaults.outBg),
+                    outText: normalizeHexColor(patch.outText ?? current.outText, defaults.outText),
+                },
+            });
+        }
+
         function setModeUI(mode) {
             modeButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.mode === mode));
             panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === mode));
@@ -342,6 +397,16 @@ export function initThemeSection({
             customRepeat.checked = !!state.custom?.repeat;
             updateCustomMeta(state);
             renderMessageScaleControls(getStoredMessageScale());
+            const bubbleColors = resolveBubbleColorsForUi(state);
+            if (bubbleInBgInput) bubbleInBgInput.value = bubbleColors.inBg;
+            if (bubbleInTextInput) bubbleInTextInput.value = bubbleColors.inText;
+            if (bubbleOutBgInput) bubbleOutBgInput.value = bubbleColors.outBg;
+            if (bubbleOutTextInput) bubbleOutTextInput.value = bubbleColors.outText;
+            if (bubbleModeBadge) {
+                bubbleModeBadge.textContent = bubbleColors.mode === 'custom'
+                    ? tr('Ручные цвета')
+                    : tr('Цвета по теме');
+            }
 
             document.querySelectorAll('.preset-btn').forEach((el) => {
                 const isActive = state.mode === 'preset' && state.presetId === el.dataset.presetId;
@@ -475,6 +540,33 @@ export function initThemeSection({
 
         bubbleOpacity.addEventListener('input', function () {
             patchState({ bubbleOpacity: Number(this.value) / 100 });
+            scheduleApplyNow();
+        });
+
+        bubbleInBgInput?.addEventListener('input', function () {
+            patchBubbleColors({ inBg: this.value }, 'custom');
+            scheduleApplyNow();
+        });
+
+        bubbleInTextInput?.addEventListener('input', function () {
+            patchBubbleColors({ inText: this.value }, 'custom');
+            scheduleApplyNow();
+        });
+
+        bubbleOutBgInput?.addEventListener('input', function () {
+            patchBubbleColors({ outBg: this.value }, 'custom');
+            scheduleApplyNow();
+        });
+
+        bubbleOutTextInput?.addEventListener('input', function () {
+            patchBubbleColors({ outText: this.value }, 'custom');
+            scheduleApplyNow();
+        });
+
+        bubbleUseThemeBtn?.addEventListener('click', () => {
+            const defaults = getThemeBubbleDefaults();
+            patchBubbleColors(defaults, 'auto');
+            refreshControlValues();
             scheduleApplyNow();
         });
 
