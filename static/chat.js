@@ -1478,23 +1478,8 @@ const initChatPage = async () => {
     requestAnimationFrame(refreshVisibleEmojiGraphics);
     window.addEventListener('load', refreshVisibleEmojiGraphics, { once: true });
     scheduleNonCriticalTask(() => {
-        ensureEmojiPicker().catch((error) => {
-            console.warn('Deferred emoji picker init failed', error);
-        });
-    });
-    scheduleNonCriticalTask(() => {
-        ensureMessageSearch().catch((error) => {
-            console.warn('Deferred message search init failed', error);
-        });
-    });
-    scheduleNonCriticalTask(() => {
         ensureSidebarSearch().catch((error) => {
             console.warn('Deferred sidebar search init failed', error);
-        });
-    });
-    scheduleNonCriticalTask(() => {
-        ensureSidebarResize().catch((error) => {
-            console.warn('Deferred sidebar resize init failed', error);
         });
     });
     SettingsPanel();

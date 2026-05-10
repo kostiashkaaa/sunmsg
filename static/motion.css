@@ -2366,7 +2366,7 @@ button > i[class*=" bi-"],
     #contactContextMenu.is-open,
     .message-context-menu.active,
     .attach-menu.is-open {
-        animation: none;
+        animation: m-pop-overshoot var(--m-dur-fast) var(--m-decel) both;
     }
 
     .reaction-picker.active {

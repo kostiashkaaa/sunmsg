@@ -25,6 +25,7 @@ export function initSettingsNavShell({
     const settingsNavEditProfileBtnEl = document.getElementById('settingsNavEditProfileBtn');
     const settingsHeaderEditBtnEl = document.getElementById('settingsHeaderEditBtn');
     const settingsHeaderMoreBtnEl = document.getElementById('settingsHeaderMoreBtn');
+    const settingsSearchInputEl = document.getElementById('settingsSearchInput');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
     let mobileNavOpen = false;
@@ -90,6 +91,22 @@ export function initSettingsNavShell({
         if (!isCompactNav()) {
             setMobileNavOpen(false);
         }
+    }
+
+    function runSearchFilter() {
+        const query = String(settingsSearchInputEl?.value || '').trim().toLowerCase();
+        const cards = document.querySelectorAll('.settings-card');
+        if (!cards.length) return;
+        if (!query) {
+            cards.forEach((card) => {
+                card.hidden = false;
+            });
+            return;
+        }
+        cards.forEach((card) => {
+            const cardText = String(card.textContent || '').toLowerCase();
+            card.hidden = !cardText.includes(query);
+        });
     }
 
     function syncSectionTitle(id, navKey = '') {
@@ -378,6 +395,9 @@ export function initSettingsNavShell({
             setMobileNavOpen(!mobileNavOpen);
         });
     }
+
+    settingsSearchInputEl?.addEventListener('input', runSearchFilter);
+    settingsSearchInputEl?.addEventListener('search', runSearchFilter);
 
     if (typeof compactNavMedia.addEventListener === 'function') {
         compactNavMedia.addEventListener('change', syncCompactNavState);
