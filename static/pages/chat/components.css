@@ -6424,7 +6424,7 @@
         .composer-input-visual .emoji-graphic {
             width: 1.18em;
             height: 1.18em;
-            margin: 0 0.02em;
+            margin: 0;
             vertical-align: -0.18em;
         }
 
