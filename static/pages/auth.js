@@ -120,6 +120,7 @@ initRegisterFlow({
     assertWebCryptoSupport: requireWebCrypto,
     withAppRoot,
     getCsrfToken,
+    setCsrfToken,
     activeLanguage: ui.activeLanguage,
     setMnemonicToGrid: ui.setMnemonicToGrid,
     switchTab: ui.switchTab,

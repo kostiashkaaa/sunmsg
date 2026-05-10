@@ -152,7 +152,10 @@
             </div>
 
             <div class="tab-panel" id="panel-register" role="tabpanel">
-                <form id="ajaxRegisterForm">
+                <div class="auth-register-progress" id="registerFlowProgress" aria-live="polite">
+                    Шаг 1 из 4 — Данные аккаунта
+                </div>
+                <form id="ajaxRegisterForm" class="auth-register-step1" autocomplete="off">
                     <div class="auth-form-group">
                         <label class="auth-label" for="reg_username">Имя пользователя</label>
                         <div class="auth-input-wrap">
@@ -164,6 +167,9 @@
                         <div id="reg_username_hint" class="auth-username-hint">
                             Допустимые символы: a-z, 0-9, _
                         </div>
+                        <p class="auth-field-note">
+                            Username используется для входа и должен быть уникальным.
+                        </p>
                     </div>
                     <div class="auth-form-group">
                         <label class="auth-label" for="reg_display_name">Отображаемое имя</label>
@@ -172,9 +178,12 @@
                                    placeholder="Ваше имя" maxlength="50" required>
                             <i class="bi bi-person-badge auth-input-icon"></i>
                         </div>
+                        <p class="auth-field-note">
+                            Отображаемое имя видят ваши контакты в чатах.
+                        </p>
                     </div>
                     <button type="submit" class="auth-btn auth-btn-primary" id="registerSubmitBtn">
-                        <span id="registerBtnText">Создать аккаунт</span>
+                        <span id="registerBtnText">Создать и продолжить</span>
                         <span class="auth-btn-arrow">&rarr;</span>
                     </button>
                 </form>
@@ -182,52 +191,95 @@
         </div>
 
         <div class="auth-key-box" id="keyResultBox">
-
-            <div class="auth-key-box-header">
-                <div class="auth-key-box-icon"><i class="bi bi-shield-lock"></i></div>
-                <div>
-                    <div class="auth-key-box-title">Шаг 1 &mdash; Сохраните 24 слова</div>
-                    <div class="auth-key-box-sub">Это ЕДИНСТВЕННЫЙ способ восстановить доступ и историю</div>
+            <section class="auth-register-step" id="registerStep2Block" hidden>
+                <div class="auth-key-box-header">
+                    <div class="auth-key-box-icon"><i class="bi bi-shield-lock"></i></div>
+                    <div>
+                        <div class="auth-key-box-title">Шаг 2 — Сохраните 24 слова</div>
+                        <div class="auth-key-box-sub">Без этой фразы восстановить доступ невозможно</div>
+                    </div>
                 </div>
-            </div>
-            <div class="auth-form-group auth-private-key-group">
-                <textarea id="privateKeyContent" class="auth-input mono" rows="4" 
-                          readonly></textarea>
-            </div>
-            <button type="button" class="auth-btn auth-btn-secondary auth-copy-key-btn" id="copyPrivateKeyBtn">
-                <i class="bi bi-clipboard"></i> Скопировать 24 слова
-            </button>
+                <div class="auth-form-group auth-private-key-group">
+                    <textarea id="privateKeyContent" class="auth-input mono" rows="4" readonly></textarea>
+                </div>
+                <button type="button" class="auth-btn auth-btn-secondary auth-copy-key-btn" id="copyPrivateKeyBtn">
+                    <i class="bi bi-clipboard"></i> Скопировать 24 слова
+                </button>
+                <div class="auth-register-check-wrap">
+                    <div class="auth-register-check-title">Подтвердите, что вы действительно сохранили фразу</div>
+                    <div class="auth-register-confirm-grid">
+                        <label class="auth-register-confirm-label" for="registerMnemonicConfirmA">
+                            <span id="registerMnemonicConfirmPromptA">Слово №1</span>
+                            <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmA" autocomplete="off">
+                        </label>
+                        <label class="auth-register-confirm-label" for="registerMnemonicConfirmB">
+                            <span id="registerMnemonicConfirmPromptB">Слово №2</span>
+                            <input type="text" class="auth-input auth-register-confirm-input" id="registerMnemonicConfirmB" autocomplete="off">
+                        </label>
+                    </div>
+                    <div class="auth-register-inline-error" id="registerMnemonicConfirmError" hidden></div>
+                </div>
+                <button type="button" class="auth-btn auth-btn-primary" id="registerMnemonicConfirmBtn">
+                    <span>Подтвердить фразу и продолжить</span>
+                    <span class="auth-btn-arrow">&rarr;</span>
+                </button>
+            </section>
 
-            <div class="qr-divider">
+            <section class="auth-register-step" id="registerStep3Block" hidden>
                 <div class="auth-key-box-header auth-key-box-header--qr">
                     <div class="auth-key-box-icon accent"><i class="bi bi-phone"></i></div>
                     <div>
-                        <div class="auth-key-box-title">Шаг 2 &mdash; Подключите приложение-аутентификатор</div>
-                        <div class="auth-key-box-sub">Для входа по 6-значному коду с телефона</div>
+                        <div class="auth-key-box-title">Шаг 3 — Подключите приложение-аутентификатор</div>
+                        <div class="auth-key-box-sub">Введите 6-значный код, чтобы завершить подключение TOTP</div>
                     </div>
                 </div>
                 <div class="auth-totp-layout">
                     <div id="totpQrContainer" class="auth-totp-qr"></div>
                     <div class="auth-totp-copy">
                         <p class="qr-instructions">
-                            1. Откройте <strong>Google Authenticator</strong>
-                               или <strong>Microsoft Authenticator</strong><br>
+                            1. Откройте <strong>Google Authenticator</strong> или <strong>Microsoft Authenticator</strong><br>
                             2. Нажмите <strong>"+"</strong> и отсканируйте QR-код<br>
-                            3. Наведите камеру на код слева<br>
-                            4. SUN Messenger появится в списке
+                            3. Введите текущий 6-значный код ниже
                         </p>
-                        <p class="auth-totp-manual-label">
-                            Или введите секрет вручную:
-                        </p>
+                        <p class="auth-totp-manual-label">Или введите секрет вручную:</p>
                         <div class="totp-secret-box" id="totpSecretDisplay"></div>
                     </div>
                 </div>
-            </div>
+                <div class="auth-form-group auth-register-totp-verify-group">
+                    <label class="auth-label" for="registerTotpVerifyCode">Код из Authenticator</label>
+                    <div class="auth-input-wrap">
+                        <input type="text" class="auth-input totp-input" id="registerTotpVerifyCode"
+                               placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                    </div>
+                </div>
+                <div class="auth-register-totp-actions">
+                    <button type="button" class="auth-btn auth-btn-primary" id="registerTotpVerifyBtn">
+                        <span>Проверить код</span>
+                        <span class="auth-btn-arrow">&rarr;</span>
+                    </button>
+                    <button type="button" class="auth-btn auth-btn-secondary" id="registerTotpSkipBtn">
+                        Настроить позже
+                    </button>
+                </div>
+                <div class="auth-register-status" id="registerTotpStatus" aria-live="polite"></div>
+            </section>
 
-            <div class="auth-key-warning">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <p>Сохраните ключ и настройте приложение-аутентификатор &mdash; это два независимых способа войти. Сервер не хранит пароли.</p>
-            </div>
+            <section class="auth-register-step" id="registerStep4Block" hidden>
+                <div class="auth-key-box-header">
+                    <div class="auth-key-box-icon accent"><i class="bi bi-check2-circle"></i></div>
+                    <div>
+                        <div class="auth-key-box-title">Шаг 4 — Готово</div>
+                        <div class="auth-key-box-sub">Регистрация завершена, можно переходить в мессенджер</div>
+                    </div>
+                </div>
+                <div class="auth-register-done-note" id="registerDoneSubtext">
+                    Аккаунт создан. Вы можете войти в защищённый чат.
+                </div>
+                <button type="button" class="auth-btn auth-btn-primary" id="registerDoneLoginBtn">
+                    <span>Войти</span>
+                    <span class="auth-btn-arrow">&rarr;</span>
+                </button>
+            </section>
         </div>
 
         <div class="auth-footer">

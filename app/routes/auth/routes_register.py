@@ -94,6 +94,8 @@ def register_client():
         return jsonify({'success': False, 'error': 'Ошибка проверки владения ключом.'}), 400
 
     conn = get_db_connection()
+    created_user_id = 0
+    created_user_public_key = ''
     try:
         profile_language = normalize_language(
             requested_language,
@@ -115,12 +117,16 @@ def register_client():
             ''',
             (username,),
         ).fetchone()
-        if inserted_user:
-            ensure_default_saved_messages_chat(
-                conn,
-                user_id=int(inserted_user['id']),
-                public_key=str(inserted_user['public_key'] or ''),
-            )
+        if not inserted_user:
+            logger.error('register_client failed to reload inserted user username=%s', username)
+            return jsonify({'success': False, 'error': 'Не удалось завершить регистрацию. Повторите попытку.'}), 500
+        created_user_id = int(inserted_user['id'])
+        created_user_public_key = str(inserted_user['public_key'] or '')
+        ensure_default_saved_messages_chat(
+            conn,
+            user_id=created_user_id,
+            public_key=created_user_public_key,
+        )
         conn.commit()
     except IntegrityError as exc:
         err_text = str(exc).lower()
@@ -130,4 +136,20 @@ def register_client():
         return jsonify({'success': False, 'error': 'Ошибка базы данных при регистрации.'}), 500
     finally:
         conn.close()
+
+    session['user_id'] = created_user_id
+    session['public_key_pem'] = created_user_public_key
+    session['ui_language'] = profile_language
+    session.permanent = False
+    for key in (
+        'pending_totp_user_id',
+        'pending_totp_public_key',
+        'pending_totp_remember',
+        'pending_totp_issued_at',
+        'pending_totp_setup_user_id',
+        'pending_totp_setup_secret',
+        'pending_totp_setup_issued_at',
+    ):
+        session.pop(key, None)
+
     return jsonify({'success': True})
