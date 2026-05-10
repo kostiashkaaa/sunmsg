@@ -723,7 +723,11 @@
                 overscroll-behavior: contain;
                 -webkit-overflow-scrolling: touch;
                 touch-action: pan-y;
-    transition: opacity var(--m-dur-fast) var(--m-decel), transform var(--m-dur-fast) var(--m-decel);
+    transition:
+        padding-bottom var(--m-dur-fast) var(--m-decel),
+        scroll-padding-bottom var(--m-dur-fast) var(--m-decel),
+        opacity var(--m-dur-fast) var(--m-decel),
+        transform var(--m-dur-fast) var(--m-decel);
 }
             html.mobile-keyboard-active .chat-messages,
             html.mobile-keyboard-active .chat-input-area {
@@ -955,7 +959,10 @@
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
                 padding-bottom: 8px;
                 z-index: 1004;
-    transition: opacity var(--m-dur-fast) var(--m-decel), transform var(--m-dur-fast) var(--m-decel);
+    transition:
+        bottom var(--m-dur-fast) var(--m-decel),
+        opacity var(--m-dur-fast) var(--m-decel),
+        transform var(--m-dur-fast) var(--m-decel);
 }
             .jump-to-new-btn {
                 --jump-to-new-size: 44px;
