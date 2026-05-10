@@ -121,10 +121,6 @@ export function createQrLoginFlow({
         return String(raw).toLowerCase() === 'en';
     }
 
-    function qrRefreshButtonLabel() {
-        return isEnglishUi() ? '↻ Refresh QR' : '↻ Обновить QR';
-    }
-
     function defaultQrHelperText() {
         const intro = document.getElementById('loginIntroSub');
         const text = String(intro?.textContent || '').trim();
@@ -144,42 +140,13 @@ export function createQrLoginFlow({
         }
     }
 
-    function showLoginQrRefreshButton(onRefresh) {
-        const container = document.getElementById('loginQrCodeContainer');
-        if (!container) return;
-        let button = document.getElementById('loginQrRefreshBtn');
-        if (!button) {
-            button = document.createElement('button');
-            button.id = 'loginQrRefreshBtn';
-            button.type = 'button';
-            button.className = 'auth-btn auth-btn-accent auth-qr-login-refresh-btn';
-            button.hidden = true;
-            container.appendChild(button);
-        }
-        button.textContent = qrRefreshButtonLabel();
-        button.hidden = false;
-        button.onclick = () => {
-            button.hidden = true;
-            setLoginQrStatus('Готовим QR…');
-            setLoginQrExpiredVisual(false);
-            if (typeof onRefresh === 'function') {
-                onRefresh();
-            }
-        };
-    }
-
     function enterExpiredQrState() {
         clearLoginQrTimers();
         setLoginQrPulse(false);
-        setLoginQrStatus(tr('QR-сессия завершена. Обновите QR.'));
+        setLoginQrStatus(isEnglishUi() ? 'Refreshing QR…' : 'Обновляем QR…');
         setLoginQrExpiredVisual(true);
         wipeLoginQrSecrets();
-        showLoginQrRefreshButton(() => {
-            startLoginQrFlow().catch((err) => {
-                setLoginQrStatus(String(err?.message || 'Не удалось обновить QR.'));
-                showToast(String(err?.message || 'Не удалось обновить QR.'), 'error');
-            });
-        });
+        scheduleLoginQrAutoStart(260);
     }
 
     function resetLoginQrUi() {
@@ -340,7 +307,9 @@ export function createQrLoginFlow({
                 return;
             }
             if (response.status === 410) {
-                throw new Error(tr(payload.error || 'QR-сессия завершена. Обновите QR.'));
+                if (seq !== loginQrState.flowSeq) return;
+                enterExpiredQrState();
+                return;
             }
             if (!response.ok) {
                 throw new Error(tr(payload.error || 'Ошибка проверки QR-сессии.'));
