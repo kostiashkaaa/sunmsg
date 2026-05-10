@@ -3735,6 +3735,13 @@
             border-radius: 0;
             padding: 8px 0;
             font-size: 15px;
+            font-family:
+                var(--font),
+                'Segoe UI Emoji',
+                'Apple Color Emoji',
+                'Noto Color Emoji',
+                emoji,
+                sans-serif;
             background: transparent;
             color: var(--text);
             outline: none;
