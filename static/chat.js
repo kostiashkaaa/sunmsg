@@ -4621,7 +4621,11 @@ const initChatPage = async () => {
     }
 
     function MessageGroup(messages, index) {
-        return _getMessageGroup(messages, index);
+        const layout = _getMessageGroup(messages, index);
+        if (!isCurrentChatGroup()) {
+            return { ...layout, showAvatar: false };
+        }
+        return layout;
     }
 
     function buildMessageElement(msg, layout = {}) {
