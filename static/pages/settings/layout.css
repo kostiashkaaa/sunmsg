@@ -32,8 +32,8 @@ html, body {
             flex-direction: column;
             min-height: 100vh;
             min-height: 100dvh;
-            width: min(920px, 60vw);
-            min-width: 720px;
+            width: min(430px, 100vw);
+            min-width: 360px;
             margin-left: auto;
             background: var(--bg);
             box-shadow: var(--profile-sheet-shadow);
@@ -128,6 +128,7 @@ html, body {
         }
         .settings-panel-head-copy {
             min-width: 0;
+            flex: 1;
         }
         .settings-panel-pre {
             font-family: var(--font-mono);
@@ -137,13 +138,36 @@ html, body {
             color: var(--ink-mute);
         }
         .settings-panel-title {
-            font-family: var(--font-serif);
-            font-size: 28px;
+            font-family: var(--font);
+            font-size: 36px;
             line-height: 1.1;
             letter-spacing: -0.01em;
-            margin: 2px 0 0;
-            font-weight: 400;
+            margin: 0;
+            font-weight: 600;
             color: var(--text);
+        }
+        .settings-panel-tools {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-panel-tool-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid transparent;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--sub-text);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick);
+        }
+        .settings-panel-tool-btn:hover {
+            border-color: color-mix(in srgb, var(--rule) 78%, transparent);
+            color: var(--text);
+            background: color-mix(in srgb, var(--paper-alt) 48%, transparent);
         }
         .settings-panel-esc {
             margin-left: auto;
@@ -169,6 +193,12 @@ html, body {
             position: relative;
             border-left: 1px solid color-mix(in srgb, var(--rule) 44%, transparent);
             padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+        }
+        body.settings-home-open .settings-content {
+            display: none;
+        }
+        body.settings-detail-open .settings-content {
+            display: block;
         }
 
         .settings-content.is-transitioning {
