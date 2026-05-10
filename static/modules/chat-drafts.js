@@ -2,6 +2,7 @@
 // показ превью в сайдбаре. Вынесено из chat.js без изменений в поведении.
 
 const CHAT_DRAFT_SAVE_DEBOUNCE_MS = 700;
+const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';
 
 export function createChatDraftsController(deps = {}) {
     const {
@@ -18,6 +19,9 @@ export function createChatDraftsController(deps = {}) {
         resolveContactItemByChatId,
         updateActiveContactLastMessage,
         sortContactsList,
+        getPrivateKeyPem,
+        isEncryptedPayload,
+        decryptForDisplay,
     } = deps;
 
     let chatDraftSaveTimer = 0;
@@ -69,7 +73,7 @@ export function createChatDraftsController(deps = {}) {
         updateVoiceRecordButtonState?.();
     }
 
-    function syncDraftPreviewForContact(chatId, draftText, updatedAt = '', options = {}) {
+    async function syncDraftPreviewForContact(chatId, draftText, updatedAt = '', options = {}) {
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) return;
 
@@ -106,9 +110,24 @@ export function createChatDraftsController(deps = {}) {
             const isSelf = Boolean(lastSenderId) && lastSenderId === String(getCurrentUserId?.() || '');
             const isRead = contactItem.getAttribute('data-last-message-is-read') === '1';
             const isDelivered = contactItem.getAttribute('data-last-message-is-delivered') === '1';
+            let restoredMessage = rawMessage;
+            if (rawMessage && typeof isEncryptedPayload === 'function' && isEncryptedPayload(rawMessage)) {
+                const privateKeyPem = typeof getPrivateKeyPem === 'function'
+                    ? getPrivateKeyPem()
+                    : '';
+                if (privateKeyPem && typeof decryptForDisplay === 'function') {
+                    try {
+                        restoredMessage = await decryptForDisplay(privateKeyPem, rawMessage, isSelf);
+                    } catch (_) {
+                        restoredMessage = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+                    }
+                } else {
+                    restoredMessage = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+                }
+            }
             updateActiveContactLastMessage(
                 contactItem,
-                rawMessage,
+                restoredMessage,
                 isSelf,
                 { is_read: isRead, is_delivered: isDelivered },
                 rawTimestamp || null,
