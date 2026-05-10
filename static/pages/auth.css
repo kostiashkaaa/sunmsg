@@ -3095,7 +3095,8 @@ body.auth-page-body--sunrise-v3 .auth-wrapper {
 
 body.auth-page-body--sunrise-v3 .auth-hero-panel {
     position: relative;
-    min-height: min(760px, calc(100dvh - 64px));
+    height: min(760px, calc(100dvh - 64px));
+    min-height: 700px;
     border-radius: 24px;
     overflow: hidden;
     padding: 36px 36px 34px;
