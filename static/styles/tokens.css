@@ -164,8 +164,7 @@
 }
 
 /* normalized: removed mojibake comment */
-body.dark-mode,
-html.dark-mode body {
+body.dark-mode {
     --bg:              #1c1a14;
     --paper:           #221f17;
     --paper-alt:       #2a261c;
