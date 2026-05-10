@@ -286,6 +286,12 @@ def _switch_auth_to_key_mode(page: Page) -> None:
     page.wait_for_selector('#loginKeyGroup.auth-method-entering', state='hidden')
 
 
+def _switch_auth_to_register_panel(page: Page) -> None:
+    page.wait_for_function('() => typeof window.switchTab === "function"')
+    page.evaluate("window.switchTab && window.switchTab('register')")
+    page.wait_for_selector('#panel-register.active')
+
+
 def test_visual_auth_desktop_default(visual_server):
     def _job(pw: Playwright, browser: Browser) -> None:
         context = _new_context(pw, browser, base_url=visual_server['base_url'])
@@ -306,8 +312,7 @@ def test_visual_auth_desktop_selection_state(visual_server):
         _stub_qr_login_api(context)
         page = _open_page(context, '/', wait_until='domcontentloaded')
         _switch_auth_to_key_mode(page)
-        page.click('#tab-register-btn')
-        page.wait_for_selector('#panel-register.active')
+        _switch_auth_to_register_panel(page)
         page.click('#authLanguageSwitch [data-lang="en"]')
         page.wait_for_selector('#authLanguageSwitch [data-lang="en"].is-active')
         page.evaluate('window.scrollTo(0, 0)')
@@ -324,8 +329,7 @@ def test_visual_auth_mobile_keyboard_state(visual_server):
         _stub_qr_login_api(context)
         page = _open_page(context, '/', wait_until='domcontentloaded')
         _switch_auth_to_key_mode(page)
-        page.click('#tab-register-btn')
-        page.wait_for_selector('#panel-register.active')
+        _switch_auth_to_register_panel(page)
         page.click('#reg_username')
         page.wait_for_timeout(150)
         _assert_visual_snapshot(page, 'auth-mobile-keyboard-focus')
