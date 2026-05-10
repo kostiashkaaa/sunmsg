@@ -3584,6 +3584,7 @@ body.auth-page-body--sunrise-v3 #registerStep2Block .auth-private-key-group {
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap {
     position: relative;
     margin-top: 6px;
+    height: 304px;
     padding: 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--sun-rule) 20%, #fff);
