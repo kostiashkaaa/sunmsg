@@ -2728,6 +2728,7 @@ body[data-ui-language="en"] #registerStep1Sub::before {
     min-height: 0;
     max-height: min(320px, calc(100vh - 560px));
     overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 #copyPrivateKeyBtn,
