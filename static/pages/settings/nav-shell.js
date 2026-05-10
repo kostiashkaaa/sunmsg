@@ -394,10 +394,9 @@ export function initSettingsNavShell({
     syncCompactNavState();
     const initialSection = normalizeHashSection(window.location.hash.substring(1));
     if (initialSection) {
-        showSection(initialSection, false, { immediate: true });
-    } else {
-        showHome(false);
+        history.replaceState(null, null, '#settings');
     }
+    showHome(false);
 
     window.addEventListener('hashchange', () => {
         const nextSection = normalizeHashSection(window.location.hash.substring(1));
