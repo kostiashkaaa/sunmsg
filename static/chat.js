@@ -4575,10 +4575,11 @@ const initChatPage = async () => {
         });
     }
 
-    function patchMessageReactions(messageEl, reactions, { animate = false } = {}) {
+    function patchMessageReactions(messageEl, reactions, { animate = false, animatedEmoji = '' } = {}) {
         if (!messageEl) return;
         const msgId = Number(messageEl.getAttribute('data-msg-id'));
         if (!Number.isFinite(msgId) || msgId <= 0) return;
+        const highlightedEmoji = String(animatedEmoji || '').trim();
         const shouldPinToBottom = keepChatPinnedToBottom && isChatViewportPinnedToBottom();
 
         const stack = messageEl.querySelector('.message-stack');
@@ -4700,6 +4701,14 @@ const initChatPage = async () => {
         if (updatedRow && animate) {
             updatedRow.classList.add('is-updated');
             window.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
+            if (highlightedEmoji) {
+                const targetPill = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'))
+                    .find((pill) => String(pill.getAttribute('data-emoji') || '').trim() === highlightedEmoji);
+                if (targetPill) {
+                    targetPill.classList.add('reaction-just-added');
+                    window.setTimeout(() => targetPill.classList.remove('reaction-just-added'), 280);
+                }
+            }
         }
         if (updatedRow) applyEmojiGraphics(updatedRow);
         syncMessageBubbleLayoutClasses(messageEl);
@@ -4921,7 +4930,7 @@ const initChatPage = async () => {
         return true;
     }
 
-    function applyMessageReactionsLocally(chatId, messageId, rawReactions, { animate = true, touchStamp = false } = {}) {
+    function applyMessageReactionsLocally(chatId, messageId, rawReactions, { animate = true, touchStamp = false, animatedEmoji = '' } = {}) {
         const changed = updateMessageReactionsState(chatId, messageId, rawReactions);
         if (!changed) return false;
 
@@ -4936,7 +4945,7 @@ const initChatPage = async () => {
 
         const messageEl = chatMessages?.querySelector(`.message[data-msg-id="${Number(messageId)}"]`);
         if (messageEl) {
-            patchMessageReactions(messageEl, rawReactions, { animate });
+            patchMessageReactions(messageEl, rawReactions, { animate, animatedEmoji });
             return true;
         }
 
@@ -5064,7 +5073,10 @@ const initChatPage = async () => {
 
         const previousReactions = normalizeMessageReactions(state.messages[messageIndex].reactions);
         const nextReactions = computeOptimisticReactions(previousReactions, normalizedEmoji);
-        const changed = applyMessageReactionsLocally(currentChatId, normalizedMsgId, nextReactions, { animate: true });
+        const changed = applyMessageReactionsLocally(currentChatId, normalizedMsgId, nextReactions, {
+            animate: true,
+            animatedEmoji: normalizedEmoji,
+        });
         if (!changed) return;
 
         const requestId = crypto.randomUUID();
