@@ -199,6 +199,7 @@ export function createMessageEditController(options = {}) {
         if (bannerTitle) bannerTitle.textContent = bannerText;
 
         messageInput.value = inputValue;
+        messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
         resizeComposerInput();
         resetHorizontalViewportDrift();
         messageInput.focus({ preventScroll: true });
@@ -223,6 +224,7 @@ export function createMessageEditController(options = {}) {
         setIsEditingMessageId(null);
         isEditingFilePayload = null;
         messageInput.value = '';
+        messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
         resizeComposerInput();
         messageInput.classList.remove('editing-active');
         const editBanner = document.getElementById('editMessageBanner');

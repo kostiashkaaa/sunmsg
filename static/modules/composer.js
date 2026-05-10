@@ -7,6 +7,7 @@ const SEND_SHORTCUT_CTRL_ENTER = 'ctrl_enter';
 const COMPOSER_EMOJI_VISUAL_WRAP_CLASS = 'composer-input-visual-wrap';
 const COMPOSER_EMOJI_VISUAL_CLASS = 'composer-input-visual';
 const COMPOSER_EMOJI_INPUT_CLASS = 'composer-input-emoji-layer';
+const COMPOSER_EMOJI_VISUAL_SYNC_EVENT = 'sun-composer-sync-visual';
 
 function normalizeSendShortcutMode(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -106,6 +107,7 @@ function initComposerEmojiVisualLayer(messageInput) {
     };
 
     bindInputValueObserver(messageInput, () => syncVisual(true));
+    messageInput.addEventListener(COMPOSER_EMOJI_VISUAL_SYNC_EVENT, () => syncVisual(true));
     messageInput.addEventListener('input', () => syncVisual(true));
     messageInput.addEventListener('scroll', () => syncVisual(false), { passive: true });
     messageInput.addEventListener('focus', () => syncVisual(false), { passive: true });
