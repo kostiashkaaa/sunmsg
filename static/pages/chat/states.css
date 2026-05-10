@@ -3315,16 +3315,14 @@ body.dark-mode #messageForwardModal .forward-target-status {
         .reaction-pill:hover {
             transform: translateY(-1px) scale(1.01);
             border-color: color-mix(in srgb, var(--reaction-pill-border) 58%, var(--accent) 42%);
-            box-shadow: var(--shadow-md);
+            box-shadow: none;
         }
 
 
         .reaction-pill.is-mine {
             border-color: color-mix(in srgb, var(--accent) 58%, var(--reaction-pill-border) 42%);
             background: color-mix(in srgb, var(--reaction-pill-bg) 84%, var(--accent-light) 16%);
-            box-shadow:
-                0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
-                0 10px 20px rgba(10, 18, 32, 0.20);
+            box-shadow: none;
         }
 
 
