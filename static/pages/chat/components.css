@@ -5436,6 +5436,36 @@
             flex: 1 1 auto;
         }
 
+        .bubble--audio-file .audio-player-info {
+            gap: 6px;
+        }
+
+        .audio-player-head {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .audio-player-title {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: inherit;
+        }
+
+        .audio-player-sub {
+            font-size: 12px;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: color-mix(in srgb, currentColor 66%, transparent);
+        }
+
         .audio-player-track-row {
             display: flex;
             align-items: center;
@@ -9637,7 +9667,7 @@
     /* Жёстко ограничиваем размер контейнера, иначе .message-stack
        (--chat-bubble-max-width = 448px) распирает бабл на всю ширину. */
     .message-stack:has(.bubble--audio) {
-        max-width: min(72%, 320px) !important;
+        max-width: min(var(--chat-bubble-max-width), 520px) !important;
     }
     .bubble--audio {
         max-width: 100%;
@@ -9678,7 +9708,7 @@
     /* На совсем узких экранах ужмём ещё */
     @media (max-width: 380px) {
         .message-stack:has(.bubble--audio) {
-            max-width: 86% !important;
+            max-width: min(var(--chat-bubble-max-width), 520px) !important;
         }
     }
 }
