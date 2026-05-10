@@ -1,6 +1,7 @@
 import { setMotionOriginFromPoint, waitForMotionEnd } from './motion.js';
 import { REACTION_PICKER_EMOJIS } from './reactions.js';
 import { initReactionEmojiPopup } from './reaction-emoji-popup.js';
+import { applyEmojiGraphics } from './utils.js';
 
 export function initReactionPickerController({
     pickerEl,
@@ -37,6 +38,7 @@ export function initReactionPickerController({
             if (item) fragment.append(item);
         });
         container.replaceChildren(fragment);
+        applyEmojiGraphics(container);
     }
 
     function uniqueValidEmojis(values) {

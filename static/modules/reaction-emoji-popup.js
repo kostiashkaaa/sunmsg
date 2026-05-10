@@ -6,6 +6,7 @@ import {
     EMOJI_PICKER_I18N,
     resolvePickerLocale,
 } from './emoji-picker-data.js';
+import { applyEmojiGraphics } from './utils.js';
 
 const RECENT_STORAGE_KEY = 'sun_recent_reaction_emojis_v1';
 const MAX_RECENT = 40;
@@ -307,6 +308,7 @@ export function initReactionEmojiPopup({
         for (let i = from; i < to; i += 1) {
             fragment.appendChild(createEmojiButton(renderedList[i]));
         }
+        applyEmojiGraphics(fragment);
         gridEl.appendChild(fragment);
         renderedCount = to;
 
@@ -350,6 +352,7 @@ export function initReactionEmojiPopup({
         });
 
         categoriesEl.replaceChildren(fragment);
+        applyEmojiGraphics(categoriesEl);
         syncCategoryButtons();
     }
 
