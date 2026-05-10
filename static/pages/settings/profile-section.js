@@ -15,9 +15,12 @@ export function initProfileSection({
     const settingsNavAvatarPreviewEl = document.getElementById('settingsNavAvatarPreview');
     const displayNameEl = document.getElementById('displayName');
     const usernameEl = document.getElementById('username');
+    const bioInputEl = document.getElementById('bioInput');
     const previewNameEl = document.getElementById('previewName');
-    const settingsNavDisplayNameEl = document.getElementById('settingsNavDisplayName');
+    const settingsNavNameValueEl = document.getElementById('settingsNavNameValue');
+    const settingsNavProfileNameEl = document.getElementById('settingsNavProfileName');
     const settingsNavUsernameValueEl = document.getElementById('settingsNavUsernameValue');
+    const settingsNavBioValueEl = document.getElementById('settingsNavBioValue');
     const avatarFileInputEl = document.getElementById('avatarFileInput');
 
     const preview = createProfilePreviewController({
@@ -27,8 +30,14 @@ export function initProfileSection({
         usernameEl,
         previewUsernameEl: settingsNavUsernameValueEl,
         secondaryAvatarEls: [settingsNavAvatarPreviewEl],
-        secondaryNameEls: [settingsNavDisplayNameEl],
+        secondaryNameEls: [settingsNavNameValueEl, settingsNavProfileNameEl],
     });
+
+    function syncProfileSummaryBio() {
+        if (!settingsNavBioValueEl) return;
+        const bio = String(bioInputEl?.value || '').trim();
+        settingsNavBioValueEl.textContent = bio || '-';
+    }
 
     displayNameEl?.addEventListener('input', () => {
         preview.updateAvatarInitials();
@@ -38,6 +47,12 @@ export function initProfileSection({
     });
     usernameEl?.addEventListener('input', () => {
         preview.updateAvatarInitials();
+        if (typeof onFieldDirtyChange === 'function') {
+            onFieldDirtyChange();
+        }
+    });
+    bioInputEl?.addEventListener('input', () => {
+        syncProfileSummaryBio();
         if (typeof onFieldDirtyChange === 'function') {
             onFieldDirtyChange();
         }
@@ -73,6 +88,7 @@ export function initProfileSection({
                 preview.setAvatarPreviewImage(serverAvatarUrl);
             }
             preview.updateAvatarInitials();
+            syncProfileSummaryBio();
         },
     };
 }

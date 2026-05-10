@@ -105,6 +105,10 @@
             <div class="settings-nav-avatar-wrap">
                 <div class="avatar-preview settings-nav-avatar" id="settingsNavAvatarPreview">?</div>
             </div>
+            <div class="settings-nav-profile-main">
+                <div class="settings-nav-profile-name" id="settingsNavProfileName">{{ current_display_name }}</div>
+                <div class="settings-nav-profile-status" id="settingsNavProfileStatus">в сети</div>
+            </div>
             <button type="button" class="settings-nav-profile-action" id="settingsNavEditProfileBtn" aria-label="Редактировать профиль">
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-camera"></use></svg>
             </button>
@@ -144,10 +148,6 @@
             <svg class="sun-icon settings-nav-toggle-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg>
         </button>
         <div class="settings-nav-list" id="settingsNavList">
-            <a href="#profile" class="nav-item" data-section="profile" data-nav-key="profile">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
-                <span>Профиль</span>
-            </a>
             <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications">
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
                 <span>Уведомления и звук</span>
@@ -164,8 +164,8 @@
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-gear"></use></svg>
                 <span>Общие настройки</span>
             </a>
-            <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chat-square-text"></use></svg>
+            <a href="#folders" class="nav-item" data-section="folders" data-nav-key="folders">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-grid"></use></svg>
                 <span>Папки с чатами</span>
             </a>
             <a href="#account" class="nav-item" data-section="account" data-nav-key="account">
@@ -177,6 +177,18 @@
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
                 <span>Язык</span>
                 <span class="nav-item-meta" aria-hidden="true">Русский</span>
+            </a>
+            <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
+                <span>Внешний вид</span>
+            </a>
+            <a href="#stickers" class="nav-item" data-section="stickers" data-nav-key="stickers">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-emoji"></use></svg>
+                <span>Стикеры и эмодзи</span>
+            </a>
+            <a href="#premium" class="nav-item" data-section="premium" data-nav-key="premium">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-star"></use></svg>
+                <span>Premium / Подписка</span>
             </a>
 
             <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
@@ -1118,6 +1130,74 @@
                             <i class="bi bi-trash3" aria-hidden="true"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-folders" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-folder2-open"></i>
+                    <h3>Папки с чатами</h3>
+                </div>
+                <p class="settings-body-copy">
+                    Управляйте набором папок для левой колонки чатов. Вы можете вынести в отдельные папки личные, рабочие и важные диалоги.
+                </p>
+                <div class="settings-save-row">
+                    <a class="btn-settings secondary" href="{{ url_for('chat.chat_ui') }}">
+                        <i class="bi bi-box-arrow-up-right"></i> Открыть список чатов
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-stickers" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-emoji-smile"></i>
+                    <h3>Стикеры и эмодзи</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Подсказки стикеров по эмодзи</div>
+                        <div class="settings-row-desc">Показывать подходящие стикеры во время набора сообщения</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Анимированные эмодзи</div>
+                        <div class="settings-row-desc">Воспроизводить анимации эмодзи в чатах</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-premium" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-stars"></i>
+                    <h3>Premium / Подписка</h3>
+                </div>
+                <p class="settings-body-copy">
+                    Расширенные функции подписки: повышенные лимиты, визуальные эффекты, дополнительные возможности персонализации и развития аккаунта.
+                </p>
+                <div class="settings-save-row settings-save-row-spaced">
+                    <a class="btn-settings secondary" href="https://t.me/premiumbot" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-box-arrow-up-right"></i> Открыть @PremiumBot
+                    </a>
+                    <a class="btn-settings" href="https://telegram.org/faq_premium" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-info-circle"></i> Подробнее о подписке
+                    </a>
                 </div>
             </div>
         </section>

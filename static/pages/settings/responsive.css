@@ -771,7 +771,6 @@
         flex-direction: column;
         align-items: stretch;
         gap: 4px;
-        max-height: 260px;
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
@@ -817,32 +816,20 @@
     }
 
     .settings-nav-profile {
-        padding: 16px 16px 14px;
+        padding: 14px 14px 12px;
     }
 
     .settings-nav-avatar {
-        width: 104px;
-        height: 104px;
-        font-size: 38px;
-    }
-
-    .settings-nav-display-name {
-        font-size: clamp(28px, 7vw, 36px);
-    }
-
-    .settings-nav-presence {
-        font-size: 18px;
+        width: 72px;
+        height: 72px;
+        font-size: 26px;
     }
 
     .settings-nav-profile-action {
-        top: 148px;
+        top: 20px;
         right: 14px;
-        width: 46px;
-        height: 46px;
-    }
-
-    .settings-nav-list {
-        max-height: 220px;
+        width: 36px;
+        height: 36px;
     }
 
     .settings-nav-list .nav-item {
