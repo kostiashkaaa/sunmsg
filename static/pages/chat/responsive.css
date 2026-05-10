@@ -180,12 +180,12 @@
 
 
         @media (min-width: 1440px) {
-            .chat-area { --chat-content-max-width: 860px; }
+            .chat-area { --chat-content-max-width: 920px; }
         }
 
 
         @media (min-width: 1920px) {
-            .chat-area { --chat-content-max-width: 780px; }
+            .chat-area { --chat-content-max-width: 880px; }
         }
 
 

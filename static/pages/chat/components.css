@@ -1094,9 +1094,9 @@
 
         /* ?????????????? SIDEBAR ?????????????? */
         .sidebar {
-            width: var(--sidebar-width, 420px);
-            min-width: var(--sidebar-width, 420px);
-            max-width: var(--sidebar-width, 420px);
+            width: var(--sidebar-width, 332px);
+            min-width: var(--sidebar-width, 332px);
+            max-width: var(--sidebar-width, 332px);
             flex-shrink: 0;
             background:
                 linear-gradient(
@@ -1647,16 +1647,16 @@
         .contact-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
-            margin: 0 0 4px;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 0 0 2px;
             cursor: pointer;
             transition:
                 background var(--dur-quick) var(--ease-quick),
                 transform var(--dur-quick) var(--ease-quick),
                 box-shadow var(--dur-medium) var(--ease-quick);
             position: relative;
-            border-radius: 18px;
+            border-radius: 12px;
             overflow: hidden;
             box-shadow: inset 0 0 0 1px transparent;
             isolation: isolate;
@@ -2111,14 +2111,14 @@
             background:
                 linear-gradient(145deg, color-mix(in srgb, var(--accent) 90%, #fff 10%) 0%, color-mix(in srgb, var(--accent-deep) 86%, var(--accent) 14%) 100%);
             color: #fff;
-            border-radius: 10px;
+            border-radius: 9px;
             border: 1px solid color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.42) 38%);
             font-family: var(--font);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 650;
-            min-width: 24px;
-            height: 24px;
-            padding: 0 8px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -2580,7 +2580,7 @@
 
         .message.self .message-row-track {
             justify-content: flex-end;
-            padding-right: 60px;
+            padding-right: calc(var(--chat-avatar-slot) + 8px);
         }
 
         .message.other .message-row-track {
@@ -2842,7 +2842,7 @@
         .message .bubble {
             max-width: 100% !important;
             padding: var(--chat-message-pad-y) var(--chat-message-pad-x);
-            border-radius: 18px;
+            border-radius: 14px;
             line-height: 1.45;
             font-size: var(--chat-message-font-size);
             min-width: 0;
@@ -2870,7 +2870,7 @@
             background: var(--bubble-out);
             color: var(--bubble-out-text);
             border: none;
-            box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+            box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
         }
 
 
@@ -2878,7 +2878,7 @@
         .message.group-middle .bubble,
         .message.group-end .bubble,
         .message.group-single .bubble {
-            border-radius: 16px;
+            border-radius: 14px;
         }
 
 
@@ -3080,7 +3080,7 @@
         .message .bubble {
             max-width: 100% !important;
             padding: var(--chat-message-pad-y) var(--chat-message-pad-x);
-            border-radius: 18px;
+            border-radius: 14px;
             line-height: 1.45;
             font-size: var(--chat-message-font-size);
             min-width: 0;
@@ -3108,7 +3108,7 @@
             background: var(--bubble-out);
             color: var(--bubble-out-text);
             border: none;
-            box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+            box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
         }
 
 
@@ -3116,7 +3116,7 @@
         .message.group-middle .bubble,
         .message.group-end .bubble,
         .message.group-single .bubble {
-            border-radius: 16px;
+            border-radius: 14px;
         }
 
 
@@ -3206,7 +3206,7 @@
             max-width: none;
             background: color-mix(in srgb, var(--surface) 96%, transparent 4%);
             border: 1px solid var(--border);
-            border-radius: 20px;
+            border-radius: 16px;
             padding: 0;
             overflow: visible;
             
@@ -3222,8 +3222,8 @@
                 border-color var(--dur-quick) var(--ease-quick),
                 box-shadow var(--dur-quick) var(--ease-quick),
                 transform var(--dur-quick) var(--ease-quick);
-            backdrop-filter: blur(14px) saturate(116%);
-            -webkit-backdrop-filter: blur(14px) saturate(116%);
+            backdrop-filter: blur(10px) saturate(114%);
+            -webkit-backdrop-filter: blur(10px) saturate(114%);
         }
 
 
@@ -3274,11 +3274,11 @@
 
 
         #messageForm .btn-icon {
-            width: 34px;
-            height: 34px;
+            width: 32px;
+            height: 32px;
             padding: 0;
             font-size: 18px;
-            border-radius: 12px;
+            border-radius: 10px;
             color: var(--sub-text);
             background: transparent;
             border: none;
@@ -3734,7 +3734,7 @@
             border: none;
             border-radius: 0;
             padding: 8px 0;
-            font-size: 16px;
+            font-size: 15px;
             background: transparent;
             color: var(--text);
             outline: none;
@@ -4202,22 +4202,22 @@
                     color-mix(in srgb, var(--surface) 88%, rgba(8, 16, 30, 0.08) 12%) 100%
                 );
             border: 1px solid color-mix(in srgb, var(--border) 76%, rgba(255, 255, 255, 0.1) 24%);
-            border-radius: 22px;
+            border-radius: 16px;
             box-shadow:
-                0 24px 48px rgba(0, 0, 0, 0.38),
-                0 8px 20px rgba(20, 16, 8, 0.14),
+                0 14px 30px rgba(0, 0, 0, 0.26),
+                0 6px 14px rgba(20, 16, 8, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05);
             z-index: 1000;
             display: none;
             flex-direction: column;
             overflow: hidden;
             transform-origin: bottom left;
-            backdrop-filter: blur(16px) saturate(125%);
-            -webkit-backdrop-filter: blur(16px) saturate(125%);
+            backdrop-filter: blur(8px) saturate(116%);
+            -webkit-backdrop-filter: blur(8px) saturate(116%);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transform: translate3d(0, 10px, 0) scale(0.98);
+            transform: translate3d(0, 8px, 0) scale(0.985);
             transition:
                 opacity var(--dur-quick) var(--ease-quick),
                 transform var(--dur-quick) var(--ease-quick),
@@ -4242,7 +4242,7 @@
             opacity: 0;
             visibility: visible;
             pointer-events: none;
-            transform: translate3d(0, 10px, 0) scale(0.98);
+            transform: translate3d(0, 8px, 0) scale(0.985);
             transition:
                 opacity var(--dur-quick) var(--ease-quick),
                 transform var(--dur-quick) var(--ease-quick),
@@ -9183,23 +9183,23 @@
         /* Custom Context Menu */
 .context-menu {
     position: fixed;
-    background: color-mix(in srgb, var(--surface) 94%, #060a12 6%);
-    backdrop-filter: blur(10px) saturate(118%);
-    -webkit-backdrop-filter: blur(10px) saturate(118%);
+    background: color-mix(in srgb, var(--surface) 96%, #060a12 4%);
+    backdrop-filter: blur(6px) saturate(112%);
+    -webkit-backdrop-filter: blur(6px) saturate(112%);
             border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-            border-radius: 14px;
-            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
             z-index: 5000;
             min-width: 220px;
             max-width: min(280px, calc(100vw - 24px));
-            padding: 6px;
+            padding: 4px;
             display: flex;
             flex-direction: column;
             transform-origin: top left;
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transform: translateY(6px) scale(0.96);
+            transform: translateY(4px) scale(0.985);
             transition:
                 opacity var(--motion-dur-fast) var(--motion-ease-exit),
                 transform var(--motion-dur-base) var(--motion-ease-enter),
@@ -9211,18 +9211,17 @@
             display: grid;
             grid-template-columns: 18px minmax(0, 1fr);
             align-items: center;
-            gap: 12px;
-            min-height: 38px;
-            padding: 8px 12px;
-            font-size: 15px;
+            gap: 10px;
+            min-height: 34px;
+            padding: 7px 10px;
+            font-size: 14px;
             font-weight: 500;
             color: var(--text);
             cursor: pointer;
-            border-radius: 9px;
+            border-radius: 8px;
             transition:
                 background-color var(--dur-quick) var(--ease-quick),
-                color var(--dur-quick) var(--ease-quick),
-                transform var(--dur-quick) var(--ease-quick);
+                color var(--dur-quick) var(--ease-quick);
         }
 
         .context-menu-item[hidden] {
@@ -9232,7 +9231,7 @@
 
         .context-menu-item i,
         .context-menu-item .sun-check-glyph {
-            font-size: 16px;
+            font-size: 15px;
             width: 16px;
             height: 16px;
             opacity: 0.84;
@@ -9327,12 +9326,12 @@
     max-width: min(420px, calc(100vw - 24px));
     padding: 4px 6px;
     box-sizing: border-box;
-    border-radius: 15px;
+    border-radius: 12px;
     background: color-mix(in srgb, var(--surface) 93%, #060a12 7%);
     border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
-    backdrop-filter: blur(8px) saturate(116%);
-    -webkit-backdrop-filter: blur(8px) saturate(116%);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(4px) saturate(110%);
+    -webkit-backdrop-filter: blur(4px) saturate(110%);
     z-index: 5100;
     transform-origin: center bottom;
     overflow: visible;
@@ -9381,7 +9380,7 @@
 
 .reaction-picker__expand-toggle:hover {
     background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
-    transform: scale(1.04);
+    transform: scale(1.02);
 }
 
 .reaction-picker__expand-toggle i {
@@ -9411,7 +9410,7 @@
 
 .reaction-picker__item:hover {
     background: color-mix(in srgb, var(--contact-hover) 74%, transparent);
-    transform: scale(1.08);
+    transform: scale(1.04);
 }
 
 .reaction-picker__item:focus-visible,
@@ -9458,10 +9457,10 @@
     box-sizing: border-box;
     background: color-mix(in srgb, var(--surface) 95%, #060a12 5%);
     border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
-    border-radius: 16px;
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(6px) saturate(114%);
+    -webkit-backdrop-filter: blur(6px) saturate(114%);
     z-index: 5120;
     display: none;
     flex-direction: column;
@@ -9469,7 +9468,7 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translate3d(0, 6px, 0) scale(0.96);
+    transform: translate3d(0, 6px, 0) scale(0.975);
     transition:
         opacity var(--dur-quick) var(--ease-quick),
         transform var(--dur-quick) var(--ease-quick),
@@ -9493,14 +9492,14 @@
     opacity: 0;
     visibility: visible;
     pointer-events: none;
-    transform: translate3d(0, 6px, 0) scale(0.96);
+    transform: translate3d(0, 6px, 0) scale(0.975);
 }
 
 .reaction-emoji-popup.is-closing {
     opacity: 0;
     visibility: visible;
     pointer-events: none;
-    transform: translate3d(0, 6px, 0) scale(0.96);
+    transform: translate3d(0, 6px, 0) scale(0.975);
 }
 
 .reaction-emoji-popup__search-wrap {
@@ -9597,7 +9596,7 @@
 
 .reaction-emoji-popup__category-btn:hover {
     background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
-    transform: scale(1.04);
+    transform: scale(1.02);
 }
 
 .reaction-emoji-popup__category-btn.active {
@@ -9641,7 +9640,7 @@
 
 .reaction-emoji-popup__item:hover {
     background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
-    transform: scale(1.08);
+    transform: scale(1.04);
 }
 
 .reaction-emoji-popup__status {
@@ -10072,15 +10071,15 @@
 
 /* Flat Telegram-like profile sidebar */
 #partnerProfileDrawer {
-    --profile-panel-x-pad: 14px;
-    --profile-panel-y-gap: 6px;
+    --profile-panel-x-pad: 12px;
+    --profile-panel-y-gap: 4px;
     --profile-panel-divider: color-mix(in srgb, var(--border) 46%, transparent);
     --profile-panel-hover: color-mix(in srgb, var(--border) 18%, transparent);
 }
 
 #partnerProfileDrawer .profile-topbar {
-    min-height: 52px;
-    padding: 8px var(--profile-panel-x-pad);
+    min-height: 48px;
+    padding: 7px var(--profile-panel-x-pad);
     gap: 8px;
     border-bottom: 1px solid var(--profile-panel-divider);
     background: var(--surface);
@@ -10204,8 +10203,8 @@
 #partnerProfileDrawer .profile-info-line {
     grid-template-columns: 28px minmax(0, 1fr);
     column-gap: 10px;
-    min-height: 48px;
-    padding: 10px var(--profile-panel-x-pad);
+    min-height: 44px;
+    padding: 8px var(--profile-panel-x-pad);
     border-top: 0;
     border-radius: 0;
 }
@@ -10251,7 +10250,7 @@
 #partnerProfileDrawer #profileMuteRow.profile-info-line--toggle {
     grid-template-columns: 28px minmax(0, 1fr) 44px;
     column-gap: 10px;
-    padding: 10px var(--profile-panel-x-pad);
+    padding: 8px var(--profile-panel-x-pad);
 }
 
 #partnerProfileDrawer #profileMuteToggle.profile-toggle {
@@ -10306,7 +10305,7 @@
 }
 
 #partnerProfileDrawer .profile-media-content {
-    padding: 8px var(--profile-panel-x-pad) 4px;
+    padding: 6px var(--profile-panel-x-pad) 4px;
 }
 
 #partnerProfileDrawer .profile-media-empty,
