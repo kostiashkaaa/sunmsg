@@ -22,6 +22,8 @@ const DEFAULT_AUDIO_WAVEFORM = [
     62, 82, 48, 34, 60, 76, 42, 28, 56, 72, 46, 32,
 ];
 
+const VOICE_AUDIO_NAME_PATTERN = /^voice[-_]|^voice\b|^recording\b|^audio message\b|^ptt\b|^голос/i;
+
 function isWaveformInformative(values) {
     const normalized = Array.isArray(values)
         ? values.map((value) => Number(value)).filter((value) => Number.isFinite(value))
@@ -87,6 +89,24 @@ function buildWaveBarsHtml(values) {
             return `<span class="audio-wave-bar audio-wave-bar--h${safeHeight}" data-wave-index="${index}"></span>`;
         })
         .join('');
+}
+
+function isLikelyVoiceAudioPayload(filePayload) {
+    if (!filePayload || typeof filePayload !== 'object') return false;
+    const rawName = String(filePayload.name || '').trim().toLowerCase();
+    if (!rawName) return false;
+    const hasDuration = Number(filePayload.duration_seconds) > 0;
+    const hasWaveform = Array.isArray(filePayload.waveform)
+        ? filePayload.waveform.length > 0
+        : (typeof filePayload.waveform === 'string' && filePayload.waveform.includes(','));
+    return VOICE_AUDIO_NAME_PATTERN.test(rawName) && (hasDuration || hasWaveform);
+}
+
+function formatCompactFileSize(bytes) {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return '';
+    if (value < 1048576) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1048576).toFixed(1)} MB`;
 }
 
 function clampUploadProgress(value) {
@@ -542,6 +562,7 @@ function buildFileBubble(filePayload) {
     const inlineUploadHtml = buildInlineUploadProgress(filePayload);
     let bubbleClass = 'bubble';
     let content;
+    let isVoiceAudio = false;
 
     if (isImage) {
         const imgSrc = sanitizeFileUri(filePayload.data, { imageOnlyData: true });
@@ -588,10 +609,29 @@ function buildFileBubble(filePayload) {
         const audioDurationSeconds = Number.isFinite(rawDuration) && rawDuration > 0
             ? Math.max(1, Math.floor(rawDuration))
             : 0;
+        isVoiceAudio = isLikelyVoiceAudioPayload(filePayload);
+        const audioFileName = String(filePayload.name || '').trim();
+        const showAudioHeader = Boolean(audioFileName) && !isVoiceAudio;
+        const audioMetaParts = [];
+        if (audioDurationSeconds > 0) {
+            audioMetaParts.push(formatMediaDuration(audioDurationSeconds));
+        }
+        const audioFileSize = formatCompactFileSize(filePayload.size);
+        if (audioFileSize) {
+            audioMetaParts.push(audioFileSize);
+        }
+        const audioHeaderHtml = showAudioHeader
+            ? `
+                            <div class="audio-player-head">
+                                <div class="audio-player-title" title="${escapeHtml(audioFileName)}">${escapeHtml(audioFileName)}</div>
+                                ${audioMetaParts.length ? `<div class="audio-player-sub">${escapeHtml(audioMetaParts.join(' • '))}</div>` : ''}
+                            </div>`
+            : '';
         const waveformSource = hasProvidedWaveform(filePayload.waveform) ? 'provided' : 'fallback';
         const waveform = normalizeWaveform(filePayload.waveform);
         const waveBars = buildWaveBarsHtml(waveform);
         bubbleClass += ' bubble--audio';
+        if (!isVoiceAudio) bubbleClass += ' bubble--audio-file';
         if (caption) bubbleClass += ' bubble--audio-has-caption';
         content = `
             <div class="file-msg-audio-wrap">
@@ -606,6 +646,7 @@ function buildFileBubble(filePayload) {
                         <i class="bi bi-play-fill"></i>
                     </button>
                     <div class="audio-player-info">
+                        ${audioHeaderHtml}
                         <div class="audio-player-track-row">
                             <div class="audio-player-wave-wrap">
                                 <div class="audio-player-wave" aria-hidden="true">
@@ -676,6 +717,7 @@ function buildFileBubble(filePayload) {
         content,
         isMedia: isImage || isVideo,
         hasCaption: Boolean(caption),
+        isVoiceAudio,
     };
 }
 
@@ -789,6 +831,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     let bubbleClass = 'bubble';
     let bubbleContent;
     let isAudioPayload = false;
+    let isVoiceAudioPayload = false;
     let audioDurationSeconds = 0;
     let audioListenedByPartner = false;
     let placeReactionsOutsideBubble = false;
@@ -797,6 +840,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         bubbleClass  = result.bubbleClass;
         bubbleContent = result.content;
         isAudioPayload = Boolean(filePayload.mime?.startsWith('audio/'));
+        isVoiceAudioPayload = Boolean(result.isVoiceAudio);
         placeReactionsOutsideBubble = Boolean(result.isMedia);
         if (isAudioPayload) {
             const rawDuration = Number(filePayload.duration_seconds);
@@ -819,7 +863,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     const favoriteLabel = isFavorite ? '<span class="msg-favorite" title="\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C"><i class="bi bi-star-fill"></i></span>' : '';
     const editedLabel = msg.is_edited ? '<span class="msg-edited">(\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u043E)</span>' : '';
     const groupReadMetaHtml = buildGroupReadMetaHtml(msg, { isGroupChat, isSelf });
-    const audioDurationHtml = isAudioPayload
+    const audioDurationHtml = (isAudioPayload && isVoiceAudioPayload)
         ? `<span class="audio-message-duration-wrap" data-audio-listened-wrap="1"><span class="audio-message-duration" data-audio-duration="${audioDurationSeconds > 0 ? String(audioDurationSeconds) : ''}">${formatMediaDuration(audioDurationSeconds)}</span><span class="audio-message-listen-dot" aria-hidden="true"></span></span>`
         : '';
     const reactionsHtml = typeof buildMessageReactionsHtml === 'function'
