@@ -3517,6 +3517,19 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             -webkit-tap-highlight-color: transparent;
         }
 
+        .sidebar-bottom-identity-chevron {
+            margin-left: auto;
+            flex-shrink: 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            opacity: 0.82;
+            pointer-events: none;
+        }
+
+        .sidebar.sidebar--compact .sidebar-bottom-identity-chevron {
+            display: none;
+        }
+
 
         .sidebar-bottom-avatar {
             width: 32px;
