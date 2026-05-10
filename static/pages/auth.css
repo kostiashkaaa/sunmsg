@@ -2733,13 +2733,25 @@ body[data-ui-language="en"] #registerStep1Sub::before {
     flex: 1 1 auto;
     min-height: 0;
     max-height: min(320px, calc(100vh - 560px));
-    overflow: auto;
+    overflow: hidden;
     scrollbar-gutter: stable;
+}
+
+#registerStep2Block .auth-register-words-wrap.is-revealed {
+    overflow: auto;
 }
 
 #copyPrivateKeyBtn,
 #registerStep2NextBtn {
     flex-shrink: 0;
+}
+
+#registerStep2Block #copyPrivateKeyBtn {
+    margin-bottom: 0;
+}
+
+#registerStep2Block #registerStep2NextBtn {
+    margin-top: 8px;
 }
 
 .auth-register-word {
