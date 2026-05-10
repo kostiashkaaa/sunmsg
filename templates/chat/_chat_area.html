@@ -588,19 +588,45 @@
                 </div>
             </div>
 
-            <div class="emoji-picker" id="emojiPicker">
-                <div class="emoji-picker-header" id="emojiCategories">
-                    <button type="button" class="emoji-category-btn active" data-cat="frequent" title="Часто используемые">&#x1F551;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="peoples" title="Люди">&#x1F60A;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="nature" title="Природа">&#x1F331;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="food" title="Еда">&#x1F34E;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="activity" title="Спорт">&#x26BD;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="travel" title="Путешествия">&#x2708;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="objects" title="Предметы">&#x1F4A1;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="symbols" title="Символы">&#x2764;</button>
-                    <button type="button" class="emoji-category-btn" data-cat="flags" title="Флаги">&#x1F3C1;</button>
+            <div class="emoji-picker" id="emojiPicker" role="dialog" aria-label="Панель эмодзи" aria-hidden="true">
+                <div class="emoji-picker-topbar">
+                    <div class="emoji-picker-tabstrip" id="emojiPickerTabstrip" role="tablist" aria-label="Разделы панели">
+                        <button type="button" class="emoji-tab-btn active" data-picker-tab="emoji" role="tab" aria-selected="true">Эмодзи</button>
+                        <button type="button" class="emoji-tab-btn" data-picker-tab="stickers" role="tab" aria-selected="false">Стикеры</button>
+                        <button type="button" class="emoji-tab-btn" data-picker-tab="gifs" role="tab" aria-selected="false">GIF</button>
+                    </div>
+                    <label class="emoji-picker-search" for="emojiSearchInput">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input id="emojiSearchInput" type="search" autocomplete="off" spellcheck="false" placeholder="Поиск">
+                        <button type="button" class="emoji-picker-search-clear" id="emojiSearchClear" aria-label="Очистить поиск" hidden>
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                        </button>
+                    </label>
+                    <div class="emoji-picker-header" id="emojiCategories" role="tablist" aria-label="Категории эмодзи">
+                        <button type="button" class="emoji-category-btn active" data-cat="frequent" title="Часто используемые">&#x1F551;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="peoples" title="Люди">&#x1F60A;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="nature" title="Природа">&#x1F331;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="food" title="Еда">&#x1F34E;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="activity" title="Спорт">&#x26BD;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="travel" title="Путешествия">&#x2708;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="objects" title="Предметы">&#x1F4A1;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="symbols" title="Символы">&#x2764;</button>
+                        <button type="button" class="emoji-category-btn" data-cat="flags" title="Флаги">&#x1F3C1;</button>
+                    </div>
                 </div>
-                <div class="emoji-list" id="emojiList">
+                <div class="emoji-content-viewport" id="emojiContentViewport">
+                    <div class="emoji-list" id="emojiList"></div>
+                </div>
+                <div class="emoji-picker-footer" id="emojiPickerFooter" role="tablist" aria-label="Тип контента">
+                    <button type="button" class="emoji-mode-btn active" data-picker-tab="emoji" role="tab" aria-selected="true" title="Эмодзи">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-emoji"></use></svg>
+                    </button>
+                    <button type="button" class="emoji-mode-btn" data-picker-tab="stickers" role="tab" aria-selected="false" title="Стикеры">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-image"></use></svg>
+                    </button>
+                    <button type="button" class="emoji-mode-btn emoji-mode-btn--gif" data-picker-tab="gifs" role="tab" aria-selected="false" title="GIF">
+                        <span aria-hidden="true">GIF</span>
+                    </button>
                 </div>
             </div>
         </div>

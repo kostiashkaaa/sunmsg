@@ -1,40 +1,91 @@
 import { applyEmojiGraphics } from './utils.js';
 import { withAppRoot } from './app-url.js';
+import {
+    EMOJI_CATEGORY_META,
+    EMOJI_CATEGORY_ORDER,
+    GIF_CATEGORY_META,
+    GIF_CATEGORY_ORDER,
+    GIF_ITEMS,
+    PICKER_I18N,
+    PICKER_TABS,
+    STICKER_CATEGORY_META,
+    STICKER_CATEGORY_ORDER,
+    STICKER_ITEMS,
+    resolvePickerLocale,
+} from './emoji-picker-data.js';
 
 let emojiData = null;
 let emojiLoadFailed = false;
 let lastPopulateRequestId = 0;
 
-const RECENT_STORAGE_KEY = 'sun_recent_emojis_v1';
-const MAX_RECENT_EMOJIS = 48;
-const DEFAULT_CATEGORY = 'frequent';
-const FALLBACK_CATEGORY = 'peoples';
-const CATEGORY_ICONS = {
-    frequent: '\u{1F557}',
-    peoples: '\u{1F60A}',
-    nature: '\u{1F333}',
-    food: '\u{1F34E}',
-    activity: '\u{26BD}',
-    travel: '\u{1F697}',
-    objects: '\u{1F4A1}',
-    symbols: '\u{2764}\u{FE0F}',
-    flags: '\u{1F3C1}',
+const RECENT_STORAGE_KEYS = {
+    emoji: 'sun_recent_emojis_v1',
+    stickers: 'sun_recent_stickers_v1',
+    gifs: 'sun_recent_gifs_v1',
 };
+const MAX_RECENT_ITEMS = {
+    emoji: 48,
+    stickers: 36,
+    gifs: 36,
+};
+const DEFAULT_TAB = 'emoji';
+const TAB_DEFAULT_CATEGORY = {
+    emoji: 'frequent',
+    stickers: 'recent',
+    gifs: 'recent',
+};
+
 const DISALLOWED_PICKER_EMOJIS = new Set([
     '\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08', // rainbow flag
     '\uD83C\uDFF3\uFE0F\u200D\u26A7\uFE0F', // transgender flag
 ]);
 const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
-const MOBILE_EMOJI_MIN_HEIGHT = 292;
-const MOBILE_EMOJI_MAX_HEIGHT = 360;
-const MOBILE_EMOJI_HEIGHT_RATIO = 0.43;
+const MOBILE_EMOJI_MIN_HEIGHT = 344;
+const MOBILE_EMOJI_MAX_HEIGHT = 520;
+const MOBILE_EMOJI_HEIGHT_RATIO = 0.56;
 const EMOJI_CLOSE_ANIMATION_MS = 190;
 const EMOJI_KEYBOARD_HANDOFF_MS = 720;
 const EMOJI_KEYBOARD_INSET_MIN = 80;
+const CATEGORY_SCROLL_SYNC_OFFSET = 24;
+const SWIPE_DISTANCE_MIN = 52;
+const SWIPE_RATIO_MIN = 1.2;
+
+const EMOJI_INLINE_KEYWORDS = {
+    '\u{1F602}': ['смех', 'laugh', 'lol'],
+    '\u{1F923}': ['смех', 'laugh', 'rofl'],
+    '\u{1F60D}': ['любовь', 'love', 'heart'],
+    '\u{2764}\u{FE0F}': ['любовь', 'сердце', 'love', 'heart'],
+    '\u{1F44D}': ['лайк', 'ok', 'like', 'yes'],
+    '\u{1F44E}': ['дизлайк', 'no', 'dislike'],
+    '\u{1F389}': ['праздник', 'party', 'celebrate'],
+    '\u{1F525}': ['огонь', 'fire', 'hot'],
+    '\u{1F62E}': ['удивление', 'wow', 'surprised'],
+    '\u{1F622}': ['грусть', 'sad', 'cry'],
+    '\u{1F631}': ['шок', 'shock', 'scream'],
+    '\u{1F914}': ['думать', 'think', 'hmm'],
+};
+
+const STICKER_LOOKUP = buildItemLookup(STICKER_ITEMS);
+const GIF_LOOKUP = buildItemLookup(GIF_ITEMS);
 
 let emojiCloseSeq = 0;
 let emojiKeyboardHandoffTimer = null;
 let emojiKeyboardHandoffFrame = 0;
+
+function buildItemLookup(groupedItems) {
+    const map = new Map();
+    Object.values(groupedItems || {}).forEach((items) => {
+        items?.forEach((item) => {
+            if (!item?.id) return;
+            map.set(item.id, item);
+        });
+    });
+    return map;
+}
+
+function normalizeQuery(value) {
+    return String(value || '').trim().toLowerCase();
+}
 
 function isMobileEmojiViewport() {
     return window.matchMedia?.(MOBILE_EMOJI_QUERY)?.matches ?? false;
@@ -104,7 +155,7 @@ function waitForMotionEnd(element, fallbackMs) {
         };
         element.addEventListener('transitionend', onEnd);
         element.addEventListener('animationend', onEnd);
-        timeoutId = window.setTimeout(finish, fallbackMs + 50);
+        timeoutId = window.setTimeout(finish, fallbackMs + 60);
     });
 }
 
@@ -182,38 +233,61 @@ function isAllowedPickerEmoji(value) {
         && !DISALLOWED_PICKER_EMOJIS.has(value);
 }
 
-function getRecentEmojis() {
+function sanitizeRecentEntry(kind, raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (kind === 'emoji') {
+        return isAllowedPickerEmoji(value) ? value : '';
+    }
+    if (kind === 'stickers') {
+        return STICKER_LOOKUP.has(value) ? value : '';
+    }
+    if (kind === 'gifs') {
+        return GIF_LOOKUP.has(value) ? value : '';
+    }
+    return '';
+}
+
+function getRecentItems(kind) {
+    const storageKey = RECENT_STORAGE_KEYS[kind];
+    const maxItems = MAX_RECENT_ITEMS[kind] || 0;
+    if (!storageKey || maxItems <= 0) return [];
     try {
-        const raw = localStorage.getItem(RECENT_STORAGE_KEY);
+        const raw = localStorage.getItem(storageKey);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
         const sanitized = parsed
-            .filter((item) => isAllowedPickerEmoji(item))
-            .slice(0, MAX_RECENT_EMOJIS);
+            .map((entry) => sanitizeRecentEntry(kind, entry))
+            .filter(Boolean)
+            .slice(0, maxItems);
         if (sanitized.length !== parsed.length) {
-            saveRecentEmojis(sanitized);
+            localStorage.setItem(storageKey, JSON.stringify(sanitized));
         }
         return sanitized;
     } catch (error) {
-        console.warn('Failed to read recent emojis', error);
+        console.warn(`Failed to read recent ${kind}`, error);
         return [];
     }
 }
 
-function saveRecentEmojis(list) {
+function saveRecentItems(kind, values) {
+    const storageKey = RECENT_STORAGE_KEYS[kind];
+    const maxItems = MAX_RECENT_ITEMS[kind] || 0;
+    if (!storageKey || maxItems <= 0) return;
     try {
-        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(list.slice(0, MAX_RECENT_EMOJIS)));
+        localStorage.setItem(storageKey, JSON.stringify(values.slice(0, maxItems)));
     } catch (error) {
-        console.warn('Failed to save recent emojis', error);
+        console.warn(`Failed to save recent ${kind}`, error);
     }
 }
 
-function rememberEmoji(emoji) {
-    if (!isAllowedPickerEmoji(emoji)) return;
-    const list = getRecentEmojis().filter((item) => item !== emoji);
-    list.unshift(emoji);
-    saveRecentEmojis(list);
+function rememberRecentItem(kind, value) {
+    const sanitized = sanitizeRecentEntry(kind, value);
+    if (!sanitized) return;
+    const list = getRecentItems(kind).filter((entry) => entry !== sanitized);
+    list.unshift(sanitized);
+    saveRecentItems(kind, list);
 }
 
 function resolveEmojiUiLanguage() {
@@ -221,15 +295,23 @@ function resolveEmojiUiLanguage() {
         || window.SUN_BOOTSTRAP?.user?.uiLanguage
         || document.documentElement.lang
         || '';
-    return String(explicitLanguage).toLowerCase().startsWith('en') ? 'en' : 'ru';
+    return resolvePickerLocale(explicitLanguage);
 }
 
 function getEmojiButtonLabel(mode) {
-    const isEnglish = resolveEmojiUiLanguage() === 'en';
+    const localeCode = resolveEmojiUiLanguage();
     if (mode === 'keyboard') {
-        return isEnglish ? 'Show keyboard' : '\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u043A\u043B\u0430\u0432\u0438\u0430\u0442\u0443\u0440\u0443';
+        return localeCode === 'en' ? 'Show keyboard' : 'Показать клавиатуру';
     }
-    return isEnglish ? 'Show emojis' : '\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u043C\u0430\u0439\u043B\u0438\u043A\u0438';
+    return localeCode === 'en' ? 'Show emojis' : 'Показать смайлики';
+}
+
+function getLocaleStrings() {
+    const localeCode = resolveEmojiUiLanguage();
+    return {
+        localeCode,
+        strings: PICKER_I18N[localeCode] || PICKER_I18N.ru,
+    };
 }
 
 async function loadEmojiData() {
@@ -291,73 +373,291 @@ function setEmojiStatus(emojiList, html) {
     emojiList.innerHTML = `<div class="emoji-list-status">${html}</div>`;
 }
 
-function resolveCategoryData(data, category) {
-    if (category === DEFAULT_CATEGORY) {
-        return getRecentEmojis();
-    }
-    const list = data?.[category];
-    return Array.isArray(list) ? list.filter((emoji) => isAllowedPickerEmoji(emoji)) : [];
+function getLocalizedTitle(meta, categoryId, localeCode) {
+    if (!meta) return categoryId;
+    return localeCode === 'en' ? meta.titleEn : meta.titleRu;
 }
 
-async function populateEmojiList(emojiList, messageInput, category, options = {}) {
-    if (!emojiList || !messageInput) return;
-    const requestId = ++lastPopulateRequestId;
-    const targetCategory = category || FALLBACK_CATEGORY;
+function createCategoryConfig(tab) {
+    if (tab === 'stickers') {
+        return { order: STICKER_CATEGORY_ORDER, meta: STICKER_CATEGORY_META };
+    }
+    if (tab === 'gifs') {
+        return { order: GIF_CATEGORY_ORDER, meta: GIF_CATEGORY_META };
+    }
+    return { order: EMOJI_CATEGORY_ORDER, meta: EMOJI_CATEGORY_META };
+}
 
-    setEmojiStatus(emojiList, '<i class="bi bi-hourglass-split"></i>');
+function matchesText(query, values = []) {
+    if (!query) return true;
+    const compact = query.toLowerCase();
+    return values.some((value) => String(value || '').toLowerCase().includes(compact));
+}
 
-    const data = await loadEmojiData();
-    if (requestId !== lastPopulateRequestId) return;
+function buildEmojiSearchResults(data, query, localeCode) {
+    const compactQuery = normalizeQuery(query);
+    const recent = getRecentItems('emoji');
+    const recentSet = new Set(recent);
+    const scored = [];
+    const seen = new Set();
 
-    if (!data) {
-        setEmojiStatus(emojiList, '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u044D\u043C\u043E\u0434\u0437\u0438');
-        return;
+    EMOJI_CATEGORY_ORDER.filter((category) => category !== 'frequent').forEach((category) => {
+        const entries = Array.isArray(data?.[category]) ? data[category] : [];
+        const meta = EMOJI_CATEGORY_META[category];
+        const categoryTags = meta?.searchTags || [];
+        entries.forEach((emoji) => {
+            if (!isAllowedPickerEmoji(emoji) || seen.has(emoji)) return;
+            const inlineKeywords = EMOJI_INLINE_KEYWORDS[emoji] || [];
+            const queryValues = [
+                emoji,
+                ...categoryTags,
+                ...inlineKeywords,
+                getLocalizedTitle(meta, category, localeCode),
+            ];
+            if (!matchesText(compactQuery, queryValues)) return;
+            seen.add(emoji);
+            scored.push({
+                emoji,
+                score: (recentSet.has(emoji) ? 3 : 0) + (inlineKeywords.length ? 1 : 0),
+            });
+        });
+    });
+
+    scored.sort((left, right) => right.score - left.score || left.emoji.localeCompare(right.emoji));
+    return scored.map((entry) => entry.emoji);
+}
+
+function buildDefaultEmojiSections(data, localeCode) {
+    const sections = [];
+    const recent = getRecentItems('emoji');
+
+    EMOJI_CATEGORY_ORDER.forEach((category) => {
+        const meta = EMOJI_CATEGORY_META[category];
+        const title = getLocalizedTitle(meta, category, localeCode);
+        const items = category === 'frequent'
+            ? recent
+            : (Array.isArray(data?.[category]) ? data[category].filter((emoji) => isAllowedPickerEmoji(emoji)) : []);
+        sections.push({
+            id: category,
+            title,
+            items,
+            type: 'emoji',
+        });
+    });
+    return sections;
+}
+
+function buildStickerSections(query, localeCode, strings) {
+    const compactQuery = normalizeQuery(query);
+    const recentIds = getRecentItems('stickers');
+    const recentItems = recentIds.map((id) => STICKER_LOOKUP.get(id)).filter(Boolean);
+
+    if (compactQuery) {
+        const allItems = Object.values(STICKER_ITEMS).flat();
+        const recentSet = new Set(recentIds);
+        const filtered = allItems
+            .filter((item) => matchesText(compactQuery, [item.ru, item.en, ...(item.keywords || [])]))
+            .sort((left, right) => {
+                const leftScore = recentSet.has(left.id) ? 1 : 0;
+                const rightScore = recentSet.has(right.id) ? 1 : 0;
+                return rightScore - leftScore || left.en.localeCompare(right.en);
+            });
+        return [{
+            id: 'search',
+            title: strings.searchResultsTitle,
+            items: filtered,
+            type: 'stickers',
+        }];
     }
 
-    const emojis = resolveCategoryData(data, targetCategory);
-    if (!emojis.length) {
-        if (targetCategory === DEFAULT_CATEGORY) {
-            setEmojiStatus(
-                emojiList,
-                '<i class="bi bi-clock-history"></i> \u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E. \u0427\u0430\u0441\u0442\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u043E\u044F\u0432\u044F\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0432\u044B\u0431\u043E\u0440\u0430 \u044D\u043C\u043E\u0434\u0437\u0438.'
-            );
+    const sections = [{
+        id: 'recent',
+        title: strings.recentTitle,
+        items: recentItems,
+        type: 'stickers',
+    }];
+
+    STICKER_CATEGORY_ORDER.filter((category) => category !== 'recent').forEach((category) => {
+        const meta = STICKER_CATEGORY_META[category];
+        sections.push({
+            id: category,
+            title: getLocalizedTitle(meta, category, localeCode),
+            items: STICKER_ITEMS[category] || [],
+            type: 'stickers',
+        });
+    });
+    return sections;
+}
+
+function buildGifSections(query, localeCode, strings) {
+    const compactQuery = normalizeQuery(query);
+    const recentIds = getRecentItems('gifs');
+    const recentItems = recentIds.map((id) => GIF_LOOKUP.get(id)).filter(Boolean);
+
+    if (compactQuery) {
+        const allItems = Object.values(GIF_ITEMS).flat();
+        const recentSet = new Set(recentIds);
+        const filtered = allItems
+            .filter((item) => matchesText(compactQuery, [item.ru, item.en, ...(item.keywords || [])]))
+            .sort((left, right) => {
+                const leftScore = recentSet.has(left.id) ? 1 : 0;
+                const rightScore = recentSet.has(right.id) ? 1 : 0;
+                return rightScore - leftScore || left.en.localeCompare(right.en);
+            });
+        return [{
+            id: 'search',
+            title: strings.searchResultsTitle,
+            items: filtered,
+            type: 'gifs',
+        }];
+    }
+
+    const sections = [{
+        id: 'recent',
+        title: strings.recentTitle,
+        items: recentItems,
+        type: 'gifs',
+    }];
+
+    GIF_CATEGORY_ORDER.filter((category) => category !== 'recent').forEach((category) => {
+        const meta = GIF_CATEGORY_META[category];
+        sections.push({
+            id: category,
+            title: getLocalizedTitle(meta, category, localeCode),
+            items: GIF_ITEMS[category] || [],
+            type: 'gifs',
+        });
+    });
+    return sections;
+}
+
+function createEmojiItemButton(emoji) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'emoji-item';
+    button.dataset.pickerItemKind = 'emoji';
+    button.dataset.emoji = emoji;
+    button.setAttribute('aria-label', `Эмодзи ${emoji}`);
+    button.textContent = emoji;
+    return button;
+}
+
+function createStickerItemButton(item, localeCode, strings) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'emoji-sticker-item';
+    button.dataset.pickerItemKind = 'stickers';
+    button.dataset.itemId = item.id;
+    button.setAttribute('aria-label', `${strings.stickerHint} ${localeCode === 'en' ? item.en : item.ru}`);
+    button.innerHTML = `
+        <span class="emoji-sticker-item__emoji">${item.emoji}</span>
+        <span class="emoji-sticker-item__label">${localeCode === 'en' ? item.en : item.ru}</span>
+    `;
+    return button;
+}
+
+function createGifItemButton(item, localeCode, strings) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'emoji-gif-item';
+    button.dataset.pickerItemKind = 'gifs';
+    button.dataset.itemId = item.id;
+    if (item.color) {
+        button.style.setProperty('--gif-tone', item.color);
+    }
+    button.setAttribute('aria-label', `${strings.gifHint} ${localeCode === 'en' ? item.en : item.ru}`);
+    button.innerHTML = `
+        <span class="emoji-gif-item__badge">GIF</span>
+        <span class="emoji-gif-item__emoji">${item.emoji}</span>
+        <span class="emoji-gif-item__label">${localeCode === 'en' ? item.en : item.ru}</span>
+    `;
+    return button;
+}
+
+function createSectionElement(section, localeCode, strings) {
+    const sectionEl = document.createElement('section');
+    sectionEl.className = 'emoji-section';
+    sectionEl.dataset.sectionCat = section.id;
+
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'emoji-section-title';
+    titleEl.textContent = section.title;
+    sectionEl.appendChild(titleEl);
+
+    const gridEl = document.createElement('div');
+    if (section.type === 'stickers') {
+        gridEl.className = 'emoji-sticker-grid';
+    } else if (section.type === 'gifs') {
+        gridEl.className = 'emoji-gif-grid';
+    } else {
+        gridEl.className = 'emoji-section-grid';
+    }
+
+    section.items.forEach((item) => {
+        if (section.type === 'stickers') {
+            gridEl.appendChild(createStickerItemButton(item, localeCode, strings));
             return;
         }
-        setEmojiStatus(emojiList, '\u0412 \u044D\u0442\u043E\u0439 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442 \u044D\u043C\u043E\u0434\u0437\u0438');
-        return;
-    }
+        if (section.type === 'gifs') {
+            gridEl.appendChild(createGifItemButton(item, localeCode, strings));
+            return;
+        }
+        gridEl.appendChild(createEmojiItemButton(item));
+    });
 
-    emojiList.innerHTML = '';
+    sectionEl.appendChild(gridEl);
+    return sectionEl;
+}
+
+function setActiveCategory(emojiCategories, category) {
+    emojiCategories?.querySelectorAll('.emoji-category-btn').forEach((button) => {
+        const isActive = button.dataset.cat === category;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+}
+
+function ensureActiveCategoryVisible(emojiCategories, category) {
+    const activeButton = emojiCategories?.querySelector(`.emoji-category-btn[data-cat="${category}"]`);
+    if (!activeButton) return;
+    activeButton.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+}
+
+function renderCategoryButtons(emojiCategories, tab, categoryByTab, localeCode) {
+    const config = createCategoryConfig(tab);
+    const currentCategory = categoryByTab[tab] || TAB_DEFAULT_CATEGORY[tab];
     const fragment = document.createDocumentFragment();
-    emojis.forEach((emoji) => {
+    emojiCategories.innerHTML = '';
+
+    config.order.forEach((category) => {
+        const meta = config.meta?.[category];
+        const title = getLocalizedTitle(meta, category, localeCode);
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'emoji-item';
-        button.textContent = emoji;
-        button.setAttribute('aria-label', `\u042D\u043C\u043E\u0434\u0437\u0438 ${emoji}`);
-        button.addEventListener('pointerdown', (event) => {
-            event.stopPropagation();
-        });
-        button.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const selection = options.getSelection?.() || {};
-            const nextSelection = insertAtCursor(messageInput, emoji, {
-                selectionStart: selection.start,
-                selectionEnd: selection.end,
-                focusAfter: options.shouldFocusAfterInsert?.() ?? true,
-            });
-            options.setSelection?.(nextSelection.start, nextSelection.end);
-            options.onInserted?.();
-            rememberEmoji(emoji);
-            if (targetCategory === DEFAULT_CATEGORY) {
-                populateEmojiList(emojiList, messageInput, DEFAULT_CATEGORY, options);
-            }
-        });
+        button.className = 'emoji-category-btn';
+        button.dataset.cat = category;
+        button.setAttribute('title', title);
+        button.setAttribute('aria-label', title);
+        button.setAttribute('role', 'tab');
+        button.textContent = meta?.icon || category;
         fragment.appendChild(button);
     });
-    emojiList.appendChild(fragment);
-    applyEmojiGraphics(emojiList);
+
+    emojiCategories.appendChild(fragment);
+    setActiveCategory(emojiCategories, currentCategory);
+    ensureActiveCategoryVisible(emojiCategories, currentCategory);
+    applyEmojiGraphics(emojiCategories);
+}
+
+function setActiveTabButtons(emojiPicker, activeTab) {
+    emojiPicker.querySelectorAll('[data-picker-tab]').forEach((button) => {
+        const isActive = button.dataset.pickerTab === activeTab;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        if (button.classList.contains('emoji-tab-btn')) {
+            button.setAttribute('tabindex', isActive ? '0' : '-1');
+        }
+    });
 }
 
 function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
@@ -370,9 +670,7 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     const viewportOffsetTop = vv?.offsetTop || 0;
     const margin = 10;
     const isMobile = isMobileEmojiViewport();
-    const btnRect = emojiBtn.getBoundingClientRect();
-    const formRect = emojiBtn.closest('#messageForm')?.getBoundingClientRect() || btnRect;
-    const anchorRect = formRect;
+    const formRect = emojiBtn.closest('#messageForm')?.getBoundingClientRect() || emojiBtn.getBoundingClientRect();
     const anchorGap = 10;
 
     if (isMobile) {
@@ -382,7 +680,7 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
             Math.round(document.documentElement.clientHeight || 0),
             readRootPixelVar('--app-vh'),
         );
-        const maxSheetHeight = Math.max(220, Math.min(MOBILE_EMOJI_MAX_HEIGHT, mobileViewportHeight - 96));
+        const maxSheetHeight = Math.max(300, Math.min(MOBILE_EMOJI_MAX_HEIGHT, mobileViewportHeight - 80));
         const sheetHeight = Math.round(Math.min(
             maxSheetHeight,
             Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
@@ -409,15 +707,15 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     const targetWidth = preserveSize && measuredWidth > 0
         ? measuredWidth
         : Math.max(
-            320,
+            356,
             Math.min(
-                380,
-                Math.min(viewportWidth - 24, Math.round(Math.max(332, anchorRect.width - 18))),
+                430,
+                Math.min(viewportWidth - 24, Math.round(Math.max(360, formRect.width - 14))),
             ),
         );
     const targetHeight = preserveSize && measuredHeight > 0
         ? measuredHeight
-        : Math.max(292, Math.min(388, viewportHeight - 18));
+        : Math.max(334, Math.min(486, viewportHeight - 18));
 
     emojiPicker.style.setProperty('--emoji-width', `${targetWidth}px`);
     emojiPicker.style.setProperty('--emoji-height', `${targetHeight}px`);
@@ -426,18 +724,17 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     const pickerLayoutHeight = Math.round(emojiPicker.offsetHeight || targetHeight);
     const pickerWidth = Math.min(pickerLayoutWidth, viewportWidth - margin * 2);
     const pickerHeight = Math.min(pickerLayoutHeight, viewportHeight - margin * 2);
-    let left;
-    let top;
+
+    let left = formRect.left;
+    let top = formRect.top - pickerHeight - anchorGap;
     let side = 'top';
 
-    left = anchorRect.left;
-    top = anchorRect.top - pickerHeight - anchorGap;
     if (top < viewportOffsetTop + margin) {
-        top = anchorRect.bottom + anchorGap;
+        top = formRect.bottom + anchorGap;
         side = 'bottom';
     }
-    if (left + pickerWidth > anchorRect.right) {
-        left = anchorRect.right - pickerWidth;
+    if (left + pickerWidth > formRect.right) {
+        left = formRect.right - pickerWidth;
     }
 
     left = Math.max(viewportOffsetLeft + margin, Math.min(left, viewportOffsetLeft + viewportWidth - pickerWidth - margin));
@@ -451,19 +748,27 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     emojiPicker.dataset.side = side;
 }
 
-function setActiveCategory(emojiCategories, category) {
-    emojiCategories?.querySelectorAll('.emoji-category-btn').forEach((button) => {
-        button.classList.toggle('active', button.dataset.cat === category);
+function findClosestCategory(emojiList) {
+    const sections = Array.from(emojiList.querySelectorAll('.emoji-section[data-section-cat]'));
+    if (!sections.length) return '';
+    const targetTop = emojiList.scrollTop + CATEGORY_SCROLL_SYNC_OFFSET;
+    let activeCategory = sections[0].dataset.sectionCat || '';
+    sections.forEach((section) => {
+        if (section.offsetTop <= targetTop) {
+            activeCategory = section.dataset.sectionCat || activeCategory;
+        }
     });
+    return activeCategory;
 }
 
-function syncEmojiCategoryIcons(emojiCategories) {
-    if (!emojiCategories) return;
-    emojiCategories.querySelectorAll('.emoji-category-btn').forEach((button) => {
-        const category = String(button.dataset.cat || '').trim();
-        const icon = CATEGORY_ICONS[category];
-        if (icon) button.textContent = icon;
+function scrollToCategory(emojiList, categoryId) {
+    const section = emojiList.querySelector(`.emoji-section[data-section-cat="${categoryId}"]`);
+    if (!section) return false;
+    emojiList.scrollTo({
+        top: Math.max(0, Math.round(section.offsetTop - 6)),
+        behavior: 'smooth',
     });
+    return true;
 }
 
 export function initEmojiPicker(messageInput) {
@@ -471,15 +776,22 @@ export function initEmojiPicker(messageInput) {
     const emojiPicker = document.getElementById('emojiPicker');
     const emojiList = document.getElementById('emojiList');
     const emojiCategories = document.getElementById('emojiCategories');
-    if (!emojiBtn || !emojiPicker || !emojiList || !emojiCategories || !messageInput) return;
+    const emojiSearchInput = document.getElementById('emojiSearchInput');
+    const emojiSearchClear = document.getElementById('emojiSearchClear');
+    const emojiContentViewport = document.getElementById('emojiContentViewport');
+    if (!emojiBtn || !emojiPicker || !emojiList || !emojiCategories || !emojiSearchInput || !emojiSearchClear || !emojiContentViewport || !messageInput) {
+        return;
+    }
 
-    let activeCategory = DEFAULT_CATEGORY;
+    let activeTab = DEFAULT_TAB;
+    const categoryByTab = { ...TAB_DEFAULT_CATEGORY };
+    let searchQuery = '';
     let lastSelectionStart = messageInput.value.length;
     let lastSelectionEnd = lastSelectionStart;
     let handledKeyboardSwitchPointer = false;
     let keyboardSwitchPointerTimer = null;
-    syncEmojiCategoryIcons(emojiCategories);
-    applyEmojiGraphics(emojiCategories);
+    let suppressCategorySyncUntil = 0;
+    let swipeSession = null;
 
     const setStoredSelection = (start, end = start) => {
         const valueLength = messageInput.value.length;
@@ -529,11 +841,139 @@ export function initEmojiPicker(messageInput) {
         emojiBtn.setAttribute('title', label);
     };
 
-    const emojiInsertOptions = {
-        getSelection: getStoredSelection,
-        setSelection: setStoredSelection,
-        shouldFocusAfterInsert: () => !(isMobileEmojiViewport() && emojiPicker.classList.contains('active')),
-        onInserted: () => {},
+    const updateSearchUi = (strings) => {
+        const placeholder = strings?.searchPlaceholder?.[activeTab] || strings?.searchPlaceholder?.emoji || 'Search';
+        emojiSearchInput.placeholder = placeholder;
+        emojiSearchClear.hidden = !searchQuery;
+    };
+
+    const buildInsertText = (kind, item, localeCode, strings) => {
+        if (kind === 'emoji') return item;
+        if (kind === 'stickers') return `${item.emoji} `;
+        const title = localeCode === 'en' ? item.en : item.ru;
+        return `[${strings.gifHint}] ${title} `;
+    };
+
+    const refreshCategories = () => {
+        const { localeCode } = getLocaleStrings();
+        renderCategoryButtons(emojiCategories, activeTab, categoryByTab, localeCode);
+    };
+
+    const renderActiveTab = async ({ forceCategoryScroll = false } = {}) => {
+        const requestId = ++lastPopulateRequestId;
+        const { localeCode, strings } = getLocaleStrings();
+        updateSearchUi(strings);
+        refreshCategories();
+
+        if (activeTab === 'emoji') {
+            setEmojiStatus(emojiList, '<i class="bi bi-hourglass-split"></i>');
+            const data = await loadEmojiData();
+            if (requestId !== lastPopulateRequestId) return;
+            if (!data) {
+                setEmojiStatus(emojiList, strings.noEmojiData);
+                return;
+            }
+
+            const compactQuery = normalizeQuery(searchQuery);
+            const sections = compactQuery
+                ? [{
+                    id: 'search',
+                    title: strings.searchResultsTitle,
+                    items: buildEmojiSearchResults(data, compactQuery, localeCode),
+                    type: 'emoji',
+                }]
+                : buildDefaultEmojiSections(data, localeCode);
+
+            if (!sections.length || !sections.some((section) => section.items.length)) {
+                setEmojiStatus(emojiList, strings.emptySearch);
+                return;
+            }
+
+            emojiList.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            sections.forEach((section) => {
+                const sectionEl = createSectionElement(section, localeCode, strings);
+                if (!section.items.length) {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'emoji-list-status emoji-list-status--inline';
+                    emptyEl.textContent = section.id === 'frequent' ? strings.emptyRecentEmoji : strings.emptySearch;
+                    sectionEl.appendChild(emptyEl);
+                }
+                fragment.appendChild(sectionEl);
+            });
+            emojiList.appendChild(fragment);
+            applyEmojiGraphics(emojiList);
+
+            if (!compactQuery) {
+                const selectedCategory = categoryByTab.emoji || TAB_DEFAULT_CATEGORY.emoji;
+                setActiveCategory(emojiCategories, selectedCategory);
+                if (forceCategoryScroll) {
+                    scrollToCategory(emojiList, selectedCategory);
+                }
+            } else {
+                setActiveCategory(emojiCategories, '');
+            }
+            return;
+        }
+
+        const sections = activeTab === 'stickers'
+            ? buildStickerSections(searchQuery, localeCode, strings)
+            : buildGifSections(searchQuery, localeCode, strings);
+
+        if (!sections.length || !sections.some((section) => section.items.length)) {
+            const isSticker = activeTab === 'stickers';
+            const emptyText = normalizeQuery(searchQuery)
+                ? strings.emptySearch
+                : (isSticker ? strings.emptyRecentSticker : strings.emptyRecentGif);
+            setEmojiStatus(emojiList, emptyText);
+            return;
+        }
+
+        emojiList.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        sections.forEach((section) => {
+            const sectionEl = createSectionElement(section, localeCode, strings);
+            if (!section.items.length && section.id === 'recent') {
+                const emptyEl = document.createElement('div');
+                emptyEl.className = 'emoji-list-status emoji-list-status--inline';
+                emptyEl.textContent = activeTab === 'stickers' ? strings.emptyRecentSticker : strings.emptyRecentGif;
+                sectionEl.appendChild(emptyEl);
+            }
+            fragment.appendChild(sectionEl);
+        });
+        emojiList.appendChild(fragment);
+        applyEmojiGraphics(emojiList);
+
+        const compactQuery = normalizeQuery(searchQuery);
+        if (!compactQuery) {
+            const selectedCategory = categoryByTab[activeTab] || TAB_DEFAULT_CATEGORY[activeTab];
+            setActiveCategory(emojiCategories, selectedCategory);
+            if (forceCategoryScroll) {
+                scrollToCategory(emojiList, selectedCategory);
+            }
+        } else {
+            setActiveCategory(emojiCategories, '');
+        }
+    };
+
+    const setTab = async (nextTab, options = {}) => {
+        const normalizedTab = PICKER_TABS.includes(nextTab) ? nextTab : DEFAULT_TAB;
+        const shouldRender = options.render !== false;
+        if (activeTab === normalizedTab && !options.force) return;
+        activeTab = normalizedTab;
+        emojiPicker.setAttribute('data-active-tab', activeTab);
+        setActiveTabButtons(emojiPicker, activeTab);
+        if (shouldRender) {
+            await renderActiveTab({ forceCategoryScroll: true });
+        }
+    };
+
+    const switchTabByDelta = async (delta) => {
+        const currentIndex = PICKER_TABS.indexOf(activeTab);
+        if (currentIndex < 0) return;
+        const nextIndex = Math.max(0, Math.min(PICKER_TABS.length - 1, currentIndex + delta));
+        if (nextIndex === currentIndex) return;
+        await setTab(PICKER_TABS[nextIndex], { force: true });
     };
 
     const reposition = () => {
@@ -552,6 +992,7 @@ export function initEmojiPicker(messageInput) {
             } else {
                 clearMobileEmojiSheetState(emojiPicker);
             }
+            emojiPicker.setAttribute('aria-hidden', 'true');
             syncEmojiButtonMode(false);
             if (focusInput) focusComposerInput();
             return;
@@ -560,6 +1001,7 @@ export function initEmojiPicker(messageInput) {
         const closeSeq = ++emojiCloseSeq;
         emojiPicker.classList.remove('active');
         emojiPicker.classList.add('is-closing');
+        emojiPicker.setAttribute('aria-hidden', 'true');
         if (wantsKeyboardHandoff) {
             startEmojiKeyboardHandoff(emojiPicker);
         }
@@ -578,19 +1020,43 @@ export function initEmojiPicker(messageInput) {
         rememberSelection();
         stopEmojiKeyboardHandoff(emojiPicker);
         emojiCloseSeq += 1;
+        searchQuery = '';
+        emojiSearchInput.value = '';
+        activeTab = DEFAULT_TAB;
+        categoryByTab.emoji = TAB_DEFAULT_CATEGORY.emoji;
         emojiPicker.classList.remove('is-closing');
+        emojiPicker.classList.add('active');
+        emojiPicker.setAttribute('aria-hidden', 'false');
         if (isMobileEmojiViewport() && document.activeElement === messageInput) {
             messageInput.blur();
         }
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
-        emojiPicker.classList.add('active');
-        syncEmojiButtonMode(true);
-        setActiveCategory(emojiCategories, activeCategory);
-        applyEmojiGraphics(emojiCategories);
         positionEmojiPicker(emojiPicker, emojiBtn);
-        await populateEmojiList(emojiList, messageInput, activeCategory, emojiInsertOptions);
+        setActiveTabButtons(emojiPicker, activeTab);
+        await renderActiveTab({ forceCategoryScroll: true });
         positionEmojiPicker(emojiPicker, emojiBtn);
         syncEmojiButtonMode(true);
+    };
+
+    const onCategoryClick = async (button) => {
+        const category = String(button.dataset.cat || '').trim();
+        if (!category) return;
+        categoryByTab[activeTab] = category;
+        setActiveCategory(emojiCategories, category);
+        ensureActiveCategoryVisible(emojiCategories, category);
+
+        const hasSearch = Boolean(normalizeQuery(searchQuery));
+        if (hasSearch) {
+            await renderActiveTab();
+            return;
+        }
+
+        const didScroll = scrollToCategory(emojiList, category);
+        if (!didScroll) {
+            await renderActiveTab({ forceCategoryScroll: true });
+            return;
+        }
+        suppressCategorySyncUntil = performance.now() + 420;
     };
 
     emojiBtn.addEventListener('pointerdown', (event) => {
@@ -622,14 +1088,133 @@ export function initEmojiPicker(messageInput) {
         }
     });
 
-    emojiCategories.addEventListener('click', (event) => {
-        const button = event.target.closest('.emoji-category-btn');
-        if (!button) return;
+    emojiPicker.addEventListener('click', async (event) => {
+        const tabButton = event.target.closest('[data-picker-tab]');
+        if (tabButton && emojiPicker.contains(tabButton)) {
+            event.preventDefault();
+            const tab = String(tabButton.dataset.pickerTab || DEFAULT_TAB);
+            await setTab(tab, { force: true });
+            return;
+        }
 
-        activeCategory = button.dataset.cat || FALLBACK_CATEGORY;
-        setActiveCategory(emojiCategories, activeCategory);
-        populateEmojiList(emojiList, messageInput, activeCategory, emojiInsertOptions);
+        const categoryButton = event.target.closest('.emoji-category-btn');
+        if (categoryButton && emojiCategories.contains(categoryButton)) {
+            event.preventDefault();
+            await onCategoryClick(categoryButton);
+            return;
+        }
+
+        const itemButton = event.target.closest('[data-picker-item-kind]');
+        if (!itemButton || !emojiList.contains(itemButton)) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        const { localeCode, strings } = getLocaleStrings();
+        const kind = String(itemButton.dataset.pickerItemKind || '').trim();
+        let payload = '';
+
+        if (kind === 'emoji') {
+            payload = String(itemButton.dataset.emoji || '').trim();
+            if (!isAllowedPickerEmoji(payload)) return;
+            rememberRecentItem('emoji', payload);
+        } else if (kind === 'stickers') {
+            const id = String(itemButton.dataset.itemId || '').trim();
+            const item = STICKER_LOOKUP.get(id);
+            if (!item) return;
+            payload = buildInsertText('stickers', item, localeCode, strings);
+            rememberRecentItem('stickers', id);
+        } else if (kind === 'gifs') {
+            const id = String(itemButton.dataset.itemId || '').trim();
+            const item = GIF_LOOKUP.get(id);
+            if (!item) return;
+            payload = buildInsertText('gifs', item, localeCode, strings);
+            rememberRecentItem('gifs', id);
+        }
+        if (!payload) return;
+
+        const selection = getStoredSelection();
+        const shouldFocusAfterInsert = !(isMobileEmojiViewport() && emojiPicker.classList.contains('active'));
+        const nextSelection = insertAtCursor(messageInput, payload, {
+            selectionStart: selection.start,
+            selectionEnd: selection.end,
+            focusAfter: shouldFocusAfterInsert,
+        });
+        setStoredSelection(nextSelection.start, nextSelection.end);
+
+        const compactQuery = normalizeQuery(searchQuery);
+        const activeCategory = categoryByTab[activeTab] || TAB_DEFAULT_CATEGORY[activeTab];
+        if (!compactQuery && (activeCategory === 'frequent' || activeCategory === 'recent')) {
+            await renderActiveTab();
+        }
     });
+
+    emojiSearchInput.addEventListener('input', async () => {
+        searchQuery = emojiSearchInput.value || '';
+        await renderActiveTab();
+    });
+
+    emojiSearchClear.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (!searchQuery) return;
+        searchQuery = '';
+        emojiSearchInput.value = '';
+        await renderActiveTab({ forceCategoryScroll: true });
+    });
+
+    emojiSearchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (searchQuery) {
+                searchQuery = '';
+                emojiSearchInput.value = '';
+                renderActiveTab({ forceCategoryScroll: true });
+                return;
+            }
+            closePicker();
+        }
+    });
+
+    emojiList.addEventListener('scroll', () => {
+        if (normalizeQuery(searchQuery)) return;
+        if (performance.now() < suppressCategorySyncUntil) return;
+        const category = findClosestCategory(emojiList);
+        if (!category) return;
+        categoryByTab[activeTab] = category;
+        setActiveCategory(emojiCategories, category);
+    }, { passive: true });
+
+    emojiContentViewport.addEventListener('pointerdown', (event) => {
+        if (!isMobileEmojiViewport() || event.pointerType === 'mouse') return;
+        swipeSession = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            moved: false,
+        };
+    }, { passive: true });
+
+    emojiContentViewport.addEventListener('pointermove', (event) => {
+        if (!swipeSession || swipeSession.pointerId !== event.pointerId) return;
+        swipeSession.moved = true;
+        swipeSession.lastX = event.clientX;
+        swipeSession.lastY = event.clientY;
+    }, { passive: true });
+
+    const finishSwipe = async (event) => {
+        if (!swipeSession || swipeSession.pointerId !== event.pointerId) return;
+        const endX = Number.isFinite(swipeSession.lastX) ? swipeSession.lastX : event.clientX;
+        const endY = Number.isFinite(swipeSession.lastY) ? swipeSession.lastY : event.clientY;
+        const dx = endX - swipeSession.startX;
+        const dy = endY - swipeSession.startY;
+        swipeSession = null;
+        if (Math.abs(dx) < SWIPE_DISTANCE_MIN) return;
+        if (Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO_MIN) return;
+        await switchTabByDelta(dx < 0 ? 1 : -1);
+    };
+    emojiContentViewport.addEventListener('pointerup', finishSwipe, { passive: true });
+    emojiContentViewport.addEventListener('pointercancel', () => {
+        swipeSession = null;
+    }, { passive: true });
 
     ['focus', 'click', 'keyup', 'select', 'input', 'pointerup', 'touchend'].forEach((eventName) => {
         messageInput.addEventListener(eventName, rememberSelection, { passive: true });
@@ -650,7 +1235,15 @@ export function initEmojiPicker(messageInput) {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closePicker();
+            return;
         }
+        if (!emojiPicker.classList.contains('active')) return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        const target = event.target;
+        if (!target || !(target instanceof HTMLElement)) return;
+        if (!target.closest('#emojiPickerTabstrip, #emojiPickerFooter')) return;
+        event.preventDefault();
+        switchTabByDelta(event.key === 'ArrowRight' ? 1 : -1);
     });
 
     document.addEventListener('sun-close-emoji-picker', () => closePicker());
@@ -659,8 +1252,14 @@ export function initEmojiPicker(messageInput) {
     window.addEventListener('scroll', reposition, { passive: true });
     window.visualViewport?.addEventListener('resize', reposition);
     window.visualViewport?.addEventListener('scroll', reposition);
-    window.addEventListener('sun-ui-language-changed', () => syncEmojiButtonMode());
+    window.addEventListener('sun-ui-language-changed', () => {
+        updateSearchUi(getLocaleStrings().strings);
+        renderActiveTab();
+        syncEmojiButtonMode();
+    });
+
+    emojiPicker.setAttribute('data-active-tab', activeTab);
+    setActiveTabButtons(emojiPicker, activeTab);
+    updateSearchUi(getLocaleStrings().strings);
     syncEmojiButtonMode(false);
 }
-
-
