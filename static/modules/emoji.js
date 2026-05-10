@@ -630,6 +630,10 @@ export function initEmojiPicker(messageInput) {
     let handledKeyboardSwitchPointer = false;
     let keyboardSwitchPointerTimer = null;
     let suppressCategorySyncUntil = 0;
+    let lastRenderedMode = '';
+    let lastDefaultRenderKey = '';
+    let defaultListNeedsRefresh = true;
+    let openRenderSeq = 0;
 
     const setStoredSelection = (start, end = start) => {
         const valueLength = messageInput.value.length;
@@ -684,9 +688,29 @@ export function initEmojiPicker(messageInput) {
         emojiSearchClear.hidden = !searchQuery;
     };
 
+    const buildDefaultRenderKey = (localeCode) => {
+        const recentKey = getRecentEmojis().join('\u0001');
+        return `${localeCode}|${recentKey}`;
+    };
+
     const renderEmojiList = async ({ forceCategoryScroll = false } = {}) => {
         const requestId = ++lastPopulateRequestId;
         const { localeCode, strings } = getLocaleStrings();
+        const compactQuery = normalizeQuery(searchQuery);
+        const defaultRenderKey = compactQuery ? '' : buildDefaultRenderKey(localeCode);
+
+        if (!compactQuery
+            && lastRenderedMode === 'default'
+            && !defaultListNeedsRefresh
+            && lastDefaultRenderKey === defaultRenderKey
+            && emojiList.childElementCount > 0) {
+            renderCategoryButtons(emojiCategories, activeCategory, localeCode);
+            if (forceCategoryScroll) {
+                scrollToCategory(emojiList, activeCategory);
+            }
+            return;
+        }
+
         updateSearchUi(strings);
         renderCategoryButtons(emojiCategories, activeCategory, localeCode);
         setEmojiStatus(emojiList, '<i class="bi bi-hourglass-split"></i>');
@@ -698,7 +722,6 @@ export function initEmojiPicker(messageInput) {
             return;
         }
 
-        const compactQuery = normalizeQuery(searchQuery);
         const sections = compactQuery
             ? [{
                 id: 'search',
@@ -732,8 +755,12 @@ export function initEmojiPicker(messageInput) {
             if (forceCategoryScroll) {
                 scrollToCategory(emojiList, activeCategory);
             }
+            lastRenderedMode = 'default';
+            lastDefaultRenderKey = defaultRenderKey;
+            defaultListNeedsRefresh = false;
         } else {
             setActiveCategory(emojiCategories, '');
+            lastRenderedMode = 'search';
         }
     };
 
@@ -745,6 +772,7 @@ export function initEmojiPicker(messageInput) {
     };
 
     const closePicker = ({ focusInput = false } = {}) => {
+        openRenderSeq += 1;
         const wantsKeyboardHandoff = isMobileEmojiViewport()
             && (focusInput || document.activeElement === messageInput);
         if (!emojiPicker.classList.contains('active') && !emojiPicker.classList.contains('is-closing')) {
@@ -781,6 +809,7 @@ export function initEmojiPicker(messageInput) {
         rememberSelection();
         stopEmojiKeyboardHandoff(emojiPicker);
         emojiCloseSeq += 1;
+        const renderSeq = ++openRenderSeq;
         searchQuery = '';
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
@@ -792,9 +821,28 @@ export function initEmojiPicker(messageInput) {
         }
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
         positionEmojiPicker(emojiPicker, emojiBtn);
-        await renderEmojiList({ forceCategoryScroll: true });
-        positionEmojiPicker(emojiPicker, emojiBtn);
         syncEmojiButtonMode(true);
+
+        const { localeCode } = getLocaleStrings();
+        const defaultRenderKey = buildDefaultRenderKey(localeCode);
+        const canReuseRenderedDefaultList = lastRenderedMode === 'default'
+            && !defaultListNeedsRefresh
+            && lastDefaultRenderKey === defaultRenderKey
+            && emojiList.childElementCount > 0;
+
+        if (canReuseRenderedDefaultList) {
+            setActiveCategory(emojiCategories, activeCategory);
+            scrollToCategory(emojiList, activeCategory);
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            if (renderSeq !== openRenderSeq) return;
+            renderEmojiList({ forceCategoryScroll: true }).then(() => {
+                if (renderSeq !== openRenderSeq) return;
+                positionEmojiPicker(emojiPicker, emojiBtn);
+            }).catch(() => {});
+        });
     };
 
     const onCategoryClick = async (button) => {
@@ -870,6 +918,7 @@ export function initEmojiPicker(messageInput) {
         });
         setStoredSelection(nextSelection.start, nextSelection.end);
         rememberEmoji(emoji);
+        defaultListNeedsRefresh = true;
 
         if (!normalizeQuery(searchQuery) && activeCategory === DEFAULT_EMOJI_CATEGORY) {
             await renderEmojiList();
@@ -940,6 +989,7 @@ export function initEmojiPicker(messageInput) {
     window.visualViewport?.addEventListener('resize', reposition);
     window.visualViewport?.addEventListener('scroll', reposition);
     window.addEventListener('sun-ui-language-changed', () => {
+        defaultListNeedsRefresh = true;
         syncEmojiButtonMode();
         const pickerVisible = emojiPicker.classList.contains('active') || emojiPicker.classList.contains('is-closing');
         if (!pickerVisible) return;
