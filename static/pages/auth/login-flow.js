@@ -21,6 +21,7 @@ export function initLoginFlow({
     let pendingLoginProfile = null;
 
     const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+    const loginOtherMethodsDetails = document.getElementById('loginOtherMethodsDetails');
 
     function setMethodGroupVisibility(group, visible) {
         if (!group) return;
@@ -122,6 +123,9 @@ export function initLoginFlow({
         if (loginSubmitBtn) {
             loginSubmitBtn.style.display = nextMethod === 'qr' ? 'none' : '';
         }
+        if (loginOtherMethodsDetails && nextMethod !== 'qr') {
+            loginOtherMethodsDetails.open = true;
+        }
 
         if (nextMethod !== 'qr') {
             qrFlow.clearLoginQrTimers();
@@ -218,9 +222,16 @@ export function initLoginFlow({
 
     const methodQrBtn = document.getElementById('methodQrBtn');
     const methodKeyBtn = document.getElementById('methodKeyBtn');
+    const loginGoRegisterBtn = document.getElementById('loginGoRegisterBtn');
     const loginUsernameInput = document.getElementById('login_username');
     methodQrBtn?.addEventListener('click', () => setLoginMethod('qr'));
     methodKeyBtn?.addEventListener('click', () => setLoginMethod('key'));
+    loginGoRegisterBtn?.addEventListener('click', () => {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('register');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
     loginUsernameInput?.addEventListener('input', () => {
         qrFlow.scheduleLoginQrAutoStart(520);
     });
