@@ -70,6 +70,7 @@ import {
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { initSearchOverlayGlobalContent } from './modules/search-overlay-global-content.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
+import { renderContactsDirectoryList } from './modules/chat-contacts-directory.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { updatePinIcon as _updatePinIcon, applyPinnedState as _applyPinnedState, sortContactsList as _sortContactsList, initPinnedContactsDnD } from './modules/pinned-contacts.js';
 import { initCaptionModal } from './modules/caption-modal.js';
@@ -6594,6 +6595,10 @@ const initChatPage = async () => {
             const query = String(visibleSearchInput?.value || '').trim();
             renderPaletteLocalMatches(query);
             searchOverlayGlobalContentController?.refreshChatLookup?.();
+            return;
+        }
+        if (tabId === 'contacts') {
+            modalSearchInput?.dispatchEvent(new Event('input', { bubbles: true }));
         }
     });
 
@@ -6672,11 +6677,64 @@ const initChatPage = async () => {
         openPaletteChat(openBtn.getAttribute('data-chat-id'));
     });
 
+    function isContactsSearchTabActive() {
+        const activeTab = document.querySelector('.search-overlay__tab.is-active[data-search-tab]');
+        return String(activeTab?.getAttribute('data-search-tab') || '') === 'contacts';
+    }
+
+    function translateSearchLabel(value) {
+        const i18nApi = window.SUN_I18N;
+        if (i18nApi && typeof i18nApi.translateText === 'function') {
+            return i18nApi.translateText(String(value ?? ''));
+        }
+        return String(value ?? '');
+    }
+
+    function renderLocalContactsDirectory(query) {
+        return renderContactsDirectoryList({
+            contactsRoot: contactsList,
+            resultsRoot: modalSearchResults,
+            query,
+            escapeHtml,
+            applyFallbackAvatarTint,
+            formatLastSeenText,
+            labels: {
+                open: translateSearchLabel('\u041E\u0442\u043A\u0440\u044B\u0442\u044C'),
+                online: translateSearchLabel('\u0432 \u0441\u0435\u0442\u0438'),
+                offline: translateSearchLabel('\u043D\u0435 \u0432 \u0441\u0435\u0442\u0438'),
+                recently: translateSearchLabel('\u0431\u044B\u043B(\u0430) \u043D\u0435\u0434\u0430\u0432\u043D\u043E'),
+                empty: translateSearchLabel('\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.'),
+            },
+        });
+    }
+
+    function runRemoteContactsSearch(query) {
+        modalSearchResults.innerHTML = buildSearchResultsLoaderHtml();
+        fetch(withAppRoot(`/search_users?q=${encodeURIComponent(query)}&limit=20`))
+            .then(r => r.json())
+            .then(response => {
+                const results = response.results || response.users || [];
+                if (response.success && results) {
+                    displaySearchResults(results);
+                } else {
+                    modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
+                }
+            })
+            .catch(() => showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u0438\u0441\u043A\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439.', 'danger'));
+    }
+
     // \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u043F\u043E\u0438\u0441\u043A\u0430 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438
     if (modalSearchInput) {
         modalSearchInput.addEventListener('input', function() {
             const query = modalSearchInput.value.trim();
             renderPaletteLocalMatches(query);
+            const contactsTabActive = isContactsSearchTabActive();
+            if (contactsTabActive) {
+                const localCount = renderLocalContactsDirectory(query);
+                if (query.length === 0 || localCount > 0 || query.length < 3) {
+                    return;
+                }
+            }
             if (query.length === 0) {
                 modalSearchResults.innerHTML = '';
                 return;
@@ -6686,19 +6744,7 @@ const initChatPage = async () => {
                 return;
             }
 
-            modalSearchResults.innerHTML = buildSearchResultsLoaderHtml();
-
-            fetch(withAppRoot(`/search_users?q=${encodeURIComponent(query)}&limit=20`))
-                .then(r => r.json())
-                .then(response => {
-                    const results = response.results || response.users || [];
-                    if (response.success && results) {
-                        displaySearchResults(results);
-                    } else {
-                        modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
-                    }
-                })
-                .catch(() => showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u0438\u0441\u043A\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439.', 'danger'));
+            runRemoteContactsSearch(query);
         });
     }
 
