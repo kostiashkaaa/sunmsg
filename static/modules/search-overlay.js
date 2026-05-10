@@ -20,7 +20,7 @@ const OPEN_CLASS = 'is-open';
 const OPENING_CLASS = 'is-opening';
 const CLOSING_CLASS = 'is-closing';
 const SIDEBAR_DIMMED_CLASS = 'has-search-overlay';
-const PANEL_ORDER = ['actions', 'chats', 'contacts'];
+const PANEL_ORDER = ['chats', 'contacts', 'actions', 'media', 'links', 'files', 'music', 'voice'];
 
 export function initSearchOverlay() {
     const overlay = document.getElementById('newChatModal');
@@ -135,6 +135,9 @@ export function initSearchOverlay() {
             // \u0422\u0440\u0438\u0433\u0433\u0435\u0440\u0438\u043C \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 \u043F\u043E\u0438\u0441\u043A, \u0435\u0441\u043B\u0438 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C \u0441\u0430\u043C \u043F\u0435\u0440\u0435\u0448\u0451\u043B \u043D\u0430 «\u041A\u043E\u043D\u0442\u0430\u043A\u0442\u044B».
             hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
+        overlay.dispatchEvent(new CustomEvent('sun-search-overlay-tab-changed', {
+            detail: { tabId, userInitiated: Boolean(userInitiated) },
+        }));
     }
 
     function open() {
@@ -148,7 +151,7 @@ export function initSearchOverlay() {
         overlay.setAttribute('aria-hidden', 'false');
         sidebar.classList.add(SIDEBAR_DIMMED_CLASS);
         if (clearBtn) clearBtn.hidden = false;
-        setTab(visibleInput.value.trim() ? 'chats' : 'actions');
+        setTab('chats');
         const activePanel = getPanel(activeTab);
         if (activePanel) {
             applyStaggerToChildren(activePanel, { selector: ':scope > *' });
@@ -227,7 +230,7 @@ export function initSearchOverlay() {
         syncOverlayPerfGuards();
         const trimmed = value.trim();
         if (!trimmed) {
-            setTab('actions');
+            setTab('chats');
             clearAutoSwitch();
         } else if (activeTab === 'actions') {
             setTab('chats');
@@ -253,7 +256,7 @@ export function initSearchOverlay() {
         if (visibleInput.value) {
             resetValue();
             visibleInput.focus();
-            setTab('actions');
+            setTab('chats');
         } else {
             close({ focusTrigger: true });
         }

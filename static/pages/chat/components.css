@@ -701,6 +701,213 @@
             color: var(--ink-mute);
         }
 
+        .search-frequent-chats {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 2px 2px 8px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .search-frequent-chats::-webkit-scrollbar {
+            display: none;
+        }
+
+        .search-frequent-chat-btn {
+            flex: 0 0 auto;
+            width: 72px;
+            border: 0;
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            padding: 2px 0;
+        }
+
+        .search-frequent-chat-btn-avatar {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 6px;
+            font-size: 18px;
+        }
+
+        .search-frequent-chat-btn-name {
+            display: block;
+            font-size: 11px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-global-results {
+            min-height: 140px;
+        }
+
+        .search-global-state {
+            padding: 16px 12px;
+            border-radius: var(--radius-sm);
+            text-align: center;
+            font-size: 12px;
+            color: var(--sub-text);
+            background: color-mix(in srgb, var(--paper) 88%, transparent);
+            border: 1px solid var(--rule-soft);
+        }
+
+        .search-global-media-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .search-global-media-card {
+            position: relative;
+            border: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            padding: 0;
+            cursor: pointer;
+            background: color-mix(in srgb, var(--paper) 86%, transparent);
+            aspect-ratio: 1 / 1;
+        }
+
+        .search-global-media-card img,
+        .search-global-media-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .search-global-media-card-meta {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 6px 8px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.58) 100%);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .search-global-media-card-chat,
+        .search-global-media-card-duration {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-global-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .search-global-row {
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--rule-soft);
+            background: var(--paper);
+            color: var(--text);
+        }
+
+        .search-global-row--link,
+        .search-global-row--file {
+            width: 100%;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            text-align: left;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+
+        .search-global-row--file {
+            grid-template-columns: 50px minmax(0, 1fr) auto;
+        }
+
+        .search-global-row--file .profile-file-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            font-size: 12px;
+        }
+
+        .search-global-row--audio {
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) 30px;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+        }
+
+        .search-global-row-main {
+            min-width: 0;
+            text-align: left;
+        }
+
+        .search-global-row-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-global-row-sub {
+            margin-top: 2px;
+            font-size: 12px;
+            color: var(--accent);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-global-row-meta {
+            margin-top: 3px;
+            font-size: 11px;
+            color: var(--sub-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-global-play-btn,
+        .search-global-jump-btn {
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--accent) 22%, var(--paper) 78%);
+            color: var(--accent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            flex: 0 0 30px;
+        }
+
+        .search-global-row--voice .search-global-play-btn {
+            background: color-mix(in srgb, var(--accent) 30%, var(--paper) 70%);
+        }
+
+        .search-global-row--audio.is-playing {
+            border-color: color-mix(in srgb, var(--accent) 36%, var(--rule-soft) 64%);
+        }
+
+        .search-global-row--audio .search-global-row-main[data-search-global-jump] {
+            cursor: pointer;
+        }
+
 
         .command-palette-result {
             display: flex;
@@ -9182,6 +9389,14 @@
             margin-top: 6px;
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .search-overlay__tabs::-webkit-scrollbar {
+            display: none;
         }
 
 

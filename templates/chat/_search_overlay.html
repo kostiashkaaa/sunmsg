@@ -9,6 +9,11 @@
         <button type="button" class="search-overlay__tab is-active" role="tab" data-search-tab="chats" aria-selected="true">Чаты</button>
         <button type="button" class="search-overlay__tab" role="tab" data-search-tab="contacts" aria-selected="false">Контакты</button>
         <button type="button" class="search-overlay__tab" role="tab" data-search-tab="actions" aria-selected="false">Действия</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="media" aria-selected="false">Media</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="links" aria-selected="false">Links</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="files" aria-selected="false">Files</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="music" aria-selected="false">Music</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="voice" aria-selected="false">Voice</button>
     </div>
     <div class="search-overlay__body">
         <input type="text" id="searchUserInput" class="visually-hidden" tabindex="-1" aria-hidden="true">
@@ -17,7 +22,8 @@
             <div class="command-palette-actions" id="commandPaletteActions">
                 <button type="button" class="command-palette-action" data-palette-action="contact">
                     <i class="bi bi-person-plus"></i> Найти контакт
-                </button>                <button type="button" class="command-palette-action" data-palette-action="group">
+                </button>
+                <button type="button" class="command-palette-action" data-palette-action="group">
                     <i class="bi bi-people"></i> Создать группу
                 </button>
                 <button type="button" class="command-palette-action" data-palette-action="qr">
@@ -33,6 +39,10 @@
         </section>
 
         <section class="search-overlay__panel" data-search-panel="chats">
+            <div class="command-palette-section" id="paletteFrequentSection">
+                <div class="command-palette-section-title">Частые чаты</div>
+                <div class="search-frequent-chats" id="paletteFrequentChats"></div>
+            </div>
             <div class="command-palette-section command-palette-section--hidden" id="paletteLocalSection">
                 <div class="command-palette-section-title">Ваши чаты</div>
                 <div id="paletteLocalResults"></div>
@@ -47,6 +57,26 @@
                 <div class="command-palette-section-title">Публичный каталог</div>
                 <div id="searchUserResults" aria-live="polite" aria-atomic="false"></div>
             </div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="media" hidden>
+            <div id="searchGlobalMediaResults" class="search-global-results" aria-live="polite"></div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="links" hidden>
+            <div id="searchGlobalLinksResults" class="search-global-results" aria-live="polite"></div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="files" hidden>
+            <div id="searchGlobalFilesResults" class="search-global-results" aria-live="polite"></div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="music" hidden>
+            <div id="searchGlobalMusicResults" class="search-global-results" aria-live="polite"></div>
+        </section>
+
+        <section class="search-overlay__panel" data-search-panel="voice" hidden>
+            <div id="searchGlobalVoiceResults" class="search-global-results" aria-live="polite"></div>
         </section>
     </div>
 </aside>
