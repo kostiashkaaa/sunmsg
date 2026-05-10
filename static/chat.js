@@ -3717,6 +3717,8 @@ const initChatPage = async () => {
 
                 currentChatId = contactItem.getAttribute('data-chat-id');
                 currentContactId = contactItem.getAttribute('data-contact-id');
+                const isGroupChat = String(contactItem.getAttribute('data-is-group') || '') === '1';
+                chatArea?.classList.toggle('is-group-chat', isGroupChat);
                 const isSwitchingChat = String(previousChatId || '') !== String(currentChatId || '');
                 if (isSwitchingChat) {
                     hideTyping();
@@ -3788,7 +3790,6 @@ const initChatPage = async () => {
 
                 // \u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u043C \u043E\u043D\u043B\u0430\u0439\u043D-\u0441\u0442\u0430\u0442\u0443\u0441
                 const cId = contactItem.getAttribute('data-contact-id');
-                const isGroupChat = String(contactItem.getAttribute('data-is-group') || '') === '1';
                 const membersCount = Math.max(0, Number(contactItem.getAttribute('data-members-count') || 0) || 0);
                 window.currentPartnerId = isGroupChat ? String(currentChatId || '') : cId;
                 chatPartnerHeaderLink?.setAttribute('data-partner-id', cId || (isGroupChat ? String(currentChatId || '') : ''));
