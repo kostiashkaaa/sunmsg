@@ -6,6 +6,9 @@
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
     const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
     const CHAT_APPEARANCE_STORAGE_KEY = 'sun.chatAppearance.v2';
+    const SIDEBAR_WIDTH_STORAGE_KEY = 'sidebarWidth';
+    const SIDEBAR_WIDTH_MIN = 132;
+    const SIDEBAR_WIDTH_MAX = 700;
     const LEGACY_DEFAULT_PRESET_BY_MODE = {
         light: 'light-classic',
         dark: 'dark-classic',
@@ -374,6 +377,19 @@
         });
     }
 
+    function applyStoredSidebarWidth(root) {
+        try {
+            const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+            if (raw === null || raw === '') return;
+            const parsed = Number.parseInt(raw, 10);
+            if (!Number.isFinite(parsed)) return;
+            const safe = clamp(parsed, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX);
+            root.style.setProperty('--sidebar-width', `${safe}px`);
+        } catch (_error) {
+            // Ignore storage read errors.
+        }
+    }
+
     function normalizeLegacyPresetId(value, expectedMode) {
         const id = typeof value === 'string' ? value.trim() : '';
         if (!id) return null;
@@ -598,6 +614,8 @@
         const root = document.documentElement;
         if (!root) return;
 
+        applyStoredSidebarWidth(root);
+
         const darkMode = typeof boot.darkMode === 'boolean'
             ? boot.darkMode
             : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : null);
@@ -636,6 +654,7 @@
     function applyLegacyFallback() {
         const root = document.documentElement;
         if (!root) return;
+        applyStoredSidebarWidth(root);
         try {
             const storedDark = localStorage.getItem('darkMode');
             if (storedDark === 'true') root.classList.add('dark-mode');
