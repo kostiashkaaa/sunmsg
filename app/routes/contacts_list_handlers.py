@@ -420,6 +420,16 @@ def fetch_contacts_for_user(
         draft_text = str(row['draft_text'] or '')
         has_draft = bool(draft_text.strip())
         preview_timestamp = row['draft_updated_at'] if has_draft else row['last_message_time']
+        group_initial_last_message_preview = (
+            '__SUN_ENCRYPTED_LOADING__'
+            if (not has_draft and str(raw_last_message or '').strip())
+            else build_initial_last_message_preview_func(
+                raw_last_message,
+                blocked_by_me=False,
+                blocked_me=False,
+                language=resolved_language,
+            )
+        )
         contacts_list.append(
             {
                 'userId': None,
@@ -433,12 +443,7 @@ def fetch_contacts_for_user(
                     preview_timestamp,
                     language=resolved_language,
                 ),
-                'initial_last_message_preview': build_initial_last_message_preview_func(
-                    raw_last_message,
-                    blocked_by_me=False,
-                    blocked_me=False,
-                    language=resolved_language,
-                ),
+                'initial_last_message_preview': group_initial_last_message_preview,
                 'unreadCount': row['unread_count'],
                 'avatar_url': str(row['chat_avatar_url'] or ''),
                 'group_description': str(row['chat_description'] or ''),
