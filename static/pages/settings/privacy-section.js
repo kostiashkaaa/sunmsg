@@ -609,6 +609,9 @@ export function initPrivacySection({
         if (bioEl && bioCounterEl) {
             bioCounterEl.textContent = `${bioEl.value.length}/280`;
         }
+        displayNameEl?.dispatchEvent(new Event('input', { bubbles: true }));
+        usernameEl?.dispatchEvent(new Event('input', { bubbles: true }));
+        bioEl?.dispatchEvent(new Event('input', { bubbles: true }));
         persistMuteDialogRequestsPreference(!!payload.mute_dialog_requests);
         if (languageEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
             i18nApi.setLanguage(languageEl.value, { persist: true, apply: true });

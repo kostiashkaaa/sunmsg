@@ -1,0 +1,183 @@
+/* Vertical full-page settings layout (Telegram-like) */
+html,
+body {
+    overflow-y: auto;
+}
+
+.settings-scene {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto;
+    background: var(--bg);
+}
+
+.settings-scene-behind {
+    display: none !important;
+}
+
+.settings-layout {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    box-shadow: none;
+    background: var(--bg);
+}
+
+.settings-panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 24px 14px;
+    background: color-mix(in srgb, var(--bg) 96%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+.settings-panel-title {
+    font-size: clamp(28px, 3vw, 34px);
+}
+
+.settings-panel-body {
+    display: block;
+}
+
+.settings-nav {
+    width: min(860px, 100%);
+    margin: 0 auto;
+    padding: 16px 24px 10px;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+    display: block;
+}
+
+.settings-nav-toggle {
+    display: none !important;
+}
+
+.settings-nav-profile {
+    position: relative;
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--rule) 52%, transparent);
+    background: color-mix(in srgb, var(--paper) 58%, transparent);
+}
+
+.settings-nav-avatar-wrap {
+    justify-content: center;
+    margin-bottom: 14px;
+}
+
+.settings-nav-avatar {
+    width: 108px;
+    height: 108px;
+    font-size: 36px;
+}
+
+.settings-nav-profile-action {
+    top: 22px;
+    right: 22px;
+}
+
+.settings-nav-profile-rows {
+    margin-top: 16px;
+    gap: 10px;
+}
+
+.settings-nav-list {
+    margin-top: 12px;
+    padding: 0;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--rule) 52%, transparent);
+    background: color-mix(in srgb, var(--paper) 58%, transparent);
+    overflow: hidden;
+}
+
+.settings-nav-list .nav-item,
+.settings-nav-list .settings-logout-form .nav-item {
+    min-height: 50px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--rule) 52%, transparent);
+    border-radius: 0;
+}
+
+.settings-nav-list .nav-item:last-child,
+.settings-nav-list .settings-logout-form:last-child .nav-item {
+    border-bottom: 0;
+}
+
+.settings-nav-list .settings-logout-form {
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+}
+
+.settings-nav-list .nav-item:hover {
+    background: color-mix(in srgb, var(--paper-alt) 64%, transparent);
+}
+
+.settings-nav-list .nav-item.active {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.settings-content {
+    width: min(860px, 100%);
+    margin: 0 auto;
+    padding: 8px 24px 28px;
+    border-left: 0;
+    overflow: visible;
+}
+
+body.settings-home-open .settings-content {
+    display: none;
+}
+
+body.settings-detail-open .settings-nav {
+    display: none;
+}
+
+body.settings-detail-open .settings-content {
+    display: block;
+}
+
+@media (max-width: 900px) {
+    .settings-panel-head {
+        padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 12px;
+    }
+
+    .settings-nav,
+    .settings-content {
+        width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .settings-nav-profile {
+        border-radius: 14px;
+        padding: 16px;
+    }
+
+    .settings-nav-avatar {
+        width: 88px;
+        height: 88px;
+        font-size: 30px;
+    }
+
+    .settings-nav-profile-action {
+        width: 38px;
+        height: 38px;
+        top: 16px;
+        right: 16px;
+    }
+
+    .settings-nav-list {
+        border-radius: 14px;
+    }
+
+    .settings-nav-list .nav-item,
+    .settings-nav-list .settings-logout-form .nav-item {
+        min-height: 46px;
+        padding: 11px 12px;
+    }
+}

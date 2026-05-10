@@ -22,7 +22,6 @@ export function initSettingsNavShell({
     const settingsNavEl = document.getElementById('settingsNav');
     const settingsNavToggleEl = document.getElementById('settingsNavToggle');
     const settingsNavToggleLabelEl = document.getElementById('settingsNavToggleLabel');
-    const settingsNavProfileEl = document.getElementById('settingsNavProfile');
     const settingsNavEditProfileBtnEl = document.getElementById('settingsNavEditProfileBtn');
     const settingsHeaderEditBtnEl = document.getElementById('settingsHeaderEditBtn');
     const settingsHeaderMoreBtnEl = document.getElementById('settingsHeaderMoreBtn');
@@ -30,6 +29,7 @@ export function initSettingsNavShell({
 
     let mobileNavOpen = false;
     let activeSectionId = '';
+    let activeNavKey = '';
     let sectionTransitionSeq = 0;
     let detailViewOpen = false;
 
@@ -39,10 +39,16 @@ export function initSettingsNavShell({
         'data-memory': 'Данные и память',
         privacy: 'Конфиденциальность',
         appearance: 'Общие настройки',
-        'chat-style': 'Папки с чатами',
-        keys: 'Безопасность',
+        folders: 'Папки с чатами',
         account: 'Устройства',
-        support: 'Язык',
+        'chat-style': 'Внешний вид',
+        stickers: 'Стикеры и эмодзи',
+        premium: 'Premium / Подписка',
+        keys: 'Безопасность',
+        support: 'Поддержка',
+    };
+    const navKeyTitles = {
+        language: 'Язык',
     };
 
     const sectionIdSet = new Set(Object.keys(sectionTitles));
@@ -89,15 +95,18 @@ export function initSettingsNavShell({
         }
     }
 
-    function syncSectionTitle(id) {
+    function syncSectionTitle(id, navKey = '') {
         if (!panelTitleEl) return;
-        panelTitleEl.textContent = tr(sectionTitles[id] || 'Настройки');
+        panelTitleEl.textContent = tr(navKeyTitles[navKey] || sectionTitles[id] || 'Настройки');
     }
 
     function syncSectionNav(id) {
         let activeItem = null;
         navItems.forEach((item) => {
-            const isActive = Boolean(id) && item.dataset.section === id;
+            const navKey = String(item.dataset.navKey || item.dataset.section || '');
+            const isActive = Boolean(activeNavKey)
+                ? navKey === activeNavKey
+                : (Boolean(id) && item.dataset.section === id);
             item.classList.toggle('active', isActive);
             if (isActive) {
                 item.setAttribute('aria-current', 'page');
@@ -128,7 +137,7 @@ export function initSettingsNavShell({
     }
 
     function runSectionSideEffects(id) {
-        syncSectionTitle(id);
+        syncSectionTitle(id, activeNavKey);
         syncSectionNav(id);
 
         if (id === 'keys' && !state.isQrGenerated()) {
@@ -249,8 +258,9 @@ export function initSettingsNavShell({
     function showHome(pushState = true) {
         sectionTransitionSeq += 1;
         activeSectionId = '';
+        activeNavKey = '';
         hideAllSections();
-        syncSectionTitle('');
+        syncSectionTitle('', '');
         syncSectionNav('');
         setDetailView(false);
         if (pushState) {
@@ -258,7 +268,7 @@ export function initSettingsNavShell({
         }
     }
 
-    function showSection(id, pushState = true, { immediate = false } = {}) {
+    function showSection(id, pushState = true, { immediate = false, navKey = '', scrollTargetId = '' } = {}) {
         const resolvedId = normalizeHashSection(id) || 'profile';
         const target = document.getElementById(`section-${resolvedId}`) || document.getElementById('section-profile');
         if (!target) {
@@ -268,6 +278,7 @@ export function initSettingsNavShell({
 
         setDetailView(true);
         sectionTransitionSeq += 1;
+        activeNavKey = navKey || resolvedId;
         runSectionSideEffects(resolvedId);
         const current = activeSectionId ? document.getElementById(`section-${activeSectionId}`) : null;
         const isSectionChange = activeSectionId !== resolvedId;
@@ -325,37 +336,41 @@ export function initSettingsNavShell({
         if (isSectionChange && settingsContentEl) {
             settingsContentEl.scrollTop = 0;
         }
+
+        if (scrollTargetId) {
+            window.requestAnimationFrame(() => {
+                const anchor = document.getElementById(scrollTargetId);
+                if (!anchor) return;
+                anchor.scrollIntoView({
+                    block: 'start',
+                    inline: 'nearest',
+                    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                });
+            });
+        }
     }
 
-    function openSection(sectionId, { immediate = false } = {}) {
+    function openSection(sectionId, { immediate = false, navKey = '', scrollTargetId = '' } = {}) {
         const normalized = normalizeHashSection(sectionId);
         if (!normalized) return;
-        showSection(normalized, true, { immediate });
+        showSection(normalized, true, { immediate, navKey, scrollTargetId });
         if (isCompactNav()) {
             setMobileNavOpen(false);
         }
     }
 
-    settingsNavProfileEl?.addEventListener('click', () => {
-        openSection('profile');
-    });
-    settingsNavProfileEl?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        openSection('profile');
-    });
     settingsNavEditProfileBtnEl?.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        openSection('profile');
+        openSection('profile', { navKey: 'profile' });
     });
     settingsHeaderEditBtnEl?.addEventListener('click', (event) => {
         event.preventDefault();
-        openSection('profile');
+        openSection('profile', { navKey: 'profile' });
     });
     settingsHeaderMoreBtnEl?.addEventListener('click', (event) => {
         event.preventDefault();
-        openSection('support');
+        openSection('appearance', { navKey: 'appearance' });
     });
 
     if (settingsNavToggleEl) {
@@ -380,7 +395,10 @@ export function initSettingsNavShell({
     navItems.forEach((item) => {
         item.addEventListener('click', function (event) {
             event.preventDefault();
-            openSection(this.dataset.section);
+            openSection(this.dataset.section, {
+                navKey: String(this.dataset.navKey || this.dataset.section || ''),
+                scrollTargetId: String(this.dataset.scrollTarget || ''),
+            });
         });
     });
 
@@ -394,9 +412,10 @@ export function initSettingsNavShell({
     syncCompactNavState();
     const initialSection = normalizeHashSection(window.location.hash.substring(1));
     if (initialSection) {
-        history.replaceState(null, null, '#settings');
+        showSection(initialSection, false, { immediate: true, navKey: initialSection });
+    } else {
+        showHome(false);
     }
-    showHome(false);
 
     window.addEventListener('hashchange', () => {
         const nextSection = normalizeHashSection(window.location.hash.substring(1));
@@ -405,7 +424,7 @@ export function initSettingsNavShell({
             return;
         }
         if (nextSection === activeSectionId && detailViewOpen) return;
-        showSection(nextSection, false);
+        showSection(nextSection, false, { navKey: nextSection });
         if (isCompactNav()) {
             setMobileNavOpen(false);
         }

@@ -340,76 +340,9 @@ export function initChatShellSettingsOverlay(options = {}) {
     }
 
     function openSettingsOverlay(section = 'profile') {
-        if (!settingsOverlay || !settingsOverlayFrame) return;
-        if (navigator.onLine !== false) {
-            void warmSettingsAssets();
-        }
-        clearSettingsOverlayTimers();
-        const nextSrc = withAppRoot(`/settings?embed=1#${encodeURIComponent(section)}`);
-        const openSeq = ++settingsOverlayTransitionSeq;
-        settingsOverlayPhase = 'opening';
-        settingsOverlay.classList.remove('active', 'is-closing');
-        settingsOverlay.classList.add('is-opening');
-        settingsOverlay.setAttribute('aria-hidden', 'false');
-        lockSettingsOverlayScroll();
-        requestAnimationFrame(() => {
-            if (openSeq !== settingsOverlayTransitionSeq) return;
-            settingsOverlay.classList.add('active');
-            requestAnimationFrame(() => {
-                if (openSeq !== settingsOverlayTransitionSeq) return;
-                settingsOverlay.classList.remove('is-opening');
-                settingsOverlayPhase = 'open';
-            });
-        });
-        setSettingsOverlayLoading(true);
-        settingsOverlayAwaitingReadySignal = true;
-        settingsOverlayReadyTimer = window.setTimeout(() => {
-            if (!settingsOverlayAwaitingReadySignal) return;
-            resolveSettingsOverlayReady();
-        }, 5000);
-        let shouldNavigateFrame = settingsOverlayFrame.getAttribute('src') !== nextSrc;
-        if (!shouldNavigateFrame) {
-            try {
-                const frameHref = String(settingsOverlayFrame.contentWindow?.location?.href || '');
-                if (frameHref === 'about:blank' || frameHref.startsWith('about:blank#')) {
-                    shouldNavigateFrame = true;
-                }
-            } catch (_) {}
-        }
-        if (shouldNavigateFrame) {
-            if (settingsOverlayFrame.getAttribute('src') === nextSrc) {
-                try {
-                    settingsOverlayFrame.contentWindow?.location?.replace(nextSrc);
-                } catch (_) {
-                    settingsOverlayFrame.setAttribute('src', 'about:blank');
-                    settingsOverlayFrame.setAttribute('src', nextSrc);
-                }
-            } else {
-                settingsOverlayFrame.setAttribute('src', nextSrc);
-            }
-        } else {
-            try {
-                const frameWindow = settingsOverlayFrame.contentWindow;
-                const nextHash = `#${encodeURIComponent(section)}`;
-                const frameLocation = frameWindow?.location;
-                if (frameLocation && frameLocation.hash !== nextHash) {
-                    frameLocation.hash = nextHash;
-                }
-
-                const searchInput = frameWindow?.document?.getElementById('settingsSearchInput');
-                if (searchInput && searchInput.value) {
-                    searchInput.value = '';
-                    const inputEvent = frameWindow?.Event
-                        ? new frameWindow.Event('input', { bubbles: true })
-                        : new Event('input', { bubbles: true });
-                    searchInput.dispatchEvent(inputEvent);
-                }
-            } catch (_) {}
-            settingsOverlayLoadTimer = window.setTimeout(() => {
-                if (!settingsOverlayAwaitingReadySignal) return;
-                resolveSettingsOverlayReady();
-            }, 120);
-        }
+        const targetSection = String(section || 'profile').trim() || 'profile';
+        const targetUrl = withAppRoot(`/settings#${encodeURIComponent(targetSection)}`);
+        window.location.href = targetUrl;
         markFirstRunCompleted();
     }
 
