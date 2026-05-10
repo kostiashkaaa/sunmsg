@@ -3335,20 +3335,20 @@
             border-radius: 14px;
             border: 1px solid color-mix(in srgb, var(--border) 76%, transparent 24%);
             background: color-mix(in srgb, var(--surface) 93%, #0d1321 7%);
-            box-shadow: var(--shadow-lg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: grid;
             gap: 4px;
             opacity: 0;
-            transform: translateY(16px) scale(0.94);
+            transform: translateY(10px) scale(0.97);
             transform-origin: bottom right;
             visibility: hidden;
             pointer-events: none;
             transition:
-                opacity var(--m-dur-base, var(--dur-medium)) var(--m-decel, var(--ease-quick)),
-                transform var(--m-dur-medium, var(--dur-slow)) var(--m-decel, var(--ease-spring)),
-                visibility 0s linear var(--m-dur-base, var(--dur-medium));
+                opacity var(--m-dur-fast, var(--dur-quick)) var(--m-decel, var(--ease-quick)),
+                transform var(--m-dur-fast, var(--dur-quick)) var(--m-decel, var(--ease-spring)),
+                visibility 0s linear var(--m-dur-fast, var(--dur-quick));
             z-index: 140;
         }
 
@@ -3369,7 +3369,7 @@
 
         .attach-menu.is-closing {
             opacity: 0;
-            transform: translateY(8px) scale(0.96);
+            transform: translateY(6px) scale(0.98);
             visibility: visible;
             pointer-events: none;
         }
@@ -4204,16 +4204,15 @@
             border: 1px solid color-mix(in srgb, var(--border) 76%, rgba(255, 255, 255, 0.1) 24%);
             border-radius: 16px;
             box-shadow:
-                0 14px 30px rgba(0, 0, 0, 0.26),
-                0 6px 14px rgba(20, 16, 8, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+                0 10px 20px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
             z-index: 1000;
             display: none;
             flex-direction: column;
             overflow: hidden;
             transform-origin: bottom left;
-            backdrop-filter: blur(8px) saturate(116%);
-            -webkit-backdrop-filter: blur(8px) saturate(116%);
+            backdrop-filter: blur(4px) saturate(106%);
+            -webkit-backdrop-filter: blur(4px) saturate(106%);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -6726,19 +6725,19 @@
             border-radius: 18px;
             border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
             background: color-mix(in srgb, var(--surface) 96%, rgba(15, 23, 42, 0.04));
-            box-shadow: var(--shadow-lg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: none;
             opacity: 0;
-            transform: translate3d(0, -10px, 0) scale(0.94);
+            transform: translate3d(0, -8px, 0) scale(0.97);
             transform-origin: top right;
             visibility: hidden;
             pointer-events: none;
             transition:
-                opacity var(--m-dur-base, var(--dur-medium)) var(--m-decel, var(--ease-quick)),
-                transform var(--m-dur-medium, var(--dur-slow)) var(--m-decel, var(--ease-quick)),
-                visibility 0s linear var(--m-dur-base, var(--dur-medium));
+                opacity var(--m-dur-fast, var(--dur-quick)) var(--m-decel, var(--ease-quick)),
+                transform var(--m-dur-fast, var(--dur-quick)) var(--m-decel, var(--ease-quick)),
+                visibility 0s linear var(--m-dur-fast, var(--dur-quick));
         }
 
 
@@ -9184,11 +9183,11 @@
 .context-menu {
     position: fixed;
     background: color-mix(in srgb, var(--surface) 96%, #060a12 4%);
-    backdrop-filter: blur(6px) saturate(112%);
-    -webkit-backdrop-filter: blur(6px) saturate(112%);
+    backdrop-filter: blur(2px) saturate(104%);
+    -webkit-backdrop-filter: blur(2px) saturate(104%);
             border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
             border-radius: 10px;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+            box-shadow: 0 7px 16px rgba(0, 0, 0, 0.2);
             z-index: 5000;
             min-width: 220px;
             max-width: min(280px, calc(100vw - 24px));
@@ -9329,9 +9328,9 @@
     border-radius: 12px;
     background: color-mix(in srgb, var(--surface) 93%, #060a12 7%);
     border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
-    backdrop-filter: blur(4px) saturate(110%);
-    -webkit-backdrop-filter: blur(4px) saturate(110%);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px) saturate(104%);
+    -webkit-backdrop-filter: blur(2px) saturate(104%);
     z-index: 5100;
     transform-origin: center bottom;
     overflow: visible;
@@ -9380,7 +9379,7 @@
 
 .reaction-picker__expand-toggle:hover {
     background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
-    transform: scale(1.02);
+    transform: scale(1.01);
 }
 
 .reaction-picker__expand-toggle i {
@@ -9410,7 +9409,7 @@
 
 .reaction-picker__item:hover {
     background: color-mix(in srgb, var(--contact-hover) 74%, transparent);
-    transform: scale(1.04);
+    transform: scale(1.015);
 }
 
 .reaction-picker__item:focus-visible,
@@ -9458,9 +9457,9 @@
     background: color-mix(in srgb, var(--surface) 95%, #060a12 5%);
     border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
     border-radius: 12px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(6px) saturate(114%);
-    -webkit-backdrop-filter: blur(6px) saturate(114%);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(2px) saturate(106%);
+    -webkit-backdrop-filter: blur(2px) saturate(106%);
     z-index: 5120;
     display: none;
     flex-direction: column;
@@ -9596,7 +9595,7 @@
 
 .reaction-emoji-popup__category-btn:hover {
     background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
-    transform: scale(1.02);
+    transform: scale(1.01);
 }
 
 .reaction-emoji-popup__category-btn.active {
@@ -9640,7 +9639,7 @@
 
 .reaction-emoji-popup__item:hover {
     background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
-    transform: scale(1.04);
+    transform: scale(1.02);
 }
 
 .reaction-emoji-popup__status {
