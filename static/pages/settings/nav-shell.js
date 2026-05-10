@@ -35,20 +35,17 @@ export function initSettingsNavShell({
 
     const sectionTitles = {
         profile: 'Профиль',
-        notifications: 'Уведомления и звук',
+        notifications: 'Уведомления',
         'data-memory': 'Данные и память',
         privacy: 'Конфиденциальность',
-        appearance: 'Общие настройки',
-        folders: 'Папки с чатами',
+        appearance: 'Настройки',
         account: 'Устройства',
         'chat-style': 'Внешний вид',
-        stickers: 'Стикеры и эмодзи',
-        premium: 'Premium / Подписка',
         keys: 'Безопасность',
-        support: 'Поддержка',
     };
     const navKeyTitles = {
         language: 'Язык',
+        'chat-behavior': 'Поведение чата',
     };
 
     const sectionIdSet = new Set(Object.keys(sectionTitles));
