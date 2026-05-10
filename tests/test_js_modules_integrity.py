@@ -479,6 +479,7 @@ def test_chatjs_does_not_grow() -> None:
 # ---------------------------------------------------------------------------
 
 NEW_REQUIRED_MODULES: list[str] = [
+    './modules/chat-message-mutations.js',
     # './modules/chat-scroll.js',         # Фаза 1
     # './modules/chat-mute.js',           # Фаза 1
     # './modules/chat-unread.js',         # Фаза 1

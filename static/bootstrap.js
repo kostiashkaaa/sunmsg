@@ -963,7 +963,8 @@
             if (storedDark === 'true') snapshot.darkMode = true;
             if (storedDark === 'false') snapshot.darkMode = false;
 
-            const storedScale = asFiniteNumber(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY), null);
+            const storedScaleRaw = localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY);
+            const storedScale = storedScaleRaw === null ? null : asFiniteNumber(storedScaleRaw, null);
             if (storedScale !== null) {
                 snapshot.messageScale = Number(clamp(storedScale, MESSAGE_SCALE_MIN, MESSAGE_SCALE_MAX).toFixed(2));
             }
