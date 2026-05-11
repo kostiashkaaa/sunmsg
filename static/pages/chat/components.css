@@ -2160,7 +2160,7 @@
             --msg-meta-gap: calc(3px * var(--chat-message-scale));
             --msg-meta-row-height: calc(12px * var(--chat-message-scale));
             --msg-meta-tick-size: calc(18px * var(--chat-message-scale));
-            --msg-meta-tick-stroke: 1.9;
+            --msg-meta-tick-stroke: 1.35;
             --msg-meta-read-color: color-mix(in srgb, #5ea8ff 86%, var(--chat-bubble-out-text) 14%);
             --chat-bubble-max-width: min(68%, 720px);
             flex: 1;
@@ -5493,7 +5493,7 @@
 
 
         .message .bubble.bubble--audio {
-            --audio-leading-offset: 60px; /* play button (38) + gap (10) */
+            --audio-leading-offset: 60px; /* play button (50) + gap (10) */
             --audio-btn-bg: color-mix(in srgb, var(--chat-bubble-in-bg) 76%, #ffffff 24%);
             --audio-btn-bg-hover: color-mix(in srgb, var(--chat-bubble-in-bg) 66%, #ffffff 34%);
             --audio-btn-border: color-mix(in srgb, var(--chat-bubble-in-text) 24%, transparent);
@@ -10117,12 +10117,12 @@
         min-width: 0;
     }
     .bubble--audio .audio-player-toggle {
-        width: 44px;
-        height: 44px;
+        width: 50px;
+        height: 50px;
         flex-shrink: 0;
     }
     .bubble--audio .audio-player-toggle i {
-        font-size: 19px;
+        font-size: 22px;
     }
     .bubble--audio .audio-player-info {
         min-width: 0;
@@ -10137,10 +10137,10 @@
     }
     /* Сжимаем волну: уменьшаем расстояние между палочками */
     .bubble--audio .audio-wave-layer {
-        gap: 1.4px;
+        gap: 1.2px;
     }
     .bubble--audio .audio-wave-bar {
-        min-width: 1.6px;
+        min-width: 1.4px;
     }
     .bubble--audio .audio-message-body {
         padding-bottom: calc(12px * var(--chat-message-scale));
