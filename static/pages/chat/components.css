@@ -10591,6 +10591,24 @@
     padding-right: 0;
 }
 
+.chat-area:not(.is-group-chat) .message.other.message-reactions-outside .message-avatar-slot {
+    display: flex;
+}
+
+.chat-area:not(.is-group-chat) .message.other.message-reactions-outside .message-avatar {
+    display: inline-flex !important;
+}
+
+.chat-area:not(.is-group-chat) .message.other.message-reactions-outside:not(.message-has-reactions) .message-avatar {
+    opacity: 0;
+    transform: scale(0.86);
+}
+
+.chat-area:not(.is-group-chat) .message.other.message-reactions-outside.message-has-reactions .message-avatar {
+    opacity: 1;
+    transform: scale(1);
+}
+
 .message .bubble {
     display: inline-flex;
     flex-direction: column;
@@ -10764,12 +10782,18 @@
     align-self: flex-start;
     justify-content: flex-start;
     margin-left: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+    min-height: calc(34px * var(--chat-message-scale));
 }
 
 .message.self.message-reactions-outside .message-stack > .message-reactions {
     align-self: flex-end;
     justify-content: flex-end;
     margin-right: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+}
+
+.message.message-reactions-outside .message-stack > .message-reactions.message-reactions-placeholder {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .reaction-pill {

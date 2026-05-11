@@ -4483,10 +4483,11 @@ const initChatPage = async () => {
         const isImageBubble = bubble.classList.contains('bubble--image');
         const isVideoBubble = bubble.classList.contains('bubble--video');
         const isAudioBubble = bubble.classList.contains('bubble--audio');
+        const isIncomingMessage = messageEl.classList.contains('other');
         const isVisualMediaBubble = isImageBubble || isVideoBubble;
         const hasVisualCaption = bubble.classList.contains('bubble--image-has-caption')
             || bubble.classList.contains('bubble--video-has-caption');
-        const useOutsidePlacement = Boolean(isVisualMediaBubble && !hasVisualCaption);
+        const useOutsidePlacement = Boolean(isIncomingMessage || (isVisualMediaBubble && !hasVisualCaption));
 
         messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
         messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacement);
@@ -4550,6 +4551,7 @@ const initChatPage = async () => {
 
         const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
         footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacement && hasReactionItems));
+        messageEl.classList.toggle('message-has-reactions', hasReactionItems);
         bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
         bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacement && hasReactionItems && messageText));
         bubble.classList.remove('bubble--text-meta-edited');
@@ -4689,7 +4691,20 @@ const initChatPage = async () => {
         const nextMarkup = buildMessageReactionsHtml(msgId, reactions);
 
         if (!nextMarkup) {
-            currentRow?.remove();
+            if (useOutsidePlacement) {
+                if (!currentRow) {
+                    currentRow = document.createElement('div');
+                    currentRow.className = 'message-reactions message-reactions-placeholder';
+                    currentRow.setAttribute('data-msg-id', String(msgId));
+                    targetContainer.append(currentRow);
+                } else {
+                    currentRow.className = 'message-reactions message-reactions-placeholder';
+                    currentRow.setAttribute('data-msg-id', String(msgId));
+                    currentRow.textContent = '';
+                }
+            } else {
+                currentRow?.remove();
+            }
             syncMessageBubbleLayoutClasses(messageEl);
             refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
             return;
