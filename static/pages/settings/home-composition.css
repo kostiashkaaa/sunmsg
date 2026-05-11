@@ -1,6 +1,6 @@
 /* Telegram-like desktop composition for settings home view. */
 
-@media (min-width: 400px) {
+@media (min-width: 0px) {
     .settings-scene {
         padding: 0;
         background:
@@ -78,20 +78,23 @@
     body.settings-detail-open .settings-content {
         width: min(430px, 100%);
         margin: 0 auto;
-        padding: 10px 10px 16px;
+        padding: 0 18px 20px;
         border-left: 0;
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, transparent 6%) 0%, color-mix(in srgb, var(--chat-bg) 90%, var(--surface) 10%) 100%);
+        background: transparent;
     }
 
     body.settings-detail-open .settings-card {
-        margin-bottom: 8px;
-        border-radius: 12px;
-        padding: 12px 13px;
-        border: 1px solid color-mix(in srgb, var(--rule) 18%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, transparent 5%) 0%, color-mix(in srgb, var(--paper-alt) 84%, var(--surface) 16%) 100%);
-        box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 44%, transparent);
+        margin-bottom: 0;
+        border-radius: 0;
+        padding: 16px 0 18px;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--rule) 22%, transparent);
+        background: transparent;
+        box-shadow: none;
+    }
+
+    body.settings-detail-open .settings-card:last-child {
+        border-bottom: 0;
     }
 
     body.settings-detail-open .settings-card-header {
@@ -430,5 +433,41 @@
         min-height: 36px;
         padding: 0 10px;
         font-size: 12px;
+    }
+
+    @media (max-width: 399px) {
+        body.settings-home-open .settings-nav-profile {
+            padding: 14px 14px 10px;
+        }
+
+        body.settings-home-open .settings-nav-avatar {
+            width: 104px;
+            height: 104px;
+            font-size: 34px;
+        }
+
+        body.settings-home-open .settings-nav-profile-name {
+            font-size: 28px;
+        }
+
+        body.settings-home-open .settings-nav-profile-action {
+            top: 112px;
+            right: calc(50% - 64px);
+            width: 42px;
+            height: 42px;
+        }
+
+        body.settings-home-open .settings-nav-profile-rows {
+            max-width: 100%;
+        }
+
+        body.settings-home-open .settings-nav-group .nav-item {
+            min-height: 52px;
+            font-size: 15px;
+        }
+
+        body.settings-detail-open .settings-content {
+            padding-inline: 16px;
+        }
     }
 }
