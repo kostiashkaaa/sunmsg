@@ -16,6 +16,7 @@ def test_settings_nav_status_follows_page_visibility(tmp_path):
     node_harness = f"""
 const documentListeners = new Map();
 const windowListeners = new Map();
+let documentFocused = false;
 class FakeElement {{
   constructor(id = '') {{
     this.id = id;
@@ -97,7 +98,7 @@ Object.defineProperty(globalThis, 'document', {{
     getElementById: element,
     querySelector: () => null,
     createElement: () => new FakeElement(),
-    hasFocus: () => true,
+    hasFocus: () => documentFocused,
     addEventListener(eventName, handler) {{
       documentListeners.set(eventName, handler);
     }},
@@ -193,9 +194,13 @@ if (statusEl.textContent !== 'в сети') {{
   throw new Error(`Expected online after focus return, got ${{statusEl.textContent}}`);
 }}
 
-windowListeners.get('blur')();
-if (!statusEl.textContent.startsWith('был(а) в сети')) {{
-  throw new Error(`Expected last seen after window blur, got ${{statusEl.textContent}}`);
+document.visibilityState = 'visible';
+documentListeners.get('visibilitychange')();
+if (statusEl.textContent !== 'в сети') {{
+  throw new Error(`Visible embedded settings should stay online without iframe focus, got ${{statusEl.textContent}}`);
+}}
+if (windowListeners.has('blur')) {{
+  throw new Error('Settings profile status must not depend on iframe window blur');
 }}
 """
     harness_path = tmp_path / 'settings-privacy-harness.mjs'
