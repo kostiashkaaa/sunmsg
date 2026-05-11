@@ -22,6 +22,8 @@ ROOT  = Path(__file__).resolve().parents[1]
 STATIC = ROOT / 'static'
 MODULES_DIR = STATIC / 'modules'
 CHAT_JS = STATIC / 'chat.js'
+CHAT_RUNTIME_JS = STATIC / 'chat-runtime.js'
+CHAT_ENTRYPOINTS = [CHAT_JS, CHAT_RUNTIME_JS]
 SETTINGS_NAV_SHELL_JS = STATIC / 'pages' / 'settings' / 'nav-shell.js'
 
 # ---------------------------------------------------------------------------
@@ -129,15 +131,16 @@ def test_all_modules_exist_and_non_empty() -> None:
 
 def test_chatjs_imports_resolve_to_existing_files() -> None:
     """Все import '...' в chat.js должны указывать на реально существующие файлы."""
-    src = _read(CHAT_JS)
-    imports = _parse_chatjs_imports(src)
     missing = []
-    for imp in imports:
-        resolved = _resolve_module_path(imp['path'])
-        if resolved is None:
-            continue  # external / ignored
-        if not resolved.exists():
-            missing.append(f"  import from '{imp['path']}' → {resolved} (NOT FOUND)")
+    for entrypoint in CHAT_ENTRYPOINTS:
+        src = _read(entrypoint)
+        imports = _parse_chatjs_imports(src)
+        for imp in imports:
+            resolved = _resolve_module_path(imp['path'])
+            if resolved is None:
+                continue  # external / ignored
+            if not resolved.exists():
+                missing.append(f"  {entrypoint.name}: import from '{imp['path']}' → {resolved} (NOT FOUND)")
 
     assert not missing, (
         'chat.js содержит импорты несуществующих файлов:\n' + '\n'.join(missing)
@@ -154,24 +157,25 @@ def test_chatjs_imported_names_exist_in_modules() -> None:
     x.js должен реально экспортировать `foo`.
     Если модуль импортируется через `* as Foo` — пропускаем (звёздный импорт).
     """
-    src = _read(CHAT_JS)
-    imports = _parse_chatjs_imports(src)
     failures: list[str] = []
 
-    for imp in imports:
-        if '*' in imp['names']:
-            continue  # star import — не проверяем
-        resolved = _resolve_module_path(imp['path'])
-        if resolved is None or not resolved.exists():
-            continue  # уже проверили выше
-        module_src = _read(resolved)
-        module_exports = _get_exports(module_src)
-        for name in imp['names']:
-            if name not in module_exports:
-                failures.append(
-                    f"  '{name}' импортируется из '{imp['path']}', "
-                    f"но не экспортируется. Доступны: {sorted(module_exports)[:10]}"
-                )
+    for entrypoint in CHAT_ENTRYPOINTS:
+        src = _read(entrypoint)
+        imports = _parse_chatjs_imports(src)
+        for imp in imports:
+            if '*' in imp['names']:
+                continue  # star import — не проверяем
+            resolved = _resolve_module_path(imp['path'])
+            if resolved is None or not resolved.exists():
+                continue  # уже проверили выше
+            module_src = _read(resolved)
+            module_exports = _get_exports(module_src)
+            for name in imp['names']:
+                if name not in module_exports:
+                    failures.append(
+                        f"  {entrypoint.name}: '{name}' импортируется из '{imp['path']}', "
+                        f"но не экспортируется. Доступны: {sorted(module_exports)[:10]}"
+                    )
 
     assert not failures, (
         'chat.js импортирует несуществующие export-ы:\n' + '\n'.join(failures)
@@ -495,7 +499,7 @@ NEW_REQUIRED_MODULES: list[str] = [
 )
 def test_chatjs_imports_new_refactored_modules() -> None:
     """chat.js должен импортировать новые вынесенные модули."""
-    src = _read(CHAT_JS)
+    src = _read(CHAT_JS) + '\n' + _read(CHAT_RUNTIME_JS)
     missing = [m for m in NEW_REQUIRED_MODULES if m not in src]
     assert not missing, (
         'chat.js не импортирует следующие новые модули:\n'
