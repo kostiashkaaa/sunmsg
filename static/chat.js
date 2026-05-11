@@ -638,9 +638,36 @@ const initChatPage = async () => {
         sidebarStatusTitle,
         sidebarStatusHint,
         sidebarSyncChip,
+        sidebarSearchInput,
         emojiBtn,
         searchChatBtn,
         sideResizer,
+        dragDropOverlay,
+        jumpToNewMessagesBtn,
+        jumpToNewMessagesCount,
+        jumpToNewMessagesIcon,
+        headerSelectionWrap,
+        selectedCountSpan,
+        cancelSelectionBtn,
+        bulkDeleteBtn,
+        bulkForwardBtn,
+        bulkCopyBtn,
+        barSelectBtn,
+        barCancelBtn,
+        deleteConfirmModal,
+        cancelDeleteBtn,
+        confirmDeleteBtn,
+        deleteForBothCheck,
+        deleteForBothWrap,
+        deleteModalTitle,
+        deleteModalText,
+        appBootOverlay,
+        profileLoadingMask,
+        messageActionsPreview,
+        messageActionsTitle,
+        barEditBtn,
+        barCopyBtn,
+        barDeleteBtn,
         reportContentModal,
         reportContentTargetLabel,
         reportReasonSelect,
@@ -839,7 +866,6 @@ const initChatPage = async () => {
             });
         return sidebarSearchInitPromise;
     }
-    const sidebarSearchInput = document.getElementById('searchInput');
     sidebarSearchInput?.addEventListener('click', async (event) => {
         if (isSidebarSearchReady) return;
         event.preventDefault();
@@ -930,8 +956,6 @@ const initChatPage = async () => {
         isChatBlocked: () => isChatBlocked(),
         showToast,
     });
-    const dragDropOverlay = document.getElementById('dragDropOverlay');
-
     initChatClipboardAndDrop({
         messageInput,
         chatArea,
@@ -942,21 +966,9 @@ const initChatPage = async () => {
         showToast,
     });
 
-    const jumpToNewMessagesBtn = document.getElementById('jumpToNewMessagesBtn');
-    const jumpToNewMessagesCount = document.getElementById('jumpToNewMessagesCount');
-    const jumpToNewMessagesIcon = jumpToNewMessagesBtn?.querySelector('i');
     if (jumpToNewMessagesIcon) {
         jumpToNewMessagesIcon.className = 'bi bi-chevron-down';
     }
-    // Selection UI
-    const headerSelectionWrap = document.getElementById('headerSelectionWrap');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    const bulkForwardBtn = document.getElementById('bulkForwardBtn');
-    const bulkCopyBtn = document.getElementById('bulkCopyBtn');
-    const barSelectBtn = document.getElementById('barSelectBtn');
-    const barCancelBtn = document.getElementById('barCancelBtn');
     const sidebarShell = createSidebarShell({
         contactsList,
         withAppRoot,
@@ -1459,16 +1471,6 @@ const initChatPage = async () => {
         return lastActiveChatController.restoreLastActiveChatSelection();
     }
 
-    // Delete Modal UI
-    const deleteConfirmModal = document.getElementById('deleteConfirmModal');
-    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    const deleteForBothCheck = document.getElementById('deleteForBothCheck');
-    const deleteForBothWrap = document.getElementById('deleteForBothWrap');
-    const deleteModalTitle = document.getElementById('deleteModalTitle');
-    const deleteModalText = document.getElementById('deleteModalText');
-    const appBootOverlay = document.getElementById('appBootOverlay');
-    const profileLoadingMask = document.getElementById('profileLoadingMask');
     let appBootOverlayHidden = false;
     const appBootStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const threadShell = createThreadShell({
@@ -2675,12 +2677,12 @@ const initChatPage = async () => {
 
     const messageActionsBarController = initMessageActionsBar({
         barEl: messageActionsBar,
-        previewEl: document.getElementById('messageActionsPreview'),
-        titleEl: document.getElementById('messageActionsTitle'),
-        editButtonEl: document.getElementById('barEditBtn'),
-        copyButtonEl: document.getElementById('barCopyBtn'),
-        deleteButtonEl: document.getElementById('barDeleteBtn'),
-        selectButtonEl: document.getElementById('barSelectBtn'),
+        previewEl: messageActionsPreview,
+        titleEl: messageActionsTitle,
+        editButtonEl: barEditBtn,
+        copyButtonEl: barCopyBtn,
+        deleteButtonEl: barDeleteBtn,
+        selectButtonEl: barSelectBtn,
         isChatBlocked,
     });
     const messageSelectionController = initMessageSelection({
