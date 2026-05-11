@@ -1376,8 +1376,10 @@
 
             .emoji-item {
                 width: 44px;
+                min-width: 40px;
                 height: 44px;
-                font-size: 27px;
+                min-height: 40px;
+                font-size: 28px;
                 border-radius: 13px;
                 background: transparent;
                 touch-action: manipulation;
