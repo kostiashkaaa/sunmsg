@@ -1919,6 +1919,7 @@ const initChatPage = async () => {
                     messageNode.classList.add('selected');
                 }
             }
+            syncMessageBubbleLayoutClasses(messageNode);
             state.renderedKeys.add(msgKey);
             fragment.appendChild(messageNode);
         });
