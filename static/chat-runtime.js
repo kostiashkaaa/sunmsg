@@ -68,10 +68,15 @@ import {
 } from './modules/chat-unread-jump.js';
 import { createPostRenderUiRefreshScheduler } from './modules/chat-post-render-refresh.js';
 import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtime.js';
+import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.js';
+import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
+import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
+import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
+import { createChatEncryptionRuntime } from './modules/chat-encryption-runtime.js';
+import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-runtime.js';
+import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
-import { initSearchOverlayGlobalContent } from './modules/search-overlay-global-content.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
-import { renderContactsDirectoryList } from './modules/chat-contacts-directory.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
 import { applyPinnedState as _applyPinnedState, initPinnedContactsDnD } from './modules/pinned-contacts.js';
 import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
@@ -323,6 +328,13 @@ export const initChatPage = async () => {
     let pendingForcedChatRerenderFrame = 0;
     let pendingForcedChatRerenderChatId = '';
     let pendingForcedChatRerenderOptions = null;
+    let messageFocusRuntime = null;
+    let pendingUploadRuntime = null;
+    let chatSearchRuntime = null;
+    let messageAppendRuntime = null;
+    let chatEncryptionRuntime = null;
+    let contactPreviewRuntime = null;
+    let reactionOperationsRuntime = null;
 
     // Forward (\u043F\u0435\u0440\u0435\u0441\u044B\u043B\u043A\u0430) \u2014 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0438\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 \u0432\u0441\u0435\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u0435\u0439.
     // var-\u0445\u043E\u0439\u0441\u0442: \u0434\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043E\u0431\u0451\u0440\u0442\u043A\u0438 \u0432\u0438\u0434\u044F\u0442 undefined \u0438 \u043D\u0435 \u043F\u0430\u0434\u0430\u044E\u0442.
@@ -770,6 +782,17 @@ export const initChatPage = async () => {
     const buildChatUrlForContactItem = (...args) => sidebarShell.buildChatUrlForContactItem(...args);
     const replaceBrowserUrl = (...args) => sidebarShell.replaceBrowserUrl(...args);
     const syncBrowserUrlForActiveChat = (...args) => sidebarShell.syncBrowserUrlForActiveChat(...args);
+
+    chatEncryptionRuntime = createChatEncryptionRuntime({
+        windowRef: window,
+        getCurrentChatId: () => currentChatId,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
+        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        getCurrentUserPublicKey: () => currentUserPublicKey,
+        loadContacts: (options) => loadContacts(options),
+        getPrivateKeyPem,
+    });
+
     let isE2EPillPinnedOpen = false;
     const { tabAlertController } = createChatTabTitleRuntime({
         chatHeader,
@@ -844,9 +867,6 @@ export const initChatPage = async () => {
     let bottomInertiaToken = 0;
     let keepChatPinnedToBottom = false;
     const reactionUpdateStampByMessage = new Map();
-    const pendingReactionOpsById = new Map();
-    const pendingReactionOpByMessage = new Map();
-    const supersededReactionRequestIds = new Map();
     let baseUpdateOnlineStatusUI = () => {};
     let hideTyping = () => {};
     let hideSidebarTyping = () => {};
@@ -4307,361 +4327,97 @@ export const initChatPage = async () => {
         return MessageItem(msg, layout);
     }
 
+    messageAppendRuntime = createChatMessageAppendRuntime({
+        windowRef: window,
+        cssEscape: globalThis.CSS?.escape,
+        getCurrentChatId: () => currentChatId,
+        getChatMessages: () => chatMessages,
+        getChatState,
+        getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
+        upsertChatMessage,
+        getMessageKey,
+        isSameMessageGroup,
+        getMessageDayKey,
+        createDaySeparatorNode,
+        messageGroup: (messages, index) => MessageGroup(messages, index),
+        messageItem: (msg, layout) => MessageItem(msg, layout),
+        syncReusedMessageNodeState,
+        isMobileViewport,
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        isChatNearBottom,
+        requestAutoScrollToBottom,
+        registerMediaElementsForLazyHydration,
+        schedulePostRenderUiRefresh,
+        scheduleVirtualChatRender,
+        requestAnimationFrameFn: requestAnimationFrame,
+        applyTickToElement,
+        formatTime,
+        formatFullTimestamp,
+        patchMessageReactions,
+        refreshMessageHeightCache,
+    });
+
     function applyMessageEnterAnimation(node, msg) {
-        if (!node) return;
-        if (isMobileViewport()) return;
-        const senderClass = msg?.sender === 'self' ? 'msg-animate-self' : 'msg-animate-other';
-        node.classList.add('msg-animate-in', senderClass);
-
-        let cleared = false;
-        const clearClasses = () => {
-            if (cleared || !node) return;
-            cleared = true;
-            node.classList.remove('msg-animate-in', 'msg-animate-self', 'msg-animate-other');
-        };
-
-        const handleAnimationEnd = (event) => {
-            if (event?.target !== node) return;
-            node.removeEventListener('animationend', handleAnimationEnd);
-            clearClasses();
-        };
-
-        node.addEventListener('animationend', handleAnimationEnd);
-        window.setTimeout(() => {
-            node.removeEventListener('animationend', handleAnimationEnd);
-            clearClasses();
-        }, 520);
+        return messageAppendRuntime?.applyMessageEnterAnimation(node, msg);
     }
 
     function appendMessage(msg, options = {}) {
-        if (!currentChatId) return null;
-        const inserted = upsertChatMessage(currentChatId, msg, { append: options.append !== false });
-        const renderOptions = options.renderOptions || {};
-
-        // \u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u043F\u0443\u0442\u044C: \u0440\u0435\u0430\u043B\u0442\u0430\u0439\u043C-\u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0432 \u043A\u043E\u043D\u0435\u0446, \u0431\u0435\u0437 \u043F\u043E\u043B\u043D\u043E\u0433\u043E rebuild \u0432\u0438\u0434\u0438\u043C\u043E\u0433\u043E \u043E\u043A\u043D\u0430.
-        // \u0423\u0441\u043B\u043E\u0432\u0438\u044F: \u043D\u0435\u0442 force/\u043F\u0440\u0438\u043D\u0443\u0434\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0433\u043E scrollTop/preserveHeightDelta, \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0440\u0435\u0430\u043B\u044C\u043D\u043E
-        // \u043E\u043A\u0430\u0437\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u043C \u0438 \u0432\u0438\u0434\u0438\u043C\u044B\u0439 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D \u0443\u0436\u0435 \u0432\u043A\u043B\u044E\u0447\u0430\u0435\u0442 \u0445\u0432\u043E\u0441\u0442 \u043B\u0435\u043D\u0442\u044B.
-        const canFastAppend = inserted
-            && !renderOptions.force
-            && !renderOptions.preserveHeightDelta
-            && !Number.isFinite(renderOptions.scrollTop);
-
-        if (canFastAppend && chatMessages) {
-            const state = getChatState(currentChatId);
-            const lastIdx = state.messages.length - 1;
-            const isAtTail = state.messages[lastIdx] === inserted;
-            const range = state.lastRenderRange;
-            const rangeCoversTail = range && range.end >= state.messages.length - 1;
-            const msgKey = getMessageKey(inserted);
-            const alreadyRendered = state.renderedKeys.has(msgKey);
-            const previousTailMessage = lastIdx > 0 ? state.messages[lastIdx - 1] : null;
-            const tailGroupWouldChange = isSameMessageGroup(previousTailMessage, inserted);
-            const findRenderedMessageNodeByKey = (rawKey) => {
-                const normalizedKey = String(rawKey || '');
-                if (!normalizedKey) return null;
-                const escapedKey = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-                    ? CSS.escape(normalizedKey)
-                    : normalizedKey.replace(/["\\]/g, '\\$&');
-                return chatMessages.querySelector(`.message[data-message-key="${escapedKey}"]`);
-            };
-
-            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
-                if (tailGroupWouldChange && previousTailMessage) {
-                    const previousTailKey = getMessageKey(previousTailMessage);
-                    const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);
-                    if (!previousTailNode) {
-                        scheduleVirtualChatRender(currentChatId, renderOptions);
-                        return inserted;
-                    }
-                    const previousTailLayout = MessageGroup(state.messages, lastIdx - 1);
-                    syncReusedMessageNodeState(previousTailNode, previousTailMessage, previousTailLayout);
-                }
-
-                const wasNearBottom = isChatNearBottom();
-                const bottomSpacer = chatMessages.querySelector('.chat-virtual-spacer:last-child');
-                const groupLayout = MessageGroup(state.messages, lastIdx);
-                const node = MessageItem(inserted, groupLayout);
-                applyMessageEnterAnimation(node, inserted);
-                if (messageSelectionController.isSelectionMode()) node.classList.add('selecting');
-
-                // Day separator \u043F\u0440\u0438 \u0441\u043C\u0435\u043D\u0435 \u0434\u043D\u044F
-                const prev = lastIdx > 0 ? state.messages[lastIdx - 1] : null;
-                const prevDayKey = prev ? getMessageDayKey(prev.created_at) : '';
-                const dayKey = getMessageDayKey(inserted.created_at);
-                if (dayKey && dayKey !== prevDayKey) {
-                    const sep = createDaySeparatorNode(inserted.created_at, dayKey);
-                    if (bottomSpacer) chatMessages.insertBefore(sep, bottomSpacer);
-                    else chatMessages.appendChild(sep);
-                }
-                if (bottomSpacer) chatMessages.insertBefore(node, bottomSpacer);
-                else chatMessages.appendChild(node);
-                registerMediaElementsForLazyHydration(node);
-
-                state.renderedKeys.add(msgKey);
-                state.lastRenderRange = { start: range.start, end: state.messages.length };
-
-                // \u0417\u0430\u043C\u0435\u0440 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0439 \u0432\u044B\u0441\u043E\u0442\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u043D\u043E\u0432\u043E\u0433\u043E \u0443\u0437\u043B\u0430 - \u0431\u0435\u0437 forced layout \u043F\u043E \u0432\u0441\u0435\u043C.
-                requestAnimationFrame(() => {
-                    if (!chatMessages.contains(node)) return;
-                    const h = Math.ceil(node.getBoundingClientRect().height);
-                    if (Number.isFinite(h) && h > 0) state.messageHeights.set(msgKey, h);
-                });
-
-                if (renderOptions.scrollToBottom) {
-                    requestAutoScrollToBottom();
-                } else if (wasNearBottom) {
-                    requestAutoScrollToBottom();
-                }
-                schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true });
-                return inserted;
-            }
-        }
-
-        scheduleVirtualChatRender(currentChatId, renderOptions);
-        return inserted;
+        return messageAppendRuntime?.appendMessage(msg, options) || null;
     }
 
-    function confirmPendingMessageDom({ clientId, messageId, message } = {}) {
-        if (!chatMessages || !clientId || !message) return false;
-        const rawClientId = String(clientId || '');
-        if (!rawClientId) return false;
-        const escapedClientId = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-            ? CSS.escape(rawClientId)
-            : rawClientId.replace(/["\\]/g, '\\$&');
-        let msgEl = chatMessages.querySelector(`.message.self[data-client-id="${escapedClientId}"]`);
-        const numericMessageId = Number(messageId);
-        if (!msgEl && Number.isFinite(numericMessageId) && numericMessageId > 0) {
-            msgEl = chatMessages.querySelector(`.message.self[data-msg-id="${numericMessageId}"]`);
-        }
-        if (!msgEl) return false;
-
-        if (Number.isFinite(numericMessageId) && numericMessageId > 0) {
-            msgEl.setAttribute('data-msg-id', String(numericMessageId));
-        }
-        const key = getMessageKey(message);
-        if (key) {
-            msgEl.setAttribute('data-message-key', key);
-        }
-        msgEl.removeAttribute('data-pending');
-        msgEl.removeAttribute('data-client-id');
-
-        const tickEl = msgEl.querySelector('.msg-tick');
-        if (tickEl) {
-            applyTickToElement(tickEl, message);
-        }
-        if (message.created_at) {
-            const timeEl = msgEl.querySelector('.msg-time');
-            if (timeEl) {
-                timeEl.textContent = formatTime(message.created_at);
-                timeEl.title = formatFullTimestamp(message.created_at);
-                timeEl.setAttribute('data-created-at', message.created_at);
-            }
-        }
-        patchMessageReactions(msgEl, message.reactions, { animate: false });
-        refreshMessageHeightCache(msgEl, { keepBottomPinned: keepChatPinnedToBottom });
-        return true;
+    function confirmPendingMessageDom(options = {}) {
+        return Boolean(messageAppendRuntime?.confirmPendingMessageDom(options));
     }
+
+    reactionOperationsRuntime = createChatReactionOperationsRuntime({
+        windowRef: window,
+        cryptoRef: crypto,
+        reactionPickerEmojis: REACTION_PICKER_EMOJIS,
+        reactionUpdateStampByMessage,
+        getCurrentChatId: () => currentChatId,
+        getChatMessages: () => chatMessages,
+        getChatState,
+        findMessageIndex,
+        normalizeMessageReactions,
+        areMessageReactionsEqual,
+        getReactionMessageKey,
+        computeOptimisticReactions,
+        patchMessageReactions,
+        scheduleVirtualChatRender,
+        applyReactionOperationUiState,
+        emitSocket,
+    });
 
     function updateMessageReactionsState(chatId, messageId, rawReactions) {
-        const numericMessageId = Number(messageId);
-        if (!Number.isFinite(numericMessageId) || numericMessageId <= 0) return false;
-        const state = getChatState(chatId);
-        const index = findMessageIndex(state, (msg) => Number(msg.id) === numericMessageId);
-        if (index < 0) return false;
-
-        const nextReactions = normalizeMessageReactions(rawReactions);
-        if (areMessageReactionsEqual(state.messages[index].reactions, nextReactions)) {
-            return false;
-        }
-
-        state.messages[index] = {
-            ...state.messages[index],
-            reactions: nextReactions,
-        };
-        return true;
+        return reactionOperationsRuntime?.updateMessageReactionsState(chatId, messageId, rawReactions) || false;
     }
 
-    function applyMessageReactionsLocally(chatId, messageId, rawReactions, { animate = true, touchStamp = false, animatedEmoji = '' } = {}) {
-        const changed = updateMessageReactionsState(chatId, messageId, rawReactions);
-        if (!changed) return false;
-
-        if (touchStamp) {
-            const key = getReactionMessageKey(chatId, messageId);
-            reactionUpdateStampByMessage.set(key, Date.now());
-        }
-
-        if (String(chatId) !== String(currentChatId)) {
-            return true;
-        }
-
-        const messageEl = chatMessages?.querySelector(`.message[data-msg-id="${Number(messageId)}"]`);
-        if (messageEl) {
-            patchMessageReactions(messageEl, rawReactions, { animate, animatedEmoji });
-            return true;
-        }
-
-        scheduleVirtualChatRender(chatId, { force: true, scrollTop: chatMessages.scrollTop });
-        return true;
+    function applyMessageReactionsLocally(chatId, messageId, rawReactions, options = {}) {
+        return reactionOperationsRuntime?.applyMessageReactionsLocally(chatId, messageId, rawReactions, options) || false;
     }
 
-    function rollbackPendingReactionOp(operation) {
-        if (!operation) return;
-        applyMessageReactionsLocally(
-            operation.chatId,
-            operation.messageId,
-            operation.previousReactions,
-            { animate: false }
-        );
+    function clearPendingReactionOp(requestId, options = {}) {
+        return reactionOperationsRuntime?.clearPendingReactionOp(requestId, options) || null;
     }
 
-    function rememberSupersededReactionRequest(requestId, ttlMs = 30000) {
-        const token = String(requestId || '').trim();
-        if (!token) return;
-        const existingTimeoutId = supersededReactionRequestIds.get(token);
-        if (existingTimeoutId) {
-            clearTimeout(existingTimeoutId);
-        }
-        const timeoutId = window.setTimeout(() => {
-            supersededReactionRequestIds.delete(token);
-        }, ttlMs);
-        supersededReactionRequestIds.set(token, timeoutId);
-    }
-
-    function isSupersededReactionRequest(requestId) {
-        const token = String(requestId || '').trim();
-        if (!token) return false;
-        return supersededReactionRequestIds.has(token);
-    }
-
-    function forgetSupersededReactionRequest(requestId) {
-        const token = String(requestId || '').trim();
-        if (!token) return;
-        const timeoutId = supersededReactionRequestIds.get(token);
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-        supersededReactionRequestIds.delete(token);
-    }
-
-    function markPendingReactionOpSuperseded(requestId) {
-        const token = String(requestId || '').trim();
-        if (!token) return;
-        const operation = pendingReactionOpsById.get(token);
-        if (!operation) return;
-        operation.superseded = true;
-        applyReactionOperationUiState(operation, { syncing: false, failed: false, disabled: false });
-        rememberSupersededReactionRequest(token);
-    }
-
-    function clearPendingReactionOp(requestId, { rollback = false } = {}) {
-        const token = String(requestId || '').trim();
-        if (!token) return null;
-
-        const operation = pendingReactionOpsById.get(token);
-        if (!operation) return null;
-
-        pendingReactionOpsById.delete(token);
-        if (operation.timeoutId) {
-            clearTimeout(operation.timeoutId);
-        }
-        if (pendingReactionOpByMessage.get(operation.messageKey) === token) {
-            pendingReactionOpByMessage.delete(operation.messageKey);
-        }
-
-        if (rollback) {
-            rollbackPendingReactionOp(operation);
-        }
-
-        applyReactionOperationUiState(operation, { syncing: false, failed: rollback, disabled: false });
-        if (rollback && String(operation.chatId || '') === String(currentChatId || '')) {
-            window.setTimeout(() => {
-                applyReactionOperationUiState(operation, { syncing: false, failed: false, disabled: false });
-            }, 1100);
-        }
-
-        return operation;
-    }
-
-    function clearPendingReactionOpByMessage(chatId, messageId, { rollback = false } = {}) {
-        const key = getReactionMessageKey(chatId, messageId);
-        const requestId = pendingReactionOpByMessage.get(key);
-        if (requestId) {
-            return clearPendingReactionOp(requestId, { rollback });
-        }
-        return null;
+    function clearPendingReactionOpByMessage(chatId, messageId, options = {}) {
+        return reactionOperationsRuntime?.clearPendingReactionOpByMessage(chatId, messageId, options) || null;
     }
 
     function registerPendingReactionOp(chatId, messageId, previousReactions, requestId, reactionContext = {}) {
-        const token = String(requestId || '').trim();
-        if (!token) return;
-
-        const numericMessageId = Number(messageId);
-        if (!Number.isFinite(numericMessageId) || numericMessageId <= 0) return;
-
-        const key = getReactionMessageKey(chatId, numericMessageId);
-        const existing = pendingReactionOpByMessage.get(key);
-        if (existing) {
-            markPendingReactionOpSuperseded(existing);
-        }
-
-        const timeoutId = window.setTimeout(() => {
-            clearPendingReactionOp(token);
-        }, 4500);
-
-        pendingReactionOpsById.set(token, {
-            requestId: token,
-            chatId: String(chatId || ''),
-            messageId: numericMessageId,
-            messageKey: key,
-            previousReactions: normalizeMessageReactions(previousReactions),
-            emoji: String(reactionContext?.emoji || '').trim(),
-            mode: String(reactionContext?.mode || '').trim() || 'add',
-            superseded: false,
-            timeoutId,
-        });
-        pendingReactionOpByMessage.set(key, token);
-
-        const operation = pendingReactionOpsById.get(token);
-        applyReactionOperationUiState(operation, { syncing: true, failed: false, disabled: false });
+        return reactionOperationsRuntime?.registerPendingReactionOp(chatId, messageId, previousReactions, requestId, reactionContext);
     }
 
     function emitReactionToggle(messageId, emoji) {
-        const normalizedMsgId = Number(messageId);
-        const normalizedEmoji = String(emoji || '').trim();
-        if (!currentChatId || !Number.isFinite(normalizedMsgId) || normalizedMsgId <= 0) return;
-        if (!REACTION_PICKER_EMOJIS.includes(normalizedEmoji)) return;
+        return reactionOperationsRuntime?.emitReactionToggle(messageId, emoji);
+    }
 
-        const state = getChatState(currentChatId);
-        const messageIndex = findMessageIndex(state, (msg) => Number(msg.id) === normalizedMsgId);
-        if (messageIndex < 0) return;
+    function isSupersededReactionRequest(requestId) {
+        return reactionOperationsRuntime?.isSupersededReactionRequest(requestId) || false;
+    }
 
-        const previousReactions = normalizeMessageReactions(state.messages[messageIndex].reactions);
-        const myPreviousReaction = previousReactions.find((item) => item?.reactedByMe) || null;
-        const reactionMode = myPreviousReaction?.emoji === normalizedEmoji
-            ? 'remove'
-            : (myPreviousReaction ? 'switch' : 'add');
-        const nextReactions = computeOptimisticReactions(previousReactions, normalizedEmoji);
-        const changed = applyMessageReactionsLocally(currentChatId, normalizedMsgId, nextReactions, {
-            animate: true,
-            animatedEmoji: normalizedEmoji,
-        });
-        if (!changed) return;
-
-        const requestId = crypto.randomUUID();
-        registerPendingReactionOp(currentChatId, normalizedMsgId, previousReactions, requestId, {
-            emoji: normalizedEmoji,
-            mode: reactionMode,
-        });
-        const emitted = emitSocket('toggle_reaction', {
-            chat_id: currentChatId,
-            message_id: normalizedMsgId,
-            emoji: normalizedEmoji,
-            request_id: requestId,
-        });
-
-        if (!emitted) {
-            clearPendingReactionOp(requestId, { rollback: true });
-        }
+    function forgetSupersededReactionRequest(requestId) {
+        return reactionOperationsRuntime?.forgetSupersededReactionRequest(requestId);
     }
 
     function closeReactionPicker() {
@@ -4793,130 +4549,26 @@ export const initChatPage = async () => {
     });
 
     // --- Scroll to message -----------------------------------------------
-    const MESSAGE_FOCUS_TOP_OFFSET = 84;
-    const MESSAGE_FOCUS_ALIGN = 'center';
-    const MESSAGE_FOCUS_VISIBLE_MARGIN = 18;
-    const MESSAGE_FOCUS_MIN_HIGHLIGHT_DELAY = 90;
-    const MESSAGE_FOCUS_FLASH_DURATION = 1450;
-    const MESSAGE_FOCUS_TARGET_EPSILON = 12;
-    const MESSAGE_FOCUS_FLASH_FADE_MS = 220;
-    const _messageFlashTimers = new WeakMap();
+    messageFocusRuntime = createMessageFocusRuntime({
+        documentRef: document,
+        requestAnimationFrameFn: requestAnimationFrame,
+        cancelAnimationFrameFn: cancelAnimationFrame,
+        setTimeoutFn: setTimeout,
+        clearTimeoutFn: clearTimeout,
+        getChatMessages: () => chatMessages,
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        findMessageById,
+        findMessageIndex,
+        loadOlderMessages,
+        estimateMessageHeight,
+        chatDefaultMessageHeight: CHAT_DEFAULT_MESSAGE_HEIGHT,
+        sumEstimatedHeights,
+        renderChatMessages: (chatId, options) => renderChatMessages(chatId, options),
+    });
 
-    function _isMessageInView(el, container, margin = MESSAGE_FOCUS_VISIBLE_MARGIN) {
-        if (!el || !container) return false;
-        const cRect = container.getBoundingClientRect();
-        const eRect = el.getBoundingClientRect();
-        const topVisible = eRect.top >= (cRect.top + margin);
-        const bottomVisible = eRect.bottom <= (cRect.bottom - margin);
-        return topVisible && bottomVisible;
-    }
-
-    function _computeScrollTarget(el, container, options = {}) {
-        const topOffset = Number.isFinite(options.topOffset) ? options.topOffset : MESSAGE_FOCUS_TOP_OFFSET;
-        const align = typeof options.align === 'string' ? options.align : MESSAGE_FOCUS_ALIGN;
-        const cRect = container.getBoundingClientRect();
-        const eRect = el.getBoundingClientRect();
-        const relativeTop = eRect.top - cRect.top;
-        const centerOffset = Math.max(0, (container.clientHeight - eRect.height) / 2);
-        const rawTargetTop = align === 'center'
-            ? container.scrollTop + relativeTop - centerOffset
-            : container.scrollTop + relativeTop - topOffset;
-        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-        return Math.max(0, Math.min(rawTargetTop, maxScrollTop));
-    }
-
-    function _flashMessageTarget(el) {
-        if (!el) return;
-        const previousState = _messageFlashTimers.get(el);
-        if (previousState?.showFrame) cancelAnimationFrame(previousState.showFrame);
-        if (previousState?.hideTimer) clearTimeout(previousState.hideTimer);
-        if (previousState?.cleanupTimer) clearTimeout(previousState.cleanupTimer);
-        el.classList.remove('highlight-flash-active');
-        el.classList.remove('highlight-flash');
-        void el.offsetWidth;
-        el.classList.add('highlight-flash');
-        const showFrame = requestAnimationFrame(() => {
-            el.classList.add('highlight-flash-active');
-        });
-        const hideTimer = setTimeout(() => {
-            el.classList.remove('highlight-flash-active');
-        }, MESSAGE_FOCUS_FLASH_DURATION);
-        const cleanupTimer = setTimeout(() => {
-            el.classList.remove('highlight-flash');
-            _messageFlashTimers.delete(el);
-        }, MESSAGE_FOCUS_FLASH_DURATION + MESSAGE_FOCUS_FLASH_FADE_MS);
-        _messageFlashTimers.set(el, {
-            showFrame,
-            hideTimer,
-            cleanupTimer,
-        });
-    }
-
-    async function _ensureMessageLoaded(msgId) {
-        if (!currentChatId) return false;
-        const numericId = Number(msgId);
-        if (!Number.isFinite(numericId) || numericId <= 0) return false;
-
-        const state = getChatState(currentChatId);
-        while (!findMessageById(currentChatId, numericId) && state.hasMoreBefore && !state.isLoadingOlder) {
-            const oldestId = Number(state.messages[0]?.id);
-            if (!Number.isFinite(oldestId) || numericId >= oldestId) break;
-            await loadOlderMessages(currentChatId);
-        }
-        return Boolean(findMessageById(currentChatId, numericId));
-    }
-
-    function _estimateScrollTopForMessage(msgId, options = {}) {
-        const state = getChatState(currentChatId);
-        const index = findMessageIndex(state, (msg) => Number(msg.id) === Number(msgId));
-        if (index < 0) return null;
-        const topOffset = Number.isFinite(options.topOffset) ? options.topOffset : MESSAGE_FOCUS_TOP_OFFSET;
-        const align = typeof options.align === 'string' ? options.align : MESSAGE_FOCUS_ALIGN;
-        const targetMessage = state.messages[index];
-        const estimatedHeight = Math.max(
-            48,
-            estimateMessageHeight(state, targetMessage) || state.averageMessageHeight || CHAT_DEFAULT_MESSAGE_HEIGHT,
-        );
-        const centerOffset = Math.max(0, ((chatMessages?.clientHeight || 0) - estimatedHeight) / 2);
-        const anchorOffset = align === 'center' ? centerOffset : topOffset;
-        return Math.max(0, sumEstimatedHeights(state, 0, index) - anchorOffset);
-    }
-
-    async function _focusMessageById(msgId, options = {}) {
-        if (!chatMessages) return false;
-
-        let el = document.querySelector(`.message[data-msg-id="${msgId}"]`);
-        if (!el) {
-            const loaded = await _ensureMessageLoaded(msgId);
-            if (!loaded) return false;
-            const estimatedTop = _estimateScrollTopForMessage(msgId, options);
-            renderChatMessages(currentChatId, {
-                force: true,
-                scrollTop: Number.isFinite(estimatedTop) ? estimatedTop : chatMessages.scrollTop,
-            });
-            el = document.querySelector(`.message[data-msg-id="${msgId}"]`);
-        }
-        if (!el) return false;
-
-        const smooth = options.smooth !== false;
-        const targetTop = _computeScrollTarget(el, chatMessages, options);
-        const distance = Math.abs(targetTop - chatMessages.scrollTop);
-        const alreadyInView = _isMessageInView(el, chatMessages);
-
-        if (alreadyInView && distance <= MESSAGE_FOCUS_TARGET_EPSILON) {
-            _flashMessageTarget(el);
-            return true;
-        }
-
-        requestAnimationFrame(() => {
-            chatMessages.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'auto' });
-
-            const delay = smooth
-                ? Math.max(MESSAGE_FOCUS_MIN_HIGHLIGHT_DELAY, Math.min(520, Math.round(distance * 0.45)))
-                : 0;
-            setTimeout(() => _flashMessageTarget(el), delay);
-        });
-        return true;
+    function _focusMessageById(msgId, options = {}) {
+        return messageFocusRuntime?.focusMessageById(msgId, options) || Promise.resolve(false);
     }
 
     window._scrollToMsg = function(msgId, options = {}) {
@@ -4942,157 +4594,37 @@ export const initChatPage = async () => {
     const closeCaptionModal = captionModalController.closeCaptionModal;
 
     async function encryptForCurrentChat(plainText) {
-        if (!currentChatId) {
-            throw new Error('\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442 \u043F\u0435\u0440\u0435\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u043E\u0439 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F.');
-        }
-        if (isCurrentChatGroup()) {
-            return plainText;
-        }
-        if (!window.currentContactPublicKey) {
-            loadContacts();
-            throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u043A\u043B\u044E\u0447 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432.');
-        }
-        if (!getPrivateKeyPem()) {
-            throw new Error('\u041D\u0435\u0442 \u043F\u0440\u0438\u0432\u0430\u0442\u043D\u043E\u0433\u043E \u043A\u043B\u044E\u0447\u0430. \u0412\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E \u0441 \u0432\u0430\u0448\u0438\u043C \u043A\u043B\u044E\u0447\u043E\u043C.');
-        }
-        if (!currentUserPublicKey) {
-            throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432\u0430\u0448 \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u0439 \u043A\u043B\u044E\u0447. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E.');
-        }
-        return window.e2e.encryptMessageE2E(
-            window.currentContactPublicKey,
-            currentUserPublicKey,
-            plainText
-        );
+        return chatEncryptionRuntime.encryptForCurrentChat(plainText);
     }
 
-    function clampPendingUploadProgress(value) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, Math.min(100, Math.round(numeric)));
-    }
+    pendingUploadRuntime = createPendingUploadRuntime({
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        findMessageIndex,
+        getChatMessages: () => chatMessages,
+        parseSunFilePayload,
+        updateMessageContent: (messageEl, nextMessageText, isRedecrypt) => updateMessageContent(messageEl, nextMessageText, isRedecrypt),
+        cssEscape: globalThis.CSS?.escape,
+    });
 
     function buildPendingMediaDimensions(width, height) {
-        const safeWidth = Math.round(Number(width) || 0);
-        const safeHeight = Math.round(Number(height) || 0);
-        if (!(safeWidth > 0) || !(safeHeight > 0)) return null;
-        return {
-            preview_width: safeWidth,
-            preview_height: safeHeight,
-            preview_aspect_ratio: Number((safeWidth / safeHeight).toFixed(4)),
-        };
+        return pendingUploadRuntime?.buildPendingMediaDimensions(width, height) || null;
     }
 
     function resolvePendingMessageByClientId(clientId) {
-        if (!currentChatId || !clientId) return null;
-        const state = getChatState(currentChatId);
-        const index = findMessageIndex(state, (msg) => msg.clientId === clientId);
-        if (index < 0) return null;
-        return {
-            state,
-            index,
-            message: state.messages[index],
-            element: chatMessages?.querySelector(`.message.self[data-client-id="${CSS.escape(clientId)}"]`) || null,
-        };
+        return pendingUploadRuntime?.resolvePendingMessageByClientId(clientId) || null;
     }
 
     function persistPendingMediaDimensions(messageEl, width, height) {
-        const clientId = messageEl?.getAttribute('data-client-id');
-        if (!clientId) return null;
-        const resolved = resolvePendingMessageByClientId(clientId);
-        if (!resolved) return null;
-        const filePayload = parseSunFilePayload(resolved.message.message);
-        if (!filePayload) return null;
-        const nextDimensions = buildPendingMediaDimensions(width, height);
-        if (!nextDimensions) return null;
-
-        const prevWidth = Number(filePayload.preview_width);
-        const prevHeight = Number(filePayload.preview_height);
-        const prevRatio = Number(filePayload.preview_aspect_ratio);
-        const nextRatio = Number(nextDimensions.preview_aspect_ratio);
-        const unchanged = prevWidth === nextDimensions.preview_width
-            && prevHeight === nextDimensions.preview_height
-            && Math.abs(prevRatio - nextRatio) < 0.0001;
-        if (unchanged) {
-            return { ...filePayload, ...nextDimensions };
-        }
-
-        const nextPayload = { ...filePayload, ...nextDimensions };
-        const nextMessageText = JSON.stringify(nextPayload);
-        resolved.state.messages[resolved.index] = {
-            ...resolved.message,
-            message: nextMessageText,
-        };
-        resolved.element?.setAttribute('data-message-content', nextMessageText);
-        return nextPayload;
-    }
-
-    function syncPendingMediaOverlay(messageEl, filePayload) {
-        if (!messageEl || !filePayload) return;
-        const mediaWrap = messageEl.querySelector('.image-wrapper, .video-preview');
-        if (!mediaWrap) return;
-
-        const isUploading = Boolean(filePayload.uploading);
-        const progress = clampPendingUploadProgress(filePayload.upload_progress);
-        mediaWrap.classList.toggle('is-uploading', isUploading);
-        mediaWrap.setAttribute('data-upload-progress', String(progress));
-
-        const overlay = mediaWrap.querySelector('.media-status-overlay');
-        if (!overlay) return;
-        overlay.classList.toggle('is-uploading', isUploading);
-        overlay.setAttribute('data-upload-progress', String(progress));
-        overlay.style.setProperty('--upload-progress', String(progress));
-        const value = overlay.querySelector('.media-status-value');
-        if (value) {
-            value.textContent = isUploading ? `${progress}%` : '';
-        }
-    }
-
-    function syncPendingInlineUpload(messageEl, filePayload) {
-        if (!messageEl || !filePayload) return;
-        const uploadEl = messageEl.querySelector('[data-file-upload-inline="1"]');
-        if (!uploadEl) return;
-
-        const isUploading = Boolean(filePayload.uploading);
-        const progress = clampPendingUploadProgress(filePayload.upload_progress);
-        uploadEl.classList.toggle('is-uploading', isUploading);
-        uploadEl.classList.toggle('is-hidden', !isUploading);
-        uploadEl.setAttribute('data-upload-progress', String(progress));
-        uploadEl.style.setProperty('--upload-progress', String(progress));
-
-        const percentEl = uploadEl.querySelector('.file-upload-inline-percent');
-        if (percentEl) {
-            percentEl.textContent = `${progress}%`;
-        }
-
-        const fileLinkEl = messageEl.querySelector('.file-msg-link');
-        if (fileLinkEl) {
-            fileLinkEl.classList.toggle('is-uploading', isUploading);
-            fileLinkEl.setAttribute('aria-disabled', isUploading ? 'true' : 'false');
-        }
+        return pendingUploadRuntime?.persistPendingMediaDimensions(messageEl, width, height) || null;
     }
 
     function syncPendingUploadIndicators(messageEl, filePayload) {
-        syncPendingMediaOverlay(messageEl, filePayload);
-        syncPendingInlineUpload(messageEl, filePayload);
+        return pendingUploadRuntime?.syncPendingUploadIndicators(messageEl, filePayload);
     }
 
     function updatePendingFileUploadProgress(clientId, percent) {
-        const resolved = resolvePendingMessageByClientId(clientId);
-        if (!resolved) return;
-
-        const filePayload = parseSunFilePayload(resolved.message.message);
-        if (!filePayload) return;
-
-        const nextPayload = {
-            ...filePayload,
-            uploading: true,
-            upload_progress: clampPendingUploadProgress(percent),
-        };
-        resolved.state.messages[resolved.index] = {
-            ...resolved.message,
-            message: JSON.stringify(nextPayload),
-        };
-        syncPendingUploadIndicators(resolved.element, nextPayload);
+        return pendingUploadRuntime?.updatePendingFileUploadProgress(clientId, percent);
     }
 
     const messageMutationHandlers = createChatMessageMutations({
@@ -5120,28 +4652,7 @@ export const initChatPage = async () => {
     });
 
     function commitPendingFileUpload(clientId, nextFilePayload) {
-        const resolved = resolvePendingMessageByClientId(clientId);
-        if (!resolved) return;
-
-        const currentFilePayload = parseSunFilePayload(resolved.message.message) || {};
-        const nextPayload = {
-            ...currentFilePayload,
-            ...nextFilePayload,
-            preview_width: nextFilePayload?.preview_width ?? currentFilePayload.preview_width,
-            preview_height: nextFilePayload?.preview_height ?? currentFilePayload.preview_height,
-            preview_aspect_ratio: nextFilePayload?.preview_aspect_ratio ?? currentFilePayload.preview_aspect_ratio,
-            uploading: false,
-            upload_progress: 100,
-        };
-        const nextMessageText = JSON.stringify(nextPayload);
-        resolved.state.messages[resolved.index] = {
-            ...resolved.message,
-            message: nextMessageText,
-        };
-
-        if (resolved.element) {
-            updateMessageContent(resolved.element, nextMessageText, true);
-        }
+        return pendingUploadRuntime?.commitPendingFileUpload(clientId, nextFilePayload);
     }
 
     function failPendingMessage(clientId) {
@@ -5172,26 +4683,12 @@ export const initChatPage = async () => {
         const sourceChatIsGroup = isCurrentChatGroup();
         const sourceContactPublicKey = String(window.currentContactPublicKey || '').trim();
         const sourceUserPublicKey = String(currentUserPublicKey || '').trim();
-
-        const encryptForSourceChat = async (plainText) => {
-            if (!sourceChatId) {
-                throw new Error('\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442 \u043F\u0435\u0440\u0435\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u043E\u0439 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F.');
-            }
-            if (sourceChatIsGroup) {
-                return plainText;
-            }
-            if (!sourceContactPublicKey) {
-                loadContacts();
-                throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u043A\u043B\u044E\u0447 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432.');
-            }
-            if (!getPrivateKeyPem()) {
-                throw new Error('\u041D\u0435\u0442 \u043F\u0440\u0438\u0432\u0430\u0442\u043D\u043E\u0433\u043E \u043A\u043B\u044E\u0447\u0430. \u0412\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E \u0441 \u0432\u0430\u0448\u0438\u043C \u043A\u043B\u044E\u0447\u043E\u043C.');
-            }
-            if (!sourceUserPublicKey) {
-                throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432\u0430\u0448 \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u0439 \u043A\u043B\u044E\u0447. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E.');
-            }
-            return window.e2e.encryptMessageE2E(sourceContactPublicKey, sourceUserPublicKey, plainText);
-        };
+        const encryptForSourceChat = chatEncryptionRuntime.createEncryptForChatSnapshot({
+            chatId: sourceChatId,
+            isGroup: sourceChatIsGroup,
+            contactPublicKey: sourceContactPublicKey,
+            userPublicKey: sourceUserPublicKey,
+        });
 
         return sendTextMessageFlow({
             message,
@@ -5240,26 +4737,12 @@ export const initChatPage = async () => {
         const sourceChatIsGroup = isCurrentChatGroup();
         const sourceContactPublicKey = String(window.currentContactPublicKey || '').trim();
         const sourceUserPublicKey = String(currentUserPublicKey || '').trim();
-
-        const encryptForSourceChat = async (plainText) => {
-            if (!sourceChatId) {
-                throw new Error('\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442 \u043F\u0435\u0440\u0435\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u043E\u0439 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F.');
-            }
-            if (sourceChatIsGroup) {
-                return plainText;
-            }
-            if (!sourceContactPublicKey) {
-                loadContacts();
-                throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u043A\u043B\u044E\u0447 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432.');
-            }
-            if (!getPrivateKeyPem()) {
-                throw new Error('\u041D\u0435\u0442 \u043F\u0440\u0438\u0432\u0430\u0442\u043D\u043E\u0433\u043E \u043A\u043B\u044E\u0447\u0430. \u0412\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E \u0441 \u0432\u0430\u0448\u0438\u043C \u043A\u043B\u044E\u0447\u043E\u043C.');
-            }
-            if (!sourceUserPublicKey) {
-                throw new Error('\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432\u0430\u0448 \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u0439 \u043A\u043B\u044E\u0447. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0438 \u0432\u043E\u0439\u0434\u0438\u0442\u0435 \u0437\u0430\u043D\u043E\u0432\u043E.');
-            }
-            return window.e2e.encryptMessageE2E(sourceContactPublicKey, sourceUserPublicKey, plainText);
-        };
+        const encryptForSourceChat = chatEncryptionRuntime.createEncryptForChatSnapshot({
+            chatId: sourceChatId,
+            isGroup: sourceChatIsGroup,
+            contactPublicKey: sourceContactPublicKey,
+            userPublicKey: sourceUserPublicKey,
+        });
 
         return sendFileMessageFlow({
             file,
@@ -5375,6 +4858,15 @@ export const initChatPage = async () => {
         getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
     });
 
+    contactPreviewRuntime = createChatContactPreviewRuntime({
+        getCurrentChatId: () => currentChatId,
+        resolveContactItemByChatId,
+        hideSidebarTyping,
+        updateActiveContactLastMessageFlow: _updateActiveContactLastMessage,
+        sortContactsList,
+        contactsSidebarController,
+        setContactUnreadBadge,
+    });
 
     function updateActiveContactLastMessage(
         message,
@@ -5382,12 +4874,7 @@ export const initChatPage = async () => {
         status = { is_read: false, is_delivered: false },
         timestamp = null
     ) {
-        if (!currentChatId) return;
-        const contactItem = resolveContactItemByChatId(currentChatId);
-        if (!contactItem) return;
-        hideSidebarTyping(currentChatId);
-        _updateActiveContactLastMessage(contactItem, message, isSelf, status, timestamp);
-        sortContactsList();
+        return contactPreviewRuntime?.updateActiveContactLastMessage(message, isSelf, status, timestamp);
     }
 
     function updateContactLastMessageForChat(
@@ -5397,13 +4884,7 @@ export const initChatPage = async () => {
         status = { is_read: false, is_delivered: false },
         timestamp = null,
     ) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return;
-        const contactItem = resolveContactItemByChatId(normalizedChatId);
-        if (!contactItem) return;
-        hideSidebarTyping(normalizedChatId);
-        _updateActiveContactLastMessage(contactItem, message, isSelf, status, timestamp);
-        sortContactsList();
+        return contactPreviewRuntime?.updateContactLastMessageForChat(chatId, message, isSelf, status, timestamp);
     }
 
     // \u041E\u0431\u043D\u043E\u0432\u043B\u044F\u0435\u0442 \u0441\u0430\u0439\u0434\u0431\u0430\u0440 \u0434\u043B\u044F \u0447\u0430\u0442\u0430, \u043A\u043E\u0442\u043E\u0440\u044B\u0439 \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u0442 \u0432 \u0434\u0430\u043D\u043D\u044B\u0439 \u043C\u043E\u043C\u0435\u043D\u0442 (\u0431\u0435\u0437 AJAX-\u0437\u0430\u043F\u0440\u043E\u0441\u0430)
@@ -5414,14 +4895,7 @@ export const initChatPage = async () => {
         timestamp,
         status = { is_read: false, is_delivered: false }
     ) {
-        contactsSidebarController.updateSidebarForOtherChat(
-            chatId,
-            message,
-            isSelf,
-            timestamp,
-            status,
-            setContactUnreadBadge,
-        );
+        return contactPreviewRuntime?.updateSidebarForOtherChat(chatId, message, isSelf, timestamp, status);
     }
 
     // -- \u041E\u0442\u043F\u0440\u0430\u0432\u043A\u0430 \u0444\u0430\u0439\u043B\u0430 (E2E \u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u0438\u0435) --
@@ -5566,21 +5040,13 @@ export const initChatPage = async () => {
     }
 
     function isEncryptedPayload(value) {
-        return typeof value === 'string'
-            && value.trim().startsWith('{')
-            && value.includes('encrypted_message');
+        return chatEncryptionRuntime?.isEncryptedPayload(value) || false;
     }
 
     async function decryptForDisplay(privateKeyPem, encryptedPayload, isSelf) {
-        if (!privateKeyPem || !isEncryptedPayload(encryptedPayload)) {
-            return encryptedPayload;
-        }
-
-        if (!window.e2e || !window.e2e.decryptMessageE2E) {
-            return '[E2E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E: crypto.js \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D]';
-        }
-
-        return await window.e2e.decryptMessageE2E(privateKeyPem, encryptedPayload, isSelf);
+        return chatEncryptionRuntime
+            ? chatEncryptionRuntime.decryptForDisplay(privateKeyPem, encryptedPayload, isSelf)
+            : encryptedPayload;
     }
 
     // \u041F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0430 \u0447\u0430\u0442\u0430 \u0432\u043D\u0438\u0437
@@ -5959,237 +5425,68 @@ export const initChatPage = async () => {
         return getChatHistoryRuntime().loadOlderMessages(chatId);
     }
 
+    chatSearchRuntime = createChatSearchRuntime({
+        documentRef: document,
+        windowRef: window,
+        setTimeoutFn: setTimeout,
+        requestAnimationFrameFn: requestAnimationFrame,
+        contactsList,
+        chatsSearchHint,
+        paletteFrequentSection,
+        paletteFrequentChats,
+        paletteLocalSection,
+        paletteLocalResults,
+        commandPaletteActions,
+        modalSearchInput,
+        modalSearchResults,
+        modalEl: document.getElementById('newChatModal'),
+        withAppRoot,
+        fetchImpl: fetch,
+        decodeChatMessages: (messages) => decodeChatMessages(messages),
+        closeAnimatedDialog,
+        openAnimatedDialog,
+        showToast,
+        sendDialogRequest,
+        openGroupCreateModal: () => openGroupCreateModal(),
+        loadContacts: (options) => loadContacts(options),
+        resolveContactItemByChatId,
+        resolveContactItemByUserId,
+        escapeHtml,
+        applyFallbackAvatarTint,
+        formatLastSeenText,
+    });
+
     function setChatsSearchHintVisible(visible) {
-        if (!chatsSearchHint) return;
-        chatsSearchHint.style.display = visible ? '' : 'none';
+        return chatSearchRuntime?.setChatsSearchHintVisible(visible);
     }
 
     function renderFrequentChats() {
-        if (!paletteFrequentSection || !paletteFrequentChats) return;
-
-        const frequentItems = Array.from(document.querySelectorAll('#contactsList .contact-item[data-chat-id]'))
-            .sort((a, b) => {
-                const aPinned = String(a.getAttribute('data-pinned') || '') === '1';
-                const bPinned = String(b.getAttribute('data-pinned') || '') === '1';
-                if (aPinned !== bPinned) return aPinned ? -1 : 1;
-
-                const aTs = Number(a.getAttribute('data-last-message-ts') || 0);
-                const bTs = Number(b.getAttribute('data-last-message-ts') || 0);
-                if (aTs !== bTs) return bTs - aTs;
-
-                const aName = String(a.querySelector('.contact-name')?.textContent || '').toLowerCase();
-                const bName = String(b.querySelector('.contact-name')?.textContent || '').toLowerCase();
-                return aName.localeCompare(bName);
-            })
-            .slice(0, 10);
-
-        if (!frequentItems.length) {
-            paletteFrequentSection.style.display = 'none';
-            paletteFrequentChats.innerHTML = '';
-            return;
-        }
-
-        paletteFrequentSection.style.display = '';
-        paletteFrequentChats.innerHTML = frequentItems.map((item) => {
-            const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarHtml = sourceAvatarEl?.innerHTML || '?';
-            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
-            const avatarTintAttr = avatarTint
-                ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
-                : '';
-            const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
-            const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || 'Чат'));
-            return `
-                <button type="button" class="search-frequent-chat-btn" data-chat-id="${chatId}">
-                    <div class="contact-avatar search-frequent-chat-btn-avatar"${avatarTintAttr}>${avatarHtml}</div>
-                    <span class="search-frequent-chat-btn-name">${name}</span>
-                </button>
-            `;
-        }).join('');
-
-        paletteFrequentChats.querySelectorAll('.search-frequent-chat-btn .contact-avatar').forEach((avatarEl) => {
-            if (avatarEl.querySelector('img')) return;
-            const label = String(
-                avatarEl.closest('.search-frequent-chat-btn')?.querySelector('.search-frequent-chat-btn-name')?.textContent
-                || '',
-            ).trim();
-            applyFallbackAvatarTint(avatarEl, label);
-        });
+        return chatSearchRuntime?.renderFrequentChats();
     }
 
     function renderPaletteLocalMatches(query) {
-        if (!paletteLocalSection || !paletteLocalResults) return;
-
-        const normalizedQuery = String(query || '').trim().toLowerCase();
-        if (!normalizedQuery) {
-            paletteLocalSection.style.display = 'none';
-            paletteLocalResults.innerHTML = '';
-            renderFrequentChats();
-            setChatsSearchHintVisible(true);
-            return;
-        }
-
-        if (paletteFrequentSection) {
-            paletteFrequentSection.style.display = 'none';
-        }
-
-        const items = Array.from(document.querySelectorAll('#contactsList .contact-item'));
-        const matches = items.filter((item) => {
-            const name = String(item.querySelector('.contact-name')?.textContent || '').toLowerCase();
-            const username = String(item.querySelector('.contact-last-msg')?.textContent || '').toLowerCase();
-            const publicKey = String(item.getAttribute('data-public-key') || '').toLowerCase();
-            return name.includes(normalizedQuery) || username.includes(normalizedQuery) || publicKey.includes(normalizedQuery);
-        }).slice(0, 8);
-
-        if (!matches.length) {
-            paletteLocalSection.style.display = 'none';
-            paletteLocalResults.innerHTML = '';
-            setChatsSearchHintVisible(true);
-            return;
-        }
-
-        setChatsSearchHintVisible(false);
-        paletteLocalSection.style.display = '';
-        paletteLocalResults.innerHTML = matches.map((item) => {
-            const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarHtml = sourceAvatarEl?.innerHTML || '?';
-            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
-            const avatarTintAttr = avatarTint
-                ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
-                : '';
-            const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442'));
-            const sub = escapeHtml(String(item.querySelector('.contact-last-msg')?.textContent || ''));
-            const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
-            return `
-                <div class="command-palette-result">
-                    <div class="command-palette-result-meta">
-                        <div class="contact-avatar command-palette-result-avatar"${avatarTintAttr}>${avatarHtml}</div>
-                        <div class="command-palette-result-copy">
-                            <strong>${name}</strong>
-                            <span>${sub}</span>
-                        </div>
-                    </div>
-                    <button type="button" class="command-palette-result-btn open-chat-btn" data-chat-id="${chatId}">
-                        \u041E\u0442\u043A\u0440\u044B\u0442\u044C
-                    </button>
-                </div>
-            `;
-        }).join('');
-        paletteLocalResults.querySelectorAll('.command-palette-result .contact-avatar').forEach((avatarEl) => {
-            if (avatarEl.querySelector('img')) return;
-            const label = String(
-                avatarEl.closest('.command-palette-result')?.querySelector('.command-palette-result-copy strong')?.textContent
-                || '',
-            ).trim();
-            applyFallbackAvatarTint(avatarEl, label);
-        });
+        return chatSearchRuntime?.renderPaletteLocalMatches(query);
     }
 
     function openPaletteChat(chatId) {
-        if (!chatId || !contactsList) return;
-        const item = resolveContactItemByChatId(chatId);
-        if (!item) return;
-        if (typeof window.closeCommandPalette === 'function') {
-            window.closeCommandPalette();
-        } else {
-            closeAnimatedDialog(document.getElementById('newChatModal'));
-        }
-        item.click();
+        return chatSearchRuntime?.openPaletteChat(chatId);
     }
 
     function buildSearchResultsLoaderHtml() {
-        return `
-            <div class="search-results-loader" role="status" aria-live="polite">
-                <div class="search-results-loader__item">
-                    <div class="search-results-loader__avatar sun-skeleton-block"></div>
-                    <div class="search-results-loader__lines">
-                        <div class="sun-skeleton-line"></div>
-                        <div class="sun-skeleton-line"></div>
-                    </div>
-                </div>
-                <div class="search-results-loader__item">
-                    <div class="search-results-loader__avatar sun-skeleton-block"></div>
-                    <div class="search-results-loader__lines">
-                        <div class="sun-skeleton-line"></div>
-                        <div class="sun-skeleton-line"></div>
-                    </div>
-                </div>
-            </div>
-        `;
+        return chatSearchRuntime?.buildSearchResultsLoaderHtml() || '';
     }
 
     function normalizeSearchUser(user) {
-        if (!user || typeof user !== 'object') return null;
-        const parsedId = Number.parseInt(user.userId ?? user.user_id, 10);
-        if (!Number.isFinite(parsedId) || parsedId <= 0) return null;
-        const displayName = String(user.display_name || user.username || `Пользователь ${parsedId}`).trim();
-        const username = String(user.username || '').trim();
-        const avatarUrl = String(user.avatar_url || '').trim();
-        const canGroupAddDirect = user.can_group_add_direct !== false;
-        return {
-            user_id: parsedId,
-            display_name: displayName || `Пользователь ${parsedId}`,
-            username,
-            avatar_url: avatarUrl,
-            can_group_add_direct: canGroupAddDirect,
-        };
+        return chatSearchRuntime?.normalizeSearchUser(user) || null;
     }
-
 
     async function openChatByIdWhenReady(chatId) {
-        const normalizedChatId = String(chatId || '').trim();
-        if (!normalizedChatId) return;
-
-        const maxAttempts = 8;
-        const retryDelayMs = 220;
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            const contactItem = resolveContactItemByChatId(normalizedChatId);
-            if (contactItem) {
-                contactItem.click();
-                return;
-            }
-            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-            if (attempt === 2 || attempt === 5) {
-                await loadContacts({ immediate: true, attemptInitialChatRestore: false });
-            }
-        }
+        return chatSearchRuntime?.openChatByIdWhenReady(chatId);
     }
 
-    const searchOverlayGlobalContentController = initSearchOverlayGlobalContent({
-        overlayEl: document.getElementById('newChatModal'),
-        resolveAppUrl: withAppRoot,
-        fetchImpl: window.authFetch || window.fetch?.bind(window) || fetch,
-        decodeMessages: (messages) => decodeChatMessages(messages),
-        contactsRoot: contactsList,
-        openChatById: (chatId) => openChatByIdWhenReady(chatId),
-        focusMessageInCurrentChat: (msgId, options) => window._scrollToMsg?.(msgId, options),
-        closeOverlay: () => {
-            if (typeof window.closeCommandPalette === 'function') {
-                window.closeCommandPalette();
-                return;
-            }
-            closeAnimatedDialog(document.getElementById('newChatModal'));
-        },
-        showToast,
-    });
-
-    document.getElementById('newChatModal')?.addEventListener('sun-search-overlay-tab-changed', (event) => {
-        const tabId = String(event?.detail?.tabId || '').trim();
-        if (tabId === 'chats') {
-            const visibleSearchInput = document.getElementById('searchInput');
-            const query = String(visibleSearchInput?.value || '').trim();
-            renderPaletteLocalMatches(query);
-            searchOverlayGlobalContentController?.refreshChatLookup?.();
-            return;
-        }
-        if (tabId === 'contacts') {
-            modalSearchInput?.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    });
-
-
-
-
+    function openCommandPaletteModal() {
+        return chatSearchRuntime?.openCommandPaletteModal();
+    }
 
     bindGroupModerationUiHandlers({
         groupEditMembersList,
@@ -6214,226 +5511,11 @@ export const initChatPage = async () => {
         },
     });
 
-
-    commandPaletteActions?.addEventListener('click', (event) => {
-        const actionBtn = event.target.closest('[data-palette-action]');
-        if (!actionBtn) return;
-        const action = String(actionBtn.getAttribute('data-palette-action') || '').trim();
-        if (action === 'contact') {
-            document.querySelector('.search-overlay__tab[data-search-tab="contacts"]')?.click();
-            document.getElementById('searchInput')?.focus();
-            return;
-        }
-        if (action === 'settings') {
-            window.closeCommandPalette?.() || closeAnimatedDialog(document.getElementById('newChatModal'));
-            window.openSettingsOverlay?.('settings');
-            return;
-        }
-        if (action === 'qr') {
-            window.closeCommandPalette?.() || closeAnimatedDialog(document.getElementById('newChatModal'));
-            window.openMyQrModal?.();
-            return;
-        }
-
-        if (action === 'group') {
-            window.closeCommandPalette?.() || closeAnimatedDialog(document.getElementById('newChatModal'));
-            openGroupCreateModal();
-            return;
-        }
-
-        if (action === 'theme') {
-            document.getElementById('sidebarThemeToggleBtn')?.click();
-            window.closeCommandPalette?.();
-            return;
-        }
-
-        document.getElementById('searchInput')?.focus();
-    });
-
-    paletteLocalResults?.addEventListener('click', (event) => {
-        const openBtn = event.target.closest('.open-chat-btn');
-        if (!openBtn) return;
-        openPaletteChat(openBtn.getAttribute('data-chat-id'));
-    });
-
-    paletteFrequentChats?.addEventListener('click', (event) => {
-        const openBtn = event.target.closest('.search-frequent-chat-btn');
-        if (!openBtn) return;
-        openPaletteChat(openBtn.getAttribute('data-chat-id'));
-    });
-
-    function isContactsSearchTabActive() {
-        const activeTab = document.querySelector('.search-overlay__tab.is-active[data-search-tab]');
-        return String(activeTab?.getAttribute('data-search-tab') || '') === 'contacts';
-    }
-
-    function translateSearchLabel(value) {
-        const i18nApi = window.SUN_I18N;
-        if (i18nApi && typeof i18nApi.translateText === 'function') {
-            return i18nApi.translateText(String(value ?? ''));
-        }
-        return String(value ?? '');
-    }
-
-    function renderLocalContactsDirectory(query) {
-        return renderContactsDirectoryList({
-            contactsRoot: contactsList,
-            resultsRoot: modalSearchResults,
-            query,
-            escapeHtml,
-            applyFallbackAvatarTint,
-            formatLastSeenText,
-            labels: {
-                open: translateSearchLabel('\u041E\u0442\u043A\u0440\u044B\u0442\u044C'),
-                online: translateSearchLabel('\u0432 \u0441\u0435\u0442\u0438'),
-                offline: translateSearchLabel('\u043D\u0435 \u0432 \u0441\u0435\u0442\u0438'),
-                recently: translateSearchLabel('\u0431\u044B\u043B(\u0430) \u043D\u0435\u0434\u0430\u0432\u043D\u043E'),
-                empty: translateSearchLabel('\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.'),
-            },
-        });
-    }
-
-    function runRemoteContactsSearch(query) {
-        modalSearchResults.innerHTML = buildSearchResultsLoaderHtml();
-        fetch(withAppRoot(`/search_users?q=${encodeURIComponent(query)}&limit=20`))
-            .then(r => r.json())
-            .then(response => {
-                const results = response.results || response.users || [];
-                if (response.success && results) {
-                    displaySearchResults(results);
-                } else {
-                    modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
-                }
-            })
-            .catch(() => showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u0438\u0441\u043A\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439.', 'danger'));
-    }
-
-    // \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u043F\u043E\u0438\u0441\u043A\u0430 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438
-    if (modalSearchInput) {
-        modalSearchInput.addEventListener('input', function() {
-            const query = modalSearchInput.value.trim();
-            renderPaletteLocalMatches(query);
-            const contactsTabActive = isContactsSearchTabActive();
-            if (contactsTabActive) {
-                const localCount = renderLocalContactsDirectory(query);
-                if (query.length === 0 || localCount > 0 || query.length < 3) {
-                    return;
-                }
-            }
-            if (query.length === 0) {
-                modalSearchResults.innerHTML = '';
-                return;
-            }
-            if (query.length < 3) {
-                modalSearchResults.innerHTML = '<p class="text-center">\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043C\u0438\u043D\u0438\u043C\u0443\u043C 3 \u0441\u0438\u043C\u0432\u043E\u043B\u0430.</p>';
-                return;
-            }
-
-            runRemoteContactsSearch(query);
-        });
-    }
-
-    function displaySearchResults(results) {
-        if (results.length === 0) {
-            modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
-            return;
-        }
-
-        const list = document.createElement('div');
-
-        results.forEach(function(user) {
-            const listItem = document.createElement('div');
-            const existingContact = resolveContactItemByUserId(user.userId || user.user_id);
-            const existingChatId = existingContact?.getAttribute('data-chat-id') || '';
-
-            const initials = (user.display_name || user.username || '?')
-                .trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-
-            const avatarHtml = user.avatar_url
-                ? `<div class="contact-avatar command-palette-result-avatar"><img class="contact-avatar__img" src="${escapeHtml(user.avatar_url)}"></div>`
-                : `<div class="contact-avatar command-palette-result-avatar">${escapeHtml(initials)}</div>`;
-
-            listItem.className = 'command-palette-result';
-            listItem.innerHTML = `
-                <div class="command-palette-result-meta">
-                    ${avatarHtml}
-                    <div class="command-palette-result-copy">
-                        <strong>${escapeHtml(user.display_name)}</strong>
-                        <span>@${escapeHtml(user.username)}</span>
-                    </div>
-                </div>
-                ${existingChatId
-                    ? `<button type="button" class="command-palette-result-btn open-chat-btn" data-chat-id="${escapeHtml(existingChatId)}">\u041E\u0442\u043A\u0440\u044B\u0442\u044C</button>`
-                    : `<button class="command-palette-result-btn send-request-btn" data-user-id="${user.userId || user.user_id}" data-display-name="${escapeHtml(user.display_name)}">\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C</button>`
-                }
-            `;
-            list.appendChild(listItem);
-        });
-
-        modalSearchResults.innerHTML = '';
-        modalSearchResults.appendChild(list);
-        modalSearchResults.querySelectorAll('.command-palette-result .contact-avatar').forEach((avatarEl) => {
-            if (avatarEl.querySelector('img')) return;
-            const label = String(
-                avatarEl.closest('.command-palette-result')?.querySelector('.command-palette-result-copy strong')?.textContent
-                || '',
-            ).trim();
-            applyFallbackAvatarTint(avatarEl, label);
-        });
-    }
-
-    // \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u043D\u0430 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435
-    if (modalSearchResults) {
-        modalSearchResults.addEventListener('click', function(e) {
-            const target = e.target;
-            const openBtn = target.closest('.open-chat-btn');
-            if (openBtn) {
-                openPaletteChat(openBtn.getAttribute('data-chat-id'));
-                return;
-            }
-            const button = target.closest('.send-request-btn');
-            if (button) {
-                const userId = button.getAttribute('data-user-id');
-                const displayName = button.getAttribute('data-display-name');
-                sendDialogRequest(userId, displayName);
-            }
-        });
-    }
-
-    // Empty-state action buttons.
-    // '\u041D\u0430\u0439\u0442\u0438 \u043A\u043E\u043D\u0442\u0430\u043A\u0442' button - opens command palette / user search
-    const emptyStatePrimaryBtn = document.getElementById('emptyStatePrimaryBtn');
-    const emptyStateSecondaryBtn = document.getElementById('emptyStateSecondaryBtn');
-
-    function openCommandPaletteModal() {
-        if (typeof window.openCommandPalette === 'function' && window.openCommandPalette !== openCommandPaletteModal) {
-            window.openCommandPalette('');
-            return;
-        }
-        const modal = document.getElementById('newChatModal');
-        const input = document.getElementById('searchUserInput');
-        const results = document.getElementById('searchUserResults');
-        if (!modal) return;
-        if (results) results.innerHTML = '';
-        if (input) input.value = '';
-        openAnimatedDialog(modal, { focusTarget: input });
-        requestAnimationFrame(() => {
-            try { input?.focus({ preventScroll: true }); } catch (_) {}
-        });
-    }
-
     exposeChatRuntimeLegacyGlobalsBridge({
         syncSidebarStatusBar,
         openCommandPaletteModal,
     });
 
-    emptyStatePrimaryBtn?.addEventListener('click', () => {
-        window.openCommandPalette?.();
-    });
-
-    emptyStateSecondaryBtn?.addEventListener('click', () => {
-        window.openMyQrModal?.();
-    });
     // ===================================================
 
 
