@@ -3,7 +3,7 @@ from app.sockets.validation import socket_connect_csrf_ok as socket_connect_csrf
 from app.sockets.validation import socket_csrf_ok as socket_csrf_ok_impl
 
 
-def socket_csrf_ok(
+def socket_csrf_ok(  # noqa: PLR0913 - validation wrapper contract
     data,
     *,
     validate_csrf_func,
@@ -22,7 +22,7 @@ def socket_csrf_ok(
     )
 
 
-def socket_connect_csrf_ok(
+def socket_connect_csrf_ok(  # noqa: PLR0913 - validation wrapper contract
     auth,
     *,
     validate_csrf_func,
@@ -41,7 +41,7 @@ def socket_connect_csrf_ok(
     )
 
 
-def emit_blocked_error(
+def emit_blocked_error(  # noqa: PLR0913 - validation wrapper contract
     message: str,
     *,
     state=None,

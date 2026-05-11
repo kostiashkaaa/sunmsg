@@ -1,4 +1,4 @@
-def handle_activity_update_event(
+def handle_activity_update_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,

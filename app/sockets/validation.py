@@ -29,7 +29,7 @@ def parse_db_utc_timestamp(value):
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
-def socket_csrf_ok(
+def socket_csrf_ok(  # noqa: PLR0913 - validation helper contract
     data,
     *,
     validate_csrf_func,
@@ -60,7 +60,7 @@ def socket_csrf_ok(
     return True
 
 
-def socket_connect_csrf_ok(
+def socket_connect_csrf_ok(  # noqa: PLR0913 - validation helper contract
     auth,
     *,
     validate_csrf_func,
