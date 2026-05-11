@@ -55,6 +55,55 @@ export function setCurrentPartnerLegacyGlobals({
     return { partnerId, partnerData };
 }
 
+export function createChatLegacyGlobalAccessors(windowRef = window) {
+    const getCurrentPartnerData = () => windowRef.currentPartnerData;
+    const setCurrentPartnerData = (value) => {
+        windowRef.currentPartnerData = value;
+        return value;
+    };
+    const getCurrentPartnerId = () => windowRef.currentPartnerId;
+    const setCurrentPartnerId = (value) => {
+        windowRef.currentPartnerId = value;
+        return value;
+    };
+    const getCurrentContactPublicKey = () => windowRef.currentContactPublicKey;
+    const setCurrentContactPublicKey = (value) => {
+        windowRef.currentContactPublicKey = value;
+        return value;
+    };
+    const getCurrentPartnerDisplayName = (fallback = '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A') => (
+        getCurrentPartnerData()?.display_name || fallback
+    );
+    const isCurrentPartnerSavedMessagesProfile = () => Boolean(getCurrentPartnerData()?._saved_messages_profile);
+    const isCurrentPartnerGroupProfile = () => Boolean(getCurrentPartnerData()?._group_profile);
+    const syncCurrentPartnerMembersCount = (membersCount) => {
+        const normalizedMembersCount = Math.max(0, Number(membersCount) || 0);
+        const partnerData = getCurrentPartnerData();
+        if (partnerData && Number(partnerData.members_count) !== normalizedMembersCount) {
+            partnerData.members_count = normalizedMembersCount;
+        }
+        return normalizedMembersCount;
+    };
+    const clearCurrentPartnerSession = () => {
+        setCurrentContactPublicKey(null);
+        setCurrentPartnerId(null);
+    };
+
+    return {
+        getCurrentPartnerData,
+        setCurrentPartnerData,
+        getCurrentPartnerId,
+        setCurrentPartnerId,
+        getCurrentContactPublicKey,
+        setCurrentContactPublicKey,
+        getCurrentPartnerDisplayName,
+        isCurrentPartnerSavedMessagesProfile,
+        isCurrentPartnerGroupProfile,
+        syncCurrentPartnerMembersCount,
+        clearCurrentPartnerSession,
+    };
+}
+
 export function exposeChatRuntimeLegacyGlobals({
     activateFocusTrap,
     deactivateFocusTrap,
