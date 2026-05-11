@@ -23,6 +23,7 @@
             'embedMode': embed_mode,
             'clientPreferences': client_preferences|default({}),
         },
+        'socketio': socketio_client_config,
         'app': {
             'root': request.script_root or '',
         },
@@ -1325,6 +1326,9 @@
 </dialog>
 
 <script src="{{ asset_url('qrcode-loader.js') }}"></script>
+{% if not embed_mode %}
+<script src="{{ asset_url('vendor/js/socket.io.min.js') }}"></script>
+{% endif %}
 <script type="module" src="{{ asset_url('pages/settings.js') }}"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import {
 } from '../../modules/private-key-session.js';
 import { hasRuntimePrivateKey } from '../../modules/private-key-runtime.js';
 import { waitForMotionEnd } from '../../modules/motion.js';
+import { initSettingsPresence } from '../../modules/settings-presence.js';
 import { initSettingsQr, downloadSettingsQr } from '../settings-qr.js';
 
 import { createSettingsState } from './state.js';
@@ -55,6 +56,7 @@ export function initSettingsPage() {
 
     const isEmbedMode = String(bootstrapUser.embedMode ?? pageRoot.dataset.embedMode) === 'true';
     const currentUsername = String(bootstrapUser.currentUsername || pageRoot.dataset.currentUsername || '');
+    initSettingsPresence({ isEmbedded: isEmbedMode });
 
     const closeEmbeddedSettings = () => {
         if (!isEmbedMode || window.parent === window) return;

@@ -28,6 +28,7 @@ from app.routes.auth_helpers_settings import (
 )
 from app.services.blocking import list_visible_contact_public_keys
 from app.services.client_preferences import client_preferences_from_db, client_preferences_to_json
+from app.services.chat_page_state import build_socketio_client_config
 from app.services.locale import language_from_user_row
 from app.services.presence import is_effectively_online
 from app.services.refresh_tokens import clear_refresh_cookie
@@ -113,6 +114,7 @@ def settings():
         current_display_name=user['display_name'],
         public_key_pem=user['public_key'],
         embed_mode=embed_mode,
+        socketio_client_config=build_socketio_client_config(current_app.config),
         ui_language=language_from_user_row(user),
         client_preferences=client_preferences_from_db(
             user['client_preferences'] if 'client_preferences' in user.keys() else None
