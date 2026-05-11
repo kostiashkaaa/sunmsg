@@ -26,6 +26,7 @@ export async function sendTextMessageFlow({
     restoreComposerFocus,
     prewarmMessageLinkPreview,
     enqueueOutbox,
+    failPendingMessage,
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -37,22 +38,53 @@ export async function sendTextMessageFlow({
     if (!keepComposerEnabled) {
         setSendingState(true);
     }
+    const clientId = crypto.randomUUID();
+    const sentAt = new Date().toISOString();
+    const isLink = LINK_MESSAGE_PATTERN.test(message);
+    const msgType = isLink ? 'link' : 'text';
+
+    const {
+        replyToId: snapReplyId,
+        replyToText: snapReplyText,
+        replyToSender: snapReplySender,
+    } = getReplyState();
+    cancelReply();
+
+    appendMessage({
+        sender: 'self',
+        message,
+        encrypted: true,
+        is_read: false,
+        is_delivered: false,
+        created_at: sentAt,
+        pending: true,
+        clientId,
+        replyToId: snapReplyId,
+        replyToText: snapReplyText,
+        replyToSender: snapReplySender,
+        ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
+        reactions: [],
+    }, { renderOptions: { scrollToBottom: true } });
+
+    setKeepChatPinnedToBottom(true);
+    updateActiveContactLastMessage(
+        message,
+        true,
+        { pending: true, is_read: false, is_delivered: false },
+        sentAt,
+    );
+    clearComposerInput();
+    requestAnimationFrame(() => {
+        resizeComposerInput();
+    });
+    isSent = true;
+
     try {
         if (typeof prewarmMessageLinkPreview === 'function') {
-            await prewarmMessageLinkPreview(message, { delayMs: 0, awaitReady: true });
+            void prewarmMessageLinkPreview(message, { delayMs: 0, awaitReady: false });
         }
 
-        const isLink = LINK_MESSAGE_PATTERN.test(message);
-        const msgType = isLink ? 'link' : 'text';
-        const clientId = crypto.randomUUID();
-
         const encryptedPayloadStr = await encryptForCurrentChat(message);
-        const {
-            replyToId: snapReplyId,
-            replyToText: snapReplyText,
-            replyToSender: snapReplySender,
-        } = getReplyState();
-        cancelReply();
 
         const sendPayload = {
             message: encryptedPayloadStr,
@@ -66,6 +98,9 @@ export async function sendTextMessageFlow({
         let isQueuedOffline = false;
         if (!emitted) {
             if (typeof enqueueOutbox !== 'function') {
+                if (typeof failPendingMessage === 'function') {
+                    failPendingMessage(clientId);
+                }
                 return;
             }
             try {
@@ -74,52 +109,30 @@ export async function sendTextMessageFlow({
                     eventName: 'send_message',
                     payload: sendPayload,
                 });
-                if (!queued) return;
+                if (!queued) {
+                    if (typeof failPendingMessage === 'function') {
+                        failPendingMessage(clientId);
+                    }
+                    return;
+                }
                 isQueuedOffline = true;
             } catch (_) {
+                if (typeof failPendingMessage === 'function') {
+                    failPendingMessage(clientId);
+                }
                 return;
             }
         }
-
-        const sentAt = new Date().toISOString();
-        appendMessage({
-            sender: 'self',
-            message,
-            encrypted: true,
-            is_read: false,
-            is_delivered: false,
-            created_at: sentAt,
-            pending: true,
-            clientId,
-            replyToId: snapReplyId,
-            replyToText: snapReplyText,
-            replyToSender: snapReplySender,
-            ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
-            reactions: [],
-        }, { renderOptions: { force: true, scrollToBottom: true } });
-
-        setKeepChatPinnedToBottom(true);
-        updateActiveContactLastMessage(
-            message,
-            true,
-            { pending: true, is_read: false, is_delivered: false },
-            sentAt,
-        );
         if (!isQueuedOffline) {
             schedulePendingTimeout(clientId);
         }
-
-        clearComposerInput();
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                resizeComposerInput();
-            });
-        });
-
-        isSent = true;
+    } catch (error) {
+        if (typeof failPendingMessage === 'function') {
+            failPendingMessage(clientId);
+        }
+        throw error;
     } finally {
         setSendingState(false);
         if (isSent) restoreComposerFocus();
     }
 }
-

@@ -23,6 +23,19 @@ const DEFAULT_AUDIO_WAVEFORM = [
 ];
 
 const VOICE_AUDIO_NAME_PATTERN = /^voice[-_]|^voice\b|^recording\b|^audio message\b|^ptt\b|^голос/i;
+const EMOJI_ONLY_TEXT_PATTERN = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\u200D\uFE0F\s]+$/u;
+const EMOJI_CLUSTER_PATTERN = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+
+function isEmojiOnlyMessageText(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text || text.length > 28) return false;
+    if (!EMOJI_ONLY_TEXT_PATTERN.test(text)) return false;
+    const compact = text.replace(/\s+/g, '');
+    if (!compact) return false;
+    const clusters = Array.from(compact.matchAll(EMOJI_CLUSTER_PATTERN)).map((match) => String(match[0] || ''));
+    if (!clusters.length || clusters.length > 3) return false;
+    return clusters.join('') === compact;
+}
 
 function isWaveformInformative(values) {
     const normalized = Array.isArray(values)
@@ -736,7 +749,6 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         currentAvatarUrl,
         currentUserId = null,
         isGroupChat = false,
-        useMobileReactionInside = false,
     } = context;
 
     const messageDiv = document.createElement('div');
@@ -834,14 +846,13 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     let isVoiceAudioPayload = false;
     let audioDurationSeconds = 0;
     let audioListenedByPartner = false;
-    let placeReactionsOutsideBubble = false;
+    const placeReactionsOutsideBubble = true;
     if (filePayload) {
         const result = buildFileBubble(filePayload);
         bubbleClass  = result.bubbleClass;
         bubbleContent = result.content;
         isAudioPayload = Boolean(filePayload.mime?.startsWith('audio/'));
         isVoiceAudioPayload = Boolean(result.isVoiceAudio);
-        placeReactionsOutsideBubble = Boolean(result.isMedia);
         if (isAudioPayload) {
             const rawDuration = Number(filePayload.duration_seconds);
             audioDurationSeconds = Number.isFinite(rawDuration) && rawDuration > 0
@@ -855,10 +866,6 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         bubbleClass += ' bubble--text';
         bubbleContent = '<div class="message-text"></div>';
     }
-    if (useMobileReactionInside) {
-        placeReactionsOutsideBubble = false;
-    }
-
     const pinnedLabel = isPinned ? '<span class="msg-pin" title="\u0417\u0430\u043A\u0440\u0435\u043F\u043B\u0435\u043D\u043E"><i class="bi bi-pin-angle-fill"></i></span>' : '';
     const favoriteLabel = isFavorite ? '<span class="msg-favorite" title="\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C"><i class="bi bi-star-fill"></i></span>' : '';
     const editedLabel = msg.is_edited ? '<span class="msg-edited">(\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u043E)</span>' : '';
@@ -869,8 +876,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     const reactionsHtml = typeof buildMessageReactionsHtml === 'function'
         ? buildMessageReactionsHtml(msg.id, msg.reactions)
         : '';
-    const reactionsInsideHtml = placeReactionsOutsideBubble ? '' : reactionsHtml;
-    const reactionsOutsideHtml = placeReactionsOutsideBubble ? reactionsHtml : '';
+    const reactionsOutsideHtml = reactionsHtml;
     const metaHtml = `<div class="msg-meta message-meta">
                     ${audioDurationHtml}
                     ${favoriteLabel}
@@ -880,8 +886,6 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                     <span class="msg-time" title="${formatFullTimestamp(msg.created_at)}" data-created-at="${msg.created_at || ''}">${formatTime(msg.created_at)}</span>
                     ${ticks}
                 </div>`;
-    const shouldUseAudioFooter = isAudioPayload && !placeReactionsOutsideBubble && Boolean(reactionsInsideHtml);
-    const shouldUseInlineFooter = !isAudioPayload && !placeReactionsOutsideBubble && Boolean(reactionsInsideHtml);
     const bubbleInnerHtml = isAudioPayload
         ? `
                 ${senderLabelHtml}
@@ -889,23 +893,8 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                 ${replyHtml}
                 <div class="audio-message-body">
                     ${bubbleContent}
-                    ${shouldUseAudioFooter ? '' : metaHtml}
                 </div>
-                ${shouldUseAudioFooter
-                    ? `<div class="message-footer has-reactions">
-                    ${reactionsInsideHtml}
-                    ${metaHtml}
-                </div>`
-                    : reactionsInsideHtml}
-            `
-        : shouldUseInlineFooter
-            ? `
-                ${senderLabelHtml}
-                ${forwardHtml}
-                ${replyHtml}
-                ${bubbleContent}
-                <div class="message-footer${reactionsInsideHtml ? ' has-reactions' : ''}">
-                    ${reactionsInsideHtml}
+                <div class="message-footer">
                     ${metaHtml}
                 </div>
             `
@@ -914,14 +903,16 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                 ${forwardHtml}
                 ${replyHtml}
                 ${bubbleContent}
-                ${metaHtml}
-                ${reactionsInsideHtml}
+                <div class="message-footer">
+                    ${metaHtml}
+                </div>
             `;
 
     messageDiv.classList.toggle('message-reactions-outside', placeReactionsOutsideBubble);
     messageDiv.classList.toggle('message-pinned', isPinned);
     messageDiv.classList.toggle('message-favorite', isFavorite);
     messageDiv.classList.toggle('message-group-other', showSenderLabel);
+    messageDiv.classList.toggle('message-emoji-only', !filePayload && isEmojiOnlyMessageText(msg.message));
     if (isAudioPayload && isSelf) {
         messageDiv.setAttribute('data-audio-listened-by-partner', audioListenedByPartner ? '1' : '0');
     }

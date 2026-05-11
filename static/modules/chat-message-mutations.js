@@ -2,7 +2,6 @@ export function createChatMessageMutations({
     documentRef,
     windowRef,
     sanitizeFileUri,
-    isMobileReactionInsideMode,
     hasProvidedWaveformPayload,
     formatAudioPlayerTime,
     registerMediaElementsForLazyHydration,
@@ -51,7 +50,7 @@ export function createChatMessageMutations({
             const isDocumentVisual = attachMode === 'file' && (rawIsImageFile || rawIsVideoFile);
             const isImageFile = rawIsImageFile && !isDocumentVisual;
             const isVideoFile = rawIsVideoFile && !isDocumentVisual;
-            const placeReactionsOutside = (isImageFile || isVideoFile) && !isMobileReactionInsideMode();
+            const placeReactionsOutside = true;
             const ratioWidth = Number(filePayload.preview_width);
             const ratioHeight = Number(filePayload.preview_height);
             const ratioValue = Number(filePayload.preview_aspect_ratio);
@@ -224,7 +223,7 @@ export function createChatMessageMutations({
 
             const stackEl = msgDiv.querySelector('.message-stack');
             if (stackEl && bubbleEl) {
-                const targetContainer = placeReactionsOutside ? stackEl : bubbleEl;
+                const targetContainer = stackEl;
                 let keptRow = null;
                 let rowToMove = null;
                 const rows = Array.from(stackEl.querySelectorAll('.message-reactions'));
@@ -250,7 +249,7 @@ export function createChatMessageMutations({
             if (bubbleBody) applyEmojiGraphics(bubbleBody);
             msgDiv.setAttribute('data-message-content', plainText);
         } else {
-            msgDiv.classList.remove('message-reactions-outside');
+            msgDiv.classList.add('message-reactions-outside');
             const bubbleText = msgDiv.querySelector('.message-text');
             if (bubbleText) {
                 renderMessageTextContent(bubbleText, plainText);
