@@ -39,7 +39,10 @@
 }
 
 #messageForm #emojiBtn .sun-icon,
-#messageForm #attachBtn .sun-icon {
+#messageForm #attachBtn .sun-icon,
+#messageForm #sendMessageBtn .sun-icon,
+#voiceRecordBtn .sun-icon,
+#voiceRecordSendBtn .sun-icon {
     width: 1.2em;
     height: 1.2em;
 }
