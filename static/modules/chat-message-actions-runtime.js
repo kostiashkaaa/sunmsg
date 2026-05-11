@@ -1,0 +1,96 @@
+import { initDeleteMessagesModal } from './chat-overlays.js';
+import { initMessageActionHandlers } from './message-action-handlers.js';
+
+export function initChatMessageActionsRuntime({
+    documentRef = document,
+    deleteConfirmModal = null,
+    cancelDeleteBtn = null,
+    confirmDeleteBtn = null,
+    deleteForBothCheck = null,
+    deleteForBothWrap = null,
+    deleteModalTitle = null,
+    barCopyBtn = null,
+    barEditBtn = null,
+    barDeleteBtn = null,
+    barSelectBtn = null,
+    cancelSelectionBtn = null,
+    bulkDeleteBtn = null,
+    bulkForwardBtn = null,
+    bulkCopyBtn = null,
+    barCancelBtn = null,
+    chatMessages = null,
+    isChatBlocked = () => false,
+    getBlockedNoticeText = () => '',
+    getCurrentBlockState = () => null,
+    getCurrentChatId = () => '',
+    emitSocket = () => {},
+    openDialog = () => {},
+    closeDialog = () => {},
+    messageSelectionController = null,
+    messageActionsBarController = null,
+    copyTextToClipboard = () => {},
+    showToast = () => {},
+    startEditMessage = () => {},
+    toggleSelectionMode = () => {},
+    openForwardModal = () => {},
+    toggleMessageSelection = () => {},
+    closeMessageActionsBar = () => {},
+} = {}) {
+    const { openDeleteModal } = initDeleteMessagesModal({
+        modalEl: deleteConfirmModal,
+        cancelButtonEl: cancelDeleteBtn,
+        confirmButtonEl: confirmDeleteBtn,
+        deleteForBothCheckEl: deleteForBothCheck,
+        deleteForBothWrapEl: deleteForBothWrap,
+        titleEl: deleteModalTitle,
+        isChatBlocked,
+        getBlockedNoticeText,
+        currentBlockState: getCurrentBlockState,
+        resolveMessageElement: (id) => documentRef.querySelector(`.message[data-msg-id="${id}"]`),
+        openDialog,
+        closeDialog,
+        onConfirm: ({ messageIds, mode }) => {
+            emitSocket('delete_messages', {
+                msg_ids: messageIds,
+                chat_id: getCurrentChatId(),
+                mode,
+            });
+        },
+        onBlocked: (text) => showToast(text, 'warning'),
+        onAfterConfirm: () => {
+            if (messageSelectionController?.isSelectionMode()) toggleSelectionMode(false);
+            closeMessageActionsBar();
+        },
+    });
+
+    initMessageActionHandlers({
+        barCopyButtonEl: barCopyBtn,
+        barEditButtonEl: barEditBtn,
+        barDeleteButtonEl: barDeleteBtn,
+        barSelectButtonEl: barSelectBtn,
+        cancelSelectionButtonEl: cancelSelectionBtn,
+        bulkDeleteButtonEl: bulkDeleteBtn,
+        bulkForwardButtonEl: bulkForwardBtn,
+        bulkCopyButtonEl: bulkCopyBtn,
+        chatMessages,
+        getSelectedMessageState: () => messageActionsBarController.getState(),
+        messageSelectionController,
+        copyTextToClipboard,
+        showToast,
+        isChatBlocked,
+        openDeleteModal,
+        startEditMessage,
+        toggleSelectionMode,
+        onForwardSelected: (messageIds) => {
+            openForwardModal(messageIds);
+        },
+        toggleMessageSelection,
+        closeMessageActionsBar,
+        resolveMessageElement: (id) => documentRef.querySelector(`.message[data-msg-id="${id}"]`),
+    });
+    barCancelBtn?.addEventListener('click', () => closeMessageActionsBar());
+
+    return {
+        openDeleteModal,
+    };
+}
