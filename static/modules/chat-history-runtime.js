@@ -355,6 +355,59 @@ export function createChatHistoryRuntime(ctx = {}) {
         ctx.setFavoriteBarMessages(decryptedFavorites, { activeMessageId: options.activeMessageId });
     }
 
+    function buildRenderableMessageSignature(messages) {
+        const rows = Array.isArray(messages) ? messages : [];
+        if (!rows.length) return 'empty';
+        return rows.map((msg) => {
+            const reactionSignature = Array.isArray(msg?.reactions)
+                ? msg.reactions.map((reaction) => ([
+                    String(reaction?.emoji || ''),
+                    String(reaction?.count || 0),
+                    String(Boolean(reaction?.reactedByCurrentUser)),
+                ].join('\u001c'))).join('\u001d')
+                : '';
+            const groupReadersSignature = Array.isArray(msg?.group_readers)
+                ? msg.group_readers.map((reader) => ([
+                    String(reader?.user_id || reader?.userId || ''),
+                    String(reader?.read_at || reader?.readAt || ''),
+                ].join('\u001a'))).join('\u001b')
+                : '';
+            return [
+                String(msg?.id || ''),
+                String(msg?.sender || ''),
+                String(msg?.senderUserId || ''),
+                String(msg?.senderPublicKey || ''),
+                String(msg?.senderDisplayName || ''),
+                String(msg?.senderUsername || ''),
+                String(msg?.senderAvatarUrl || ''),
+                String(msg?.message || ''),
+                String(msg?.message_type || ''),
+                String(Boolean(msg?.encrypted)),
+                String(Boolean(msg?.is_read)),
+                String(msg?.read_at || ''),
+                String(Boolean(msg?.is_delivered)),
+                String(Boolean(msg?.voice_listened_by_partner)),
+                String(Boolean(msg?.is_edited)),
+                String(msg?.created_at || ''),
+                String(msg?.replyToId || ''),
+                String(msg?.replyToText || ''),
+                String(msg?.replyToSender || ''),
+                String(msg?.forwardFromName || ''),
+                String(msg?.forwardFromUserId || ''),
+                String(msg?.group_read_count || 0),
+                groupReadersSignature,
+                reactionSignature,
+            ].join('\u001f');
+        }).join('\u001e');
+    }
+
+    function hasRenderableMessageDiff(currentMessages, nextMessages) {
+        const currentRows = Array.isArray(currentMessages) ? currentMessages : [];
+        const nextRows = Array.isArray(nextMessages) ? nextMessages : [];
+        if (currentRows.length !== nextRows.length) return true;
+        return buildRenderableMessageSignature(currentRows) !== buildRenderableMessageSignature(nextRows);
+    }
+
     async function fetchChatHistory(chatId) {
         if (!chatId) return;
 
@@ -495,26 +548,34 @@ export function createChatHistoryRuntime(ctx = {}) {
             } else {
                 const decodedMessages = await decodeChatMessages(response.messages);
                 if (requestToken !== state.historyRequestToken) return;
-                ctx.setChatMessages(chatId, decodedMessages, { resetHeights: true });
-                decodedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
-                state.hasMoreBefore = Boolean(response.has_more_before);
-                state.initialized = true;
-                state.savedScrollTop = 0;
-                state.hasSavedScrollTop = false;
+                const shouldRerenderMessages = hasRenderableMessageDiff(state.messages, decodedMessages);
+                if (shouldRerenderMessages) {
+                    ctx.setChatMessages(chatId, decodedMessages, { resetHeights: true });
+                    decodedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
+                    state.hasMoreBefore = Boolean(response.has_more_before);
+                    state.initialized = true;
+                    state.savedScrollTop = 0;
+                    state.hasSavedScrollTop = false;
 
-                const storedTop = ctx.resolveSavedChatScrollTop(chatId);
-                if (Number.isFinite(storedTop)) {
-                    await ctx.renderChatMessagesStable(chatId, {
-                        scrollTop: storedTop,
-                        animateReveal: shouldAnimateHistoryReveal(),
-                    });
-                    ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
+                    const storedTop = ctx.resolveSavedChatScrollTop(chatId);
+                    if (Number.isFinite(storedTop)) {
+                        await ctx.renderChatMessagesStable(chatId, {
+                            scrollTop: storedTop,
+                            animateReveal: shouldAnimateHistoryReveal(),
+                        });
+                        ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
+                    } else {
+                        await ctx.renderChatMessagesStable(chatId, {
+                            scrollToBottom: true,
+                            animateReveal: shouldAnimateHistoryReveal(),
+                        });
+                        ctx.setKeepChatPinnedToBottom(true);
+                    }
                 } else {
-                    await ctx.renderChatMessagesStable(chatId, {
-                        scrollToBottom: true,
-                        animateReveal: shouldAnimateHistoryReveal(),
-                    });
-                    ctx.setKeepChatPinnedToBottom(true);
+                    state.hasMoreBefore = Boolean(response.has_more_before);
+                    state.initialized = true;
+                    state.savedScrollTop = 0;
+                    state.hasSavedScrollTop = false;
                 }
 
                 if (ctx.isChatIdbReady() && response.messages.length) {
