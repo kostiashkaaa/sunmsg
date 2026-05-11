@@ -70,6 +70,7 @@ import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtim
 import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.js';
 import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
 import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
+import { bindChatEscapeOverlaysRuntime } from './modules/chat-escape-overlays-runtime.js';
 import { bindChatMessageSurfaceEventsRuntime } from './modules/chat-message-surface-events-runtime.js';
 import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
 import { createChatMessageRenderRuntime } from './modules/chat-message-render-runtime.js';
@@ -4041,19 +4042,23 @@ export const initChatPage = async () => {
         messageSelectionController.toggleMessageSelection(msgId, element);
     }
 
-    // Close active overlays and transient UI on Escape.
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (reactionPickerController.isOpen()) { closeReactionPicker(); return; }
-            if (isAttachMenuOpen()) { closeAttachMenu(); return; }
-            if (captionModalController.hasPendingFile()) { closeCaptionModal(); return; }
-            const lb = document.getElementById('lightbox');
-            if (lb?.classList.contains('active')) { _closeLightbox(); return; }
-            if (closeMessageSearchOverlay()) return;
-            if (messageSelectionController.isSelectionMode()) { toggleSelectionMode(false); return; }
-            if (isEditingMessageId) cancelEdit();
-            if (getReplyState().replyToId) cancelReply();
-        }
+    bindChatEscapeOverlaysRuntime({
+        documentRef: document,
+        isReactionPickerOpen: () => reactionPickerController.isOpen(),
+        closeReactionPicker,
+        isAttachMenuOpen,
+        closeAttachMenu,
+        hasPendingCaptionFile: () => captionModalController.hasPendingFile(),
+        closeCaptionModal,
+        getLightbox: () => document.getElementById('lightbox'),
+        closeLightbox: () => _closeLightbox(),
+        closeMessageSearchOverlay,
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        toggleSelectionMode,
+        isEditingMessage: () => Boolean(isEditingMessageId),
+        cancelEdit,
+        getReplyState,
+        cancelReply,
     });
     const messageTouchContextController = initMessageTouchContext({
         chatMessages,
