@@ -61,6 +61,127 @@ _emit_socket_event = build_route_socket_emitter(
     logger=None,
 )
 
+_SEND_REQUEST_ERROR_RESPONSES = {
+    'invalid_payload': (INVALID_REQUEST_DATA_ERROR, 400),
+    'invalid_contact_user_id': (INVALID_CONTACT_USER_ID_ERROR, 400),
+    'self_request': (SELF_REQUEST_ERROR, 400),
+    'db_error': (SEND_REQUEST_FAILED_ERROR, 500),
+    'receiver_missing': (USER_NOT_FOUND_ERROR, 404),
+    'auto_decline': (AUTO_DECLINE_REQUEST_ERROR, 403),
+}
+
+
+def _build_send_request_cooldown_response(result: dict):
+    retry_after = int(result.get('retry_after') or 0)
+    payload = {'success': False, 'error': SEND_REQUEST_COOLDOWN_ERROR}
+    if retry_after > 0:
+        payload['retry_after'] = retry_after
+    return jsonify(payload), 429
+
+
+def _send_request_http_response(result: dict):
+    status = result.get('status')
+    error_response = _SEND_REQUEST_ERROR_RESPONSES.get(status)
+    if error_response:
+        error_message, status_code = error_response
+        return jsonify({'success': False, 'error': error_message}), status_code
+    if status == 'blocked':
+        return block_forbidden_response(BLOCKED_REQUEST_ERROR, result['block_state'])
+    if status == 'cooldown':
+        return _build_send_request_cooldown_response(result)
+
+    event = result.get('event')
+    if event:
+        _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
+    return jsonify({'success': True, 'message': REQUEST_SENT_MESSAGE})
+
+
+def _emit_group_invite_request_updated(conn, *, update_payload: dict, inviter_user_id: int):
+    my_public_key = str(session.get('public_key_pem') or '').strip()
+    if my_public_key:
+        _emit_socket_event('group_invite_request_updated', update_payload, room=my_public_key)
+
+    inviter_row = conn.execute(
+        '''
+        SELECT public_key
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+        ''',
+        (int(inviter_user_id),),
+    ).fetchone()
+    inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
+    if inviter_public_key:
+        _emit_socket_event('group_invite_request_updated', update_payload, room=inviter_public_key)
+
+
+def _handle_group_invite_accept(conn, *, data: dict, user_id: int):
+    request_id = parse_int(data.get('request_id'))
+    if request_id is None or request_id <= 0:
+        return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
+
+    processed_group = accept_group_invite_request(
+        conn,
+        request_id=int(request_id),
+        invitee_user_id=int(user_id),
+    )
+    if processed_group['status'] == 'request_missing':
+        return jsonify({'success': False}), 404
+    if processed_group['status'] == 'chat_missing':
+        return jsonify({'success': False, 'error': CHAT_NOT_FOUND_ERROR}), 404
+
+    conn.commit()
+    chat_id = str(processed_group['chat_id'])
+    update_payload = {
+        'request_kind': 'group_invite',
+        'request_id': int(request_id),
+        'action': 'accepted',
+        'chat_id': chat_id,
+    }
+    _emit_group_invite_request_updated(
+        conn,
+        update_payload=update_payload,
+        inviter_user_id=int(processed_group['inviter_user_id']),
+    )
+    emit_group_event(
+        conn,
+        chat_id=chat_id,
+        event_name='group_members_added',
+        payload={
+            'chat_id': chat_id,
+            'added_member_ids': [int(user_id)],
+        },
+        socketio_emit_func=_emit_socket_event,
+    )
+    return jsonify({'success': True, 'chat_id': chat_id}), 200
+
+
+def _handle_direct_accept(conn, *, user_id, data):
+    processed = process_accept_request_route(
+        conn,
+        receiver_user_id=user_id,
+        data=data,
+        process_accept_request_func=process_accept_request,
+        accept_dialog_request_workflow_func=accept_dialog_request_workflow,
+        normalize_block_state_func=normalize_block_state,
+        build_block_state_func=build_block_state,
+        generate_chat_id_func=generate_chat_id,
+        default_chat_name=DEFAULT_PRIVATE_CHAT_NAME,
+        build_accept_request_socket_events_func=build_accept_request_socket_events,
+        get_safe_avatar_url_func=get_safe_avatar_url,
+    )
+
+    if processed['status'] == 'sender_missing':
+        return jsonify({'success': False, 'error': 'Sender not found'}), 404
+    if processed['status'] == 'blocked':
+        return block_forbidden_response(ACCEPT_REQUEST_BLOCKED_ERROR, processed['block_state'])
+    if processed['status'] == 'request_missing':
+        return jsonify({'success': False}), 404
+
+    for event in processed['events']:
+        _emit_socket_event(event['name'], event['payload'], room=event['room'])
+    return jsonify({'success': True, 'chat_id': processed['chat_id']}), 200
+
 
 @contacts_bp.route('/send_request', methods=['POST'])
 @limiter.limit("15 per minute")
@@ -83,33 +204,7 @@ def send_request_route():
         build_block_state_func=build_block_state,
     )
     conn.close()
-
-    if result['status'] == 'invalid_payload':
-        return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
-    if result['status'] == 'invalid_contact_user_id':
-        return jsonify({'success': False, 'error': INVALID_CONTACT_USER_ID_ERROR}), 400
-    if result['status'] == 'self_request':
-        return jsonify({'success': False, 'error': SELF_REQUEST_ERROR}), 400
-    if result['status'] == 'db_error':
-        return jsonify({'success': False, 'error': SEND_REQUEST_FAILED_ERROR}), 500
-    if result['status'] == 'receiver_missing':
-        return jsonify({'success': False, 'error': USER_NOT_FOUND_ERROR}), 404
-    if result['status'] == 'blocked':
-        return block_forbidden_response(BLOCKED_REQUEST_ERROR, result['block_state'])
-    if result['status'] == 'auto_decline':
-        return jsonify({'success': False, 'error': AUTO_DECLINE_REQUEST_ERROR}), 403
-    if result['status'] == 'cooldown':
-        retry_after = int(result.get('retry_after') or 0)
-        payload = {'success': False, 'error': SEND_REQUEST_COOLDOWN_ERROR}
-        if retry_after > 0:
-            payload['retry_after'] = retry_after
-        return jsonify(payload), 429
-
-    event = result.get('event')
-    if event:
-        _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
-
-    return jsonify({'success': True, 'message': REQUEST_SENT_MESSAGE})
+    return _send_request_http_response(result)
 
 
 @contacts_bp.route('/send_request_by_username', methods=['POST'])
@@ -148,26 +243,7 @@ def send_request_by_username_route():
     finally:
         conn.close()
 
-    if result['status'] == 'db_error':
-        return jsonify({'success': False, 'error': SEND_REQUEST_FAILED_ERROR}), 500
-    if result['status'] == 'receiver_missing':
-        return jsonify({'success': False, 'error': USER_NOT_FOUND_ERROR}), 404
-    if result['status'] == 'blocked':
-        return block_forbidden_response(BLOCKED_REQUEST_ERROR, result['block_state'])
-    if result['status'] == 'auto_decline':
-        return jsonify({'success': False, 'error': AUTO_DECLINE_REQUEST_ERROR}), 403
-    if result['status'] == 'cooldown':
-        retry_after = int(result.get('retry_after') or 0)
-        payload = {'success': False, 'error': SEND_REQUEST_COOLDOWN_ERROR}
-        if retry_after > 0:
-            payload['retry_after'] = retry_after
-        return jsonify(payload), 429
-
-    event = result.get('event')
-    if event:
-        _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
-
-    return jsonify({'success': True, 'message': REQUEST_SENT_MESSAGE})
+    return _send_request_http_response(result)
 
 
 @contacts_bp.route('/get_dialog_requests', methods=['GET'])
@@ -203,93 +279,13 @@ def accept_request():
     user_id = session['user_id']
 
     conn = get_db_connection()
-    request_kind = str(data.get('request_kind') or '').strip().lower()
-    if request_kind == 'group_invite':
-        request_id = parse_int(data.get('request_id'))
-        if request_id is None or request_id <= 0:
-            conn.close()
-            return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
-
-        processed_group = accept_group_invite_request(
-            conn,
-            request_id=int(request_id),
-            invitee_user_id=int(user_id),
-        )
-        if processed_group['status'] == 'request_missing':
-            conn.close()
-            return jsonify({'success': False}), 404
-        if processed_group['status'] == 'chat_missing':
-            conn.close()
-            return jsonify({'success': False, 'error': CHAT_NOT_FOUND_ERROR}), 404
-
-        conn.commit()
-        update_payload = {
-            'request_kind': 'group_invite',
-            'request_id': int(request_id),
-            'action': 'accepted',
-            'chat_id': str(processed_group['chat_id']),
-        }
-        my_public_key = str(session.get('public_key_pem') or '').strip()
-        if my_public_key:
-            _emit_socket_event('group_invite_request_updated', update_payload, room=my_public_key)
-
-        inviter_row = conn.execute(
-            '''
-            SELECT public_key
-            FROM users
-            WHERE id = ?
-            LIMIT 1
-            ''',
-            (int(processed_group['inviter_user_id']),),
-        ).fetchone()
-        inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
-        if inviter_public_key:
-            _emit_socket_event('group_invite_request_updated', update_payload, room=inviter_public_key)
-
-        emit_group_event(
-            conn,
-            chat_id=str(processed_group['chat_id']),
-            event_name='group_members_added',
-            payload={
-                'chat_id': str(processed_group['chat_id']),
-                'added_member_ids': [int(user_id)],
-            },
-            socketio_emit_func=_emit_socket_event,
-        )
+    try:
+        request_kind = str(data.get('request_kind') or '').strip().lower()
+        if request_kind == 'group_invite':
+            return _handle_group_invite_accept(conn, data=data, user_id=int(user_id))
+        return _handle_direct_accept(conn, user_id=user_id, data=data)
+    finally:
         conn.close()
-        return jsonify({'success': True, 'chat_id': str(processed_group['chat_id'])}), 200
-
-    processed = process_accept_request_route(
-        conn,
-        receiver_user_id=user_id,
-        data=data,
-        process_accept_request_func=process_accept_request,
-        accept_dialog_request_workflow_func=accept_dialog_request_workflow,
-        normalize_block_state_func=normalize_block_state,
-        build_block_state_func=build_block_state,
-        generate_chat_id_func=generate_chat_id,
-        default_chat_name=DEFAULT_PRIVATE_CHAT_NAME,
-        build_accept_request_socket_events_func=build_accept_request_socket_events,
-        get_safe_avatar_url_func=get_safe_avatar_url,
-    )
-
-    if processed['status'] == 'sender_missing':
-        conn.close()
-        return jsonify({'success': False, 'error': 'Sender not found'}), 404
-
-    if processed['status'] == 'blocked':
-        conn.close()
-        return block_forbidden_response(ACCEPT_REQUEST_BLOCKED_ERROR, processed['block_state'])
-
-    if processed['status'] == 'request_missing':
-        conn.close()
-        return jsonify({'success': False}), 404
-
-    for event in processed['events']:
-        _emit_socket_event(event['name'], event['payload'], room=event['room'])
-
-    conn.close()
-    return jsonify({'success': True, 'chat_id': processed['chat_id']}), 200
 
 
 @contacts_bp.route('/decline_request', methods=['POST'])

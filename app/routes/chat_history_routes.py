@@ -9,7 +9,67 @@ from app.services.chat_history_service import (
 )
 
 
-def register_chat_history_routes(
+def _parse_positive_optional_int(raw_value: str, *, field_name: str):
+    value_raw = str(raw_value or '').strip()
+    if not value_raw:
+        return None, None
+    try:
+        value = int(value_raw)
+    except (TypeError, ValueError):
+        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
+    if value <= 0:
+        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
+    return value, None
+
+
+def _parse_chat_history_request_args(args, *, is_valid_chat_id_func):
+    chat_id = str(args.get('chat_id', '') or '').strip()
+    if not chat_id:
+        return None, (jsonify({'success': False, 'error': 'Chat identifier is missing.'}), 400)
+    if not is_valid_chat_id_func(chat_id):
+        return None, (jsonify({'success': False, 'error': 'Invalid chat_id format.'}), 400)
+
+    try:
+        limit = int(args.get('limit', 40))
+    except (TypeError, ValueError):
+        limit = 40
+    limit = max(1, min(limit, 100))
+
+    before_id, before_error = _parse_positive_optional_int(args.get('before_id', ''), field_name='before_id')
+    if before_error:
+        return None, before_error
+    after_id, after_error = _parse_positive_optional_int(args.get('after_id', ''), field_name='after_id')
+    if after_error:
+        return None, after_error
+    if before_id is not None and after_id is not None:
+        return None, (jsonify({'success': False, 'error': 'before_id and after_id are mutually exclusive.'}), 400)
+
+    include_pins_raw = args.get('include_pins')
+    include_favorites_raw = args.get('include_favorites')
+    include_pins_default = before_id is None and after_id is None
+    include_favorites_default = before_id is None and after_id is None
+    include_pins = (
+        include_pins_default
+        if include_pins_raw is None
+        else str(include_pins_raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+    )
+    include_favorites = (
+        include_favorites_default
+        if include_favorites_raw is None
+        else str(include_favorites_raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+    )
+
+    return {
+        'chat_id': chat_id,
+        'limit': limit,
+        'before_id': before_id,
+        'after_id': after_id,
+        'include_pins': include_pins,
+        'include_favorites': include_favorites,
+    }, None
+
+
+def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
     chat_bp,
     *,
     logger,
@@ -28,52 +88,18 @@ def register_chat_history_routes(
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
 
-        chat_id = request.args.get('chat_id', '').strip()
-        if not chat_id:
-            return jsonify({'success': False, 'error': 'Chat identifier is missing.'}), 400
-        if not is_valid_chat_id_func(chat_id):
-            return jsonify({'success': False, 'error': 'Invalid chat_id format.'}), 400
-
-        try:
-            limit = int(request.args.get('limit', 40))
-        except (TypeError, ValueError):
-            limit = 40
-        limit = max(1, min(limit, 100))
-
-        before_id_raw = (request.args.get('before_id') or '').strip()
-        before_id = None
-        if before_id_raw:
-            try:
-                before_id = int(before_id_raw)
-            except (TypeError, ValueError):
-                return jsonify({'success': False, 'error': 'Invalid before_id.'}), 400
-            if before_id <= 0:
-                return jsonify({'success': False, 'error': 'Invalid before_id.'}), 400
-
-        after_id_raw = (request.args.get('after_id') or '').strip()
-        after_id = None
-        if after_id_raw:
-            try:
-                after_id = int(after_id_raw)
-            except (TypeError, ValueError):
-                return jsonify({'success': False, 'error': 'Invalid after_id.'}), 400
-            if after_id <= 0:
-                return jsonify({'success': False, 'error': 'Invalid after_id.'}), 400
-
-        if before_id is not None and after_id is not None:
-            return jsonify({'success': False, 'error': 'before_id and after_id are mutually exclusive.'}), 400
-
-        include_pins_raw = request.args.get('include_pins')
-        if include_pins_raw is None:
-            include_pins = before_id is None and after_id is None
-        else:
-            include_pins = str(include_pins_raw).strip().lower() in {'1', 'true', 'yes', 'on'}
-
-        include_favorites_raw = request.args.get('include_favorites')
-        if include_favorites_raw is None:
-            include_favorites = before_id is None and after_id is None
-        else:
-            include_favorites = str(include_favorites_raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+        parsed_args, parsed_error = _parse_chat_history_request_args(
+            request.args,
+            is_valid_chat_id_func=is_valid_chat_id_func,
+        )
+        if parsed_error:
+            return parsed_error
+        chat_id = parsed_args['chat_id']
+        limit = parsed_args['limit']
+        before_id = parsed_args['before_id']
+        after_id = parsed_args['after_id']
+        include_pins = parsed_args['include_pins']
+        include_favorites = parsed_args['include_favorites']
 
         user_id = session['user_id']
         conn = get_db_connection_func()

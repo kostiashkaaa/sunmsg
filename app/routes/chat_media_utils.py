@@ -1,6 +1,21 @@
 import mimetypes
 from zipfile import BadZipFile, ZipFile
 
+_FORCED_MIME_BY_EXTENSION = {
+    'ogg': 'audio/ogg',
+    'wav': 'audio/wav',
+    'mp3': 'audio/mpeg',
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'opus': 'audio/ogg',
+    'heic': 'image/heic',
+    'heif': 'image/heif',
+    'avif': 'image/avif',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'svg': 'image/svg+xml',
+}
+
 
 def allowed_file(filename, *, allowed_extensions) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -82,35 +97,19 @@ def detect_chat_media_type(mime_type: str) -> str:
     return 'file'
 
 
-def normalize_chat_media_mime(uploaded_mime: str | None, filename: str, ext: str) -> str:
+def _detect_or_guess_mime(uploaded_mime: str | None, filename: str, ext: str) -> str:
     mime = (uploaded_mime or '').strip().lower()
-    if not mime or mime == 'application/octet-stream':
-        guessed, _ = mimetypes.guess_type(filename or f'file.{ext}')
-        if guessed:
-            mime = guessed.lower()
+    if mime and mime != 'application/octet-stream':
+        return mime
+    guessed, _ = mimetypes.guess_type(filename or f'file.{ext}')
+    return (guessed or '').lower()
 
-    if ext == 'ogg':
-        return 'audio/ogg'
-    if ext == 'wav':
-        return 'audio/wav'
-    if ext == 'mp3':
-        return 'audio/mpeg'
-    if ext == 'm4a':
-        return 'audio/mp4'
-    if ext == 'aac':
-        return 'audio/aac'
-    if ext == 'opus':
-        return 'audio/ogg'
-    if ext == 'heic':
-        return 'image/heic'
-    if ext == 'heif':
-        return 'image/heif'
-    if ext == 'avif':
-        return 'image/avif'
-    if ext in {'jpg', 'jpeg'}:
-        return 'image/jpeg'
-    if ext == 'svg':
-        return 'image/svg+xml'
+
+def normalize_chat_media_mime(uploaded_mime: str | None, filename: str, ext: str) -> str:
+    forced_mime = _FORCED_MIME_BY_EXTENSION.get(ext)
+    if forced_mime:
+        return forced_mime
+    mime = _detect_or_guess_mime(uploaded_mime, filename, ext)
     return mime or 'application/octet-stream'
 
 

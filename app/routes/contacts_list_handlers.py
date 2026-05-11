@@ -1,10 +1,10 @@
 from datetime import datetime
 
+from app.db.schema import tables_columns
 from app.services.favorites_chat import (
     ensure_saved_messages_chat,
     resolve_contact_display_name,
 )
-from app.db.schema import tables_columns
 
 
 def _coerce_bool_flag(value, *, default: bool = True) -> bool:
@@ -21,22 +21,7 @@ def _coerce_bool_flag(value, *, default: bool = True) -> bool:
     return bool(default)
 
 
-def fetch_contacts_for_user(
-    user_id: int,
-    conn,
-    *,
-    limit: int | None = None,
-    language: str = 'ru',
-    normalize_language_func,
-    ensure_pinned_chats_table_func,
-    format_sidebar_time_func,
-    build_initial_last_message_preview_func,
-    get_safe_avatar_url_func,
-    is_effectively_online_func,
-    include_self_contact: bool = True,
-):
-    resolved_language = normalize_language_func(language, default='ru')
-    cursor = conn.cursor()
+def _resolve_schema_columns(conn, cursor, *, ensure_pinned_chats_table_func):
     schema_columns = tables_columns(
         cursor,
         ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
@@ -50,6 +35,28 @@ def fetch_contacts_for_user(
         )
         has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
     has_chat_drafts = bool(schema_columns.get('chat_drafts', set()))
+    return schema_columns, has_pinned_chats, has_chat_drafts
+
+
+def _resolve_saved_messages_id(conn, *, user_id: int) -> str:
+    user_row = conn.execute(
+        '''
+        SELECT public_key
+        FROM users
+        WHERE id = ?
+        ''',
+        (user_id,),
+    ).fetchone()
+    if not user_row:
+        return ''
+    return ensure_saved_messages_chat(
+        conn,
+        user_id=user_id,
+        public_key=str(user_row['public_key'] or ''),
+    )
+
+
+def _build_sql_projection_parts(*, schema_columns: dict, has_pinned_chats: bool, has_chat_drafts: bool):
     users_columns = schema_columns.get('users', set())
     last_seen_select_sql = 'u.last_seen AS last_seen' if 'last_seen' in users_columns else 'NULL AS last_seen'
     has_group_invite_privacy = 'group_invite_privacy' in users_columns
@@ -71,21 +78,6 @@ def fetch_contacts_for_user(
         if has_group_invite_privacy
         else '1 AS can_group_add_direct'
     )
-    saved_messages_id = ''
-    user_row = cursor.execute(
-        '''
-        SELECT public_key
-        FROM users
-        WHERE id = ?
-        ''',
-        (user_id,),
-    ).fetchone()
-    if user_row:
-        saved_messages_id = ensure_saved_messages_chat(
-            conn,
-            user_id=user_id,
-            public_key=str(user_row['public_key'] or ''),
-        )
     draft_select_sql = 'cd.draft_text, cd.updated_at AS draft_updated_at'
     draft_join_sql = 'LEFT JOIN chat_drafts cd ON cd.chat_id = uc.chat_id AND cd.user_id = ?'
     draft_order_value_sql = 'CAST(cd.updated_at AS TEXT)'
@@ -104,7 +96,22 @@ def fetch_contacts_for_user(
         pinned_order_presence_sql = ''
         pinned_order_value_sql = ''
 
-    query = '''
+    return {
+        'last_seen_select_sql': last_seen_select_sql,
+        'has_group_invite_privacy': has_group_invite_privacy,
+        'group_add_direct_select_sql': group_add_direct_select_sql,
+        'draft_select_sql': draft_select_sql,
+        'draft_join_sql': draft_join_sql,
+        'draft_order_value_sql': draft_order_value_sql,
+        'pinned_select_sql': pinned_select_sql,
+        'pinned_join_sql': pinned_join_sql,
+        'pinned_order_presence_sql': pinned_order_presence_sql,
+        'pinned_order_value_sql': pinned_order_value_sql,
+    }
+
+
+def _build_direct_contacts_query(*, projection_parts: dict) -> str:
+    return '''
         WITH user_contacts AS (
             SELECT c.chat_id, c.contact_id
             FROM contacts c
@@ -192,39 +199,74 @@ def fetch_contacts_for_user(
             CASE WHEN COALESCE({draft_order_value_sql}, CAST(lm.last_message_time AS TEXT)) IS NULL THEN 1 ELSE 0 END ASC,
             COALESCE({draft_order_value_sql}, CAST(lm.last_message_time AS TEXT)) DESC
         '''.format(
-        pinned_select_sql=pinned_select_sql,
-        pinned_join_sql=pinned_join_sql,
-        pinned_order_presence_sql=pinned_order_presence_sql,
-        pinned_order_value_sql=pinned_order_value_sql,
-        draft_select_sql=draft_select_sql,
-        draft_join_sql=draft_join_sql,
-        draft_order_value_sql=draft_order_value_sql,
-        last_seen_select_sql=last_seen_select_sql,
-        group_add_direct_select_sql=group_add_direct_select_sql,
+        pinned_select_sql=projection_parts['pinned_select_sql'],
+        pinned_join_sql=projection_parts['pinned_join_sql'],
+        pinned_order_presence_sql=projection_parts['pinned_order_presence_sql'],
+        pinned_order_value_sql=projection_parts['pinned_order_value_sql'],
+        draft_select_sql=projection_parts['draft_select_sql'],
+        draft_join_sql=projection_parts['draft_join_sql'],
+        draft_order_value_sql=projection_parts['draft_order_value_sql'],
+        last_seen_select_sql=projection_parts['last_seen_select_sql'],
+        group_add_direct_select_sql=projection_parts['group_add_direct_select_sql'],
     )
-    params = [
-        user_id,
-        user_id,
-        user_id,
-        user_id,
-    ]
-    if has_group_invite_privacy:
+
+
+def _build_direct_contacts_params(
+    *,
+    user_id: int,
+    projection_parts: dict,
+    has_pinned_chats: bool,
+    has_chat_drafts: bool,
+    limit: int | None,
+):
+    params = [user_id, user_id, user_id, user_id]
+    if projection_parts['has_group_invite_privacy']:
         params.append(user_id)
-    params.extend([
-        user_id,
-        user_id,
-    ])
+    params.extend([user_id, user_id])
     if has_pinned_chats:
         params.append(user_id)
     if has_chat_drafts:
         params.append(user_id)
     params.append(user_id)
     if isinstance(limit, int) and limit > 0:
-        query += '\n        LIMIT ?'
         params.append(limit)
+    return params
 
-    contacts = cursor.execute(query, tuple(params)).fetchall()
 
+def _fetch_direct_contacts_rows(  # noqa: PLR0913
+    cursor,
+    *,
+    user_id: int,
+    projection_parts: dict,
+    has_pinned_chats: bool,
+    has_chat_drafts: bool,
+    limit: int | None,
+):
+    query = _build_direct_contacts_query(projection_parts=projection_parts)
+    if isinstance(limit, int) and limit > 0:
+        query += '\n        LIMIT ?'
+    params = _build_direct_contacts_params(
+        user_id=user_id,
+        projection_parts=projection_parts,
+        has_pinned_chats=has_pinned_chats,
+        has_chat_drafts=has_chat_drafts,
+        limit=limit,
+    )
+    return cursor.execute(query, tuple(params)).fetchall()
+
+
+def _serialize_personal_contacts(  # noqa: PLR0913
+    *,
+    contacts,
+    user_id: int,
+    saved_messages_id: str,
+    resolved_language: str,
+    include_self_contact: bool,
+    format_sidebar_time_func,
+    build_initial_last_message_preview_func,
+    get_safe_avatar_url_func,
+    is_effectively_online_func,
+):
     contacts_list = []
     for contact in contacts:
         blocked_by_me = bool(contact['blocked_by_me'])
@@ -298,15 +340,15 @@ def fetch_contacts_for_user(
                 'is_saved_messages': is_saved_messages,
             }
         )
+    return contacts_list
 
-    # Group chats: sidebar entries derived from chat_members + message_receipts.
+
+def _fetch_group_rows(conn, cursor, *, schema_columns: dict, user_id: int):
     chats_columns = schema_columns.get('chats', set())
     has_chat_members_table = bool(schema_columns.get('chat_members', set()))
     has_message_receipts_table = bool(schema_columns.get('message_receipts', set()))
     if not has_chat_members_table or not has_message_receipts_table:
-        if isinstance(limit, int) and limit > 0:
-            contacts_list = contacts_list[:limit]
-        return contacts_list
+        return []
 
     has_group_membership = cursor.execute(
         '''
@@ -318,9 +360,7 @@ def fetch_contacts_for_user(
         (user_id,),
     ).fetchone()
     if not has_group_membership:
-        if isinstance(limit, int) and limit > 0:
-            contacts_list = contacts_list[:limit]
-        return contacts_list
+        return []
 
     has_chat_avatar_column = 'chat_avatar_url' in chats_columns
     has_chat_description_column = 'chat_description' in chats_columns
@@ -331,7 +371,7 @@ def fetch_contacts_for_user(
         else "'' AS chat_description"
     )
     try:
-        group_rows = cursor.execute(
+        return cursor.execute(
             f'''
             WITH user_groups AS (
                 SELECT ch.chat_id, ch.chat_name, {group_avatar_select_sql}, {group_description_select_sql}
@@ -410,11 +450,17 @@ def fetch_contacts_for_user(
             conn.rollback()
         except Exception:  # noqa: BLE001
             pass
-        group_rows = []
+        return []
 
-    if not group_rows:
-        return contacts_list
 
+def _append_group_contacts(  # noqa: PLR0913
+    *,
+    contacts_list: list[dict],
+    group_rows,
+    resolved_language: str,
+    format_sidebar_time_func,
+    build_initial_last_message_preview_func,
+):
     for row in group_rows:
         raw_last_message = row['last_message']
         draft_text = str(row['draft_text'] or '')
@@ -464,6 +510,8 @@ def fetch_contacts_for_user(
             }
         )
 
+
+def _sort_contacts_with_pin_and_activity(contacts_list: list[dict]):
     def _sort_timestamp(item: dict) -> float:
         raw = str(item.get('draft_updated_at') or item.get('last_message_time') or '').strip()
         if not raw:
@@ -483,6 +531,63 @@ def fetch_contacts_for_user(
         )
 
     contacts_list.sort(key=_sort_key)
+
+
+def fetch_contacts_for_user(  # noqa: PLR0913
+    user_id: int,
+    conn,
+    *,
+    limit: int | None = None,
+    language: str = 'ru',
+    normalize_language_func,
+    ensure_pinned_chats_table_func,
+    format_sidebar_time_func,
+    build_initial_last_message_preview_func,
+    get_safe_avatar_url_func,
+    is_effectively_online_func,
+    include_self_contact: bool = True,
+):
+    resolved_language = normalize_language_func(language, default='ru')
+    cursor = conn.cursor()
+    schema_columns, has_pinned_chats, has_chat_drafts = _resolve_schema_columns(
+        conn,
+        cursor,
+        ensure_pinned_chats_table_func=ensure_pinned_chats_table_func,
+    )
+    saved_messages_id = _resolve_saved_messages_id(conn, user_id=user_id)
+    projection_parts = _build_sql_projection_parts(
+        schema_columns=schema_columns,
+        has_pinned_chats=has_pinned_chats,
+        has_chat_drafts=has_chat_drafts,
+    )
+    contacts = _fetch_direct_contacts_rows(
+        cursor,
+        user_id=user_id,
+        projection_parts=projection_parts,
+        has_pinned_chats=has_pinned_chats,
+        has_chat_drafts=has_chat_drafts,
+        limit=limit,
+    )
+    contacts_list = _serialize_personal_contacts(
+        contacts=contacts,
+        user_id=user_id,
+        saved_messages_id=saved_messages_id,
+        resolved_language=resolved_language,
+        include_self_contact=include_self_contact,
+        format_sidebar_time_func=format_sidebar_time_func,
+        build_initial_last_message_preview_func=build_initial_last_message_preview_func,
+        get_safe_avatar_url_func=get_safe_avatar_url_func,
+        is_effectively_online_func=is_effectively_online_func,
+    )
+    group_rows = _fetch_group_rows(conn, cursor, schema_columns=schema_columns, user_id=user_id)
+    _append_group_contacts(
+        contacts_list=contacts_list,
+        group_rows=group_rows,
+        resolved_language=resolved_language,
+        format_sidebar_time_func=format_sidebar_time_func,
+        build_initial_last_message_preview_func=build_initial_last_message_preview_func,
+    )
+    _sort_contacts_with_pin_and_activity(contacts_list)
     if isinstance(limit, int) and limit > 0:
         contacts_list = contacts_list[:limit]
     return contacts_list
