@@ -28,6 +28,22 @@ export function registerMessageStatusSocketHandlers({
     isGroupChatById = () => false,
 } = {}) {
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const parseExplicitGroupFlag = (rawValue) => {
+        if (
+            rawValue === true
+            || rawValue === false
+            || rawValue === 1
+            || rawValue === 0
+            || rawValue === '1'
+            || rawValue === '0'
+            || rawValue === 'true'
+            || rawValue === 'false'
+        ) {
+            const normalized = String(rawValue).trim().toLowerCase();
+            return normalized === '1' || normalized === 'true';
+        }
+        return null;
+    };
 
     const handleDeleteEvent = (data) => {
         const ids = data.msg_id ? [data.msg_id] : (data.msg_ids || []);
@@ -135,7 +151,11 @@ export function registerMessageStatusSocketHandlers({
 
     socket.on('messages_read', (data) => {
         if (isBlockedChat(data.chat_id)) return;
-        if (isGroupChatById(data.chat_id)) {
+        const explicitGroupFlag = parseExplicitGroupFlag(data?.is_group);
+        const isGroupReadEvent = explicitGroupFlag !== null
+            ? explicitGroupFlag
+            : isGroupChatById(data.chat_id);
+        if (isGroupReadEvent) {
             return;
         }
         const readAt = String(data?.read_at || '').trim() || currentUtcText();

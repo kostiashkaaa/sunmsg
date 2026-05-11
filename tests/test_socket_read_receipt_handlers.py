@@ -362,7 +362,7 @@ def test_handle_messages_seen_event_group_emits_detailed_updates(tmp_path):
     assert int(first_update['readers'][0]['user_id']) == 1
     assert any(
         event[0] == 'messages_read'
-        and event[1] == {'chat_id': 'group-a'}
+        and event[1] == {'chat_id': 'group-a', 'is_group': True}
         and event[2].get('room') == 'group-a'
         for event in emitted
     )

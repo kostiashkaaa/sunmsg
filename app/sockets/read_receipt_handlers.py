@@ -159,9 +159,9 @@ def handle_messages_seen_event(
                 },
                 room=chat_id,
             )
-        emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+        emit_func('messages_read', {'chat_id': chat_id, 'is_group': True}, room=chat_id)
     elif should_notify and partner and partner['public_key']:
-        emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
+        emit_func('messages_read', {'chat_id': chat_id, 'is_group': False}, room=partner['public_key'])
 
 
 def handle_voice_message_listened_event(

@@ -252,7 +252,7 @@ def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
     assert payload['favorites'][0]['message_id'] == 301
     assert any(
         event['name'] == 'messages_read'
-        and event['payload'] == {'chat_id': chat_id}
+        and event['payload'] == {'chat_id': chat_id, 'is_group': True}
         and event['kwargs'].get('room') == chat_id
         for event in emitted
     )
