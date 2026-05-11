@@ -1,4 +1,4 @@
-import { applyEmojiGraphics } from './utils.js';
+import { applyEmojiGraphics, renderEmojiGraphicHtml } from './utils.js';
 import { withAppRoot } from './app-url.js';
 import {
     DEFAULT_EMOJI_CATEGORY,
@@ -449,7 +449,11 @@ function createEmojiItemButton(emoji) {
     button.className = 'emoji-item';
     button.dataset.emoji = emoji;
     button.setAttribute('aria-label', `Эмодзи ${emoji}`);
-    button.textContent = emoji;
+    button.innerHTML = renderEmojiGraphicHtml(emoji, {
+        className: 'emoji-graphic',
+        alt: emoji,
+        loading: 'lazy',
+    });
     return button;
 }
 
@@ -647,19 +651,27 @@ function findClosestCategory(emojiList) {
     const targetTop = emojiList.scrollTop + CATEGORY_SCROLL_SYNC_OFFSET;
     let activeCategory = sections[0].dataset.sectionCat || '';
     sections.forEach((section) => {
-        if (section.offsetTop <= targetTop) {
+        if (getSectionScrollTop(emojiList, section) <= targetTop) {
             activeCategory = section.dataset.sectionCat || activeCategory;
         }
     });
     return activeCategory;
 }
 
-function scrollToCategory(emojiList, categoryId) {
+function getSectionScrollTop(emojiList, section) {
+    if (!emojiList || !section) return 0;
+    const listRect = emojiList.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+    const relativeTop = sectionRect.top - listRect.top + emojiList.scrollTop;
+    return Number.isFinite(relativeTop) ? relativeTop : section.offsetTop;
+}
+
+function scrollToCategory(emojiList, categoryId, options = {}) {
     const section = emojiList.querySelector(`.emoji-section[data-section-cat="${categoryId}"]`);
     if (!section) return false;
     emojiList.scrollTo({
-        top: Math.max(0, Math.round(section.offsetTop - 6)),
-        behavior: 'smooth',
+        top: Math.max(0, Math.round(getSectionScrollTop(emojiList, section) - 6)),
+        behavior: options.behavior || 'smooth',
     });
     return true;
 }
@@ -758,7 +770,7 @@ export function initEmojiPicker(messageInput) {
             && emojiList.childElementCount > 0) {
             renderCategoryButtons(emojiCategories, activeCategory, localeCode);
             if (forceCategoryScroll) {
-                scrollToCategory(emojiList, activeCategory);
+                scrollToCategory(emojiList, activeCategory, { behavior: 'auto' });
             }
             return;
         }
@@ -805,7 +817,7 @@ export function initEmojiPicker(messageInput) {
         if (!compactQuery) {
             setActiveCategory(emojiCategories, activeCategory);
             if (forceCategoryScroll) {
-                scrollToCategory(emojiList, activeCategory);
+                scrollToCategory(emojiList, activeCategory, { behavior: 'auto' });
             }
             lastRenderedMode = 'default';
             lastDefaultRenderKey = defaultRenderKey;
@@ -895,7 +907,7 @@ export function initEmojiPicker(messageInput) {
 
         if (canReuseRenderedDefaultList) {
             setActiveCategory(emojiCategories, activeCategory);
-            scrollToCategory(emojiList, activeCategory);
+            scrollToCategory(emojiList, activeCategory, { behavior: 'auto' });
             return;
         }
 
