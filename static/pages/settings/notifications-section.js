@@ -1,3 +1,5 @@
+import { bindServiceWorkerUpdateLifecycle } from '../../modules/service-worker-update.js';
+
 function base64UrlToUint8Array(base64Url) {
     const text = String(base64Url || '').trim();
     const padding = '='.repeat((4 - (text.length % 4)) % 4);
@@ -36,6 +38,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
         if (!supportAvailable()) return null;
         if (registration) return registration;
         registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+        bindServiceWorkerUpdateLifecycle({ registration });
         return registration;
     }
 
