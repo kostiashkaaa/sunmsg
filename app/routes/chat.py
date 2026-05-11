@@ -76,7 +76,7 @@ _CHAT_MEDIA_MAGIC_RULES = {
     'gif': [[(0, b'GIF87a')], [(0, b'GIF89a')]],
     'webp': [[(0, b'RIFF'), (8, b'WEBP')]],
     'bmp': [[(0, b'BM')]],
-    'heic': [[(4, b'ftypheic')], [(4, b'ftypheix')], [(4, b'ftyphevc')], [(4, b'ftyphevx')]],
+    'heic': [[(4, b'ftypheic')], [(4, b'ftypheix')], [(4, b'ftyphevc')], [(4, b'ftyphevx')], [(4, b'ftypmif1')], [(4, b'ftypmsf1')]],
     'heif': [[(4, b'ftypheif')], [(4, b'ftypheim')], [(4, b'ftypmif1')], [(4, b'ftypmsf1')]],
     'avif': [[(4, b'ftypavif')], [(4, b'ftypavis')]],
     'mp4': [[(4, b'ftyp')]],
