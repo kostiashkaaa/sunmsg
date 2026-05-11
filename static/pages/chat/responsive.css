@@ -1654,3 +1654,58 @@
     }
 
 }
+
+/* Keep compact Telegram-like message composition on mobile (overrides legacy rules above) */
+@media (max-width: 768px) {
+    .message-stack {
+        width: fit-content;
+        max-width: min(100%, var(--chat-bubble-max-width));
+    }
+
+    .message .bubble.bubble--text,
+    .message .bubble:has(> .message-text) {
+        min-width: 0 !important;
+        width: fit-content;
+        max-width: 100%;
+    }
+
+    .message .bubble > .message-text,
+    .message .bubble.bubble--text > .message-text {
+        padding-right: 0 !important;
+    }
+
+    .message .bubble.bubble--text > .message-text ~ .msg-meta,
+    .message .bubble.bubble--text > .message-text ~ .message-meta,
+    .message .bubble > .message-text ~ .msg-meta,
+    .message .bubble > .message-text ~ .message-meta {
+        position: static !important;
+        right: auto !important;
+        bottom: auto !important;
+        pointer-events: auto;
+    }
+
+    .message .bubble > .message-footer {
+        display: flex !important;
+    }
+
+    .message.message-reactions-outside .message-stack > .message-reactions {
+        margin: 2px 0 0 !important;
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .message.other .message-stack > .message-reactions {
+        align-self: flex-start !important;
+        justify-content: flex-start !important;
+    }
+
+    .message.self .message-stack > .message-reactions {
+        align-self: flex-end !important;
+        justify-content: flex-end !important;
+    }
+
+    .reaction-pill {
+        min-height: 20px;
+        padding: 2px 6px;
+    }
+}

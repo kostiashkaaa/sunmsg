@@ -724,7 +724,6 @@ const initChatPage = async () => {
 
     // initChatClipboardAndDrop вызывается ниже, после объявления dragDropOverlay.
 
-    const isMobileReactionInsideMode = () => { try { return Boolean(window.matchMedia?.('(max-width: 768px)')?.matches); } catch (_) { return false; } };
     initKeyboardShortcuts();
     initSidebarBrandQuickActions({
         openDialog: openAnimatedDialog,
@@ -4403,14 +4402,14 @@ const initChatPage = async () => {
             return {
                 isMediaBubble: false,
                 isAudioBubble: false,
-                useOutsidePlacement: false,
+                useOutsidePlacement: true,
             };
         }
 
         const isImageBubble = bubble.classList.contains('bubble--image');
         const isVideoBubble = bubble.classList.contains('bubble--video');
         const isAudioBubble = bubble.classList.contains('bubble--audio');
-        const useOutsidePlacement = (isImageBubble || isVideoBubble) && !isMobileReactionInsideMode();
+        const useOutsidePlacement = true;
 
         messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
 
@@ -4428,73 +4427,53 @@ const initChatPage = async () => {
         const bubble = messageEl.querySelector('.bubble');
         if (!bubble) return;
 
-        const { isMediaBubble, isAudioBubble, useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
+        const { isMediaBubble, isAudioBubble } = resolveMessageReactionLayoutState(messageEl, bubble);
         const directChildren = Array.from(bubble.children || []);
-        const existingFooter = directChildren.find((child) => child.classList?.contains('message-footer')) || null;
         const messageText = directChildren.find((child) => child.classList?.contains('message-text')) || null;
         const audioBody = directChildren.find((child) => child.classList?.contains('audio-message-body')) || null;
-        const meta = directChildren.find((child) => child.classList?.contains('msg-meta') || child.classList?.contains('message-meta'))
+
+        let footer = directChildren.find((child) => child.classList?.contains('message-footer')) || null;
+        if (!footer) {
+            footer = document.createElement('div');
+            footer.className = 'message-footer';
+            bubble.append(footer);
+        } else {
+            directChildren
+                .filter((child) => child !== footer && child.classList?.contains('message-footer'))
+                .forEach((extraFooter) => extraFooter.remove());
+        }
+
+        const meta = bubble.querySelector(':scope > .msg-meta, :scope > .message-meta')
             || audioBody?.querySelector(':scope > .msg-meta, :scope > .message-meta')
-            || existingFooter?.querySelector('.msg-meta, .message-meta')
+            || footer.querySelector(':scope > .msg-meta, :scope > .message-meta')
             || null;
-        const reactionRow = directChildren.find((child) => child.classList?.contains('message-reactions'))
-            || existingFooter?.querySelector('.message-reactions')
-            || Array.from(stack.children || []).find((child) => child !== bubble && child.classList?.contains('message-reactions'))
-            || null;
-        const hasReactionItems = Boolean(reactionRow?.classList?.contains('has-items'));
-        const hasEditedMeta = Boolean(meta?.querySelector?.('.msg-edited'));
-        bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
-        const shouldUseFooter = !useOutsidePlacement && Boolean(meta) && hasReactionItems;
-
-        if (shouldUseFooter) {
-            const footer = existingFooter || document.createElement('div');
-            if (!existingFooter) {
-                footer.className = 'message-footer';
-                bubble.append(footer);
-            }
-            if (reactionRow) footer.append(reactionRow);
+        if (meta && meta.parentElement !== footer) {
             footer.append(meta);
-            footer.classList.toggle('has-reactions', hasReactionItems);
-            bubble.classList.remove('bubble--text-has-reactions');
-            bubble.classList.remove('bubble--text-meta-edited');
-            bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
-            return;
         }
 
-        if (existingFooter) {
-            if (reactionRow?.parentElement === existingFooter) {
-                if (useOutsidePlacement) {
-                    stack.append(reactionRow);
-                } else {
-                    existingFooter.before(reactionRow);
-                }
+        const allReactionRows = Array.from(messageEl.querySelectorAll('.message-reactions'));
+        let keptReactionRow = null;
+        allReactionRows.forEach((row) => {
+            if (!keptReactionRow) {
+                keptReactionRow = row;
+                return;
             }
-            if (meta?.parentElement === existingFooter) {
-                if (isAudioBubble && audioBody) {
-                    audioBody.append(meta);
-                } else {
-                    existingFooter.before(meta);
-                }
+            row.remove();
+        });
+        if (keptReactionRow) {
+            if (keptReactionRow.parentElement !== stack) {
+                stack.append(keptReactionRow);
             }
-            existingFooter.remove();
+            keptReactionRow.classList.toggle('has-items', keptReactionRow.querySelector('.reaction-pill') !== null);
         }
 
-        if (reactionRow) {
-            if (useOutsidePlacement) {
-                if (reactionRow.parentElement !== stack) {
-                    stack.append(reactionRow);
-                }
-            } else if (reactionRow.parentElement === stack) {
-                bubble.append(reactionRow);
-            }
-        }
-
-        bubble.classList.toggle('bubble--text-has-reactions', Boolean(messageText) && !isMediaBubble && !useOutsidePlacement && hasReactionItems);
-        bubble.classList.toggle('bubble--text-meta-edited', Boolean(messageText) && !isMediaBubble && hasEditedMeta);
-        bubble.classList.toggle(
-            'bubble--audio-footer-meta',
-            Boolean(isAudioBubble && meta && meta.parentElement?.classList?.contains('message-footer')),
-        );
+        footer.classList.remove('has-reactions');
+        bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
+        bubble.classList.remove('bubble--text-has-reactions');
+        bubble.classList.remove('bubble--text-meta-edited');
+        bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
+        bubble.classList.toggle('bubble--has-footer', Boolean(meta));
+        messageEl.classList.add('message-reactions-outside');
     }
 
     function patchPinnedMessageState(messageEl, isPinned) {
@@ -4765,7 +4744,6 @@ const initChatPage = async () => {
             currentAvatarUrl,
             currentUserId: CURRENT_USER_ID,
             isGroupChat: isCurrentChatGroup(),
-            useMobileReactionInside: isMobileReactionInsideMode(),
         });
     }
 
@@ -4839,7 +4817,7 @@ const initChatPage = async () => {
                 return chatMessages.querySelector(`.message[data-message-key="${escapedKey}"]`);
             };
 
-            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
+            if (isAtTail && rangeCoversTail && !alreadyRendered) {
                 if (tailGroupWouldChange && previousTailMessage) {
                     const previousTailKey = getMessageKey(previousTailMessage);
                     const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);
@@ -5553,7 +5531,6 @@ const initChatPage = async () => {
         documentRef: document,
         windowRef: window,
         sanitizeFileUri,
-        isMobileReactionInsideMode,
         hasProvidedWaveformPayload,
         formatAudioPlayerTime,
         registerMediaElementsForLazyHydration,
@@ -5668,6 +5645,7 @@ const initChatPage = async () => {
                 updateContactLastMessageForChat(sourceChatId, text, isSelf, status, timestamp);
             },
             schedulePendingTimeout,
+            failPendingMessage,
             prewarmMessageLinkPreview: scheduleMessageLinkPreviewPrewarm,
             clearComposerInput: () => {
                 if (String(currentChatId || '') === sourceChatId) {
