@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 from flask import request, session
-from flask_socketio import emit
 
 from app.database import get_db_connection
 from app.extensions import socketio
@@ -64,7 +63,7 @@ def on_join(data):
         chat_partner_state_func=ctx._chat_partner_state,
         join_room_func=ctx.join_room,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         blocked_error_message='Чат доступен только для чтения: пользователь заблокирован.',
         unauthorized_error_message='Необходимо войти в систему.',
         logger=ctx.logger,
@@ -97,7 +96,7 @@ def handle_messages_seen(data):
         socket_rate_ok_func=ctx._socket_rate_ok,
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
     )
 
 
@@ -114,7 +113,7 @@ def handle_voice_message_listened(data):
         socket_rate_ok_func=ctx._socket_rate_ok,
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
     )
 
 
@@ -131,7 +130,7 @@ def handle_typing(data):
         is_valid_chat_id_func=is_valid_chat_id,
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
     )
 
 
@@ -148,5 +147,5 @@ def handle_stop_typing(data):
         is_valid_chat_id_func=is_valid_chat_id,
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
     )

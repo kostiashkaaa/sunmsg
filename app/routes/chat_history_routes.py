@@ -1,6 +1,7 @@
 from flask import jsonify, request, session
 
 from app.db_backend import DatabaseError
+from app.sockets.event_envelope import get_chat_update_difference, get_chat_update_state
 from app.services.chat_history_service import (
     delete_chat_for_user,
     load_chat_history,
@@ -13,7 +14,7 @@ def register_chat_history_routes(
     *,
     logger,
     limiter,
-    socketio,
+    socketio_emit_func,
     get_db_connection_func,
     is_valid_chat_id_func,
     get_chat_partner_func,
@@ -89,7 +90,7 @@ def register_chat_history_routes(
                 get_chat_partner_func=get_chat_partner_func,
                 build_block_state_func=build_block_state_func,
                 serialize_block_state_func=serialize_block_state_func,
-                socketio_emit_func=socketio.emit,
+                socketio_emit_func=socketio_emit_func,
             )
             if result['status'] == 'forbidden':
                 return jsonify({'success': False, 'error': 'Чат не найден.'}), 403
@@ -106,6 +107,75 @@ def register_chat_history_routes(
             return jsonify(payload), 200
         except DatabaseError as exc:
             logger.error('get_chat_history error: %s', exc)
+            return jsonify({'success': False, 'error': 'Ошибка сервера.'}), 500
+        finally:
+            conn.close()
+
+    @chat_bp.route('/updates/state', methods=['GET'])
+    @chat_bp.route('/api/updates/state', methods=['GET'])
+    @limiter.limit("240 per minute")
+    def get_updates_state():
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
+
+        chat_id = request.args.get('chat_id', '').strip()
+        if not chat_id:
+            return jsonify({'success': False, 'error': 'Chat identifier is missing.'}), 400
+        if not is_valid_chat_id_func(chat_id):
+            return jsonify({'success': False, 'error': 'Invalid chat_id format.'}), 400
+
+        conn = get_db_connection_func()
+        try:
+            user_id = int(session['user_id'])
+            if not get_chat_partner_func(conn, user_id, chat_id):
+                return jsonify({'success': False, 'error': 'Чат не найден.'}), 403
+            state = get_chat_update_state(conn, chat_id=chat_id)
+            return jsonify({'success': True, **state}), 200
+        except DatabaseError as exc:
+            logger.error('get_updates_state error: %s', exc)
+            return jsonify({'success': False, 'error': 'Ошибка сервера.'}), 500
+        finally:
+            conn.close()
+
+    @chat_bp.route('/updates/difference', methods=['GET'])
+    @chat_bp.route('/api/updates/difference', methods=['GET'])
+    @limiter.limit("240 per minute")
+    def get_updates_difference():
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
+
+        chat_id = request.args.get('chat_id', '').strip()
+        if not chat_id:
+            return jsonify({'success': False, 'error': 'Chat identifier is missing.'}), 400
+        if not is_valid_chat_id_func(chat_id):
+            return jsonify({'success': False, 'error': 'Invalid chat_id format.'}), 400
+
+        try:
+            from_pts = int(request.args.get('from_pts', 0))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid from_pts.'}), 400
+        if from_pts < 0:
+            return jsonify({'success': False, 'error': 'Invalid from_pts.'}), 400
+
+        try:
+            limit = int(request.args.get('limit', 100))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid limit.'}), 400
+
+        conn = get_db_connection_func()
+        try:
+            user_id = int(session['user_id'])
+            if not get_chat_partner_func(conn, user_id, chat_id):
+                return jsonify({'success': False, 'error': 'Чат не найден.'}), 403
+            diff = get_chat_update_difference(
+                conn,
+                chat_id=chat_id,
+                from_pts=from_pts,
+                limit=limit,
+            )
+            return jsonify({'success': True, **diff}), 200
+        except DatabaseError as exc:
+            logger.error('get_updates_difference error: %s', exc)
             return jsonify({'success': False, 'error': 'Ошибка сервера.'}), 500
         finally:
             conn.close()
@@ -274,7 +344,7 @@ def register_chat_history_routes(
                 get_chat_partner_func=get_chat_partner_func,
                 build_block_state_func=build_block_state_func,
                 serialize_block_state_func=serialize_block_state_func,
-                socketio_emit_func=socketio.emit,
+                socketio_emit_func=socketio_emit_func,
             )
             if result['status'] == 'forbidden':
                 return jsonify({'success': False}), 403
@@ -314,7 +384,7 @@ def register_chat_history_routes(
                 user_id=user_id,
                 chat_id=chat_id,
                 mode=mode,
-                socketio_emit_func=socketio.emit,
+                socketio_emit_func=socketio_emit_func,
             )
             if result['status'] == 'forbidden':
                 return jsonify({'success': False, 'error': 'Вы не участник этого чата.'}), 403

@@ -43,6 +43,7 @@ from app.routes.chat_profile_routes import register_chat_profile_routes
 from app.routes.chat_profile_utils import fetch_conversation_stats
 from app.routes.chat_user_profile_route_handlers import process_get_user_profile as _process_get_user_profile
 from app.routes.contacts import fetch_contacts_for_user
+from app.routes.socket_emit import build_route_socket_emitter
 
 logger = logging.getLogger(__name__)
 chat_bp = Blueprint('chat', __name__)
@@ -162,6 +163,13 @@ def _fetch_conversation_stats(conn, user_id: int, other_user_id: int):
     return fetch_conversation_stats(conn, user_id, other_user_id)
 
 
+_socket_emit_with_envelope = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=logger,
+)
+
+
 register_chat_page_routes(
     chat_bp,
     logger=logger,
@@ -181,7 +189,7 @@ register_chat_history_routes(
     chat_bp,
     logger=logger,
     limiter=limiter,
-    socketio=socketio,
+    socketio_emit_func=_socket_emit_with_envelope,
     get_db_connection_func=get_db_connection,
     is_valid_chat_id_func=is_valid_chat_id,
     get_chat_partner_func=get_chat_partner,
@@ -196,7 +204,7 @@ register_chat_draft_routes(
     get_db_connection_func=get_db_connection,
     is_valid_chat_id_func=is_valid_chat_id,
     ensure_chat_exists_func=ensure_chat_exists,
-    socketio_emit_func=lambda *args, **kwargs: socketio.emit(*args, **kwargs),
+    socketio_emit_func=_socket_emit_with_envelope,
 )
 
 register_chat_link_preview_routes(
@@ -208,7 +216,7 @@ register_chat_group_routes(
     chat_bp,
     limiter=limiter,
     get_db_connection_func=get_db_connection,
-    socketio_emit_func=lambda *args, **kwargs: socketio.emit(*args, **kwargs),
+    socketio_emit_func=_socket_emit_with_envelope,
     is_effectively_online_func=is_effectively_online,
     get_safe_avatar_url_func=get_safe_avatar_url,
     allowed_avatar_file_func=_allowed_file,
@@ -222,7 +230,7 @@ register_chat_media_routes(
     chat_bp,
     logger=logger,
     limiter=limiter,
-    socketio=socketio,
+    socketio_emit_func=_socket_emit_with_envelope,
     get_db_connection_func=get_db_connection,
     is_valid_chat_id_func=is_valid_chat_id,
     ensure_chat_exists_func=ensure_chat_exists,

@@ -2,6 +2,7 @@ from flask import jsonify, request, session
 
 from app.database import get_db_connection
 from app.extensions import limiter, socketio
+from app.routes.socket_emit import build_route_socket_emitter
 from app.routes.contacts_utils import canonical_username, parse_int
 from app.routes.dialog_request_handlers import (
     build_accept_request_socket_events,
@@ -54,6 +55,12 @@ from .context import (
     contacts_bp,
 )
 
+_emit_socket_event = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=None,
+)
+
 
 @contacts_bp.route('/send_request', methods=['POST'])
 @limiter.limit("15 per minute")
@@ -100,7 +107,7 @@ def send_request_route():
 
     event = result.get('event')
     if event:
-        socketio.emit('new_dialog_request', event['payload'], room=event['room'])
+        _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
 
     return jsonify({'success': True, 'message': REQUEST_SENT_MESSAGE})
 
@@ -158,7 +165,7 @@ def send_request_by_username_route():
 
     event = result.get('event')
     if event:
-        socketio.emit('new_dialog_request', event['payload'], room=event['room'])
+        _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
 
     return jsonify({'success': True, 'message': REQUEST_SENT_MESSAGE})
 
@@ -224,7 +231,7 @@ def accept_request():
         }
         my_public_key = str(session.get('public_key_pem') or '').strip()
         if my_public_key:
-            socketio.emit('group_invite_request_updated', update_payload, room=my_public_key)
+            _emit_socket_event('group_invite_request_updated', update_payload, room=my_public_key)
 
         inviter_row = conn.execute(
             '''
@@ -237,7 +244,7 @@ def accept_request():
         ).fetchone()
         inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
         if inviter_public_key:
-            socketio.emit('group_invite_request_updated', update_payload, room=inviter_public_key)
+            _emit_socket_event('group_invite_request_updated', update_payload, room=inviter_public_key)
 
         emit_group_event(
             conn,
@@ -247,7 +254,7 @@ def accept_request():
                 'chat_id': str(processed_group['chat_id']),
                 'added_member_ids': [int(user_id)],
             },
-            socketio_emit_func=socketio.emit,
+            socketio_emit_func=_emit_socket_event,
         )
         conn.close()
         return jsonify({'success': True, 'chat_id': str(processed_group['chat_id'])}), 200
@@ -279,7 +286,7 @@ def accept_request():
         return jsonify({'success': False}), 404
 
     for event in processed['events']:
-        socketio.emit(event['name'], event['payload'], room=event['room'])
+        _emit_socket_event(event['name'], event['payload'], room=event['room'])
 
     conn.close()
     return jsonify({'success': True, 'chat_id': processed['chat_id']}), 200
@@ -320,7 +327,7 @@ def decline_request():
         }
         my_public_key = str(session.get('public_key_pem') or '').strip()
         if my_public_key:
-            socketio.emit('group_invite_request_updated', update_payload, room=my_public_key)
+            _emit_socket_event('group_invite_request_updated', update_payload, room=my_public_key)
 
         inviter_row = conn.execute(
             '''
@@ -333,7 +340,7 @@ def decline_request():
         ).fetchone()
         inviter_public_key = str(inviter_row['public_key'] or '').strip() if inviter_row else ''
         if inviter_public_key:
-            socketio.emit('group_invite_request_updated', update_payload, room=inviter_public_key)
+            _emit_socket_event('group_invite_request_updated', update_payload, room=inviter_public_key)
 
         conn.close()
         return jsonify({'success': True}), 200
@@ -354,7 +361,7 @@ def decline_request():
 
     event = processed['event']
     if event:
-        socketio.emit(event['name'], event['payload'], room=event['room'])
+        _emit_socket_event(event['name'], event['payload'], room=event['room'])
 
     conn.close()
     return jsonify({'success': True}), 200

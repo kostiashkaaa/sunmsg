@@ -2,6 +2,7 @@ from flask import abort, flash, redirect, render_template, request, session, url
 
 from app.database import get_db_connection
 from app.extensions import limiter, socketio
+from app.routes.socket_emit import build_route_socket_emitter
 from app.routes.contacts_utils import canonical_username
 from app.routes.dialog_request_workflows import send_dialog_request_workflow
 from app.routes.public_card_route_handlers import (
@@ -21,6 +22,12 @@ from app.services.locale import detect_auth_language, normalize_language
 from app.services.user import get_safe_avatar_url
 
 from .context import USERNAME_PATTERN, contacts_bp, _resolve_viewer_context
+
+_emit_socket_event = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=None,
+)
 
 
 def _resolve_ui_language() -> str:
@@ -124,7 +131,7 @@ def start_dialog_from_public_card(username):
         if processed['status'] == 'request_sent':
             event = processed.get('event')
             if event:
-                socketio.emit('new_dialog_request', event['payload'], room=event['room'])
+                _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
     finally:
         conn.close()
 

@@ -3,7 +3,9 @@ import re
 
 from flask import Blueprint, session
 
+from app.database import get_db_connection
 from app.extensions import socketio
+from app.routes.socket_emit import build_route_socket_emitter
 from app.services.blocking import (
     build_block_state,
     normalize_block_state,
@@ -61,6 +63,12 @@ ACCEPT_REQUEST_BLOCKED_ERROR = 'Cannot accept request: user is blocked.'
 GET_CONTACTS_DEFAULT_LIMIT = None
 GET_CONTACTS_MAX_LIMIT = 200
 
+_emit_socket_event = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=logger,
+)
+
 
 def _shared_chat_id(conn, a_user_id: int, b_user_id: int):
     return _shared_chat_id_impl(conn, a_user_id, b_user_id)
@@ -106,5 +114,5 @@ def _emit_block_state_events(conn, a_user_id: int, b_user_id: int):
         shared_chat_id_func=_shared_chat_id,
         normalize_block_state_func=normalize_block_state,
         build_block_state_func=build_block_state,
-        emit_func=socketio.emit,
+        emit_func=_emit_socket_event,
     )
