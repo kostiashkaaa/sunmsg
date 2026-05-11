@@ -56,18 +56,32 @@ export function setCurrentPartnerLegacyGlobals({
 }
 
 export function exposeChatRuntimeLegacyGlobals({
+    activateFocusTrap,
+    deactivateFocusTrap,
     syncSidebarStatusBar,
     openCommandPaletteModal,
+    scrollToMessage,
     startEditMessage,
     showContextMenu,
     toggleSelectionMode,
     refreshPrivateKeyDependentUi,
 }) {
+    if (typeof activateFocusTrap === 'function') {
+        window._activateFocusTrap = activateFocusTrap;
+    }
+    if (typeof deactivateFocusTrap === 'function') {
+        window._deactivateFocusTrap = deactivateFocusTrap;
+    }
     if (typeof syncSidebarStatusBar === 'function') {
         window.syncSidebarStatusBar = syncSidebarStatusBar;
     }
     if (typeof openCommandPaletteModal === 'function' && typeof window.openCommandPalette !== 'function') {
         window.openCommandPalette = openCommandPaletteModal;
+    }
+    if (typeof scrollToMessage === 'function') {
+        window._scrollToMsg = function(msgId, options = {}) {
+            return scrollToMessage(msgId, options);
+        };
     }
     if (typeof startEditMessage === 'function') {
         window.startEditMessage = startEditMessage;
