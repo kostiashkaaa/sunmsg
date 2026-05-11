@@ -126,10 +126,12 @@ def test_chat_template_contains_message_forward_ui_hooks() -> None:
     modals_src = (ROOT / 'templates' / 'chat' / '_modals.html').read_text(encoding='utf-8')
 
     assert 'id="cmForward"' in context_menu_src
+    assert 'id="cmReport"' in context_menu_src
     assert 'id="bulkForwardBtn"' in chat_area_src
     assert 'id="forwardDraftBar"' in chat_area_src
     assert 'id="forwardDraftLabel"' in chat_area_src
     assert 'id="forwardDraftText"' in chat_area_src
     assert 'id="cancelForwardDraftBtn"' in chat_area_src
     assert 'id="messageForwardModal"' in modals_src
+    assert 'id="messageForwardSelectedInfo"' in modals_src
     assert 'id="messageForwardSubmitBtn"' in modals_src
