@@ -182,6 +182,7 @@ import { createChatGroupCreateController } from './modules/chat-group-create.js'
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
 import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
+import { createChatBrowserEnv } from './modules/chat-browser-env.js';
 import { createChatLazyUiRuntime } from './modules/chat-lazy-ui-runtime.js';
 import { createChatTabTitleRuntime } from './modules/chat-tab-title-runtime.js';
 import { createChatComposerAttachmentsRuntime } from './modules/chat-composer-attachments-runtime.js';
@@ -218,12 +219,13 @@ export const initChatPage = async () => {
     // \u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A Socket.IO (same-origin, with reconnection support).
     // Threading + Werkzeug is more reliable with polling-first transport config.
     const socket = createChatSocketClient(bootstrapSocketConfig);
+    const browserEnv = createChatBrowserEnv(window, fetch);
     let hasSocketConnectedOnce = false;
     let hasSocketConnectionIssue = false;
     const emitSocket = createSocketEmitter(socket);
     const chatUpdatesSyncController = createChatUpdatesSyncController({
         socket,
-        fetchImpl: window.fetch?.bind(window) || fetch,
+        fetchImpl: browserEnv.getFetch(),
         resolveAppUrl: withAppRoot,
         logger: console,
     });
@@ -245,9 +247,9 @@ export const initChatPage = async () => {
         clearCurrentPartnerSession,
     } = createChatLegacyGlobalAccessors(window);
     void initWebPush({
-        authFetch: window.authFetch || window.fetch?.bind(window),
+        authFetch: browserEnv.getAuthFetch(),
         showToast,
-        config: window.SUN_BOOTSTRAP?.app?.webPush || window.SUN_WEB_PUSH_CONFIG || {},
+        config: browserEnv.getWebPushConfig(),
     });
     wireSocketLifecycleHandlers({
         socket,
@@ -282,7 +284,7 @@ export const initChatPage = async () => {
     ).trim();
     const LAST_ACTIVE_CHAT_STORAGE_KEY = 'sun_last_active_chat_id';
     const CONTACT_USERNAME_PATTERN = /^[a-z0-9_]{1,50}$/;
-    const initialUrlSearchParams = new URLSearchParams(window.location.search || '');
+    const initialUrlSearchParams = new URLSearchParams(browserEnv.getLocationSearch());
     const initialRequestedContactUserId = String(initialUrlSearchParams.get('user_id') || '').trim();
     const initialRequestedContactUsername = String(
         bootstrapUser.initialChatContactUsername
@@ -292,10 +294,10 @@ export const initChatPage = async () => {
         .trim()
         .toLowerCase();
     let hasAttemptedInitialChatRestore = false;
-    const currentUserPublicKey = String(bootstrapUser.currentUserPublicKey || window.currentUserPublicKey || '').trim();
-    let currentDisplayName = String(bootstrapUser.currentDisplayName || window.currentDisplayName || '').trim();
-    let currentUsername = String(bootstrapUser.currentUsername || window.currentUsername || '').trim();
-    let currentAvatarUrl = String(bootstrapUser.currentAvatarUrl || window.currentAvatarUrl || '').trim();
+    const currentUserPublicKey = String(bootstrapUser.currentUserPublicKey || browserEnv.getCurrentUserPublicKey() || '').trim();
+    let currentDisplayName = String(bootstrapUser.currentDisplayName || browserEnv.getCurrentDisplayName() || '').trim();
+    let currentUsername = String(bootstrapUser.currentUsername || browserEnv.getCurrentUsername() || '').trim();
+    let currentAvatarUrl = String(bootstrapUser.currentAvatarUrl || browserEnv.getCurrentAvatarUrl() || '').trim();
     function syncCurrentUserIdentityLegacyGlobals() {
         syncCurrentUserIdentityLegacyGlobalsBridge({
             bootstrapUser,
@@ -729,18 +731,14 @@ export const initChatPage = async () => {
         openDialog: openAnimatedDialog,
     });
     try {
-        window.localStorage?.removeItem('sun.favorite_chats.v1');
+        browserEnv.removeFavoriteChatsSnapshot();
     } catch (_) {
         // Ignore storage availability issues.
     }
     let savedMessagesUi = null;
     const scheduleNonCriticalTask = (callback, timeout = 1200) => {
-        if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(() => callback(), { timeout });
-            return;
-        }
         const fallbackDelayMs = Math.max(0, Number(timeout) || 0);
-        window.setTimeout(callback, fallbackDelayMs);
+        browserEnv.scheduleIdleTask(callback, { timeout, fallbackDelayMs });
     };
     const {
         applyActiveMessageSearchFilter,
@@ -838,7 +836,7 @@ export const initChatPage = async () => {
         toggleChatMuted,
         toggleCurrentChatMuted,
     } = createChatMuteRuntime({
-        storage: window.localStorage,
+        storage: browserEnv.getLocalStorage(),
         muteChatStorageKey: MUTE_CHAT_STORAGE_KEY,
         muteDialogRequestsStorageKey: MUTE_DIALOG_REQUESTS_STORAGE_KEY,
         bootstrapMuteDialogRequests: Boolean(bootstrapUser.muteDialogRequests),
@@ -1099,7 +1097,7 @@ export const initChatPage = async () => {
 
     const lastActiveChatController = createLastActiveChatController({
         storageKey: LAST_ACTIVE_CHAT_STORAGE_KEY,
-        storage: window.sessionStorage,
+        storage: browserEnv.getSessionStorage(),
         getStoredString,
         setStoredString,
         getCurrentChatId: () => currentChatId,
@@ -1152,8 +1150,8 @@ export const initChatPage = async () => {
 
     async function handleAcceptedDialogRequest(response = {}) {
         void response;
-        window.closeCommandPalette?.();
-        window.switchSidebarTab?.('all');
+        browserEnv.closeCommandPalette();
+        browserEnv.switchSidebarTab('all');
         await loadContacts({ immediate: true });
     }
 
@@ -1223,9 +1221,9 @@ export const initChatPage = async () => {
         reportActivity,
         getVisibilityState: () => document.visibilityState,
         getHasPrivateKey: () => Boolean(getPrivateKeyPem()),
-        openDeviceQrHub: (...args) => window.openDeviceQrHub?.(...args),
-        openMyQrModal: (...args) => window.openMyQrModal?.(...args),
-        openSettingsOverlay: (...args) => window.openSettingsOverlay?.(...args),
+        openDeviceQrHub: browserEnv.openDeviceQrHub,
+        openMyQrModal: browserEnv.openMyQrModal,
+        openSettingsOverlay: browserEnv.openSettingsOverlay,
         showToast,
         sidebarProfileShortcut,
         sidebarStatusBar,
@@ -1412,7 +1410,7 @@ export const initChatPage = async () => {
         const motionLevel = String(document.documentElement.getAttribute('data-motion-level') || 'full').toLowerCase();
         if (motionLevel !== 'lite') return false;
         try {
-            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            return browserEnv.matchMedia('(prefers-reduced-motion: reduce)')?.matches === true;
         } catch (_) {
             return false;
         }
@@ -1491,7 +1489,7 @@ export const initChatPage = async () => {
         requestAnimationFrameFn: requestAnimationFrame,
         cancelAnimationFrameFn: cancelAnimationFrame,
         setTimeoutFn: setTimeout,
-        resizeObserverCtor: window.ResizeObserver,
+        resizeObserverCtor: browserEnv.getResizeObserverCtor(),
         chatBottomThresholdPx: CHAT_BOTTOM_THRESHOLD_PX,
         chatArea,
         sidebar,
@@ -1733,7 +1731,7 @@ export const initChatPage = async () => {
     });
 
     showChatContent(false);
-    window.setTimeout(hideAppBootOverlay, APP_BOOT_OVERLAY_FALLBACK_DELAY_MS);
+    browserEnv.setTimeout(hideAppBootOverlay, APP_BOOT_OVERLAY_FALLBACK_DELAY_MS);
 
     function normalizeBlockState(state) {
         return _normalizeBlockState(state);
@@ -2207,7 +2205,7 @@ export const initChatPage = async () => {
         isProfileDrawerOpen,
         closePartnerProfileDrawer,
         loadOlderMessages,
-        openLightbox: (proxyEl) => window._openLightbox?.(proxyEl),
+        openLightbox: browserEnv.openLightbox,
         scrollToMessage: (msgId) => _focusMessageById(msgId),
         reportVoiceListened: (msgId) => {
             const chatId = String(currentChatId || '').trim();
@@ -2426,7 +2424,7 @@ export const initChatPage = async () => {
         chatHeader,
         chatPartnerHeaderLink,
         partnerProfileDrawer,
-        closeCommandPalette: () => window.closeCommandPalette?.(),
+        closeCommandPalette: browserEnv.closeCommandPalette,
         setActiveContactItem,
         flushDraftSaveForChat,
         saveChatScrollPosition,
@@ -2629,7 +2627,7 @@ export const initChatPage = async () => {
         closeHeaderDropdown();
         if (headerSearchWrap) headerSearchWrap.classList.remove('active');
         chatHeader?.classList.remove('chat-header--search-active');
-        if (window.innerWidth <= 768) {
+        if (browserEnv.isMobileWidth()) {
             // \u0421\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0435\u043C \u0444\u043E\u043A\u0443\u0441 \u0441 textarea, \u0438\u043D\u0430\u0447\u0435 \u043D\u0430 iOS \u043A\u043B\u0430\u0432\u0438\u0430\u0442\u0443\u0440\u0430 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043E\u0442\u043A\u0440\u044B\u0442\u043E\u0439
             // \u043F\u043E\u0441\u043B\u0435 \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430 \u043D\u0430 \u0441\u043F\u0438\u0441\u043E\u043A \u0447\u0430\u0442\u043E\u0432 \u0438 \u043B\u043E\u043C\u0430\u0435\u0442 layout.
             if (document.activeElement === messageInput) {
@@ -2655,7 +2653,7 @@ export const initChatPage = async () => {
             scheduleCurrentChatDraftSave();
         });
         messageInput.addEventListener('focus', () => {
-            if (window.innerWidth <= 768) {
+            if (browserEnv.isMobileWidth()) {
                 const wasNearBottom = isChatNearBottom();
                 setTimeout(() => {
                     if (wasNearBottom) {
@@ -2666,7 +2664,7 @@ export const initChatPage = async () => {
         });
         messageInput.addEventListener('blur', () => {
             scheduleCurrentChatDraftSave({ immediate: true });
-            if (!window.matchMedia('(pointer: coarse)').matches) return;
+            if (!browserEnv.isCoarsePointer()) return;
             setTimeout(() => {
                 const active = document.activeElement;
                 if (!active || active === document.body) {
@@ -3714,7 +3712,7 @@ export const initChatPage = async () => {
             setChatPinnedMessages,
             setChatFavoriteMessages,
             resolveContactItemByChatId,
-            fetchImpl: window.authFetch || window.fetch?.bind(window),
+            fetchImpl: browserEnv.getAuthFetch(),
             resolveAppUrl: withAppRoot,
             decryptWorkerUrl: withAppRoot('/static/workers/decrypt-worker.js'),
             createHistoryAbortController,
