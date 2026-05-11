@@ -13,15 +13,8 @@ from app.services.group_permissions import extract_group_permissions_from_chat_r
 from app.services.group_permissions import role_uses_member_permissions
 
 
-def build_group_chat_profile_payload(
-    *,
-    conn,
-    chat_id: str,
-    viewer_user_id: int,
-    get_safe_avatar_url_func=None,
-    is_effectively_online_func=None,
-) -> dict | None:
-    chat_row = conn.execute(
+def _fetch_chat_row(conn, chat_id: str):
+    return conn.execute(
         '''
         SELECT *
         FROM chats
@@ -29,9 +22,9 @@ def build_group_chat_profile_payload(
         ''',
         (chat_id,),
     ).fetchone()
-    if not chat_row:
-        return None
 
+
+def _fetch_my_role(conn, *, chat_id: str, viewer_user_id: int) -> str:
     my_role_row = conn.execute(
         '''
         SELECT role
@@ -40,9 +33,11 @@ def build_group_chat_profile_payload(
         ''',
         (int(viewer_user_id), str(chat_id)),
     ).fetchone()
-    my_role = str(my_role_row['role'] or 'member') if my_role_row else 'member'
+    return str(my_role_row['role'] or 'member') if my_role_row else 'member'
 
-    member_rows = conn.execute(
+
+def _fetch_member_rows(conn, *, chat_id: str):
+    return conn.execute(
         '''
         SELECT
             u.id AS user_id,
@@ -71,95 +66,127 @@ def build_group_chat_profile_payload(
         (chat_id,),
     ).fetchall()
 
+
+def _load_active_sanctions_by_user_id(conn, *, chat_id: str, member_rows) -> dict[int, dict]:
     member_ids = [int(row['user_id']) for row in member_rows]
     sanctions_by_user_id: dict[int, dict] = {}
-    if member_ids:
-        subject_ids = [
-            moderation_service.make_group_member_subject_id(chat_id, member_id)
-            for member_id in member_ids
-        ]
-        placeholders = ', '.join('?' * len(subject_ids))
-        sanction_rows = conn.execute(
-            f'''
-            SELECT id, subject_id, action_type, reason_code, expires_at
-            FROM moderation_sanctions
-            WHERE subject_type = ?
-              AND subject_id IN ({placeholders})
-              AND status = 'active'
-              AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-            ORDER BY created_at DESC
-            ''',
-            (moderation_service.GROUP_MEMBER_SUBJECT_TYPE, *subject_ids),
-        ).fetchall()
-        for sanction_row in sanction_rows:
-            parsed_subject = moderation_service.parse_group_member_subject_id(sanction_row['subject_id'])
-            if not parsed_subject:
-                continue
-            _, sanction_user_id = parsed_subject
-            if sanction_user_id in sanctions_by_user_id:
-                continue
-            sanctions_by_user_id[sanction_user_id] = {
-                'sanction_id': int(sanction_row['id']),
-                'action_type': str(sanction_row['action_type'] or ''),
-                'reason_code': str(sanction_row['reason_code'] or ''),
-                'expires_at': str(sanction_row['expires_at'] or ''),
-            }
+    if not member_ids:
+        return sanctions_by_user_id
 
-    members = []
+    subject_ids = [
+        moderation_service.make_group_member_subject_id(chat_id, member_id)
+        for member_id in member_ids
+    ]
+    placeholders = ', '.join('?' * len(subject_ids))
+    sanction_rows = conn.execute(
+        f'''
+        SELECT id, subject_id, action_type, reason_code, expires_at
+        FROM moderation_sanctions
+        WHERE subject_type = ?
+          AND subject_id IN ({placeholders})
+          AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        ORDER BY created_at DESC
+        ''',
+        (moderation_service.GROUP_MEMBER_SUBJECT_TYPE, *subject_ids),
+    ).fetchall()
+    for sanction_row in sanction_rows:
+        parsed_subject = moderation_service.parse_group_member_subject_id(sanction_row['subject_id'])
+        if not parsed_subject:
+            continue
+        _, sanction_user_id = parsed_subject
+        if sanction_user_id in sanctions_by_user_id:
+            continue
+        sanctions_by_user_id[sanction_user_id] = {
+            'sanction_id': int(sanction_row['id']),
+            'action_type': str(sanction_row['action_type'] or ''),
+            'reason_code': str(sanction_row['reason_code'] or ''),
+            'expires_at': str(sanction_row['expires_at'] or ''),
+        }
+    return sanctions_by_user_id
+
+
+def _resolve_safe_avatar(*, row, viewer_user_id: int, get_safe_avatar_url_func):
+    base_avatar = str(row['avatar_url'] or '')
+    if not callable(get_safe_avatar_url_func):
+        return base_avatar
+    try:
+        return get_safe_avatar_url_func(row, viewer_user_id)
+    except Exception:  # noqa: BLE001
+        return base_avatar
+
+
+def _resolve_online_state(*, row, is_effectively_online_func):
+    is_hidden = bool(row['hide_online_status'])
+    persisted_online = bool(row['is_online'])
+    if not callable(is_effectively_online_func) or is_hidden:
+        return persisted_online and not is_hidden
+    try:
+        return bool(
+            is_effectively_online_func(str(row['public_key'] or ''), persisted=persisted_online)
+        )
+    except Exception:  # noqa: BLE001
+        return persisted_online
+
+
+def _serialize_members(
+    *,
+    member_rows,
+    viewer_user_id: int,
+    sanctions_by_user_id: dict[int, dict],
+    get_safe_avatar_url_func,
+    is_effectively_online_func,
+) -> list[dict]:
+    members: list[dict] = []
     for row in member_rows:
-        base_avatar = str(row['avatar_url'] or '')
-        if callable(get_safe_avatar_url_func):
-            try:
-                safe_avatar = get_safe_avatar_url_func(row, viewer_user_id)
-            except Exception:  # noqa: BLE001
-                safe_avatar = base_avatar
-        else:
-            safe_avatar = base_avatar
-        is_hidden = bool(row['hide_online_status'])
-        persisted_online = bool(row['is_online'])
-        if callable(is_effectively_online_func) and not is_hidden:
-            try:
-                online = bool(is_effectively_online_func(str(row['public_key'] or ''), persisted=persisted_online))
-            except Exception:  # noqa: BLE001
-                online = persisted_online
-        else:
-            online = persisted_online and not is_hidden
         members.append(
             {
                 'user_id': int(row['user_id']),
                 'username': str(row['username'] or ''),
                 'display_name': str(row['display_name'] or row['username'] or ''),
                 'public_key': str(row['public_key'] or ''),
-                'avatar_url': safe_avatar,
+                'avatar_url': _resolve_safe_avatar(
+                    row=row,
+                    viewer_user_id=viewer_user_id,
+                    get_safe_avatar_url_func=get_safe_avatar_url_func,
+                ),
                 'role': str(row['role'] or 'member'),
-                'online': bool(online),
+                'online': bool(
+                    _resolve_online_state(
+                        row=row,
+                        is_effectively_online_func=is_effectively_online_func,
+                    )
+                ),
                 'last_seen': row['last_seen'],
                 'active_sanction': sanctions_by_user_id.get(int(row['user_id'])),
             }
         )
+    return members
 
-    my_active_group_sanction = sanctions_by_user_id.get(int(viewer_user_id))
-    my_pending_group_appeal = None
-    if my_active_group_sanction:
-        pending_row = conn.execute(
-            '''
-            SELECT id, state, created_at
-            FROM moderation_appeals
-            WHERE sanction_id = ?
-              AND appellant_user_id = ?
-              AND state IN ('submitted', 'in_review')
-            ORDER BY created_at DESC
-            LIMIT 1
-            ''',
-            (int(my_active_group_sanction['sanction_id']), int(viewer_user_id)),
-        ).fetchone()
-        if pending_row:
-            my_pending_group_appeal = {
-                'appeal_id': int(pending_row['id']),
-                'state': str(pending_row['state'] or ''),
-                'created_at': str(pending_row['created_at'] or ''),
-            }
 
+def _load_pending_group_appeal(conn, *, sanction_id: int, viewer_user_id: int) -> dict | None:
+    pending_row = conn.execute(
+        '''
+        SELECT id, state, created_at
+        FROM moderation_appeals
+        WHERE sanction_id = ?
+          AND appellant_user_id = ?
+          AND state IN ('submitted', 'in_review')
+        ORDER BY created_at DESC
+        LIMIT 1
+        ''',
+        (int(sanction_id), int(viewer_user_id)),
+    ).fetchone()
+    if not pending_row:
+        return None
+    return {
+        'appeal_id': int(pending_row['id']),
+        'state': str(pending_row['state'] or ''),
+        'created_at': str(pending_row['created_at'] or ''),
+    }
+
+
+def _build_group_permissions_payload(*, my_role: str, chat_row) -> tuple[dict, dict, bool]:
     can_invite = can_role_perform_action(my_role, ACTION_INVITE)
     can_kick = can_role_perform_action(my_role, ACTION_KICK)
     can_ban = can_role_perform_action(my_role, ACTION_BAN)
@@ -167,13 +194,68 @@ def build_group_chat_profile_payload(
     can_manage_roles = can_role_perform_action(my_role, ACTION_CHANGE_ROLE)
     group_permissions = extract_group_permissions_from_chat_row(chat_row)
     member_scoped = role_uses_member_permissions(my_role)
-    can_invite_effective = can_invite or (member_scoped and bool(group_permissions.get('members_can_add_members')))
+    can_invite_effective = can_invite or (
+        member_scoped and bool(group_permissions.get('members_can_add_members'))
+    )
     can_change_settings_effective = can_change_group_settings or (
         member_scoped and bool(group_permissions.get('members_can_change_info'))
     )
     can_pin_effective = can_role_perform_action(my_role, 'pin') or (
         member_scoped and bool(group_permissions.get('members_can_pin_messages'))
     )
+    permissions = {
+        'can_invite': can_invite_effective,
+        'can_kick': can_kick,
+        'can_ban': can_ban,
+        'can_pin': can_pin_effective,
+        'can_delete_messages': can_role_perform_action(my_role, 'delete_messages'),
+        'can_change_group_settings': can_change_settings_effective,
+        'can_manage_roles': can_manage_roles,
+    }
+    return permissions, group_permissions, can_change_settings_effective
+
+
+def build_group_chat_profile_payload(
+    *,
+    conn,
+    chat_id: str,
+    viewer_user_id: int,
+    get_safe_avatar_url_func=None,
+    is_effectively_online_func=None,
+) -> dict | None:
+    chat_row = _fetch_chat_row(conn, chat_id=chat_id)
+    if not chat_row:
+        return None
+
+    my_role = _fetch_my_role(conn, chat_id=chat_id, viewer_user_id=viewer_user_id)
+    member_rows = _fetch_member_rows(conn, chat_id=chat_id)
+    sanctions_by_user_id = _load_active_sanctions_by_user_id(
+        conn,
+        chat_id=chat_id,
+        member_rows=member_rows,
+    )
+    members = _serialize_members(
+        member_rows=member_rows,
+        viewer_user_id=viewer_user_id,
+        sanctions_by_user_id=sanctions_by_user_id,
+        get_safe_avatar_url_func=get_safe_avatar_url_func,
+        is_effectively_online_func=is_effectively_online_func,
+    )
+
+    my_active_group_sanction = sanctions_by_user_id.get(int(viewer_user_id))
+    my_pending_group_appeal = None
+    if my_active_group_sanction:
+        my_pending_group_appeal = _load_pending_group_appeal(
+            conn,
+            sanction_id=int(my_active_group_sanction['sanction_id']),
+            viewer_user_id=viewer_user_id,
+        )
+
+    permissions, group_permissions, can_change_settings_effective = _build_group_permissions_payload(
+        my_role=my_role,
+        chat_row=chat_row,
+    )
+    can_manage_roles = bool(permissions['can_manage_roles'])
 
     return {
         'success': True,
@@ -193,15 +275,7 @@ def build_group_chat_profile_payload(
         'my_role': my_role,
         'can_edit_group': can_change_settings_effective,
         'can_manage_admins': can_manage_roles,
-        'permissions': {
-            'can_invite': can_invite_effective,
-            'can_kick': can_kick,
-            'can_ban': can_ban,
-            'can_pin': can_pin_effective,
-            'can_delete_messages': can_role_perform_action(my_role, 'delete_messages'),
-            'can_change_group_settings': can_change_settings_effective,
-            'can_manage_roles': can_manage_roles,
-        },
+        'permissions': permissions,
         'group_permissions': group_permissions,
         'my_active_group_sanction': my_active_group_sanction,
         'my_pending_group_appeal': my_pending_group_appeal,
