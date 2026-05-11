@@ -2156,11 +2156,11 @@
             --chat-message-group-gap: var(--chat-message-gap);
             --chat-avatar-slot: calc(34px * var(--chat-message-scale));
             --chat-avatar-size: calc(30px * var(--chat-message-scale));
-            --msg-meta-font-size: calc(10px * var(--chat-message-scale));
-            --msg-meta-gap: calc(4px * var(--chat-message-scale));
-            --msg-meta-row-height: calc(11px * var(--chat-message-scale));
-            --msg-meta-tick-size: calc(16px * var(--chat-message-scale));
-            --msg-meta-tick-stroke: 1.75;
+            --msg-meta-font-size: calc(11px * var(--chat-message-scale));
+            --msg-meta-gap: calc(3px * var(--chat-message-scale));
+            --msg-meta-row-height: calc(12px * var(--chat-message-scale));
+            --msg-meta-tick-size: calc(17px * var(--chat-message-scale));
+            --msg-meta-tick-stroke: 1.9;
             --msg-meta-read-color: color-mix(in srgb, #5ea8ff 86%, var(--chat-bubble-out-text) 14%);
             --chat-bubble-max-width: min(68%, 720px);
             flex: 1;
@@ -10656,11 +10656,11 @@
 
 .message .bubble > .message-footer {
     display: flex !important;
-    align-items: center;
+    align-items: flex-end;
     justify-content: flex-end;
-    gap: 0;
-    margin-top: calc(3px * var(--chat-message-scale));
-    min-height: 0;
+    gap: calc(2px * var(--chat-message-scale));
+    margin-top: calc(2px * var(--chat-message-scale));
+    min-height: var(--msg-meta-row-height);
 }
 
 .message .bubble > .message-footer > .msg-meta,
@@ -10673,6 +10673,8 @@
     width: auto !important;
     float: none !important;
     clear: none !important;
+    display: inline-flex;
+    align-items: flex-end;
 }
 
 .message .bubble > .message-footer:empty {
@@ -10724,7 +10726,7 @@
 }
 
 .message.message-reactions-outside .message-stack > .message-reactions {
-    margin-top: 1px;
+    margin-top: calc(2px * var(--chat-message-scale));
     padding: 0;
     position: static;
     max-width: 100%;
@@ -10829,9 +10831,21 @@
 }
 
 .message .msg-meta {
-    gap: calc(3px * var(--chat-message-scale));
+    gap: calc(2px * var(--chat-message-scale));
     float: none;
     clear: none;
+    align-items: flex-end;
+    min-height: var(--msg-meta-row-height);
+}
+
+.message .msg-meta .msg-time,
+.message .msg-meta .msg-tick {
+    align-self: flex-end;
+}
+
+.message .msg-meta .msg-tick {
+    width: calc(var(--msg-meta-tick-size) * 1.42);
+    min-width: calc(var(--msg-meta-tick-size) * 1.42);
 }
 
 .message .bubble.bubble--file {
