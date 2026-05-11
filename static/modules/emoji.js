@@ -553,32 +553,34 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
 
     if (isMobile) {
         const preserveSize = Boolean(options.preserveSize);
-        const mobileViewportHeight = Math.max(
-            viewportHeight,
-            Math.round(window.innerHeight || 0),
-            Math.round(document.documentElement.clientHeight || 0),
-            readRootPixelVar('--app-vh'),
-        );
+        const visualViewportHeight = Math.round(vv?.height || 0);
+        const mobileViewportHeight = visualViewportHeight > 0
+            ? visualViewportHeight
+            : Math.max(
+                viewportHeight,
+                Math.round(window.innerHeight || 0),
+                Math.round(document.documentElement.clientHeight || 0),
+                readRootPixelVar('--app-vh'),
+            );
         const maxSheetHeight = Math.max(300, Math.min(MOBILE_EMOJI_MAX_HEIGHT, mobileViewportHeight - 80));
         const defaultSheetHeight = Math.min(
             maxSheetHeight,
             Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
         );
         const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
+        const hasPreferredMobileSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0;
         const currentSheetHeight = preserveSize
             ? Number.parseFloat(String(emojiPicker.style.getPropertyValue('--emoji-height') || ''))
             : NaN;
-        const targetSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0
+        const targetSheetHeight = hasPreferredMobileSheetHeight
             ? preferredMobileSheetHeight
             : (Number.isFinite(currentSheetHeight) && currentSheetHeight > 0 ? currentSheetHeight : defaultSheetHeight);
-        const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(MOBILE_EMOJI_MIN_HEIGHT, targetSheetHeight)));
+        const minSheetHeight = hasPreferredMobileSheetHeight ? 0 : MOBILE_EMOJI_MIN_HEIGHT;
+        const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(minSheetHeight, targetSheetHeight)));
         const sheetWidth = Math.max(0, viewportWidth);
         const left = Math.round(viewportOffsetLeft);
         const top = Math.round(viewportOffsetTop + mobileViewportHeight - sheetHeight);
-        const chatAreaBottom = resolveEmojiChatArea(emojiPicker)?.getBoundingClientRect?.().bottom;
-        const layoutSheetHeight = Number.isFinite(chatAreaBottom)
-            ? Math.max(0, Math.round(chatAreaBottom - top))
-            : sheetHeight;
+        const layoutSheetHeight = sheetHeight;
 
         emojiPicker.style.setProperty('--emoji-left', `${left}px`);
         emojiPicker.style.setProperty('--emoji-top', `${top}px`);
