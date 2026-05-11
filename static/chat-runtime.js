@@ -460,6 +460,8 @@ export const initChatPage = async () => {
         messageForm,
         messageInput,
         sendMessageBtn,
+        fileAttachInput,
+        attachBtn,
         voiceRecordBtn,
         voiceRecordTimer,
         voiceRecordComposer,
@@ -618,6 +620,8 @@ export const initChatPage = async () => {
         reportContentStatus,
         reportSubmitBtn,
         reportCancelBtn,
+        lightbox,
+        resolveMessageElement,
     } = resolveChatDomRefs(document);
 
     reportController = createChatReportFlow({
@@ -2323,8 +2327,8 @@ export const initChatPage = async () => {
                 sendMessageBtn,
             },
             composerRow,
-            getFileAttachInput: () => document.getElementById('fileAttachInput'),
-            getAttachButton: () => document.getElementById('attachBtn'),
+            getFileAttachInput: () => fileAttachInput,
+            getAttachButton: () => attachBtn,
             closeAttachMenu,
             updateVoiceRecordButtonState,
             isVoiceRecordingActive,
@@ -3458,7 +3462,7 @@ export const initChatPage = async () => {
                 if (!currentChatId) return;
                 scheduleForcedCurrentChatRerender();
             },
-            resolveMessageElement: (msgId) => document.querySelector(`.message[data-msg-id="${msgId}"]`),
+            resolveMessageElement,
             getMessageKey,
             confirmPendingMessageDom,
             loadContacts,
@@ -3902,7 +3906,7 @@ export const initChatPage = async () => {
         closeAttachMenu,
         hasPendingCaptionFile: () => captionModalController.hasPendingFile(),
         closeCaptionModal,
-        getLightbox: () => document.getElementById('lightbox'),
+        getLightbox: () => lightbox,
         closeLightbox: () => _closeLightbox(),
         closeMessageSearchOverlay,
         isSelectionMode: () => messageSelectionController.isSelectionMode(),
