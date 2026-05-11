@@ -151,10 +151,13 @@ def test_auth_and_settings_pages_embed_bootstrap_payload(monkeypatch, tmp_path):
     assert settings_bootstrap['page'] == 'settings'
     assert settings_bootstrap['user']['currentUsername'] == 'alice'
     assert settings_bootstrap['user']['embedMode'] is False
+    assert settings_bootstrap['socketio']['transports'] == ['polling', 'websocket']
+    assert settings_bootstrap['socketio']['upgrade'] is False
     assert isinstance(settings_bootstrap['user']['clientPreferences'], dict)
     assert settings_bootstrap['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
     assert 'window.SUN_QRCODE_SRC' not in settings_html
     assert 'pages/settings-qr.js' not in settings_html
+    assert '/static/vendor/js/socket.io.min.js' in settings_html
     assert 'pages/settings.js' in settings_html
 
 
