@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -16,6 +17,8 @@ _NON_PERSISTED_CHAT_EVENTS = {
     'user_status',
     'force_leave_chat',
 }
+_INTERNAL_EMIT_CACHE_KEY = '__sun_emit_cache__'
+_EMIT_CACHE_REUSE_WINDOW_SECONDS = 5.0
 
 
 def _utc_now_iso() -> str:
@@ -85,6 +88,93 @@ def _deserialize_payload(payload_json: str | None) -> Any:
         return json.loads(payload_json)
     except Exception:  # noqa: BLE001
         return {}
+
+
+def _public_payload(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    if _INTERNAL_EMIT_CACHE_KEY not in payload:
+        return payload
+    return {
+        key: value
+        for key, value in payload.items()
+        if key != _INTERNAL_EMIT_CACHE_KEY
+    }
+
+
+def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None = None) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+    cache = payload.get(_INTERNAL_EMIT_CACHE_KEY)
+    if not isinstance(cache, dict):
+        return None
+    meta = cache.get(event_type)
+    if not isinstance(meta, dict):
+        return None
+
+    created_monotonic = meta.get('created_monotonic')
+    if not isinstance(created_monotonic, (int, float)):
+        return None
+    if (time.monotonic() - float(created_monotonic)) > _EMIT_CACHE_REUSE_WINDOW_SECONDS:
+        return None
+
+    event_id = str(meta.get('event_id') or '').strip()
+    server_ts = str(meta.get('server_ts') or '').strip()
+    if not event_id or not server_ts:
+        return None
+
+    cached_chat_id = _normalize_chat_id(meta.get('chat_id'))
+    normalized_chat_id = _normalize_chat_id(chat_id)
+    if normalized_chat_id and cached_chat_id and normalized_chat_id != cached_chat_id:
+        return None
+
+    cached_request_id = _normalize_request_id(meta.get('request_id'))
+    cached_chat_pts_raw = meta.get('chat_pts')
+    if cached_chat_pts_raw is None:
+        cached_chat_pts = None
+    else:
+        try:
+            cached_chat_pts = int(cached_chat_pts_raw)
+        except Exception:  # noqa: BLE001
+            return None
+        if cached_chat_pts <= 0:
+            return None
+
+    return {
+        'event_id': event_id,
+        'server_ts': server_ts,
+        'chat_id': cached_chat_id,
+        'chat_pts': cached_chat_pts,
+        'request_id': cached_request_id,
+    }
+
+
+def _store_cached_emit_meta(
+    payload: Any,
+    *,
+    event_type: str,
+    event_id: str,
+    server_ts: str,
+    chat_id: str | None,
+    chat_pts: int | None,
+    request_id: str | None,
+) -> None:
+    if not isinstance(payload, dict):
+        return
+
+    cache = payload.get(_INTERNAL_EMIT_CACHE_KEY)
+    if not isinstance(cache, dict):
+        cache = {}
+        payload[_INTERNAL_EMIT_CACHE_KEY] = cache
+
+    cache[event_type] = {
+        'event_id': str(event_id or '').strip(),
+        'server_ts': str(server_ts or '').strip(),
+        'chat_id': _normalize_chat_id(chat_id),
+        'chat_pts': int(chat_pts) if chat_pts is not None else None,
+        'request_id': _normalize_request_id(request_id),
+        'created_monotonic': time.monotonic(),
+    }
 
 
 def _insert_chat_update_event(
@@ -180,14 +270,31 @@ def emit_enveloped_socket_event(
 ) -> Any:
     safe_kwargs = dict(kwargs or {})
     payload_object = payload if payload is not None else {}
+    payload_for_emit = _public_payload(payload_object)
     normalized_event_name = str(event_type or '').strip()
-    normalized_chat_id = _extract_chat_id(payload_object, explicit_chat_id=_normalize_chat_id(chat_id))
-    normalized_request_id = _extract_request_id(payload_object, explicit_request_id=_normalize_request_id(request_id))
-    event_id = str(uuid.uuid4())
-    server_ts = _utc_now_iso()
-    chat_pts = None
+    normalized_chat_id = _extract_chat_id(payload_for_emit, explicit_chat_id=_normalize_chat_id(chat_id))
+    normalized_request_id = _extract_request_id(payload_for_emit, explicit_request_id=_normalize_request_id(request_id))
+    cached_meta = _get_cached_emit_meta(
+        payload_object,
+        event_type=normalized_event_name,
+        chat_id=normalized_chat_id,
+    )
+    if cached_meta:
+        normalized_chat_id = normalized_chat_id or cached_meta['chat_id']
+        normalized_request_id = normalized_request_id or cached_meta['request_id']
+        event_id = cached_meta['event_id']
+        server_ts = cached_meta['server_ts']
+        chat_pts = cached_meta['chat_pts']
+    else:
+        event_id = str(uuid.uuid4())
+        server_ts = _utc_now_iso()
+        chat_pts = None
 
-    should_persist = normalized_chat_id and normalized_event_name not in _NON_PERSISTED_CHAT_EVENTS
+    should_persist = (
+        cached_meta is None
+        and normalized_chat_id
+        and normalized_event_name not in _NON_PERSISTED_CHAT_EVENTS
+    )
     if should_persist:
         conn = None
         try:
@@ -201,7 +308,7 @@ def emit_enveloped_socket_event(
                 chat_id=normalized_chat_id,
                 chat_pts=chat_pts,
                 request_id=normalized_request_id,
-                payload=payload_object,
+                payload=payload_for_emit,
             )
             conn.commit()
         except Exception as exc:  # noqa: BLE001
@@ -224,9 +331,20 @@ def emit_enveloped_socket_event(
                 except Exception:  # noqa: BLE001
                     pass
 
+    if not cached_meta:
+        _store_cached_emit_meta(
+            payload_object,
+            event_type=normalized_event_name,
+            event_id=event_id,
+            server_ts=server_ts,
+            chat_id=normalized_chat_id,
+            chat_pts=chat_pts,
+            request_id=normalized_request_id,
+        )
+
     wrapped_payload = build_enveloped_event_payload(
         event_type=normalized_event_name,
-        payload=payload_object,
+        payload=payload_for_emit,
         event_id=event_id,
         chat_id=normalized_chat_id,
         chat_pts=chat_pts,
