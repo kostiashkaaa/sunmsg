@@ -1,6 +1,7 @@
 from io import BytesIO
 from zipfile import ZipFile
 
+from app.routes import chat as chat_routes
 from app.routes.chat_media_utils import (
     allowed_file,
     canonical_username,
@@ -104,6 +105,15 @@ def test_validate_openxml_package_and_chat_media_content():
     assert validate_chat_media_content(_Upload(xlsx_bytes), 'xlsx', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
     assert validate_chat_media_content(_Upload(b'zip?'), 'docx', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
     assert validate_chat_media_content(_Upload(b'anything'), 'unknown', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
+
+
+def test_validate_chat_media_content_accepts_heic_mif1_brand_for_heic_extension():
+    heic_mif1_payload = b'\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00heic' + (b'\x00' * 32)
+    assert validate_chat_media_content(
+        _Upload(heic_mif1_payload),
+        'heic',
+        chat_media_magic_rules=chat_routes._CHAT_MEDIA_MAGIC_RULES,
+    ) is True
 
 
 def test_detect_media_type_normalize_mime_and_block_state():
