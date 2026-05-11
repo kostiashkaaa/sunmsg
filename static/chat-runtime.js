@@ -70,6 +70,7 @@ import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtim
 import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.js';
 import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
 import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
+import { bindChatMessageSurfaceEventsRuntime } from './modules/chat-message-surface-events-runtime.js';
 import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
 import { createChatMessageRenderRuntime } from './modules/chat-message-render-runtime.js';
 import { createChatMobileViewportRuntime } from './modules/chat-mobile-viewport-runtime.js';
@@ -2385,57 +2386,30 @@ export const initChatPage = async () => {
     }
     updateBlockButtons();
 
-    jumpToNewMessagesBtn?.addEventListener('click', () => {
-        if (isProfileDrawerOpen()) {
-            closePartnerProfileDrawer();
-        }
-        requestAutoScrollToBottom({ ifNearBottom: false, smooth: true });
+    bindChatMessageSurfaceEventsRuntime({
+        chatMessages,
+        jumpToNewMessagesBtn,
+        chatLoadMoreThresholdPx: CHAT_LOAD_MORE_THRESHOLD_PX,
+        isProfileDrawerOpen,
+        closePartnerProfileDrawer,
+        requestAutoScrollToBottom,
+        cancelBottomInertiaScroll,
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        openUserProfileById,
+        getCurrentChatId: () => currentChatId,
+        getSuppressChatScrollHandling,
+        isReactionPickerOpen: () => reactionPickerController.isOpen(),
+        closeReactionPicker,
+        saveChatScrollPosition,
+        scheduleVirtualChatRender,
+        loadOlderMessages,
+        isChatNearBottom,
+        setKeepChatPinnedToBottom,
+        isWindowActiveForUnreadHandling,
+        getOpenChatUnreadCount: () => openChatUnreadCount,
+        resetOpenChatUnreadCounter,
+        updateJumpToNewMessagesButton,
     });
-
-    const stopBottomInertiaOnUserInput = () => {
-        cancelBottomInertiaScroll();
-    };
-    chatMessages?.addEventListener('wheel', stopBottomInertiaOnUserInput, { passive: true });
-    chatMessages?.addEventListener('touchstart', stopBottomInertiaOnUserInput, { passive: true });
-    chatMessages?.addEventListener('pointerdown', stopBottomInertiaOnUserInput, { passive: true });
-
-    const handleMessageProfileTrigger = (event) => {
-        const trigger = event.target?.closest?.('[data-open-profile-trigger][data-profile-user-id]');
-        if (!trigger || !chatMessages?.contains(trigger)) return;
-        if (messageSelectionController.isSelectionMode()) return;
-        const targetUserId = Number.parseInt(trigger.getAttribute('data-profile-user-id') || '', 10);
-        if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
-        event.preventDefault();
-        event.stopPropagation();
-        openUserProfileById(targetUserId);
-    };
-
-    chatMessages?.addEventListener('click', handleMessageProfileTrigger);
-    chatMessages?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        handleMessageProfileTrigger(event);
-    });
-
-    chatMessages?.addEventListener('scroll', () => {
-        if (!currentChatId) return;
-        if (getSuppressChatScrollHandling()) return;
-        if (reactionPickerController.isOpen()) closeReactionPicker();
-
-        saveChatScrollPosition(currentChatId);
-        scheduleVirtualChatRender(currentChatId);
-
-        if (chatMessages.scrollTop <= CHAT_LOAD_MORE_THRESHOLD_PX) {
-            loadOlderMessages(currentChatId);
-        }
-
-        const nearBottom = isChatNearBottom();
-        setKeepChatPinnedToBottom(nearBottom);
-
-        if (nearBottom && isWindowActiveForUnreadHandling() && openChatUnreadCount > 0) {
-            resetOpenChatUnreadCounter({ markSeen: true });
-        }
-        updateJumpToNewMessagesButton();
-    }, { passive: true });
 
     bindMobileViewportEvents();
 
