@@ -459,6 +459,34 @@ function createSectionElement(section) {
     return sectionEl;
 }
 
+function updateRecentSectionInPlace(emojiList, strings) {
+    const recentSection = emojiList.querySelector(`.emoji-section[data-section-cat="${DEFAULT_EMOJI_CATEGORY}"]`);
+    if (!recentSection) return false;
+    const gridEl = recentSection.querySelector('.emoji-section-grid');
+    if (!gridEl) return false;
+
+    const recentItems = getRecentEmojis();
+    const fragment = document.createDocumentFragment();
+    recentItems.forEach((emoji) => {
+        fragment.appendChild(createEmojiItemButton(emoji));
+    });
+    gridEl.replaceChildren(fragment);
+
+    let emptyEl = recentSection.querySelector('.emoji-list-status--inline');
+    if (!recentItems.length) {
+        if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.className = 'emoji-list-status emoji-list-status--inline';
+            recentSection.appendChild(emptyEl);
+        }
+        emptyEl.textContent = strings.emptyRecent;
+    } else if (emptyEl) {
+        emptyEl.remove();
+    }
+
+    return true;
+}
+
 function setActiveCategory(emojiCategories, category) {
     emojiCategories?.querySelectorAll('.emoji-category-btn').forEach((button) => {
         const isActive = button.dataset.cat === category;
@@ -901,7 +929,7 @@ export function initEmojiPicker(messageInput) {
         await onCategoryClick(categoryButton);
     });
 
-    emojiList.addEventListener('click', async (event) => {
+    emojiList.addEventListener('click', (event) => {
         const itemButton = event.target.closest('.emoji-item');
         if (!itemButton || !emojiList.contains(itemButton)) return;
         event.preventDefault();
@@ -918,11 +946,16 @@ export function initEmojiPicker(messageInput) {
         });
         setStoredSelection(nextSelection.start, nextSelection.end);
         rememberEmoji(emoji);
-        defaultListNeedsRefresh = true;
-
-        if (!normalizeQuery(searchQuery) && activeCategory === DEFAULT_EMOJI_CATEGORY) {
-            await renderEmojiList();
+        const compactQuery = normalizeQuery(searchQuery);
+        if (!compactQuery && lastRenderedMode === 'default' && emojiList.childElementCount > 0) {
+            const { localeCode, strings } = getLocaleStrings();
+            if (updateRecentSectionInPlace(emojiList, strings)) {
+                lastDefaultRenderKey = buildDefaultRenderKey(localeCode);
+                defaultListNeedsRefresh = false;
+                return;
+            }
         }
+        defaultListNeedsRefresh = true;
     });
 
     emojiSearchInput.addEventListener('input', async () => {
