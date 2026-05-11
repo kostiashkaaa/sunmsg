@@ -4547,9 +4547,7 @@ const initChatPage = async () => {
             row.remove();
         });
         const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
-        const useOutsidePlacementFinal = Boolean(
-            useOutsidePlacement || (hasReactionItems && messageText && !isMediaBubble)
-        );
+        const useOutsidePlacementFinal = Boolean(useOutsidePlacement);
 
         if (keptReactionRow) {
             const targetReactionContainer = useOutsidePlacementFinal ? stack : footer;
