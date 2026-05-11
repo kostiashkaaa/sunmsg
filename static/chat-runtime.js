@@ -87,7 +87,7 @@ import { createSavedMessagesUiController } from './modules/saved-messages-ui.js'
 import { initChatMessageActionsRuntime } from './modules/chat-message-actions-runtime.js';
 import { applyPinnedState as _applyPinnedState } from './modules/pinned-contacts.js';
 import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
-import { initCaptionModal } from './modules/caption-modal.js';
+import { initChatCaptionModalRuntime } from './modules/chat-caption-modal-runtime.js';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
 import { initMessageSelection } from './modules/message-selection.js';
 import { initMessageContextMenu } from './modules/message-context-menu.js';
@@ -3271,20 +3271,12 @@ export const initChatPage = async () => {
         scrollToMessage: _focusMessageById,
     });
 
-    // --- Caption modal ---------------------------------------------------
-    const captionModalController = initCaptionModal({
-        modalEl: document.getElementById('captionModal'),
-        previewEl: document.getElementById('captionPreview'),
-        metaEl: document.getElementById('captionMeta'),
-        inputEl: document.getElementById('captionInput'),
-        sendButtonEl: document.getElementById('captionSendBtn'),
-        closeButtonEl: document.getElementById('captionModalClose'),
-        titleEl: document.getElementById('captionModalTitle'),
-        hintEl: document.getElementById('captionModalHint'),
+    const captionModalController = initChatCaptionModalRuntime({
+        documentRef: document,
         activateFocusTrap,
         deactivateFocusTrap,
-        onSubmit: (file, caption, submitOptions = {}) => sendFileMessage(file, caption, submitOptions),
-        onError: (error) => showToast(error.message, 'danger'),
+        sendFileMessage: (file, caption, submitOptions = {}) => sendFileMessage(file, caption, submitOptions),
+        showToast,
     });
     const showCaptionModal = captionModalController.showCaptionModal;
     const closeCaptionModal = captionModalController.closeCaptionModal;
