@@ -5493,7 +5493,7 @@
 
 
         .message .bubble.bubble--audio {
-            --audio-leading-offset: 48px; /* play button (38) + gap (10) */
+            --audio-leading-offset: 60px; /* play button (38) + gap (10) */
             --audio-btn-bg: color-mix(in srgb, var(--chat-bubble-in-bg) 76%, #ffffff 24%);
             --audio-btn-bg-hover: color-mix(in srgb, var(--chat-bubble-in-bg) 66%, #ffffff 34%);
             --audio-btn-border: color-mix(in srgb, var(--chat-bubble-in-text) 24%, transparent);
@@ -5516,12 +5516,12 @@
 
 
         .message.self .bubble.bubble--audio {
-            --audio-btn-bg: color-mix(in srgb, var(--chat-bubble-out-bg) 76%, #ffffff 24%);
-            --audio-btn-bg-hover: color-mix(in srgb, var(--chat-bubble-out-bg) 66%, #ffffff 34%);
-            --audio-btn-border: color-mix(in srgb, var(--chat-bubble-out-text) 22%, transparent);
-            --audio-btn-fg: color-mix(in srgb, var(--chat-bubble-out-text) 94%, var(--chat-bubble-out-bg) 6%);
-            --audio-wave-idle: color-mix(in srgb, var(--chat-bubble-out-text) 34%, transparent);
-            --audio-wave-played: color-mix(in srgb, var(--chat-bubble-out-text) 98%, var(--chat-bubble-out-bg) 2%);
+            --audio-btn-bg: #ffffff;
+            --audio-btn-bg-hover: color-mix(in srgb, #ffffff 88%, var(--chat-bubble-out-bg) 12%);
+            --audio-btn-border: color-mix(in srgb, #ffffff 34%, transparent);
+            --audio-btn-fg: color-mix(in srgb, var(--chat-bubble-out-bg) 84%, #ffffff 16%);
+            --audio-wave-idle: color-mix(in srgb, var(--chat-bubble-out-text) 44%, transparent);
+            --audio-wave-played: color-mix(in srgb, var(--chat-bubble-out-text) 100%, transparent);
             --audio-listen-dot-color: color-mix(in srgb, var(--chat-bubble-out-text) 92%, transparent);
             --audio-listen-dot-done-color: color-mix(in srgb, var(--chat-bubble-out-text) 62%, transparent);
             background: var(--chat-bubble-out-bg);
@@ -5548,8 +5548,8 @@
 
 
         .audio-player-toggle {
-            width: 42px;
-            height: 42px;
+            width: 50px;
+            height: 50px;
             box-sizing: border-box;
             padding: 0;
             border-radius: 50%;
@@ -5577,7 +5577,7 @@
 
 
         .audio-player-toggle i {
-            font-size: 19px;
+            font-size: 22px;
             line-height: 1;
             display: inline-flex;
             align-items: center;
@@ -5664,7 +5664,7 @@
             inset: 0;
             display: flex;
             align-items: flex-end;
-            gap: 1.6px;
+            gap: 1.2px;
             pointer-events: none;
             user-select: none;
         }
@@ -5682,7 +5682,7 @@
         .audio-wave-bar {
             display: block;
             flex: 1 1 0;
-            min-width: 2px;
+            min-width: 1.4px;
             height: 50%;
             min-height: 3px;
             border-radius: 999px;
