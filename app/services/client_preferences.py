@@ -30,23 +30,29 @@ def _clamp_message_scale(value: float) -> float:
     return max(0.9, min(1.3, value))
 
 
+def _to_utc_iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _normalize_timestamp_number(raw_num: float):
+    if not (math.isfinite(raw_num) and raw_num > 0):
+        return None
+    if raw_num > 1e12:
+        timestamp_seconds = raw_num / 1000.0
+    elif raw_num > 1e9:
+        timestamp_seconds = raw_num
+    else:
+        return None
+    try:
+        dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+    return _to_utc_iso(dt)
+
+
 def _normalize_updated_at(raw_value):
     if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool):
-        raw_num = float(raw_value)
-        if math.isfinite(raw_num) and raw_num > 0:
-            if raw_num > 1e12:
-                timestamp_seconds = raw_num / 1000.0
-            elif raw_num > 1e9:
-                timestamp_seconds = raw_num
-            else:
-                timestamp_seconds = None
-            if timestamp_seconds:
-                try:
-                    dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-                    return dt.isoformat().replace('+00:00', 'Z')
-                except (OverflowError, OSError, ValueError):
-                    return None
-        return None
+        return _normalize_timestamp_number(float(raw_value))
 
     if not isinstance(raw_value, str):
         return None
@@ -60,19 +66,10 @@ def _normalize_updated_at(raw_value):
     except (TypeError, ValueError):
         as_number = None
 
-    if as_number is not None and math.isfinite(as_number) and as_number > 0:
-        if as_number > 1e12:
-            timestamp_seconds = as_number / 1000.0
-        elif as_number > 1e9:
-            timestamp_seconds = as_number
-        else:
-            timestamp_seconds = None
-        if timestamp_seconds:
-            try:
-                dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-                return dt.isoformat().replace('+00:00', 'Z')
-            except (OverflowError, OSError, ValueError):
-                return None
+    if as_number is not None:
+        as_epoch = _normalize_timestamp_number(as_number)
+        if as_epoch is not None:
+            return as_epoch
 
     normalized_text = raw_text[:-1] + '+00:00' if raw_text.endswith('Z') else raw_text
     try:
@@ -81,7 +78,7 @@ def _normalize_updated_at(raw_value):
         return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+    return _to_utc_iso(dt)
 
 
 def _normalize_json_object(raw_value, *, max_json_length: int):
@@ -100,8 +97,51 @@ def _normalize_json_object(raw_value, *, max_json_length: int):
     return parsed if isinstance(parsed, dict) else None
 
 
-def normalize_client_preferences(raw_value) -> dict:
-    src = raw_value if isinstance(raw_value, dict) else {}
+def _normalize_choice_value(src: dict, *, key: str, allowed: set[str]):
+    value = str(src.get(key) or '').strip().lower()
+    return value if value in allowed else None
+
+
+def _normalize_language(src: dict):
+    language = str(src.get('language') or '').strip().lower()
+    return language if language in {'ru', 'en'} else None
+
+
+def _normalize_sidebar_weather_city(raw_value):
+    if not isinstance(raw_value, str):
+        return None
+    return ' '.join(raw_value.strip().split())[:80]
+
+
+def _normalize_sidebar_weather_rotate_seconds(raw_value):
+    if isinstance(raw_value, bool):
+        return None
+    if isinstance(raw_value, (int, float)):
+        rotate_value = int(raw_value)
+    elif isinstance(raw_value, str):
+        try:
+            rotate_value = int(raw_value.strip())
+        except (TypeError, ValueError):
+            return None
+    else:
+        return None
+    return rotate_value if rotate_value in _SIDEBAR_WEATHER_ROTATE_SECONDS else None
+
+
+def _normalize_sidebar_weather_metrics(raw_value):
+    if not isinstance(raw_value, list):
+        return None
+    metrics: list[str] = []
+    seen_metrics: set[str] = set()
+    for raw_metric in raw_value:
+        metric = str(raw_metric or '').strip().lower()
+        if metric in _SIDEBAR_WEATHER_METRICS and metric not in seen_metrics:
+            metrics.append(metric)
+            seen_metrics.add(metric)
+    return metrics
+
+
+def _normalize_base_preferences(src: dict) -> dict:
     normalized: dict = {}
 
     dark_mode = src.get('darkMode')
@@ -114,64 +154,71 @@ def normalize_client_preferences(raw_value) -> dict:
         if math.isfinite(message_scale_num):
             normalized['messageScale'] = round(_clamp_message_scale(message_scale_num), 2)
 
-    performance_mode = str(src.get('performanceMode') or '').strip().lower()
-    if performance_mode in _PERFORMANCE_MODES:
+    performance_mode = _normalize_choice_value(
+        src,
+        key='performanceMode',
+        allowed=_PERFORMANCE_MODES,
+    )
+    if performance_mode is not None:
         normalized['performanceMode'] = performance_mode
 
-    motion_level = str(src.get('motionLevel') or '').strip().lower()
-    if motion_level in _MOTION_LEVELS:
+    motion_level = _normalize_choice_value(src, key='motionLevel', allowed=_MOTION_LEVELS)
+    if motion_level is not None:
         normalized['motionLevel'] = motion_level
 
-    send_shortcut = str(src.get('sendShortcut') or '').strip().lower()
-    if send_shortcut in _SEND_SHORTCUT_MODES:
+    send_shortcut = _normalize_choice_value(
+        src,
+        key='sendShortcut',
+        allowed=_SEND_SHORTCUT_MODES,
+    )
+    if send_shortcut is not None:
         normalized['sendShortcut'] = send_shortcut
 
-    time_format = str(src.get('timeFormat') or '').strip().lower()
-    if time_format in _TIME_FORMATS:
+    time_format = _normalize_choice_value(src, key='timeFormat', allowed=_TIME_FORMATS)
+    if time_format is not None:
         normalized['timeFormat'] = time_format
 
-    language = str(src.get('language') or '').strip().lower()
-    if language in {'ru', 'en'}:
+    language = _normalize_language(src)
+    if language is not None:
         normalized['language'] = language
+
+    return normalized
+
+
+def _normalize_sidebar_weather_preferences(src: dict) -> dict:
+    normalized: dict = {}
 
     sidebar_weather_enabled = src.get('sidebarWeatherEnabled')
     if isinstance(sidebar_weather_enabled, bool):
         normalized['sidebarWeatherEnabled'] = sidebar_weather_enabled
 
-    sidebar_weather_source = str(src.get('sidebarWeatherSource') or '').strip().lower()
-    if sidebar_weather_source in _SIDEBAR_WEATHER_SOURCES:
+    sidebar_weather_source = _normalize_choice_value(
+        src,
+        key='sidebarWeatherSource',
+        allowed=_SIDEBAR_WEATHER_SOURCES,
+    )
+    if sidebar_weather_source is not None:
         normalized['sidebarWeatherSource'] = sidebar_weather_source
 
-    sidebar_weather_city = src.get('sidebarWeatherCity')
-    if isinstance(sidebar_weather_city, str):
-        city = ' '.join(sidebar_weather_city.strip().split())
-        normalized['sidebarWeatherCity'] = city[:80]
+    sidebar_weather_city = _normalize_sidebar_weather_city(src.get('sidebarWeatherCity'))
+    if sidebar_weather_city is not None:
+        normalized['sidebarWeatherCity'] = sidebar_weather_city
 
-    sidebar_weather_rotate = src.get('sidebarWeatherRotateSeconds')
-    sidebar_weather_rotate_value = None
-    if isinstance(sidebar_weather_rotate, bool):
-        sidebar_weather_rotate_value = None
-    elif isinstance(sidebar_weather_rotate, (int, float)):
-        sidebar_weather_rotate_num = int(sidebar_weather_rotate)
-        sidebar_weather_rotate_value = sidebar_weather_rotate_num
-    elif isinstance(sidebar_weather_rotate, str):
-        try:
-            sidebar_weather_rotate_value = int(sidebar_weather_rotate.strip())
-        except (TypeError, ValueError):
-            sidebar_weather_rotate_value = None
-    if sidebar_weather_rotate_value in _SIDEBAR_WEATHER_ROTATE_SECONDS:
-        normalized['sidebarWeatherRotateSeconds'] = sidebar_weather_rotate_value
+    sidebar_weather_rotate = _normalize_sidebar_weather_rotate_seconds(
+        src.get('sidebarWeatherRotateSeconds')
+    )
+    if sidebar_weather_rotate is not None:
+        normalized['sidebarWeatherRotateSeconds'] = sidebar_weather_rotate
 
-    sidebar_weather_metrics = src.get('sidebarWeatherMetrics')
-    if isinstance(sidebar_weather_metrics, list):
-        metrics: list[str] = []
-        seen_metrics: set[str] = set()
-        for raw_metric in sidebar_weather_metrics:
-            metric = str(raw_metric or '').strip().lower()
-            if metric in _SIDEBAR_WEATHER_METRICS and metric not in seen_metrics:
-                metrics.append(metric)
-                seen_metrics.add(metric)
-        normalized['sidebarWeatherMetrics'] = metrics
+    sidebar_weather_metrics = _normalize_sidebar_weather_metrics(src.get('sidebarWeatherMetrics'))
+    if sidebar_weather_metrics is not None:
+        normalized['sidebarWeatherMetrics'] = sidebar_weather_metrics
+
+    return normalized
+
+
+def _normalize_extended_preferences(src: dict) -> dict:
+    normalized: dict = {}
 
     interface_theme_store = _normalize_json_object(
         src.get('interfaceThemeStore'),
@@ -191,6 +238,15 @@ def normalize_client_preferences(raw_value) -> dict:
     if updated_at:
         normalized['updatedAt'] = updated_at
 
+    return normalized
+
+
+def normalize_client_preferences(raw_value) -> dict:
+    src = raw_value if isinstance(raw_value, dict) else {}
+    normalized: dict = {}
+    normalized.update(_normalize_base_preferences(src))
+    normalized.update(_normalize_sidebar_weather_preferences(src))
+    normalized.update(_normalize_extended_preferences(src))
     return normalized
 
 
