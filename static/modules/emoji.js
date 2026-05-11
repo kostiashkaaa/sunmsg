@@ -748,7 +748,7 @@ export function initEmojiPicker(messageInput) {
             fragment.appendChild(sectionEl);
         });
         emojiList.appendChild(fragment);
-        applyEmojiGraphics(emojiList);
+        // Keep native glyphs in picker grid to avoid mass image replacement cost on mobile.
 
         if (!compactQuery) {
             setActiveCategory(emojiCategories, activeCategory);
