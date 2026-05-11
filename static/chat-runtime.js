@@ -923,6 +923,24 @@ export const initChatPage = async () => {
         });
     }
 
+    const {
+        applyPinnedStateForChat,
+        updateChatPinnedState,
+        updatePinIcon,
+        sortContactsList,
+    } = createChatPinRuntime({
+        contactsList,
+        resolveContactItemByChatId,
+        getPinnedContactsCount,
+        syncProfileMoreMenuChatActions,
+        canPinMoreChats,
+        pinnedChatsLimit: PINNED_CHATS_LIMIT,
+        showToast,
+        withAppRoot,
+        getCsrfToken,
+        fetchImpl: fetch,
+    });
+
     const chatConnectionStatusPresenter = createChatConnectionStatusPresenter({
         getStatusElement: () => chatOnlineStatus,
         getCurrentChatId: () => currentChatId,
@@ -2367,24 +2385,6 @@ export const initChatPage = async () => {
         restoreLastActiveChatSelection,
         getHasAttemptedInitialChatRestore: () => hasAttemptedInitialChatRestore,
         setHasAttemptedInitialChatRestore: (value) => { hasAttemptedInitialChatRestore = value; },
-    });
-
-    const {
-        applyPinnedStateForChat,
-        updateChatPinnedState,
-        updatePinIcon,
-        sortContactsList,
-    } = createChatPinRuntime({
-        contactsList,
-        resolveContactItemByChatId,
-        getPinnedContactsCount,
-        syncProfileMoreMenuChatActions,
-        canPinMoreChats,
-        pinnedChatsLimit: PINNED_CHATS_LIMIT,
-        showToast,
-        withAppRoot,
-        getCsrfToken,
-        fetchImpl: fetch,
     });
 
     bindChatHeaderActionsRuntime({
