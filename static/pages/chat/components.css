@@ -10859,6 +10859,11 @@
     height: calc(20px * var(--chat-message-scale));
 }
 
+.reaction-reactor {
+    width: 19px;
+    height: 19px;
+}
+
 .reaction-pill__reactors {
     display: inline-flex !important;
     align-items: center;
@@ -11061,5 +11066,10 @@
     .reaction-pill__emoji .emoji-graphic {
         width: 22px;
         height: 22px;
+    }
+
+    .reaction-reactor {
+        width: 21px;
+        height: 21px;
     }
 }
