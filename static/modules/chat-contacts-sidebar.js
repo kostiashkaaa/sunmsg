@@ -340,12 +340,25 @@ export function initChatContactsSidebar({
                 if (avatarEl) {
                     const statusDot = avatarEl.querySelector('.status-dot');
                     const statusDotHtml = statusDot ? statusDot.outerHTML : '<div class="status-dot"></div>';
-                    const hasAvatar = Boolean(contact.avatar_url);
-                    const existingAvatarHtml = contact.avatar_url
-                        ? `<img class="contact-avatar__img" src="${escapeHtml(contact.avatar_url)}" alt="${escapeHtml(contact.display_name || contact.username || 'Avatar')}" loading="lazy" decoding="async">`
-                        : escapeHtml(existingInitials);
-                    avatarEl.classList.toggle('avatar-loading', hasAvatar);
-                    avatarEl.innerHTML = `${existingAvatarHtml}${hasAvatar ? AVATAR_LOADING_BARS_HTML : ''}${statusDotHtml}`;
+                    const nextAvatarUrl = String(contact.avatar_url || '').trim();
+                    const hasAvatar = Boolean(nextAvatarUrl);
+                    const currentAvatarImg = avatarEl.querySelector('img.contact-avatar__img');
+                    const currentAvatarUrl = String(currentAvatarImg?.getAttribute('src') || '').trim();
+                    const canReuseExistingAvatarImage = Boolean(
+                        hasAvatar
+                        && currentAvatarImg
+                        && currentAvatarUrl === nextAvatarUrl,
+                    );
+                    if (canReuseExistingAvatarImage) {
+                        currentAvatarImg.setAttribute('alt', contact.display_name || contact.username || 'Avatar');
+                        avatarEl.classList.remove('avatar-loading');
+                    } else {
+                        const existingAvatarHtml = hasAvatar
+                            ? `<img class="contact-avatar__img" src="${escapeHtml(nextAvatarUrl)}" alt="${escapeHtml(contact.display_name || contact.username || 'Avatar')}" loading="lazy" decoding="async">`
+                            : escapeHtml(existingInitials);
+                        avatarEl.classList.toggle('avatar-loading', hasAvatar);
+                        avatarEl.innerHTML = `${existingAvatarHtml}${hasAvatar ? AVATAR_LOADING_BARS_HTML : ''}${statusDotHtml}`;
+                    }
                 }
                 const nameEl = existing.querySelector('.contact-name');
                 if (nameEl) {
