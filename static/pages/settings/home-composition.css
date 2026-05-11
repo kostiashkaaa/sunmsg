@@ -88,8 +88,8 @@
         z-index: auto;
         width: 100%;
         margin: 0 auto;
-        padding: 8px 0 10px;
-        gap: 6px;
+        padding: 6px 0 8px;
+        gap: 4px;
         background: transparent;
         overflow: visible;
     }
@@ -100,12 +100,12 @@
         flex-direction: column;
         align-items: center;
         row-gap: 0;
-        padding: 14px 14px 10px;
+        padding: 12px 14px 8px;
         text-align: center;
         border-radius: 0;
         border: 0;
-        border-bottom: 4px solid color-mix(in srgb, var(--rule) 12%, #05070d 88%);
-        background: color-mix(in srgb, var(--paper-alt) 66%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--rule) 10%, transparent);
+        background: color-mix(in srgb, var(--paper-alt) 62%, transparent);
         box-shadow: none;
     }
 
@@ -116,24 +116,24 @@
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 116px;
-        height: 116px;
-        font-size: 38px;
+        width: 108px;
+        height: 108px;
+        font-size: 35px;
     }
 
     body.settings-home-open .settings-nav-profile-main {
         grid-column: auto;
         grid-row: auto;
-        margin-top: 8px;
-        gap: 1px;
+        margin-top: 6px;
+        gap: 0;
         padding-right: 0;
         text-align: center;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 34px;
-        line-height: 1.04;
-        font-weight: 620;
+        font-size: 30px;
+        line-height: 1.05;
+        font-weight: 600;
         letter-spacing: -0.01em;
         white-space: normal;
     }
@@ -145,15 +145,15 @@
 
     body.settings-home-open .settings-nav-profile-action {
         position: absolute;
-        top: 186px;
-        right: 30px;
-        width: 54px;
-        height: 54px;
+        top: 166px;
+        right: 24px;
+        width: 50px;
+        height: 50px;
         margin: 0;
         border: 0;
         transform: none;
         background: color-mix(in srgb, var(--accent) 88%, #fff 12%);
-        box-shadow: 0 12px 22px -16px color-mix(in srgb, var(--accent) 70%, #000);
+        box-shadow: 0 10px 18px -14px color-mix(in srgb, var(--accent) 64%, #000);
     }
 
     body.settings-home-open .settings-nav-profile-action:hover {
@@ -162,13 +162,13 @@
     }
 
     body.settings-home-open .settings-nav-profile-action .sun-icon {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
     }
 
     body.settings-home-open .settings-nav-profile-rows {
         width: 100%;
-        margin-top: 10px;
+        margin-top: 8px;
         padding-top: 0;
         border-top: 0;
         gap: 0;
@@ -177,41 +177,44 @@
     body.settings-home-open .settings-nav-profile-row {
         grid-template-columns: 20px minmax(0, 1fr);
         align-items: center;
-        min-height: 46px;
-        column-gap: 10px;
-        padding: 0 8px;
+        min-height: 42px;
+        column-gap: 9px;
+        padding: 0 6px;
         border-radius: 0;
         background: transparent;
     }
 
     body.settings-home-open .settings-nav-profile-row + .settings-nav-profile-row {
-        border-top: 1px solid color-mix(in srgb, var(--rule) 12%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--rule) 8%, transparent);
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
-        width: 22px;
-        min-width: 22px;
-        height: 22px;
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
         margin-top: 0;
     }
 
     body.settings-home-open .settings-nav-profile-row-value {
-        font-size: 16px;
+        font-size: 15px;
         line-height: 1.2;
-        font-weight: 570;
+        font-weight: 550;
     }
 
     body.settings-home-open .settings-nav-profile-row-label {
-        margin-top: 1px;
-        font-size: 12px;
-        color: color-mix(in srgb, var(--sub-text) 74%, transparent);
+        margin-top: 0;
+        font-size: 11px;
+        color: color-mix(in srgb, var(--sub-text) 68%, transparent);
     }
 
     body.settings-home-open .settings-nav-list {
-        display: grid;
-        gap: 4px;
-        padding: 0;
-        background: transparent;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 2px 0 4px;
+        border-top: 1px solid color-mix(in srgb, var(--rule) 8%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--rule) 8%, transparent);
+        background: color-mix(in srgb, var(--paper) 50%, transparent);
         overflow: visible;
         flex: 0 0 auto;
     }
@@ -223,9 +226,14 @@
         padding: 0;
         border-radius: 0;
         border: 0;
-        border-top: 4px solid color-mix(in srgb, var(--rule) 10%, #05070d 90%);
-        background: color-mix(in srgb, var(--paper) 52%, transparent);
+        background: transparent;
         overflow: hidden;
+    }
+
+    body.settings-home-open .settings-nav-group + .settings-nav-group {
+        margin-top: 2px;
+        padding-top: 2px;
+        border-top: 1px solid color-mix(in srgb, var(--rule) 7%, transparent);
     }
 
     body.settings-home-open .settings-nav-group-label {
@@ -233,20 +241,20 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item {
-        min-height: 50px;
-        padding: 0 14px;
+        min-height: 46px;
+        padding: 0 12px;
         border: 0;
         border-radius: 0;
         box-shadow: none;
         column-gap: 12px;
         font-size: 15px;
-        font-weight: 560;
+        font-weight: 540;
         color: color-mix(in srgb, var(--text) 86%, var(--sub-text) 14%);
         transition: background-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
     }
 
     body.settings-home-open .settings-nav-group .nav-item + .nav-item {
-        border-top: 1px solid color-mix(in srgb, var(--rule) 12%, transparent);
+        border-top: 0;
     }
 
     body.settings-home-open .settings-nav-group .nav-item .sun-icon {
@@ -257,7 +265,7 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item:hover {
-        background: color-mix(in srgb, var(--paper-alt) 76%, transparent);
+        background: color-mix(in srgb, var(--paper-alt) 68%, transparent);
     }
 
     body.settings-home-open .settings-nav-group .nav-item:active {
@@ -265,7 +273,7 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active {
-        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
         color: var(--text);
     }
 
@@ -274,17 +282,17 @@
     }
 
     body.settings-home-open .settings-logout-form {
-        margin: 0;
+        margin: 2px 0 0;
         padding: 0;
-        border-top: 0;
+        border-top: 1px solid color-mix(in srgb, var(--rule) 8%, transparent);
     }
 
     body.settings-home-open .settings-logout-form .nav-item {
-        min-height: 50px;
+        min-height: 46px;
         border-radius: 0;
         border: 0;
         box-shadow: none;
-        padding: 0 14px;
+        padding: 0 12px;
     }
 
     body.settings-home-open .settings-logout-form .nav-item:hover {
