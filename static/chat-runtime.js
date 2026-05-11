@@ -188,6 +188,7 @@ import {
     createProfileContactRequestSender,
     createProfileActionHandler,
 } from './modules/chat-profile-action-handlers.js';
+import { createChatProfileFetcher } from './modules/chat-profile-fetcher.js';
 import { createChatLazyUiRuntime } from './modules/chat-lazy-ui-runtime.js';
 import { createChatTabTitleRuntime } from './modules/chat-tab-title-runtime.js';
 import { createChatComposerAttachmentsRuntime } from './modules/chat-composer-attachments-runtime.js';
@@ -1929,6 +1930,16 @@ export const initChatPage = async () => {
         showToast,
         loadDialogRequests,
     });
+    const fetchUserProfile = createChatProfileFetcher({
+        fetchImpl: fetch,
+        resolveAppUrl: withAppRoot,
+        getCurrentChatId: () => currentChatId,
+        getCurrentContactPublicKey,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
+        resolveContactItemByChatId,
+        chatTitleEl: chatTitle,
+        savedMessagesUi,
+    });
 
     function clearLocalChatDataAfterDeletion(chatId) {
         const normalizedChatId = String(chatId || '').trim();
@@ -2004,60 +2015,7 @@ export const initChatPage = async () => {
                 contactId: currentContactId,
             });
         },
-        fetchUserProfile: async (partnerId) => {
-            const normalizedPartnerId = String(partnerId || '').trim();
-            const groupChatId = String(currentChatId || '').trim();
-            if (groupChatId && isCurrentChatGroup() && normalizedPartnerId === groupChatId) {
-                try {
-                    const groupResponse = await fetch(withAppRoot(`/api/chats/group/info?chat_id=${encodeURIComponent(groupChatId)}`));
-                    const groupPayload = await groupResponse.json().catch(() => ({}));
-                    if (groupResponse.ok && groupPayload?.success && groupPayload?._group_profile) {
-                        return groupPayload;
-                    }
-                } catch (_) {}
-                const contactItem = resolveContactItemByChatId(groupChatId);
-                return {
-                    success: true,
-                    _group_profile: true,
-                    chat_id: groupChatId,
-                    display_name: String(contactItem?.querySelector('.contact-name')?.textContent || chatTitle?.textContent || 'Group chat').trim(),
-                    description: '',
-                    username: '',
-                    public_key: '',
-                    avatar_url: String(contactItem?.querySelector('.contact-avatar img')?.getAttribute('src') || '').trim(),
-                    online: false,
-                    last_seen: null,
-                    created_at: null,
-                    stats: { photos: 0, files: 0, links: 0 },
-                    members_count: 0,
-                    members: [],
-                    my_role: 'member',
-                    can_edit_group: false,
-                    can_manage_admins: false,
-                    group_permissions: {
-                        members_can_send_messages: true,
-                        members_can_send_media: true,
-                        members_can_add_members: false,
-                        members_can_pin_messages: false,
-                        members_can_change_info: false,
-                        slow_mode_seconds: 0,
-                    },
-                };
-            }
-            if (savedMessagesUi?.isSavedContactId?.(partnerId)) {
-                return savedMessagesUi.buildSavedProfilePayload({
-                    contactId: partnerId,
-                    chatId: currentChatId,
-                    publicKey: getCurrentContactPublicKey() || '',
-                });
-            }
-            const response = await fetch(withAppRoot(`/get_user_profile?user_id=${encodeURIComponent(partnerId)}`));
-            const payload = await response.json();
-            if (payload && typeof payload === 'object') {
-                payload._group_profile = false;
-            }
-            return payload;
-        },
+        fetchUserProfile,
     });
 
     function isProfileDrawerOpen() {
