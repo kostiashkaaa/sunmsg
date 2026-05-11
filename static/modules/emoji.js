@@ -27,7 +27,9 @@ const MOBILE_EMOJI_MAX_HEIGHT = 520;
 const MOBILE_EMOJI_HEIGHT_RATIO = 0.56;
 const EMOJI_CLOSE_ANIMATION_MS = 190;
 const EMOJI_KEYBOARD_HANDOFF_MS = 720;
-const EMOJI_KEYBOARD_INSET_MIN = 80;
+// Keep in sync with keyboard viewport detection in mobile-viewport.js
+// so handoff ends as soon as the keyboard is actually visible.
+const EMOJI_KEYBOARD_INSET_MIN = 24;
 const CATEGORY_SCROLL_SYNC_OFFSET = 24;
 
 const EMOJI_INLINE_KEYWORDS = {
