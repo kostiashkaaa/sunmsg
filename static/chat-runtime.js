@@ -1710,8 +1710,10 @@ export const initChatPage = async () => {
         updateVoiceRecordButtonState();
     }
 
-    window._activateFocusTrap   = activateFocusTrap;
-    window._deactivateFocusTrap = deactivateFocusTrap;
+    exposeChatRuntimeLegacyGlobalsBridge({
+        activateFocusTrap,
+        deactivateFocusTrap,
+    });
 
     showChatContent(false);
     window.setTimeout(hideAppBootOverlay, APP_BOOT_OVERLAY_FALLBACK_DELAY_MS);
@@ -1897,7 +1899,7 @@ export const initChatPage = async () => {
         unpinButtonEl: document.getElementById('unpinBtn'),
         renderMessagePreviewHtml,
         applyEmojiGraphics,
-        onScrollToMessage: (msgId) => window._scrollToMsg?.(msgId),
+        onScrollToMessage: (msgId) => _focusMessageById(msgId),
         onUnpin: (msgId) => {
             if (isChatBlocked()) return;
             if (!currentChatId) return;
@@ -1913,7 +1915,7 @@ export const initChatPage = async () => {
         applyEmojiGraphics,
         singularLabel: '\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435',
         pluralLabelTemplate: '\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F {current}/{total}',
-        onScrollToMessage: (msgId) => window._scrollToMsg?.(msgId),
+        onScrollToMessage: (msgId) => _focusMessageById(msgId),
         onUnpin: (msgId) => {
             if (isChatBlocked()) return;
             if (!currentChatId) return;
@@ -2259,7 +2261,7 @@ export const initChatPage = async () => {
         closePartnerProfileDrawer,
         loadOlderMessages,
         openLightbox: (proxyEl) => window._openLightbox?.(proxyEl),
-        scrollToMessage: (msgId) => window._scrollToMsg?.(msgId),
+        scrollToMessage: (msgId) => _focusMessageById(msgId),
         reportVoiceListened: (msgId) => {
             const chatId = String(currentChatId || '').trim();
             const normalizedMessageId = Number(msgId);
@@ -3267,9 +3269,9 @@ export const initChatPage = async () => {
         return messageFocusRuntime?.focusMessageById(msgId, options) || Promise.resolve(false);
     }
 
-    window._scrollToMsg = function(msgId, options = {}) {
-        return _focusMessageById(msgId, options);
-    };
+    exposeChatRuntimeLegacyGlobalsBridge({
+        scrollToMessage: _focusMessageById,
+    });
 
     // --- Caption modal ---------------------------------------------------
     const captionModalController = initCaptionModal({
@@ -3281,8 +3283,8 @@ export const initChatPage = async () => {
         closeButtonEl: document.getElementById('captionModalClose'),
         titleEl: document.getElementById('captionModalTitle'),
         hintEl: document.getElementById('captionModalHint'),
-        activateFocusTrap: window._activateFocusTrap,
-        deactivateFocusTrap: window._deactivateFocusTrap,
+        activateFocusTrap,
+        deactivateFocusTrap,
         onSubmit: (file, caption, submitOptions = {}) => sendFileMessage(file, caption, submitOptions),
         onError: (error) => showToast(error.message, 'danger'),
     });
