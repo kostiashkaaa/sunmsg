@@ -210,6 +210,20 @@ export function initPrivacySection({
         statusEl.textContent = online ? tr('в сети') : formatPresenceLastSeen(lastSeenRaw);
     }
 
+    function setSettingsNavProfileLocalPresence(online) {
+        if (!latestPresencePayload) return;
+        latestPresencePayload = {
+            ...latestPresencePayload,
+            online: Boolean(online),
+            last_seen: online ? latestPresencePayload.last_seen : new Date().toISOString(),
+        };
+        applySettingsNavProfileStatus(latestPresencePayload);
+    }
+
+    function syncSettingsNavPresenceFromVisibility() {
+        setSettingsNavProfileLocalPresence(document.visibilityState === 'visible');
+    }
+
     function getSendShortcutSelection() {
         if (sendShortcutCtrlEnterEl?.checked) return SEND_SHORTCUT_CTRL_ENTER;
         return SEND_SHORTCUT_ENTER;
@@ -765,6 +779,13 @@ export function initPrivacySection({
     window.addEventListener('sun-time-format-changed', () => {
         if (!latestPresencePayload) return;
         applySettingsNavProfileStatus(latestPresencePayload);
+    });
+    document.addEventListener('visibilitychange', syncSettingsNavPresenceFromVisibility);
+    window.addEventListener('pagehide', () => setSettingsNavProfileLocalPresence(false));
+    window.addEventListener('focus', () => {
+        if (document.visibilityState === 'visible') {
+            setSettingsNavProfileLocalPresence(true);
+        }
     });
 
     languageSelectEl?.addEventListener('change', () => {
