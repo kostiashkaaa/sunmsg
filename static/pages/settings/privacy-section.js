@@ -221,7 +221,8 @@ export function initPrivacySection({
     }
 
     function syncSettingsNavPresenceFromVisibility() {
-        setSettingsNavProfileLocalPresence(document.visibilityState === 'visible');
+        const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+        setSettingsNavProfileLocalPresence(document.visibilityState === 'visible' && hasFocus);
     }
 
     function getSendShortcutSelection() {
@@ -782,6 +783,7 @@ export function initPrivacySection({
     });
     document.addEventListener('visibilitychange', syncSettingsNavPresenceFromVisibility);
     window.addEventListener('pagehide', () => setSettingsNavProfileLocalPresence(false));
+    window.addEventListener('blur', () => setSettingsNavProfileLocalPresence(false));
     window.addEventListener('focus', () => {
         if (document.visibilityState === 'visible') {
             setSettingsNavProfileLocalPresence(true);

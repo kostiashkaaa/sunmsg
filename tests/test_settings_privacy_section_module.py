@@ -97,6 +97,7 @@ Object.defineProperty(globalThis, 'document', {{
     getElementById: element,
     querySelector: () => null,
     createElement: () => new FakeElement(),
+    hasFocus: () => true,
     addEventListener(eventName, handler) {{
       documentListeners.set(eventName, handler);
     }},
@@ -190,6 +191,11 @@ document.visibilityState = 'visible';
 windowListeners.get('focus')();
 if (statusEl.textContent !== 'в сети') {{
   throw new Error(`Expected online after focus return, got ${{statusEl.textContent}}`);
+}}
+
+windowListeners.get('blur')();
+if (!statusEl.textContent.startsWith('был(а) в сети')) {{
+  throw new Error(`Expected last seen after window blur, got ${{statusEl.textContent}}`);
 }}
 """
     harness_path = tmp_path / 'settings-privacy-harness.mjs'
