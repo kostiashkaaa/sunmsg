@@ -233,7 +233,9 @@ export function renderEmojiGraphicHtml(emoji, options = {}) {
         const fallbackSource = candidates.find((source) => source !== primarySource && !failedEmojiSources.has(source));
         if (primarySource) {
             const fallbackAttr = fallbackSource ? ` data-emoji-fallback-src="${escapeHtml(fallbackSource)}"` : '';
-            return `<img class="${escapeHtml(className)}" src="${escapeHtml(primarySource)}" alt="${escapeHtml(alt)}" data-emoji-raw="${escapeHtml(normalized)}" decoding="async" draggable="false"${fallbackAttr}${titleAttr}>`;
+            const loading = String(options.loading || '').trim().toLowerCase();
+            const loadingAttr = loading === 'lazy' || loading === 'eager' ? ` loading="${loading}"` : '';
+            return `<img class="${escapeHtml(className)}" src="${escapeHtml(primarySource)}" alt="${escapeHtml(alt)}" data-emoji-raw="${escapeHtml(normalized)}" decoding="async" draggable="false"${fallbackAttr}${loadingAttr}${titleAttr}>`;
         }
     }
     const className = options.className || 'emoji-graphic';
