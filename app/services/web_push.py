@@ -187,6 +187,121 @@ _MENTION_PUSH_BODY = 'Вас упомянули в чате'
 _DEFAULT_PUSH_BODY = 'Новое сообщение'
 
 
+def _resolve_sender_identity_for_push(
+    conn,
+    *,
+    sender_user_id: int,
+    sender_display_name: str,
+    sender_username: str,
+) -> tuple[str, str]:
+    resolved_sender_display_name = str(sender_display_name or '').strip()
+    resolved_sender_username = str(sender_username or '').strip()
+    if resolved_sender_display_name and resolved_sender_username:
+        return resolved_sender_display_name, resolved_sender_username
+
+    sender_row = conn.execute(
+        'SELECT display_name, username FROM users WHERE id = ?',
+        (int(sender_user_id),),
+    ).fetchone()
+    if sender_row:
+        if not resolved_sender_display_name:
+            resolved_sender_display_name = str(sender_row['display_name'] or '').strip()
+        if not resolved_sender_username:
+            resolved_sender_username = str(sender_row['username'] or '').strip()
+    return resolved_sender_display_name, resolved_sender_username
+
+
+def _build_push_message_context(
+    *,
+    context: dict | None = None,
+) -> dict[str, str]:
+    push_context = context or {}
+    notification_type = str(push_context.get('notification_type') or '').strip().lower()
+    chat_display_name = str(push_context.get('chat_display_name') or '').strip()
+    message_type = str(push_context.get('message_type') or '').strip()
+    chat_id = str(push_context.get('chat_id') or '').strip()
+    sender_display_name = str(push_context.get('sender_display_name') or '').strip()
+    sender_username = str(push_context.get('sender_username') or '').strip()
+
+    title = sender_display_name or sender_username or 'SUN Messenger'
+    is_mention_notification = notification_type == 'mention'
+    if is_mention_notification and chat_display_name:
+        title = chat_display_name
+
+    if is_mention_notification:
+        body = f'{_MENTION_PUSH_BODY}: {chat_display_name}' if chat_display_name else _MENTION_PUSH_BODY
+        tag = f'mention:{chat_id}'
+        kind = 'mention'
+    else:
+        body = _PUSH_BODY_BY_TYPE.get(message_type, _DEFAULT_PUSH_BODY)
+        tag = f'chat:{chat_id}'
+        kind = 'message'
+    return {
+        'title': title,
+        'body': body,
+        'chat_id': chat_id,
+        'tag': tag,
+        'kind': kind,
+    }
+
+
+def _build_push_payload(message_context: dict[str, str]) -> str:
+    return json.dumps(
+        {
+            'title': message_context['title'],
+            'body': message_context['body'],
+            'url': '/chat',
+            'chat_id': message_context['chat_id'],
+            'tag': message_context['tag'],
+            'kind': message_context['kind'],
+        },
+        ensure_ascii=False,
+    )
+
+
+def _send_push_to_subscription(
+    *,
+    context: dict | None = None,
+) -> bool:
+    push_context = context or {}
+    webpush_func = push_context.get('webpush_func')
+    webpush_exception_cls = push_context.get('webpush_exception_cls')
+    subscription = push_context.get('subscription') or {}
+    payload = str(push_context.get('payload') or '')
+    cfg = push_context.get('cfg') or {}
+    conn = push_context.get('conn')
+
+    subscription_info = {
+        'endpoint': subscription['endpoint'],
+        'keys': {
+            'p256dh': subscription['p256dh'],
+            'auth': subscription['auth'],
+        },
+    }
+    try:
+        webpush_func(
+            subscription_info=subscription_info,
+            data=payload,
+            vapid_private_key=cfg['private_key'],
+            vapid_claims={'sub': cfg['subject']},
+            ttl=3_600,
+        )
+        _mark_push_send_success(conn, subscription_id=subscription['id'])
+        return True
+    except webpush_exception_cls as exc:
+        response = getattr(exc, 'response', None)
+        status_code = int(getattr(response, 'status_code', 0) or 0)
+        _mark_push_send_failure(
+            conn,
+            subscription_id=subscription['id'],
+            deactivate=status_code in {404, 410},
+        )
+        return False
+    except Exception:  # noqa: BLE001
+        _mark_push_send_failure(conn, subscription_id=subscription['id'], deactivate=False)
+        return False
+
+
 def send_chat_message_push(  # noqa: PLR0913 - explicit push-delivery contract
     *,
     receiver_user_id: int,
@@ -216,71 +331,37 @@ def send_chat_message_push(  # noqa: PLR0913 - explicit push-delivery contract
         if not subscriptions:
             return {'sent': 0, 'failed': 0}
 
-        resolved_sender_display_name = str(sender_display_name or '').strip()
-        resolved_sender_username = str(sender_username or '').strip()
-        if not resolved_sender_display_name or not resolved_sender_username:
-            sender_row = conn.execute(
-                'SELECT display_name, username FROM users WHERE id = ?',
-                (int(sender_user_id),),
-            ).fetchone()
-            if sender_row:
-                if not resolved_sender_display_name:
-                    resolved_sender_display_name = str(sender_row['display_name'] or '').strip()
-                if not resolved_sender_username:
-                    resolved_sender_username = str(sender_row['username'] or '').strip()
-
-        title = resolved_sender_display_name or resolved_sender_username or 'SUN Messenger'
-        is_mention_notification = str(notification_type or '').strip().lower() == 'mention'
-        mention_scope_name = str(chat_display_name or '').strip()
-        if is_mention_notification and mention_scope_name:
-            title = mention_scope_name
-        if is_mention_notification:
-            body = f'{_MENTION_PUSH_BODY}: {mention_scope_name}' if mention_scope_name else _MENTION_PUSH_BODY
-            tag = f'mention:{str(chat_id or "").strip()}'
-        else:
-            body = _PUSH_BODY_BY_TYPE.get(str(message_type or '').strip(), _DEFAULT_PUSH_BODY)
-            tag = f'chat:{str(chat_id or "").strip()}'
-        payload = json.dumps(
-            {
-                'title': title,
-                'body': body,
-                'url': '/chat',
-                'chat_id': str(chat_id or '').strip(),
-                'tag': tag,
-                'kind': 'mention' if is_mention_notification else 'message',
-            },
-            ensure_ascii=False,
+        resolved_sender_display_name, resolved_sender_username = _resolve_sender_identity_for_push(
+            conn,
+            sender_user_id=int(sender_user_id),
+            sender_display_name=sender_display_name,
+            sender_username=sender_username,
         )
+        message_context = _build_push_message_context(
+            context={
+                'notification_type': notification_type,
+                'chat_display_name': chat_display_name,
+                'message_type': message_type,
+                'chat_id': chat_id,
+                'sender_display_name': resolved_sender_display_name,
+                'sender_username': resolved_sender_username,
+            },
+        )
+        payload = _build_push_payload(message_context)
 
         for item in subscriptions:
-            subscription_info = {
-                'endpoint': item['endpoint'],
-                'keys': {
-                    'p256dh': item['p256dh'],
-                    'auth': item['auth'],
+            if _send_push_to_subscription(
+                context={
+                    'webpush_func': webpush,
+                    'webpush_exception_cls': WebPushException,
+                    'subscription': item,
+                    'payload': payload,
+                    'cfg': cfg,
+                    'conn': conn,
                 },
-            }
-            try:
-                webpush(
-                    subscription_info=subscription_info,
-                    data=payload,
-                    vapid_private_key=cfg['private_key'],
-                    vapid_claims={'sub': cfg['subject']},
-                    ttl=3_600,
-                )
-                _mark_push_send_success(conn, subscription_id=item['id'])
+            ):
                 sent += 1
-            except WebPushException as exc:
-                response = getattr(exc, 'response', None)
-                status_code = int(getattr(response, 'status_code', 0) or 0)
-                _mark_push_send_failure(
-                    conn,
-                    subscription_id=item['id'],
-                    deactivate=status_code in {404, 410},
-                )
-                failed += 1
-            except Exception:  # noqa: BLE001
-                _mark_push_send_failure(conn, subscription_id=item['id'], deactivate=False)
+            else:
                 failed += 1
 
         conn.commit()

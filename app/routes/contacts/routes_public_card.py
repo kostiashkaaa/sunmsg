@@ -37,6 +37,42 @@ def _resolve_ui_language() -> str:
     )
 
 
+def _redirect_public_user_card(*, target_username: str):
+    return redirect(url_for('contacts.public_user_card', username=target_username))
+
+
+def _handle_start_dialog_status(*, target_username: str, processed: dict):
+    status = processed.get('status')
+    if status == 'session_expired':
+        session.pop('user_id', None)
+        session.pop('public_key_pem', None)
+        flash('Session expired. Please sign in again.', 'warning')
+        return redirect(url_for('auth.index'))
+    if status == 'not_found':
+        abort(404)
+    if status == 'open_self':
+        return redirect(url_for('chat.chat_index'))
+    if status == 'blocked':
+        flash('Cannot start chat: this user is blocked.', 'danger')
+        return _redirect_public_user_card(target_username=target_username)
+    if status == 'open_existing':
+        return redirect(
+            url_for(
+                'chat.chat_index_by_contact_username',
+                contact_username=target_username,
+            )
+        )
+    if status == 'auto_decline':
+        flash('This user automatically declines requests.', 'warning')
+        return _redirect_public_user_card(target_username=target_username)
+    if status == 'request_sent':
+        event = processed.get('event')
+        if event:
+            _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
+        return None
+    return None
+
+
 @contacts_bp.route('/u/<username>', methods=['GET'])
 @limiter.limit("60 per minute")
 def public_user_card(username):
@@ -106,34 +142,14 @@ def start_dialog_from_public_card(username):
             build_block_state_func=build_block_state,
             send_dialog_request_workflow_func=send_dialog_request_workflow,
         )
-        if processed['status'] == 'session_expired':
-            session.pop('user_id', None)
-            session.pop('public_key_pem', None)
-            flash('Session expired. Please sign in again.', 'warning')
-            return redirect(url_for('auth.index'))
-        if processed['status'] == 'not_found':
-            abort(404)
-        if processed['status'] == 'open_self':
-            return redirect(url_for('chat.chat_index'))
-        if processed['status'] == 'blocked':
-            flash('Cannot start chat: this user is blocked.', 'danger')
-            return redirect(url_for('contacts.public_user_card', username=target_username))
-        if processed['status'] == 'open_existing':
-            return redirect(
-                url_for(
-                    'chat.chat_index_by_contact_username',
-                    contact_username=target_username,
-                )
-            )
-        if processed['status'] == 'auto_decline':
-            flash('This user automatically declines requests.', 'warning')
-            return redirect(url_for('contacts.public_user_card', username=target_username))
-        if processed['status'] == 'request_sent':
-            event = processed.get('event')
-            if event:
-                _emit_socket_event('new_dialog_request', event['payload'], room=event['room'])
+        status_response = _handle_start_dialog_status(
+            target_username=target_username,
+            processed=processed,
+        )
+        if status_response is not None:
+            return status_response
     finally:
         conn.close()
 
     flash('Chat request sent.', 'success')
-    return redirect(url_for('contacts.public_user_card', username=target_username))
+    return _redirect_public_user_card(target_username=target_username)

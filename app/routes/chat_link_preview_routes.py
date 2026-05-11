@@ -124,72 +124,89 @@ def _to_positive_int(value) -> int | None:
     return number
 
 
+def _extract_png_dimensions(data: bytes, mime: str) -> tuple[int | None, int | None] | None:
+    if not (mime == 'image/png' or data.startswith(b'\x89PNG\r\n\x1a\n')):
+        return None
+    if len(data) < 24:
+        return None, None
+    width = int.from_bytes(data[16:20], 'big', signed=False)
+    height = int.from_bytes(data[20:24], 'big', signed=False)
+    return _to_positive_int(width), _to_positive_int(height)
+
+
+def _extract_gif_dimensions(data: bytes, mime: str) -> tuple[int | None, int | None] | None:
+    if not (mime == 'image/gif' or data.startswith((b'GIF87a', b'GIF89a'))):
+        return None
+    width = int.from_bytes(data[6:8], 'little', signed=False)
+    height = int.from_bytes(data[8:10], 'little', signed=False)
+    return _to_positive_int(width), _to_positive_int(height)
+
+
+def _extract_webp_dimensions(data: bytes, mime: str) -> tuple[int | None, int | None] | None:
+    if not (mime == 'image/webp' or (data.startswith(b'RIFF') and len(data) >= 16 and data[8:12] == b'WEBP')):
+        return None
+    if len(data) >= 30 and data[12:16] == b'VP8X':
+        width_minus_1 = int.from_bytes(data[24:27], 'little', signed=False)
+        height_minus_1 = int.from_bytes(data[27:30], 'little', signed=False)
+        return _to_positive_int(width_minus_1 + 1), _to_positive_int(height_minus_1 + 1)
+    if len(data) >= 25 and data[12:16] == b'VP8L':
+        bits = int.from_bytes(data[21:25], 'little', signed=False)
+        width = (bits & 0x3FFF) + 1
+        height = ((bits >> 14) & 0x3FFF) + 1
+        return _to_positive_int(width), _to_positive_int(height)
+    if len(data) >= 30 and data[12:16] == b'VP8 ':
+        width = int.from_bytes(data[26:28], 'little', signed=False) & 0x3FFF
+        height = int.from_bytes(data[28:30], 'little', signed=False) & 0x3FFF
+        return _to_positive_int(width), _to_positive_int(height)
+    return None, None
+
+
+def _extract_jpeg_dimensions(data: bytes, mime: str) -> tuple[int | None, int | None] | None:
+    if not (mime in {'image/jpeg', 'image/jpg'} or data.startswith(b'\xff\xd8')):
+        return None
+    idx = 2
+    data_len = len(data)
+    while idx + 8 < data_len:
+        if data[idx] != 0xFF:
+            idx += 1
+            continue
+        marker = data[idx + 1]
+        idx += 2
+        if marker in {0xD8, 0xD9}:
+            continue
+        if idx + 2 > data_len:
+            break
+        segment_len = int.from_bytes(data[idx:idx + 2], 'big', signed=False)
+        if segment_len < 2 or idx + segment_len > data_len:
+            break
+        if marker in {
+            0xC0, 0xC1, 0xC2, 0xC3,
+            0xC5, 0xC6, 0xC7,
+            0xC9, 0xCA, 0xCB,
+            0xCD, 0xCE, 0xCF,
+        } and segment_len >= 7:
+            height = int.from_bytes(data[idx + 3:idx + 5], 'big', signed=False)
+            width = int.from_bytes(data[idx + 5:idx + 7], 'big', signed=False)
+            return _to_positive_int(width), _to_positive_int(height)
+        idx += segment_len
+    return None, None
+
+
 def _extract_image_dimensions_from_bytes(image_bytes: bytes, mime_type: str) -> tuple[int | None, int | None]:
     data = bytes(image_bytes or b'')
     if len(data) < 10:
         return None, None
-
     mime = str(mime_type or '').strip().lower()
 
-    # PNG: IHDR stores width/height at bytes 16..24
-    if mime == 'image/png' or data.startswith(b'\x89PNG\r\n\x1a\n'):
-        if len(data) >= 24:
-            width = int.from_bytes(data[16:20], 'big', signed=False)
-            height = int.from_bytes(data[20:24], 'big', signed=False)
-            return _to_positive_int(width), _to_positive_int(height)
-        return None, None
-
-    # GIF: logical screen width/height at bytes 6..10 (little-endian)
-    if mime == 'image/gif' or data.startswith((b'GIF87a', b'GIF89a')):
-        width = int.from_bytes(data[6:8], 'little', signed=False)
-        height = int.from_bytes(data[8:10], 'little', signed=False)
-        return _to_positive_int(width), _to_positive_int(height)
-
-    # WEBP: dimensions depend on VP8*/VP8L/VP8X chunk
-    if mime == 'image/webp' or data.startswith(b'RIFF') and len(data) >= 16 and data[8:12] == b'WEBP':
-        if len(data) >= 30 and data[12:16] == b'VP8X':
-            width_minus_1 = int.from_bytes(data[24:27], 'little', signed=False)
-            height_minus_1 = int.from_bytes(data[27:30], 'little', signed=False)
-            return _to_positive_int(width_minus_1 + 1), _to_positive_int(height_minus_1 + 1)
-        if len(data) >= 25 and data[12:16] == b'VP8L':
-            bits = int.from_bytes(data[21:25], 'little', signed=False)
-            width = (bits & 0x3FFF) + 1
-            height = ((bits >> 14) & 0x3FFF) + 1
-            return _to_positive_int(width), _to_positive_int(height)
-        if len(data) >= 30 and data[12:16] == b'VP8 ':
-            # Frame header stores 14-bit width/height.
-            width = int.from_bytes(data[26:28], 'little', signed=False) & 0x3FFF
-            height = int.from_bytes(data[28:30], 'little', signed=False) & 0x3FFF
-            return _to_positive_int(width), _to_positive_int(height)
-
-    # JPEG: scan for SOF markers with frame dimensions.
-    if mime in {'image/jpeg', 'image/jpg'} or data.startswith(b'\xff\xd8'):
-        idx = 2
-        data_len = len(data)
-        while idx + 8 < data_len:
-            if data[idx] != 0xFF:
-                idx += 1
-                continue
-            marker = data[idx + 1]
-            idx += 2
-            if marker in {0xD8, 0xD9}:
-                continue
-            if idx + 2 > data_len:
-                break
-            segment_len = int.from_bytes(data[idx:idx + 2], 'big', signed=False)
-            if segment_len < 2 or idx + segment_len > data_len:
-                break
-            if marker in {
-                0xC0, 0xC1, 0xC2, 0xC3,
-                0xC5, 0xC6, 0xC7,
-                0xC9, 0xCA, 0xCB,
-                0xCD, 0xCE, 0xCF,
-            } and segment_len >= 7:
-                height = int.from_bytes(data[idx + 3:idx + 5], 'big', signed=False)
-                width = int.from_bytes(data[idx + 5:idx + 7], 'big', signed=False)
-                return _to_positive_int(width), _to_positive_int(height)
-            idx += segment_len
-
+    for extractor in (
+        _extract_png_dimensions,
+        _extract_gif_dimensions,
+        _extract_webp_dimensions,
+        _extract_jpeg_dimensions,
+    ):
+        extracted = extractor(data, mime)
+        if extracted is not None:
+            return extracted
     return None, None
 
 
@@ -678,7 +695,7 @@ def resolve_link_preview_payload(raw_url: str) -> tuple[dict, int]:
     return payload, 200
 
 
-def register_chat_link_preview_routes(chat_bp, *, limiter):
+def register_chat_link_preview_routes(chat_bp, *, limiter):  # noqa: C901
     @chat_bp.route('/link_preview', methods=['GET'])
     @limiter.limit('120 per minute')
     def get_link_preview():
