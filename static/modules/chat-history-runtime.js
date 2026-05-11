@@ -562,12 +562,14 @@ export function createChatHistoryRuntime(ctx = {}) {
                         await ctx.renderChatMessagesStable(chatId, {
                             scrollTop: storedTop,
                             animateReveal: shouldAnimateHistoryReveal(),
+                            suppressHydrationMask: restoredFromCache,
                         });
                         ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
                     } else {
                         await ctx.renderChatMessagesStable(chatId, {
                             scrollToBottom: true,
                             animateReveal: shouldAnimateHistoryReveal(),
+                            suppressHydrationMask: restoredFromCache,
                         });
                         ctx.setKeepChatPinnedToBottom(true);
                     }
