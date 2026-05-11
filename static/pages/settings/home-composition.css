@@ -221,7 +221,7 @@
         width: 100%;
         max-width: 256px;
         margin-top: 7px;
-        margin-left: auto;
+        margin-left: 0;
         margin-right: auto;
         padding-top: 0;
         border-top: 0;
