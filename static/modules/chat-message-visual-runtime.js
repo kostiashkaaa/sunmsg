@@ -36,6 +36,7 @@ export function createChatMessageVisualRuntime({
     saveChatScrollPosition,
     updateJumpToNewMessagesButton,
     requestAnimationFrameFn = requestAnimationFrame,
+    isCurrentChatGroup = () => false,
 } = {}) {
     function getCurrentUserContext() {
         const currentUsername = String(getCurrentUsername?.() || '').trim();
@@ -61,9 +62,11 @@ export function createChatMessageVisualRuntime({
         });
     }
 
-    function buildMessageReactionsHtml(msgId, rawReactions) {
+    function buildMessageReactionsHtml(msgId, rawReactions, opts = {}) {
+        const isGroupChat = Boolean(opts.isGroupChat ?? isCurrentChatGroup?.());
         return baseBuildMessageReactionsHtml(msgId, rawReactions, {
             currentUserPublicKey: getCurrentUserContext().currentUserPublicKey,
+            isGroupChat,
         });
     }
 

@@ -82,6 +82,44 @@ if (moduleApi.areMessageReactionsEqual(left, right, { currentUserPublicKey: 'pk-
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_build_message_reactions_hides_counts_for_private_chats():
+    harness_body = """
+const html = moduleApi.buildMessageReactionsHtml(42, [{
+  emoji: '\\u{1F44D}',
+  count: 2,
+  reactors: [
+    { public_key: 'pk-a', display_name: 'Alice' },
+    { public_key: 'pk-b', display_name: 'Bob' },
+  ],
+}], { currentUserPublicKey: 'pk-a', isGroupChat: false });
+
+if (html.includes('reaction-pill__count')) {
+  throw new Error('Private chat reactions should not render numeric counts');
+}
+"""
+    result = _run_reactions_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_build_message_reactions_shows_counts_for_group_chats():
+    harness_body = """
+const html = moduleApi.buildMessageReactionsHtml(42, [{
+  emoji: '\\u{1F44D}',
+  count: 3,
+  reactors: [
+    { public_key: 'pk-a', display_name: 'Alice' },
+    { public_key: 'pk-b', display_name: 'Bob' },
+  ],
+}], { currentUserPublicKey: 'pk-a', isGroupChat: true });
+
+if (!html.includes('reaction-pill__count') || !html.includes('>3</span>')) {
+  throw new Error('Group chat reactions should render numeric counts');
+}
+"""
+    result = _run_reactions_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_compute_optimistic_reactions_moves_current_user_reaction_between_emojis():
     harness_body = """
 const userContext = {

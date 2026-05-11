@@ -239,10 +239,11 @@ export function buildMessageReactionsHtml(msgId, rawReactions, opts = {}) {
     if (!Number.isFinite(numericMsgId) || numericMsgId <= 0) return '';
     const reactions = normalizeMessageReactions(rawReactions, opts);
     if (!reactions.length) return '';
+    const showCounts = Boolean(opts.showCounts ?? opts.showCount ?? opts.isGroupChat);
     const pillsHtml = reactions.map((reaction) => {
         const mineClass = reaction.reactedByMe ? ' is-mine' : '';
         const reactorsHtml = buildReactionReactorsHtml(reaction.reactors);
-        const countHtml = reaction.count > 1
+        const countHtml = showCounts && reaction.count > 1
             ? `<span class="reaction-pill__count">${escapeHtml(String(reaction.count))}</span>`
             : '';
         return `<button type="button" class="reaction-pill${mineClass}" data-msg-id="${numericMsgId}" data-emoji="${escapeHtml(reaction.emoji)}">

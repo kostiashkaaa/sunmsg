@@ -9,6 +9,7 @@ export function initThemeSection({
     persistClientPreferences,
 }) {
     const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
+    const MESSAGE_SCALE_MOBILE_QUERY = '(max-width: 768px)';
     const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const themePresetEls = Array.from(document.querySelectorAll('.theme-preview[data-theme-preset]'));
@@ -47,6 +48,41 @@ export function initThemeSection({
         const parsed = Number.parseFloat(value);
         if (!Number.isFinite(parsed)) return 1;
         return Math.min(1.3, Math.max(0.9, parsed));
+    }
+
+    function isMobileMessageScaleScope() {
+        if (typeof window.matchMedia === 'function') {
+            return Boolean(window.matchMedia(MESSAGE_SCALE_MOBILE_QUERY).matches);
+        }
+        return Number(window.innerWidth || 0) > 0 && Number(window.innerWidth) <= 768;
+    }
+
+    function getMessageScaleScope() {
+        return isMobileMessageScaleScope() ? 'mobile' : 'desktop';
+    }
+
+    function getScopedMessageScaleStorageKey(scope = getMessageScaleScope()) {
+        return `${MESSAGE_SCALE_STORAGE_KEY}:${scope}`;
+    }
+
+    function readScopedMessageScale() {
+        try {
+            const scope = getMessageScaleScope();
+            const scopedValue = localStorage.getItem(getScopedMessageScaleStorageKey(scope));
+            if (scopedValue !== null) return scopedValue;
+            return scope === 'desktop' ? localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function persistScopedMessageScale(scale) {
+        const scope = getMessageScaleScope();
+        const value = clampMessageScale(scale).toFixed(2);
+        localStorage.setItem(getScopedMessageScaleStorageKey(scope), value);
+        if (scope === 'desktop') {
+            localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, value);
+        }
     }
 
     function normalizeSendShortcut(value) {
@@ -289,7 +325,7 @@ export function initThemeSection({
 
         function getStoredMessageScale() {
             try {
-                return clampMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || 1);
+                return clampMessageScale(readScopedMessageScale() || 1);
             } catch (_) {
                 return 1;
             }
@@ -314,7 +350,7 @@ export function initThemeSection({
             const normalizedScale = clampMessageScale(scale);
             if (persist) {
                 try {
-                    localStorage.setItem(MESSAGE_SCALE_STORAGE_KEY, normalizedScale.toFixed(2));
+                    persistScopedMessageScale(normalizedScale);
                 } catch (_) {}
                 scheduleClientPreferencesPersist();
             }
@@ -630,8 +666,28 @@ export function initThemeSection({
         renderPresetGroups();
         refreshControlValues();
         scheduleApplyNow();
+        const syncScaleForViewport = () => {
+            renderMessageScaleControls(getStoredMessageScale());
+        };
+        const scaleMediaQuery = typeof window.matchMedia === 'function'
+            ? window.matchMedia(MESSAGE_SCALE_MOBILE_QUERY)
+            : null;
+        if (scaleMediaQuery) {
+            if (typeof scaleMediaQuery.addEventListener === 'function') {
+                scaleMediaQuery.addEventListener('change', syncScaleForViewport);
+            } else if (typeof scaleMediaQuery.addListener === 'function') {
+                scaleMediaQuery.addListener(syncScaleForViewport);
+            }
+        } else {
+            window.addEventListener('resize', syncScaleForViewport);
+        }
         window.addEventListener('storage', (event) => {
-            if (String(event.key || '') !== MESSAGE_SCALE_STORAGE_KEY) return;
+            const scope = getMessageScaleScope();
+            const key = String(event.key || '');
+            if (key !== getScopedMessageScaleStorageKey(scope)
+                && !(scope === 'desktop' && key === MESSAGE_SCALE_STORAGE_KEY)) {
+                return;
+            }
             renderMessageScaleControls(event.newValue || 1);
         });
     })();
