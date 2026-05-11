@@ -93,10 +93,8 @@ import { initMessageSelection } from './modules/message-selection.js';
 import { initMessageContextMenu } from './modules/message-context-menu.js';
 import { initReactionPickerController } from './modules/reaction-picker.js';
 import { syncReactionPickerItems } from './modules/chat-reaction-picker-items.js';
-import { initReplyBar, initPinnedBar } from './modules/message-thread-banners.js';
-import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
-import { initChatDateNavigator } from './modules/chat-date-navigator.js';
+import { initChatThreadBarsRuntime } from './modules/chat-thread-bars-runtime.js';
 import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
 import { createChatComposerSendRuntime } from './modules/chat-composer-send-runtime.js';
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
@@ -1851,25 +1849,29 @@ export const initChatPage = async () => {
         resolveMessageElement: (msgId) => document.querySelector(`.message[data-msg-id="${msgId}"]`),
         onSelectEmoji: (msgId, emoji) => emitReactionToggle(msgId, emoji),
     });
-    const replyBarController = initReplyBar({
-        barEl: document.getElementById('replyBar'),
-        textEl: document.getElementById('replyBarText'),
-        labelEl: document.getElementById('replyBarLabel'),
-        inputEl: messageInput,
-        inputAreaEl: chatInputArea,
-        formEl: messageForm,
+    const {
+        replyBarController,
+        linkDraftBarController,
+        pinnedBarController,
+        favoriteBarController,
+        dateNavigatorController,
+    } = initChatThreadBarsRuntime({
+        documentRef: document,
+        chatMessages,
+        messageInput,
+        chatInputArea,
+        messageForm,
         renderMessagePreviewHtml,
         applyEmojiGraphics,
-    });
-    const linkDraftBarController = initLinkDraftBar({
-        barEl: document.getElementById('linkDraftBar'),
-        textEl: document.getElementById('linkDraftText'),
-        labelEl: document.getElementById('linkDraftLabel'),
-        closeBtnEl: document.getElementById('cancelLinkDraftBtn'),
-        inputEl: messageInput,
-        formEl: messageForm,
         resizeComposerInput,
         scheduleComposerFocus,
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        getMessageDayKey,
+        loadOlderMessages,
+        focusMessageById: (messageId, options = {}) => _focusMessageById(messageId, options),
+        isChatBlocked,
+        emitSocket,
     });
 
     draftsController = createChatDraftsController({
@@ -1889,44 +1891,6 @@ export const initChatPage = async () => {
         getPrivateKeyPem,
         isEncryptedPayload,
         decryptForDisplay,
-    });
-    const pinnedBarController = initPinnedBar({
-        barEl: document.getElementById('pinnedBar'),
-        labelEl: document.querySelector('#pinnedBar .pinned-bar__label'),
-        textEl: document.getElementById('pinnedBarText'),
-        unpinButtonEl: document.getElementById('unpinBtn'),
-        renderMessagePreviewHtml,
-        applyEmojiGraphics,
-        onScrollToMessage: (msgId) => _focusMessageById(msgId),
-        onUnpin: (msgId) => {
-            if (isChatBlocked()) return;
-            if (!currentChatId) return;
-            emitSocket('unpin_message', { chat_id: currentChatId, message_id: Number(msgId) });
-        },
-    });
-    const favoriteBarController = initPinnedBar({
-        barEl: document.getElementById('favoriteBar'),
-        labelEl: document.querySelector('#favoriteBar .pinned-bar__label'),
-        textEl: document.getElementById('favoriteBarText'),
-        unpinButtonEl: document.getElementById('unfavoriteBtn'),
-        renderMessagePreviewHtml,
-        applyEmojiGraphics,
-        singularLabel: '\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435',
-        pluralLabelTemplate: '\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F {current}/{total}',
-        onScrollToMessage: (msgId) => _focusMessageById(msgId),
-        onUnpin: (msgId) => {
-            if (isChatBlocked()) return;
-            if (!currentChatId) return;
-            emitSocket('unfavorite_message', { chat_id: currentChatId, message_id: Number(msgId) });
-        },
-    });
-    const dateNavigatorController = initChatDateNavigator({
-        chatMessagesEl: chatMessages,
-        getCurrentChatId: () => currentChatId,
-        getChatState,
-        getMessageDayKey,
-        loadOlderMessages,
-        scrollToMessage: (messageId, options = {}) => _focusMessageById(messageId, options),
     });
     savedMessagesUi = createSavedMessagesUiController({
         currentUserId: CURRENT_USER_ID,
