@@ -846,13 +846,16 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     let isVoiceAudioPayload = false;
     let audioDurationSeconds = 0;
     let audioListenedByPartner = false;
-    const placeReactionsOutsideBubble = true;
+    let isVisualMediaPayload = false;
+    let hasVisualMediaCaption = false;
     if (filePayload) {
         const result = buildFileBubble(filePayload);
         bubbleClass  = result.bubbleClass;
         bubbleContent = result.content;
         isAudioPayload = Boolean(filePayload.mime?.startsWith('audio/'));
         isVoiceAudioPayload = Boolean(result.isVoiceAudio);
+        isVisualMediaPayload = Boolean(result.isMedia);
+        hasVisualMediaCaption = Boolean(result.hasCaption);
         if (isAudioPayload) {
             const rawDuration = Number(filePayload.duration_seconds);
             audioDurationSeconds = Number.isFinite(rawDuration) && rawDuration > 0
@@ -873,10 +876,12 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     const audioDurationHtml = (isAudioPayload && isVoiceAudioPayload)
         ? `<span class="audio-message-duration-wrap" data-audio-listened-wrap="1"><span class="audio-message-duration" data-audio-duration="${audioDurationSeconds > 0 ? String(audioDurationSeconds) : ''}">${formatMediaDuration(audioDurationSeconds)}</span><span class="audio-message-listen-dot" aria-hidden="true"></span></span>`
         : '';
+    const placeReactionsOutsideBubble = Boolean(isVisualMediaPayload && !hasVisualMediaCaption);
     const reactionsHtml = typeof buildMessageReactionsHtml === 'function'
         ? buildMessageReactionsHtml(msg.id, msg.reactions)
         : '';
-    const reactionsOutsideHtml = reactionsHtml;
+    const reactionsInsideHtml = placeReactionsOutsideBubble ? '' : reactionsHtml;
+    const reactionsOutsideHtml = placeReactionsOutsideBubble ? reactionsHtml : '';
     const metaHtml = `<div class="msg-meta message-meta">
                     ${audioDurationHtml}
                     ${favoriteLabel}
@@ -895,6 +900,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                     ${bubbleContent}
                 </div>
                 <div class="message-footer">
+                    ${reactionsInsideHtml}
                     ${metaHtml}
                 </div>
             `
@@ -904,11 +910,13 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                 ${replyHtml}
                 ${bubbleContent}
                 <div class="message-footer">
+                    ${reactionsInsideHtml}
                     ${metaHtml}
                 </div>
             `;
 
     messageDiv.classList.toggle('message-reactions-outside', placeReactionsOutsideBubble);
+    messageDiv.classList.toggle('message-reactions-inside', !placeReactionsOutsideBubble);
     messageDiv.classList.toggle('message-pinned', isPinned);
     messageDiv.classList.toggle('message-favorite', isFavorite);
     messageDiv.classList.toggle('message-group-other', showSenderLabel);

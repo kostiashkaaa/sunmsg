@@ -4474,20 +4474,28 @@ const initChatPage = async () => {
             return {
                 isMediaBubble: false,
                 isAudioBubble: false,
-                useOutsidePlacement: true,
+                isVisualMediaBubble: false,
+                hasVisualCaption: false,
+                useOutsidePlacement: false,
             };
         }
 
         const isImageBubble = bubble.classList.contains('bubble--image');
         const isVideoBubble = bubble.classList.contains('bubble--video');
         const isAudioBubble = bubble.classList.contains('bubble--audio');
-        const useOutsidePlacement = true;
+        const isVisualMediaBubble = isImageBubble || isVideoBubble;
+        const hasVisualCaption = bubble.classList.contains('bubble--image-has-caption')
+            || bubble.classList.contains('bubble--video-has-caption');
+        const useOutsidePlacement = Boolean(isVisualMediaBubble && !hasVisualCaption);
 
         messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
+        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacement);
 
         return {
             isMediaBubble: isImageBubble || isVideoBubble || isAudioBubble,
             isAudioBubble,
+            isVisualMediaBubble,
+            hasVisualCaption,
             useOutsidePlacement,
         };
     }
@@ -4499,7 +4507,7 @@ const initChatPage = async () => {
         const bubble = messageEl.querySelector('.bubble');
         if (!bubble) return;
 
-        const { isMediaBubble, isAudioBubble } = resolveMessageReactionLayoutState(messageEl, bubble);
+        const { isMediaBubble, isAudioBubble, useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
         const directChildren = Array.from(bubble.children || []);
         const messageText = directChildren.find((child) => child.classList?.contains('message-text')) || null;
         const audioBody = directChildren.find((child) => child.classList?.contains('audio-message-body')) || null;
@@ -4533,19 +4541,22 @@ const initChatPage = async () => {
             row.remove();
         });
         if (keptReactionRow) {
-            if (keptReactionRow.parentElement !== stack) {
-                stack.append(keptReactionRow);
+            const targetReactionContainer = useOutsidePlacement ? stack : footer;
+            if (keptReactionRow.parentElement !== targetReactionContainer) {
+                targetReactionContainer.append(keptReactionRow);
             }
             keptReactionRow.classList.toggle('has-items', keptReactionRow.querySelector('.reaction-pill') !== null);
         }
 
-        footer.classList.remove('has-reactions');
+        const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
+        footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacement && hasReactionItems));
         bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
-        bubble.classList.remove('bubble--text-has-reactions');
+        bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacement && hasReactionItems && messageText));
         bubble.classList.remove('bubble--text-meta-edited');
         bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
         bubble.classList.toggle('bubble--has-footer', Boolean(meta));
-        messageEl.classList.add('message-reactions-outside');
+        messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
+        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacement);
     }
 
     function patchPinnedMessageState(messageEl, isPinned) {

@@ -2560,7 +2560,7 @@ button > i[class*=" bi-"],
 }
 
 .reaction-picker__item:hover {
-    transform: translateY(-1px) scale(1.015);
+    transform: none;
 }
 
 .reaction-pill:active,
