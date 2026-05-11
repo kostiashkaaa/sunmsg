@@ -112,20 +112,27 @@ function patchSocketListeners(socket) {
 
     const queueGapSync = (chatId, fromPts, targetPts) => {
         if (typeof gapSyncHandler !== 'function') {
-            return Promise.resolve();
+            return Promise.resolve(true);
         }
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) {
-            return Promise.resolve();
+            return Promise.resolve(true);
         }
         const prevTask = ptsSyncQueueByChatId.get(normalizedChatId) || Promise.resolve();
         const nextTask = Promise.resolve(prevTask)
-            .catch(() => {})
-            .then(() => gapSyncHandler({
-                chatId: normalizedChatId,
-                fromPts,
-                targetPts,
-            }));
+            .catch(() => true)
+            .then(async () => {
+                try {
+                    const result = await gapSyncHandler({
+                        chatId: normalizedChatId,
+                        fromPts,
+                        targetPts,
+                    });
+                    return result !== false;
+                } catch (_err) {
+                    return false;
+                }
+            });
 
         ptsSyncQueueByChatId.set(normalizedChatId, nextTask);
         if (ptsSyncQueueByChatId.size > SOCKET_PTS_SYNC_QUEUE_LIMIT) {
@@ -185,9 +192,10 @@ function patchSocketListeners(socket) {
                         return;
                     }
                     if (!isReplayEvent && knownPts && incomingPts > (knownPts + 1)) {
-                        try {
-                            await queueGapSync(envelopeChatId, knownPts, incomingPts - 1);
-                        } catch (_err) {}
+                        const gapRecovered = await queueGapSync(envelopeChatId, knownPts, incomingPts - 1);
+                        if (!gapRecovered) {
+                            return;
+                        }
                     }
 
                     if (eventId && seenEventIds.has(eventId)) {
@@ -300,7 +308,10 @@ export function createChatSocketClient(socketClientConfig = {}) {
 export function createSocketEmitter(socket) {
     return function emitSocket(eventName, payload = {}, { requireConnected = false } = {}) {
         if (!socket) return false;
-        if (requireConnected && !socket.connected) return false;
+        if (requireConnected) {
+            const hasNetwork = (typeof navigator === 'undefined') ? true : navigator.onLine !== false;
+            if (!socket.connected || !hasNetwork) return false;
+        }
 
         let data = payload;
         if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
