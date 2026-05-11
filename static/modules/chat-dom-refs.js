@@ -41,6 +41,8 @@ export function resolveChatDomRefs(documentRef = document) {
         messageForm: byId('messageForm'),
         messageInput: byId('messageInput'),
         sendMessageBtn: byId('sendMessageBtn'),
+        fileAttachInput: byId('fileAttachInput'),
+        attachBtn: byId('attachBtn'),
         voiceRecordBtn: byId('voiceRecordBtn'),
         voiceRecordTimer: byId('voiceRecordTimer'),
         voiceRecordComposer: byId('voiceRecordComposer'),
@@ -199,5 +201,7 @@ export function resolveChatDomRefs(documentRef = document) {
         reportContentStatus: byId('reportContentStatus'),
         reportSubmitBtn: byId('reportSubmitBtn'),
         reportCancelBtn: byId('reportCancelBtn'),
+        lightbox: byId('lightbox'),
+        resolveMessageElement: (msgId) => documentRef.querySelector(`.message[data-msg-id="${msgId}"]`),
     };
 }
