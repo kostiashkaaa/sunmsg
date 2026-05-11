@@ -45,3 +45,6 @@ tests/.manual_artifacts/
 tests/.visual_artifacts/
 
 _legacy_archive/
+
+.claude/
+output/
