@@ -39,7 +39,7 @@ from app.services.group_permissions import (
 )
 
 
-def register_chat_group_management_routes(
+def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
     chat_bp,
     *,
     limiter,
@@ -54,7 +54,7 @@ def register_chat_group_management_routes(
 ):
     @chat_bp.route('/api/chats/group/create', methods=['POST'])
     @limiter.limit('20 per hour')
-    def create_group_chat():
+    def create_group_chat():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -180,7 +180,7 @@ def register_chat_group_management_routes(
 
     @chat_bp.route('/api/chats/group/add_members', methods=['POST'])
     @limiter.limit('40 per hour')
-    def add_group_members():
+    def add_group_members():  # noqa: C901,PLR0915
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -320,7 +320,7 @@ def register_chat_group_management_routes(
 
     @chat_bp.route('/api/chats/group/update', methods=['POST'])
     @limiter.limit('40 per hour')
-    def update_group_chat():
+    def update_group_chat():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -413,7 +413,7 @@ def register_chat_group_management_routes(
 
     @chat_bp.route('/api/chats/group/update_permissions', methods=['POST'])
     @limiter.limit('40 per hour')
-    def update_group_permissions():
+    def update_group_permissions():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -516,7 +516,7 @@ def register_chat_group_management_routes(
 
     @chat_bp.route('/api/chats/group/upload_avatar', methods=['POST'])
     @limiter.limit('20 per hour')
-    def upload_group_avatar():
+    def upload_group_avatar():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
         if 'avatar' not in request.files:

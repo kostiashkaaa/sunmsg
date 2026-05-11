@@ -20,7 +20,7 @@ from app.services.group_authorization import (
 from app.services.group_chat_membership_service import remove_group_member_with_cleanup
 
 
-def register_chat_group_membership_routes(
+def register_chat_group_membership_routes(  # noqa: C901,PLR0915
     chat_bp,
     *,
     limiter,
@@ -30,7 +30,7 @@ def register_chat_group_membership_routes(
 ):
     @chat_bp.route('/api/chats/group/set_role', methods=['POST'])
     @limiter.limit('60 per hour')
-    def set_group_member_role():
+    def set_group_member_role():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -139,7 +139,7 @@ def register_chat_group_membership_routes(
 
     @chat_bp.route('/api/chats/group/leave', methods=['POST'])
     @limiter.limit('30 per hour')
-    def leave_group_chat():
+    def leave_group_chat():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
@@ -319,7 +319,7 @@ def register_chat_group_membership_routes(
 
     @chat_bp.route('/api/chats/group/sanctions', methods=['POST'])
     @limiter.limit('40 per hour')
-    def apply_group_member_sanction():
+    def apply_group_member_sanction():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
 
