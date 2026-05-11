@@ -10961,7 +10961,15 @@
 
 .message.message-emoji-only .bubble.bubble--text > .message-footer > .msg-meta,
 .message.message-emoji-only .bubble.bubble--text > .message-footer > .message-meta {
+    color: color-mix(in srgb, var(--sub-text) 86%, var(--text) 14%);
     min-height: 0;
+}
+
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .msg-meta .msg-tick.sent,
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .msg-meta .msg-tick.delivered,
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .message-meta .msg-tick.sent,
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .message-meta .msg-tick.delivered {
+    color: currentColor;
 }
 
 #messageForm {
