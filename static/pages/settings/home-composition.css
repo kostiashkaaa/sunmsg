@@ -25,7 +25,7 @@
 
     .settings-panel-head {
         min-height: 58px;
-        padding: 10px 14px 10px 12px;
+        padding: 10px 16px 10px 12px;
         gap: 8px;
         border-bottom-color: color-mix(in srgb, var(--rule) 26%, transparent);
         background: color-mix(in srgb, var(--surface) 88%, var(--chat-bg) 12%);
@@ -56,7 +56,8 @@
     }
 
     .settings-panel-tools {
-        gap: 3px;
+        gap: 4px;
+        margin-right: 1px;
     }
 
     .settings-panel-esc {
@@ -69,24 +70,63 @@
     }
 
     body.settings-detail-open .settings-content {
-        width: min(438px, 100%);
+        width: min(430px, 100%);
         margin: 0 auto;
-        padding: 12px 0 22px;
+        padding: 10px 10px 16px;
         border-left: 0;
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, transparent 6%) 0%, color-mix(in srgb, var(--chat-bg) 90%, var(--surface) 10%) 100%);
     }
 
     body.settings-detail-open .settings-card {
-        margin-bottom: 10px;
-        border-radius: 14px;
-        padding: 14px 16px;
+        margin-bottom: 8px;
+        border-radius: 12px;
+        padding: 12px 13px;
+        border: 1px solid color-mix(in srgb, var(--rule) 18%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, transparent 5%) 0%, color-mix(in srgb, var(--paper-alt) 84%, var(--surface) 16%) 100%);
+        box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 44%, transparent);
     }
 
     body.settings-detail-open .settings-card-header {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     body.settings-detail-open .settings-row {
-        padding: 10px 0;
+        padding: 8px 0;
+        gap: 12px;
+        border-bottom: 0;
+    }
+
+    body.settings-detail-open .settings-card .settings-row + .settings-row {
+        border-top: 1px solid color-mix(in srgb, var(--rule) 9%, transparent);
+    }
+
+    body.settings-detail-open .settings-row-label {
+        font-size: 14px;
+        font-weight: 540;
+    }
+
+    body.settings-detail-open .settings-row-desc {
+        margin-top: 1px;
+        font-size: 12px;
+        color: color-mix(in srgb, var(--sub-text) 88%, transparent);
+    }
+
+    body.settings-detail-open .settings-row .settings-select-control {
+        min-height: 36px;
+        border-radius: 10px;
+        padding: 6px 34px 6px 11px;
+    }
+
+    body.settings-detail-open .btn-settings {
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+
+    body.settings-detail-open .settings-action-cluster {
+        gap: 6px;
     }
 
     body.settings-home-open .settings-nav {
@@ -179,18 +219,22 @@
 
     body.settings-home-open .settings-nav-profile-rows {
         width: 100%;
+        max-width: 256px;
         margin-top: 7px;
+        margin-left: auto;
+        margin-right: auto;
         padding-top: 0;
         border-top: 0;
         gap: 0;
+        text-align: left;
     }
 
     body.settings-home-open .settings-nav-profile-row {
-        grid-template-columns: 20px minmax(0, 1fr);
-        align-items: center;
+        grid-template-columns: 18px minmax(0, 1fr);
+        align-items: start;
         min-height: 40px;
         column-gap: 8px;
-        padding: 0 6px;
+        padding: 0 4px;
         border-radius: 0;
         background: transparent;
     }
@@ -200,10 +244,14 @@
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
-        width: 19px;
-        min-width: 19px;
-        height: 19px;
-        margin-top: 0;
+        width: 18px;
+        min-width: 18px;
+        height: 18px;
+        margin-top: 2px;
+    }
+
+    body.settings-home-open .settings-nav-profile-row-copy {
+        text-align: left;
     }
 
     body.settings-home-open .settings-nav-profile-row-value {
@@ -255,12 +303,12 @@
 
     body.settings-home-open .settings-nav-group .nav-item {
         min-height: 44px;
-        padding: 0 10px;
+        padding: 0 11px;
         border: 0;
-        border-radius: 10px;
+        border-radius: 8px;
         box-shadow: none;
         column-gap: 11px;
-        margin: 1px 2px;
+        margin: 0;
         font-size: 14px;
         font-weight: 540;
         color: color-mix(in srgb, var(--text) 88%, var(--sub-text) 12%);
@@ -305,14 +353,78 @@
 
     body.settings-home-open .settings-logout-form .nav-item {
         min-height: 44px;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 0;
         box-shadow: none;
-        padding: 0 10px;
-        margin: 1px 2px;
+        padding: 0 11px;
+        margin: 0;
     }
 
     body.settings-home-open .settings-logout-form .nav-item:hover {
         background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
+    }
+
+    body.settings-detail-open .settings-profile-section {
+        min-height: 0;
+    }
+
+    body.settings-detail-open #section-notifications .settings-row.settings-row-borderless {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        align-items: start;
+    }
+
+    body.settings-detail-open #section-notifications .settings-action-cluster {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    body.settings-detail-open #section-notifications .settings-action-cluster .btn-settings {
+        width: 100%;
+        min-height: 38px;
+    }
+
+    body.settings-detail-open #section-privacy .settings-row {
+        padding: 7px 0;
+    }
+
+    body.settings-detail-open #section-privacy .settings-row .settings-select-control {
+        min-width: 124px;
+    }
+
+    body.settings-detail-open #section-chat-style .theme-preview-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px 0 4px;
+    }
+
+    body.settings-detail-open #section-chat-style .theme-preview {
+        text-align: left;
+    }
+
+    body.settings-detail-open #section-chat-style .theme-preview-inner {
+        width: 100%;
+        height: 72px;
+        margin: 0 0 6px;
+    }
+
+    body.settings-detail-open #section-chat-style .theme-preview-label {
+        font-size: 11px;
+        line-height: 1.25;
+        color: color-mix(in srgb, var(--sub-text) 92%, transparent);
+    }
+
+    body.settings-detail-open #section-chat-style .interface-accent-controls {
+        justify-content: flex-start;
+        gap: 8px;
+        width: 100%;
+    }
+
+    body.settings-detail-open #section-chat-style .interface-accent-btn {
+        min-height: 36px;
+        padding: 0 10px;
+        font-size: 12px;
     }
 }
