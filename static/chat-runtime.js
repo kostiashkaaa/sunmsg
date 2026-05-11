@@ -80,6 +80,7 @@ import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
 import { createChatMessageStatusRuntime } from './modules/chat-message-status-runtime.js';
 import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
+import { bindChatRuntimeWindowEvents } from './modules/chat-runtime-window-events.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initDeleteMessagesModal } from './modules/chat-overlays.js';
@@ -4285,19 +4286,13 @@ export const initChatPage = async () => {
         toggleSelectionMode,
         refreshPrivateKeyDependentUi,
     });
-    window.addEventListener('sun-private-key-status-changed', () => {
-        refreshPrivateKeyDependentUi().catch((error) => {
-            console.warn('Private key UI refresh failed:', error);
-        });
-    });
-    window.addEventListener('sun-ui-language-changed', (event) => {
-        const hydrated = event?.detail?.hydrated;
-        refreshLocalizedRuntimeUi({ hydrated });
-        const shouldReloadContacts = hydrated === true || typeof hydrated === 'undefined';
-        if (shouldReloadContacts) {
-            loadContacts({ immediate: true }).catch(() => {});
-        }
-        syncChatConnectionStatus();
+    bindChatRuntimeWindowEvents({
+        windowRef: window,
+        consoleRef: console,
+        refreshPrivateKeyDependentUi,
+        refreshLocalizedRuntimeUi,
+        loadContacts,
+        syncChatConnectionStatus,
     });
 
     wireBeforeUnloadCleanup({
