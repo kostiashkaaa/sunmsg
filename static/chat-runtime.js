@@ -93,9 +93,7 @@ import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
 import { initChatCaptionModalRuntime } from './modules/chat-caption-modal-runtime.js';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
 import { initMessageSelection } from './modules/message-selection.js';
-import { initMessageContextMenu } from './modules/message-context-menu.js';
-import { initReactionPickerController } from './modules/reaction-picker.js';
-import { syncReactionPickerItems } from './modules/chat-reaction-picker-items.js';
+import { initChatMessageContextRuntime } from './modules/chat-message-context-runtime.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initChatThreadBarsRuntime } from './modules/chat-thread-bars-runtime.js';
 import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
@@ -855,8 +853,6 @@ export const initChatPage = async () => {
             e2eIndicator,
         });
     }
-    syncReactionPickerItems(reactionPicker);
-
     let openChatUnreadCount = 0;
     const chatScrollPositions = new Map();
     const chatStates = new Map();
@@ -1787,76 +1783,39 @@ export const initChatPage = async () => {
         showToast,
         getErrorMessage,
     });
-    let messageContextMenuController = null;
     let openDeleteModal = () => {};
-    messageContextMenuController = initMessageContextMenu({
-        menuEl: contextMenu,
-        replyItemEl: contextReplyItem,
-        pinItemEl: contextPinItem,
-        favoriteItemEl: contextFavoriteItem,
-        copyItemEl: contextCopyItem,
-        forwardItemEl: contextForwardItem,
-        editItemEl: contextEditItem,
-        selectItemEl: contextSelectItem,
-        reportItemEl: contextReportItem,
-        deleteItemEl: contextDeleteItem,
+    const {
+        messageContextMenuController,
+        reactionPickerController,
+    } = initChatMessageContextRuntime({
+        documentRef: document,
+        reactionPicker,
+        contextMenu,
+        contextReplyItem,
+        contextPinItem,
+        contextFavoriteItem,
+        contextCopyItem,
+        contextForwardItem,
+        contextEditItem,
+        contextSelectItem,
+        contextReportItem,
+        contextDeleteItem,
         isChatBlocked,
-        resolveMessageElement: (msgId) => document.querySelector(`.message[data-msg-id="${msgId}"]`),
+        getCurrentChatId: () => currentChatId,
         getPartnerDisplayName: () => window.currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
         copyTextToClipboard,
         showToast,
-        onReply: (msgId, text, sender) => startReply(msgId, text, sender),
-        onEdit: (msgId, text) => startEditMessage(msgId, text),
-        onPin: (msgId) => {
-            if (isChatBlocked()) return;
-            if (!msgId || !currentChatId) return;
-            const normalizedMessageId = parseInt(String(msgId), 10);
-            if (!Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) return;
-            if (isPinnedMessage(currentChatId, normalizedMessageId)) {
-                emitSocket('unpin_message', { chat_id: currentChatId, message_id: normalizedMessageId });
-                return;
-            }
-            emitSocket('pin_message', { chat_id: currentChatId, message_id: normalizedMessageId });
-        },
-        onFavorite: (msgId) => {
-            if (isChatBlocked()) return;
-            if (!msgId || !currentChatId) return;
-            const normalizedMessageId = parseInt(String(msgId), 10);
-            if (!Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) return;
-            if (isFavoriteMessage(currentChatId, normalizedMessageId)) {
-                emitSocket('unfavorite_message', { chat_id: currentChatId, message_id: normalizedMessageId });
-                return;
-            }
-            emitSocket('favorite_message', { chat_id: currentChatId, message_id: normalizedMessageId });
-        },
-        onDelete: (msgId) => openDeleteModal(msgId),
-        onForward: (msgId) => {
-            openForwardModal([msgId]);
-        },
-        onSelect: (msgId, element) => {
-            toggleSelectionMode(true);
-            toggleMessageSelection(msgId, element);
-        },
-        onReport: (msgId, element) => {
-            const safeId = Number.parseInt(String(msgId || ''), 10);
-            const previewText = String(element?.getAttribute('data-message-content') || '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 120);
-            openReportModal({
-                targetType: 'message',
-                targetId: Number.isFinite(safeId) && safeId > 0 ? String(safeId) : String(msgId || ''),
-                messageId: Number.isFinite(safeId) && safeId > 0 ? safeId : null,
-                preview: previewText,
-            });
-        },
-    });
-    const reactionPickerController = initReactionPickerController({
-        pickerEl: reactionPicker,
-        contextMenuEl: contextMenu,
-        getCurrentContextMessageId: () => messageContextMenuController.getCurrentMessageId(),
-        resolveMessageElement: (msgId) => document.querySelector(`.message[data-msg-id="${msgId}"]`),
-        onSelectEmoji: (msgId, emoji) => emitReactionToggle(msgId, emoji),
+        startReply: (msgId, text, sender) => startReply(msgId, text, sender),
+        startEditMessage: (msgId, text) => startEditMessage(msgId, text),
+        isPinnedMessage,
+        isFavoriteMessage,
+        emitSocket,
+        openDeleteModal: (msgId) => openDeleteModal(msgId),
+        openForwardModal: (messageIds) => openForwardModal(messageIds),
+        toggleSelectionMode,
+        toggleMessageSelection,
+        openReportModal,
+        emitReactionToggle,
     });
     const {
         replyBarController,
