@@ -2546,3 +2546,31 @@ button > i[class*=" bi-"],
     }
 }
 
+/* Telegram-like reaction motion: quick and lightweight, without heavy scaling. */
+.reaction-picker {
+    transform: translate3d(0, 4px, 0) scale(0.992);
+}
+
+.reaction-picker.is-closing {
+    transform: translate3d(0, 4px, 0) scale(0.992);
+}
+
+.reaction-picker.active {
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+.reaction-picker__item:hover {
+    transform: translateY(-1px) scale(1.015);
+}
+
+.reaction-pill:active,
+[data-reaction-pill]:active {
+    transform: scale(0.985);
+}
+
+.message-reactions.has-items > .reaction-pill,
+.reaction-pill.reaction-pill--pulse,
+.message-reactions.is-updated {
+    animation: none !important;
+}
+

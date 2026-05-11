@@ -13,6 +13,7 @@ const RECENT_STORAGE_KEY = 'sun_recent_reaction_emojis_v1';
 const MAX_RECENT = 40;
 const GRID_CHUNK_SIZE = 48;
 const GRID_SCROLL_PRELOAD_PX = 140;
+const POPUP_MOTION_TIMEOUT_MS = 120;
 
 function normalizeEmojiList(values, allowedSet) {
     const seen = new Set();
@@ -420,7 +421,7 @@ export function initReactionEmojiPopup({
         popupEl.classList.remove('active', 'is-opening');
         popupEl.classList.add('is-closing');
         popupEl.setAttribute('aria-hidden', 'true');
-        waitForMotionEnd(popupEl, 180).then(() => {
+        waitForMotionEnd(popupEl, POPUP_MOTION_TIMEOUT_MS).then(() => {
             if (closeSeq !== popupTransitionSeq || visible) return;
             popupEl.classList.remove('is-closing');
             popupEl.style.left = '-9999px';
@@ -478,6 +479,15 @@ export function initReactionEmojiPopup({
     function rememberEmoji(emoji) {
         rememberRecentEmoji(emoji, allowedSet);
         syncQuickList();
+    }
+
+    const prewarmBuckets = () => {
+        ensureCategoryBuckets().catch(() => {});
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(prewarmBuckets, { timeout: 1400 });
+    } else {
+        window.setTimeout(prewarmBuckets, 220);
     }
 
     syncQuickList();

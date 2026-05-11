@@ -11,6 +11,7 @@ export function initReactionPickerController({
     onSelectEmoji,
 } = {}) {
     const QUICK_REACTION_COUNT = 9;
+    const PICKER_MOTION_TIMEOUT_MS = 120;
     let activeMessageId = null;
     let activeAnchorEl = null;
     let pickerTransitionSeq = 0;
@@ -239,7 +240,7 @@ export function initReactionPickerController({
         clearActiveReactionRow();
         activeMessageId = null;
         activeAnchorEl = null;
-        waitForMotionEnd(pickerEl, 180).then(() => {
+        waitForMotionEnd(pickerEl, PICKER_MOTION_TIMEOUT_MS).then(() => {
             if (closeSeq !== pickerTransitionSeq) return;
             pickerEl.classList.remove('is-closing');
             pickerEl.style.left = '-9999px';
