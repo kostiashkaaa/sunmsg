@@ -95,10 +95,8 @@ import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
-import { sendFileMessageFlow } from './modules/chat-file-send.js';
 import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
-import { sendTextMessageFlow } from './modules/chat-text-send.js';
-import { handleComposerEditFlow } from './modules/chat-edit-flow.js';
+import { createChatComposerSendRuntime } from './modules/chat-composer-send-runtime.js';
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
 import { registerIncomingMessageSocketHandlers } from './modules/chat-incoming-message-events.js';
 import { registerRealtimeUiSocketHandlers } from './modules/chat-realtime-ui-events.js';
@@ -337,6 +335,7 @@ export const initChatPage = async () => {
     let messageStatusRuntime = null;
     let messageVisualRuntime = null;
     let composerPresenceRuntime = null;
+    let composerSendRuntime = null;
 
     // Forward (\u043F\u0435\u0440\u0435\u0441\u044B\u043B\u043A\u0430) \u2014 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0438\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 \u0432\u0441\u0435\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u0435\u0439.
     // var-\u0445\u043E\u0439\u0441\u0442: \u0434\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043E\u0431\u0451\u0440\u0442\u043A\u0438 \u0432\u0438\u0434\u044F\u0442 undefined \u0438 \u043D\u0435 \u043F\u0430\u0434\u0430\u044E\u0442.
@@ -3415,168 +3414,79 @@ export const initChatPage = async () => {
         messageMutationHandlers.failPendingMessage(clientId);
     }
 
-    const _pendingTimeouts = new Map();
+    composerSendRuntime = createChatComposerSendRuntime({
+        windowRef: window,
+        getCurrentChatId: () => currentChatId,
+        getCurrentBlockState: () => currentBlockState,
+        getCurrentUserPublicKey: () => currentUserPublicKey,
+        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
+        isChatBlocked,
+        getBlockedNoticeText: getChatBlockNoticeText,
+        showToast,
+        maxChatMediaSize: MAX_CHAT_MEDIA_SIZE,
+        getCsrfToken,
+        setSendingState,
+        getReplyState,
+        cancelReply,
+        emitSocket,
+        enqueueOutboxMessage,
+        appendMessage,
+        setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
+        updateContactLastMessageForChat,
+        prewarmMessageLinkPreview: scheduleMessageLinkPreviewPrewarm,
+        clearComposerInput: (sourceChatId) => {
+            if (String(currentChatId || '') === String(sourceChatId || '')) {
+                messageInput.value = '';
+                messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
+                linkDraftBarController?.syncFromInput?.({ force: true });
+            }
+            clearLocalDraftStateForChat(sourceChatId);
+            void flushDraftSaveForChat(sourceChatId, '', { force: true });
+            if (String(currentChatId || '') !== String(sourceChatId || '')) {
+                syncDraftPreviewForContact(sourceChatId, '', new Date().toISOString(), { showWhileActive: true });
+            }
+        },
+        resizeComposerInput,
+        restoreComposerFocus,
+        failPendingMessage,
+        getEditingFilePayload,
+        getEditingMessageId: () => isEditingMessageId,
+        applyEditedMessageLocally,
+        encryptForCurrentChat,
+        createEncryptForChatSnapshot: (snapshot) => chatEncryptionRuntime.createEncryptForChatSnapshot(snapshot),
+        cancelEdit,
+        getForwardComposerDraftForChat,
+        resolveForwardContactRows,
+        forwardMessagesToTargets,
+        clearForwardComposerDraft,
+        updatePendingFileUploadProgress,
+        commitPendingFileUpload,
+        setActiveComposerUpload,
+        updateActiveComposerUploadProgress,
+        clearActiveComposerUpload,
+        isRealtimeConnected: () => Boolean(socket.connected),
+    });
 
     function schedulePendingTimeout(clientId, ms = 20000) {
-        const tid = setTimeout(() => {
-            _pendingTimeouts.delete(clientId);
-            failPendingMessage(clientId);
-        }, ms);
-        _pendingTimeouts.set(clientId, tid);
+        return composerSendRuntime?.schedulePendingTimeout(clientId, ms);
     }
 
     function cancelPendingTimeout(clientId) {
-        const tid = _pendingTimeouts.get(clientId);
-        if (tid !== undefined) {
-            clearTimeout(tid);
-            _pendingTimeouts.delete(clientId);
-        }
+        return composerSendRuntime?.cancelPendingTimeout(clientId);
     }
 
     async function sendTextMessage(message) {
-        const sourceChatId = String(currentChatId || '').trim();
-        if (!sourceChatId) return;
-        const sourceChatIsGroup = isCurrentChatGroup();
-        const sourceContactPublicKey = String(window.currentContactPublicKey || '').trim();
-        const sourceUserPublicKey = String(currentUserPublicKey || '').trim();
-        const encryptForSourceChat = chatEncryptionRuntime.createEncryptForChatSnapshot({
-            chatId: sourceChatId,
-            isGroup: sourceChatIsGroup,
-            contactPublicKey: sourceContactPublicKey,
-            userPublicKey: sourceUserPublicKey,
-        });
-
-        return sendTextMessageFlow({
-            message,
-            isGroupChat: sourceChatIsGroup,
-            isChatBlocked,
-            getBlockedNoticeText: getChatBlockNoticeText,
-            currentBlockState,
-            showToast,
-            setSendingState,
-            encryptForCurrentChat: encryptForSourceChat,
-            getReplyState,
-            cancelReply,
-            emitSocket,
-            enqueueOutbox: enqueueOutboxMessage,
-            currentChatId: sourceChatId,
-            appendMessage,
-            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
-            updateActiveContactLastMessage: (text, isSelf, status, timestamp) => {
-                updateContactLastMessageForChat(sourceChatId, text, isSelf, status, timestamp);
-            },
-            schedulePendingTimeout,
-            failPendingMessage,
-            prewarmMessageLinkPreview: scheduleMessageLinkPreviewPrewarm,
-            clearComposerInput: () => {
-                if (String(currentChatId || '') === sourceChatId) {
-                    messageInput.value = '';
-                    messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
-                    linkDraftBarController?.syncFromInput?.({ force: true });
-                }
-                // Keep local draft state in sync after send, so stale realtime draft
-                // events cannot repopulate the composer with already-sent text.
-                clearLocalDraftStateForChat(sourceChatId);
-                void flushDraftSaveForChat(sourceChatId, '', { force: true });
-                if (String(currentChatId || '') !== sourceChatId) {
-                    syncDraftPreviewForContact(sourceChatId, '', new Date().toISOString(), { showWhileActive: true });
-                }
-            },
-            resizeComposerInput,
-            restoreComposerFocus,
-        });
+        return composerSendRuntime?.sendTextMessage(message);
     }
 
     async function sendFileMessage(file, caption = '', options = {}) {
-        const sourceChatId = String(currentChatId || '').trim();
-        if (!sourceChatId) return;
-        const sourceChatIsGroup = isCurrentChatGroup();
-        const sourceContactPublicKey = String(window.currentContactPublicKey || '').trim();
-        const sourceUserPublicKey = String(currentUserPublicKey || '').trim();
-        const encryptForSourceChat = chatEncryptionRuntime.createEncryptForChatSnapshot({
-            chatId: sourceChatId,
-            isGroup: sourceChatIsGroup,
-            contactPublicKey: sourceContactPublicKey,
-            userPublicKey: sourceUserPublicKey,
-        });
-
-        return sendFileMessageFlow({
-            file,
-            caption,
-            options,
-            isGroupChat: sourceChatIsGroup,
-            isChatBlocked,
-            getBlockedNoticeText: getChatBlockNoticeText,
-            currentBlockState,
-            showToast,
-            maxChatMediaSize: MAX_CHAT_MEDIA_SIZE,
-            currentChatId: sourceChatId,
-            getCsrfToken,
-            setSendingState,
-            getReplyState,
-            cancelReply,
-            encryptForCurrentChat: encryptForSourceChat,
-            isRealtimeConnected: () => Boolean(socket.connected),
-            emitSocket,
-            appendMessage,
-            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
-            updateActiveContactLastMessage: (text, isSelf, status, timestamp) => {
-                updateContactLastMessageForChat(sourceChatId, text, isSelf, status, timestamp);
-            },
-            schedulePendingTimeout,
-            updatePendingFileUploadProgress,
-            commitPendingFileUpload,
-            failPendingMessage,
-            setActiveComposerUpload,
-            updateActiveComposerUploadProgress,
-            clearActiveComposerUpload,
-            enqueueOutbox: enqueueOutboxMessage,
-        });
+        return composerSendRuntime?.sendFileMessage(file, caption, options);
     }
 
     async function handleComposerEncryptAndSend(rawContent) {
-        const activeChatId = String(currentChatId || '').trim();
-        const pendingForwardDraft = getForwardComposerDraftForChat(activeChatId);
-        const normalizedRaw = String(rawContent || '').replace(/\r\n/g, '\n');
-        if (!normalizedRaw.trim() && !getEditingFilePayload() && !pendingForwardDraft) return;
-        const content = normalizedRaw.trim() ? normalizedRaw : '';
-
-        const handledEdit = await handleComposerEditFlow({
-            content,
-            isEditingMessageId,
-            isEditingFilePayload: getEditingFilePayload(),
-            applyEditedMessageLocally,
-            encryptForCurrentChat,
-            emitSocket,
-            currentChatId,
-            cancelEdit,
-        });
-        if (handledEdit) {
-            return;
-        }
-
-        if (pendingForwardDraft) {
-            const targetRows = resolveForwardContactRows().filter((row) => row.chatId === pendingForwardDraft.targetChatId);
-            if (!targetRows.length) {
-                showToast('Чат для пересылки недоступен. Выберите получателя заново.', 'warning');
-                clearForwardComposerDraft(activeChatId);
-                return;
-            }
-            try {
-                const sentCount = await forwardMessagesToTargets(pendingForwardDraft.messages, targetRows);
-                showToast(`Переслано сообщений: ${sentCount}.`, 'success');
-                clearForwardComposerDraft(activeChatId);
-            } catch (error) {
-                showToast(getErrorMessage(error, 'Не удалось переслать сообщения.'), 'danger');
-                return;
-            }
-        }
-
-        if (content) {
-            await sendTextMessage(content);
-        }
+        return composerSendRuntime?.handleComposerEncryptAndSend(rawContent);
     }
-
     function updateMessageContent(msgDiv, plainText, isRedecrypt = false) {
         messageMutationHandlers.updateMessageContent(msgDiv, plainText, isRedecrypt);
     }
