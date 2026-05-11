@@ -66,6 +66,8 @@ import {
     updateJumpToNewMessagesButton as updateJumpToNewMessagesButtonFlow,
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
+import { createPostRenderUiRefreshScheduler } from './modules/chat-post-render-refresh.js';
+import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtime.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { initSearchOverlayGlobalContent } from './modules/search-overlay-global-content.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
@@ -834,11 +836,8 @@ export const initChatPage = async () => {
     let chatVirtualRenderFrame = 0;
     let pendingVirtualRenderChatId = '';
     let pendingVirtualRenderOptions = null;
-    let pendingPostRenderUiFrame = 0;
-    let pendingSearchFilterRefresh = false;
-    let pendingJumpButtonRefresh = false;
-    let pendingE2EPillRefresh = false;
     let suppressChatScrollHandling = false;
+    let chatDomSnapshotRuntime = null;
     let pendingBottomScrollFrame = 0;
     let pendingBottomScroll = false;
     let bottomInertiaFrame = 0;
@@ -852,25 +851,12 @@ export const initChatPage = async () => {
     let hideTyping = () => {};
     let hideSidebarTyping = () => {};
 
-    function schedulePostRenderUiRefresh({ searchFilter = false, jumpButton = false, e2ePill = false } = {}) {
-        pendingSearchFilterRefresh = pendingSearchFilterRefresh || Boolean(searchFilter);
-        pendingJumpButtonRefresh = pendingJumpButtonRefresh || Boolean(jumpButton);
-        pendingE2EPillRefresh = pendingE2EPillRefresh || Boolean(e2ePill);
-        if (pendingPostRenderUiFrame) return;
-        pendingPostRenderUiFrame = requestAnimationFrame(() => {
-            pendingPostRenderUiFrame = 0;
-            const shouldRefreshSearch = pendingSearchFilterRefresh;
-            const shouldRefreshJump = pendingJumpButtonRefresh;
-            const shouldRefreshE2E = pendingE2EPillRefresh;
-            pendingSearchFilterRefresh = false;
-            pendingJumpButtonRefresh = false;
-            pendingE2EPillRefresh = false;
-
-            if (shouldRefreshSearch) applyActiveMessageSearchFilter();
-            if (shouldRefreshJump) updateJumpToNewMessagesButton();
-            if (shouldRefreshE2E) syncE2EPillState();
-        });
-    }
+    const { schedulePostRenderUiRefresh } = createPostRenderUiRefreshScheduler({
+        requestAnimationFrameFn: requestAnimationFrame,
+        applyActiveMessageSearchFilter,
+        updateJumpToNewMessagesButton: () => updateJumpToNewMessagesButton(),
+        syncE2EPillState,
+    });
 
     function isAbortError(error) {
         return Boolean(error && (error.name === 'AbortError' || error.code === 20));
@@ -1332,6 +1318,21 @@ export const initChatPage = async () => {
         getDesiredRenderRange,
         createVirtualSpacer,
     } = chatStateShell;
+
+    chatDomSnapshotRuntime = createChatDomSnapshotRuntime({
+        snapshotLimit: 5,
+        getChatMessages: () => chatMessages,
+        getChatState,
+        getExistingChatState: (chatId) => chatStates.get(String(chatId)),
+        getCurrentChatId: () => currentChatId,
+        getChatScrollPositions: () => chatScrollPositions,
+        renderChatMessages: (chatId, options) => renderChatMessages(chatId, options),
+        setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+        setSuppressChatScrollHandling: (value) => { suppressChatScrollHandling = Boolean(value); },
+        disconnectLazyMediaHydrationObserver,
+        registerMediaElementsForLazyHydration,
+        requestAnimationFrameFn: requestAnimationFrame,
+    });
 
     function setChatScrollTop(nextTop) {
         cancelBottomInertiaScroll();
@@ -1961,110 +1962,28 @@ export const initChatPage = async () => {
         return true;
     }
 
-    // DOM snapshot cache for instant chat switching.
-    const CHAT_DOM_SNAPSHOT_LIMIT = 5;
-    const chatDomSnapshotOrder = [];
-
-    function touchChatDomSnapshotLRU(chatId) {
-        const key = String(chatId);
-        const idx = chatDomSnapshotOrder.indexOf(key);
-        if (idx >= 0) chatDomSnapshotOrder.splice(idx, 1);
-        chatDomSnapshotOrder.push(key);
-        while (chatDomSnapshotOrder.length > CHAT_DOM_SNAPSHOT_LIMIT) {
-            const oldKey = chatDomSnapshotOrder.shift();
-            const oldState = chatStates.get(oldKey);
-            if (oldState) oldState.domSnapshot = null;
-        }
+    function invalidateChatDomSnapshot(chatIdOrState) {
+        return chatDomSnapshotRuntime?.invalidateChatDomSnapshot(chatIdOrState);
     }
 
     function dropChatDomSnapshotLRU(chatId) {
-        const key = String(chatId);
-        const idx = chatDomSnapshotOrder.indexOf(key);
-        if (idx >= 0) chatDomSnapshotOrder.splice(idx, 1);
-    }
-
-    function invalidateChatDomSnapshot(chatIdOrState) {
-        const state = (chatIdOrState && typeof chatIdOrState === 'object' && 'messages' in chatIdOrState)
-            ? chatIdOrState
-            : (chatIdOrState ? getChatState(chatIdOrState) : null);
-        if (!state) return;
-        if (state.domSnapshot) state.domSnapshot = null;
-        if (typeof chatIdOrState === 'string' || typeof chatIdOrState === 'number') {
-            dropChatDomSnapshotLRU(chatIdOrState);
-        }
+        return chatDomSnapshotRuntime?.dropChatDomSnapshotLRU(chatId);
     }
 
     function captureChatDomSnapshot(chatId) {
-        if (!chatMessages || !chatId) return;
-        const state = getChatState(chatId);
-        if (!state.initialized || !state.lastRenderRange) return;
-        if (chatMessages.childNodes.length === 0) return;
-        const nodes = Array.from(chatMessages.childNodes);
-        const scrollTop = Math.max(0, chatMessages.scrollTop || 0);
-        // Snapshot current nodes without early detach to avoid flash during chat switch.
-        state.domSnapshot = {
-            nodes,
-            range: { ...state.lastRenderRange },
-            scrollTop,
-            messagesLength: state.messages.length,
-        };
-        touchChatDomSnapshotLRU(chatId);
+        return chatDomSnapshotRuntime?.captureChatDomSnapshot(chatId);
     }
 
     function restoreChatDomSnapshot(chatId) {
-        if (!chatMessages || !chatId) return false;
-        const state = getChatState(chatId);
-        const snap = state.domSnapshot;
-        if (!snap || !snap.nodes?.length) return false;
-        // \u0421\u043D\u0430\u043F\u0448\u043E\u0442 \u0432\u0430\u043B\u0438\u0434\u0435\u043D, \u0442\u043E\u043B\u044C\u043A\u043E \u0435\u0441\u043B\u0438 messages \u043D\u0435 \u043C\u0435\u043D\u044F\u043B\u0438\u0441\u044C (range \u0438 \u0434\u043B\u0438\u043D\u0430 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0442).
-        if (!state.lastRenderRange) return false;
-        if (snap.range.start !== state.lastRenderRange.start || snap.range.end !== state.lastRenderRange.end) return false;
-        if (snap.messagesLength !== state.messages.length) return false;
-        try {
-            chatMessages.replaceChildren(...snap.nodes);
-        } catch (_) {
-            return false;
-        }
-        disconnectLazyMediaHydrationObserver();
-        registerMediaElementsForLazyHydration(chatMessages);
-        // \u0421\u043D\u0430\u043F\u0448\u043E\u0442 \u0443\u0436\u0435 \u043F\u0440\u0438\u0432\u044F\u0437\u0430\u043D \u043E\u0431\u0440\u0430\u0442\u043D\u043E \u043A live DOM - \u043E\u0441\u0432\u043E\u0431\u043E\u0436\u0434\u0430\u0435\u043C \u0441\u0441\u044B\u043B\u043A\u0443.
-        state.domSnapshot = null;
-        dropChatDomSnapshotLRU(chatId);
-        // \u0412\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C scrollTop \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u043A\u0430\u0434\u0440\u0435, \u0447\u0442\u043E\u0431\u044B layout \u0443\u0441\u043F\u0435\u043B \u043E\u0431\u0441\u0447\u0438\u0442\u0430\u0442\u044C\u0441\u044F.
-        const targetTop = Number.isFinite(snap.scrollTop) ? snap.scrollTop : 0;
-        suppressChatScrollHandling = true;
-        requestAnimationFrame(() => {
-            if (!chatMessages) { suppressChatScrollHandling = false; return; }
-            if (!chatId || String(chatId) !== String(currentChatId)) { suppressChatScrollHandling = false; return; }
-            chatMessages.scrollTop = targetTop;
-            requestAnimationFrame(() => {
-                if (chatMessages && chatId && String(chatId) === String(currentChatId) && Math.abs(chatMessages.scrollTop - targetTop) > 1) {
-                    chatMessages.scrollTop = targetTop;
-                }
-                suppressChatScrollHandling = false;
-            });
-        });
-        return true;
+        return Boolean(chatDomSnapshotRuntime?.restoreChatDomSnapshot(chatId));
     }
 
     function resolveSavedChatScrollTop(chatId = currentChatId) {
-        if (!chatId) return null;
-        const key = String(chatId);
-        if (chatScrollPositions.has(key)) {
-            const storedTop = Number(chatScrollPositions.get(key));
-            if (Number.isFinite(storedTop)) return storedTop;
-        }
-        const state = getChatState(chatId);
-        if (state.hasSavedScrollTop && Number.isFinite(state.savedScrollTop)) {
-            return state.savedScrollTop;
-        }
-        return null;
+        return chatDomSnapshotRuntime?.resolveSavedChatScrollTop(chatId) ?? null;
     }
 
     function renderChatAtBottom(chatId = currentChatId) {
-        if (!chatId) return;
-        renderChatMessages(chatId, { force: true, scrollToBottom: true });
-        keepChatPinnedToBottom = true;
+        return chatDomSnapshotRuntime?.renderChatAtBottom(chatId);
     }
 
     let _bottomInsetFrame = 0;
