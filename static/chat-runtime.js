@@ -97,6 +97,7 @@ import { initChatMessageContextRuntime } from './modules/chat-message-context-ru
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initChatThreadBarsRuntime } from './modules/chat-thread-bars-runtime.js';
 import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
+import { bindChatComposerInputRuntime } from './modules/chat-composer-input-runtime.js';
 import { createChatComposerSendRuntime } from './modules/chat-composer-send-runtime.js';
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
 import { registerIncomingMessageSocketHandlers } from './modules/chat-incoming-message-events.js';
@@ -2647,32 +2648,18 @@ export const initChatPage = async () => {
         setTimeoutFn: setTimeout,
         clearTimeoutFn: clearTimeout,
     });
-    if (messageInput) {
-        messageInput.addEventListener('input', () => {
-            updateVoiceRecordButtonState();
-            scheduleCurrentChatDraftSave();
-        });
-        messageInput.addEventListener('focus', () => {
-            if (browserEnv.isMobileWidth()) {
-                const wasNearBottom = isChatNearBottom();
-                setTimeout(() => {
-                    if (wasNearBottom) {
-                        requestAutoScrollToBottom({ ifNearBottom: false });
-                    }
-                }, 300);
-            }
-        });
-        messageInput.addEventListener('blur', () => {
-            scheduleCurrentChatDraftSave({ immediate: true });
-            if (!browserEnv.isCoarsePointer()) return;
-            setTimeout(() => {
-                const active = document.activeElement;
-                if (!active || active === document.body) {
-                    lastMobileKeyboardDismissAt = Date.now();
-                }
-            }, 0);
-        });
-    }
+    bindChatComposerInputRuntime({
+        documentRef: document,
+        messageInput,
+        isMobileWidth: browserEnv.isMobileWidth,
+        isCoarsePointer: browserEnv.isCoarsePointer,
+        updateVoiceRecordButtonState,
+        scheduleCurrentChatDraftSave,
+        isChatNearBottom,
+        requestAutoScrollToBottom,
+        setLastMobileKeyboardDismissAt: (value) => { lastMobileKeyboardDismissAt = value; },
+        setTimeoutFn: setTimeout,
+    });
 
     function onComposerTyping() {
         return composerPresenceRuntime?.onComposerTyping();
