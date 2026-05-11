@@ -1168,7 +1168,15 @@ export function initChatMediaRuntime(deps = {}) {
 
     if (voicePlaybackCloseBtn) {
         voicePlaybackCloseBtn.addEventListener('click', () => {
-            clearActiveVoicePlaybackAudio({ pause: true });
+            const audio = resolveActiveVoicePlaybackAudio();
+            if (audio) {
+                audio.dataset.playRequested = '0';
+                try { audio.pause(); } catch (_) {}
+                try { audio.currentTime = 0; } catch (_) {}
+                stopAudioPlayerUiLoop(audio);
+                scheduleAudioPlayerUiSync(audio);
+            }
+            clearActiveVoicePlaybackAudio();
         });
     }
 
