@@ -183,7 +183,7 @@ import { createChatGroupPermissionsController } from './modules/chat-group-permi
 import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
 import { createChatLazyUiRuntime } from './modules/chat-lazy-ui-runtime.js';
 import { createChatTabTitleRuntime } from './modules/chat-tab-title-runtime.js';
-import { createChatAttachMenuController } from './modules/chat-attach-menu.js';
+import { createChatComposerAttachmentsRuntime } from './modules/chat-composer-attachments-runtime.js';
 import { createComposerUploadState } from './modules/chat-composer-upload-state.js';
 import { createChatAnimationsController } from './modules/chat-animations.js';
 import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
@@ -388,9 +388,7 @@ export const initChatPage = async () => {
     var attachMenuPanelController;
     function closeAttachMenu() { return attachMenuPanelController?.closeAttachMenu(); }
     function isAttachMenuOpen() { return Boolean(attachMenuPanelController?.isAttachMenuOpen()); }
-    function resolveAttachModeForFile(file, preferredMode = null) {
-        return attachMenuPanelController?.resolveAttachModeForFile(file, preferredMode) || 'file';
-    }
+    function handleFileUpload(file, options) { return attachMenuPanelController?.handleFileUpload(file, options); }
 
     // Chat animations controller — initialised below.
     var chatAnimationsController;
@@ -3522,78 +3520,24 @@ export const initChatPage = async () => {
         return contactPreviewRuntime?.updateSidebarForOtherChat(chatId, message, isSelf, timestamp, status);
     }
 
-    // -- \u041E\u0442\u043F\u0440\u0430\u0432\u043A\u0430 \u0444\u0430\u0439\u043B\u0430 (E2E \u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u0438\u0435) --
-    const fileAttachInput = document.getElementById('fileAttachInput');
-    const attachBtn = document.getElementById('attachBtn');
-    const attachMenu = document.getElementById('attachMenu');
-    const attachMenuItems = Array.from(attachMenu?.querySelectorAll('[data-attach-mode]') || []);
-
-    attachMenuPanelController = createChatAttachMenuController({
-        attachMenu,
-        attachBtn,
-        fileAttachInput,
-        attachMenuItems,
+    attachMenuPanelController = createChatComposerAttachmentsRuntime({
+        documentRef: document,
+        windowRef: window,
+        voiceRecordBtn,
+        voiceRecordCancelBtn,
+        voiceRecordSendBtn,
         isChatBlocked: () => isChatBlocked(),
-        handleFileUpload: (file, options) => handleFileUpload(file, options),
+        getCurrentBlockState: () => currentBlockState,
+        getBlockedNoticeText: getChatBlockNoticeText,
+        maxChatMediaSize: MAX_CHAT_MEDIA_SIZE,
+        showToast,
+        showCaptionModal,
+        sendFileMessage: (file, caption = '', options = {}) => sendFileMessage(file, caption, options),
+        cancelActiveComposerUpload,
+        startVoiceRecording,
+        stopVoiceRecording,
+        updateVoiceRecordButtonState,
     });
-
-    if (voiceRecordBtn) {
-        voiceRecordBtn.addEventListener('click', () => {
-            if (voiceRecordBtn.classList.contains('is-uploading-state')) {
-                cancelActiveComposerUpload();
-                return;
-            }
-            if (voiceRecordBtn.classList.contains('is-send-state')) {
-                const messageForm = document.getElementById('messageForm');
-                if (messageForm && typeof messageForm.requestSubmit === 'function') {
-                    messageForm.requestSubmit();
-                } else if (messageForm) {
-                    messageForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                }
-                return;
-            }
-            startVoiceRecording().catch((err) => {
-                showToast(err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u043F\u0438\u0441\u0438.', 'danger');
-            });
-        });
-    }
-    if (voiceRecordCancelBtn) {
-        voiceRecordCancelBtn.addEventListener('click', () => {
-            stopVoiceRecording({ reason: 'cancel' }).catch((err) => {
-                showToast(err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043C\u0435\u043D\u044B \u0437\u0430\u043F\u0438\u0441\u0438.', 'danger');
-            });
-        });
-    }
-    if (voiceRecordSendBtn) {
-        voiceRecordSendBtn.addEventListener('click', () => {
-            stopVoiceRecording({ reason: 'send' }).catch((err) => {
-                showToast(err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E.', 'danger');
-            });
-        });
-    }
-    updateVoiceRecordButtonState();
-
-    async function handleFileUpload(file, { allowCaption = true, attachMode = null } = {}) {
-        if (isChatBlocked()) {
-            showToast(getChatBlockNoticeText(currentBlockState), 'warning');
-            return;
-        }
-        if (!file) return;
-        const normalizedAttachMode = resolveAttachModeForFile(file, attachMode);
-        if (normalizedAttachMode !== 'media' && file.size > MAX_CHAT_MEDIA_SIZE) {
-            showToast(`\u0424\u0430\u0439\u043B "${file.name}" \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441. ${Math.round(MAX_CHAT_MEDIA_SIZE / (1024 * 1024))} \u041C\u0411.`, 'danger');
-            return;
-        }
-        if (allowCaption) {
-            showCaptionModal(file, { attachMode: normalizedAttachMode });
-            return;
-        }
-        try {
-            await sendFileMessage(file, '', { attachMode: normalizedAttachMode });
-        } catch (err) {
-            showToast(err.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0444\u0430\u0439\u043B\u0430.', 'danger');
-        }
-    }
 
     messageStatusRuntime = createChatMessageStatusRuntime({
         getCurrentChatId: () => currentChatId,
