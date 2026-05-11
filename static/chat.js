@@ -4559,7 +4559,7 @@ const initChatPage = async () => {
 
         footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems));
         bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
-        bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems && messageText));
+        bubble.classList.toggle('bubble--text-has-reactions', false);
         bubble.classList.remove('bubble--text-meta-edited');
         bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
         bubble.classList.toggle('bubble--has-footer', Boolean(meta));
