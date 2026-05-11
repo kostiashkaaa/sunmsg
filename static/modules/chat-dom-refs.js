@@ -5,6 +5,8 @@ export function resolveChatDomRefs(documentRef = document) {
     const contextReadInfo = byId('cmReadInfo');
     const partnerProfileDrawer = byId('partnerProfileDrawer');
     const jumpToNewMessagesBtn = byId('jumpToNewMessagesBtn');
+    const chatOnlineStatus = byId('chatOnlineStatus');
+    const chatPartnerAvatar = byId('chatPartnerAvatar');
 
     return {
         sidebar: byId('sidebar'),
@@ -26,6 +28,8 @@ export function resolveChatDomRefs(documentRef = document) {
         voicePlaybackProgress: byId('voicePlaybackProgress'),
         voicePlaybackProgressFill: byId('voicePlaybackProgressFill'),
         chatMessages: byId('chatMessages'),
+        chatOnlineStatus,
+        chatPartnerAvatar,
         historyLoadingIndicator: byId('historyLoading'),
         chatPlaceholder: byId('chatPlaceholder'),
         chatInputArea: byId('chatInputArea'),
@@ -54,6 +58,7 @@ export function resolveChatDomRefs(documentRef = document) {
         headerSearchInput: byId('headerSearchInput'),
         headerSearchCalendarBtn: byId('headerSearchCalendarBtn'),
         closeSearchBtn: byId('closeSearchBtn'),
+        newChatModal: byId('newChatModal'),
         dialogRequestsList: byId('dialogRequestsList'),
         modalSearchInput: byId('searchUserInput'),
         modalSearchResults: byId('searchUserResults'),
@@ -148,6 +153,9 @@ export function resolveChatDomRefs(documentRef = document) {
         chatTitleArea: query('.chat-partner-info'),
         dialogRequestsSection: byId('dialogRequestsSection'),
         sidebarProfileShortcut: byId('sidebarProfileShortcut'),
+        sidebarAvatarCircle: byId('avatarCircle'),
+        sidebarDisplayName: byId('sidebarDisplayName'),
+        sidebarUsername: byId('sidebarUsername'),
         sidebarStatusBar: byId('sidebarStatusBar'),
         sidebarStatusSettingsBtn: byId('sidebarStatusSettingsBtn'),
         sidebarStatusTitle: byId('sidebarStatusTitle'),
@@ -158,6 +166,7 @@ export function resolveChatDomRefs(documentRef = document) {
         searchChatBtn: byId('searchChatBtn'),
         sideResizer: byId('sideResizer'),
         dragDropOverlay: byId('dragDropOverlay'),
+        backBtnMobile: byId('backBtnMobile'),
         jumpToNewMessagesBtn,
         jumpToNewMessagesCount: byId('jumpToNewMessagesCount'),
         jumpToNewMessagesIcon: jumpToNewMessagesBtn?.querySelector('i'),
