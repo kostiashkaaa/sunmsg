@@ -4909,7 +4909,7 @@ const initChatPage = async () => {
                 return chatMessages.querySelector(`.message[data-message-key="${escapedKey}"]`);
             };
 
-            if (isAtTail && rangeCoversTail && !alreadyRendered) {
+            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
                 if (tailGroupWouldChange && previousTailMessage) {
                     const previousTailKey = getMessageKey(previousTailMessage);
                     const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);
