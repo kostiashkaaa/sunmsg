@@ -1,4 +1,4 @@
-def handle_connect_event(
+def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     auth=None,
     *,
     session_store,
@@ -90,7 +90,7 @@ def handle_connect_event(
         conn.close()
 
 
-def handle_disconnect_event(
+def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     *,
     session_store,
     request_sid,

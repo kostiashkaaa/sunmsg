@@ -1,4 +1,4 @@
-def handle_favorite_message_event(
+def handle_favorite_message_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,
@@ -84,7 +84,7 @@ def handle_favorite_message_event(
         emit_func('message_favorited', payload, room=sender_pub)
 
 
-def handle_unfavorite_message_event(
+def handle_unfavorite_message_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,

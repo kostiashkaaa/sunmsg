@@ -52,7 +52,7 @@ def is_legacy_socket_rate_schema_error(exc: Exception) -> bool:
     )
 
 
-def socket_rate_ok(
+def socket_rate_ok(  # noqa: PLR0913 - injected rate-limit storage contract
     user_id: int,
     *,
     event_name: str | None = None,
@@ -157,7 +157,7 @@ def socket_rate_ok(
             conn.close()
 
 
-def socket_rate_ok_legacy(
+def socket_rate_ok_legacy(  # noqa: PLR0913 - legacy storage fallback contract
     user_id: int,
     *,
     limit: int,
@@ -234,7 +234,7 @@ def socket_rate_ok_legacy(
             conn.close()
 
 
-def socket_signal_interval_ok(
+def socket_signal_interval_ok(  # noqa: PLR0913 - in-memory signal throttling contract
     user_id: int,
     event_name: str,
     *,
@@ -263,7 +263,7 @@ def socket_signal_interval_ok(
     return True
 
 
-def socket_connect_ip_rate_ok(
+def socket_connect_ip_rate_ok(  # noqa: PLR0913 - in-memory IP throttling contract
     ip_address: str | None,
     *,
     limit: int,
@@ -303,7 +303,7 @@ def socket_connect_ip_rate_ok(
     return True
 
 
-def socket_connect_ip_rate_ok_redis(
+def socket_connect_ip_rate_ok_redis(  # noqa: PLR0913 - redis IP throttling contract
     ip_address: str | None,
     *,
     limit: int,

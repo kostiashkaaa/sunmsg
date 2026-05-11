@@ -1420,7 +1420,7 @@ def _parse_utc_timestamp(raw_value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
-def handle_edit_message_event(
+def handle_edit_message_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,
@@ -1550,7 +1550,7 @@ def handle_edit_message_event(
     )
 
 
-def handle_delete_messages_event(
+def handle_delete_messages_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,
@@ -1686,7 +1686,7 @@ def handle_delete_messages_event(
         conn.close()
 
 
-def handle_send_message_event(
+def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,
@@ -1776,36 +1776,55 @@ def handle_send_message_event(
     if not delivery_context:
         conn.close()
         return
-    chat_type = delivery_context['chat_type']
-    receiver_id = delivery_context['receiver_id']
-    receiver_pub = delivery_context['receiver_pub']
-    receiver_is_connected = delivery_context['receiver_is_connected']
-
-    reply_to_id = positive_int_func(data.get('reply_to_id'))
-    raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
-    forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
-    forward_from_user_id = positive_int_func(data.get('forward_from_user_id'))
-    group_member_public_keys = []
-    mentioned_members: list[dict] = []
-    mentioned_user_ids: list[int] = []
-    mentioned_usernames: list[str] = []
-    group_chat_display_name = ''
-    if chat_type == 'group':
-        (
-            mentioned_members,
-            mentioned_user_ids,
-            mentioned_usernames,
-            group_chat_display_name,
-        ) = _resolve_group_mentions_context(
-            conn,
-            chat_id=chat_id,
-            sender_id=sender_id,
-            message=message,
-            message_type=message_type,
-        )
-    sender_display_name = str(session_store.get('display_name') or session_store.get('username') or '').strip()
-    sender_username = str(session_store.get('username') or '').strip()
-    sender_avatar_url = ''
+    (
+        chat_type,
+        receiver_id,
+        receiver_pub,
+        receiver_is_connected,
+    ) = (
+        delivery_context['chat_type'],
+        delivery_context['receiver_id'],
+        delivery_context['receiver_pub'],
+        delivery_context['receiver_is_connected'],
+    )
+    runtime_state = _initialize_send_runtime_state(
+        conn,
+        context={
+            'data': data,
+            'positive_int_func': positive_int_func,
+            'chat_type': chat_type,
+            'chat_id': chat_id,
+            'sender_id': sender_id,
+            'message': message,
+            'message_type': message_type,
+            'session_store': session_store,
+        },
+    )
+    (
+        reply_to_id,
+        forward_from_name,
+        forward_from_user_id,
+        group_member_public_keys,
+        mentioned_members,
+        mentioned_user_ids,
+        mentioned_usernames,
+        group_chat_display_name,
+        sender_display_name,
+        sender_username,
+        sender_avatar_url,
+    ) = (
+        runtime_state['reply_to_id'],
+        runtime_state['forward_from_name'],
+        runtime_state['forward_from_user_id'],
+        runtime_state['group_member_public_keys'],
+        runtime_state['mentioned_members'],
+        runtime_state['mentioned_user_ids'],
+        runtime_state['mentioned_usernames'],
+        runtime_state['group_chat_display_name'],
+        runtime_state['sender_display_name'],
+        runtime_state['sender_username'],
+        runtime_state['sender_avatar_url'],
+    )
     reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
         reserve_socket_request_func=reserve_socket_request_func,
         mark_socket_request_completed_func=mark_socket_request_completed_func,
@@ -1849,15 +1868,27 @@ def handle_send_message_event(
     )
     if not persisted:
         return
-    msg_id = persisted['msg_id']
-    message_created_at = persisted['message_created_at']
-    group_member_public_keys = persisted['group_member_public_keys']
-    reply_to_id = persisted['reply_to_id']
-    reply_message = persisted['reply_message']
-    reply_sender_pub = persisted['reply_sender_pub']
-    sender_display_name = persisted['sender_display_name']
-    sender_username = persisted['sender_username']
-    sender_avatar_url = persisted['sender_avatar_url']
+    (
+        msg_id,
+        message_created_at,
+        group_member_public_keys,
+        reply_to_id,
+        reply_message,
+        reply_sender_pub,
+        sender_display_name,
+        sender_username,
+        sender_avatar_url,
+    ) = (
+        persisted['msg_id'],
+        persisted['message_created_at'],
+        persisted['group_member_public_keys'],
+        persisted['reply_to_id'],
+        persisted['reply_message'],
+        persisted['reply_sender_pub'],
+        persisted['sender_display_name'],
+        persisted['sender_username'],
+        persisted['sender_avatar_url'],
+    )
 
     _finalize_send_message(
         {

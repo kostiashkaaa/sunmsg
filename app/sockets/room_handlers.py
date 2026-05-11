@@ -1,4 +1,4 @@
-def handle_join_event(
+def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,
@@ -56,7 +56,7 @@ def handle_join_event(
         emit_func('error', {'message': unauthorized_error_message})
 
 
-def handle_leave_event(
+def handle_leave_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
     session_store,

@@ -1,4 +1,4 @@
-def emit_blocked_error(
+def emit_blocked_error(  # noqa: PLR0913 - dependency-injected helper contract
     message: str,
     *,
     state,
@@ -20,7 +20,7 @@ def emit_blocked_error(
     emit_func('error', response)
 
 
-def chat_partner_state(
+def chat_partner_state(  # noqa: PLR0913 - dependency-injected helper contract
     conn,
     user_id: int,
     chat_id: str,

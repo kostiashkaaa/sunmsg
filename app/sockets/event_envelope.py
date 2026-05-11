@@ -102,7 +102,7 @@ def _public_payload(payload: Any) -> Any:
     }
 
 
-def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None = None) -> dict[str, Any] | None:
+def _extract_cached_emit_meta_dict(payload: Any, event_type: str) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     cache = payload.get(_INTERNAL_EMIT_CACHE_KEY)
@@ -111,11 +111,31 @@ def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None 
     meta = cache.get(event_type)
     if not isinstance(meta, dict):
         return None
+    return meta
 
+
+def _is_cached_meta_fresh(meta: dict[str, Any]) -> bool:
     created_monotonic = meta.get('created_monotonic')
     if not isinstance(created_monotonic, (int, float)):
+        return False
+    return (time.monotonic() - float(created_monotonic)) <= _EMIT_CACHE_REUSE_WINDOW_SECONDS
+
+
+def _normalize_cached_chat_pts(raw_value: Any) -> int | None:
+    if raw_value is None:
         return None
-    if (time.monotonic() - float(created_monotonic)) > _EMIT_CACHE_REUSE_WINDOW_SECONDS:
+    try:
+        chat_pts = int(raw_value)
+    except Exception:  # noqa: BLE001
+        return None
+    return chat_pts if chat_pts > 0 else None
+
+
+def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None = None) -> dict[str, Any] | None:
+    meta = _extract_cached_emit_meta_dict(payload, event_type)
+    if not meta:
+        return None
+    if not _is_cached_meta_fresh(meta):
         return None
 
     event_id = str(meta.get('event_id') or '').strip()
@@ -130,14 +150,8 @@ def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None 
 
     cached_request_id = _normalize_request_id(meta.get('request_id'))
     cached_chat_pts_raw = meta.get('chat_pts')
-    if cached_chat_pts_raw is None:
-        cached_chat_pts = None
-    else:
-        try:
-            cached_chat_pts = int(cached_chat_pts_raw)
-        except Exception:  # noqa: BLE001
-            return None
-        if cached_chat_pts <= 0:
+    cached_chat_pts = _normalize_cached_chat_pts(cached_chat_pts_raw)
+    if cached_chat_pts_raw is not None and cached_chat_pts is None:
             return None
 
     return {
@@ -149,7 +163,7 @@ def _get_cached_emit_meta(payload: Any, *, event_type: str, chat_id: str | None 
     }
 
 
-def _store_cached_emit_meta(
+def _store_cached_emit_meta(  # noqa: PLR0913 - envelope metadata shape is explicit by design
     payload: Any,
     *,
     event_type: str,
@@ -177,7 +191,7 @@ def _store_cached_emit_meta(
     }
 
 
-def _insert_chat_update_event(
+def _insert_chat_update_event(  # noqa: PLR0913 - envelope persistence contract
     conn,
     *,
     event_id: str,
@@ -214,7 +228,7 @@ def _insert_chat_update_event(
     )
 
 
-def build_enveloped_event_payload(
+def build_enveloped_event_payload(  # noqa: PLR0913 - envelope builder API
     *,
     event_type: str,
     payload: Any,
@@ -256,7 +270,7 @@ def build_enveloped_event_payload(
     return wrapped_payload
 
 
-def emit_enveloped_socket_event(
+def emit_enveloped_socket_event(  # noqa: PLR0913 - injected socket emit contract
     *,
     raw_emit_func,
     get_db_connection_func,
