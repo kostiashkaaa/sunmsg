@@ -10658,6 +10658,7 @@
 
 .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) {
     display: inline-flex;
+    flex-direction: row;
     align-items: flex-end;
     --inline-meta-slot-width: calc(74px * var(--chat-message-scale));
 }
