@@ -804,11 +804,8 @@ export function initEmojiPicker(messageInput) {
         const wantsKeyboardHandoff = isMobileEmojiViewport()
             && (focusInput || document.activeElement === messageInput);
         if (!emojiPicker.classList.contains('active') && !emojiPicker.classList.contains('is-closing')) {
-            if (wantsKeyboardHandoff) {
-                startEmojiKeyboardHandoff(emojiPicker);
-            } else {
-                clearMobileEmojiSheetState(emojiPicker);
-            }
+            // Picker is already closed: never restart handoff here, just normalize layout.
+            stopEmojiKeyboardHandoff(emojiPicker, { clearLayout: true });
             emojiPicker.setAttribute('aria-hidden', 'true');
             syncEmojiButtonMode(false);
             if (focusInput) focusComposerInput();
