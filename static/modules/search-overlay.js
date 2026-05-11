@@ -152,8 +152,7 @@ export function initSearchOverlay() {
         overlay.setAttribute('aria-hidden', 'false');
         sidebar.classList.add(SIDEBAR_DIMMED_CLASS);
         if (clearBtn) clearBtn.hidden = false;
-        const hasQuery = String(visibleInput.value || '').trim().length > 0;
-        setTab(hasQuery ? 'chats' : 'actions');
+        setTab('chats');
         const activePanel = getPanel(activeTab);
         if (activePanel) {
             applyStaggerToChildren(activePanel, { selector: ':scope > *' });
