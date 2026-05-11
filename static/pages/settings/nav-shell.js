@@ -25,6 +25,7 @@ export function initSettingsNavShell({
     const settingsNavEditProfileBtnEl = document.getElementById('settingsNavEditProfileBtn');
     const settingsHeaderEditBtnEl = document.getElementById('settingsHeaderEditBtn');
     const settingsHeaderMoreBtnEl = document.getElementById('settingsHeaderMoreBtn');
+    const settingsHeaderMenuEl = document.getElementById('settingsHeaderMenu');
     const settingsSearchInputEl = document.getElementById('settingsSearchInput');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
@@ -33,6 +34,7 @@ export function initSettingsNavShell({
     let activeNavKey = '';
     let sectionTransitionSeq = 0;
     let detailViewOpen = false;
+    let headerMenuOpen = false;
 
     const sectionTitles = {
         profile: 'Профиль',
@@ -62,6 +64,14 @@ export function initSettingsNavShell({
         settingsNavToggleEl.setAttribute('aria-expanded', mobileNavOpen ? 'true' : 'false');
     }
 
+    function setHeaderMenuOpen(nextState) {
+        if (!settingsHeaderMenuEl || !settingsHeaderMoreBtnEl) return;
+        headerMenuOpen = !!nextState;
+        settingsHeaderMenuEl.classList.toggle('settings-hidden', !headerMenuOpen);
+        settingsHeaderMenuEl.setAttribute('aria-hidden', headerMenuOpen ? 'false' : 'true');
+        settingsHeaderMoreBtnEl.setAttribute('aria-expanded', headerMenuOpen ? 'true' : 'false');
+    }
+
     function setDetailView(nextState) {
         detailViewOpen = !!nextState;
         document.body.classList.toggle('settings-detail-open', detailViewOpen);
@@ -69,6 +79,9 @@ export function initSettingsNavShell({
         settingsNavEl?.classList.toggle('is-detail-open', detailViewOpen);
         settingsContentEl?.classList.toggle('is-detail-open', detailViewOpen);
         panelToolsEl?.classList.toggle('settings-hidden', detailViewOpen);
+        if (detailViewOpen) {
+            setHeaderMenuOpen(false);
+        }
     }
 
     function prefersReducedMotion() {
@@ -389,7 +402,8 @@ export function initSettingsNavShell({
     });
     settingsHeaderMoreBtnEl?.addEventListener('click', (event) => {
         event.preventDefault();
-        openSection('appearance', { navKey: 'appearance' });
+        event.stopPropagation();
+        setHeaderMenuOpen(!headerMenuOpen);
     });
 
     if (settingsNavToggleEl) {
@@ -408,9 +422,21 @@ export function initSettingsNavShell({
     }
 
     document.addEventListener('click', (event) => {
-        if (!mobileNavOpen || !isCompactNav() || !settingsNavEl) return;
         const target = event.target;
-        if (target instanceof Node && settingsNavEl.contains(target)) return;
+        if (!(target instanceof Node)) return;
+
+        if (
+            headerMenuOpen
+            && settingsHeaderMenuEl
+            && settingsHeaderMoreBtnEl
+            && !settingsHeaderMenuEl.contains(target)
+            && !settingsHeaderMoreBtnEl.contains(target)
+        ) {
+            setHeaderMenuOpen(false);
+        }
+
+        if (!mobileNavOpen || !isCompactNav() || !settingsNavEl) return;
+        if (settingsNavEl.contains(target)) return;
         setMobileNavOpen(false);
     });
 
@@ -454,6 +480,11 @@ export function initSettingsNavShell({
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
+        if (headerMenuOpen) {
+            event.preventDefault();
+            setHeaderMenuOpen(false);
+            return;
+        }
         if (mobileNavOpen && isCompactNav()) {
             event.preventDefault();
             setMobileNavOpen(false);
