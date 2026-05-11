@@ -157,7 +157,7 @@ export function createProfileMediaPanelController({
             return;
         }
 
-        if (mediaSection && mediaSection.style.display !== 'none') mediaSection.style.display = '';
+        if (mediaSection) mediaSection.style.display = '';
         if (hasMoreHistory || isLoadingHistory) {
             const note = document.createElement('div');
             note.className = 'profile-media-footnote';
