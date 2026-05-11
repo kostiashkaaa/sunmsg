@@ -1070,7 +1070,14 @@ export function initEmojiPicker(messageInput) {
     syncEmojiButtonMode(false);
 
     const prewarmEmojiData = () => {
-        loadEmojiData().catch(() => {});
+        loadEmojiData()
+            .then((data) => {
+                if (!data) return;
+                if (emojiPicker.classList.contains('active') || emojiPicker.classList.contains('is-closing')) return;
+                if (emojiList.childElementCount > 0 && lastRenderedMode === 'default' && !defaultListNeedsRefresh) return;
+                return renderEmojiList();
+            })
+            .catch(() => {});
     };
     if (typeof window.requestIdleCallback === 'function') {
         window.requestIdleCallback(() => prewarmEmojiData(), { timeout: 1400 });
