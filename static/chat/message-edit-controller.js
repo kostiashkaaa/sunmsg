@@ -82,6 +82,78 @@ export function createMessageEditController(options = {}) {
         return { isRead: domIsRead, readAt: domReadAt };
     }
 
+    function resolveCurrentLanguage() {
+        const i18nApi = window.SUN_I18N;
+        const currentLanguage = (i18nApi && typeof i18nApi.getLanguage === 'function')
+            ? String(i18nApi.getLanguage() || '').trim().toLowerCase()
+            : String(document.documentElement.lang || '').trim().toLowerCase();
+        return currentLanguage.startsWith('en') ? 'en' : 'ru';
+    }
+
+    function normalizeGroupReaders(rawReaders) {
+        if (!Array.isArray(rawReaders)) return [];
+        const normalized = [];
+        const seen = new Set();
+        rawReaders.forEach((reader) => {
+            const userId = Number(reader?.user_id);
+            if (!Number.isFinite(userId) || userId <= 0 || seen.has(userId)) return;
+            seen.add(userId);
+            normalized.push({
+                user_id: userId,
+                display_name: String(reader?.display_name || '').trim(),
+                username: String(reader?.username || '').trim(),
+                read_at: String(reader?.read_at || '').trim() || null,
+            });
+        });
+        return normalized;
+    }
+
+    function resolveGroupReadMeta(msgId) {
+        const normalizedMsgId = Number(msgId);
+        if (!Number.isFinite(normalizedMsgId) || normalizedMsgId <= 0) {
+            return { readCount: 0, readers: [] };
+        }
+
+        const currentChatId = getCurrentChatId();
+        if (!currentChatId) {
+            return { readCount: 0, readers: [] };
+        }
+        const state = getChatState(currentChatId);
+        const messageIndex = findMessageIndex(state, (msg) => Number(msg.id) === normalizedMsgId);
+        if (messageIndex < 0) {
+            return { readCount: 0, readers: [] };
+        }
+
+        const message = state.messages[messageIndex] || {};
+        const readers = normalizeGroupReaders(message.group_readers);
+        const countRaw = Number(message.group_read_count);
+        const readCount = Number.isFinite(countRaw) && countRaw >= 0
+            ? Math.floor(countRaw)
+            : readers.length;
+        return {
+            readCount,
+            readers,
+        };
+    }
+
+    function resolveReaderDisplayName(reader = {}, lang = 'ru') {
+        const displayName = String(reader.display_name || '').trim();
+        if (displayName) return displayName;
+        const username = String(reader.username || '').trim();
+        if (username) return `@${username}`;
+        return lang === 'en' ? 'Member' : '\u0423\u0447\u0430\u0441\u0442\u043d\u0438\u043a';
+    }
+
+    function hideContextReadInfo() {
+        if (!contextReadInfo) return;
+        contextReadInfo.hidden = true;
+        contextReadInfo.classList.remove('context-menu-read-info--list');
+        contextReadInfo.removeAttribute('title');
+        if (contextReadInfoText) {
+            contextReadInfoText.textContent = '';
+        }
+    }
+
     function formatContextMenuReadAt(rawReadAt, lang = 'ru') {
         const date = parseUtcDate(String(rawReadAt || '').trim());
         if (!date) return '--:--:--';
@@ -131,40 +203,80 @@ export function createMessageEditController(options = {}) {
         return Boolean(messageEl?.classList?.contains('self'));
     }
 
-    function updateContextMenuReadInfo(msgId, { isSelf = false, blocked = false, messageEl = null } = {}) {
+    function updateContextMenuReadInfo(
+        msgId,
+        {
+            isSelf = false,
+            blocked = false,
+            messageEl = null,
+            triggerTarget = null,
+        } = {},
+    ) {
         if (!contextReadInfo) return;
         const normalizedMsgId = Number(msgId);
         if (!isSelf || blocked || !Number.isFinite(normalizedMsgId) || normalizedMsgId <= 0) {
-            contextReadInfo.hidden = true;
+            hideContextReadInfo();
             return;
         }
         const createdAtRaw = resolveMessageCreatedAt(normalizedMsgId);
         if (createdAtRaw && !isWithinMessageEditWindow(createdAtRaw)) {
-            contextReadInfo.hidden = true;
+            hideContextReadInfo();
             return;
+        }
+        const lang = resolveCurrentLanguage();
+        const openedFromTick = triggerTarget instanceof Element && Boolean(triggerTarget.closest('.msg-tick'));
+        if (openedFromTick) {
+            const groupReadMeta = resolveGroupReadMeta(normalizedMsgId);
+            if (groupReadMeta.readCount > 0 && groupReadMeta.readers.length > 0) {
+                const createdAtDate = createdAtRaw ? parseUtcDate(createdAtRaw) : null;
+                const readerLines = groupReadMeta.readers
+                    .map((reader) => {
+                        const rawReadAt = String(reader.read_at || '').trim();
+                        const readAtDate = rawReadAt ? parseUtcDate(rawReadAt) : null;
+                        if (createdAtDate && readAtDate && readAtDate.getTime() < createdAtDate.getTime()) {
+                            return '';
+                        }
+                        const displayName = resolveReaderDisplayName(reader, lang);
+                        const formattedReadAt = rawReadAt ? formatContextMenuReadAt(rawReadAt, lang) : '--:--:--';
+                        return `${displayName}: ${formattedReadAt}`;
+                    })
+                    .filter(Boolean);
+                if (readerLines.length > 0) {
+                    const readCount = Math.max(groupReadMeta.readCount, readerLines.length);
+                    const header = lang === 'en'
+                        ? `Read by ${readCount}`
+                        : `\u041f\u0440\u043e\u0447\u0438\u0442\u0430\u043b\u0438 ${readCount}`;
+                    const text = [header, ...readerLines].join('\n');
+                    if (contextReadInfoText) {
+                        contextReadInfoText.textContent = text;
+                    } else {
+                        contextReadInfo.textContent = text;
+                    }
+                    contextReadInfo.classList.add('context-menu-read-info--list');
+                    contextReadInfo.setAttribute('title', text);
+                    contextReadInfo.hidden = false;
+                    return;
+                }
+            }
         }
         const { isRead, readAt } = resolveMessageReadMeta(normalizedMsgId, messageEl);
         if (!isRead) {
-            contextReadInfo.hidden = true;
+            hideContextReadInfo();
             return;
         }
         const createdAtDate = createdAtRaw ? parseUtcDate(createdAtRaw) : null;
         const readAtDate = readAt ? parseUtcDate(readAt) : null;
         if (createdAtDate && readAtDate && readAtDate.getTime() < createdAtDate.getTime()) {
-            contextReadInfo.hidden = true;
+            hideContextReadInfo();
             return;
         }
-        const i18nApi = window.SUN_I18N;
-        const currentLanguage = (i18nApi && typeof i18nApi.getLanguage === 'function')
-            ? String(i18nApi.getLanguage() || '').trim().toLowerCase()
-            : String(document.documentElement.lang || '').trim().toLowerCase();
-        const lang = currentLanguage.startsWith('en') ? 'en' : 'ru';
         const formattedTime = readAt ? formatContextMenuReadAt(readAt, lang) : '--:--:--';
         if (contextReadInfoText) {
             contextReadInfoText.textContent = formattedTime;
         } else {
             contextReadInfo.textContent = formattedTime;
         }
+        contextReadInfo.classList.remove('context-menu-read-info--list');
         contextReadInfo.setAttribute('title', readAt ? formatFullTimestamp(readAt) : '');
         contextReadInfo.hidden = false;
     }
