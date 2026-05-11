@@ -113,7 +113,9 @@ export function initVoiceRecorder({
     let actionIconMotionSeq = 0;
     let handledTextSubmitPointer = false;
     let handledTextSubmitTimer = null;
+    let suppressMicStartUntil = 0;
     let isVoiceTypingActive = false;
+    const MIC_GHOST_CLICK_GUARD_MS = 900;
 
     function isSupported() {
         return typeof MediaRecorder !== 'undefined'
@@ -391,6 +393,7 @@ export function initVoiceRecorder({
         event.stopPropagation();
         clearTimeout(handledTextSubmitTimer);
         handledTextSubmitPointer = true;
+        suppressMicStartUntil = Date.now() + MIC_GHOST_CLICK_GUARD_MS;
         keepComposerFocused();
         submitTextMessageFromUnifiedButton();
         handledTextSubmitTimer = setTimeout(() => {
@@ -526,6 +529,9 @@ export function initVoiceRecorder({
     }
 
     async function start() {
+        if (Date.now() < suppressMicStartUntil) {
+            return;
+        }
         if (!isSupported()) {
             showToast('\u0411\u0440\u0430\u0443\u0437\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0437\u0430\u043F\u0438\u0441\u044C \u0433\u043E\u043B\u043E\u0441\u0430.', 'warning');
             return;

@@ -101,6 +101,12 @@ def normalize_chat_media_mime(uploaded_mime: str | None, filename: str, ext: str
         return 'audio/aac'
     if ext == 'opus':
         return 'audio/ogg'
+    if ext == 'heic':
+        return 'image/heic'
+    if ext == 'heif':
+        return 'image/heif'
+    if ext == 'avif':
+        return 'image/avif'
     if ext in {'jpg', 'jpeg'}:
         return 'image/jpeg'
     if ext == 'svg':
