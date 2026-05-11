@@ -109,7 +109,7 @@ def build_parser():
     return parser
 
 
-def main(argv=None):
+def main(argv=None):  # noqa: C901, PLR0915 - CLI command dispatcher with guarded branches
     parser = build_parser()
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO)

@@ -303,7 +303,7 @@ def key_transfer_submit_payload(session_id):
 
 @auth_bp.route('/api/key_transfer/sessions/<session_id>/claim', methods=['POST'])
 @limiter.limit("60 per minute")
-def key_transfer_claim_payload(session_id):
+def key_transfer_claim_payload(session_id):  # noqa: C901 - route-level validation/state transitions
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
     if not is_valid_key_transfer_session_id(session_id):
@@ -374,7 +374,7 @@ def key_transfer_claim_payload(session_id):
 
 @auth_bp.route('/api/key_transfer/login/sessions/<session_id>/claim', methods=['POST'])
 @limiter.limit("240 per minute")
-def key_transfer_claim_login_payload(session_id):
+def key_transfer_claim_login_payload(session_id):  # noqa: C901 - route-level login handoff flow
     if not is_valid_key_transfer_session_id(session_id):
         return jsonify({'success': False, 'error': 'Некорректный идентификатор сессии.'}), 400
     if pending_login_qr_session_id(session) != session_id:

@@ -25,7 +25,7 @@ def _should_skip_sql(sql: str, *, include_metadata: bool) -> bool:
     )
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901 - one-pass report classification flow
     args = list(sys.argv[1:])
     include_metadata = False
     if '--include-metadata' in args:

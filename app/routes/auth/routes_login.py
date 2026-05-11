@@ -294,7 +294,7 @@ def get_challenge():
 
 @auth_bp.route('/api/login_challenge', methods=['POST'])
 @limiter.limit("30 per minute")
-def login_challenge():
+def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded early exits
     def _clear_login_challenge_state() -> None:
         session.pop('challenge', None)
         session.pop('login_username', None)

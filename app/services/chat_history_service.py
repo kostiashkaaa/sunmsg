@@ -7,7 +7,7 @@ from app.services.group_receipts import (
 from app.services.reactions import fetch_reactions_map
 
 
-def load_chat_history(  # noqa: PLR0913 - dependency-injected history loader contract
+def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected history loader contract
     conn,
     *,
     user_id: int,
