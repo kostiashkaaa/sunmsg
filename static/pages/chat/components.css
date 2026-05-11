@@ -10719,6 +10719,7 @@
 
 .message .bubble.bubble--text-has-reactions {
     display: inline-flex;
+    align-items: stretch;
     grid-template-columns: none;
     grid-template-areas: none;
 }
@@ -10796,7 +10797,9 @@
 }
 
 .reaction-pill__reactors {
-    display: none !important;
+    display: inline-flex !important;
+    align-items: center;
+    margin-left: calc(2px * var(--chat-message-scale));
 }
 
 .reaction-pill__count {
