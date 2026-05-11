@@ -6413,7 +6413,7 @@
             text-align: start;
             white-space: pre-wrap;
             overflow-wrap: break-word;
-            word-break: break-word;
+            word-break: normal;
             overflow-y: hidden;
             overflow-x: hidden;
             pointer-events: none;
