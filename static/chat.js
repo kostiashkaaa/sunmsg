@@ -4546,23 +4546,27 @@ const initChatPage = async () => {
             }
             row.remove();
         });
+        const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
+        const useOutsidePlacementFinal = Boolean(
+            useOutsidePlacement || (hasReactionItems && messageText && !isMediaBubble)
+        );
+
         if (keptReactionRow) {
-            const targetReactionContainer = useOutsidePlacement ? stack : footer;
+            const targetReactionContainer = useOutsidePlacementFinal ? stack : footer;
             if (keptReactionRow.parentElement !== targetReactionContainer) {
                 targetReactionContainer.append(keptReactionRow);
             }
-            keptReactionRow.classList.toggle('has-items', keptReactionRow.querySelector('.reaction-pill') !== null);
+            keptReactionRow.classList.toggle('has-items', hasReactionItems);
         }
 
-        const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
-        footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacement && hasReactionItems));
+        footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems));
         bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
-        bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacement && hasReactionItems && messageText));
+        bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems && messageText));
         bubble.classList.remove('bubble--text-meta-edited');
         bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
         bubble.classList.toggle('bubble--has-footer', Boolean(meta));
-        messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
-        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacement);
+        messageEl.classList.toggle('message-reactions-outside', useOutsidePlacementFinal);
+        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacementFinal);
     }
 
     function patchPinnedMessageState(messageEl, isPinned) {
