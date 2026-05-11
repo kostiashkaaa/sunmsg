@@ -2159,7 +2159,7 @@
             --msg-meta-font-size: calc(11px * var(--chat-message-scale));
             --msg-meta-gap: calc(3px * var(--chat-message-scale));
             --msg-meta-row-height: calc(12px * var(--chat-message-scale));
-            --msg-meta-tick-size: calc(17px * var(--chat-message-scale));
+            --msg-meta-tick-size: calc(18px * var(--chat-message-scale));
             --msg-meta-tick-stroke: 1.9;
             --msg-meta-read-color: color-mix(in srgb, #5ea8ff 86%, var(--chat-bubble-out-text) 14%);
             --chat-bubble-max-width: min(68%, 720px);
@@ -10560,6 +10560,8 @@
 :root {
     --tg-compact-bubble-radius: 12px;
     --tg-compact-bubble-tail-radius: 6px;
+    --tg-reaction-overlap: 5px;
+    --tg-reaction-inline-inset: 4px;
 }
 
 .message {
@@ -10582,7 +10584,7 @@
 }
 
 .chat-area {
-    --chat-bubble-max-width: min(78%, 820px);
+    --chat-bubble-max-width: min(83%, 900px);
 }
 
 .chat-area:not(.is-group-chat) .message.self .message-row-track {
@@ -10639,7 +10641,7 @@
 .message .bubble.bubble--text,
 .message .bubble:has(> .message-text) {
     --text-meta-reserve: 0px !important;
-    min-width: clamp(124px, 16ch, 252px) !important;
+    min-width: clamp(136px, 18ch, 320px) !important;
 }
 
 .message .bubble > .message-text,
@@ -10717,8 +10719,8 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 4px;
-    margin-top: 1px;
+    gap: 3px;
+    margin-top: 0;
     padding: 0;
     min-height: 0;
     width: fit-content;
@@ -10726,25 +10728,36 @@
 }
 
 .message.message-reactions-outside .message-stack > .message-reactions {
-    margin-top: calc(2px * var(--chat-message-scale));
+    margin-top: calc(-1 * var(--tg-reaction-overlap));
     padding: 0;
-    position: static;
+    position: relative;
+    z-index: 3;
     max-width: 100%;
 }
 
-.message.other .message-stack > .message-reactions {
+.message.other.message-reactions-outside .message-stack > .message-reactions {
     align-self: flex-start;
     justify-content: flex-start;
+    margin-left: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
 }
 
-.message.self .message-stack > .message-reactions {
+.message.self.message-reactions-outside .message-stack > .message-reactions {
     align-self: flex-end;
     justify-content: flex-end;
+    margin-right: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+}
+
+.message.other.message-reactions-outside:has(.message-reactions.has-items) .bubble {
+    border-bottom-left-radius: calc(var(--tg-compact-bubble-tail-radius) + 2px);
+}
+
+.message.self.message-reactions-outside:has(.message-reactions.has-items) .bubble {
+    border-bottom-right-radius: calc(var(--tg-compact-bubble-tail-radius) + 2px);
 }
 
 .reaction-pill {
-    min-height: calc(22px * var(--chat-message-scale));
-    padding: calc(2px * var(--chat-message-scale)) calc(7px * var(--chat-message-scale));
+    min-height: calc(24px * var(--chat-message-scale));
+    padding: calc(2px * var(--chat-message-scale)) calc(8px * var(--chat-message-scale));
     border-radius: 999px;
     gap: calc(3px * var(--chat-message-scale));
     font-size: calc(12px * var(--chat-message-scale));
@@ -10754,15 +10767,15 @@
 }
 
 .reaction-pill__emoji {
-    width: calc(14px * var(--chat-message-scale));
-    min-width: calc(14px * var(--chat-message-scale));
-    height: calc(14px * var(--chat-message-scale));
-    font-size: calc(14px * var(--chat-message-scale));
+    width: calc(15px * var(--chat-message-scale));
+    min-width: calc(15px * var(--chat-message-scale));
+    height: calc(15px * var(--chat-message-scale));
+    font-size: calc(15px * var(--chat-message-scale));
 }
 
 .reaction-pill__emoji .emoji-graphic {
-    width: calc(15px * var(--chat-message-scale));
-    height: calc(15px * var(--chat-message-scale));
+    width: calc(16px * var(--chat-message-scale));
+    height: calc(16px * var(--chat-message-scale));
 }
 
 .reaction-pill__reactors {
@@ -10918,7 +10931,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: clamp(104px, 13ch, 198px) !important;
+        min-width: clamp(116px, 16ch, 220px) !important;
     }
 
     .message .bubble.bubble--audio {
@@ -10940,20 +10953,20 @@
     }
 
     .reaction-pill {
-        min-height: 22px;
-        padding: 2px 7px;
+        min-height: 24px;
+        padding: 2px 8px;
         font-size: 11px;
     }
 
     .reaction-pill__emoji {
-        width: 13px;
-        min-width: 13px;
-        height: 13px;
-        font-size: 13px;
+        width: 14px;
+        min-width: 14px;
+        height: 14px;
+        font-size: 14px;
     }
 
     .reaction-pill__emoji .emoji-graphic {
-        width: 14px;
-        height: 14px;
+        width: 15px;
+        height: 15px;
     }
 }

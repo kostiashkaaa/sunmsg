@@ -1664,7 +1664,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: clamp(104px, 13ch, 198px) !important;
+        min-width: clamp(116px, 16ch, 220px) !important;
         width: fit-content;
         max-width: 100%;
     }
@@ -1689,19 +1689,21 @@
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
-        margin: 1px 0 0 !important;
+        margin: calc(-1 * var(--tg-reaction-overlap, 5px)) 0 0 !important;
         max-width: 100%;
         padding: 0;
     }
 
-    .message.other .message-stack > .message-reactions {
+    .message.other.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-start !important;
         justify-content: flex-start !important;
+        margin-left: calc(var(--tg-reaction-inline-inset, 4px) * var(--chat-message-scale, 1)) !important;
     }
 
-    .message.self .message-stack > .message-reactions {
+    .message.self.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-end !important;
         justify-content: flex-end !important;
+        margin-right: calc(var(--tg-reaction-inline-inset, 4px) * var(--chat-message-scale, 1)) !important;
     }
 
     .reaction-pill {
