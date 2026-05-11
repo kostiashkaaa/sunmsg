@@ -115,6 +115,7 @@ import { showConfirmDialog } from './modules/confirm-dialog.js';
 import { initVoiceRecorder } from './modules/voice-recorder.js';
 import { getPrivateKeyPem, restoreWrappedPrivateKey } from './modules/private-key-session.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
+import { createChatUpdatesSyncController } from './modules/chat-updates-sync.js';
 import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
 import { buildEncryptedCacheMessageFromSocketPayload, createChatIdbRuntime } from './modules/chat-idb-runtime.js';
@@ -183,6 +184,13 @@ const initChatPage = async () => {
     let hasSocketConnectedOnce = false;
     let hasSocketConnectionIssue = false;
     const emitSocket = createSocketEmitter(socket);
+    const chatUpdatesSyncController = createChatUpdatesSyncController({
+        socket,
+        fetchImpl: window.fetch?.bind(window) || fetch,
+        resolveAppUrl: withAppRoot,
+        logger: console,
+    });
+    chatUpdatesSyncController.bind();
     const activityController = createActivityReporter({ emitSocket });
     const reportActivity = activityController.reportActivity;
     const onlineStatusController = createOnlineStatusStateController();
@@ -2000,10 +2008,13 @@ const initChatPage = async () => {
         if (!chatMessages || !chatId) return;
         if (String(chatId) !== String(currentChatId)) return;
 
+        const suppressHydrationMask = Boolean(options?.suppressHydrationMask);
         resizeComposerInput();
         updateChatMessagesBottomInset({ immediate: true });
         chatMessages.classList.add('is-hydrating');
-        chatMessages.style.visibility = 'hidden';
+        if (!suppressHydrationMask) {
+            chatMessages.style.visibility = 'hidden';
+        }
 
         try {
             const state = getChatState(chatId);
@@ -2028,7 +2039,9 @@ const initChatPage = async () => {
             }
         } finally {
             if (!chatMessages) return;
-            chatMessages.style.visibility = '';
+            if (!suppressHydrationMask) {
+                chatMessages.style.visibility = '';
+            }
             chatMessages.classList.remove('is-hydrating');
             if (options?.animateReveal) {
                 triggerChatHistoryRevealAnimation();
@@ -3690,6 +3703,7 @@ const initChatPage = async () => {
     function joinChatRoom(chatId) {
         if (chatId) {
             emitSocket('join', { chat_id: chatId });
+            void chatUpdatesSyncController.primeChatState(chatId);
         }
     }
 
@@ -3728,17 +3742,6 @@ const initChatPage = async () => {
                     const useDesktopSwitchMotion = !isMobileViewport() && !reduceMotion;
                     if (chatArea && useDesktopSwitchMotion) {
                         chatArea.classList.remove('is-switching');
-                    }
-                    if (useDesktopSwitchMotion) {
-                        try {
-                            contactItem.classList.remove('contact-just-activated');
-                            // force reflow to restart animation
-                            void contactItem.offsetWidth;
-                            contactItem.classList.add('contact-just-activated');
-                            window.setTimeout(() => {
-                                contactItem.classList.remove('contact-just-activated');
-                            }, 620);
-                        } catch (_) {}
                     }
                 }
                 closeReactionPicker();
