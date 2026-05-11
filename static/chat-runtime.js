@@ -80,6 +80,7 @@ import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
 import { createChatMessageStatusRuntime } from './modules/chat-message-status-runtime.js';
 import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
+import { initChatEmojiRefreshRuntime } from './modules/chat-emoji-refresh-runtime.js';
 import { bindChatRuntimeWindowEvents } from './modules/chat-runtime-window-events.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
@@ -1116,14 +1117,6 @@ export const initChatPage = async () => {
     const setHistoryLoading = (...args) => threadShell.setHistoryLoading(...args);
     const setChatStageLoading = (...args) => threadShell.setChatStageLoading(...args);
 
-    function refreshVisibleEmojiGraphics() {
-        applyEmojiGraphics(chatMessages);
-        applyEmojiGraphics(contactsList);
-        applyEmojiGraphics(reactionPicker);
-        applyEmojiGraphics(document.getElementById('replyBarText'));
-        applyEmojiGraphics(document.getElementById('pinnedBarText'));
-    }
-
     function hideAppBootOverlay() {
         appBootOverlayHidden = _hideBootOverlay({
             overlay: appBootOverlay,
@@ -1153,10 +1146,16 @@ export const initChatPage = async () => {
         loadDialogRequests();
     });
     initLightbox();
-    applyEmojiGraphics(reactionPicker);
+    initChatEmojiRefreshRuntime({
+        windowRef: window,
+        documentRef: document,
+        requestAnimationFrameFn: requestAnimationFrame,
+        applyEmojiGraphics,
+        chatMessages,
+        contactsList,
+        reactionPicker,
+    });
     _hydrateContactAvatarLoading(contactsList);
-    requestAnimationFrame(refreshVisibleEmojiGraphics);
-    window.addEventListener('load', refreshVisibleEmojiGraphics, { once: true });
     ({
         updateOnlineStatusUI: baseUpdateOnlineStatusUI,
         hideTyping,
