@@ -1670,7 +1670,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: clamp(116px, 16ch, 220px) !important;
+        min-width: 0 !important;
         width: fit-content;
         max-width: 100%;
     }

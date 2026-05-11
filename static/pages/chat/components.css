@@ -10598,9 +10598,9 @@
     width: fit-content;
     max-width: 100% !important;
     min-width: 0 !important;
-    padding: calc(6px * var(--chat-message-scale)) calc(10px * var(--chat-message-scale));
+    padding: calc(5px * var(--chat-message-scale)) calc(8px * var(--chat-message-scale));
     border-radius: var(--tg-compact-bubble-radius);
-    line-height: 1.34;
+    line-height: 1.3;
     box-shadow: 0 1px 2px color-mix(in srgb, #000 14%, transparent);
 }
 
@@ -10641,7 +10641,8 @@
 .message .bubble.bubble--text,
 .message .bubble:has(> .message-text) {
     --text-meta-reserve: 0px !important;
-    min-width: clamp(136px, 18ch, 320px) !important;
+    min-width: 0 !important;
+    width: fit-content;
 }
 
 .message .bubble > .message-text,
@@ -10661,7 +10662,7 @@
     align-items: flex-end;
     justify-content: flex-end;
     gap: calc(2px * var(--chat-message-scale));
-    margin-top: calc(2px * var(--chat-message-scale));
+    margin-top: calc(1px * var(--chat-message-scale));
     min-height: var(--msg-meta-row-height);
 }
 
@@ -10904,7 +10905,11 @@
 }
 
 .message.message-emoji-only .bubble.bubble--text {
-    padding: calc(4px * var(--chat-message-scale)) calc(7px * var(--chat-message-scale));
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0;
+    padding: calc(1px * var(--chat-message-scale)) calc(2px * var(--chat-message-scale));
     min-width: 0 !important;
 }
 
@@ -10914,7 +10919,13 @@
 }
 
 .message.message-emoji-only .bubble.bubble--text > .message-footer {
-    margin-top: 2px;
+    margin-top: 1px;
+    min-height: 0;
+}
+
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .msg-meta,
+.message.message-emoji-only .bubble.bubble--text > .message-footer > .message-meta {
+    min-height: 0;
 }
 
 #messageForm {
@@ -10945,13 +10956,13 @@
 
 @media (max-width: 768px) {
     .message .bubble {
-        padding: 6px 9px;
+        padding: 5px 8px;
         border-radius: 11px;
     }
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: clamp(116px, 16ch, 220px) !important;
+        min-width: 0 !important;
     }
 
     .message .bubble.bubble--audio {
