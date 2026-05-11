@@ -1664,7 +1664,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: 0 !important;
+        min-width: clamp(92px, 12ch, 180px) !important;
         width: fit-content;
         max-width: 100%;
     }
@@ -1689,7 +1689,7 @@
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
-        margin: 2px 0 0 !important;
+        margin: 1px 0 0 !important;
         max-width: 100%;
         padding: 0;
     }
