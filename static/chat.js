@@ -4397,6 +4397,78 @@ const initChatPage = async () => {
         return _buildMessageReactionsHtml(msgId, rawReactions, { currentUserPublicKey });
     }
 
+    const REACTION_ROW_STATE_CLASSES = [
+        'reaction-row--active',
+        'reaction-row--syncing',
+        'reaction-row--failed',
+        'reaction-row--disabled',
+    ];
+    const REACTION_PILL_STATE_CLASSES = [
+        'reaction-pill--pending',
+        'reaction-pill--removing',
+        'reaction-pill--failed',
+        'reaction-pill--disabled',
+    ];
+
+    function resolveCurrentChatMessageElementById(messageId) {
+        const numericMessageId = Number(messageId);
+        if (!Number.isFinite(numericMessageId) || numericMessageId <= 0) return null;
+        return chatMessages?.querySelector(`.message[data-msg-id="${numericMessageId}"]`) || null;
+    }
+
+    function resolveMessageReactionRow(messageEl) {
+        if (!messageEl) return null;
+        return messageEl.querySelector('.message-stack > .message-reactions')
+            || messageEl.querySelector('.message-reactions')
+            || null;
+    }
+
+    function clearReactionStateClasses(rowEl) {
+        if (!rowEl) return;
+        REACTION_ROW_STATE_CLASSES.forEach((className) => {
+            if (className === 'reaction-row--active') return;
+            rowEl.classList.remove(className);
+        });
+        rowEl.querySelectorAll('.reaction-pill').forEach((pill) => {
+            REACTION_PILL_STATE_CLASSES.forEach((className) => pill.classList.remove(className));
+        });
+    }
+
+    function applyReactionOperationUiState(operation, { syncing = false, failed = false, disabled = false } = {}) {
+        if (!operation) return;
+        if (String(operation.chatId || '') !== String(currentChatId || '')) return;
+        const messageEl = resolveCurrentChatMessageElementById(operation.messageId);
+        if (!messageEl) return;
+        const rowEl = resolveMessageReactionRow(messageEl);
+        if (!rowEl) return;
+
+        rowEl.classList.toggle('reaction-row--syncing', Boolean(syncing));
+        rowEl.classList.toggle('reaction-row--failed', Boolean(failed));
+        rowEl.classList.toggle('reaction-row--disabled', Boolean(disabled));
+
+        const targetEmoji = String(operation.emoji || '').trim();
+        if (!targetEmoji) {
+            if (!syncing) clearReactionStateClasses(rowEl);
+            return;
+        }
+
+        const targetPill = Array.from(rowEl.querySelectorAll('.reaction-pill')).find(
+            (pill) => String(pill.getAttribute('data-emoji') || '').trim() === targetEmoji
+        ) || null;
+        if (!targetPill) {
+            if (!syncing) clearReactionStateClasses(rowEl);
+            return;
+        }
+
+        targetPill.classList.toggle('reaction-pill--pending', Boolean(syncing));
+        targetPill.classList.toggle('reaction-pill--removing', Boolean(syncing) && String(operation.mode || '') === 'remove');
+        targetPill.classList.toggle('reaction-pill--failed', Boolean(failed));
+        targetPill.classList.toggle('reaction-pill--disabled', Boolean(disabled));
+        if (!syncing && !failed && !disabled) {
+            REACTION_PILL_STATE_CLASSES.forEach((className) => targetPill.classList.remove(className));
+        }
+    }
+
     function resolveMessageReactionLayoutState(messageEl, bubble = messageEl?.querySelector('.bubble')) {
         if (!messageEl || !bubble) {
             return {
@@ -4626,15 +4698,19 @@ const initChatPage = async () => {
             targetContainer.append(nextRow);
             updatedRow = nextRow;
         } else {
+            const preservedRowStateClasses = REACTION_ROW_STATE_CLASSES.filter((className) => updatedRow.classList.contains(className));
             updatedRow.className = nextRow.className;
             updatedRow.setAttribute('data-msg-id', String(msgId));
+            preservedRowStateClasses.forEach((className) => updatedRow.classList.add(className));
 
             const syncPill = (targetPill, sourcePill) => {
                 if (!targetPill || !sourcePill) return;
                 const nextEmoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
+                const preservedPillStateClasses = REACTION_PILL_STATE_CLASSES.filter((className) => targetPill.classList.contains(className));
                 targetPill.className = sourcePill.className;
                 targetPill.setAttribute('data-msg-id', String(msgId));
                 targetPill.setAttribute('data-emoji', nextEmoji);
+                preservedPillStateClasses.forEach((className) => targetPill.classList.add(className));
 
                 const sourceEmoji = sourcePill.querySelector('.reaction-pill__emoji');
                 const targetEmoji = targetPill.querySelector('.reaction-pill__emoji');
@@ -5001,6 +5077,7 @@ const initChatPage = async () => {
         const operation = pendingReactionOpsById.get(token);
         if (!operation) return;
         operation.superseded = true;
+        applyReactionOperationUiState(operation, { syncing: false, failed: false, disabled: false });
         rememberSupersededReactionRequest(token);
     }
 
@@ -5023,6 +5100,13 @@ const initChatPage = async () => {
             rollbackPendingReactionOp(operation);
         }
 
+        applyReactionOperationUiState(operation, { syncing: false, failed: rollback, disabled: false });
+        if (rollback && String(operation.chatId || '') === String(currentChatId || '')) {
+            window.setTimeout(() => {
+                applyReactionOperationUiState(operation, { syncing: false, failed: false, disabled: false });
+            }, 1100);
+        }
+
         return operation;
     }
 
@@ -5035,7 +5119,7 @@ const initChatPage = async () => {
         return null;
     }
 
-    function registerPendingReactionOp(chatId, messageId, previousReactions, requestId) {
+    function registerPendingReactionOp(chatId, messageId, previousReactions, requestId, reactionContext = {}) {
         const token = String(requestId || '').trim();
         if (!token) return;
 
@@ -5058,10 +5142,15 @@ const initChatPage = async () => {
             messageId: numericMessageId,
             messageKey: key,
             previousReactions: normalizeMessageReactions(previousReactions),
+            emoji: String(reactionContext?.emoji || '').trim(),
+            mode: String(reactionContext?.mode || '').trim() || 'add',
             superseded: false,
             timeoutId,
         });
         pendingReactionOpByMessage.set(key, token);
+
+        const operation = pendingReactionOpsById.get(token);
+        applyReactionOperationUiState(operation, { syncing: true, failed: false, disabled: false });
     }
 
     function emitReactionToggle(messageId, emoji) {
@@ -5075,6 +5164,10 @@ const initChatPage = async () => {
         if (messageIndex < 0) return;
 
         const previousReactions = normalizeMessageReactions(state.messages[messageIndex].reactions);
+        const myPreviousReaction = previousReactions.find((item) => item?.reactedByMe) || null;
+        const reactionMode = myPreviousReaction?.emoji === normalizedEmoji
+            ? 'remove'
+            : (myPreviousReaction ? 'switch' : 'add');
         const nextReactions = computeOptimisticReactions(previousReactions, normalizedEmoji);
         const changed = applyMessageReactionsLocally(currentChatId, normalizedMsgId, nextReactions, {
             animate: true,
@@ -5083,7 +5176,10 @@ const initChatPage = async () => {
         if (!changed) return;
 
         const requestId = crypto.randomUUID();
-        registerPendingReactionOp(currentChatId, normalizedMsgId, previousReactions, requestId);
+        registerPendingReactionOp(currentChatId, normalizedMsgId, previousReactions, requestId, {
+            emoji: normalizedEmoji,
+            mode: reactionMode,
+        });
         const emitted = emitSocket('toggle_reaction', {
             chat_id: currentChatId,
             message_id: normalizedMsgId,
@@ -6967,8 +7063,6 @@ const initChatPage = async () => {
         closeReactionPicker,
         hideContextMenu,
         closeMessageActionsBar,
-        toggleSelectionMode,
-        toggleMessageSelection,
         isEditingMessageId: () => isEditingMessageId,
         showContextMenu,
         canEditMessageById,

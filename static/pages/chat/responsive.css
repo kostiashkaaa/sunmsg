@@ -1664,7 +1664,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
-        min-width: clamp(92px, 12ch, 180px) !important;
+        min-width: clamp(104px, 13ch, 198px) !important;
         width: fit-content;
         max-width: 100%;
     }
@@ -1705,7 +1705,7 @@
     }
 
     .reaction-pill {
-        min-height: 20px;
-        padding: 2px 6px;
+        min-height: 22px;
+        padding: 2px 7px;
     }
 }

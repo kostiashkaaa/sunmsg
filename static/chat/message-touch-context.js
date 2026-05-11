@@ -7,8 +7,6 @@ export function initMessageTouchContext(options = {}) {
         closeReactionPicker,
         hideContextMenu,
         closeMessageActionsBar,
-        toggleSelectionMode,
-        toggleMessageSelection,
         isEditingMessageId,
         showContextMenu,
         canEditMessageById,
@@ -37,7 +35,7 @@ export function initMessageTouchContext(options = {}) {
         return { dispose: () => {} };
     }
 
-    const MESSAGE_LONG_PRESS_MS = 360;
+    const MESSAGE_LONG_PRESS_MS = 320;
     const SWIPE_REPLY_TRIGGER_PX = 72;
     const SWIPE_REPLY_MAX_SHIFT_PX = 96;
     const SWIPE_REPLY_MAX_VERTICAL_PX = 52;
@@ -194,18 +192,6 @@ export function initMessageTouchContext(options = {}) {
         }
     }
 
-    function startMultiSelectFromMessage(messageEl) {
-        const payload = resolveMessageActionPayload(messageEl);
-        if (!payload) return;
-        closeReactionPicker();
-        hideContextMenu();
-        closeMessageActionsBar();
-        if (!messageSelectionController.isSelectionMode()) {
-            toggleSelectionMode(true);
-        }
-        toggleMessageSelection(payload.msgId, messageEl);
-    }
-
     function beginSwipeReplyFromGesture(gesture) {
         if (!gesture?.msgId || !gesture?.messageEl) return;
         const sender = gesture.isSelf ? 'Вы' : getCurrentPartnerDisplayName();
@@ -240,11 +226,12 @@ export function initMessageTouchContext(options = {}) {
             try {
                 if (navigator.vibrate) navigator.vibrate(15);
             } catch (_) {}
-            if (activeMessageTouchGesture.audioControlTarget) {
-                openMessageContextMenuFor(messageEl, activeMessageTouchGesture.startX, activeMessageTouchGesture.startY, { withReactions: true });
-                return;
-            }
-            startMultiSelectFromMessage(messageEl);
+            openMessageContextMenuFor(
+                messageEl,
+                activeMessageTouchGesture.startX,
+                activeMessageTouchGesture.startY,
+                { withReactions: true }
+            );
         }, MESSAGE_LONG_PRESS_MS);
 
         clearActiveMessageTouchGesture({ immediateReset: true });
@@ -380,6 +367,13 @@ export function initMessageTouchContext(options = {}) {
         event.preventDefault();
         event.stopPropagation();
         if (isChatBlocked()) {
+            const reactionRow = reactionControl.closest('.message-reactions');
+            reactionRow?.classList?.add('reaction-row--disabled');
+            reactionControl.classList.add('reaction-pill--disabled');
+            window.setTimeout(() => {
+                reactionRow?.classList?.remove('reaction-row--disabled');
+                reactionControl.classList.remove('reaction-pill--disabled');
+            }, 700);
             showToast(getChatBlockNoticeText(getCurrentBlockState()), 'warning');
             return;
         }
