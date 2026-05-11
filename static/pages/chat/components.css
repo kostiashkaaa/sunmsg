@@ -10737,18 +10737,6 @@
     margin-left: auto !important;
 }
 
-.message .bubble.bubble--text-has-reactions {
-    display: inline-flex;
-    align-items: stretch;
-    grid-template-columns: none;
-    grid-template-areas: none;
-}
-
-.message .bubble.bubble--text-has-reactions > .message-text + .msg-meta,
-.message .bubble.bubble--text-has-reactions > .message-text + .message-meta {
-    grid-area: auto;
-}
-
 .bubble--image > .message-footer,
 .bubble--video > .message-footer {
     margin-top: 0;
