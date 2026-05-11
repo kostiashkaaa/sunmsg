@@ -42,6 +42,21 @@ function renameFileByMime(fileName, mimeType) {
     return `${baseName}.jpg`;
 }
 
+function normalizeCanvasOutputMime(requestedMime, blobMime) {
+    const requested = String(requestedMime || '').toLowerCase();
+    const actual = String(blobMime || '').toLowerCase();
+    if (actual === 'image/webp' || actual === 'image/png' || actual === 'image/jpeg') {
+        return actual;
+    }
+    if (actual === 'image/jpg') {
+        return 'image/jpeg';
+    }
+    if (requested === 'image/webp' || requested === 'image/png' || requested === 'image/jpeg') {
+        return requested;
+    }
+    return 'image/jpeg';
+}
+
 function loadImageElementFromFile(file) {
     return new Promise((resolve, reject) => {
         const blobUrl = URL.createObjectURL(file);
@@ -117,10 +132,11 @@ export async function optimizeFileForAttachMode(file, {
             return { file, optimized: false };
         }
 
+        const finalMime = normalizeCanvasOutputMime(outputMime, optimizedBlob.type);
         const optimizedFile = new File(
             [optimizedBlob],
-            renameFileByMime(file.name, outputMime),
-            { type: outputMime, lastModified: Date.now() },
+            renameFileByMime(file.name, finalMime),
+            { type: finalMime, lastModified: Date.now() },
         );
 
         return {
