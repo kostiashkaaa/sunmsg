@@ -846,7 +846,7 @@
         }
 
 
-        .chat-messages.is-hydrating .message-avatar {
+        .chat-messages.is-hydrating .message.show-avatar .message-avatar {
             opacity: 1 !important;
             transform: none !important;
         }
