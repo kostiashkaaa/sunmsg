@@ -81,6 +81,17 @@ def test_chat_css_layer_files_exist() -> None:
         assert content, f'Layer file is empty: {path}'
 
 
+def test_outgoing_message_bubbles_use_chat_appearance_tokens() -> None:
+    css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
+    block_match = re.search(r'\.message\.self\s+\.bubble\s*\{(?P<body>[^}]*)\}', css, re.DOTALL)
+
+    assert block_match, 'components.css must define outgoing message bubble colors.'
+    block_body = block_match.group('body')
+    assert 'background: var(--chat-bubble-out-bg)' in block_body
+    assert 'color: var(--chat-bubble-out-text)' in block_body
+    assert 'body:not(.dark-mode) .message.self .bubble {\n            color: #fff;' not in css
+
+
 def test_chat_css_aggregator_contains_only_import_directives() -> None:
     css = CHAT_CSS.read_text(encoding='utf-8')
     non_directive_lines = []
