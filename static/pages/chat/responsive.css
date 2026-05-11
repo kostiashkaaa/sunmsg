@@ -1689,7 +1689,7 @@
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
-        margin: calc(-1 * var(--tg-reaction-overlap, 5px)) 0 0 !important;
+        margin: calc(var(--tg-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0 !important;
         max-width: 100%;
         padding: 0;
     }
@@ -1697,17 +1697,17 @@
     .message.other.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-start !important;
         justify-content: flex-start !important;
-        margin-left: calc(var(--tg-reaction-inline-inset, 4px) * var(--chat-message-scale, 1)) !important;
+        margin-left: calc(var(--tg-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
     }
 
     .message.self.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-end !important;
         justify-content: flex-end !important;
-        margin-right: calc(var(--tg-reaction-inline-inset, 4px) * var(--chat-message-scale, 1)) !important;
+        margin-right: calc(var(--tg-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
     }
 
     .reaction-pill {
-        min-height: 22px;
-        padding: 2px 7px;
+        min-height: 34px;
+        padding: 4px 12px;
     }
 }
