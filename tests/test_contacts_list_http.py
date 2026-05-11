@@ -142,7 +142,7 @@ def test_get_chat_history_marks_messages_read_and_paginates(monkeypatch, tmp_pat
     assert emitted == [
         {
             'name': 'messages_read',
-            'payload': {'chat_id': chat_id},
+            'payload': {'chat_id': chat_id, 'is_group': False},
             'args': (),
             'kwargs': {'room': 'pk-2'},
         }

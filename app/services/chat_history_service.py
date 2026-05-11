@@ -90,9 +90,9 @@ def load_chat_history(
                     },
                     room=chat_id,
                 )
-            socketio_emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+            socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': True}, room=chat_id)
         elif updated_rows > 0 and partner['public_key']:
-            socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
+            socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': False}, room=partner['public_key'])
 
     params = [chat_id]
     history_window_sql = ''
@@ -442,9 +442,9 @@ def mark_messages_as_read(
                 },
                 room=chat_id,
             )
-        socketio_emit_func('messages_read', {'chat_id': chat_id}, room=chat_id)
+        socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': True}, room=chat_id)
     elif updated_rows > 0 and partner and partner['public_key']:
-        socketio_emit_func('messages_read', {'chat_id': chat_id}, room=partner['public_key'])
+        socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': False}, room=partner['public_key'])
     return {'status': 'ok'}
 
 
