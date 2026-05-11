@@ -2878,8 +2878,8 @@
 
 
         .message.self .bubble {
-            background: var(--bubble-out);
-            color: var(--bubble-out-text);
+            background: var(--chat-bubble-out-bg);
+            color: var(--chat-bubble-out-text);
             border: none;
             box-shadow: var(--chat-bubble-shadow-outgoing);
         }
@@ -2889,7 +2889,7 @@
         }
 
         body:not(.dark-mode) .message.self .bubble {
-            color: #fff;
+            color: var(--chat-bubble-out-text);
         }
 
         /* Links in bubbles */
