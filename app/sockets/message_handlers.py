@@ -24,6 +24,296 @@ from app.sockets.idempotency import (
 )
 
 
+def _resolve_socket_request_handlers(
+    *,
+    reserve_socket_request_func=None,
+    mark_socket_request_completed_func=None,
+    release_socket_request_func=None,
+):
+    reserve_fn = reserve_socket_request_func if callable(reserve_socket_request_func) else reserve_request
+    complete_fn = (
+        mark_socket_request_completed_func
+        if callable(mark_socket_request_completed_func)
+        else mark_request_completed
+    )
+    release_fn = release_socket_request_func if callable(release_socket_request_func) else release_request
+    return reserve_fn, complete_fn, release_fn
+
+
+def _reserve_socket_request_or_emit_duplicate(
+    *,
+    reserve_fn,
+    emit_func,
+    user_id: int,
+    event_name: str,
+    request_id: str,
+):
+    allowed, reservation = reserve_fn(
+        user_id=user_id,
+        event_name=event_name,
+        request_id=request_id,
+    )
+    if not allowed:
+        emit_func(
+            'error',
+            {
+                'message': 'Duplicate request ignored.',
+                'code': 'duplicate_request',
+                'request_id': request_id,
+            },
+        )
+        return False, None
+    return True, reservation
+
+
+def _normalize_socket_request_id(data, normalize_request_id_func=None) -> str:
+    raw_request_id = data.get('request_id') if isinstance(data, dict) else ''
+    if callable(normalize_request_id_func):
+        return normalize_request_id_func(raw_request_id)
+    return str(raw_request_id or '').strip()
+
+
+def _resolve_message_table_columns(conn) -> set[str]:
+    try:
+        probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
+    except Exception:
+        return set()
+    return {
+        str(column[0]).strip()
+        for column in (probe_cursor.description or [])
+        if column and column[0]
+    }
+
+
+def _supports_forward_metadata(conn) -> bool:
+    message_columns = _resolve_message_table_columns(conn)
+    return 'forward_from_name' in message_columns and 'forward_from_user_id' in message_columns
+
+
+def _sync_direct_contact_chat(conn, *, sender_id: int, receiver_id: int, chat_id: str) -> None:
+    conn.execute(
+        '''
+        INSERT INTO contacts (user_id, contact_id, chat_id)
+        SELECT ?, ?, ?
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM contacts
+            WHERE user_id = ? AND contact_id = ?
+        )
+        ''',
+        (sender_id, receiver_id, chat_id, sender_id, receiver_id),
+    )
+    conn.execute(
+        '''
+        INSERT INTO contacts (user_id, contact_id, chat_id)
+        SELECT ?, ?, ?
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM contacts
+            WHERE user_id = ? AND contact_id = ?
+        )
+        ''',
+        (receiver_id, sender_id, chat_id, receiver_id, sender_id),
+    )
+    conn.execute(
+        'UPDATE contacts SET chat_id = ? WHERE user_id = ? AND contact_id = ?',
+        (chat_id, sender_id, receiver_id),
+    )
+    conn.execute(
+        'UPDATE contacts SET chat_id = ? WHERE user_id = ? AND contact_id = ?',
+        (chat_id, receiver_id, sender_id),
+    )
+
+
+def _resolve_group_mentions_context(
+    conn,
+    *,
+    chat_id: str,
+    sender_id: int,
+    message: str,
+    message_type: str,
+) -> tuple[list[dict], list[int], list[str], str]:
+    raw_mentioned_usernames = _extract_group_mention_usernames(message, message_type)
+    if not raw_mentioned_usernames:
+        return [], [], [], ''
+
+    mentioned_members = resolve_group_mentioned_members(
+        conn,
+        chat_id=chat_id,
+        mentioned_usernames=raw_mentioned_usernames,
+        exclude_user_id=sender_id,
+    )
+    mentioned_user_ids = [int(member['user_id']) for member in mentioned_members]
+    mentioned_usernames = [
+        str(member.get('username') or '').strip()
+        for member in mentioned_members
+        if str(member.get('username') or '').strip()
+    ]
+    if not mentioned_members:
+        return mentioned_members, mentioned_user_ids, mentioned_usernames, ''
+
+    try:
+        chat_name_row = conn.execute(
+            '''
+            SELECT chat_name
+            FROM chats
+            WHERE chat_id = ?
+            LIMIT 1
+            ''',
+            (chat_id,),
+        ).fetchone()
+    except Exception:  # noqa: BLE001
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        chat_name_row = None
+    group_chat_display_name = str(chat_name_row['chat_name'] or '').strip() if chat_name_row else ''
+    return mentioned_members, mentioned_user_ids, mentioned_usernames, group_chat_display_name
+
+
+def _resolve_group_restriction(
+    conn,
+    *,
+    chat_id: str,
+    sender_id: int,
+    group_restriction_lookup_func=None,
+):
+    if not callable(group_restriction_lookup_func):
+        return None
+    try:
+        return group_restriction_lookup_func(
+            conn,
+            chat_id=chat_id,
+            user_id=sender_id,
+        )
+    except Exception:
+        return None
+
+
+def _resolve_group_slow_mode_retry_after(
+    conn,
+    *,
+    chat_id: str,
+    sender_id: int,
+    utc_now_text_func=None,
+) -> int | None:
+    if not callable(utc_now_text_func):
+        return None
+    group_permissions = load_group_permissions(conn, chat_id=chat_id)
+    slow_mode_seconds = int(group_permissions.get('slow_mode_seconds') or 0)
+    if slow_mode_seconds <= 0:
+        return None
+
+    last_message_row = conn.execute(
+        '''
+        SELECT created_at
+        FROM messages
+        WHERE chat_id = ? AND sender_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (chat_id, sender_id),
+    ).fetchone()
+    last_message_ts = _parse_utc_timestamp(last_message_row['created_at'] if last_message_row else '')
+    now_ts = _parse_utc_timestamp(utc_now_text_func())
+    if not last_message_ts or not now_ts:
+        return None
+
+    elapsed_seconds = max(0, int((now_ts - last_message_ts).total_seconds()))
+    if elapsed_seconds >= slow_mode_seconds:
+        return None
+    return slow_mode_seconds - elapsed_seconds
+
+
+def _is_group_send_allowed(
+    conn,
+    *,
+    sender_id: int,
+    chat_id: str,
+    emit_func,
+    context: dict | None = None,
+) -> bool:
+    message_context = context or {}
+    message_type = str(message_context.get('message_type') or 'text')
+    group_restriction_lookup_func = message_context.get('group_restriction_lookup_func')
+    utc_now_text_func = message_context.get('utc_now_text_func')
+
+    membership_row = conn.execute(
+        '''
+        SELECT 1
+        FROM chat_members
+        WHERE user_id = ? AND chat_id = ?
+        LIMIT 1
+        ''',
+        (sender_id, chat_id),
+    ).fetchone()
+    if not membership_row:
+        emit_func('error', {'message': 'You are not a member of this chat.'})
+        return False
+
+    group_restriction = _resolve_group_restriction(
+        conn,
+        chat_id=chat_id,
+        sender_id=sender_id,
+        group_restriction_lookup_func=group_restriction_lookup_func,
+    )
+    if group_restriction:
+        restriction_type = str(group_restriction.get('action_type') or '').strip().lower()
+        if restriction_type in {'mute_temp', 'ban_temp', 'ban_perma'}:
+            emit_func(
+                'error',
+                {
+                    'message': 'Messaging is restricted in this group by moderation.',
+                    'code': 'group_moderation_restriction',
+                    'restriction': group_restriction,
+                },
+            )
+            return False
+
+    group_permissions = load_group_permissions(conn, chat_id=chat_id)
+    sender_role = get_group_member_role(conn, sender_id, chat_id)
+    if not role_uses_member_permissions(sender_role):
+        return True
+
+    if not bool(group_permissions.get('members_can_send_messages')):
+        emit_func(
+            'error',
+            {
+                'message': 'Participants cannot send messages in this group.',
+                'code': 'group_permissions_messages_disabled',
+            },
+        )
+        return False
+    if is_media_message_type(message_type) and not bool(group_permissions.get('members_can_send_media')):
+        emit_func(
+            'error',
+            {
+                'message': 'Participants cannot send media in this group.',
+                'code': 'group_permissions_media_disabled',
+            },
+        )
+        return False
+
+    remaining_seconds = _resolve_group_slow_mode_retry_after(
+        conn,
+        chat_id=chat_id,
+        sender_id=sender_id,
+        utc_now_text_func=utc_now_text_func,
+    )
+    if remaining_seconds is None:
+        return True
+    emit_func(
+        'error',
+        {
+            'message': 'Slow mode is enabled. Please wait before sending another message.',
+            'code': 'group_permissions_slow_mode',
+            'retry_after_seconds': remaining_seconds,
+        },
+    )
+    return False
+
+
 def _extract_group_mention_usernames(raw_message: str, message_type: str) -> list[str]:
     normalized_message_type = str(message_type or '').strip().lower()
     if normalized_message_type in {'text', 'link'}:
@@ -117,12 +407,7 @@ def handle_edit_message_event(
         emit_func('error', {'message': 'Invalid chat ID.'})
         return
     message_type = sanitize_message_type_func(data.get('message_type', 'text'))
-    raw_request_id = data.get('request_id') if isinstance(data, dict) else ''
-    request_id = (
-        normalize_request_id_func(raw_request_id)
-        if callable(normalize_request_id_func)
-        else str(raw_request_id or '').strip()
-    )
+    request_id = _normalize_socket_request_id(data, normalize_request_id_func)
 
     conn = get_db_connection_func()
     partner, block_state = chat_partner_state_func(conn, uid, chat_id)
@@ -168,28 +453,20 @@ def handle_edit_message_event(
             emit_func('error', {'message': 'Edit limit reached for this message.'})
             return
 
-        reserve_fn = reserve_socket_request_func if callable(reserve_socket_request_func) else reserve_request
-        complete_fn = (
-            mark_socket_request_completed_func
-            if callable(mark_socket_request_completed_func)
-            else mark_request_completed
+        reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
+            reserve_socket_request_func=reserve_socket_request_func,
+            mark_socket_request_completed_func=mark_socket_request_completed_func,
+            release_socket_request_func=release_socket_request_func,
         )
-        release_fn = release_socket_request_func if callable(release_socket_request_func) else release_request
-        allowed, reservation = reserve_fn(
+        allowed, reservation = _reserve_socket_request_or_emit_duplicate(
+            reserve_fn=reserve_fn,
+            emit_func=emit_func,
             user_id=current_user_id,
             event_name='edit_message',
             request_id=request_id,
         )
         if not allowed:
             conn.close()
-            emit_func(
-                'error',
-                {
-                    'message': 'Duplicate request ignored.',
-                    'code': 'duplicate_request',
-                    'request_id': request_id,
-                },
-            )
             return
 
         try:
@@ -300,33 +577,20 @@ def handle_delete_messages_event(
         return
     if not is_valid_chat_id_func(chat_id):
         return
-    raw_request_id = data.get('request_id') if isinstance(data, dict) else ''
-    request_id = (
-        normalize_request_id_func(raw_request_id)
-        if callable(normalize_request_id_func)
-        else str(raw_request_id or '').strip()
+    request_id = _normalize_socket_request_id(data, normalize_request_id_func)
+    reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
+        reserve_socket_request_func=reserve_socket_request_func,
+        mark_socket_request_completed_func=mark_socket_request_completed_func,
+        release_socket_request_func=release_socket_request_func,
     )
-    reserve_fn = reserve_socket_request_func if callable(reserve_socket_request_func) else reserve_request
-    complete_fn = (
-        mark_socket_request_completed_func
-        if callable(mark_socket_request_completed_func)
-        else mark_request_completed
-    )
-    release_fn = release_socket_request_func if callable(release_socket_request_func) else release_request
-    allowed, reservation = reserve_fn(
+    allowed, reservation = _reserve_socket_request_or_emit_duplicate(
+        reserve_fn=reserve_fn,
+        emit_func=emit_func,
         user_id=uid,
         event_name='delete_messages',
         request_id=request_id,
     )
     if not allowed:
-        emit_func(
-            'error',
-            {
-                'message': 'Duplicate request ignored.',
-                'code': 'duplicate_request',
-                'request_id': request_id,
-            },
-        )
         return
 
     conn = get_db_connection_func()
@@ -494,12 +758,7 @@ def handle_send_message_event(
     if not is_valid_chat_id_func(chat_id):
         emit_func('error', {'message': 'Invalid chat ID.'})
         return
-    raw_request_id = data.get('request_id') if isinstance(data, dict) else ''
-    request_id = (
-        normalize_request_id_func(raw_request_id)
-        if callable(normalize_request_id_func)
-        else str(raw_request_id or '').strip()
-    )
+    request_id = _normalize_socket_request_id(data, normalize_request_id_func)
     conn = get_db_connection_func()
     if callable(moderation_user_restriction_func):
         restriction = moderation_user_restriction_func(conn, user_id=sender_id)
@@ -546,93 +805,19 @@ def handle_send_message_event(
         emit_func('error', {'message': 'You are not a member of this chat.'})
         return
     if chat_type == 'group':
-        membership_row = conn.execute(
-            '''
-            SELECT 1
-            FROM chat_members
-            WHERE user_id = ? AND chat_id = ?
-            LIMIT 1
-            ''',
-            (sender_id, chat_id),
-        ).fetchone()
-        if not membership_row:
+        if not _is_group_send_allowed(
+            conn,
+            sender_id=sender_id,
+            chat_id=chat_id,
+            emit_func=emit_func,
+            context={
+                'message_type': message_type,
+                'group_restriction_lookup_func': group_restriction_lookup_func,
+                'utc_now_text_func': utc_now_text_func,
+            },
+        ):
             conn.close()
-            emit_func('error', {'message': 'You are not a member of this chat.'})
             return
-        if callable(group_restriction_lookup_func):
-            try:
-                group_restriction = group_restriction_lookup_func(
-                    conn,
-                    chat_id=chat_id,
-                    user_id=sender_id,
-                )
-            except Exception:
-                group_restriction = None
-            if group_restriction:
-                restriction_type = str(group_restriction.get('action_type') or '').strip().lower()
-                if restriction_type in {'mute_temp', 'ban_temp', 'ban_perma'}:
-                    emit_func(
-                        'error',
-                        {
-                            'message': 'Messaging is restricted in this group by moderation.',
-                            'code': 'group_moderation_restriction',
-                            'restriction': group_restriction,
-                        },
-                    )
-                    conn.close()
-                    return
-        group_permissions = load_group_permissions(conn, chat_id=chat_id)
-        sender_role = get_group_member_role(conn, sender_id, chat_id)
-        if role_uses_member_permissions(sender_role):
-            if not bool(group_permissions.get('members_can_send_messages')):
-                conn.close()
-                emit_func(
-                    'error',
-                    {
-                        'message': 'Participants cannot send messages in this group.',
-                        'code': 'group_permissions_messages_disabled',
-                    },
-                )
-                return
-            if is_media_message_type(message_type) and not bool(group_permissions.get('members_can_send_media')):
-                conn.close()
-                emit_func(
-                    'error',
-                    {
-                        'message': 'Participants cannot send media in this group.',
-                        'code': 'group_permissions_media_disabled',
-                    },
-                )
-                return
-
-            slow_mode_seconds = int(group_permissions.get('slow_mode_seconds') or 0)
-            if slow_mode_seconds > 0:
-                last_message_row = conn.execute(
-                    '''
-                    SELECT created_at
-                    FROM messages
-                    WHERE chat_id = ? AND sender_id = ?
-                    ORDER BY id DESC
-                    LIMIT 1
-                    ''',
-                    (chat_id, sender_id),
-                ).fetchone()
-                last_message_ts = _parse_utc_timestamp(last_message_row['created_at'] if last_message_row else '')
-                now_ts = _parse_utc_timestamp(utc_now_text_func())
-                if last_message_ts and now_ts:
-                    elapsed_seconds = max(0, int((now_ts - last_message_ts).total_seconds()))
-                    if elapsed_seconds < slow_mode_seconds:
-                        remaining_seconds = slow_mode_seconds - elapsed_seconds
-                        conn.close()
-                        emit_func(
-                            'error',
-                            {
-                                'message': 'Slow mode is enabled. Please wait before sending another message.',
-                                'code': 'group_permissions_slow_mode',
-                                'retry_after_seconds': remaining_seconds,
-                            },
-                        )
-                        return
 
     receiver_id = contact['contact_id'] if contact else None
     receiver_pub = contact['public_key'] if contact else ''
@@ -655,113 +840,46 @@ def handle_send_message_event(
     mentioned_usernames: list[str] = []
     group_chat_display_name = ''
     if chat_type == 'group':
-        raw_mentioned_usernames = _extract_group_mention_usernames(message, message_type)
-        if raw_mentioned_usernames:
-            mentioned_members = resolve_group_mentioned_members(
-                conn,
-                chat_id=chat_id,
-                mentioned_usernames=raw_mentioned_usernames,
-                exclude_user_id=sender_id,
-            )
-            mentioned_user_ids = [int(member['user_id']) for member in mentioned_members]
-            mentioned_usernames = [
-                str(member.get('username') or '').strip()
-                for member in mentioned_members
-                if str(member.get('username') or '').strip()
-            ]
-            if mentioned_members:
-                try:
-                    chat_name_row = conn.execute(
-                        '''
-                        SELECT chat_name
-                        FROM chats
-                        WHERE chat_id = ?
-                        LIMIT 1
-                        ''',
-                        (chat_id,),
-                    ).fetchone()
-                except Exception:  # noqa: BLE001
-                    try:
-                        conn.rollback()
-                    except Exception:  # noqa: BLE001
-                        pass
-                    chat_name_row = None
-                group_chat_display_name = str(chat_name_row['chat_name'] or '').strip() if chat_name_row else ''
+        (
+            mentioned_members,
+            mentioned_user_ids,
+            mentioned_usernames,
+            group_chat_display_name,
+        ) = _resolve_group_mentions_context(
+            conn,
+            chat_id=chat_id,
+            sender_id=sender_id,
+            message=message,
+            message_type=message_type,
+        )
     sender_display_name = str(session_store.get('display_name') or session_store.get('username') or '').strip()
     sender_username = str(session_store.get('username') or '').strip()
     sender_avatar_url = ''
-    reserve_fn = reserve_socket_request_func if callable(reserve_socket_request_func) else reserve_request
-    complete_fn = (
-        mark_socket_request_completed_func
-        if callable(mark_socket_request_completed_func)
-        else mark_request_completed
+    reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
+        reserve_socket_request_func=reserve_socket_request_func,
+        mark_socket_request_completed_func=mark_socket_request_completed_func,
+        release_socket_request_func=release_socket_request_func,
     )
-    release_fn = release_socket_request_func if callable(release_socket_request_func) else release_request
-    allowed, reservation = reserve_fn(
+    allowed, reservation = _reserve_socket_request_or_emit_duplicate(
+        reserve_fn=reserve_fn,
+        emit_func=emit_func,
         user_id=sender_id,
         event_name='send_message',
         request_id=request_id,
     )
     if not allowed:
         conn.close()
-        emit_func(
-            'error',
-            {
-                'message': 'Duplicate request ignored.',
-                'code': 'duplicate_request',
-                'request_id': request_id,
-            },
-        )
         return
 
     try:
         ensure_chat_exists_func(conn, chat_id)
-        message_columns = set()
-        try:
-            probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
-            message_columns = {
-                str(column[0]).strip()
-                for column in (probe_cursor.description or [])
-                if column and column[0]
-            }
-        except Exception:
-            message_columns = set()
-        supports_forward_metadata = (
-            'forward_from_name' in message_columns
-            and 'forward_from_user_id' in message_columns
-        )
+        supports_forward_metadata = _supports_forward_metadata(conn)
         if chat_type != 'group':
-            conn.execute(
-                '''
-                INSERT INTO contacts (user_id, contact_id, chat_id)
-                SELECT ?, ?, ?
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM contacts
-                    WHERE user_id = ? AND contact_id = ?
-                )
-                ''',
-                (sender_id, receiver_id, chat_id, sender_id, receiver_id),
-            )
-            conn.execute(
-                '''
-                INSERT INTO contacts (user_id, contact_id, chat_id)
-                SELECT ?, ?, ?
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM contacts
-                    WHERE user_id = ? AND contact_id = ?
-                )
-                ''',
-                (receiver_id, sender_id, chat_id, receiver_id, sender_id),
-            )
-            conn.execute(
-                'UPDATE contacts SET chat_id = ? WHERE user_id = ? AND contact_id = ?',
-                (chat_id, sender_id, receiver_id),
-            )
-            conn.execute(
-                'UPDATE contacts SET chat_id = ? WHERE user_id = ? AND contact_id = ?',
-                (chat_id, receiver_id, sender_id),
+            _sync_direct_contact_chat(
+                conn,
+                sender_id=sender_id,
+                receiver_id=receiver_id,
+                chat_id=chat_id,
             )
 
         if reply_to_id is not None:
