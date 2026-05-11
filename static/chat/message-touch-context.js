@@ -112,7 +112,16 @@ export function initMessageTouchContext(options = {}) {
         activeMessageTouchGesture = null;
     }
 
-    function openMessageContextMenuFor(msg, clientX, clientY, { withReactions = true, deferReactions = false } = {}) {
+    function openMessageContextMenuFor(
+        msg,
+        clientX,
+        clientY,
+        {
+            withReactions = true,
+            deferReactions = false,
+            originTarget = null,
+        } = {},
+    ) {
         if (!msg) return;
         closeReactionPicker();
         const msgId = msg.getAttribute('data-msg-id');
@@ -127,7 +136,12 @@ export function initMessageTouchContext(options = {}) {
         if (contextReadInfo) {
             contextReadInfo.hidden = true;
         }
-        updateContextMenuReadInfo(msgId, { isSelf, blocked, messageEl: msg });
+        updateContextMenuReadInfo(msgId, {
+            isSelf,
+            blocked,
+            messageEl: msg,
+            triggerTarget: originTarget,
+        });
         if (contextPinItem) {
             const normalizedMessageId = Number(msgId);
             const isPinned = Number.isFinite(normalizedMessageId) && isPinnedMessage(getCurrentChatId(), normalizedMessageId);
@@ -351,6 +365,7 @@ export function initMessageTouchContext(options = {}) {
         openMessageContextMenuFor(msg, event.clientX, event.clientY, {
             withReactions: true,
             deferReactions: true,
+            originTarget: event.target,
         });
     }
 

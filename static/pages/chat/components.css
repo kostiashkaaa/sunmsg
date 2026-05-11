@@ -9378,6 +9378,24 @@
         }
 
 
+        .context-menu-read-info.context-menu-read-info--list {
+            align-items: flex-start;
+        }
+
+
+        .context-menu-read-info.context-menu-read-info--list .context-menu-read-info__tick {
+            margin-top: 1px;
+        }
+
+
+        .context-menu-read-info.context-menu-read-info--list .context-menu-read-info__text {
+            white-space: pre-line;
+            line-height: 1.35;
+            text-overflow: clip;
+            overflow: visible;
+        }
+
+
 
         /* Pin icon in contact list */
         .pin-icon {
