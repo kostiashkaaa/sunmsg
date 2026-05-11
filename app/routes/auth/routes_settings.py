@@ -122,7 +122,8 @@ def get_settings():
     user = conn.execute(
         '''
         SELECT id, username, display_name, public_key, is_public,
-               auto_decline_requests, mute_dialog_requests, hide_online_status, avatar_url, avatar_visibility,
+               auto_decline_requests, mute_dialog_requests, hide_online_status, is_online, last_seen,
+               avatar_url, avatar_visibility,
                group_invite_privacy,
                bio, language, client_preferences
         FROM users
@@ -134,6 +135,11 @@ def get_settings():
 
     if not user:
         return jsonify({'error': 'Пользователь не найден.'}), 404
+
+    effective_online = is_effectively_online(
+        user['public_key'],
+        persisted=bool(user['is_online']) if 'is_online' in user.keys() else False,
+    )
 
     return jsonify({
         'username':             user['username'],
@@ -151,6 +157,8 @@ def get_settings():
         ),
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
+        'online':               bool(effective_online),
+        'last_seen':            user['last_seen'] if 'last_seen' in user.keys() else None,
         'client_preferences':   client_preferences_from_db(
             user['client_preferences'] if 'client_preferences' in user.keys() else None
         ),

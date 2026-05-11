@@ -138,6 +138,7 @@ export function initPrivacySection({
         .map((metricKey) => document.querySelector(`input[name="sidebarWeatherMetricOption"][value="${metricKey}"]`))
         .filter((el) => el instanceof HTMLInputElement);
     let persistedClientPreferences = {};
+    let latestPresencePayload = null;
     let sidebarWeatherCitySuggestionsTimerId = 0;
     let sidebarWeatherCitySuggestionsRequestSeq = 0;
     const CLIENT_PREFERENCES_FIELD_IDS = new Set([
@@ -178,6 +179,35 @@ export function initPrivacySection({
             ? i18nApi.getLanguage()
             : (document.documentElement.lang || 'ru');
         return language === 'en' ? 'en-US' : 'ru-RU';
+    }
+
+    function parseUtcDate(rawValue) {
+        if (!rawValue || typeof rawValue !== 'string') return null;
+        const normalized = rawValue.includes('T') ? rawValue : `${rawValue.replace(' ', 'T')}Z`;
+        const date = new Date(normalized);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatPresenceLastSeen(rawValue) {
+        const date = parseUtcDate(rawValue);
+        if (!date) return tr('не в сети');
+        const now = new Date();
+        const isToday = now.toDateString() === date.toDateString();
+        const timePart = date.toLocaleTimeString(resolveLocale(), {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: getTimeFormatSelection() === TIME_FORMAT_12H,
+        });
+        if (isToday) return `${tr('был(а) в сети')} ${tr('сегодня в')} ${timePart}`;
+        return `${tr('был(а) в сети')} ${date.toLocaleDateString(resolveLocale())}, ${timePart}`;
+    }
+
+    function applySettingsNavProfileStatus(payload) {
+        const statusEl = document.getElementById('settingsNavProfileStatus');
+        if (!statusEl) return;
+        const online = payload && payload.online === true;
+        const lastSeenRaw = payload && typeof payload.last_seen === 'string' ? payload.last_seen : '';
+        statusEl.textContent = online ? tr('в сети') : formatPresenceLastSeen(lastSeenRaw);
     }
 
     function getSendShortcutSelection() {
@@ -544,6 +574,7 @@ export function initPrivacySection({
 
     function applySettingsFromPayload(payload) {
         if (!payload || typeof payload !== 'object') return;
+        latestPresencePayload = payload;
 
         const usernameEl = document.getElementById('username');
         const displayNameEl = document.getElementById('displayName');
@@ -616,6 +647,7 @@ export function initPrivacySection({
         if (languageEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
             i18nApi.setLanguage(languageEl.value, { persist: true, apply: true });
         }
+        applySettingsNavProfileStatus(payload);
         if (typeof notifyWeatherLabelUpdate === 'function') {
             notifyWeatherLabelUpdate({
                 clientPreferences: collectClientPreferencesForSave(),
@@ -725,9 +757,15 @@ export function initPrivacySection({
             i18nApi.setLanguage(nextLanguage, { persist: false, apply: true });
             notifyLanguageUpdate(nextLanguage, false);
             syncTimeFormatSamples();
+            if (latestPresencePayload) applySettingsNavProfileStatus(latestPresencePayload);
             syncClientPreferencesLocal(true);
         });
     }
+
+    window.addEventListener('sun-time-format-changed', () => {
+        if (!latestPresencePayload) return;
+        applySettingsNavProfileStatus(latestPresencePayload);
+    });
 
     languageSelectEl?.addEventListener('change', () => {
         scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
