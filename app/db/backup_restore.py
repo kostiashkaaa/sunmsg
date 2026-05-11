@@ -96,7 +96,7 @@ def validate_postgres_backup_tools(*, resolve_pg_tool_func=resolve_pg_tool) -> d
     }
 
 
-def create_database_backup(
+def create_database_backup(  # noqa: PLR0913 - dependency-injected backup pipeline contract
     database_path=None,
     *,
     backup_dir='backups',
@@ -140,7 +140,7 @@ def create_database_backup(
     )
 
 
-def restore_database_backup(
+def restore_database_backup(  # noqa: PLR0913 - dependency-injected restore pipeline contract
     backup_path,
     *,
     target_path=None,
@@ -192,7 +192,7 @@ def restore_database_backup(
     )
 
 
-def _create_pg_dump_backup(
+def _create_pg_dump_backup(  # noqa: PLR0913 - explicit pg_dump pipeline contract
     database_url: str,
     *,
     backup_dir: str,
@@ -230,7 +230,7 @@ def _create_pg_dump_backup(
     return str(backup_path)
 
 
-def _create_schema_reference_backup(
+def _create_schema_reference_backup(  # noqa: PLR0913 - explicit schema-reference backup contract
     database_path,
     *,
     backup_dir: str,
@@ -291,7 +291,7 @@ def _copy_schema(source_schema: str, target_schema: str, *, database_url: str, q
                 )
 
 
-def _restore_schema_reference_backup(
+def _restore_schema_reference_backup(  # noqa: PLR0913 - explicit schema-reference restore contract
     payload: dict,
     backup_path,
     *,

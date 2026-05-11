@@ -1,4 +1,4 @@
-def process_get_contacts(
+def process_get_contacts(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,

@@ -1,4 +1,4 @@
-def process_accept_request(
+def process_accept_request(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     receiver_user_id: int,
@@ -45,7 +45,7 @@ def process_accept_request(
     }
 
 
-def process_accept_request_route(
+def process_accept_request_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     receiver_user_id: int,
@@ -88,7 +88,7 @@ def process_get_dialog_requests(
     return {'status': 'ok', 'dialog_requests': requests_list}
 
 
-def process_decline_request(
+def process_decline_request(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     receiver_user_id: int,
@@ -117,7 +117,7 @@ def process_decline_request(
     return {'status': 'ok', 'event': event}
 
 
-def process_decline_request_route(
+def process_decline_request_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     receiver_user_id: int,

@@ -1,7 +1,7 @@
 from app.db_backend import DatabaseError
 
 
-def process_send_request(
+def process_send_request(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     sender_user_id: int,
@@ -38,7 +38,7 @@ def process_send_request(
     return {'status': 'ok', 'event': result.get('event')}
 
 
-def process_send_request_route(
+def process_send_request_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     sender_user_id: int,

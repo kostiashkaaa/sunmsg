@@ -21,7 +21,7 @@ def _integrity_result_to_error(result: dict) -> str:
     )
 
 
-def run_database_maintenance(
+def run_database_maintenance(  # noqa: PLR0913 - dependency-injected maintenance runner contract
     config_name=None,
     overrides=None,
     *,

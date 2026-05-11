@@ -9,7 +9,7 @@ def _normalize_search_query(raw_query: str | None) -> str:
     return query
 
 
-def process_search_users(
+def process_search_users(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,

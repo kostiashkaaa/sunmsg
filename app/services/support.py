@@ -70,7 +70,7 @@ def normalize_priority(value: Any) -> int:
     return int(parsed)
 
 
-def create_support_request(
+def create_support_request(  # noqa: PLR0913 - explicit support-request creation contract
     conn,
     *,
     created_by_user_id: int | None,
@@ -224,7 +224,7 @@ def list_support_requests(
     return result
 
 
-def resolve_support_request(
+def resolve_support_request(  # noqa: PLR0913 - explicit support-request resolution contract
     conn,
     *,
     request_id: int,

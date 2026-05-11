@@ -1,4 +1,4 @@
-def process_pin_chat(
+def process_pin_chat(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,
@@ -26,7 +26,7 @@ def process_pin_chat(
     return {'status': 'ok', 'pin_order': int(result['pin_order'])}
 
 
-def process_unpin_chat(
+def process_unpin_chat(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,
@@ -49,7 +49,7 @@ def process_unpin_chat(
     return {'status': 'ok'}
 
 
-def process_reorder_pinned_chats(
+def process_reorder_pinned_chats(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,

@@ -41,7 +41,7 @@ def _normalize_media_extension(ext: str, uploaded_mime: str | None) -> str:
     return normalized_ext
 
 
-def upload_avatar_for_user(
+def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload contract
     conn,
     *,
     user_id: int,
@@ -108,7 +108,7 @@ def upload_avatar_for_user(
     return {'status': 'ok', 'avatar_url': avatar_url}
 
 
-def upload_chat_media_for_user(
+def upload_chat_media_for_user(  # noqa: PLR0913 - dependency-injected media upload contract
     conn,
     *,
     user_id: int,
@@ -227,7 +227,7 @@ def upload_chat_media_for_user(
     }
 
 
-def resolve_chat_media_access(
+def resolve_chat_media_access(  # noqa: PLR0913 - dependency-injected media access contract
     conn,
     *,
     user_id: int,
