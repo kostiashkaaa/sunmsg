@@ -16,7 +16,7 @@ def register_chat_media_routes(
     *,
     logger,
     limiter,
-    socketio,
+    socketio_emit_func,
     get_db_connection_func,
     is_valid_chat_id_func,
     ensure_chat_exists_func,
@@ -61,7 +61,7 @@ def register_chat_media_routes(
                 allowed_file_func=allowed_avatar_file_func,
                 validate_magic_func=validate_avatar_magic_func,
                 list_visible_contact_public_keys_func=list_visible_contact_public_keys_func,
-                socketio_emit_func=socketio.emit,
+                socketio_emit_func=socketio_emit_func,
                 own_public_key=str(session.get('public_key_pem') or ''),
                 project_root=get_project_root_func(),
             )

@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 
 from flask import current_app
 from flask import session
-from flask_socketio import emit
 
 from app.db_backend import DatabaseError
 from app.database import (
@@ -80,7 +79,7 @@ def handle_edit_message(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         parse_db_utc_timestamp_func=ctx._parse_db_utc_timestamp,
         utc_now_func=lambda: datetime.now(timezone.utc),
         message_edit_window_seconds=ctx._MESSAGE_EDIT_WINDOW_SECONDS,
@@ -104,7 +103,7 @@ def handle_delete_messages(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         logger=ctx.logger,
         database_error_cls=DatabaseError,
         authorize_group_action_func=_can_group_action,
@@ -129,7 +128,7 @@ def handle_toggle_reaction(data):
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
         fetch_reactions_map_func=fetch_reactions_map,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         utc_now_iso_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds'),
         logger=ctx.logger,
         database_error_cls=DatabaseError,
@@ -155,7 +154,7 @@ def handle_send_message(data):
         ensure_chat_exists_func=ensure_chat_exists,
         looks_like_ciphertext_func=looks_like_ciphertext,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         utc_now_text_func=lambda: datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         logger=ctx.logger,
         database_error_cls=DatabaseError,
@@ -187,7 +186,7 @@ def handle_pin_message(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         utc_now_z_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
         get_chat_type_func=get_chat_type,
         authorize_group_action_func=_can_group_action_with_message,
@@ -209,7 +208,7 @@ def handle_unpin_message(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         get_chat_type_func=get_chat_type,
         authorize_group_action_func=_can_group_action_with_message,
     )
@@ -229,7 +228,7 @@ def handle_favorite_message(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
         utc_now_z_func=lambda: datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
     )
 
@@ -248,5 +247,5 @@ def handle_unfavorite_message(data):
         get_db_connection_func=get_db_connection,
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
-        emit_func=emit,
+        emit_func=ctx._emit_socket_event,
     )

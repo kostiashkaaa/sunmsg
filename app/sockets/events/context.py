@@ -7,6 +7,7 @@ from wtforms.validators import ValidationError
 
 from app.database import get_db_connection
 from app.sockets.delivery import collect_and_mark_delivered, emit_delivered_events
+from app.sockets.event_envelope import emit_enveloped_socket_event
 from app.sockets.rate_limit import (
     socket_connect_ip_rate_ok,
     socket_connect_ip_rate_ok_redis,
@@ -251,12 +252,26 @@ def _emit_blocked_error(message: str, state=None, request_id: str | None = None)
     )
 
 
+def _emit_socket_event(event_name: str, payload=None, *args, chat_id: str | None = None, request_id: str | None = None, **kwargs):
+    return emit_enveloped_socket_event(
+        raw_emit_func=emit,
+        get_db_connection_func=get_db_connection,
+        logger=logger,
+        event_type=event_name,
+        payload=payload if payload is not None else {},
+        chat_id=chat_id,
+        request_id=request_id,
+        args=args,
+        kwargs=kwargs,
+    )
+
+
 def _chat_partner_state(conn, user_id: int, chat_id: str):
     return chat_access.chat_partner_state(conn, user_id, chat_id)
 
 
 def _emit_chat_status_for_user(conn, user_id: int, payload: dict):
-    chat_access.emit_chat_status_for_user(conn, user_id, payload, emit_func=emit)
+    chat_access.emit_chat_status_for_user(conn, user_id, payload, emit_func=_emit_socket_event)
 
 
 def _collect_and_mark_delivered(conn, receiver_id: int, *, chat_id: str | None = None):
@@ -264,7 +279,7 @@ def _collect_and_mark_delivered(conn, receiver_id: int, *, chat_id: str | None =
 
 
 def _emit_delivered_events(delivered_rows):
-    emit_delivered_events(delivered_rows, emit_func=emit)
+    emit_delivered_events(delivered_rows, emit_func=_emit_socket_event)
 
 
 def authenticated_only(f):

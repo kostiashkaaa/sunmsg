@@ -16,6 +16,7 @@ from app.database import get_db_connection
 from app.db_backend import DatabaseError, IntegrityError
 from app.extensions import limiter, socketio
 from app.forms import SettingsForm
+from app.routes.socket_emit import build_route_socket_emitter
 from app.routes.auth_helpers_settings import (
     AVATAR_FOLDER,
     CHAT_MEDIA_FOLDER,
@@ -33,6 +34,13 @@ from app.services.refresh_tokens import clear_refresh_cookie
 from .context import (
     auth_bp,
 )
+
+_emit_socket_event = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=logger,
+)
+
 
 @auth_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -346,10 +354,10 @@ def api_save_settings():
 
                 # Эмитим каждому контакту в его персональную комнату
                 for c in contacts:
-                    socketio.emit('profile_updated', profile_payload, room=c['public_key'])
+                    _emit_socket_event('profile_updated', profile_payload, room=c['public_key'])
 
                 # Самому себе (для обновления сайдбара)
-                socketio.emit('own_profile_updated', profile_payload, room=pub)
+                _emit_socket_event('own_profile_updated', profile_payload, room=pub)
 
             # Реалтайм-обновление онлайн-статуса при изменении настройки скрытия
             if status_changed:
@@ -358,7 +366,7 @@ def api_save_settings():
                     # Скрыли статус — отправить "оффлайн" всем контактам
                     status_payload = {'public_key': pub, 'online': False, 'last_seen': None}
                     for cpk in contact_pub_keys:
-                        socketio.emit('user_status', status_payload, room=cpk)
+                        _emit_socket_event('user_status', status_payload, room=cpk)
                 else:
                     # Показали статус — отправить реальный статус
                     is_online = is_effectively_online(
@@ -371,7 +379,7 @@ def api_save_settings():
                         'last_seen': None if is_online else updated['last_seen'],
                     }
                     for cpk in contact_pub_keys:
-                        socketio.emit('user_status', status_payload, room=cpk)
+                        _emit_socket_event('user_status', status_payload, room=cpk)
 
         return jsonify({'success': True})
     except DatabaseError as exc:

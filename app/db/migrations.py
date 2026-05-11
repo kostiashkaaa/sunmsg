@@ -29,6 +29,7 @@ GROUP_CHAT_OWNER_ROLE_MIGRATION = (14, 'backfill_group_owner_role')
 SUPPORT_REQUESTS_MIGRATION = (15, 'create_support_requests_table')
 USER_PROFILE_NORMALIZATION_MIGRATION = (16, 'normalize_user_profile_defaults')
 GROUP_INVITE_REQUESTS_MIGRATION = (17, 'add_group_invite_privacy_and_requests')
+CHAT_EVENT_ENVELOPE_MIGRATION = (18, 'add_chat_update_event_envelope_tables')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -479,6 +480,14 @@ def run_migrations() -> None:
             ON CONFLICT(version) DO NOTHING
             ''',
             SUPPORT_REQUESTS_MIGRATION,
+        )
+        cursor.execute(
+            '''
+            INSERT INTO schema_migrations (version, name)
+            VALUES (?, ?)
+            ON CONFLICT(version) DO NOTHING
+            ''',
+            CHAT_EVENT_ENVELOPE_MIGRATION,
         )
         if not migration_applied(cursor, GROUP_CHATS_SCHEMA_MIGRATION[0]):
             backfill_chat_members(conn, cursor)
