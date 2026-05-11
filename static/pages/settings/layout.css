@@ -150,6 +150,7 @@ html, body {
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            position: relative;
         }
         .settings-panel-tool-btn {
             width: 36px;
@@ -173,6 +174,52 @@ html, body {
         .settings-panel-tool-btn .sun-icon {
             width: 18px;
             height: 18px;
+        }
+        .settings-panel-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 20;
+            min-width: 168px;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+            background: color-mix(in srgb, var(--overlay-menu-bg, var(--surface)) 96%, transparent 4%);
+            box-shadow: var(--shadow-md);
+        }
+        .settings-header-logout-form {
+            margin: 0;
+        }
+        .settings-panel-menu-item {
+            width: 100%;
+            min-height: 38px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 560;
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 9px;
+            padding: 0 10px;
+            cursor: pointer;
+            transition: background-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick);
+        }
+        .settings-panel-menu-item:hover {
+            background: color-mix(in srgb, var(--paper-alt) 78%, transparent);
+        }
+        .settings-panel-menu-item .sun-icon {
+            width: 18px;
+            height: 18px;
+        }
+        .settings-panel-menu-item.danger {
+            color: color-mix(in srgb, var(--danger) 78%, var(--text) 22%);
+        }
+        .settings-panel-menu-item.danger:hover {
+            background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
         }
         .settings-panel-esc {
             margin-left: auto;

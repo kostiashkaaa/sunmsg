@@ -91,9 +91,18 @@
             <button type="button" class="settings-panel-tool-btn" id="settingsHeaderEditBtn" aria-label="Редактировать профиль">
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-pencil"></use></svg>
             </button>
-            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderMoreBtn" aria-label="Дополнительные действия">
+            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderMoreBtn" aria-label="Дополнительные действия" aria-haspopup="menu" aria-expanded="false" aria-controls="settingsHeaderMenu">
                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
             </button>
+            <div class="settings-panel-menu settings-hidden" id="settingsHeaderMenu" role="menu" aria-hidden="true">
+                <form method="post" action="{{ url_for('auth.logout') }}" class="settings-header-logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="settings-panel-menu-item danger" id="settingsHeaderLogoutBtn" role="menuitem" data-logout-trigger>
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg>
+                        <span>Выйти</span>
+                    </button>
+                </form>
+            </div>
         </div>
         <span class="settings-panel-esc settings-hidden" id="settingsPanelEscHint">Esc · закрыть</span>
     </header>
@@ -204,13 +213,6 @@
                 </a>
             </section>
 
-            <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="nav-item danger" data-logout-trigger>
-                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg>
-                    <span>Выйти</span>
-                </button>
-            </form>
         </div>
     </nav>
 
