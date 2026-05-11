@@ -541,6 +541,7 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     const anchorGap = 10;
 
     if (isMobile) {
+        const preserveSize = Boolean(options.preserveSize);
         const mobileViewportHeight = Math.max(
             viewportHeight,
             Math.round(window.innerHeight || 0),
@@ -548,10 +549,18 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
             readRootPixelVar('--app-vh'),
         );
         const maxSheetHeight = Math.max(300, Math.min(MOBILE_EMOJI_MAX_HEIGHT, mobileViewportHeight - 80));
-        const sheetHeight = Math.round(Math.min(
+        const defaultSheetHeight = Math.min(
             maxSheetHeight,
             Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
-        ));
+        );
+        const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
+        const currentSheetHeight = preserveSize
+            ? Number.parseFloat(String(emojiPicker.style.getPropertyValue('--emoji-height') || ''))
+            : NaN;
+        const targetSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0
+            ? preferredMobileSheetHeight
+            : (Number.isFinite(currentSheetHeight) && currentSheetHeight > 0 ? currentSheetHeight : defaultSheetHeight);
+        const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(MOBILE_EMOJI_MIN_HEIGHT, targetSheetHeight)));
         const sheetWidth = Math.max(0, viewportWidth);
         const left = Math.round(viewportOffsetLeft);
         const top = Math.round(viewportOffsetTop + mobileViewportHeight - sheetHeight);
@@ -837,17 +846,21 @@ export function initEmojiPicker(messageInput) {
         stopEmojiKeyboardHandoff(emojiPicker);
         emojiCloseSeq += 1;
         const renderSeq = ++openRenderSeq;
+        const shouldOpenMobile = isMobileEmojiViewport();
+        const keyboardInsetBeforeOpen = shouldOpenMobile ? readRootPixelVar('--mobile-composer-bottom-inset') : 0;
         searchQuery = '';
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
         emojiPicker.classList.remove('is-closing');
         emojiPicker.classList.add('active');
         emojiPicker.setAttribute('aria-hidden', 'false');
-        if (isMobileEmojiViewport() && document.activeElement === messageInput) {
+        if (shouldOpenMobile && document.activeElement === messageInput) {
             messageInput.blur();
         }
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
-        positionEmojiPicker(emojiPicker, emojiBtn);
+        positionEmojiPicker(emojiPicker, emojiBtn, {
+            preferredMobileSheetHeight: keyboardInsetBeforeOpen > 0 ? keyboardInsetBeforeOpen : null,
+        });
         syncEmojiButtonMode(true);
 
         const { localeCode } = getLocaleStrings();
