@@ -250,7 +250,8 @@
         }
 
         @media (pointer: coarse) and (max-width: 768px) {
-            #messageInput {
+            #messageInput,
+            .composer-input-visual {
                 font-size: max(16px, var(--chat-message-font-size)) !important;
             }
         }
@@ -1141,6 +1142,9 @@
             #messageInput {
                 min-height: 20px;
                 box-sizing: border-box;
+            }
+            #messageInput,
+            .composer-input-visual {
                 font-size: var(--chat-message-font-size);
                 padding: var(--chat-message-pad-y) var(--chat-message-pad-x);
                 line-height: 1.4;
