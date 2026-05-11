@@ -64,7 +64,7 @@ export async function sendTextMessageFlow({
         replyToSender: snapReplySender,
         ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
         reactions: [],
-    }, { renderOptions: { scrollToBottom: true } });
+    }, { renderOptions: { force: true, scrollToBottom: true } });
 
     setKeepChatPinnedToBottom(true);
     updateActiveContactLastMessage(
