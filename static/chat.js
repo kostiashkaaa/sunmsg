@@ -151,6 +151,7 @@ import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { createChatGroupCreateController } from './modules/chat-group-create.js';
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
+import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
 import { createChatAttachMenuController } from './modules/chat-attach-menu.js';
 import { createComposerUploadState } from './modules/chat-composer-upload-state.js';
 import { createChatAnimationsController } from './modules/chat-animations.js';
@@ -490,163 +491,164 @@ const initChatPage = async () => {
     }
 
     // \u042D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430
-    const sidebar      = document.getElementById('sidebar');
-    const contactsList = document.getElementById('contactsList');
-    const chatTitle    = document.getElementById('chatTitle');
-    const e2eIndicator = document.getElementById('e2eIndicator');
-    const e2ePillWrap = document.getElementById('e2ePillWrap');
-    const e2ePill = document.getElementById('e2ePill');
-    const voicePlaybackBar = document.getElementById('voicePlaybackBar');
-    const voicePlaybackSender = document.getElementById('voicePlaybackSender');
-    const voicePlaybackDetails = document.getElementById('voicePlaybackDetails');
-    const voicePlaybackPlayBtn = document.getElementById('voicePlaybackPlayBtn');
-    const voicePlaybackBackBtn = document.getElementById('voicePlaybackBackBtn');
-    const voicePlaybackForwardBtn = document.getElementById('voicePlaybackForwardBtn');
-    const voicePlaybackVolume = document.getElementById('voicePlaybackVolume');
-    const voicePlaybackSpeedBtn = document.getElementById('voicePlaybackSpeedBtn');
-    const voicePlaybackRepeatBtn = document.getElementById('voicePlaybackRepeatBtn');
-    const voicePlaybackCloseBtn = document.getElementById('voicePlaybackCloseBtn');
-    const voicePlaybackProgress = document.getElementById('voicePlaybackProgress');
-    const voicePlaybackProgressFill = document.getElementById('voicePlaybackProgressFill');
-    const chatMessages = document.getElementById('chatMessages');
-    const historyLoadingIndicator = document.getElementById('historyLoading');
-    const chatPlaceholder  = document.getElementById('chatPlaceholder');
-    const chatInputArea    = document.getElementById('chatInputArea');
-    const chatBlockNotice = document.getElementById('chatBlockNotice');
-    const chatBlockNoticeText = document.getElementById('chatBlockNoticeText');
-    const chatUnblockBtn = document.getElementById('chatUnblockBtn');
-    const messageActionsBar = document.getElementById('messageActionsBar');
-    const composerRow = document.getElementById('composerRow');
-    const messageForm  = document.getElementById('messageForm');
-    const messageInput = document.getElementById('messageInput');
-    const sendMessageBtn = document.getElementById('sendMessageBtn');
-    const voiceRecordBtn = document.getElementById('voiceRecordBtn');
-    const voiceRecordTimer = document.getElementById('voiceRecordTimer');
-    const voiceRecordComposer = document.getElementById('voiceRecordComposer');
-    const voiceRecordCancelBtn = document.getElementById('voiceRecordCancelBtn');
-    const voiceRecordSendBtn = document.getElementById('voiceRecordSendBtn');
-    const cancelReplyBtn = document.getElementById('cancelReplyBtn');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
-    const sendMessageBtnMobile = null; // removed in new UI
-    const deleteChatBtn = document.getElementById('deleteChatBtn');
-    const reportUserMenuBtn = document.getElementById('reportUserMenuBtn');
-    const chatArea     = document.getElementById('chatArea');
-    const chatHeaderActions = document.getElementById('chatHeaderActions');
-    const headerDropdown = document.getElementById('headerDropdown');
-    const headerSearchWrap = document.getElementById('headerSearchWrap');
-    const headerSearchInput = document.getElementById('headerSearchInput');
-    const headerSearchCalendarBtn = document.getElementById('headerSearchCalendarBtn');
-    const closeSearchBtn = document.getElementById('closeSearchBtn');
-    const dialogRequestsList    = document.getElementById('dialogRequestsList');
-    const modalSearchInput = document.getElementById('searchUserInput');
-    const modalSearchResults = document.getElementById('searchUserResults');
-    const paletteLocalSection = document.getElementById('paletteLocalSection');
-    const paletteLocalResults = document.getElementById('paletteLocalResults');
-    const paletteFrequentSection = document.getElementById('paletteFrequentSection');
-    const paletteFrequentChats = document.getElementById('paletteFrequentChats');
-    const chatsSearchHint = document.querySelector('.search-overlay__hint[data-search-hint=\"chats\"]');
-    const commandPaletteActions = document.getElementById('commandPaletteActions');
-    const groupCreateModal = document.getElementById('groupCreateModal');
-    const groupTitleInput = document.getElementById('groupTitleInput');
-    const groupMemberSearchInput = document.getElementById('groupMemberSearchInput');
-    const groupCreateSelected = document.getElementById('groupCreateSelected');
-    const groupCreateSearchResults = document.getElementById('groupCreateSearchResults');
-    const groupCreateSubmitBtn = document.getElementById('groupCreateSubmitBtn');
-    const groupEditModal = document.getElementById('groupEditModal');
-    const groupEditTitleInput = document.getElementById('groupEditTitleInput');
-    const groupEditDescriptionInput = document.getElementById('groupEditDescriptionInput');
-    const groupEditMembersList = document.getElementById('groupEditMembersList');
-    const groupEditAvatarInput = document.getElementById('groupEditAvatarInput');
-    const groupEditAvatarPreview = document.getElementById('groupEditAvatarPreview');
-    const groupEditSubmitBtn = document.getElementById('groupEditSubmitBtn');
-    const groupEditOpenPermissionsBtn = document.getElementById('groupEditOpenPermissionsBtn');
-    const groupEditPermissionsSummary = document.getElementById('groupEditPermissionsSummary');
-    const groupPermissionsPanel = document.getElementById('groupPermissionsPanel');
-    const groupPermissionsBackBtn = document.getElementById('groupPermissionsBackBtn');
-    const groupPermSendMessagesToggle = document.getElementById('groupPermSendMessagesToggle');
-    const groupPermSendMediaToggle = document.getElementById('groupPermSendMediaToggle');
-    const groupPermAddMembersToggle = document.getElementById('groupPermAddMembersToggle');
-    const groupPermPinMessagesToggle = document.getElementById('groupPermPinMessagesToggle');
-    const groupPermChangeInfoToggle = document.getElementById('groupPermChangeInfoToggle');
-    const groupPermSlowModeList = document.getElementById('groupPermSlowModeList');
-    const messageForwardModal = document.getElementById('messageForwardModal');
-    const messageForwardSearchInput = document.getElementById('messageForwardSearchInput');
-    const messageForwardSelectedInfo = document.getElementById('messageForwardSelectedInfo');
-    const messageForwardTargets = document.getElementById('messageForwardTargets');
-    const messageForwardSubmitBtn = document.getElementById('messageForwardSubmitBtn');
-    const forwardDraftBar = document.getElementById('forwardDraftBar');
-    const forwardDraftLabel = document.getElementById('forwardDraftLabel');
-    const forwardDraftText = document.getElementById('forwardDraftText');
-    const cancelForwardDraftBtn = document.getElementById('cancelForwardDraftBtn');
-    const reactionPicker = document.getElementById('reactionPicker');
-    const contextMenu = document.getElementById('messageContextMenu');
-    const contextReplyItem = document.getElementById('cmReply');
-    const contextPinItem = document.getElementById('cmPin');
-    const contextFavoriteItem = document.getElementById('cmFavorite');
-    const contextCopyItem = document.getElementById('cmCopy');
-    const contextForwardItem = document.getElementById('cmForward');
-    const contextEditItem = document.getElementById('cmEdit');
-    const contextSelectItem = document.getElementById('cmSelect');
-    const contextReportItem = document.getElementById('cmReport');
-    const contextDeleteItem = document.getElementById('cmDelete');
-    const contextReactionDivider = document.getElementById('cmReactionDivider');
-    const contextReadInfo = document.getElementById('cmReadInfo');
-    const contextReadInfoText = contextReadInfo?.querySelector('.context-menu-read-info__text');
-    const muteChatBtn = document.getElementById('muteChatBtn');
-    // Partner Profile Drawer
-    const partnerProfileDrawer = document.getElementById('partnerProfileDrawer');
-    const profileSheet = partnerProfileDrawer?.querySelector('.profile-sheet') || null;
-    const profileLayout = partnerProfileDrawer?.querySelector('.profile-scroll, .profile-layout') || null;
-    const profileBackdropCloseBtn = partnerProfileDrawer?.querySelector('[data-profile-close]') || null;
-    const closeProfileBtn = document.getElementById('closeProfileBtn');
-    const blockPartnerBtn = document.getElementById('blockChatBtn');
-    const profileMoreBtn = document.getElementById('profileMoreBtn');
-    const profileMoreMenu = document.getElementById('profileMoreMenu');
-    const profileToggleMuteMenuBtn = document.getElementById('profileToggleMuteMenuBtn');
-    const profileToggleMuteMenuIcon = document.getElementById('profileToggleMuteMenuIcon');
-    const profileToggleMuteMenuLabel = document.getElementById('profileToggleMuteMenuLabel');
-    const profileTogglePinMenuBtn = document.getElementById('profileTogglePinMenuBtn');
-    const profileTogglePinMenuIcon = document.getElementById('profileTogglePinMenuIcon');
-    const profileTogglePinMenuLabel = document.getElementById('profileTogglePinMenuLabel');
-    const profileDeleteChatMenuBtn = document.getElementById('profileDeleteChatMenuBtn');
-    const profileOnlineDot = document.getElementById('profileOnlineDot');
-    const profileMetaUsername = document.getElementById('profileMetaUsername');
-    const profileMetaCreatedAt = document.getElementById('profileMetaCreatedAt');
-    const profileMetaUserId = document.getElementById('profileMetaUserId');
-    const profileGroupEditBtn = document.getElementById('profileGroupEditBtn');
-    const profileGroupSection = document.getElementById('profileGroupSection');
-    const profileGroupTabs = document.getElementById('profileGroupTabs');
-    const profileGroupMembers = document.getElementById('profileGroupMembers');
-    const profileMediaSection = document.querySelector('.profile-media-section');
-    const profileTopbarTitle = partnerProfileDrawer?.querySelector('.profile-topbar-title') || null;
-    const profileDisplayName = document.getElementById('profileDisplayName');
-    const profileLastSeen = document.getElementById('profileLastSeen');
-    const profileLargeAvatar = document.getElementById('profileLargeAvatar');
-    const profileMediaTabs = document.getElementById('profileMediaTabs');
-    const profileMediaContent = document.getElementById('profileMediaContent');
-    const profileMediaEmpty = document.getElementById('profileMediaEmpty');
-    const profileActionButtons = Array.from(partnerProfileDrawer?.querySelectorAll('[data-profile-action]') || []);
-    const profileInfoRows = Array.from(partnerProfileDrawer?.querySelectorAll('.profile-info-row[data-media-type]') || []);
-    const chatHeader = document.getElementById('chatHeader');
-    const chatPartnerHeaderLink = document.getElementById('chatPartnerHeaderLink');
-    const chatTitleArea = document.querySelector('.chat-partner-info');
-    const dialogRequestsSection = document.getElementById('dialogRequestsSection');
-    const sidebarProfileShortcut = document.getElementById('sidebarProfileShortcut');
-    const sidebarStatusBar = document.getElementById('sidebarStatusBar');
-    const sidebarStatusSettingsBtn = document.getElementById('sidebarStatusSettingsBtn');
-    const sidebarStatusTitle = document.getElementById('sidebarStatusTitle');
-    const sidebarStatusHint = document.getElementById('sidebarStatusHint');
-    const sidebarSyncChip = document.getElementById('sidebarSyncChip');
-    const emojiBtn = document.getElementById('emojiBtn');
-    const searchChatBtn = document.getElementById('searchChatBtn');
-    const sideResizer = document.getElementById('sideResizer');
-    const reportContentModal = document.getElementById('reportContentModal');
-    const reportContentTargetLabel = document.getElementById('reportContentTargetLabel');
-    const reportReasonSelect = document.getElementById('reportReasonSelect');
-    const reportCommentInput = document.getElementById('reportCommentInput');
-    const reportContentStatus = document.getElementById('reportContentStatus');
-    const reportSubmitBtn = document.getElementById('reportSubmitBtn');
-    const reportCancelBtn = document.getElementById('reportCancelBtn');
+    const {
+        sidebar,
+        contactsList,
+        chatTitle,
+        e2eIndicator,
+        e2ePillWrap,
+        e2ePill,
+        voicePlaybackBar,
+        voicePlaybackSender,
+        voicePlaybackDetails,
+        voicePlaybackPlayBtn,
+        voicePlaybackBackBtn,
+        voicePlaybackForwardBtn,
+        voicePlaybackVolume,
+        voicePlaybackSpeedBtn,
+        voicePlaybackRepeatBtn,
+        voicePlaybackCloseBtn,
+        voicePlaybackProgress,
+        voicePlaybackProgressFill,
+        chatMessages,
+        historyLoadingIndicator,
+        chatPlaceholder,
+        chatInputArea,
+        chatBlockNotice,
+        chatBlockNoticeText,
+        chatUnblockBtn,
+        messageActionsBar,
+        composerRow,
+        messageForm,
+        messageInput,
+        sendMessageBtn,
+        voiceRecordBtn,
+        voiceRecordTimer,
+        voiceRecordComposer,
+        voiceRecordCancelBtn,
+        voiceRecordSendBtn,
+        cancelReplyBtn,
+        cancelEditBtn,
+        sendMessageBtnMobile,
+        deleteChatBtn,
+        reportUserMenuBtn,
+        chatArea,
+        chatHeaderActions,
+        headerDropdown,
+        headerSearchWrap,
+        headerSearchInput,
+        headerSearchCalendarBtn,
+        closeSearchBtn,
+        dialogRequestsList,
+        modalSearchInput,
+        modalSearchResults,
+        paletteLocalSection,
+        paletteLocalResults,
+        paletteFrequentSection,
+        paletteFrequentChats,
+        chatsSearchHint,
+        commandPaletteActions,
+        groupCreateModal,
+        groupTitleInput,
+        groupMemberSearchInput,
+        groupCreateSelected,
+        groupCreateSearchResults,
+        groupCreateSubmitBtn,
+        groupEditModal,
+        groupEditTitleInput,
+        groupEditDescriptionInput,
+        groupEditMembersList,
+        groupEditAvatarInput,
+        groupEditAvatarPreview,
+        groupEditSubmitBtn,
+        groupEditOpenPermissionsBtn,
+        groupEditPermissionsSummary,
+        groupPermissionsPanel,
+        groupPermissionsBackBtn,
+        groupPermSendMessagesToggle,
+        groupPermSendMediaToggle,
+        groupPermAddMembersToggle,
+        groupPermPinMessagesToggle,
+        groupPermChangeInfoToggle,
+        groupPermSlowModeList,
+        messageForwardModal,
+        messageForwardSearchInput,
+        messageForwardSelectedInfo,
+        messageForwardTargets,
+        messageForwardSubmitBtn,
+        forwardDraftBar,
+        forwardDraftLabel,
+        forwardDraftText,
+        cancelForwardDraftBtn,
+        reactionPicker,
+        contextMenu,
+        contextReplyItem,
+        contextPinItem,
+        contextFavoriteItem,
+        contextCopyItem,
+        contextForwardItem,
+        contextEditItem,
+        contextSelectItem,
+        contextReportItem,
+        contextDeleteItem,
+        contextReactionDivider,
+        contextReadInfo,
+        contextReadInfoText,
+        muteChatBtn,
+        partnerProfileDrawer,
+        profileSheet,
+        profileLayout,
+        profileBackdropCloseBtn,
+        closeProfileBtn,
+        blockPartnerBtn,
+        profileMoreBtn,
+        profileMoreMenu,
+        profileToggleMuteMenuBtn,
+        profileToggleMuteMenuIcon,
+        profileToggleMuteMenuLabel,
+        profileTogglePinMenuBtn,
+        profileTogglePinMenuIcon,
+        profileTogglePinMenuLabel,
+        profileDeleteChatMenuBtn,
+        profileOnlineDot,
+        profileMetaUsername,
+        profileMetaCreatedAt,
+        profileMetaUserId,
+        profileGroupEditBtn,
+        profileGroupSection,
+        profileGroupTabs,
+        profileGroupMembers,
+        profileMediaSection,
+        profileTopbarTitle,
+        profileDisplayName,
+        profileLastSeen,
+        profileLargeAvatar,
+        profileMediaTabs,
+        profileMediaContent,
+        profileMediaEmpty,
+        profileActionButtons,
+        profileInfoRows,
+        chatHeader,
+        chatPartnerHeaderLink,
+        chatTitleArea,
+        dialogRequestsSection,
+        sidebarProfileShortcut,
+        sidebarStatusBar,
+        sidebarStatusSettingsBtn,
+        sidebarStatusTitle,
+        sidebarStatusHint,
+        sidebarSyncChip,
+        emojiBtn,
+        searchChatBtn,
+        sideResizer,
+        reportContentModal,
+        reportContentTargetLabel,
+        reportReasonSelect,
+        reportCommentInput,
+        reportContentStatus,
+        reportSubmitBtn,
+        reportCancelBtn,
+    } = resolveChatDomRefs(document);
 
     reportController = createChatReportFlow({
         reportContentModal,
