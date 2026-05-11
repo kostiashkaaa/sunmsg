@@ -82,6 +82,7 @@ import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
 import { createChatMessageStatusRuntime } from './modules/chat-message-status-runtime.js';
 import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
+import { bindChatContactSelectionRuntime } from './modules/chat-contact-selection-runtime.js';
 import { initChatEmojiRefreshRuntime } from './modules/chat-emoji-refresh-runtime.js';
 import { bindChatRuntimeWindowEvents } from './modules/chat-runtime-window-events.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
@@ -2432,186 +2433,72 @@ export const initChatPage = async () => {
     // \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A\u0438 \u043A\u043D\u043E\u043F\u043E\u043A (newChatBtn \u0438 settingsBtn \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u0438\u0437 chat.html)
 
     // \u041E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A \u0432\u044B\u0431\u043E\u0440\u0430 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0430
-    if (contactsList) {
-        contactsList.addEventListener('click', function(e) {
-            const contactItem = e.target.closest('.contact-item');
-            if (contactItem) {
-                window.closeCommandPalette?.();
-                setActiveContactItem(contactItem);
-                try {
-                    contactItem.scrollIntoView({ block: 'nearest' });
-                } catch (_) {
-                    contactItem.scrollIntoView({ block: 'nearest' });
-                }
-
-                const previousChatId = currentChatId;
-                const previousDraftValue = String(messageInput?.value || '');
-                if (previousChatId && String(previousChatId) !== String(contactItem.getAttribute('data-chat-id'))) {
-                    void flushDraftSaveForChat(previousChatId, previousDraftValue, { force: true });
-                }
-                if (previousChatId) saveChatScrollPosition(previousChatId);
-                const nextChatId = contactItem.getAttribute('data-chat-id');
-                if (previousChatId && String(previousChatId) !== String(nextChatId)) {
-                    abortHistoryRequestsForChat(previousChatId);
-                    const reduceMotion = prefersReducedMotionSetting();
-                    const useDesktopSwitchMotion = !isMobileViewport() && !reduceMotion;
-                    if (chatArea && useDesktopSwitchMotion) {
-                        chatArea.classList.remove('is-switching');
-                    }
-                }
-                closeReactionPicker();
-                if (isVoiceRecordingActive()) {
-                    stopVoiceRecording({ reason: 'cancel' }).catch(() => {});
-                }
-
-                // \u0421\u043D\u0438\u043C\u0430\u0435\u043C DOM-\u0441\u043D\u0430\u043F\u0448\u043E\u0442 \u043F\u043E\u043A\u0438\u0434\u0430\u0435\u043C\u043E\u0433\u043E \u0447\u0430\u0442\u0430 \u0434\u043B\u044F \u043C\u0433\u043D\u043E\u0432\u0435\u043D\u043D\u043E\u0433\u043E \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430.
-                if (previousChatId && String(previousChatId) !== String(contactItem.getAttribute('data-chat-id'))) {
-                    captureChatDomSnapshot(previousChatId);
-                }
-
-                currentChatId = contactItem.getAttribute('data-chat-id');
-                currentContactId = contactItem.getAttribute('data-contact-id');
-                const isGroupChat = String(contactItem.getAttribute('data-is-group') || '') === '1';
-                chatArea?.classList.toggle('is-group-chat', isGroupChat);
-                const isSwitchingChat = String(previousChatId || '') !== String(currentChatId || '');
-                if (isSwitchingChat) {
-                    hideTyping();
-                }
-                if (isSwitchingChat && previousChatId) {
-                    syncDraftPreviewForContact(previousChatId, previousDraftValue, new Date().toISOString());
-                }
-                tabAlertController.clearAlertForChat(currentChatId);
-                persistLastActiveChatId(currentChatId);
-                syncBrowserUrlForActiveChat(contactItem);
-                window.currentContactPublicKey = contactItem.getAttribute('data-public-key');
-                const contactBlockState = {
-                    blocked_by_me: contactItem.getAttribute('data-blocked-by-me') === '1',
-                    blocked_me: contactItem.getAttribute('data-blocked-me') === '1',
-                };
-
-                const nameEl = contactItem.querySelector('.contact-name');
-                const nameText = nameEl ? nameEl.textContent : '';
-                chatTitle.textContent = nameText;
-
-                // \u041E\u0431\u043D\u043E\u0432\u043B\u044F\u0435\u043C \u0430\u0432\u0430\u0442\u0430\u0440 \u043F\u0430\u0440\u0442\u043D\u0451\u0440\u0430 \u0432 \u0445\u0435\u0434\u0435\u0440\u0435 \u0447\u0430\u0442\u0430 (\u0431\u0435\u0437 \u0438\u043D\u0434\u0438\u043A\u0430\u0442\u043E\u0440\u0430 \u0441\u0442\u0430\u0442\u0443\u0441\u0430)
-                const partnerAvatar = document.getElementById('chatPartnerAvatar');
-                if (partnerAvatar) {
-                    const avatarEl = contactItem.querySelector('.contact-avatar');
-                    if (avatarEl) {
-                        // \u041A\u043E\u043F\u0438\u0440\u0443\u0435\u043C \u0442\u043E\u043B\u044C\u043A\u043E \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u044B, \u0431\u0435\u0437 \u0442\u043E\u0447\u043A\u0438 \u0441\u0442\u0430\u0442\u0443\u0441\u0430
-                        const img = avatarEl.querySelector('img');
-                        if (img) {
-                            partnerAvatar.removeAttribute('data-avatar-tint');
-                            partnerAvatar.innerHTML = `<img class="contact-avatar__img" src="${escapeHtml(img.getAttribute('src'))}" alt="\u0410\u0432\u0430\u0442\u0430\u0440 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430">`;
-                        } else {
-                            // \u0415\u0441\u043B\u0438 \u043D\u0435\u0442 \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0438, \u0431\u0435\u0440\u0435\u043C \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u044B
-                            partnerAvatar.textContent = avatarEl.firstChild.textContent.trim();
-                            const sourceTint = String(avatarEl.getAttribute('data-avatar-tint') || '').trim();
-                            if (sourceTint) {
-                                partnerAvatar.setAttribute('data-avatar-tint', sourceTint);
-                            } else {
-                                applyFallbackAvatarTint(partnerAvatar, nameText);
-                            }
-                        }
-                    }
-                    partnerAvatar.style.display = 'flex';
-                }
-
-                updateE2EIndicator();
-                applyChatBlockState(contactBlockState, { syncChatRoom: false });
-                getChatState(currentChatId);
-                const isSavedMessagesChat = savedMessagesUi.applyChatMode({
-                    contactItem,
-                    chatId: currentChatId,
-                });
-                if (isSwitchingChat) {
-                    prefillComposerDraftFromContactItem(contactItem);
-                    void loadDraftForChat(currentChatId, { fallbackContactItem: contactItem });
-                }
-                syncForwardDraftBarForCurrentChat();
-                resetOpenChatUnreadCounter();
-                closeMessageActionsBar();
-                if (isEditingMessageId) {
-                    cancelEdit();
-                }
-                if (messageSelectionController.isSelectionMode()) {
-                    toggleSelectionMode(false);
-                }
-                showChatContent(true);
-                if (window.innerWidth > 768) {
-                    scheduleComposerFocus({ force: true });
-                }
-
-                // \u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u043C \u043E\u043D\u043B\u0430\u0439\u043D-\u0441\u0442\u0430\u0442\u0443\u0441
-                const cId = contactItem.getAttribute('data-contact-id');
-                const membersCount = Math.max(0, Number(contactItem.getAttribute('data-members-count') || 0) || 0);
-                const { partnerId } = setCurrentPartnerLegacyGlobalsBridge({
-                    isGroupChat,
-                    currentChatId,
-                    contactId: cId,
-                    contactUsername: contactItem.getAttribute('data-contact-username'),
-                    displayName: nameText,
-                    currentContactPublicKey: window.currentContactPublicKey,
-                    contactBlockState,
-                    normalizeBlockState,
-                    membersCount,
-                });
-                chatPartnerHeaderLink?.setAttribute('data-partner-id', cId || partnerId);
-                chatHeader?.setAttribute('data-partner-id', cId || partnerId);
-                if (isSavedMessagesChat) {
-                    onlineStatusController.reset({ loading: false });
-                    savedMessagesUi.syncCurrentChatMeta({
-                        chatId: currentChatId,
-                        contactId: currentContactId,
-                    });
-                } else if (isGroupChat) {
-                    onlineStatusController.reset({ loading: false });
-                    const onlineStatusEl = document.getElementById('chatOnlineStatus');
-                    if (onlineStatusEl) {
-                        const knownMembersCount = Number(window.currentPartnerData?.members_count || 0);
-                        onlineStatusEl.textContent = formatGroupMembersCountLabel(knownMembersCount);
-                        onlineStatusEl.classList.remove('chat-online-status--hidden');
-                        onlineStatusEl.style.display = 'block';
-                        onlineStatusEl.setAttribute('data-last-seen', '');
-                        onlineStatusEl.dataset.state = 'group';
-                    }
-                } else {
-                    onlineStatusController.reset({ loading: true });
-                    loadOnlineStatus(cId);
-                }
-
-                fetchChatHistory(currentChatId).catch((error) => {
-                    console.error('Failed to fetch chat history:', error);
-                    showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0438\u0441\u0442\u043E\u0440\u0438\u044E \u0447\u0430\u0442\u0430.', 'danger');
-                });
-
-                // \u0415\u0441\u043B\u0438 \u0431\u043E\u043A\u043E\u0432\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u044F \u043E\u0442\u043A\u0440\u044B\u0442\u0430 - \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u0435\u043C \u0435\u0451 \u0434\u043B\u044F \u043D\u043E\u0432\u043E\u0433\u043E \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0430
-                if (partnerProfileDrawer && partnerProfileDrawer.classList.contains('active')) {
-                    loadAndShowPartnerProfile();
-                }
-
-                if (previousChatId !== currentChatId) {
-                    if (previousChatId) emitSocket('leave', { chat_id: previousChatId });
-                    if (!isChatBlocked()) {
-                        joinChatRoom(currentChatId);
-                    }
-                }
-
-                // \u041E\u0442\u043C\u0435\u0447\u0430\u0435\u043C \u043A\u0430\u043A \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043D\u044B\u0435 \u0447\u0435\u0440\u0435\u0437 Socket.IO
-                if (!isChatBlocked()) {
-                    emitSocket('messages_seen', { chat_id: currentChatId });
-                }
-
-                if (isMobileViewport()) {
-                    openChat();
-                }
-            }
-        });
-
-        if (!hasAttemptedInitialChatRestore) {
-            hasAttemptedInitialChatRestore = restoreLastActiveChatSelection();
-        }
-    }
+    bindChatContactSelectionRuntime({
+        windowRef: window,
+        documentRef: document,
+        consoleRef: console,
+        contactsList,
+        messageInput,
+        chatArea,
+        chatTitle,
+        chatHeader,
+        chatPartnerHeaderLink,
+        partnerProfileDrawer,
+        closeCommandPalette: () => window.closeCommandPalette?.(),
+        setActiveContactItem,
+        flushDraftSaveForChat,
+        saveChatScrollPosition,
+        abortHistoryRequestsForChat,
+        prefersReducedMotionSetting,
+        isMobileViewport,
+        closeReactionPicker,
+        isVoiceRecordingActive,
+        stopVoiceRecording,
+        captureChatDomSnapshot,
+        getCurrentChatId: () => currentChatId,
+        setCurrentChatId: (value) => { currentChatId = value; },
+        setCurrentContactId: (value) => { currentContactId = value; },
+        hideTyping,
+        syncDraftPreviewForContact,
+        tabAlertController,
+        persistLastActiveChatId,
+        syncBrowserUrlForActiveChat,
+        setCurrentContactPublicKey: (value) => { window.currentContactPublicKey = value; },
+        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        escapeHtml,
+        applyFallbackAvatarTint,
+        updateE2EIndicator,
+        applyChatBlockState,
+        getChatState,
+        savedMessagesUi,
+        prefillComposerDraftFromContactItem,
+        loadDraftForChat,
+        syncForwardDraftBarForCurrentChat,
+        resetOpenChatUnreadCounter,
+        closeMessageActionsBar,
+        isEditingMessage: () => Boolean(isEditingMessageId),
+        cancelEdit,
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        toggleSelectionMode,
+        showChatContent,
+        scheduleComposerFocus,
+        setCurrentPartnerLegacyGlobals: setCurrentPartnerLegacyGlobalsBridge,
+        normalizeBlockState,
+        onlineStatusController,
+        getCurrentPartnerData: () => window.currentPartnerData,
+        formatGroupMembersCountLabel,
+        loadOnlineStatus,
+        fetchChatHistory,
+        showToast,
+        loadAndShowPartnerProfile,
+        emitSocket,
+        isChatBlocked,
+        joinChatRoom,
+        openChat,
+        restoreLastActiveChatSelection,
+        getHasAttemptedInitialChatRestore: () => hasAttemptedInitialChatRestore,
+        setHasAttemptedInitialChatRestore: (value) => { hasAttemptedInitialChatRestore = value; },
+    });
 
     const {
         applyPinnedStateForChat,
