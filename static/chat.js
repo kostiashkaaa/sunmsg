@@ -134,6 +134,11 @@ import {
     waitForMotionEnd,
 } from './modules/motion.js';
 import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js';
+import {
+    syncCurrentUserIdentityLegacyGlobals as syncCurrentUserIdentityLegacyGlobalsBridge,
+    setCurrentPartnerLegacyGlobals as setCurrentPartnerLegacyGlobalsBridge,
+    exposeChatRuntimeLegacyGlobals as exposeChatRuntimeLegacyGlobalsBridge,
+} from './modules/chat-legacy-globals.js';
 import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
 import { createMediaHydrationController } from './modules/media-hydration.js';
 import { createChatMessageMutations } from './modules/chat-message-mutations.js';
@@ -247,12 +252,12 @@ const initChatPage = async () => {
     let currentUsername = String(bootstrapUser.currentUsername || window.currentUsername || '').trim();
     let currentAvatarUrl = String(bootstrapUser.currentAvatarUrl || window.currentAvatarUrl || '').trim();
     function syncCurrentUserIdentityLegacyGlobals() {
-        bootstrapUser.currentDisplayName = currentDisplayName;
-        bootstrapUser.currentUsername = currentUsername;
-        bootstrapUser.currentAvatarUrl = currentAvatarUrl;
-        window.currentDisplayName = currentDisplayName;
-        window.currentUsername = currentUsername;
-        window.currentAvatarUrl = currentAvatarUrl;
+        syncCurrentUserIdentityLegacyGlobalsBridge({
+            bootstrapUser,
+            currentDisplayName,
+            currentUsername,
+            currentAvatarUrl,
+        });
     }
     syncCurrentUserIdentityLegacyGlobals();
     const chatIdbRuntime = createChatIdbRuntime({
@@ -1603,7 +1608,6 @@ const initChatPage = async () => {
     window.addEventListener('online', syncConnectionUi);
     window.addEventListener('offline', syncConnectionUi);
     window.addEventListener('focus', syncConnectionUi);
-    window.syncSidebarStatusBar = syncSidebarStatusBar;
     syncSidebarStatusBar();
 
     // \u041A\u043D\u043E\u043F\u043A\u0430 "\u041D\u0430\u0437\u0430\u0434" (\u043C\u043E\u0431\u0438\u043B\u044C\u043D\u0430\u044F)
@@ -3830,19 +3834,19 @@ const initChatPage = async () => {
                 // \u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u043C \u043E\u043D\u043B\u0430\u0439\u043D-\u0441\u0442\u0430\u0442\u0443\u0441
                 const cId = contactItem.getAttribute('data-contact-id');
                 const membersCount = Math.max(0, Number(contactItem.getAttribute('data-members-count') || 0) || 0);
-                window.currentPartnerId = isGroupChat ? String(currentChatId || '') : cId;
-                chatPartnerHeaderLink?.setAttribute('data-partner-id', cId || (isGroupChat ? String(currentChatId || '') : ''));
-                chatHeader?.setAttribute('data-partner-id', cId || (isGroupChat ? String(currentChatId || '') : ''));
-                window.currentPartnerData = {
-                    userId: cId ? Number(cId) : null,
-                    display_name: nameText || '',
-                    username: String(contactItem.getAttribute('data-contact-username') || '').trim(),
-                    public_key: window.currentContactPublicKey || '',
-                    block_state: normalizeBlockState(contactBlockState),
-                    chat_id: String(currentChatId || ''),
-                    _group_profile: isGroupChat,
-                    members_count: isGroupChat ? membersCount : 0,
-                };
+                const { partnerId } = setCurrentPartnerLegacyGlobalsBridge({
+                    isGroupChat,
+                    currentChatId,
+                    contactId: cId,
+                    contactUsername: contactItem.getAttribute('data-contact-username'),
+                    displayName: nameText,
+                    currentContactPublicKey: window.currentContactPublicKey,
+                    contactBlockState,
+                    normalizeBlockState,
+                    membersCount,
+                });
+                chatPartnerHeaderLink?.setAttribute('data-partner-id', cId || partnerId);
+                chatHeader?.setAttribute('data-partner-id', cId || partnerId);
                 if (isSavedMessagesChat) {
                     onlineStatusController.reset({ loading: false });
                     savedMessagesUi.syncCurrentChatMeta({
@@ -6940,10 +6944,10 @@ const initChatPage = async () => {
         });
     }
 
-    // Expose fallback API only when overlay module did not register modern handlers.
-    if (typeof window.openCommandPalette !== 'function') {
-        window.openCommandPalette = openCommandPaletteModal;
-    }
+    exposeChatRuntimeLegacyGlobalsBridge({
+        syncSidebarStatusBar,
+        openCommandPaletteModal,
+    });
 
     emptyStatePrimaryBtn?.addEventListener('click', () => {
         window.openCommandPalette?.();
@@ -7158,10 +7162,6 @@ const initChatPage = async () => {
         markCurrentChatSeenIfPossible,
     });
 
-    window.startEditMessage = startEditMessage;
-    window.showContextMenu = showContextMenu;
-    window.toggleSelectionMode = toggleSelectionMode;
-
     const {
         refreshPrivateKeyDependentUi,
         refreshLocalizedRuntimeUi,
@@ -7186,7 +7186,14 @@ const initChatPage = async () => {
     });
 
     // Re-decrypt active chat and sidebar previews after key is restored mid-session.
-    window._redecryptCurrentChat = refreshPrivateKeyDependentUi;
+    exposeChatRuntimeLegacyGlobalsBridge({
+        syncSidebarStatusBar,
+        openCommandPaletteModal,
+        startEditMessage,
+        showContextMenu,
+        toggleSelectionMode,
+        refreshPrivateKeyDependentUi,
+    });
     window.addEventListener('sun-private-key-status-changed', () => {
         refreshPrivateKeyDependentUi().catch((error) => {
             console.warn('Private key UI refresh failed:', error);
