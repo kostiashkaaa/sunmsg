@@ -2206,7 +2206,7 @@ const initChatPage = async () => {
 
     function resizeComposerInput() {
         if (!messageInput) return;
-        messageInput.style.height = 'auto';
+        messageInput.style.height = '0px';
         const computed = window.getComputedStyle(messageInput);
         const maxHeight = Number.parseFloat(computed.maxHeight) || 136;
         const minHeight = Number.parseFloat(computed.minHeight) || 32;
