@@ -10651,6 +10651,18 @@
     min-height: 0;
 }
 
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-text {
+    display: inline;
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-footer {
+    display: inline-flex !important;
+    vertical-align: text-bottom;
+    margin-top: 0;
+    margin-left: calc(4px * var(--chat-message-scale));
+    min-height: 0;
+}
+
 .message .bubble > .message-text + .msg-meta,
 .message .bubble > .message-text + .message-meta {
     position: static !important;
