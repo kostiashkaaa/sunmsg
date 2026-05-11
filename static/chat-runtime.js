@@ -1788,6 +1788,7 @@ export const initChatPage = async () => {
         getErrorMessage,
     });
     let messageContextMenuController = null;
+    let openDeleteModal = () => {};
     messageContextMenuController = initMessageContextMenu({
         menuEl: contextMenu,
         replyItemEl: contextReplyItem,
@@ -3986,7 +3987,7 @@ export const initChatPage = async () => {
 
     // Selection Mode Logic
 
-    initChatMessageActionsRuntime({
+    ({ openDeleteModal } = initChatMessageActionsRuntime({
         documentRef: document,
         deleteConfirmModal,
         cancelDeleteBtn,
@@ -4020,7 +4021,7 @@ export const initChatPage = async () => {
         openForwardModal,
         toggleMessageSelection,
         closeMessageActionsBar,
-    });
+    }));
 
     const unbindWindowActivityEvents = bindWindowActivityEvents({
         reportActivity,
