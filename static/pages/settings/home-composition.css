@@ -1,0 +1,148 @@
+/* Desktop composition polish for settings home panel. */
+
+@media (min-width: 769px) {
+    body:not(.settings-embed-mode) .settings-scene {
+        padding: 18px;
+    }
+
+    body:not(.settings-embed-mode) .settings-layout {
+        width: min(640px, 100%);
+        min-height: calc(100vh - 36px);
+        min-height: calc(100dvh - 36px);
+        margin: 0 auto;
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--rule) 42%, transparent);
+        overflow: hidden;
+    }
+
+    body.settings-home-open .settings-panel-body {
+        overflow-y: auto;
+    }
+
+    body.settings-home-open .settings-nav {
+        width: min(560px, 100%);
+        margin: 0 auto;
+        padding: 18px 22px 24px;
+        gap: 14px;
+        flex: 0 0 auto;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        grid-template-columns: 82px minmax(0, 1fr);
+        column-gap: 14px;
+        row-gap: 10px;
+        padding: 18px 18px 14px;
+        border-radius: 16px;
+        border: 1px solid color-mix(in srgb, var(--rule) 44%, transparent);
+        background: color-mix(in srgb, var(--paper-alt) 72%, transparent);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-avatar {
+        width: 82px;
+        height: 82px;
+        font-size: 28px;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        width: 36px;
+        height: 36px;
+        margin-right: -4px;
+        margin-bottom: -2px;
+    }
+
+    body.settings-home-open .settings-nav-profile-main {
+        gap: 3px;
+        padding-right: 0;
+    }
+
+    body.settings-home-open .settings-nav-profile-name {
+        font-size: 28px;
+        line-height: 1.05;
+        letter-spacing: -0.01em;
+    }
+
+    body.settings-home-open .settings-nav-profile-status {
+        font-size: 12px;
+    }
+
+    body.settings-home-open .settings-nav-profile-rows {
+        margin-top: 4px;
+        padding-top: 10px;
+        gap: 8px;
+    }
+
+    body.settings-home-open .settings-nav-list {
+        display: grid;
+        gap: 12px;
+        padding: 0;
+        background: transparent;
+        overflow: visible;
+        flex: 0 0 auto;
+    }
+
+    body.settings-home-open .settings-nav-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in srgb, var(--rule) 40%, transparent);
+        background: color-mix(in srgb, var(--paper) 58%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-group-label {
+        padding: 3px 8px 2px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--sub-text) 90%, var(--text) 10%);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item {
+        min-height: 40px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        box-shadow: none;
+        column-gap: 10px;
+        font-size: 13px;
+        font-weight: 560;
+        color: color-mix(in srgb, var(--text) 84%, var(--sub-text) 16%);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item .sun-icon {
+        color: color-mix(in srgb, var(--sub-text) 78%, var(--text) 22%);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item:hover {
+        background: color-mix(in srgb, var(--paper-alt) 68%, transparent);
+        border-color: color-mix(in srgb, var(--rule) 62%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item.active {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        border-color: color-mix(in srgb, var(--accent) 44%, var(--rule));
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item.active .sun-icon {
+        color: var(--accent);
+    }
+
+    body.settings-home-open .settings-logout-form {
+        margin: 0;
+        padding: 0 2px;
+        border-top: 0;
+    }
+
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 42px;
+        border-radius: 12px;
+        box-shadow: none;
+    }
+
+    body.settings-home-open .settings-logout-form .nav-item:hover {
+        background: rgba(239, 68, 68, 0.08);
+    }
+}

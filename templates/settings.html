@@ -148,42 +148,61 @@
             <svg class="sun-icon settings-nav-toggle-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg>
         </button>
         <div class="settings-nav-list" id="settingsNavList">
-            <a href="#profile" class="nav-item" data-section="profile" data-nav-key="profile">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
-                <span>Профиль</span>
-            </a>
-            <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
-                <span>Уведомления</span>
-            </a>
-            <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg>
-                <span>Данные и память</span>
-            </a>
-            <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-lock"></use></svg>
-                <span>Конфиденциальность</span>
-            </a>
-            <a href="#keys" class="nav-item" data-section="keys" data-nav-key="keys">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-lock"></use></svg>
-                <span>Безопасность</span>
-            </a>
-            <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
-                <span>Внешний вид</span>
-            </a>
-            <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
-                <span>Язык</span>
-            </a>
-            <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
-                <span>Поведение чата</span>
-            </a>
-            <a href="#account" class="nav-item" data-section="account" data-nav-key="account">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
-                <span>Устройства</span>
-            </a>
+            <section class="settings-nav-group" aria-label="Профиль">
+                <div class="settings-nav-group-label">Профиль</div>
+                <a href="#profile" class="nav-item" data-section="profile" data-nav-key="profile">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
+                    <span>Профиль</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Уведомления и данные">
+                <div class="settings-nav-group-label">Уведомления и данные</div>
+                <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
+                    <span>Уведомления</span>
+                </a>
+                <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg>
+                    <span>Данные и память</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Приватность">
+                <div class="settings-nav-group-label">Приватность</div>
+                <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-lock"></use></svg>
+                    <span>Конфиденциальность</span>
+                </a>
+                <a href="#keys" class="nav-item" data-section="keys" data-nav-key="keys">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-lock"></use></svg>
+                    <span>Безопасность</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Интерфейс">
+                <div class="settings-nav-group-label">Интерфейс</div>
+                <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
+                    <span>Внешний вид</span>
+                </a>
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
+                    <span>Язык</span>
+                </a>
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
+                    <span>Поведение чата</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Устройства">
+                <div class="settings-nav-group-label">Устройства</div>
+                <a href="#account" class="nav-item" data-section="account" data-nav-key="account">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
+                    <span>Устройства</span>
+                </a>
+            </section>
 
             <form method="post" action="{{ url_for('auth.logout') }}" class="settings-logout-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
