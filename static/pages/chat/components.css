@@ -10203,7 +10203,7 @@
     row-gap: 1px;
 }
 
-#partnerProfileDrawer .profile-hero-avatar {
+#partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
     width: 92px;
     height: 92px;
     font-size: 28px;
