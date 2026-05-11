@@ -86,7 +86,8 @@ function classifyFile(payload, messageType = '') {
     const attachMode = String(payload.attach_mode || '').toLowerCase();
     const isVisualByMimeOrName = mime.startsWith('image/')
         || mime.startsWith('video/')
-        || /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|mov|m4v|avi|mkv|webm)$/i.test(name);
+        || (!mime.startsWith('audio/')
+            && /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|mov|m4v|avi|mkv|webm)$/i.test(name));
     if (attachMode === 'file' && isVisualByMimeOrName) {
         return 'file';
     }
