@@ -10714,6 +10714,40 @@
     display: none !important;
 }
 
+.message .bubble > .message-footer > .message-reactions {
+    display: none !important;
+}
+
+.message.message-reactions-outside .bubble > .message-footer {
+    display: flex !important;
+}
+
+.message.message-reactions-inside .bubble > .message-footer {
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: calc(4px * var(--chat-message-scale));
+}
+
+.message.message-reactions-inside .bubble > .message-footer > .message-reactions {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: calc(5px * var(--chat-message-scale));
+    margin: 0;
+    padding: 0;
+    max-width: calc(100% - 54px);
+    min-height: 0;
+    width: fit-content;
+    order: 1;
+}
+
+.message.message-reactions-inside .bubble > .message-footer > .msg-meta,
+.message.message-reactions-inside .bubble > .message-footer > .message-meta {
+    order: 2;
+    margin-left: auto !important;
+}
+
 .bubble--image > .message-footer,
 .bubble--video > .message-footer {
     margin-top: 0;
@@ -10724,6 +10758,128 @@
 .bubble--file > .message-footer {
     margin-top: 3px;
     padding: 0;
+}
+
+.message-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    margin-top: 0;
+    padding: 0;
+    min-height: 0;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.message.message-reactions-outside .message-stack > .message-reactions {
+    margin-top: calc(var(--tg-reaction-overlap) * var(--chat-message-scale));
+    padding: 0;
+    position: static;
+    max-width: 100%;
+}
+
+.message.other.message-reactions-outside .message-stack > .message-reactions {
+    align-self: flex-start;
+    justify-content: flex-start;
+    margin-left: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+}
+
+.message.self.message-reactions-outside .message-stack > .message-reactions {
+    align-self: flex-end;
+    justify-content: flex-end;
+    margin-right: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+}
+
+.reaction-pill {
+    min-height: calc(30px * var(--chat-message-scale));
+    padding: calc(4px * var(--chat-message-scale)) calc(10px * var(--chat-message-scale));
+    border-radius: 999px;
+    gap: calc(4px * var(--chat-message-scale));
+    font-size: calc(13px * var(--chat-message-scale));
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.reaction-pill__emoji {
+    width: calc(19px * var(--chat-message-scale));
+    min-width: calc(19px * var(--chat-message-scale));
+    height: calc(19px * var(--chat-message-scale));
+    font-size: calc(19px * var(--chat-message-scale));
+}
+
+.reaction-pill__emoji .emoji-graphic {
+    width: calc(20px * var(--chat-message-scale));
+    height: calc(20px * var(--chat-message-scale));
+}
+
+.reaction-pill__reactors {
+    display: inline-flex !important;
+    align-items: center;
+    margin-left: calc(2px * var(--chat-message-scale));
+}
+
+.reaction-pill__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    font-size: calc(11px * var(--chat-message-scale));
+    font-weight: 650;
+    line-height: 1;
+}
+
+.message-reactions.reaction-row--active {
+    opacity: 1;
+}
+
+.message-reactions.reaction-row--syncing {
+    opacity: 0.92;
+}
+
+.message-reactions.reaction-row--failed {
+    opacity: 1;
+}
+
+.reaction-pill {
+    transition:
+        background-color var(--dur-quick) var(--ease-quick),
+        border-color var(--dur-quick) var(--ease-quick),
+        color var(--dur-quick) var(--ease-quick),
+        opacity var(--dur-quick) var(--ease-quick);
+}
+
+.reaction-pill:hover {
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--reaction-pill-border));
+}
+
+.reaction-pill:active {
+    opacity: 0.9;
+}
+
+.reaction-pill.is-mine {
+    border-color: color-mix(in srgb, var(--accent) 46%, var(--reaction-pill-border));
+    background: color-mix(in srgb, var(--accent-glow) 24%, var(--reaction-pill-bg));
+}
+
+.reaction-pill.reaction-pill--pending {
+    opacity: 0.86;
+}
+
+.reaction-pill.reaction-pill--removing {
+    opacity: 0.7;
+}
+
+.reaction-pill.reaction-pill--failed {
+    border-color: color-mix(in srgb, #ef4444 58%, var(--reaction-pill-border));
+}
+
+.reaction-pill.reaction-pill--disabled,
+.message-reactions.reaction-row--disabled .reaction-pill {
+    opacity: 0.56;
+    pointer-events: none;
 }
 
 .message .msg-meta {
