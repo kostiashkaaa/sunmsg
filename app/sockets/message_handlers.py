@@ -73,6 +73,19 @@ def _normalize_socket_request_id(data, normalize_request_id_func=None) -> str:
     return str(raw_request_id or '').strip()
 
 
+def _send_error_payload(message: str, *, request_id: str | None = None, **extra) -> dict:
+    payload = {'message': message}
+    normalized_request_id = str(request_id or '').strip()
+    if normalized_request_id:
+        payload['request_id'] = normalized_request_id
+    payload.update(extra)
+    return payload
+
+
+def _emit_send_error(emit_func, message: str, *, request_id: str | None = None, **extra) -> None:
+    emit_func('error', _send_error_payload(message, request_id=request_id, **extra))
+
+
 def _resolve_message_table_columns(conn) -> set[str]:
     try:
         probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
@@ -238,6 +251,7 @@ def _is_group_send_allowed(
     message_type = str(message_context.get('message_type') or 'text')
     group_restriction_lookup_func = message_context.get('group_restriction_lookup_func')
     utc_now_text_func = message_context.get('utc_now_text_func')
+    request_id = str(message_context.get('request_id') or '').strip()
 
     membership_row = conn.execute(
         '''
@@ -249,7 +263,7 @@ def _is_group_send_allowed(
         (sender_id, chat_id),
     ).fetchone()
     if not membership_row:
-        emit_func('error', {'message': 'You are not a member of this chat.'})
+        _emit_send_error(emit_func, 'You are not a member of this chat.', request_id=request_id)
         return False
 
     group_restriction = _resolve_group_restriction(
@@ -261,13 +275,12 @@ def _is_group_send_allowed(
     if group_restriction:
         restriction_type = str(group_restriction.get('action_type') or '').strip().lower()
         if restriction_type in {'mute_temp', 'ban_temp', 'ban_perma'}:
-            emit_func(
-                'error',
-                {
-                    'message': 'Messaging is restricted in this group by moderation.',
-                    'code': 'group_moderation_restriction',
-                    'restriction': group_restriction,
-                },
+            _emit_send_error(
+                emit_func,
+                'Messaging is restricted in this group by moderation.',
+                request_id=request_id,
+                code='group_moderation_restriction',
+                restriction=group_restriction,
             )
             return False
 
@@ -277,21 +290,19 @@ def _is_group_send_allowed(
         return True
 
     if not bool(group_permissions.get('members_can_send_messages')):
-        emit_func(
-            'error',
-            {
-                'message': 'Participants cannot send messages in this group.',
-                'code': 'group_permissions_messages_disabled',
-            },
+        _emit_send_error(
+            emit_func,
+            'Participants cannot send messages in this group.',
+            request_id=request_id,
+            code='group_permissions_messages_disabled',
         )
         return False
     if is_media_message_type(message_type) and not bool(group_permissions.get('members_can_send_media')):
-        emit_func(
-            'error',
-            {
-                'message': 'Participants cannot send media in this group.',
-                'code': 'group_permissions_media_disabled',
-            },
+        _emit_send_error(
+            emit_func,
+            'Participants cannot send media in this group.',
+            request_id=request_id,
+            code='group_permissions_media_disabled',
         )
         return False
 
@@ -303,13 +314,12 @@ def _is_group_send_allowed(
     )
     if remaining_seconds is None:
         return True
-    emit_func(
-        'error',
-        {
-            'message': 'Slow mode is enabled. Please wait before sending another message.',
-            'code': 'group_permissions_slow_mode',
-            'retry_after_seconds': remaining_seconds,
-        },
+    _emit_send_error(
+        emit_func,
+        'Slow mode is enabled. Please wait before sending another message.',
+        request_id=request_id,
+        code='group_permissions_slow_mode',
+        retry_after_seconds=remaining_seconds,
     )
     return False
 
@@ -321,6 +331,7 @@ def _validate_send_payload(data, *, context: dict | None = None) -> dict | None:
     is_valid_chat_id_func = send_context.get('is_valid_chat_id_func')
     sanitize_message_type_func = send_context.get('sanitize_message_type_func')
     emit_func = send_context.get('emit_func')
+    request_id = str(send_context.get('request_id') or '').strip()
 
     sender_id = session_store['user_id']
     sender_pub = session_store['public_key_pem']
@@ -329,16 +340,16 @@ def _validate_send_payload(data, *, context: dict | None = None) -> dict | None:
     message_type = sanitize_message_type_func(data.get('message_type', 'text'))
 
     if not socket_rate_ok_func(sender_id, 'send_message'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        _emit_send_error(emit_func, 'Too many messages. Please wait a little.', request_id=request_id)
         return None
     if not message or not chat_id:
-        emit_func('error', {'message': 'Invalid payload.'})
+        _emit_send_error(emit_func, 'Invalid payload.', request_id=request_id)
         return None
     if len(message) > 64000:
-        emit_func('error', {'message': 'Message is too long (max 64000 characters).'})
+        _emit_send_error(emit_func, 'Message is too long (max 64000 characters).', request_id=request_id)
         return None
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        _emit_send_error(emit_func, 'Invalid chat ID.', request_id=request_id)
         return None
 
     return {
@@ -357,31 +368,30 @@ def _passes_send_moderation_checks(conn, *, context: dict | None = None) -> bool
     sender_id = int(send_context.get('sender_id') or 0)
     message = str(send_context.get('message') or '')
     emit_func = send_context.get('emit_func')
+    request_id = str(send_context.get('request_id') or '').strip()
 
     if callable(moderation_user_restriction_func):
         restriction = moderation_user_restriction_func(conn, user_id=sender_id)
         if restriction:
-            emit_func(
-                'error',
-                {
-                    'message': 'Messaging is temporarily restricted by moderation.',
-                    'code': 'moderation_restriction',
-                    'restriction': restriction,
-                },
+            _emit_send_error(
+                emit_func,
+                'Messaging is temporarily restricted by moderation.',
+                request_id=request_id,
+                code='moderation_restriction',
+                restriction=restriction,
             )
             return False
 
     if callable(moderation_public_link_check_func):
         link_check = moderation_public_link_check_func(message)
         if link_check and bool(link_check.get('blocked')):
-            emit_func(
-                'error',
-                {
-                    'message': 'This public link is blocked by moderation policy.',
-                    'code': 'blocked_public_link',
-                    'reason': str(link_check.get('reason') or 'blocked_public_link'),
-                    'domain': str(link_check.get('domain') or ''),
-                },
+            _emit_send_error(
+                emit_func,
+                'This public link is blocked by moderation policy.',
+                request_id=request_id,
+                code='blocked_public_link',
+                reason=str(link_check.get('reason') or 'blocked_public_link'),
+                domain=str(link_check.get('domain') or ''),
             )
             return False
 
@@ -400,6 +410,7 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
     normalize_block_state_func = send_context.get('normalize_block_state_func')
     emit_blocked_error_func = send_context.get('emit_blocked_error_func')
     emit_func = send_context.get('emit_func')
+    request_id = str(send_context.get('request_id') or '').strip()
 
     chat_type = get_chat_type(conn, chat_id)
     contact = conn.execute(
@@ -413,7 +424,7 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
     ).fetchone()
 
     if chat_type != 'group' and not contact:
-        emit_func('error', {'message': 'You are not a member of this chat.'})
+        _emit_send_error(emit_func, 'You are not a member of this chat.', request_id=request_id)
         return None
     if chat_type == 'group':
         if not _is_group_send_allowed(
@@ -425,6 +436,7 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
                 'message_type': message_type,
                 'group_restriction_lookup_func': group_restriction_lookup_func,
                 'utc_now_text_func': utc_now_text_func,
+                'request_id': request_id,
             },
         ):
             return None
@@ -436,7 +448,14 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
         block_state = normalize_block_state_func(build_block_state_func(conn, sender_id, receiver_id))
         if block_state['is_blocked']:
             emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': receiver_id, **block_state})
-            emit_blocked_error_func('Messaging is unavailable because the user is blocked.', block_state)
+            try:
+                emit_blocked_error_func(
+                    'Messaging is unavailable because the user is blocked.',
+                    block_state,
+                    request_id=request_id,
+                )
+            except TypeError:
+                emit_blocked_error_func('Messaging is unavailable because the user is blocked.', block_state)
             return None
 
     return {
@@ -842,6 +861,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
     reservation = send_context.get('reservation')
     logger = send_context.get('logger')
     emit_func = send_context.get('emit_func')
+    request_id = str(send_context.get('request_id') or '').strip()
     ensure_chat_exists_func = send_context.get('ensure_chat_exists_func')
     chat_id = str(send_context.get('chat_id') or '')
     chat_type = str(send_context.get('chat_type') or '')
@@ -924,7 +944,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
     except error_cls as exc:
         release_fn(reservation)
         logger.error('Error saving message: %s', exc)
-        emit_func('error', {'message': 'Failed to save message.'})
+        _emit_send_error(emit_func, 'Failed to save message.', request_id=request_id)
         return None
     finally:
         conn.close()
@@ -1722,6 +1742,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
     data = require_payload_dict_func(data)
     if data is None:
         return
+    request_id = _normalize_socket_request_id(data, normalize_request_id_func)
     if not socket_csrf_ok_func(data):
         return
 
@@ -1733,6 +1754,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'is_valid_chat_id_func': is_valid_chat_id_func,
             'sanitize_message_type_func': sanitize_message_type_func,
             'emit_func': emit_func,
+            'request_id': request_id,
         },
     )
     if not send_payload:
@@ -1743,7 +1765,6 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
     chat_id = send_payload['chat_id']
     message_type = send_payload['message_type']
 
-    request_id = _normalize_socket_request_id(data, normalize_request_id_func)
     conn = get_db_connection_func()
     if not _passes_send_moderation_checks(
         conn,
@@ -1753,6 +1774,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'sender_id': sender_id,
             'message': message,
             'emit_func': emit_func,
+            'request_id': request_id,
         },
     ):
         conn.close()
@@ -1771,6 +1793,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'normalize_block_state_func': normalize_block_state_func,
             'emit_blocked_error_func': emit_blocked_error_func,
             'emit_func': emit_func,
+            'request_id': request_id,
         },
     )
     if not delivery_context:
@@ -1864,6 +1887,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'looks_like_ciphertext_func': looks_like_ciphertext_func,
             'sender_display_name': sender_display_name,
             'sender_username': sender_username,
+            'request_id': request_id,
         },
     )
     if not persisted:
