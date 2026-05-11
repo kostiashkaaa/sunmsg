@@ -167,6 +167,7 @@ import {
 import {
     syncCurrentUserIdentityLegacyGlobals as syncCurrentUserIdentityLegacyGlobalsBridge,
     setCurrentPartnerLegacyGlobals as setCurrentPartnerLegacyGlobalsBridge,
+    createChatLegacyGlobalAccessors,
     exposeChatRuntimeLegacyGlobals as exposeChatRuntimeLegacyGlobalsBridge,
 } from './modules/chat-legacy-globals.js';
 import { initPrivateKeyUiRefresh } from './modules/private-key-ui-refresh.js';
@@ -230,6 +231,19 @@ export const initChatPage = async () => {
     const activityController = createActivityReporter({ emitSocket });
     const reportActivity = activityController.reportActivity;
     const onlineStatusController = createOnlineStatusStateController();
+    const {
+        getCurrentPartnerData,
+        setCurrentPartnerData,
+        getCurrentPartnerId,
+        setCurrentPartnerId,
+        getCurrentContactPublicKey,
+        setCurrentContactPublicKey,
+        getCurrentPartnerDisplayName,
+        isCurrentPartnerSavedMessagesProfile,
+        isCurrentPartnerGroupProfile,
+        syncCurrentPartnerMembersCount,
+        clearCurrentPartnerSession,
+    } = createChatLegacyGlobalAccessors(window);
     void initWebPush({
         authFetch: window.authFetch || window.fetch?.bind(window),
         showToast,
@@ -246,8 +260,8 @@ export const initChatPage = async () => {
         refreshCurrentPresence: () => {
             const activeContactId = String(currentContactId || '').trim();
             if (!activeContactId) return;
-            if (window.currentPartnerData?._saved_messages_profile) return;
-            if (window.currentPartnerData?._group_profile) return;
+            if (isCurrentPartnerSavedMessagesProfile()) return;
+            if (isCurrentPartnerGroupProfile()) return;
             onlineStatusController.reset({ loading: true });
             loadOnlineStatus(activeContactId);
         },
@@ -795,7 +809,7 @@ export const initChatPage = async () => {
         windowRef: window,
         getCurrentChatId: () => currentChatId,
         isCurrentChatGroup: () => isCurrentChatGroup(),
-        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        getCurrentContactPublicKey,
         getCurrentUserPublicKey: () => currentUserPublicKey,
         loadContacts: (options) => loadContacts(options),
         getPrivateKeyPem,
@@ -850,7 +864,7 @@ export const initChatPage = async () => {
     function syncE2EPillState() {
         syncE2EPillStateFlow({
             getPrivateKeyPem,
-            getCurrentContactPublicKey: () => window.currentContactPublicKey,
+            getCurrentContactPublicKey,
             getCurrentChatId: () => currentChatId,
             getChatState,
             e2ePillWrap,
@@ -917,12 +931,11 @@ export const initChatPage = async () => {
                 if (statusElement) {
                     const activeGroupItem = resolveContactItemByChatId(activeChatId);
                     const sidebarMembersCount = Number(activeGroupItem?.getAttribute('data-members-count') || '');
-                    const knownMembersCount = Number.isFinite(sidebarMembersCount)
-                        ? Math.max(0, sidebarMembersCount)
-                        : Number(window.currentPartnerData?.members_count || 0);
-                    if (window.currentPartnerData && Number(window.currentPartnerData.members_count) !== knownMembersCount) {
-                        window.currentPartnerData.members_count = knownMembersCount;
-                    }
+                    const knownMembersCount = syncCurrentPartnerMembersCount(
+                        Number.isFinite(sidebarMembersCount)
+                            ? Math.max(0, sidebarMembersCount)
+                            : Number(getCurrentPartnerData()?.members_count || 0),
+                    );
                     statusElement.textContent = formatGroupMembersCountLabel(knownMembersCount);
                     statusElement.style.display = 'block';
                     statusElement.style.visibility = 'visible';
@@ -1806,7 +1819,7 @@ export const initChatPage = async () => {
         contextDeleteItem,
         isChatBlocked,
         getCurrentChatId: () => currentChatId,
-        getPartnerDisplayName: () => window.currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
+        getPartnerDisplayName: getCurrentPartnerDisplayName,
         copyTextToClipboard,
         showToast,
         startReply: (msgId, text, sender) => startReply(msgId, text, sender),
@@ -1980,11 +1993,11 @@ export const initChatPage = async () => {
         applyChatBlockState,
         normalizeBlockState,
         getCurrentBlockState: () => currentBlockState,
-        getCurrentContactPublicKey: () => window.currentContactPublicKey,
-        getCurrentPartnerData: () => window.currentPartnerData,
-        setCurrentPartnerData: (value) => { window.currentPartnerData = value; },
-        getCurrentPartnerId: () => window.currentPartnerId,
-        setCurrentPartnerId: (value) => { window.currentPartnerId = value; },
+        getCurrentContactPublicKey,
+        getCurrentPartnerData,
+        setCurrentPartnerData,
+        getCurrentPartnerId,
+        setCurrentPartnerId,
         getCurrentContactId: () => currentContactId,
         getHeaderPartnerId: () => (
             chatPartnerHeaderLink?.getAttribute('data-partner-id')
@@ -2057,7 +2070,7 @@ export const initChatPage = async () => {
                 return savedMessagesUi.buildSavedProfilePayload({
                     contactId: partnerId,
                     chatId: currentChatId,
-                    publicKey: window.currentContactPublicKey || '',
+                    publicKey: getCurrentContactPublicKey() || '',
                 });
             }
             const response = await fetch(withAppRoot(`/get_user_profile?user_id=${encodeURIComponent(partnerId)}`));
@@ -2091,7 +2104,7 @@ export const initChatPage = async () => {
     function setProfileTargetId(targetId) {
         const normalized = String(targetId || '').trim();
         if (!normalized) return false;
-        window.currentPartnerId = normalized;
+        setCurrentPartnerId(normalized);
         chatPartnerHeaderLink?.setAttribute('data-partner-id', normalized);
         chatHeader?.setAttribute('data-partner-id', normalized);
         return true;
@@ -2142,7 +2155,7 @@ export const initChatPage = async () => {
     async function handleProfileAction(action) {
         if (action === 'report-user') {
             closeProfileMoreMenu();
-            const partnerData = window.currentPartnerData || {};
+            const partnerData = getCurrentPartnerData() || {};
             if (partnerData._group_profile) {
                 showToast('\u0416\u0430\u043B\u043E\u0431\u0430 \u043D\u0430 \u0433\u0440\u0443\u043F\u043F\u0443 \u043F\u043E\u043A\u0430 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F. \u0415\u0441\u043B\u0438 \u043D\u0443\u0436\u043D\u043E, \u043E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430 \u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u0436\u0430\u043B\u043E\u0431\u0443 \u043D\u0430 \u043D\u0435\u0433\u043E.', 'info');
                 return;
@@ -2228,7 +2241,7 @@ export const initChatPage = async () => {
         currentUserId: CURRENT_USER_ID,
         getCurrentChatId: () => currentChatId,
         getChatState,
-        getCurrentPartnerData: () => window.currentPartnerData,
+        getCurrentPartnerData,
         isCurrentChatGroup: () => isCurrentChatGroup(),
         isProfileDrawerOpen: () => isProfileDrawerOpen(),
         loadAndShowPartnerProfile: () => loadAndShowPartnerProfile(),
@@ -2348,7 +2361,7 @@ export const initChatPage = async () => {
             emitLeaveChatRoom: (chatId) => emitSocket('leave', { chat_id: chatId }),
             joinChatRoom,
             updateBlockButtons,
-            getCurrentPartnerData: () => window.currentPartnerData,
+            getCurrentPartnerData,
             updateOnlineStatusUI,
             renderProfileHeader,
             getCurrentContactId: () => currentContactId,
@@ -2432,8 +2445,8 @@ export const initChatPage = async () => {
         tabAlertController,
         persistLastActiveChatId,
         syncBrowserUrlForActiveChat,
-        setCurrentContactPublicKey: (value) => { window.currentContactPublicKey = value; },
-        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        setCurrentContactPublicKey,
+        getCurrentContactPublicKey,
         escapeHtml,
         applyFallbackAvatarTint,
         updateE2EIndicator,
@@ -2454,7 +2467,7 @@ export const initChatPage = async () => {
         setCurrentPartnerLegacyGlobals: setCurrentPartnerLegacyGlobalsBridge,
         normalizeBlockState,
         onlineStatusController,
-        getCurrentPartnerData: () => window.currentPartnerData,
+        getCurrentPartnerData,
         formatGroupMembersCountLabel,
         loadOnlineStatus,
         fetchChatHistory,
@@ -2522,7 +2535,7 @@ export const initChatPage = async () => {
         loadOlderMessages: (chatId) => loadOlderMessages(chatId),
         formatTime,
         resolveCurrentPartnerId,
-        setCurrentPartnerId: (value) => { window.currentPartnerId = value; },
+        setCurrentPartnerId,
         isProfileDrawerOpen,
         loadAndShowPartnerProfile,
         closeProfileMoreMenu,
@@ -2577,8 +2590,7 @@ export const initChatPage = async () => {
         currentChatId = null; currentContactId = null;
         syncForwardDraftBarForCurrentChat();
         onlineStatusController.reset();
-        window.currentContactPublicKey = null;
-        window.currentPartnerId = null;
+        clearCurrentPartnerSession();
         chatPartnerHeaderLink?.removeAttribute('data-partner-id');
         chatHeader?.removeAttribute('data-partner-id');
         savedMessagesUi?.clearMode?.();
@@ -3147,7 +3159,7 @@ export const initChatPage = async () => {
         getCurrentChatId: () => currentChatId,
         getCurrentBlockState: () => currentBlockState,
         getCurrentUserPublicKey: () => currentUserPublicKey,
-        getCurrentContactPublicKey: () => window.currentContactPublicKey,
+        getCurrentContactPublicKey,
         isCurrentChatGroup: () => isCurrentChatGroup(),
         isChatBlocked,
         getBlockedNoticeText: getChatBlockNoticeText,
@@ -3348,7 +3360,7 @@ export const initChatPage = async () => {
         if (activeItem) {
             return String(activeItem.getAttribute('data-is-group') || '') === '1';
         }
-        const partnerData = window.currentPartnerData || {};
+        const partnerData = getCurrentPartnerData() || {};
         if (String(partnerData.chat_id || '') === String(currentChatId)) {
             return Boolean(partnerData._group_profile);
         }
@@ -3414,7 +3426,7 @@ export const initChatPage = async () => {
             isGroupChatById: (chatId) => {
                 const normalizedChatId = String(chatId || '').trim();
                 if (!normalizedChatId) return false;
-                if (String(currentChatId || '') === normalizedChatId && window.currentPartnerData?._group_profile) {
+                if (String(currentChatId || '') === normalizedChatId && isCurrentPartnerGroupProfile()) {
                     return true;
                 }
                 const contactItem = resolveContactItemByChatId(normalizedChatId);
@@ -3440,7 +3452,7 @@ export const initChatPage = async () => {
             appendMessage,
             isEncryptedPayload,
             normalizeMessageReactions,
-            getCurrentPartnerDisplayName: () => window.currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
+            getCurrentPartnerDisplayName,
             markCurrentChatSeenIfPossible,
             markOutgoingReadByPartnerMessage: ({ chatId, messageCreatedAt } = {}) => {
                 const normalizedChatId = String(chatId || '').trim();
@@ -3497,9 +3509,9 @@ export const initChatPage = async () => {
             updateOnlineStatusUI,
             renderProfileHeader,
             renderProfileBio: _renderProfileBio,
-            getCurrentContactPublicKey: () => window.currentContactPublicKey,
-            getCurrentPartnerData: () => window.currentPartnerData,
-            setCurrentPartnerData: (value) => { window.currentPartnerData = value; },
+            getCurrentContactPublicKey,
+            getCurrentPartnerData,
+            setCurrentPartnerData,
             getPartnerProfileDrawer: () => partnerProfileDrawer,
             chatTitleEl: chatTitle,
             resolveChatPartnerAvatar: () => chatPartnerAvatar,
@@ -3540,7 +3552,7 @@ export const initChatPage = async () => {
             sortContactsList,
             getCurrentBlockState: () => currentBlockState,
             resolveContactItemByPublicKey,
-            getCurrentContactPublicKey: () => window.currentContactPublicKey,
+            getCurrentContactPublicKey,
             getCurrentContactId: () => currentContactId,
             getChatState,
             normalizeBlockState,
@@ -3620,10 +3632,10 @@ export const initChatPage = async () => {
             markOnlineStatusPending,
             clearOnlineStatusPending,
             getCurrentContactId: () => currentContactId,
-            getCurrentPartnerData: () => window.currentPartnerData,
+            getCurrentPartnerData,
             getCurrentBlockState: () => currentBlockState,
             normalizeBlockState,
-            setCurrentPartnerData: (value) => { window.currentPartnerData = value; },
+            setCurrentPartnerData,
         });
     }
 
@@ -3633,7 +3645,7 @@ export const initChatPage = async () => {
     bindPartnerBlockControls({
         blockPartnerBtn,
         chatUnblockBtn,
-        getCurrentPartnerData: () => window.currentPartnerData,
+        getCurrentPartnerData,
         getCurrentBlockState: () => currentBlockState,
         getCsrfToken,
         normalizeBlockState,
@@ -3659,7 +3671,7 @@ export const initChatPage = async () => {
             isMobileViewport: () => isMobileViewport(),
             getCurrentChatId: () => currentChatId,
             getCurrentUserPublicKey: () => currentUserPublicKey,
-            getCurrentPartnerData: () => window.currentPartnerData,
+            getCurrentPartnerData,
             getPrivateKeyPem,
             isEncryptedPayload,
             decryptForDisplay,
@@ -3940,7 +3952,7 @@ export const initChatPage = async () => {
         openReactionPickerForMessage,
         positionReactionPicker,
         startReply,
-        getCurrentPartnerDisplayName: () => window.currentPartnerData?.display_name || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
+        getCurrentPartnerDisplayName,
         showToast,
         getChatBlockNoticeText,
         getCurrentBlockState: () => currentBlockState,
