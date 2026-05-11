@@ -24,23 +24,29 @@
     }
 
     .settings-panel-head {
-        min-height: 58px;
-        padding: 10px 16px 10px 12px;
-        gap: 8px;
+        min-height: 64px;
+        padding: 12px 18px 12px 14px;
+        gap: 10px;
         border-bottom-color: color-mix(in srgb, var(--rule) 26%, transparent);
         background: color-mix(in srgb, var(--surface) 88%, var(--chat-bg) 12%);
     }
 
     .settings-panel-title {
-        font-size: 22px;
+        font-size: 25px;
         font-weight: 650;
     }
 
     .settings-panel-close,
     .settings-panel-tool-btn {
-        width: 34px;
-        height: 34px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
+    }
+
+    .settings-panel-close .sun-icon,
+    .settings-panel-tool-btn .sun-icon {
+        width: 22px;
+        height: 22px;
     }
 
     .settings-panel-close {
@@ -56,8 +62,8 @@
     }
 
     .settings-panel-tools {
-        gap: 4px;
-        margin-right: 1px;
+        gap: 6px;
+        margin-right: 2px;
     }
 
     .settings-panel-esc {
@@ -137,8 +143,8 @@
         z-index: auto;
         width: 100%;
         margin: 0 auto;
-        padding: 6px 0 7px;
-        gap: 4px;
+        padding: 8px 0 10px;
+        gap: 6px;
         background: transparent;
         overflow: visible;
     }
@@ -149,7 +155,7 @@
         flex-direction: column;
         align-items: center;
         row-gap: 0;
-        padding: 11px 14px 7px;
+        padding: 14px 16px 10px;
         text-align: center;
         border-radius: 0;
         border: 0;
@@ -166,22 +172,22 @@
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 114px;
-        height: 114px;
-        font-size: 37px;
+        width: 128px;
+        height: 128px;
+        font-size: 42px;
     }
 
     body.settings-home-open .settings-nav-profile-main {
         grid-column: auto;
         grid-row: auto;
-        margin-top: 5px;
+        margin-top: 8px;
         gap: 0;
         padding-right: 0;
         text-align: center;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 31px;
+        font-size: 34px;
         line-height: 1.04;
         font-weight: 615;
         letter-spacing: -0.01em;
@@ -189,17 +195,17 @@
     }
 
     body.settings-home-open .settings-nav-profile-status {
-        font-size: 12px;
+        font-size: 14px;
         line-height: 1.2;
         color: color-mix(in srgb, var(--sub-text) 90%, transparent);
     }
 
     body.settings-home-open .settings-nav-profile-action {
         position: absolute;
-        top: 164px;
-        right: 22px;
-        width: 46px;
-        height: 46px;
+        top: 184px;
+        right: 20px;
+        width: 52px;
+        height: 52px;
         margin: 0;
         border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
         transform: none;
@@ -213,14 +219,14 @@
     }
 
     body.settings-home-open .settings-nav-profile-action .sun-icon {
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
     }
 
     body.settings-home-open .settings-nav-profile-rows {
         width: 100%;
-        max-width: 256px;
-        margin-top: 7px;
+        max-width: 292px;
+        margin-top: 10px;
         margin-left: 0;
         margin-right: auto;
         padding-top: 0;
@@ -230,11 +236,11 @@
     }
 
     body.settings-home-open .settings-nav-profile-row {
-        grid-template-columns: 18px minmax(0, 1fr);
+        grid-template-columns: 22px minmax(0, 1fr);
         align-items: start;
-        min-height: 40px;
-        column-gap: 8px;
-        padding: 0 4px;
+        min-height: 48px;
+        column-gap: 10px;
+        padding: 0 6px;
         border-radius: 0;
         background: transparent;
     }
@@ -244,10 +250,10 @@
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
-        width: 18px;
-        min-width: 18px;
-        height: 18px;
-        margin-top: 2px;
+        width: 22px;
+        min-width: 22px;
+        height: 22px;
+        margin-top: 1px;
     }
 
     body.settings-home-open .settings-nav-profile-row-copy {
@@ -255,22 +261,22 @@
     }
 
     body.settings-home-open .settings-nav-profile-row-value {
-        font-size: 14px;
-        line-height: 1.2;
+        font-size: 16px;
+        line-height: 1.24;
         font-weight: 560;
     }
 
     body.settings-home-open .settings-nav-profile-row-label {
         margin-top: 0;
-        font-size: 11px;
+        font-size: 12px;
         color: color-mix(in srgb, var(--sub-text) 64%, transparent);
     }
 
     body.settings-home-open .settings-nav-list {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding: 4px 8px 6px;
+        gap: 6px;
+        padding: 8px 10px 8px;
         border-top: 0;
         border-bottom: 0;
         background: transparent;
@@ -301,14 +307,14 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item {
-        min-height: 44px;
-        padding: 0 11px;
+        min-height: 56px;
+        padding: 0 14px;
         border: 1px solid transparent;
-        border-radius: 8px;
+        border-radius: 12px;
         box-shadow: none;
-        column-gap: 11px;
+        column-gap: 13px;
         margin: 0;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 540;
         color: color-mix(in srgb, var(--text) 88%, var(--sub-text) 12%);
         transition: border-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick);
@@ -319,9 +325,9 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item .sun-icon {
-        width: 20px;
-        min-width: 20px;
-        height: 20px;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
         color: color-mix(in srgb, var(--sub-text) 84%, var(--text) 16%);
     }
 
@@ -350,11 +356,11 @@
     }
 
     body.settings-home-open .settings-logout-form .nav-item {
-        min-height: 44px;
-        border-radius: 8px;
+        min-height: 56px;
+        border-radius: 12px;
         border: 0;
         box-shadow: none;
-        padding: 0 11px;
+        padding: 0 14px;
         margin: 0;
     }
 
