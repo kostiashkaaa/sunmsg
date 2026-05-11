@@ -449,6 +449,8 @@ export const initChatPage = async () => {
         voicePlaybackProgress,
         voicePlaybackProgressFill,
         chatMessages,
+        chatOnlineStatus,
+        chatPartnerAvatar,
         historyLoadingIndicator,
         chatPlaceholder,
         chatInputArea,
@@ -477,6 +479,7 @@ export const initChatPage = async () => {
         headerSearchInput,
         headerSearchCalendarBtn,
         closeSearchBtn,
+        newChatModal,
         dialogRequestsList,
         modalSearchInput,
         modalSearchResults,
@@ -571,6 +574,9 @@ export const initChatPage = async () => {
         chatTitleArea,
         dialogRequestsSection,
         sidebarProfileShortcut,
+        sidebarAvatarCircle,
+        sidebarDisplayName,
+        sidebarUsername,
         sidebarStatusBar,
         sidebarStatusSettingsBtn,
         sidebarStatusTitle,
@@ -581,6 +587,7 @@ export const initChatPage = async () => {
         searchChatBtn,
         sideResizer,
         dragDropOverlay,
+        backBtnMobile,
         jumpToNewMessagesBtn,
         jumpToNewMessagesCount,
         jumpToNewMessagesIcon,
@@ -898,7 +905,7 @@ export const initChatPage = async () => {
     }
 
     const chatConnectionStatusPresenter = createChatConnectionStatusPresenter({
-        getStatusElement: () => document.getElementById('chatOnlineStatus'),
+        getStatusElement: () => chatOnlineStatus,
         getCurrentChatId: () => currentChatId,
         getCurrentContactId: () => currentContactId,
         resolveCustomStatus: ({
@@ -1232,8 +1239,6 @@ export const initChatPage = async () => {
     }
 
     // \u041A\u043D\u043E\u043F\u043A\u0430 "\u041D\u0430\u0437\u0430\u0434" (\u043C\u043E\u0431\u0438\u043B\u044C\u043D\u0430\u044F)
-    const backBtnMobile = document.getElementById('backBtnMobile');
-
     // \u0410\u043B\u0438\u0430\u0441\u044B \u043C\u043E\u0434\u0443\u043B\u044C\u043D\u044B\u0445 \u0444\u0443\u043D\u043A\u0446\u0438\u0439 (\u0431\u0435\u0437 _ prefix) - \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u0435, \u0447\u0442\u043E \u043D\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u044E\u0442 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 chatStates Map
     const getMessageKey         = _getMessageKey;
     const getMessageDayKey      = _getMessageDayKey;
@@ -1901,8 +1906,8 @@ export const initChatPage = async () => {
         chatAreaEl: chatArea,
         profileDrawerEl: partnerProfileDrawer,
         chatTitleEl: chatTitle,
-        chatOnlineStatusEl: document.getElementById('chatOnlineStatus'),
-        chatPartnerAvatarEl: document.getElementById('chatPartnerAvatar'),
+        chatOnlineStatusEl: chatOnlineStatus,
+        chatPartnerAvatarEl: chatPartnerAvatar,
         profileTopbarTitleEl: profileTopbarTitle,
         profileDisplayNameEl: profileDisplayName,
         profileLastSeenEl: profileLastSeen,
@@ -1931,7 +1936,7 @@ export const initChatPage = async () => {
         updateBlockButtonsFlow({
             currentBlockState,
             normalizeBlockState,
-            getBlockChatBtn: () => document.getElementById('blockChatBtn'),
+            getBlockChatBtn: () => blockPartnerBtn,
             chatUnblockBtn,
         });
     }
@@ -2620,9 +2625,9 @@ export const initChatPage = async () => {
         if (typeof hideContextMenu === 'function') hideContextMenu();
         closeReactionPicker();
         chatTitle.textContent = '\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442';
-        const onlineEl = document.getElementById('chatOnlineStatus');
+        const onlineEl = chatOnlineStatus;
         if (onlineEl) onlineEl.style.display = 'none';
-        const partnerAvatar = document.getElementById('chatPartnerAvatar');
+        const partnerAvatar = chatPartnerAvatar;
         if (partnerAvatar) partnerAvatar.style.display = 'none';
         closePartnerProfileDrawer();
         closeMessageActionsBar();
@@ -3531,18 +3536,18 @@ export const initChatPage = async () => {
             getCurrentContactPublicKey: () => window.currentContactPublicKey,
             getCurrentPartnerData: () => window.currentPartnerData,
             setCurrentPartnerData: (value) => { window.currentPartnerData = value; },
-            getPartnerProfileDrawer: () => document.getElementById('partnerProfileDrawer'),
+            getPartnerProfileDrawer: () => partnerProfileDrawer,
             chatTitleEl: chatTitle,
-            resolveChatPartnerAvatar: () => document.getElementById('chatPartnerAvatar'),
+            resolveChatPartnerAvatar: () => chatPartnerAvatar,
             rerenderCurrentChat: () => {
                 if (currentChatId && chatMessages) {
                     scheduleForcedCurrentChatRerender();
                 }
             },
             resolveContactItemByPublicKey,
-            resolveSidebarAvatarCircle: () => document.getElementById('avatarCircle'),
-            resolveSidebarDisplayName: () => document.getElementById('sidebarDisplayName'),
-            resolveSidebarUsername: () => document.getElementById('sidebarUsername'),
+            resolveSidebarAvatarCircle: () => sidebarAvatarCircle,
+            resolveSidebarDisplayName: () => sidebarDisplayName,
+            resolveSidebarUsername: () => sidebarUsername,
             setCurrentUserIdentity: ({ displayName, username, avatarUrl }) => {
                 currentDisplayName = displayName;
                 currentUsername = username;
@@ -3779,7 +3784,7 @@ export const initChatPage = async () => {
         commandPaletteActions,
         modalSearchInput,
         modalSearchResults,
-        modalEl: document.getElementById('newChatModal'),
+        modalEl: newChatModal,
         withAppRoot,
         fetchImpl: fetch,
         decodeChatMessages: (messages) => decodeChatMessages(messages),
