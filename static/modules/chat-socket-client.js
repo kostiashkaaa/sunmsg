@@ -97,6 +97,7 @@ function patchSocketListeners(socket) {
     const listenersByEvent = new Map();
     const handlerWrapMap = new WeakMap();
     const ptsSyncQueueByChatId = new Map();
+    const activeDispatchEventIds = new Set();
     let gapSyncHandler = null;
 
     const markEventSeen = (eventId) => {
@@ -108,6 +109,19 @@ function patchSocketListeners(socket) {
                 seenEventIds.delete(oldest);
             }
         }
+    };
+
+    const markEventActiveForCurrentDispatch = (eventId) => {
+        if (!eventId || activeDispatchEventIds.has(eventId)) return;
+        activeDispatchEventIds.add(eventId);
+        const clearActiveEvent = () => {
+            activeDispatchEventIds.delete(eventId);
+        };
+        if (typeof queueMicrotask === 'function') {
+            queueMicrotask(clearActiveEvent);
+            return;
+        }
+        Promise.resolve().then(clearActiveEvent, clearActiveEvent);
     };
 
     const queueGapSync = (chatId, fromPts, targetPts) => {
@@ -179,13 +193,14 @@ function patchSocketListeners(socket) {
                 const eventId = envelope && typeof envelope.event_id === 'string'
                     ? envelope.event_id
                     : '';
-                if (eventId && seenEventIds.has(eventId)) {
+                const isSameDispatchEvent = Boolean(eventId && activeDispatchEventIds.has(eventId));
+                if (eventId && seenEventIds.has(eventId) && !isSameDispatchEvent) {
                     return;
                 }
 
                 const envelopeChatId = String(envelope?.chat_id || '').trim();
                 const incomingPts = normalizePositivePts(envelope?.chat_pts);
-                if (envelopeChatId && incomingPts) {
+                if (envelopeChatId && incomingPts && !isSameDispatchEvent) {
                     const knownPts = normalizePositivePts(chatPtsByChatId.get(envelopeChatId));
                     if (knownPts && incomingPts <= knownPts) {
                         markEventSeen(eventId);
@@ -209,6 +224,7 @@ function patchSocketListeners(socket) {
                     chatPtsByChatId.set(envelopeChatId, incomingPts);
                 }
 
+                markEventActiveForCurrentDispatch(eventId);
                 markEventSeen(eventId);
                 handler(payload, ...remaining);
             };
