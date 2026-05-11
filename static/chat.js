@@ -4730,39 +4730,7 @@ const initChatPage = async () => {
                 targetPill.setAttribute('data-msg-id', String(msgId));
                 targetPill.setAttribute('data-emoji', nextEmoji);
                 preservedPillStateClasses.forEach((className) => targetPill.classList.add(className));
-
-                const sourceEmoji = sourcePill.querySelector('.reaction-pill__emoji');
-                const targetEmoji = targetPill.querySelector('.reaction-pill__emoji');
-                if (sourceEmoji && targetEmoji) {
-                    targetEmoji.textContent = sourceEmoji.textContent || '';
-                }
-
-                const sourceReactors = sourcePill.querySelector('.reaction-pill__reactors');
-                const targetReactors = targetPill.querySelector('.reaction-pill__reactors');
-                if (sourceReactors) {
-                    const clonedReactors = sourceReactors.cloneNode(true);
-                    if (targetReactors) {
-                        targetReactors.replaceWith(clonedReactors);
-                    } else if (targetEmoji) {
-                        targetEmoji.insertAdjacentElement('afterend', clonedReactors);
-                    } else {
-                        targetPill.prepend(clonedReactors);
-                    }
-                } else {
-                    targetReactors?.remove();
-                }
-
-                const sourceCount = sourcePill.querySelector('.reaction-pill__count');
-                const targetCount = targetPill.querySelector('.reaction-pill__count');
-                if (sourceCount) {
-                    if (targetCount) {
-                        targetCount.textContent = sourceCount.textContent || '';
-                    } else {
-                        targetPill.append(sourceCount.cloneNode(true));
-                    }
-                } else {
-                    targetCount?.remove();
-                }
+                targetPill.innerHTML = sourcePill.innerHTML;
             };
 
             const currentPills = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'));
