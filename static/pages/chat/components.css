@@ -10652,22 +10652,33 @@
 }
 
 .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-text {
-    display: inline;
+    display: block;
+    min-width: 0;
 }
 
 .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) {
-    display: inline-block;
-    --inline-meta-slot-width: calc(58px * var(--chat-message-scale));
+    display: inline-flex;
+    align-items: flex-end;
+    --inline-meta-slot-width: calc(74px * var(--chat-message-scale));
 }
 
 .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-footer {
     display: inline-flex !important;
-    vertical-align: text-bottom;
+    align-self: flex-end;
     margin-top: 0;
     margin-left: calc(4px * var(--chat-message-scale));
     min-width: var(--inline-meta-slot-width);
     justify-content: flex-end;
     min-height: 0;
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-footer:has(.msg-pin),
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-footer:has(.msg-edited) {
+    --inline-meta-slot-width: calc(132px * var(--chat-message-scale));
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)) > .message-footer:has(.msg-group-readers) {
+    --inline-meta-slot-width: calc(196px * var(--chat-message-scale));
 }
 
 .message .bubble > .message-text + .msg-meta,
