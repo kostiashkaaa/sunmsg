@@ -7,6 +7,7 @@ const IDEMPOTENT_SOCKET_EVENTS = new Set([
     'delete_messages',
 ]);
 const SOCKET_EVENT_DEDUPE_LIMIT = 2000;
+const SOCKET_PTS_SYNC_QUEUE_LIMIT = 128;
 
 function isObjectPayload(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -79,38 +80,179 @@ function unwrapSocketPayload(rawPayload) {
     return { payload: rawPayload, envelope };
 }
 
+function normalizePositivePts(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const normalized = Math.floor(numeric);
+    return normalized > 0 ? normalized : null;
+}
+
 function patchSocketListeners(socket) {
     if (!socket || socket.__sun_listener_patch_applied) return socket;
     const originalOn = typeof socket.on === 'function' ? socket.on.bind(socket) : null;
     if (!originalOn) return socket;
+    const originalOff = typeof socket.off === 'function' ? socket.off.bind(socket) : null;
     const seenEventIds = new Map();
+    const chatPtsByChatId = new Map();
+    const listenersByEvent = new Map();
+    const handlerWrapMap = new WeakMap();
+    const ptsSyncQueueByChatId = new Map();
+    let gapSyncHandler = null;
+
+    const markEventSeen = (eventId) => {
+        if (!eventId) return;
+        seenEventIds.set(eventId, Date.now());
+        if (seenEventIds.size > SOCKET_EVENT_DEDUPE_LIMIT) {
+            const oldest = seenEventIds.keys().next().value;
+            if (oldest) {
+                seenEventIds.delete(oldest);
+            }
+        }
+    };
+
+    const queueGapSync = (chatId, fromPts, targetPts) => {
+        if (typeof gapSyncHandler !== 'function') {
+            return Promise.resolve();
+        }
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) {
+            return Promise.resolve();
+        }
+        const prevTask = ptsSyncQueueByChatId.get(normalizedChatId) || Promise.resolve();
+        const nextTask = Promise.resolve(prevTask)
+            .catch(() => {})
+            .then(() => gapSyncHandler({
+                chatId: normalizedChatId,
+                fromPts,
+                targetPts,
+            }));
+
+        ptsSyncQueueByChatId.set(normalizedChatId, nextTask);
+        if (ptsSyncQueueByChatId.size > SOCKET_PTS_SYNC_QUEUE_LIMIT) {
+            const oldestChatId = ptsSyncQueueByChatId.keys().next().value;
+            if (oldestChatId && oldestChatId !== normalizedChatId) {
+                ptsSyncQueueByChatId.delete(oldestChatId);
+            }
+        }
+        return nextTask.finally(() => {
+            if (ptsSyncQueueByChatId.get(normalizedChatId) === nextTask) {
+                ptsSyncQueueByChatId.delete(normalizedChatId);
+            }
+        });
+    };
+
+    const dispatchInbound = (eventName, ...args) => {
+        const normalizedEventName = String(eventName || '');
+        if (!normalizedEventName) return;
+        const listeners = listenersByEvent.get(normalizedEventName);
+        if (!listeners || listeners.size === 0) return;
+        listeners.forEach((listener) => {
+            try {
+                listener(...args);
+            } catch (_err) {}
+        });
+    };
 
     socket.on = function patchedOn(eventName, handler) {
         if (typeof handler !== 'function') {
             return originalOn(eventName, handler);
         }
+        const normalizedEventName = String(eventName || '');
         const wrappedHandler = (...args) => {
-            const rawPayload = args.length > 0 ? args[0] : undefined;
-            const remaining = args.length > 1 ? args.slice(1) : [];
-            const { payload, envelope } = unwrapSocketPayload(rawPayload);
-            const eventId = envelope && typeof envelope.event_id === 'string'
-                ? envelope.event_id
-                : '';
-            if (eventId) {
-                if (seenEventIds.has(eventId)) {
+            const run = async () => {
+                const rawPayload = args.length > 0 ? args[0] : undefined;
+                const remaining = args.length > 1 ? args.slice(1) : [];
+                const replayMeta = remaining[0];
+                const isReplayEvent = Boolean(
+                    replayMeta
+                    && typeof replayMeta === 'object'
+                    && replayMeta.__sunReplay === true,
+                );
+                const { payload, envelope } = unwrapSocketPayload(rawPayload);
+                const eventId = envelope && typeof envelope.event_id === 'string'
+                    ? envelope.event_id
+                    : '';
+                if (eventId && seenEventIds.has(eventId)) {
                     return;
                 }
-                seenEventIds.set(eventId, Date.now());
-                if (seenEventIds.size > SOCKET_EVENT_DEDUPE_LIMIT) {
-                    const oldest = seenEventIds.keys().next().value;
-                    if (oldest) {
-                        seenEventIds.delete(oldest);
+
+                const envelopeChatId = String(envelope?.chat_id || '').trim();
+                const incomingPts = normalizePositivePts(envelope?.chat_pts);
+                if (envelopeChatId && incomingPts) {
+                    const knownPts = normalizePositivePts(chatPtsByChatId.get(envelopeChatId));
+                    if (knownPts && incomingPts <= knownPts) {
+                        markEventSeen(eventId);
+                        return;
                     }
+                    if (!isReplayEvent && knownPts && incomingPts > (knownPts + 1)) {
+                        try {
+                            await queueGapSync(envelopeChatId, knownPts, incomingPts - 1);
+                        } catch (_err) {}
+                    }
+
+                    if (eventId && seenEventIds.has(eventId)) {
+                        return;
+                    }
+                    const latestKnownPts = normalizePositivePts(chatPtsByChatId.get(envelopeChatId));
+                    if (latestKnownPts && incomingPts <= latestKnownPts) {
+                        markEventSeen(eventId);
+                        return;
+                    }
+                    chatPtsByChatId.set(envelopeChatId, incomingPts);
+                }
+
+                markEventSeen(eventId);
+                handler(payload, ...remaining);
+            };
+
+            const maybePromise = run();
+            if (maybePromise && typeof maybePromise.catch === 'function') {
+                maybePromise.catch(() => {});
+            }
+        };
+        handlerWrapMap.set(handler, wrappedHandler);
+        if (!listenersByEvent.has(normalizedEventName)) {
+            listenersByEvent.set(normalizedEventName, new Set());
+        }
+        listenersByEvent.get(normalizedEventName).add(wrappedHandler);
+        return originalOn(eventName, wrappedHandler);
+    };
+
+    if (originalOff) {
+        socket.off = function patchedOff(eventName, handler) {
+            const normalizedEventName = String(eventName || '');
+            if (typeof handler !== 'function') {
+                listenersByEvent.delete(normalizedEventName);
+                return originalOff(eventName);
+            }
+            const wrapped = handlerWrapMap.get(handler) || handler;
+            const listeners = listenersByEvent.get(normalizedEventName);
+            if (listeners) {
+                listeners.delete(wrapped);
+                if (listeners.size === 0) {
+                    listenersByEvent.delete(normalizedEventName);
                 }
             }
-            handler(payload, ...remaining);
+            return originalOff(eventName, wrapped);
         };
-        return originalOn(eventName, wrappedHandler);
+    }
+
+    socket.__sun_dispatchInbound = dispatchInbound;
+    socket.__sun_setGapSyncHandler = (handler) => {
+        gapSyncHandler = typeof handler === 'function' ? handler : null;
+    };
+    socket.__sun_getChatPts = (chatId) => {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) return null;
+        return normalizePositivePts(chatPtsByChatId.get(normalizedChatId));
+    };
+    socket.__sun_setChatPts = (chatId, chatPts) => {
+        const normalizedChatId = String(chatId || '').trim();
+        const normalizedPts = normalizePositivePts(chatPts);
+        if (!normalizedChatId || !normalizedPts) return;
+        const currentPts = normalizePositivePts(chatPtsByChatId.get(normalizedChatId));
+        if (currentPts && currentPts > normalizedPts) return;
+        chatPtsByChatId.set(normalizedChatId, normalizedPts);
     };
 
     Object.defineProperty(socket, '__sun_listener_patch_applied', {
