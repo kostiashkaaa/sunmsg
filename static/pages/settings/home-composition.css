@@ -1,80 +1,204 @@
-/* Desktop composition polish for settings home panel. */
+/* Telegram-like desktop composition for settings home view. */
 
 @media (min-width: 769px) {
     body:not(.settings-embed-mode) .settings-scene {
-        padding: 18px;
+        padding: 24px 18px;
     }
 
     body:not(.settings-embed-mode) .settings-layout {
-        width: min(640px, 100%);
-        min-height: calc(100vh - 36px);
-        min-height: calc(100dvh - 36px);
+        width: min(490px, calc(100vw - 36px));
+        min-height: calc(100vh - 48px);
+        min-height: calc(100dvh - 48px);
         margin: 0 auto;
         border-radius: 18px;
-        border: 1px solid color-mix(in srgb, var(--rule) 42%, transparent);
+        border: 1px solid color-mix(in srgb, var(--rule) 50%, transparent);
         overflow: hidden;
     }
 
+    .settings-panel-head {
+        min-height: 58px;
+        padding: 10px 14px 10px 12px;
+        gap: 8px;
+        border-bottom-color: color-mix(in srgb, var(--rule) 45%, transparent);
+    }
+
+    .settings-panel-title {
+        font-size: 22px;
+        font-weight: 650;
+    }
+
+    .settings-panel-close,
+    .settings-panel-tool-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+    }
+
+    .settings-panel-close {
+        border-color: transparent;
+        background: transparent;
+        color: var(--sub-text);
+    }
+
+    .settings-panel-close:hover,
+    .settings-panel-tool-btn:hover {
+        background: color-mix(in srgb, var(--paper-alt) 62%, transparent);
+        border-color: transparent;
+    }
+
+    .settings-panel-tools {
+        gap: 3px;
+    }
+
+    .settings-panel-esc {
+        display: none;
+    }
+
     body.settings-home-open .settings-panel-body {
+        display: block;
         overflow-y: auto;
     }
 
-    body.settings-home-open .settings-nav {
-        width: min(560px, 100%);
+    body.settings-detail-open .settings-content {
+        width: min(438px, 100%);
         margin: 0 auto;
-        padding: 18px 22px 24px;
-        gap: 14px;
-        flex: 0 0 auto;
+        padding: 12px 0 22px;
+        border-left: 0;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-bottom: 10px;
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+
+    body.settings-detail-open .settings-card-header {
+        margin-bottom: 8px;
+    }
+
+    body.settings-detail-open .settings-row {
+        padding: 10px 0;
+    }
+
+    body.settings-home-open .settings-nav {
+        width: min(438px, 100%);
+        margin: 0 auto;
+        padding: 12px 0 20px;
+        gap: 12px;
+        background: transparent;
+        overflow: visible;
     }
 
     body.settings-home-open .settings-nav-profile {
-        grid-template-columns: 82px minmax(0, 1fr);
-        column-gap: 14px;
-        row-gap: 10px;
-        padding: 18px 18px 14px;
-        border-radius: 16px;
-        border: 1px solid color-mix(in srgb, var(--rule) 44%, transparent);
-        background: color-mix(in srgb, var(--paper-alt) 72%, transparent);
-        box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        row-gap: 0;
+        padding: 18px 16px 14px;
+        text-align: center;
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--rule) 42%, transparent);
+        background: color-mix(in srgb, var(--paper-alt) 70%, transparent);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap {
+        grid-column: auto;
+        grid-row: auto;
+        justify-content: center;
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 82px;
-        height: 82px;
-        font-size: 28px;
-    }
-
-    body.settings-home-open .settings-nav-profile-action {
-        width: 36px;
-        height: 36px;
-        margin-right: -4px;
-        margin-bottom: -2px;
+        width: 104px;
+        height: 104px;
+        font-size: 35px;
     }
 
     body.settings-home-open .settings-nav-profile-main {
-        gap: 3px;
+        grid-column: auto;
+        grid-row: auto;
+        margin-top: 12px;
+        gap: 2px;
         padding-right: 0;
+        text-align: center;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 28px;
-        line-height: 1.05;
+        font-size: 36px;
+        line-height: 1.04;
+        font-weight: 620;
         letter-spacing: -0.01em;
+        white-space: normal;
     }
 
     body.settings-home-open .settings-nav-profile-status {
-        font-size: 12px;
+        font-size: 13px;
+        line-height: 1.2;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        width: 56px;
+        height: 56px;
+        margin: 0;
+        border: 0;
+        transform: translateY(-50%);
+        background: color-mix(in srgb, var(--accent) 88%, #fff 12%);
+        box-shadow: 0 14px 26px -16px color-mix(in srgb, var(--accent) 70%, #000);
+    }
+
+    body.settings-home-open .settings-nav-profile-action:hover {
+        transform: translateY(-50%);
+        filter: brightness(1.04);
+    }
+
+    body.settings-home-open .settings-nav-profile-action .sun-icon {
+        width: 25px;
+        height: 25px;
     }
 
     body.settings-home-open .settings-nav-profile-rows {
-        margin-top: 4px;
-        padding-top: 10px;
-        gap: 8px;
+        width: 100%;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid color-mix(in srgb, var(--rule) 34%, transparent);
+        gap: 6px;
+    }
+
+    body.settings-home-open .settings-nav-profile-row {
+        grid-template-columns: 20px minmax(0, 1fr);
+        align-items: center;
+        min-height: 48px;
+        column-gap: 11px;
+        padding: 0 8px;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--paper) 58%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-profile-row > .sun-icon {
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
+        margin-top: 0;
+    }
+
+    body.settings-home-open .settings-nav-profile-row-value {
+        font-size: 16px;
+        line-height: 1.2;
+        font-weight: 600;
+    }
+
+    body.settings-home-open .settings-nav-profile-row-label {
+        margin-top: 1px;
+        font-size: 12px;
     }
 
     body.settings-home-open .settings-nav-list {
         display: grid;
-        gap: 12px;
+        gap: 10px;
         padding: 0;
         background: transparent;
         overflow: visible;
@@ -84,46 +208,57 @@
     body.settings-home-open .settings-nav-group {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding: 6px;
+        gap: 0;
+        padding: 4px 0;
         border-radius: 14px;
         border: 1px solid color-mix(in srgb, var(--rule) 40%, transparent);
-        background: color-mix(in srgb, var(--paper) 58%, transparent);
+        background: color-mix(in srgb, var(--paper) 56%, transparent);
+        overflow: hidden;
     }
 
     body.settings-home-open .settings-nav-group-label {
-        padding: 3px 8px 2px;
-        font-family: var(--font-mono);
-        font-size: 10px;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        color: color-mix(in srgb, var(--sub-text) 90%, var(--text) 10%);
+        padding: 4px 12px 2px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: color-mix(in srgb, var(--sub-text) 88%, var(--text) 12%);
     }
 
     body.settings-home-open .settings-nav-group .nav-item {
-        min-height: 40px;
-        padding: 0 10px;
-        border-radius: 10px;
-        border: 1px solid transparent;
+        min-height: 46px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 0;
         box-shadow: none;
-        column-gap: 10px;
-        font-size: 13px;
+        column-gap: 12px;
+        font-size: 15px;
         font-weight: 560;
-        color: color-mix(in srgb, var(--text) 84%, var(--sub-text) 16%);
+        color: color-mix(in srgb, var(--text) 86%, var(--sub-text) 14%);
+        transition: background-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item + .nav-item {
+        border-top: 1px solid color-mix(in srgb, var(--rule) 24%, transparent);
     }
 
     body.settings-home-open .settings-nav-group .nav-item .sun-icon {
-        color: color-mix(in srgb, var(--sub-text) 78%, var(--text) 22%);
+        width: 19px;
+        min-width: 19px;
+        height: 19px;
+        color: color-mix(in srgb, var(--sub-text) 84%, var(--text) 16%);
     }
 
     body.settings-home-open .settings-nav-group .nav-item:hover {
-        background: color-mix(in srgb, var(--paper-alt) 68%, transparent);
-        border-color: color-mix(in srgb, var(--rule) 62%, transparent);
+        background: color-mix(in srgb, var(--paper-alt) 76%, transparent);
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item:active {
+        transform: none;
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active {
-        background: color-mix(in srgb, var(--accent) 12%, transparent);
-        border-color: color-mix(in srgb, var(--accent) 44%, var(--rule));
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        color: var(--text);
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active .sun-icon {
@@ -132,13 +267,14 @@
 
     body.settings-home-open .settings-logout-form {
         margin: 0;
-        padding: 0 2px;
+        padding: 0;
         border-top: 0;
     }
 
     body.settings-home-open .settings-logout-form .nav-item {
-        min-height: 42px;
+        min-height: 46px;
         border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
         box-shadow: none;
     }
 
