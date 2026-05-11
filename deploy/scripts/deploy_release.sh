@@ -67,6 +67,15 @@ run_systemctl() {
   fi
 }
 
+reload_web_service() {
+  if run_systemctl kill --signal=HUP --kill-who=main sunmessenger-web.service; then
+    echo "Triggered graceful web reload via SIGHUP."
+    return
+  fi
+  echo "Graceful web reload failed; fallback to restart."
+  run_systemctl restart sunmessenger-web.service
+}
+
 reset_presence_state() {
   "$VENV_BIN/python" - <<'PY'
 from app.config import load_environment
@@ -156,7 +165,7 @@ rollback() {
   if [[ -n "$old_target" && -d "$old_target" ]]; then
     echo "Rollback to previous release: $old_target"
     ln -sfn "$old_target" "$CURRENT_LINK"
-    run_systemctl reload-or-restart sunmessenger-web.service || true
+    reload_web_service || true
     run_systemctl restart sunmessenger-scheduler.service || true
   fi
 }
@@ -189,7 +198,7 @@ fi
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
 reset_presence_state
-run_systemctl reload-or-restart sunmessenger-web.service
+reload_web_service
 run_systemctl restart sunmessenger-scheduler.service
 
 health_ok=0
