@@ -156,7 +156,7 @@ rollback() {
   if [[ -n "$old_target" && -d "$old_target" ]]; then
     echo "Rollback to previous release: $old_target"
     ln -sfn "$old_target" "$CURRENT_LINK"
-    run_systemctl restart sunmessenger-web.service || true
+    run_systemctl reload-or-restart sunmessenger-web.service || true
     run_systemctl restart sunmessenger-scheduler.service || true
   fi
 }
@@ -189,7 +189,7 @@ fi
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
 reset_presence_state
-run_systemctl restart sunmessenger-web.service
+run_systemctl reload-or-restart sunmessenger-web.service
 run_systemctl restart sunmessenger-scheduler.service
 
 health_ok=0
