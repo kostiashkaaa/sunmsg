@@ -3022,7 +3022,7 @@ export const initChatPage = async () => {
     }
 
     // Context menu - pin
-    document.getElementById('cmPin')?.addEventListener('click', () => {
+    contextPinItem?.addEventListener('click', () => {
         if (isChatBlocked()) return;
         const msgId = messageContextMenuController.getCurrentMessageId();
         hideContextMenu();
