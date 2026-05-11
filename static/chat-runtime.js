@@ -84,7 +84,7 @@ import { initChatEmojiRefreshRuntime } from './modules/chat-emoji-refresh-runtim
 import { bindChatRuntimeWindowEvents } from './modules/chat-runtime-window-events.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
-import { initDeleteMessagesModal } from './modules/chat-overlays.js';
+import { initChatMessageActionsRuntime } from './modules/chat-message-actions-runtime.js';
 import { applyPinnedState as _applyPinnedState } from './modules/pinned-contacts.js';
 import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
 import { initCaptionModal } from './modules/caption-modal.js';
@@ -96,7 +96,6 @@ import { syncReactionPickerItems } from './modules/chat-reaction-picker-items.js
 import { initReplyBar, initPinnedBar } from './modules/message-thread-banners.js';
 import { initLinkDraftBar } from './modules/link-draft-banner.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
-import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
 import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
 import { createChatComposerSendRuntime } from './modules/chat-composer-send-runtime.js';
@@ -4160,60 +4159,41 @@ export const initChatPage = async () => {
 
     // Selection Mode Logic
 
-    // Modal Delete Logic
-    const { openDeleteModal } = initDeleteMessagesModal({
-        modalEl: deleteConfirmModal,
-        cancelButtonEl: cancelDeleteBtn,
-        confirmButtonEl: confirmDeleteBtn,
-        deleteForBothCheckEl: deleteForBothCheck,
-        deleteForBothWrapEl: deleteForBothWrap,
-        titleEl: deleteModalTitle,
+    initChatMessageActionsRuntime({
+        documentRef: document,
+        deleteConfirmModal,
+        cancelDeleteBtn,
+        confirmDeleteBtn,
+        deleteForBothCheck,
+        deleteForBothWrap,
+        deleteModalTitle,
+        barCopyBtn,
+        barEditBtn,
+        barDeleteBtn,
+        barSelectBtn,
+        cancelSelectionBtn,
+        bulkDeleteBtn,
+        bulkForwardBtn,
+        bulkCopyBtn,
+        barCancelBtn,
+        chatMessages,
         isChatBlocked,
         getBlockedNoticeText: getChatBlockNoticeText,
-        currentBlockState: () => currentBlockState,
-        resolveMessageElement: (id) => document.querySelector(`.message[data-msg-id="${id}"]`),
+        getCurrentBlockState: () => currentBlockState,
+        getCurrentChatId: () => currentChatId,
+        emitSocket,
         openDialog: openAnimatedDialog,
         closeDialog: closeAnimatedDialog,
-        onConfirm: ({ messageIds, mode }) => {
-            emitSocket('delete_messages', {
-                msg_ids: messageIds,
-                chat_id: currentChatId,
-                mode,
-            });
-        },
-        onBlocked: (text) => showToast(text, 'warning'),
-        onAfterConfirm: () => {
-            if (messageSelectionController.isSelectionMode()) toggleSelectionMode(false);
-            closeMessageActionsBar();
-        },
-    });
-
-    initMessageActionHandlers({
-        barCopyButtonEl: document.getElementById('barCopyBtn'),
-        barEditButtonEl: document.getElementById('barEditBtn'),
-        barDeleteButtonEl: document.getElementById('barDeleteBtn'),
-        barSelectButtonEl: barSelectBtn,
-        cancelSelectionButtonEl: cancelSelectionBtn,
-        bulkDeleteButtonEl: bulkDeleteBtn,
-        bulkForwardButtonEl: bulkForwardBtn,
-        bulkCopyButtonEl: bulkCopyBtn,
-        chatMessages,
-        getSelectedMessageState: () => messageActionsBarController.getState(),
         messageSelectionController,
+        messageActionsBarController,
         copyTextToClipboard,
         showToast,
-        isChatBlocked,
-        openDeleteModal,
         startEditMessage,
         toggleSelectionMode,
-        onForwardSelected: (messageIds) => {
-            openForwardModal(messageIds);
-        },
+        openForwardModal,
         toggleMessageSelection,
         closeMessageActionsBar,
-        resolveMessageElement: (id) => document.querySelector(`.message[data-msg-id="${id}"]`),
     });
-    barCancelBtn?.addEventListener('click', () => closeMessageActionsBar());
 
     const unbindWindowActivityEvents = bindWindowActivityEvents({
         reportActivity,
