@@ -10651,6 +10651,28 @@
     min-height: 0;
 }
 
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions) {
+    position: relative;
+    --text-meta-reserve: calc(72px * var(--chat-message-scale));
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions) > .message-text {
+    padding-right: var(--text-meta-reserve) !important;
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions) > .message-footer {
+    position: absolute;
+    right: calc(8px * var(--chat-message-scale));
+    bottom: calc(5px * var(--chat-message-scale));
+    margin-top: 0;
+    min-height: 0;
+}
+
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions) > .message-footer > .msg-meta,
+.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions) > .message-footer > .message-meta {
+    margin-left: 0 !important;
+}
+
 .message .bubble > .message-text + .msg-meta,
 .message .bubble > .message-text + .message-meta {
     position: static !important;
