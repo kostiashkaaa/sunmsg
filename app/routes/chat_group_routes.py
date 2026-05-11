@@ -6,7 +6,7 @@ from app.routes.chat_group_membership_routes import register_chat_group_membersh
 from app.routes.chat_group_profile_routes import register_chat_group_profile_routes
 
 
-def register_chat_group_routes(
+def register_chat_group_routes(  # noqa: PLR0913 - dependency-injected route registration contract
     chat_bp,
     *,
     limiter,

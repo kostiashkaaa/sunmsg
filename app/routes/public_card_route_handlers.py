@@ -1,4 +1,4 @@
-def process_public_user_card_route(
+def process_public_user_card_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     target_username: str,
@@ -23,7 +23,7 @@ def process_public_user_card_route(
     return result
 
 
-def process_start_dialog_from_public_card_route(
+def process_start_dialog_from_public_card_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     target_username: str,

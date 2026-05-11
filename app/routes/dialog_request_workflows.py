@@ -112,7 +112,7 @@ def send_dialog_request_workflow(
     return {'status': 'ok', 'event': event}
 
 
-def accept_dialog_request_workflow(
+def accept_dialog_request_workflow(  # noqa: PLR0913 - dependency-injected workflow contract
     conn,
     *,
     receiver_user_id: int,

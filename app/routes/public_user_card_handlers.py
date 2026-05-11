@@ -1,4 +1,4 @@
-def resolve_public_user_card_context(
+def resolve_public_user_card_context(  # noqa: PLR0913 - dependency-injected resolver contract
     conn,
     *,
     target_username: str,
@@ -74,7 +74,7 @@ def resolve_public_user_card_context(
     }
 
 
-def process_public_user_card(
+def process_public_user_card(  # noqa: PLR0913 - dependency-injected handler contract
     conn,
     *,
     target_username: str,

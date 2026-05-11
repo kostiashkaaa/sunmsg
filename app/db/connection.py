@@ -141,6 +141,33 @@ class _PostgresAdapterPool:
             ),
         )
 
+    def _decrement_total_connections_locked(self) -> None:
+        self._total_connections = max(0, self._total_connections - 1)
+
+    def _rollback_raw_connection(self, raw_connection) -> bool:
+        try:
+            raw_connection.rollback()
+        except Exception:  # noqa: BLE001
+            return False
+        return True
+
+    def _close_raw_connection_quietly(self, raw_connection) -> None:
+        try:
+            raw_connection.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _return_raw_connection_to_idle_pool(self, raw_connection) -> bool:
+        with self._lock:
+            if self._disposed:
+                self._decrement_total_connections_locked()
+                return False
+            if len(self._idle_raw_connections) < self._max_size and _is_raw_connection_open(raw_connection):
+                self._idle_raw_connections.append(raw_connection)
+                return True
+            self._decrement_total_connections_locked()
+            return False
+
     def release(self, adapter: PostgresConnectionAdapter) -> None:
         raw_connection = getattr(adapter, '_connection', None)
         if raw_connection is None:
@@ -148,39 +175,18 @@ class _PostgresAdapterPool:
 
         if not _is_raw_connection_open(raw_connection):
             with self._lock:
-                self._total_connections = max(0, self._total_connections - 1)
+                self._decrement_total_connections_locked()
             return
 
-        try:
-            raw_connection.rollback()
-        except Exception:  # noqa: BLE001
-            try:
-                raw_connection.close()
-            except Exception:  # noqa: BLE001
-                pass
+        if not self._rollback_raw_connection(raw_connection):
+            self._close_raw_connection_quietly(raw_connection)
             with self._lock:
-                self._total_connections = max(0, self._total_connections - 1)
+                self._decrement_total_connections_locked()
             return
 
-        with self._lock:
-            if self._disposed:
-                self._total_connections = max(0, self._total_connections - 1)
-                should_close = True
-            else:
-                should_close = False
-            if len(self._idle_raw_connections) < self._max_size and _is_raw_connection_open(raw_connection):
-                if not should_close:
-                    self._idle_raw_connections.append(raw_connection)
-                    return
-            if not should_close:
-                self._total_connections = max(0, self._total_connections - 1)
-                should_close = True
-
-        if should_close:
-            try:
-                raw_connection.close()
-            except Exception:  # noqa: BLE001
-                pass
+        if self._return_raw_connection_to_idle_pool(raw_connection):
+            return
+        self._close_raw_connection_quietly(raw_connection)
 
     def dispose(self) -> None:
         with self._lock:

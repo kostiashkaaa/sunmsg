@@ -21,7 +21,7 @@ def _build_chat_created_payload(*, chat_id: str, user: Mapping[str, Any], avatar
     }
 
 
-def build_accept_request_socket_events(
+def build_accept_request_socket_events(  # noqa: PLR0913 - dependency-injected socket payload builder contract
     *,
     chat_id: str,
     sender: Mapping[str, Any],

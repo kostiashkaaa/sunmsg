@@ -1,4 +1,4 @@
-def process_get_user_profile(
+def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     current_user_id: int,

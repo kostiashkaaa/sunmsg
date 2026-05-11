@@ -296,7 +296,7 @@ def _count_recent_sanctions(conn, *, subject_type: str, subject_id: str, since_t
     return int(row['cnt'] or 0)
 
 
-def evaluate_rules(
+def evaluate_rules(  # noqa: PLR0913 - explicit moderation rule-evaluation contract
     conn,
     *,
     target_type: str,
@@ -364,7 +364,7 @@ def evaluate_rules(
     }
 
 
-def add_audit_log(
+def add_audit_log(  # noqa: PLR0913 - explicit moderation audit contract
     conn,
     *,
     actor_type: str,
@@ -415,7 +415,7 @@ def _report_case_id(conn, *, report_id: int) -> int:
     return int(row['case_id'])
 
 
-def create_report_only(
+def create_report_only(  # noqa: PLR0913 - explicit report-creation contract
     conn,
     *,
     reporter_user_id: int,
@@ -523,7 +523,7 @@ def enqueue_report_job(conn, *, report_id: int) -> None:
     )
 
 
-def _triage_report(
+def _triage_report(  # noqa: PLR0913 - explicit report-triage contract
     conn,
     *,
     report_id: int,
@@ -726,7 +726,7 @@ def _triage_report(
     }
 
 
-def create_report_and_case(
+def create_report_and_case(  # noqa: PLR0913 - explicit report+case workflow contract
     conn,
     *,
     reporter_user_id: int,
@@ -773,7 +773,7 @@ def create_report_and_case(
     return triage_result
 
 
-def create_report_and_enqueue(
+def create_report_and_enqueue(  # noqa: PLR0913 - explicit report-enqueue workflow contract
     conn,
     *,
     reporter_user_id: int,
@@ -803,7 +803,7 @@ def create_report_and_enqueue(
     return report_result
 
 
-def process_next_report_job(
+def process_next_report_job(  # noqa: PLR0913 - explicit report-job processing contract
     conn,
     *,
     worker_id: str,
@@ -1175,7 +1175,7 @@ def resolve_appeal(
     }
 
 
-def apply_case_action(
+def apply_case_action(  # noqa: PLR0913 - explicit case-action contract
     conn,
     *,
     case_id: int,
@@ -1297,7 +1297,7 @@ def apply_case_action(
     }
 
 
-def apply_manual_user_action(
+def apply_manual_user_action(  # noqa: PLR0913 - explicit manual-action contract
     conn,
     *,
     target_user_id: int,
@@ -1633,7 +1633,7 @@ def active_group_restriction(conn, *, chat_id: str, user_id: int) -> dict[str, A
     }
 
 
-def apply_group_member_sanction(
+def apply_group_member_sanction(  # noqa: PLR0913 - explicit group-sanction contract
     conn,
     *,
     chat_id: str,

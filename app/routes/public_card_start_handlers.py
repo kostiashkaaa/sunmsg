@@ -1,4 +1,4 @@
-def start_dialog_from_public_card_workflow(
+def start_dialog_from_public_card_workflow(  # noqa: PLR0913 - dependency-injected workflow contract
     conn,
     *,
     viewer_id: int,
@@ -68,7 +68,7 @@ def start_dialog_from_public_card_workflow(
     }
 
 
-def process_start_dialog_from_public_card(
+def process_start_dialog_from_public_card(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     viewer_id: int,

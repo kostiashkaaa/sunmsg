@@ -187,7 +187,7 @@ _MENTION_PUSH_BODY = 'Вас упомянули в чате'
 _DEFAULT_PUSH_BODY = 'Новое сообщение'
 
 
-def send_chat_message_push(
+def send_chat_message_push(  # noqa: PLR0913 - explicit push-delivery contract
     *,
     receiver_user_id: int,
     sender_user_id: int,

@@ -1,4 +1,4 @@
-def process_block_user(
+def process_block_user(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,
@@ -28,7 +28,7 @@ def process_block_user(
     return {'status': 'ok', 'block_state': result['block_state']}
 
 
-def process_unblock_user(
+def process_unblock_user(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,
@@ -59,7 +59,7 @@ def process_get_blocked_users(
     return {'status': 'ok', 'blocked_users': blocked_users}
 
 
-def process_block_user_route(
+def process_block_user_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,
@@ -90,7 +90,7 @@ def process_block_user_route(
     )
 
 
-def process_unblock_user_route(
+def process_unblock_user_route(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     user_id: int,

@@ -41,7 +41,7 @@ def fetch_public_search_results(conn, *, user_id: int, query: str):
     ]
 
 
-def build_search_users_payload(
+def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload builder contract
     conn,
     *,
     user_id: int,

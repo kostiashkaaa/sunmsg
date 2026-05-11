@@ -58,7 +58,47 @@ def can_role_perform_action(role: str, action: str) -> bool:
     return _role_priority(normalized_role) >= _role_priority(required_role)
 
 
-def authorize_group_action(
+def _deny(
+    *,
+    actor_role: str,
+    reason: str,
+    message: str,
+    target_role: str = '',
+) -> GroupAuthorizationResult:
+    return GroupAuthorizationResult(
+        allowed=False,
+        actor_role=actor_role,
+        target_role=target_role,
+        reason=reason,
+        message=message,
+    )
+
+
+def _validate_change_role_permissions(
+    *,
+    actor_role: str,
+    target_role: str,
+    next_role: str | None,
+) -> GroupAuthorizationResult | None:
+    normalized_next_role = normalize_group_role(next_role)
+    if normalized_next_role == GROUP_ROLE_OWNER and actor_role != GROUP_ROLE_OWNER:
+        return _deny(
+            actor_role=actor_role,
+            target_role=target_role,
+            reason='owner_only',
+            message='Only owner can assign owner role.',
+        )
+    if actor_role != GROUP_ROLE_OWNER and normalized_next_role == GROUP_ROLE_ADMIN:
+        return _deny(
+            actor_role=actor_role,
+            target_role=target_role,
+            reason='owner_only',
+            message='Only owner can assign admin role.',
+        )
+    return None
+
+
+def authorize_group_action(  # noqa: PLR0913 - explicit authorization contract
     conn,
     *,
     actor_user_id: int,
@@ -70,15 +110,13 @@ def authorize_group_action(
     normalized_action = str(action or '').strip().lower()
     actor_role = get_group_member_role(conn, int(actor_user_id), str(chat_id))
     if not actor_role:
-        return GroupAuthorizationResult(
-            allowed=False,
+        return _deny(
             actor_role='',
             reason='not_member',
             message='You are not a member of this group.',
         )
     if not can_role_perform_action(actor_role, normalized_action):
-        return GroupAuthorizationResult(
-            allowed=False,
+        return _deny(
             actor_role=actor_role,
             reason='insufficient_role',
             message='Insufficient role for this action.',
@@ -89,8 +127,7 @@ def authorize_group_action(
 
     target_role = get_group_member_role(conn, int(target_user_id), str(chat_id))
     if not target_role and normalized_action in {ACTION_KICK, ACTION_BAN, ACTION_CHANGE_ROLE}:
-        return GroupAuthorizationResult(
-            allowed=False,
+        return _deny(
             actor_role=actor_role,
             target_role='',
             reason='target_not_member',
@@ -98,8 +135,7 @@ def authorize_group_action(
         )
 
     if normalized_action in {ACTION_KICK, ACTION_BAN} and int(target_user_id) == int(actor_user_id):
-        return GroupAuthorizationResult(
-            allowed=False,
+        return _deny(
             actor_role=actor_role,
             target_role=target_role,
             reason='self_target_forbidden',
@@ -112,8 +148,7 @@ def authorize_group_action(
     actor_priority = _role_priority(actor_role)
     target_priority = _role_priority(target_role)
     if actor_priority <= target_priority and int(actor_user_id) != int(target_user_id):
-        return GroupAuthorizationResult(
-            allowed=False,
+        return _deny(
             actor_role=actor_role,
             target_role=target_role,
             reason='target_role_too_high',
@@ -121,23 +156,13 @@ def authorize_group_action(
         )
 
     if normalized_action == ACTION_CHANGE_ROLE:
-        normalized_next_role = normalize_group_role(next_role)
-        if normalized_next_role == GROUP_ROLE_OWNER and actor_role != GROUP_ROLE_OWNER:
-            return GroupAuthorizationResult(
-                allowed=False,
-                actor_role=actor_role,
-                target_role=target_role,
-                reason='owner_only',
-                message='Only owner can assign owner role.',
-            )
-        if actor_role != GROUP_ROLE_OWNER and normalized_next_role == GROUP_ROLE_ADMIN:
-            return GroupAuthorizationResult(
-                allowed=False,
-                actor_role=actor_role,
-                target_role=target_role,
-                reason='owner_only',
-                message='Only owner can assign admin role.',
-            )
+        role_error = _validate_change_role_permissions(
+            actor_role=actor_role,
+            target_role=target_role,
+            next_role=next_role,
+        )
+        if role_error:
+            return role_error
 
     return GroupAuthorizationResult(
         allowed=True,

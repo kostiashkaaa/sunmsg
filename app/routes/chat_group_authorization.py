@@ -5,8 +5,11 @@ from flask import jsonify
 from app.services.group_authorization import authorize_group_action
 
 
-def build_authorize_group_action_or_error(*, authorize_group_action_func=authorize_group_action):
-    def _authorize_group_action_or_error(
+def build_authorize_group_action_or_error(  # noqa: PLR0913 - dependency-injected authorization factory contract
+    *,
+    authorize_group_action_func=authorize_group_action,
+):
+    def _authorize_group_action_or_error(  # noqa: PLR0913 - authorization decision contract
         conn,
         *,
         actor_user_id: int,

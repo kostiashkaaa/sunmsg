@@ -1,4 +1,4 @@
-def process_get_online_status(
+def process_get_online_status(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
     current_user_id: int,

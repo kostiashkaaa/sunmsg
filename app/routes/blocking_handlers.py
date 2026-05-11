@@ -20,7 +20,7 @@ def fetch_blocked_users_for_user(conn, *, user_id: int) -> list[dict]:
     ]
 
 
-def emit_block_state_events(
+def emit_block_state_events(  # noqa: PLR0913 - dependency-injected route helper contract
     conn,
     *,
     a_user_id: int,
@@ -76,7 +76,7 @@ def emit_block_state_events(
         )
 
 
-def block_user_for_user(
+def block_user_for_user(  # noqa: PLR0913 - dependency-injected route helper contract
     conn,
     *,
     user_id: int,
@@ -116,7 +116,7 @@ def block_user_for_user(
     return {'status': 'ok', 'block_state': state}
 
 
-def unblock_user_for_user(
+def unblock_user_for_user(  # noqa: PLR0913 - dependency-injected route helper contract
     conn,
     *,
     user_id: int,
