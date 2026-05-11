@@ -8509,6 +8509,31 @@
             clear: none;
         }
 
+        .message .bubble.bubble--text-has-reactions > .message-footer {
+            grid-column: 1 / -1;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            column-gap: calc(6px * var(--chat-message-scale));
+            width: 100%;
+            margin-top: 0;
+            min-width: 0;
+        }
+
+        .message .bubble.bubble--text-has-reactions > .message-footer > .message-reactions {
+            grid-column: 1;
+            justify-self: start;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .message .bubble.bubble--text-has-reactions > .message-footer > .msg-meta,
+        .message .bubble.bubble--text-has-reactions > .message-footer > .message-meta {
+            grid-column: 2;
+            justify-self: end;
+            margin-left: 0 !important;
+        }
+
 
 
         .message-reactions {
