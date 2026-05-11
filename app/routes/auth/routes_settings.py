@@ -174,7 +174,7 @@ def get_settings():
 
 @auth_bp.route('/api/save_settings', methods=['POST'])
 @limiter.limit("20 per minute")
-def api_save_settings():
+def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and persistence fan-out
     """JSON-based settings save (used by settings.html)"""
     if 'public_key_pem' not in session or 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Не авторизован.'}), 401

@@ -36,7 +36,7 @@ def get_register_challenge():
 
 @auth_bp.route('/api/register_client', methods=['POST'])
 @limiter.limit("5 per minute")
-def register_client():
+def register_client():  # noqa: C901, PLR0915 - registration orchestration with validation gates
     """Registers a new user without enabling TOTP by default."""
     data = request.get_json(silent=True) or {}
     username = (data.get('username') or '').strip()

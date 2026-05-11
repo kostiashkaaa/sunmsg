@@ -108,7 +108,7 @@ def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload
     return {'status': 'ok', 'avatar_url': avatar_url}
 
 
-def upload_chat_media_for_user(  # noqa: PLR0913 - dependency-injected media upload contract
+def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected media upload contract
     conn,
     *,
     user_id: int,

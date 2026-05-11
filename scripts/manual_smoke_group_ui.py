@@ -122,7 +122,7 @@ def _open_group_edit(page):
     page.locator('#groupEditMembersList').wait_for(state='visible', timeout=10_000)
 
 
-def main() -> int:
+def main() -> int:  # noqa: PLR0915 - scripted end-to-end smoke scenario
     print(f'[INFO] artifacts: {ART_DIR}')
     load_environment()
 

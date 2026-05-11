@@ -371,7 +371,7 @@ def passkeys_register_options():
 
 @auth_bp.route('/api/passkeys/register/verify', methods=['POST'])
 @limiter.limit("20 per minute")
-def passkeys_register_verify():
+def passkeys_register_verify():  # noqa: C901 - passkey verification flow and persistence
     if verify_registration_response is None:
         return _webauthn_unavailable_response()
     if 'user_id' not in session:
@@ -469,7 +469,7 @@ def passkeys_delete():
 
 @auth_bp.route('/api/passkey/login/options', methods=['POST'])
 @limiter.limit("10 per minute")
-def passkey_login_options():
+def passkey_login_options():  # noqa: C901 - passkey login options branching by username mode
     if generate_authentication_options is None:
         return _webauthn_unavailable_response()
 
@@ -544,7 +544,7 @@ def passkey_login_options():
 
 @auth_bp.route('/api/passkey/login/verify', methods=['POST'])
 @limiter.limit("10 per minute")
-def passkey_login_verify():
+def passkey_login_verify():  # noqa: C901 - passkey assertion verification and login finalization
     if verify_authentication_response is None:
         return _webauthn_unavailable_response()
 
