@@ -441,9 +441,9 @@ export function createChatHistoryRuntime(ctx = {}) {
             const lastKnownId = state.messages.length
                 ? Number(state.messages[state.messages.length - 1]?.id)
                 : null;
-            // If we already restored a local snapshot, request only the delta after
-            // the newest cached message to avoid full re-render on every reload.
-            const useAfterId = Number.isFinite(lastKnownId) && lastKnownId > 0;
+            // After restoring from local cache, fetch a fresh window once so cached
+            // status/reaction metadata for existing messages is synchronized.
+            const useAfterId = !restoredFromCache && Number.isFinite(lastKnownId) && lastKnownId > 0;
             const response = await requestChatHistoryPage(chatId, {
                 afterId: useAfterId ? lastKnownId : null,
                 limit: ctx.chatHistoryPageSize,
