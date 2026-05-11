@@ -1,6 +1,6 @@
 /* Telegram-like desktop composition for settings home view. */
 
-@media (min-width: 769px) {
+@media (min-width: 640px) {
     body:not(.settings-embed-mode) .settings-scene {
         padding: 24px 18px;
     }
@@ -81,6 +81,11 @@
     }
 
     body.settings-home-open .settings-nav {
+        display: flex;
+        flex-direction: column;
+        position: static;
+        top: auto;
+        z-index: auto;
         width: min(438px, 100%);
         margin: 0 auto;
         padding: 12px 0 20px;
