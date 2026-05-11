@@ -39,7 +39,6 @@ import { createChatGroupProfileRuntime } from './modules/chat-group-profile-runt
 import { loadAndShowPartnerProfileFlow } from './modules/chat-profile-loader.js';
 import {
     resolveCurrentPartnerId as resolveCurrentPartnerIdFlow,
-    handleProfileHeaderOpen as handleProfileHeaderOpenFlow,
 } from './modules/chat-profile-open.js';
 import { applyChatBlockStateFlow } from './modules/chat-block-state-controller.js';
 import {
@@ -74,6 +73,7 @@ import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
 import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
 import { createChatMessageRenderRuntime } from './modules/chat-message-render-runtime.js';
 import { createChatMobileViewportRuntime } from './modules/chat-mobile-viewport-runtime.js';
+import { bindChatHeaderActionsRuntime } from './modules/chat-header-actions-runtime.js';
 import { createChatEncryptionRuntime } from './modules/chat-encryption-runtime.js';
 import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-runtime.js';
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
@@ -81,8 +81,8 @@ import { createChatMessageStatusRuntime } from './modules/chat-message-status-ru
 import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
-import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
-import { applyPinnedState as _applyPinnedState, initPinnedContactsDnD } from './modules/pinned-contacts.js';
+import { initDeleteMessagesModal } from './modules/chat-overlays.js';
+import { applyPinnedState as _applyPinnedState } from './modules/pinned-contacts.js';
 import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
 import { initCaptionModal } from './modules/caption-modal.js';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
@@ -2691,22 +2691,6 @@ export const initChatPage = async () => {
         }
     }
 
-    // -- \u0423\u0434\u0430\u043B\u0435\u043D\u0438\u0435 \u0447\u0430\u0442\u0430 (\u0432\u044B\u0431\u043E\u0440 \u0440\u0435\u0436\u0438\u043C\u0430) --
-    if (deleteChatBtn) {
-        deleteChatBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeHeaderDropdown();
-            const targetChatId = String(currentChatId || '').trim();
-            if (!targetChatId) return;
-            const isGroup = isCurrentChatGroup();
-            showDeleteChatDialog(targetChatId, {
-                onDeleted: () => clearLocalChatDataAfterDeletion(targetChatId),
-                onReload: loadContacts,
-                isGroup,
-            });
-        });
-    }
-
     const {
         applyPinnedStateForChat,
         updateChatPinnedState,
@@ -2725,159 +2709,46 @@ export const initChatPage = async () => {
         fetchImpl: fetch,
     });
 
-    // -- \u041A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u043D\u043E\u0435 \u043C\u0435\u043D\u044E \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0430 (\u043F\u0440\u0430\u0432\u0430\u044F \u043A\u043D\u043E\u043F\u043A\u0430 \u043C\u044B\u0448\u0438 \u043D\u0430 \u0441\u0430\u0439\u0434\u0431\u0430\u0440\u0435) --
-    initContactContextMenu({
+    bindChatHeaderActionsRuntime({
+        documentRef: document,
+        windowRef: window,
         contactsList,
-        menuEl: document.getElementById('contactContextMenu'),
-        pinButtonEl: document.getElementById('ctxPinChat'),
-        unpinButtonEl: document.getElementById('ctxUnpinChat'),
-        toggleMuteButtonEl: document.getElementById('ctxToggleMuteChat'),
-        deleteButtonEl: document.getElementById('ctxDeleteChat'),
+        deleteChatBtn,
+        headerSearchCalendarBtn,
+        reportUserMenuBtn,
+        chatHeader,
+        chatPartnerHeaderLink,
+        headerDropdown,
+        profileMoreMenu,
+        pinnedChatsLimit: PINNED_CHATS_LIMIT,
+        getCurrentChatId: () => currentChatId,
+        getCurrentDisplayName: () => currentDisplayName,
+        getCurrentUsername: () => currentUsername,
+        getChatState,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
+        closeHeaderDropdown,
+        toggleHeaderDropdown,
+        clearLocalChatDataAfterDeletion: (chatId) => clearLocalChatDataAfterDeletion(chatId),
+        loadContacts: (options) => loadContacts(options),
         getCsrfToken,
         showToast,
         showDeleteChatDialog,
-        onDeleteChat: (deletedChatId) => clearLocalChatDataAfterDeletion(deletedChatId),
-        onReloadChats: loadContacts,
         isChatMuted,
-        onToggleMute: ({ chatId }) => {
-            toggleChatMuted(chatId);
-        },
-        maxPinnedCount: PINNED_CHATS_LIMIT,
-        getPinnedCount: getPinnedContactsCount,
-        onPinStateChange: ({ chatId, isPinned, pinOrder }) => {
-            applyPinnedStateForChat(chatId, { isPinned, pinOrder });
-        },
+        toggleChatMuted,
+        getPinnedContactsCount,
+        applyPinnedStateForChat,
+        dateNavigatorOpen: (value) => dateNavigatorController.open(value),
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        toggleSelectionMode: (value) => toggleSelectionMode(value),
+        handleProfileAction: (action) => handleProfileAction(action),
+        loadOlderMessages: (chatId) => loadOlderMessages(chatId),
+        formatTime,
+        resolveCurrentPartnerId,
+        setCurrentPartnerId: (value) => { window.currentPartnerId = value; },
+        isProfileDrawerOpen,
+        loadAndShowPartnerProfile,
+        closeProfileMoreMenu,
     });
-
-    // -- Drag-and-drop \u0434\u043B\u044F \u0437\u0430\u043A\u0440\u0435\u043F\u043B\u0451\u043D\u043D\u044B\u0445 \u0447\u0430\u0442\u043E\u0432 --
-    initPinnedContactsDnD({
-        contactsList,
-        getCsrfToken,
-    });
-
-    // -- Header More Button (three-dots dropdown) --
-    document.getElementById('headerMoreBtn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleHeaderDropdown();
-    });
-
-    document.getElementById('searchChatMenuBtn')?.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        closeHeaderDropdown();
-        document.getElementById('searchChatBtn')?.click();
-    });
-
-    headerSearchCalendarBtn?.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!currentChatId) return;
-        dateNavigatorController.open('');
-    });
-
-    document.getElementById('selectMessagesMenuBtn')?.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        closeHeaderDropdown();
-        if (!messageSelectionController.isSelectionMode()) {
-            toggleSelectionMode(true);
-        }
-    });
-
-    document.getElementById('exportChatBtn')?.addEventListener('click', async () => {
-        closeHeaderDropdown();
-        await exportChatHistory();
-    });
-    reportUserMenuBtn?.addEventListener('click', () => {
-        closeHeaderDropdown();
-        void handleProfileAction('report-user');
-    });
-
-    async function exportChatHistory() {
-        if (!currentChatId) return;
-        const state = getChatState(currentChatId);
-        while (state.hasMoreBefore && !state.isLoadingOlder) {
-            const loaded = await loadOlderMessages(currentChatId);
-            if (!loaded) break;
-        }
-        const partnerName = document.getElementById('chatTitle')?.textContent || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A';
-        const myName = currentDisplayName || currentUsername || '\u0412\u044B';
-        const lines = [
-            `\u0427\u0430\u0442 \u0441 ${partnerName}`,
-            `\u042D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043E: ${new Date().toLocaleString('ru')}`,
-            '-'.repeat(40),
-        ];
-        state.messages.forEach((msg) => {
-            const sender = msg.sender === 'self' ? myName : partnerName;
-            const time = formatTime(msg.created_at);
-            const content = typeof msg.message === 'string' ? msg.message : '[\u0444\u0430\u0439\u043B]';
-            lines.push(`[${time}] ${sender}: ${content}`);
-        });
-        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chat_${partnerName}_${new Date().toISOString().slice(0, 10)}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u044D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0430', 'success');
-    }
-
-    // -- Global Click Manager --
-    document.addEventListener('sun-close-header-dropdown', closeHeaderDropdown);
-    document.addEventListener('click', (e) => {
-        // Header Dropdown Close
-        if (headerDropdown && !e.target.closest('.header-more-actions')) {
-            closeHeaderDropdown();
-        }
-        if (profileMoreMenu && !e.target.closest('.profile-topbar-more')) {
-            closeProfileMoreMenu();
-        }
-    });
-
-    const profileOpenIgnoreSelector = [
-        '#backBtnMobile',
-        '#pinnedBar',
-        '.pinned-bar',
-        '.btn-icon',
-        '.header-more-actions',
-        '.header-dropdown',
-        '.dropdown-item',
-        '.header-search-wrap',
-        '.header-selection-wrap',
-        'input',
-        'textarea',
-        'button',
-        'a',
-    ].join(', ');
-
-    function handleProfileHeaderOpen(event) {
-        handleProfileHeaderOpenFlow({
-            event,
-            resolveCurrentPartnerId,
-            profileOpenIgnoreSelector,
-            setCurrentPartnerId: (value) => {
-                window.currentPartnerId = value;
-            },
-            setChatPartnerHeaderId: (value) => {
-                chatPartnerHeaderLink?.setAttribute('data-partner-id', value);
-            },
-            setChatHeaderPartnerId: (value) => {
-                chatHeader?.setAttribute('data-partner-id', value);
-            },
-            isProfileDrawerOpen,
-            loadAndShowPartnerProfile,
-        });
-    }
-
-    chatHeader?.addEventListener('click', handleProfileHeaderOpen);
-    chatPartnerHeaderLink?.addEventListener('click', handleProfileHeaderOpen);
-    chatPartnerHeaderLink?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        handleProfileHeaderOpen(event);
-    });
-
     profileGroupTabs?.addEventListener('click', (event) => {
         const tabBtn = event.target.closest('[data-group-tab]');
         if (!tabBtn) return;
