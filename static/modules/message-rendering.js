@@ -23,17 +23,17 @@ const DEFAULT_AUDIO_WAVEFORM = [
 ];
 
 const VOICE_AUDIO_NAME_PATTERN = /^voice[-_]|^voice\b|^recording\b|^audio message\b|^ptt\b|^голос/i;
-const EMOJI_ONLY_TEXT_PATTERN = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\u200D\uFE0F\s]+$/u;
-const EMOJI_CLUSTER_PATTERN = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+const EMOJI_ONLY_TEXT_PATTERN = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Modifier}\p{Regional_Indicator}\u200D\uFE0F\u20E3#*0-9\s\u{E0061}-\u{E007A}\u{E007F}]+$/u;
+const EMOJI_CLUSTER_PATTERN = /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\u{1F3F4}(?:[\u{E0061}-\u{E007A}])+\u{E007F}|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu;
 
 function isEmojiOnlyMessageText(rawText) {
     const text = String(rawText || '').trim();
-    if (!text || text.length > 28) return false;
+    if (!text) return false;
     if (!EMOJI_ONLY_TEXT_PATTERN.test(text)) return false;
     const compact = text.replace(/\s+/g, '');
     if (!compact) return false;
     const clusters = Array.from(compact.matchAll(EMOJI_CLUSTER_PATTERN)).map((match) => String(match[0] || ''));
-    if (!clusters.length || clusters.length > 3) return false;
+    if (!clusters.length) return false;
     return clusters.join('') === compact;
 }
 

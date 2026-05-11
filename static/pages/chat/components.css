@@ -10950,7 +10950,7 @@
 }
 
 .message.message-emoji-only .bubble.bubble--text > .message-text {
-    font-size: calc(var(--chat-message-font-size) * 1.66);
+    font-size: calc(var(--chat-message-font-size) * 2.15);
     line-height: 1.05;
 }
 
