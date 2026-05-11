@@ -746,6 +746,7 @@ const initChatPage = async () => {
     let emojiPickerInitPromise = null;
     let messageSearchInitPromise = null;
     let sidebarSearchInitPromise = null;
+    let isSidebarSearchReady = false;
     let sidebarResizeInitPromise = null;
     function applyActiveMessageSearchFilter() {
         applyActiveMessageSearchFilterImpl();
@@ -806,12 +807,16 @@ const initChatPage = async () => {
         return messageSearchInitPromise;
     }
     function ensureSidebarSearch() {
+        if (isSidebarSearchReady) {
+            return Promise.resolve();
+        }
         if (sidebarSearchInitPromise) {
             return sidebarSearchInitPromise;
         }
         sidebarSearchInitPromise = import('./modules/sidebar-search.js')
             .then(({ initSidebarSearch }) => {
                 initSidebarSearch({ onAddUser: (userId, displayName) => sendDialogRequest(userId, displayName) });
+                isSidebarSearchReady = true;
             })
             .catch((error) => {
                 sidebarSearchInitPromise = null;
@@ -821,7 +826,7 @@ const initChatPage = async () => {
     }
     const sidebarSearchInput = document.getElementById('searchInput');
     sidebarSearchInput?.addEventListener('click', async (event) => {
-        if (sidebarSearchInitPromise) return;
+        if (isSidebarSearchReady) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         try {
@@ -832,7 +837,7 @@ const initChatPage = async () => {
         }
     }, { capture: true });
     sidebarSearchInput?.addEventListener('focus', async (event) => {
-        if (sidebarSearchInitPromise) return;
+        if (isSidebarSearchReady) return;
         event.stopImmediatePropagation();
         try {
             await ensureSidebarSearch();
