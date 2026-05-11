@@ -72,6 +72,7 @@ import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.
 import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
 import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
 import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
+import { createChatMessageRenderRuntime } from './modules/chat-message-render-runtime.js';
 import { createChatEncryptionRuntime } from './modules/chat-encryption-runtime.js';
 import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-runtime.js';
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
@@ -324,13 +325,11 @@ export const initChatPage = async () => {
     ];
     const VOICE_RECORD_MAX_SECONDS = 180;
     let isSendingMessage = false;
-    let pendingForcedChatRerenderFrame = 0;
-    let pendingForcedChatRerenderChatId = '';
-    let pendingForcedChatRerenderOptions = null;
     let messageFocusRuntime = null;
     let pendingUploadRuntime = null;
     let chatSearchRuntime = null;
     let messageAppendRuntime = null;
+    let messageRenderRuntime = null;
     let chatEncryptionRuntime = null;
     let contactPreviewRuntime = null;
     let reactionOperationsRuntime = null;
@@ -856,16 +855,7 @@ export const initChatPage = async () => {
     const chatStates = new Map();
     const historyInitialAbortControllers = new Map();
     const historyOlderAbortControllers = new Map();
-    let chatVirtualRenderFrame = 0;
-    let pendingVirtualRenderChatId = '';
-    let pendingVirtualRenderOptions = null;
-    let suppressChatScrollHandling = false;
     let chatDomSnapshotRuntime = null;
-    let pendingBottomScrollFrame = 0;
-    let pendingBottomScroll = false;
-    let bottomInertiaFrame = 0;
-    let bottomInertiaToken = 0;
-    let keepChatPinnedToBottom = false;
     const reactionUpdateStampByMessage = new Map();
     let baseUpdateOnlineStatusUI = () => {};
     let hideTyping = () => {};
@@ -1168,7 +1158,6 @@ export const initChatPage = async () => {
     _hydrateContactAvatarLoading(contactsList);
     requestAnimationFrame(refreshVisibleEmojiGraphics);
     window.addEventListener('load', refreshVisibleEmojiGraphics, { once: true });
-    SettingsPanel();
     ({
         updateOnlineStatusUI: baseUpdateOnlineStatusUI,
         hideTyping,
@@ -1334,6 +1323,47 @@ export const initChatPage = async () => {
         createVirtualSpacer,
     } = chatStateShell;
 
+    messageRenderRuntime = createChatMessageRenderRuntime({
+        documentRef: document,
+        requestAnimationFrameFn: requestAnimationFrame,
+        cancelAnimationFrameFn: cancelAnimationFrame,
+        performanceNowFn: () => performance.now(),
+        chatBottomInertiaMinMs: CHAT_BOTTOM_INERTIA_MIN_MS,
+        chatBottomInertiaMaxMs: CHAT_BOTTOM_INERTIA_MAX_MS,
+        chatBottomInertiaPxToMs: CHAT_BOTTOM_INERTIA_PX_TO_MS,
+        chatBottomThresholdPx: CHAT_BOTTOM_THRESHOLD_PX,
+        chatHeightMeasureSampleLimit: CHAT_HEIGHT_MEASURE_SAMPLE_LIMIT,
+        chatDefaultMessageHeight: CHAT_DEFAULT_MESSAGE_HEIGHT,
+        getCurrentChatId: () => currentChatId,
+        getCurrentContactId: () => currentContactId,
+        getChatMessages: () => chatMessages,
+        getChatState,
+        findMessageIndex,
+        getMessageKey,
+        getMessageDayKey,
+        sumEstimatedHeights,
+        getDesiredRenderRange,
+        createVirtualSpacer,
+        createDaySeparatorNode,
+        messageGroup: (messages, index) => MessageGroup(messages, index),
+        messageItem: (msg, layout) => MessageItem(msg, layout),
+        applyMessageEnterAnimation,
+        syncMessageBubbleLayoutClasses,
+        isSelectionMode: () => messageSelectionController.isSelectionMode(),
+        hasSelectedMessage: (messageId) => messageSelectionController.hasSelectedMessage(messageId),
+        disconnectLazyMediaHydrationObserver,
+        registerMediaElementsForLazyHydration,
+        schedulePostRenderUiRefresh,
+        saveChatScrollPosition: (chatId) => saveChatScrollPosition(chatId),
+        resizeComposerInput: () => resizeComposerInput(),
+        updateChatMessagesBottomInset: (options) => updateChatMessagesBottomInset(options),
+        isMobileViewport: () => isMobileViewport(),
+        triggerChatHistoryRevealAnimation: () => triggerChatHistoryRevealAnimation(),
+        prefersReducedMotionSetting: () => prefersReducedMotionSetting(),
+        scrollToBottom: (options) => scrollToBottom(options),
+        syncSavedMessagesMeta: (payload) => savedMessagesUi?.syncCurrentChatMeta?.(payload),
+    });
+
     chatDomSnapshotRuntime = createChatDomSnapshotRuntime({
         snapshotLimit: 5,
         getChatMessages: () => chatMessages,
@@ -1342,26 +1372,35 @@ export const initChatPage = async () => {
         getCurrentChatId: () => currentChatId,
         getChatScrollPositions: () => chatScrollPositions,
         renderChatMessages: (chatId, options) => renderChatMessages(chatId, options),
-        setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
-        setSuppressChatScrollHandling: (value) => { suppressChatScrollHandling = Boolean(value); },
+        setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
+        setSuppressChatScrollHandling: (value) => setSuppressChatScrollHandling(value),
         disconnectLazyMediaHydrationObserver,
         registerMediaElementsForLazyHydration,
         requestAnimationFrameFn: requestAnimationFrame,
     });
 
+    function getKeepChatPinnedToBottom() {
+        return Boolean(messageRenderRuntime?.getKeepChatPinnedToBottom());
+    }
+
+    function setKeepChatPinnedToBottom(value) {
+        return messageRenderRuntime?.setKeepChatPinnedToBottom(value);
+    }
+
+    function getSuppressChatScrollHandling() {
+        return Boolean(messageRenderRuntime?.getSuppressChatScrollHandling());
+    }
+
+    function setSuppressChatScrollHandling(value) {
+        return messageRenderRuntime?.setSuppressChatScrollHandling(value);
+    }
+
+    function resetMessageRenderScrollState() {
+        return messageRenderRuntime?.resetScrollRuntimeState();
+    }
+
     function setChatScrollTop(nextTop) {
-        cancelBottomInertiaScroll();
-        if (!chatMessages) return;
-        const maxScrollTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-        const safeTop = Number.isFinite(nextTop) ? Math.max(0, Math.min(nextTop, maxScrollTop)) : 0;
-        suppressChatScrollHandling = true;
-        chatMessages.scrollTop = safeTop;
-        // \u0414\u0432\u043E\u0439\u043D\u043E\u0439 rAF: \u043F\u0435\u0440\u0432\u044B\u0439 - layout+paint, \u0432\u0442\u043E\u0440\u043E\u0439 - \u0431\u0440\u0430\u0443\u0437\u0435\u0440 \u0442\u043E\u0447\u043D\u043E \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0430\u043B scroll-\u0441\u043E\u0431\u044B\u0442\u0438\u0435
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                suppressChatScrollHandling = false;
-            });
-        });
+        return messageRenderRuntime?.setChatScrollTop(nextTop);
     }
 
     function prefersReducedMotion() {
@@ -1380,361 +1419,48 @@ export const initChatPage = async () => {
     }
 
     function cancelBottomInertiaScroll() {
-        if (bottomInertiaFrame) {
-            cancelAnimationFrame(bottomInertiaFrame);
-            bottomInertiaFrame = 0;
-        }
-        bottomInertiaToken += 1;
+        return messageRenderRuntime?.cancelBottomInertiaScroll();
     }
 
     function isTailRangeRendered(chatId = currentChatId) {
-        if (!chatId) return false;
-        const state = getChatState(chatId);
-        if (!state?.messages?.length) return true;
-        const range = state.lastRenderRange;
-        return Boolean(range && range.end >= state.messages.length);
+        return Boolean(messageRenderRuntime?.isTailRangeRendered(chatId));
     }
 
     function runBottomInertiaScroll() {
-        if (!chatMessages) return false;
-        const fromTop = chatMessages.scrollTop;
-        const initialTarget = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-        const distance = initialTarget - fromTop;
-        if (!Number.isFinite(distance) || distance <= 1) {
-            chatMessages.scrollTop = initialTarget;
-            return false;
-        }
-        if (prefersReducedMotionSetting()) {
-            chatMessages.scrollTop = initialTarget;
-            return false;
-        }
-
-        cancelBottomInertiaScroll();
-        const token = bottomInertiaToken;
-        const startedAt = performance.now();
-        const duration = Math.max(
-            CHAT_BOTTOM_INERTIA_MIN_MS,
-            Math.min(
-                CHAT_BOTTOM_INERTIA_MAX_MS,
-                Math.round(distance * CHAT_BOTTOM_INERTIA_PX_TO_MS),
-            ),
-        );
-
-        const step = (now) => {
-            if (!chatMessages || token !== bottomInertiaToken) {
-                bottomInertiaFrame = 0;
-                return;
-            }
-            const elapsed = now - startedAt;
-            const progress = Math.max(0, Math.min(1, elapsed / duration));
-            const eased = 1 - Math.pow(1 - progress, 2.55);
-            const targetTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-            const nextTop = fromTop + ((targetTop - fromTop) * eased);
-            chatMessages.scrollTop = nextTop;
-
-            if (progress < 1) {
-                bottomInertiaFrame = requestAnimationFrame(step);
-                return;
-            }
-            chatMessages.scrollTop = targetTop;
-            bottomInertiaFrame = 0;
-        };
-
-        bottomInertiaFrame = requestAnimationFrame(step);
-        return true;
+        return Boolean(messageRenderRuntime?.runBottomInertiaScroll());
     }
 
-    function requestAutoScrollToBottom({ ifNearBottom = false, smooth = true } = {}) {
-        if (!chatMessages || !currentChatId) return false;
-        if (ifNearBottom && !isChatNearBottom()) return false;
+    function isChatNearBottom(thresholdPx = CHAT_BOTTOM_THRESHOLD_PX) {
+        return Boolean(messageRenderRuntime?.isChatNearBottom(thresholdPx));
+    }
 
-        keepChatPinnedToBottom = true;
-        pendingBottomScroll = true;
-        if (bottomInertiaFrame) {
-            pendingBottomScroll = false;
-            return true;
-        }
-        if (pendingBottomScrollFrame) return true;
-
-        pendingBottomScrollFrame = requestAnimationFrame(() => {
-            pendingBottomScrollFrame = 0;
-            if (!pendingBottomScroll) return;
-            pendingBottomScroll = false;
-            scrollToBottom({ smooth });
-        });
-        return true;
+    function requestAutoScrollToBottom(options = {}) {
+        return Boolean(messageRenderRuntime?.requestAutoScrollToBottom(options));
     }
 
     function measureRenderedMessageHeights(state) {
-        if (!chatMessages) return;
-        const rendered = chatMessages.querySelectorAll('.message[data-message-key]');
-        if (!rendered.length) return;
-
-        const totalRendered = rendered.length;
-        const sampleLimit = Math.max(4, Math.min(CHAT_HEIGHT_MEASURE_SAMPLE_LIMIT, totalRendered));
-        const sampleIndexes = [];
-        if (totalRendered <= sampleLimit) {
-            for (let index = 0; index < totalRendered; index += 1) {
-                sampleIndexes.push(index);
-            }
-        } else {
-            const seen = new Set([0, totalRendered - 1]);
-            const step = (totalRendered - 1) / Math.max(1, sampleLimit - 1);
-            for (let slot = 1; slot < sampleLimit - 1; slot += 1) {
-                seen.add(Math.round(slot * step));
-            }
-            sampleIndexes.push(...Array.from(seen).sort((left, right) => left - right));
-        }
-
-        let totalHeight = 0;
-        let count = 0;
-        sampleIndexes.forEach((index) => {
-            const node = rendered[index];
-            const key = node.getAttribute('data-message-key');
-            const height = Math.ceil(node.offsetHeight || node.getBoundingClientRect().height);
-            if (!key || !Number.isFinite(height) || height <= 0) return;
-            state.messageHeights.set(key, height);
-            totalHeight += height;
-            count += 1;
-        });
-        if (count > 0) {
-            state.averageMessageHeight = Math.max(48, Math.round(totalHeight / count));
-        }
+        return messageRenderRuntime?.measureRenderedMessageHeights(state);
     }
 
     function syncReusedMessageNodeState(node, msg, layout = {}) {
-        if (!node || !msg) return;
-        const groupClass = String(layout.groupClass || 'group-single');
-        node.classList.remove('group-start', 'group-middle', 'group-end', 'group-single');
-        node.classList.add(groupClass);
-        node.style.removeProperty('--swipe-reply-shift');
-        node.classList.remove('swipe-reply-dragging', 'swipe-reply-ready', 'swipe-reply-reset-immediate');
-        node.classList.toggle('show-avatar', Boolean(layout.showAvatar));
-        node.classList.toggle('selecting', messageSelectionController.isSelectionMode());
-        if (msg.id && messageSelectionController.hasSelectedMessage(String(msg.id))) {
-            node.classList.add('selected');
-        } else {
-            node.classList.remove('selected');
-        }
+        return messageRenderRuntime?.syncReusedMessageNodeState(node, msg, layout);
     }
 
     function renderChatMessages(chatId = currentChatId, options = {}) {
-        if (!chatMessages || !chatId) return;
-        if (String(chatId) !== String(currentChatId)) return;
-
-        const state = getChatState(chatId);
-        const forcedScrollTop = Number.isFinite(options.scrollTop) ? options.scrollTop : null;
-        const effectiveScrollTop = options.scrollToBottom
-            ? sumEstimatedHeights(state, 0, state.messages.length)
-            : (forcedScrollTop ?? chatMessages.scrollTop);
-        let range = getDesiredRenderRange(state, effectiveScrollTop);
-        const activeVoiceMessageEl = chatMessages.querySelector('.file-msg-audio-player.is-playing')?.closest('.message[data-message-key]');
-        const activeVoiceMessageKey = String(activeVoiceMessageEl?.getAttribute('data-message-key') || '');
-        if (activeVoiceMessageKey) {
-            const activeVoiceIndex = findMessageIndex(state, (msg) => getMessageKey(msg) === activeVoiceMessageKey);
-            if (activeVoiceIndex >= 0 && (activeVoiceIndex < range.start || activeVoiceIndex >= range.end)) {
-                range = {
-                    start: Math.min(range.start, activeVoiceIndex),
-                    end: Math.max(range.end, activeVoiceIndex + 1),
-                };
-            }
-        }
-        const needsForcedRender = Boolean(options.force || options.preserveHeightDelta || forcedScrollTop !== null || options.scrollToBottom);
-        if (!needsForcedRender && state.lastRenderRange && state.lastRenderRange.start === range.start && state.lastRenderRange.end === range.end) {
-            schedulePostRenderUiRefresh({ jumpButton: true });
-            return;
-        }
-
-        const reusableMessageNodesByKey = new Map();
-        if (!options.force) {
-            chatMessages.querySelectorAll('.message[data-message-key]').forEach((node) => {
-                const key = String(node.getAttribute('data-message-key') || '');
-                if (!key || reusableMessageNodesByKey.has(key)) return;
-                reusableMessageNodesByKey.set(key, node);
-            });
-        } else if (activeVoiceMessageEl && activeVoiceMessageKey) {
-            // При force-перерисовке всё равно переиспользуем DOM-узел играющего
-            // голосового, иначе HTMLAudioElement отсоединится от дерева и браузер
-            // принудительно вызовет pause() на нём — голосовое встанет на паузу
-            // ровно в момент отправки обычного сообщения.
-            reusableMessageNodesByKey.set(activeVoiceMessageKey, activeVoiceMessageEl);
-        }
-
-        const fragment = document.createDocumentFragment();
-        const topSpacerHeight = sumEstimatedHeights(state, 0, range.start);
-        const bottomSpacerHeight = sumEstimatedHeights(state, range.end, state.messages.length);
-        fragment.appendChild(createVirtualSpacer(topSpacerHeight));
-
-        let previousDayKey = range.start > 0
-            ? getMessageDayKey(state.messages[range.start - 1]?.created_at)
-            : '';
-        const suppressEnterAnimation = chatMessages.classList.contains('is-loading-history');
-        state.messages.slice(range.start, range.end).forEach((msg, localIndex) => {
-            const absoluteIndex = range.start + localIndex;
-            const dayKey = getMessageDayKey(msg?.created_at);
-            if (dayKey && dayKey !== previousDayKey) {
-                fragment.appendChild(createDaySeparatorNode(msg.created_at, dayKey));
-            }
-            previousDayKey = dayKey;
-
-            const msgKey = getMessageKey(msg);
-            const isNew = !state.renderedKeys.has(msgKey);
-            const groupLayout = MessageGroup(state.messages, absoluteIndex);
-            let messageNode = reusableMessageNodesByKey.get(msgKey) || null;
-            if (messageNode) {
-                syncReusedMessageNodeState(messageNode, msg, groupLayout);
-            } else {
-                messageNode = MessageItem(msg, groupLayout);
-                if (isNew && !suppressEnterAnimation) applyMessageEnterAnimation(messageNode, msg);
-                if (messageSelectionController.isSelectionMode()) messageNode.classList.add('selecting');
-                if (msg.id && messageSelectionController.hasSelectedMessage(String(msg.id))) {
-                    messageNode.classList.add('selected');
-                }
-            }
-            syncMessageBubbleLayoutClasses(messageNode);
-            state.renderedKeys.add(msgKey);
-            fragment.appendChild(messageNode);
-        });
-
-        fragment.appendChild(createVirtualSpacer(bottomSpacerHeight));
-        state.lastRenderRange = range;
-        chatMessages.replaceChildren(fragment);
-        disconnectLazyMediaHydrationObserver();
-        registerMediaElementsForLazyHydration(chatMessages);
-        measureRenderedMessageHeights(state);
-
-        if (forcedScrollTop !== null) {
-            setChatScrollTop(forcedScrollTop);
-            requestAnimationFrame(() => {
-                if (!chatMessages) return;
-                if (!chatId || String(chatId) !== String(currentChatId)) return;
-                if (Math.abs(forcedScrollTop - chatMessages.scrollTop) > 1) {
-                    setChatScrollTop(forcedScrollTop);
-                }
-            });
-            saveChatScrollPosition(chatId);
-            schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true });
-        } else if (options.preserveHeightDelta && Number.isFinite(options.previousScrollTop) && Number.isFinite(options.previousScrollHeight)) {
-            const expectedTop = options.previousScrollTop + (chatMessages.scrollHeight - options.previousScrollHeight);
-            setChatScrollTop(expectedTop);
-            requestAnimationFrame(() => {
-                if (!chatMessages) return;
-                if (!chatId || String(chatId) !== String(currentChatId)) return;
-                const stabilizedTop = options.previousScrollTop + (chatMessages.scrollHeight - options.previousScrollHeight);
-                if (Math.abs(stabilizedTop - chatMessages.scrollTop) > 1) {
-                    setChatScrollTop(stabilizedTop);
-                }
-            });
-            saveChatScrollPosition(chatId);
-            schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true });
-        } else if (options.scrollToBottom) {
-            // \u041E\u0442\u043A\u043B\u0430\u0434\u044B\u0432\u0430\u0435\u043C \u0441\u043A\u0440\u043E\u043B\u043B \u0432\u043D\u0438\u0437 \u043D\u0430 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u043A\u0430\u0434\u0440 - \u043A \u0442\u043E\u043C\u0443 \u043C\u043E\u043C\u0435\u043D\u0442\u0443 \u0431\u0440\u0430\u0443\u0437\u0435\u0440
-            // \u0443\u0436\u0435 \u043F\u043E\u0441\u0447\u0438\u0442\u0430\u043B scrollHeight \u0441 \u043D\u043E\u0432\u044B\u043C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435\u043C
-            suppressChatScrollHandling = true;
-            requestAnimationFrame(() => {
-                if (!chatMessages) { suppressChatScrollHandling = false; return; }
-                const max = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-                chatMessages.scrollTop = max;
-                requestAnimationFrame(() => {
-                    suppressChatScrollHandling = false;
-                    saveChatScrollPosition(chatId);
-                    schedulePostRenderUiRefresh({ jumpButton: true });
-                });
-            });
-            schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true });
-        } else {
-            saveChatScrollPosition(chatId);
-            schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true });
-        }
-        savedMessagesUi?.syncCurrentChatMeta?.({
-            chatId: currentChatId,
-            contactId: currentContactId,
-        });
-    }
-
-    function waitForPaintFrames(frameCount = 1) {
-        const safeFrames = Math.max(1, Number(frameCount) || 1);
-        return new Promise((resolve) => {
-            const step = (remaining) => {
-                requestAnimationFrame(() => {
-                    if (remaining <= 1) {
-                        resolve();
-                        return;
-                    }
-                    step(remaining - 1);
-                });
-            };
-            step(safeFrames);
-        });
+        return messageRenderRuntime?.renderChatMessages(chatId, options);
     }
 
     async function renderChatMessagesStable(chatId = currentChatId, options = {}) {
-        if (!chatMessages || !chatId) return;
-        if (String(chatId) !== String(currentChatId)) return;
-
-        const suppressHydrationMask = Boolean(options?.suppressHydrationMask);
-        resizeComposerInput();
-        updateChatMessagesBottomInset({ immediate: true });
-        chatMessages.classList.add('is-hydrating');
-        if (!suppressHydrationMask) {
-            chatMessages.style.visibility = 'hidden';
-        }
-
-        try {
-            const state = getChatState(chatId);
-            const beforeAvg = state?.averageMessageHeight || CHAT_DEFAULT_MESSAGE_HEIGHT;
-
-            renderChatMessages(chatId, { ...options, force: true });
-            await waitForPaintFrames(1);
-
-            if (chatMessages && String(chatId) === String(currentChatId)) {
-                // \u0412\u0442\u043E\u0440\u043E\u0439 \u043F\u0440\u043E\u0445\u043E\u0434 - \u0442\u043E\u043B\u044C\u043A\u043E \u0435\u0441\u043B\u0438 \u043E\u0446\u0435\u043D\u043A\u0430 \u0441\u0440\u0435\u0434\u043D\u0435\u0439 \u0432\u044B\u0441\u043E\u0442\u044B \u0441\u0438\u043B\u044C\u043D\u043E \u0440\u0430\u0437\u043E\u0448\u043B\u0430\u0441\u044C \u0441 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0439
-                // \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0432\u043E\u0433\u043E measure (>15% \u0434\u0440\u0435\u0439\u0444). \u042D\u0442\u043E \u0443\u0431\u0438\u0440\u0430\u0435\u0442 \u0432\u0438\u0434\u0438\u043C\u044B\u0439 "\u043F\u0440\u044B\u0436\u043E\u043A" \u043D\u0430 \u0434\u043B\u0438\u043D\u043D\u044B\u0445
-                // \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F\u0445, \u043D\u0435 \u043F\u043B\u0430\u0442\u044F \u0434\u0432\u043E\u0439\u043D\u044B\u043C rebuild \u043A\u0430\u0436\u0434\u044B\u0439 \u0440\u0430\u0437.
-                const afterAvg = state?.averageMessageHeight || beforeAvg;
-                const drift = Math.abs(afterAvg - beforeAvg) / Math.max(beforeAvg, 1);
-                // Mobile chat-open transition is sensitive to extra full-window rerenders.
-                // Keep the corrective second pass for desktop only.
-                if (drift > 0.15 && !isMobileViewport()) {
-                    updateChatMessagesBottomInset({ immediate: true });
-                    renderChatMessages(chatId, { ...options, force: true });
-                    await waitForPaintFrames(options.scrollToBottom ? 2 : 1);
-                }
-            }
-        } finally {
-            if (!chatMessages) return;
-            if (!suppressHydrationMask) {
-                chatMessages.style.visibility = '';
-            }
-            chatMessages.classList.remove('is-hydrating');
-            if (options?.animateReveal) {
-                triggerChatHistoryRevealAnimation();
-            }
-        }
+        return messageRenderRuntime?.renderChatMessagesStable(chatId, options);
     }
 
     function scheduleForcedCurrentChatRerender(options = {}) {
-        if (!currentChatId || !chatMessages) return;
-        pendingForcedChatRerenderChatId = String(currentChatId);
-        pendingForcedChatRerenderOptions = {
-            force: true,
-            scrollTop: chatMessages.scrollTop,
-            ...(pendingForcedChatRerenderOptions || {}),
-            ...options,
-        };
-        if (pendingForcedChatRerenderFrame) return;
-
-        pendingForcedChatRerenderFrame = requestAnimationFrame(() => {
-            const chatId = pendingForcedChatRerenderChatId;
-            const rerenderOptions = pendingForcedChatRerenderOptions || { force: true };
-            pendingForcedChatRerenderFrame = 0;
-            pendingForcedChatRerenderChatId = '';
-            pendingForcedChatRerenderOptions = null;
-            if (!chatId || String(chatId) !== String(currentChatId)) return;
-            renderChatMessages(chatId, rerenderOptions);
-        });
+        return messageRenderRuntime?.scheduleForcedCurrentChatRerender(options);
     }
 
+    function scheduleVirtualChatRender(chatId = currentChatId, options = {}) {
+        return messageRenderRuntime?.scheduleVirtualChatRender(chatId, options);
+    }
     const {
         ChatContainer,
         applyMessageScale,
@@ -1757,63 +1483,7 @@ export const initChatPage = async () => {
         documentRef: document,
         windowRef: window,
     });
-
-    function mergeVirtualRenderOptions(base = null, incoming = null) {
-        const merged = { ...(base || {}) };
-        const next = incoming || {};
-
-        if (next.force) merged.force = true;
-        if (next.scrollToBottom) {
-            merged.scrollToBottom = true;
-            delete merged.scrollTop;
-            delete merged.preserveHeightDelta;
-            delete merged.previousScrollTop;
-            delete merged.previousScrollHeight;
-        }
-
-        if (next.preserveHeightDelta) merged.preserveHeightDelta = true;
-        if (Number.isFinite(next.previousScrollTop)) merged.previousScrollTop = next.previousScrollTop;
-        if (Number.isFinite(next.previousScrollHeight)) merged.previousScrollHeight = next.previousScrollHeight;
-
-        if (Number.isFinite(next.scrollTop)) {
-            merged.scrollTop = next.scrollTop;
-            delete merged.scrollToBottom;
-        }
-
-        return merged;
-    }
-
-    function scheduleVirtualChatRender(chatId = currentChatId, options = {}) {
-        const targetChatId = String(chatId || '');
-        if (!targetChatId || targetChatId !== String(currentChatId)) return;
-
-        pendingVirtualRenderChatId = targetChatId;
-        pendingVirtualRenderOptions = mergeVirtualRenderOptions(pendingVirtualRenderOptions, options);
-
-        if (pendingVirtualRenderOptions?.force) {
-            if (chatVirtualRenderFrame) {
-                cancelAnimationFrame(chatVirtualRenderFrame);
-                chatVirtualRenderFrame = 0;
-            }
-            const immediateOptions = pendingVirtualRenderOptions || { force: true };
-            pendingVirtualRenderChatId = '';
-            pendingVirtualRenderOptions = null;
-            renderChatMessages(targetChatId, immediateOptions);
-            return;
-        }
-
-        if (chatVirtualRenderFrame) return;
-        chatVirtualRenderFrame = requestAnimationFrame(() => {
-            chatVirtualRenderFrame = 0;
-            const scheduledChatId = pendingVirtualRenderChatId;
-            const scheduledOptions = pendingVirtualRenderOptions || {};
-            pendingVirtualRenderChatId = '';
-            pendingVirtualRenderOptions = null;
-
-            if (!scheduledChatId || scheduledChatId !== String(currentChatId)) return;
-            renderChatMessages(scheduledChatId, scheduledOptions);
-        });
-    }
+    SettingsPanel();
 
     function resizeComposerInput() {
         if (!messageInput) return;
@@ -1949,12 +1619,6 @@ export const initChatPage = async () => {
         closeMobileChatView,
     });
 
-    function isChatNearBottom(thresholdPx = CHAT_BOTTOM_THRESHOLD_PX) {
-        if (!chatMessages) return true;
-        const distance = chatMessages.scrollHeight - (chatMessages.scrollTop + chatMessages.clientHeight);
-        return distance <= thresholdPx;
-    }
-
     function saveChatScrollPosition(chatId = currentChatId) {
         if (!chatMessages || !chatId) return;
         const safeTop = Math.max(0, chatMessages.scrollTop || 0);
@@ -2021,7 +1685,7 @@ export const initChatPage = async () => {
 
     function applyChatMessagesBottomInset() {
         if (!chatArea) return;
-        const shouldPinToBottom = keepChatPinnedToBottom;
+        const shouldPinToBottom = getKeepChatPinnedToBottom();
         const areaStyles = window.getComputedStyle(chatArea);
         const floatingGap = Number.parseFloat(areaStyles.getPropertyValue('--floating-composer-gap')) || 16;
         const messageToComposerGap = 8;
@@ -2164,11 +1828,11 @@ export const initChatPage = async () => {
                 if (Number.isFinite(restoredTop)) {
                     scheduleVirtualChatRender(currentChatId, { force: true, scrollTop: restoredTop });
                     requestAnimationFrame(() => {
-                        keepChatPinnedToBottom = isChatNearBottom();
+                        setKeepChatPinnedToBottom(isChatNearBottom());
                     });
                 } else {
                     scheduleVirtualChatRender(currentChatId, { force: true, scrollToBottom: true });
-                    keepChatPinnedToBottom = true;
+                    setKeepChatPinnedToBottom(true);
                 }
             }
             updateJumpToNewMessagesButton();
@@ -2926,7 +2590,7 @@ export const initChatPage = async () => {
 
     chatMessages?.addEventListener('scroll', () => {
         if (!currentChatId) return;
-        if (suppressChatScrollHandling) return;
+        if (getSuppressChatScrollHandling()) return;
         if (reactionPickerController.isOpen()) closeReactionPicker();
 
         saveChatScrollPosition(currentChatId);
@@ -2937,7 +2601,7 @@ export const initChatPage = async () => {
         }
 
         const nearBottom = isChatNearBottom();
-        keepChatPinnedToBottom = nearBottom;
+        setKeepChatPinnedToBottom(nearBottom);
 
         if (nearBottom && isWindowActiveForUnreadHandling() && openChatUnreadCount > 0) {
             resetOpenChatUnreadCounter({ markSeen: true });
@@ -3444,13 +3108,7 @@ export const initChatPage = async () => {
         if (closedChatId) abortHistoryRequestsForChat(closedChatId);
         if (closedChatId) captureChatDomSnapshot(closedChatId);
         disconnectLazyMediaHydrationObserver();
-        keepChatPinnedToBottom = false;
-        pendingBottomScroll = false;
-        if (pendingBottomScrollFrame) {
-            cancelAnimationFrame(pendingBottomScrollFrame);
-            pendingBottomScrollFrame = 0;
-        }
-        cancelBottomInertiaScroll();
+        resetMessageRenderScrollState();
         currentChatId = null; currentContactId = null;
         syncForwardDraftBarForCurrentChat();
         onlineStatusController.reset();
@@ -3594,7 +3252,7 @@ export const initChatPage = async () => {
         getCurrentDisplayName: () => currentDisplayName,
         getCurrentUsername: () => currentUsername,
         getCurrentAvatarUrl: () => currentAvatarUrl,
-        getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
+        getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
         isChatViewportPinnedToBottom,
         setChatScrollTop,
         saveChatScrollPosition,
@@ -3701,7 +3359,7 @@ export const initChatPage = async () => {
         getCurrentChatId: () => currentChatId,
         getChatMessages: () => chatMessages,
         getChatState,
-        getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
+        getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
         upsertChatMessage,
         getMessageKey,
         isSameMessageGroup,
@@ -4073,7 +3731,7 @@ export const initChatPage = async () => {
             enqueueOutbox: enqueueOutboxMessage,
             currentChatId: sourceChatId,
             appendMessage,
-            setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
             updateActiveContactLastMessage: (text, isSelf, status, timestamp) => {
                 updateContactLastMessageForChat(sourceChatId, text, isSelf, status, timestamp);
             },
@@ -4131,7 +3789,7 @@ export const initChatPage = async () => {
             isRealtimeConnected: () => Boolean(socket.connected),
             emitSocket,
             appendMessage,
-            setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
             updateActiveContactLastMessage: (text, isSelf, status, timestamp) => {
                 updateContactLastMessageForChat(sourceChatId, text, isSelf, status, timestamp);
             },
@@ -4223,7 +3881,7 @@ export const initChatPage = async () => {
         saveChatScrollPosition,
         updateJumpToNewMessagesButton,
         getCurrentChatId: () => currentChatId,
-        getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
+        getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
     });
 
     contactPreviewRuntime = createChatContactPreviewRuntime({
@@ -4352,7 +4010,7 @@ export const initChatPage = async () => {
         isTailRangeRendered,
         cancelBottomInertiaScroll,
         renderChatMessages: (chatId, options) => renderChatMessages(chatId, options),
-        setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+        setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
         saveChatScrollPosition,
         updateJumpToNewMessagesButton,
     });
@@ -4478,7 +4136,7 @@ export const initChatPage = async () => {
                 markAllTicksRead(messageCreatedAt);
                 _updateSidebarContactTick(normalizedChatId, 'read', contactsList || document);
             },
-            setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
             incrementOpenChatUnreadCount: () => { openChatUnreadCount += 1; },
             updateJumpToNewMessagesButton,
             setContactUnreadBadge: (chatId) => setContactUnreadBadge(chatId, openChatUnreadCount),
@@ -4717,8 +4375,8 @@ export const initChatPage = async () => {
             renderChatMessagesStable,
             triggerChatHistoryRevealAnimation,
             isChatNearBottom,
-            getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
-            setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+            getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
+            setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
             ensureChatIdbReady,
             isChatIdbReady,
             readCachedMessages: (chatId) => ChatIdb.readCachedMessages(chatId),
