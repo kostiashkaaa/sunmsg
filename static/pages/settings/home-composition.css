@@ -88,8 +88,8 @@
         z-index: auto;
         width: 100%;
         margin: 0 auto;
-        padding: 10px 0 14px;
-        gap: 10px;
+        padding: 8px 0 10px;
+        gap: 6px;
         background: transparent;
         overflow: visible;
     }
@@ -100,11 +100,11 @@
         flex-direction: column;
         align-items: center;
         row-gap: 0;
-        padding: 18px 14px 12px;
+        padding: 14px 14px 10px;
         text-align: center;
         border-radius: 0;
         border: 0;
-        border-bottom: 8px solid color-mix(in srgb, var(--rule) 18%, #05070d 82%);
+        border-bottom: 4px solid color-mix(in srgb, var(--rule) 12%, #05070d 88%);
         background: color-mix(in srgb, var(--paper-alt) 66%, transparent);
         box-shadow: none;
     }
@@ -116,44 +116,44 @@
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 132px;
-        height: 132px;
-        font-size: 44px;
+        width: 116px;
+        height: 116px;
+        font-size: 38px;
     }
 
     body.settings-home-open .settings-nav-profile-main {
         grid-column: auto;
         grid-row: auto;
-        margin-top: 14px;
-        gap: 2px;
+        margin-top: 8px;
+        gap: 1px;
         padding-right: 0;
         text-align: center;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 38px;
-        line-height: 1.02;
-        font-weight: 640;
+        font-size: 34px;
+        line-height: 1.04;
+        font-weight: 620;
         letter-spacing: -0.01em;
         white-space: normal;
     }
 
     body.settings-home-open .settings-nav-profile-status {
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1.2;
     }
 
     body.settings-home-open .settings-nav-profile-action {
         position: absolute;
-        top: 236px;
-        right: 20px;
-        width: 62px;
-        height: 62px;
+        top: 186px;
+        right: 30px;
+        width: 54px;
+        height: 54px;
         margin: 0;
         border: 0;
         transform: none;
         background: color-mix(in srgb, var(--accent) 88%, #fff 12%);
-        box-shadow: 0 16px 30px -18px color-mix(in srgb, var(--accent) 70%, #000);
+        box-shadow: 0 12px 22px -16px color-mix(in srgb, var(--accent) 70%, #000);
     }
 
     body.settings-home-open .settings-nav-profile-action:hover {
@@ -162,26 +162,30 @@
     }
 
     body.settings-home-open .settings-nav-profile-action .sun-icon {
-        width: 28px;
-        height: 28px;
+        width: 24px;
+        height: 24px;
     }
 
     body.settings-home-open .settings-nav-profile-rows {
         width: 100%;
-        margin-top: 20px;
+        margin-top: 10px;
         padding-top: 0;
         border-top: 0;
-        gap: 2px;
+        gap: 0;
     }
 
     body.settings-home-open .settings-nav-profile-row {
         grid-template-columns: 20px minmax(0, 1fr);
         align-items: center;
-        min-height: 58px;
-        column-gap: 11px;
-        padding: 0 10px;
+        min-height: 46px;
+        column-gap: 10px;
+        padding: 0 8px;
         border-radius: 0;
         background: transparent;
+    }
+
+    body.settings-home-open .settings-nav-profile-row + .settings-nav-profile-row {
+        border-top: 1px solid color-mix(in srgb, var(--rule) 12%, transparent);
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
@@ -192,19 +196,20 @@
     }
 
     body.settings-home-open .settings-nav-profile-row-value {
-        font-size: 18px;
+        font-size: 16px;
         line-height: 1.2;
-        font-weight: 600;
+        font-weight: 570;
     }
 
     body.settings-home-open .settings-nav-profile-row-label {
         margin-top: 1px;
-        font-size: 13px;
+        font-size: 12px;
+        color: color-mix(in srgb, var(--sub-text) 74%, transparent);
     }
 
     body.settings-home-open .settings-nav-list {
         display: grid;
-        gap: 8px;
+        gap: 4px;
         padding: 0;
         background: transparent;
         overflow: visible;
@@ -218,8 +223,8 @@
         padding: 0;
         border-radius: 0;
         border: 0;
-        border-top: 8px solid color-mix(in srgb, var(--rule) 18%, #05070d 82%);
-        background: color-mix(in srgb, var(--paper) 58%, transparent);
+        border-top: 4px solid color-mix(in srgb, var(--rule) 10%, #05070d 90%);
+        background: color-mix(in srgb, var(--paper) 52%, transparent);
         overflow: hidden;
     }
 
@@ -228,26 +233,26 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item {
-        min-height: 62px;
-        padding: 0 18px;
+        min-height: 50px;
+        padding: 0 14px;
         border: 0;
         border-radius: 0;
         box-shadow: none;
-        column-gap: 14px;
-        font-size: 16px;
-        font-weight: 590;
+        column-gap: 12px;
+        font-size: 15px;
+        font-weight: 560;
         color: color-mix(in srgb, var(--text) 86%, var(--sub-text) 14%);
         transition: background-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
     }
 
     body.settings-home-open .settings-nav-group .nav-item + .nav-item {
-        border-top: 1px solid color-mix(in srgb, var(--rule) 20%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--rule) 12%, transparent);
     }
 
     body.settings-home-open .settings-nav-group .nav-item .sun-icon {
-        width: 24px;
-        min-width: 24px;
-        height: 24px;
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
         color: color-mix(in srgb, var(--sub-text) 84%, var(--text) 16%);
     }
 
@@ -275,11 +280,11 @@
     }
 
     body.settings-home-open .settings-logout-form .nav-item {
-        min-height: 62px;
+        min-height: 50px;
         border-radius: 0;
         border: 0;
         box-shadow: none;
-        padding: 0 18px;
+        padding: 0 14px;
     }
 
     body.settings-home-open .settings-logout-form .nav-item:hover {
