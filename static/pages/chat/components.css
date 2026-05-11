@@ -3058,68 +3058,6 @@
 
 
 
-        @keyframes msgIn {
-            from { opacity: 0; transform: translate3d(0, 9px, 0) scale(0.985); }
-            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-
-
-        @keyframes msgInOther {
-            from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.984); }
-            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-
-
-        @keyframes msgInSelf {
-            from { opacity: 0; transform: translate3d(0, 8px, 0); }
-            to   { opacity: 1; transform: translate3d(0, 0, 0); }
-        }
-
-
-
-        .message .bubble {
-            max-width: 100% !important;
-            padding: var(--chat-message-pad-y) var(--chat-message-pad-x);
-            border-radius: 14px;
-            line-height: 1.45;
-            font-size: var(--chat-message-font-size);
-            min-width: 0;
-            border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-            box-shadow: var(--shadow-1);
-            transition:
-                background var(--dur-quick) var(--ease-quick),
-                border-color var(--dur-quick) var(--ease-quick),
-                transform var(--dur-quick) var(--ease-quick),
-                box-shadow var(--dur-quick) var(--ease-quick),
-                border-radius var(--dur-quick) var(--ease-quick);
-            transform-origin: bottom left;
-        }
-
-
-        .message.other .bubble {
-            background: color-mix(in srgb, var(--bubble-in) 96%, var(--surface) 4%);
-            color: var(--bubble-in-text);
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-md);
-        }
-
-
-        .message.self .bubble {
-            background: var(--bubble-out);
-            color: var(--bubble-out-text);
-            border: none;
-            box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
-        }
-
-
-        .message.group-start .bubble,
-        .message.group-middle .bubble,
-        .message.group-end .bubble,
-        .message.group-single .bubble {
-            border-radius: 14px;
-        }
-
-
         .message-text {
             white-space: pre-wrap;
         }
