@@ -169,7 +169,7 @@ function bindEmojiImageErrorListener() {
         if (!target || typeof target !== 'object') return;
         if (typeof target.matches !== 'function' || !target.matches('img.emoji-graphic')) return;
 
-        const failedSrc = String(target.currentSrc || target.getAttribute('src') || '');
+        const failedSrc = String(target.getAttribute('src') || target.currentSrc || '');
         if (failedSrc) {
             failedEmojiSources.add(failedSrc);
         }
