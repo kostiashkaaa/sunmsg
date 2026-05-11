@@ -800,44 +800,34 @@ def _initialize_send_runtime_state(conn, *, context: dict | None = None) -> dict
     message_type = str(send_context.get('message_type') or 'text')
     session_store = send_context.get('session_store') or {}
 
-    runtime_state = _initialize_send_runtime_state(
-        conn,
-        context={
-            'data': data,
-            'positive_int_func': positive_int_func,
-            'chat_type': chat_type,
-            'chat_id': chat_id,
-            'sender_id': sender_id,
-            'message': message,
-            'message_type': message_type,
-            'session_store': session_store,
-        },
-    )
-    (
-        reply_to_id,
-        forward_from_name,
-        forward_from_user_id,
-        group_member_public_keys,
-        mentioned_members,
-        mentioned_user_ids,
-        mentioned_usernames,
-        group_chat_display_name,
-        sender_display_name,
-        sender_username,
-        sender_avatar_url,
-    ) = (
-        runtime_state['reply_to_id'],
-        runtime_state['forward_from_name'],
-        runtime_state['forward_from_user_id'],
-        runtime_state['group_member_public_keys'],
-        runtime_state['mentioned_members'],
-        runtime_state['mentioned_user_ids'],
-        runtime_state['mentioned_usernames'],
-        runtime_state['group_chat_display_name'],
-        runtime_state['sender_display_name'],
-        runtime_state['sender_username'],
-        runtime_state['sender_avatar_url'],
-    )
+    reply_to_id = positive_int_func(data.get('reply_to_id'))
+    raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
+    forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
+    forward_from_user_id = positive_int_func(data.get('forward_from_user_id'))
+    group_member_public_keys = []
+    mentioned_members: list[dict] = []
+    mentioned_user_ids: list[int] = []
+    mentioned_usernames: list[str] = []
+    group_chat_display_name = ''
+
+    if chat_type == 'group':
+        (
+            mentioned_members,
+            mentioned_user_ids,
+            mentioned_usernames,
+            group_chat_display_name,
+        ) = _resolve_group_mentions_context(
+            conn,
+            chat_id=chat_id,
+            sender_id=sender_id,
+            message=message,
+            message_type=message_type,
+        )
+
+    sender_display_name = str(session_store.get('display_name') or session_store.get('username') or '').strip()
+    sender_username = str(session_store.get('username') or '').strip()
+    sender_avatar_url = ''
+
     return {
         'reply_to_id': reply_to_id,
         'forward_from_name': forward_from_name,
