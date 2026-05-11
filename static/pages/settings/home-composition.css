@@ -283,12 +283,11 @@
         flex-direction: column;
         gap: 0;
         padding: 0;
-        border-radius: 13px;
-        border: 1px solid color-mix(in srgb, var(--rule) 16%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, transparent 6%) 0%, color-mix(in srgb, var(--paper-alt) 84%, var(--surface) 16%) 100%);
-        box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 40%, transparent);
-        overflow: hidden;
+        border-radius: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
     }
 
     body.settings-home-open .settings-nav-group + .settings-nav-group {
@@ -304,7 +303,7 @@
     body.settings-home-open .settings-nav-group .nav-item {
         min-height: 44px;
         padding: 0 11px;
-        border: 0;
+        border: 1px solid transparent;
         border-radius: 8px;
         box-shadow: none;
         column-gap: 11px;
@@ -312,7 +311,7 @@
         font-size: 14px;
         font-weight: 540;
         color: color-mix(in srgb, var(--text) 88%, var(--sub-text) 12%);
-        transition: background-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick), transform var(--dur-instant) var(--ease-quick);
+        transition: border-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick);
     }
 
     body.settings-home-open .settings-nav-group .nav-item + .nav-item {
@@ -327,17 +326,16 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item:hover {
-        background: color-mix(in srgb, var(--paper-alt) 74%, var(--surface) 26%);
-        transform: translateY(-0.5px);
+        background: transparent;
+        border-color: color-mix(in srgb, var(--border) 68%, transparent);
     }
 
     body.settings-home-open .settings-nav-group .nav-item:active {
-        transform: translateY(0);
+        transform: none;
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active {
-        background:
-            linear-gradient(90deg, color-mix(in srgb, var(--accent-soft) 52%, var(--surface) 48%) 0%, color-mix(in srgb, var(--accent-soft) 34%, var(--surface) 66%) 100%);
+        background: transparent;
         color: var(--text);
     }
 
