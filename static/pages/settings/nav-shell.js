@@ -47,6 +47,7 @@ export function initSettingsNavShell({
     const navKeyTitles = {
         language: 'Язык',
         'chat-behavior': 'Поведение чата',
+        'stickers-emoji': 'Стикеры и эмодзи',
     };
 
     const sectionIdSet = new Set(Object.keys(sectionTitles));
