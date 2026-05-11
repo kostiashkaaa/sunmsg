@@ -25,6 +25,7 @@ SHARED_AVATARS_DIR="$SHARED_DIR/avatars"
 SHARED_CHAT_MEDIA_DIR="$SHARED_DIR/chat_media"
 APP_USER="sunmessenger"
 APP_GROUP="sunmessenger"
+KEEP_RELEASE_COUNT="${KEEP_RELEASE_COUNT:-5}"
 
 if [[ ! -f "$ARTIFACT_FILE" ]]; then
   echo "Release archive not found: $ARTIFACT_FILE" >&2
@@ -156,6 +157,57 @@ sync_chat_media_storage() {
   fi
 }
 
+cleanup_old_deploys() {
+  local keep_count="$KEEP_RELEASE_COUNT"
+  local -A keep=()
+  local link_path target name release_path artifact_path
+
+  if ! [[ "$keep_count" =~ ^[0-9]+$ ]] || [[ "$keep_count" -lt 1 ]]; then
+    echo "Skip deploy cleanup: invalid KEEP_RELEASE_COUNT=$KEEP_RELEASE_COUNT" >&2
+    return 0
+  fi
+
+  if [[ ! -d "$RELEASES_DIR" ]]; then
+    return 0
+  fi
+
+  keep["$SHA"]=1
+
+  for link_path in "$CURRENT_LINK" "$PREVIOUS_LINK"; do
+    target="$(readlink -f "$link_path" 2>/dev/null || true)"
+    if [[ -n "$target" && "$target" == "$RELEASES_DIR/"* && -d "$target" ]]; then
+      keep["$(basename "$target")"]=1
+    fi
+  done
+
+  while IFS= read -r name; do
+    [[ -n "$name" ]] && keep["$name"]=1
+  done < <(
+    find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' \
+      | sort -nr \
+      | head -n "$keep_count" \
+      | awk '{print $2}'
+  )
+
+  echo "Keeping ${#keep[@]} deploy release(s); pruning older releases and artifacts."
+
+  while IFS= read -r release_path; do
+    name="$(basename "$release_path")"
+    if [[ -z "${keep[$name]+x}" ]]; then
+      rm -rf -- "$release_path" || echo "Failed to remove old release: $release_path" >&2
+    fi
+  done < <(find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -print)
+
+  if [[ -d "$ARTIFACTS_DIR" ]]; then
+    while IFS= read -r artifact_path; do
+      name="$(basename "$artifact_path")"
+      if [[ -z "${keep[$name]+x}" ]]; then
+        rm -rf -- "$artifact_path" || echo "Failed to remove old artifact: $artifact_path" >&2
+      fi
+    done < <(find "$ARTIFACTS_DIR" -mindepth 1 -maxdepth 1 -type d -print)
+  fi
+}
+
 old_target=""
 if [[ -L "$CURRENT_LINK" ]]; then
   old_target="$(readlink -f "$CURRENT_LINK" || true)"
@@ -215,5 +267,7 @@ if [[ "$health_ok" -ne 1 ]]; then
   run_systemctl status sunmessenger-web.service --no-pager -l || true
   exit 7
 fi
+
+cleanup_old_deploys
 
 echo "Deploy complete: sha=$SHA env=$TARGET_ENV"
