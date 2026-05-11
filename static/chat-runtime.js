@@ -3296,6 +3296,8 @@ export const initChatPage = async () => {
             updateSidebarContactTick: _updateSidebarContactTick,
             getContactsRoot: () => contactsList || document,
             markAllTicksRead,
+            failPendingMessage,
+            showToast,
             isGroupChatById: (chatId) => {
                 const normalizedChatId = String(chatId || '').trim();
                 if (!normalizedChatId) return false;

@@ -26,8 +26,18 @@ export function registerMessageStatusSocketHandlers({
     markAllTicksRead,
     onMessagesMarkedRead,
     isGroupChatById = () => false,
+    failPendingMessage = () => {},
+    showToast = () => {},
 } = {}) {
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const normalizeErrorText = (value) => {
+        if (!value || typeof value !== 'object') return String(value || '').trim();
+        return String(value.message || value.error || '').trim();
+    };
+    const normalizePendingClientId = (value) => {
+        if (!value || typeof value !== 'object') return '';
+        return String(value.request_id || value.client_id || '').trim();
+    };
     const parseExplicitGroupFlag = (rawValue) => {
         if (
             rawValue === true
@@ -56,6 +66,20 @@ export function registerMessageStatusSocketHandlers({
 
     socket.on('message_deleted', handleDeleteEvent);
     socket.on('messages_deleted', handleDeleteEvent);
+
+    socket.on('error', (data) => {
+        const clientId = normalizePendingClientId(data);
+        const code = String(data?.code || '').trim();
+        if (clientId && code !== 'duplicate_request') {
+            cancelPendingTimeout?.(clientId);
+            failPendingMessage?.(clientId);
+        }
+
+        const message = normalizeErrorText(data);
+        if (message) {
+            showToast?.(message, 'warning');
+        }
+    });
 
     socket.on('message_sent', (data) => {
         if (!data?.client_id) return;

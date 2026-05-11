@@ -112,6 +112,30 @@ def test_socket_csrf_ok_handles_missing_invalid_and_valid_tokens():
     ) is True
 
 
+def test_socket_csrf_ok_preserves_request_id_on_error():
+    logger = logging.getLogger('test_socket_csrf_ok_request_id')
+    emitted = []
+
+    assert socket_csrf_ok(
+        {'request_id': 'client-123'},
+        validate_csrf_func=lambda token: None,
+        emit_func=lambda name, payload: emitted.append((name, payload)),
+        logger=logger,
+        user_id=1,
+        validation_error_cls=ValidationError,
+    ) is False
+
+    assert emitted == [
+        (
+            'error',
+            {
+                'message': 'CSRF token is required.',
+                'request_id': 'client-123',
+            },
+        ),
+    ]
+
+
 def test_socket_connect_csrf_ok_handles_missing_invalid_and_valid_tokens():
     logger = logging.getLogger('test_socket_connect_csrf_ok')
 

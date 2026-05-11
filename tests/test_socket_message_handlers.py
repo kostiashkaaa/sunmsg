@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.sockets.message_handlers import (
+    _validate_send_payload,
     handle_delete_messages_event,
     handle_edit_message_event,
     handle_send_message_event,
@@ -13,6 +14,38 @@ from app.sockets.validation import parse_db_utc_timestamp
 
 def _connect(db_path: Path):
     return connect_test_db(db_path)
+
+
+def test_validate_send_payload_preserves_request_id_on_rate_limit_error():
+    emitted = []
+
+    result = _validate_send_payload(
+        {
+            'chat_id': 'chat-a',
+            'message': 'hello',
+            'message_type': 'text',
+            'request_id': 'client-123',
+        },
+        context={
+            'session_store': {'user_id': 1, 'public_key_pem': 'pk-1'},
+            'socket_rate_ok_func': lambda _user_id, _event_name: False,
+            'is_valid_chat_id_func': lambda _chat_id: True,
+            'sanitize_message_type_func': lambda value: value,
+            'emit_func': lambda name, payload: emitted.append((name, payload)),
+            'request_id': 'client-123',
+        },
+    )
+
+    assert result is None
+    assert emitted == [
+        (
+            'error',
+            {
+                'message': 'Too many messages. Please wait a little.',
+                'request_id': 'client-123',
+            },
+        ),
+    ]
 
 
 def _prepare_edit_schema(conn):
