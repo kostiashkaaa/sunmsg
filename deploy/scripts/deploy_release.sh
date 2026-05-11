@@ -68,12 +68,9 @@ run_systemctl() {
   fi
 }
 
-reload_web_service() {
-  if run_systemctl kill --signal=HUP --kill-who=main sunmessenger-web.service; then
-    echo "Triggered graceful web reload via SIGHUP."
-    return
-  fi
-  echo "Graceful web reload failed; fallback to restart."
+restart_web_service() {
+  # The release symlink changes before this call; restart is required so
+  # gunicorn's master process gets the new WorkingDirectory target.
   run_systemctl restart sunmessenger-web.service
 }
 
@@ -243,7 +240,7 @@ rollback() {
   if [[ -n "$old_target" && -d "$old_target" ]]; then
     echo "Rollback to previous release: $old_target"
     ln -sfn "$old_target" "$CURRENT_LINK"
-    reload_web_service || true
+    restart_web_service || true
     run_systemctl restart sunmessenger-scheduler.service || true
   fi
 }
@@ -277,7 +274,7 @@ fi
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
 reset_presence_state
-reload_web_service
+restart_web_service
 run_systemctl restart sunmessenger-scheduler.service
 
 health_ok=0
