@@ -70,15 +70,19 @@
         display: none;
     }
 
+    body.settings-detail-open .settings-layout {
+        width: min(760px, 100%);
+    }
+
     body.settings-home-open .settings-panel-body {
         display: block;
         overflow-y: auto;
     }
 
     body.settings-detail-open .settings-content {
-        width: min(430px, 100%);
+        width: min(720px, 100%);
         margin: 0 auto;
-        padding: 0 18px 20px;
+        padding: 0 clamp(18px, 4.8vw, 36px) 28px;
         border-left: 0;
         background: transparent;
     }
@@ -86,7 +90,7 @@
     body.settings-detail-open .settings-card {
         margin-bottom: 0;
         border-radius: 0;
-        padding: 16px 0 18px;
+        padding: 20px 0 24px;
         border: 0;
         border-bottom: 1px solid color-mix(in srgb, var(--rule) 22%, transparent);
         background: transparent;
@@ -98,34 +102,34 @@
     }
 
     body.settings-detail-open .settings-card-header {
-        margin-bottom: 6px;
+        margin-bottom: 12px;
     }
 
     body.settings-detail-open .settings-row {
-        padding: 8px 0;
-        gap: 12px;
+        padding: 12px 0;
+        gap: 18px;
         border-bottom: 0;
     }
 
     body.settings-detail-open .settings-card .settings-row + .settings-row {
-        border-top: 1px solid color-mix(in srgb, var(--rule) 9%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--rule) 14%, transparent);
     }
 
     body.settings-detail-open .settings-row-label {
-        font-size: 14px;
-        font-weight: 540;
+        font-size: 15px;
+        font-weight: 610;
     }
 
     body.settings-detail-open .settings-row-desc {
-        margin-top: 1px;
+        margin-top: 3px;
         font-size: 12px;
         color: color-mix(in srgb, var(--sub-text) 88%, transparent);
     }
 
     body.settings-detail-open .settings-row .settings-select-control {
-        min-height: 36px;
+        min-height: 42px;
         border-radius: 10px;
-        padding: 6px 34px 6px 11px;
+        padding: 8px 36px 8px 12px;
     }
 
     body.settings-detail-open .btn-settings {
@@ -136,6 +140,35 @@
 
     body.settings-detail-open .settings-action-cluster {
         gap: 6px;
+    }
+
+    body.settings-detail-open .settings-body-copy {
+        max-width: 620px;
+        margin: 0 0 18px;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    body.settings-detail-open .settings-field-input {
+        max-width: none;
+    }
+
+    body.settings-detail-open .settings-inline-fields {
+        gap: 18px;
+    }
+
+    body.settings-detail-open .settings-field-label {
+        margin-bottom: 7px;
+        color: color-mix(in srgb, var(--sub-text) 82%, var(--text) 18%);
+    }
+
+    body.settings-detail-open .settings-field-hint {
+        margin-top: 7px;
+        line-height: 1.35;
+    }
+
+    body.settings-detail-open .settings-bio-input {
+        min-height: 92px;
     }
 
     body.settings-home-open .settings-nav {
@@ -375,6 +408,66 @@
         min-height: 0;
     }
 
+    body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+        display: grid;
+        grid-template-columns: minmax(164px, 210px) minmax(0, 1fr);
+        column-gap: clamp(24px, 5vw, 40px);
+        row-gap: 0;
+        align-items: start;
+        padding-top: 22px;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-card-header,
+    body.settings-detail-open .settings-profile-section .settings-body-copy {
+        grid-column: 1 / -1;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-row {
+        grid-column: 1;
+        grid-row: 3 / span 2;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        margin: 0;
+        padding-top: 2px;
+        text-align: center;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 112px;
+        height: 112px;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+        right: 2px;
+        bottom: 2px;
+        width: 42px;
+        height: 42px;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-name {
+        font-family: var(--font);
+        font-size: 26px;
+        line-height: 1.08;
+        font-weight: 650;
+        letter-spacing: 0;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-username {
+        font-family: var(--font);
+        font-size: 14px;
+        letter-spacing: 0;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-inline-fields,
+    body.settings-detail-open .settings-profile-section .settings-save-row {
+        grid-column: 2;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-inline-fields + .settings-inline-fields {
+        margin-top: 18px;
+    }
+
     body.settings-detail-open #section-notifications .settings-row.settings-row-borderless {
         grid-template-columns: 1fr;
         gap: 8px;
@@ -468,6 +561,21 @@
 
         body.settings-detail-open .settings-content {
             padding-inline: 16px;
+        }
+    }
+
+    @media (max-width: 620px) {
+        body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+            display: block;
+        }
+
+        body.settings-detail-open .settings-profile-section .settings-avatar-row {
+            margin: 4px 0 26px;
+            padding-top: 0;
+        }
+
+        body.settings-detail-open .settings-profile-section .settings-inline-fields + .settings-inline-fields {
+            margin-top: 18px;
         }
     }
 }
