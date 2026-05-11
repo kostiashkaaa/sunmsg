@@ -84,6 +84,7 @@ import { createChatMessageStatusRuntime } from './modules/chat-message-status-ru
 import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
 import { bindChatContactSelectionRuntime } from './modules/chat-contact-selection-runtime.js';
 import { initChatEmojiRefreshRuntime } from './modules/chat-emoji-refresh-runtime.js';
+import { createChatContentVisibilityRuntime } from './modules/chat-content-visibility-runtime.js';
 import { bindChatRuntimeWindowEvents } from './modules/chat-runtime-window-events.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
@@ -1677,59 +1678,28 @@ export const initChatPage = async () => {
     }
 
 
-    // \u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C/\u0441\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442-\u043A\u043E\u043D\u0442\u0435\u043D\u0442
-    function showChatContent(show) {
-        const wasHidden = Boolean(
-            chatMessages && (
-                chatMessages.classList.contains('chat-messages--hidden')
-                || chatMessages.style.display === 'none'
-            )
-        );
-        if (chatPlaceholder)  chatPlaceholder.style.display = show ? 'none' : '';
-        if (chatMessages) {
-            chatMessages.classList.toggle('chat-messages--hidden', !show);
-            chatMessages.style.display = '';
-        }
-        if (chatInputArea) {
-            chatInputArea.classList.toggle('chat-input-area--hidden', !show);
-            chatInputArea.style.display = '';
-        }
-        if (chatHeaderActions) {
-            chatHeaderActions.classList.toggle('header-actions-group--hidden', !show);
-            chatHeaderActions.style.display = '';
-        }
-        if (show) {
-            resizeComposerInput();
-            updateChatMessagesBottomInset({ immediate: true });
-        } else {
-            updateChatMessagesBottomInset({ immediate: true });
-        }
-        if (!show) {
-            resetOpenChatUnreadCounter();
-        } else {
-            const state = currentChatId ? getChatState(currentChatId) : null;
-            if (state?.initialized) {
-                const restoredTop = resolveSavedChatScrollTop(currentChatId);
-                if (Number.isFinite(restoredTop)) {
-                    scheduleVirtualChatRender(currentChatId, { force: true, scrollTop: restoredTop });
-                    requestAnimationFrame(() => {
-                        setKeepChatPinnedToBottom(isChatNearBottom());
-                    });
-                } else {
-                    scheduleVirtualChatRender(currentChatId, { force: true, scrollToBottom: true });
-                    setKeepChatPinnedToBottom(true);
-                }
-            }
-            updateJumpToNewMessagesButton();
-        }
-        if (!show) {
-            isE2EPillPinnedOpen = false;
-            setChatStageLoading(false);
-        }
-        syncMuteButton();
-        syncE2EPillState();
-        updateVoiceRecordButtonState();
-    }
+    const { showChatContent } = createChatContentVisibilityRuntime({
+        chatPlaceholder,
+        chatMessages,
+        chatInputArea,
+        chatHeaderActions,
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        resizeComposerInput,
+        updateChatMessagesBottomInset,
+        resetOpenChatUnreadCounter,
+        resolveSavedChatScrollTop,
+        scheduleVirtualChatRender,
+        requestAnimationFrameFn: requestAnimationFrame,
+        setKeepChatPinnedToBottom: (value) => setKeepChatPinnedToBottom(value),
+        isChatNearBottom,
+        updateJumpToNewMessagesButton,
+        setE2EPillPinnedOpen: (value) => { isE2EPillPinnedOpen = value; },
+        setChatStageLoading,
+        syncMuteButton,
+        syncE2EPillState,
+        updateVoiceRecordButtonState,
+    });
 
     exposeChatRuntimeLegacyGlobalsBridge({
         activateFocusTrap,
