@@ -1,30 +1,3 @@
-import { escapeHtml } from './utils.js';
-
-function resolveLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? String(api.getLanguage() || '').trim().toLowerCase()
-        : String(document.documentElement?.lang || '').trim().toLowerCase();
-    return language.startsWith('en') ? 'en' : 'ru';
-}
-
-function buildReadLabel(count) {
-    const safeCount = Math.max(0, Number(count) || 0);
-    const locale = resolveLocale();
-    if (locale === 'en') {
-        return `Read by ${safeCount}`;
-    }
-    return `прочитали ${safeCount}`;
-}
-
-function resolveReaderDisplayName(reader = {}) {
-    const displayName = String(reader.display_name || '').trim();
-    if (displayName) return displayName;
-    const username = String(reader.username || '').trim();
-    if (username) return `@${username}`;
-    return resolveLocale() === 'en' ? 'Member' : 'Участник';
-}
-
 export function normalizeGroupReaders(rawReaders) {
     if (!Array.isArray(rawReaders)) return [];
     const normalized = [];
@@ -95,49 +68,17 @@ export function applyGroupReadUpdateToMessage(message, rawUpdate) {
 }
 
 export function buildGroupReadMetaHtml(message, { isGroupChat = false, isSelf = false } = {}) {
-    if (!isGroupChat || !isSelf) return '';
-    const readers = normalizeGroupReaders(message?.group_readers);
-    const count = Number(message?.group_read_count);
-    const readCount = Number.isFinite(count) && count >= 0 ? Math.floor(count) : readers.length;
-    if (readCount <= 0) return '';
-    const label = buildReadLabel(readCount);
-    const tooltip = readers.map((reader) => resolveReaderDisplayName(reader)).join(', ');
-    const titleAttr = tooltip ? ` title="${escapeHtml(tooltip)}"` : '';
-    return `<span class="msg-group-readers" data-group-read-count="${readCount}"${titleAttr}>${escapeHtml(label)}</span>`;
+    void message;
+    void isGroupChat;
+    void isSelf;
+    return '';
 }
 
 export function applyGroupReadMetaToElement(messageEl, message, { isGroupChat = false } = {}) {
     if (!messageEl) return;
     const metaEl = messageEl.querySelector('.msg-meta, .message-meta');
     if (!metaEl) return;
-    const isSelf = messageEl.classList.contains('self');
-    const readers = normalizeGroupReaders(message?.group_readers);
-    const countRaw = Number(message?.group_read_count);
-    const readCount = Number.isFinite(countRaw) && countRaw >= 0 ? Math.floor(countRaw) : readers.length;
-    let indicatorEl = metaEl.querySelector('.msg-group-readers');
-
-    if (!isGroupChat || !isSelf || readCount <= 0) {
-        indicatorEl?.remove();
-        return;
-    }
-
-    if (!indicatorEl) {
-        indicatorEl = document.createElement('span');
-        indicatorEl.className = 'msg-group-readers';
-        const timeEl = metaEl.querySelector('.msg-time');
-        if (timeEl) {
-            timeEl.before(indicatorEl);
-        } else {
-            metaEl.prepend(indicatorEl);
-        }
-    }
-
-    indicatorEl.textContent = buildReadLabel(readCount);
-    indicatorEl.setAttribute('data-group-read-count', String(readCount));
-    const tooltip = readers.map((reader) => resolveReaderDisplayName(reader)).join(', ');
-    if (tooltip) {
-        indicatorEl.setAttribute('title', tooltip);
-    } else {
-        indicatorEl.removeAttribute('title');
-    }
+    void message;
+    void isGroupChat;
+    metaEl.querySelector('.msg-group-readers')?.remove();
 }
