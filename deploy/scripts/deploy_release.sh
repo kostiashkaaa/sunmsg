@@ -157,6 +157,32 @@ sync_chat_media_storage() {
   fi
 }
 
+verify_release_contents() {
+  local required_paths=(
+    "app/__init__.py"
+    "wsgi.py"
+    "manage.py"
+    "requirements-production.txt"
+    "templates/chat.html"
+    "templates/error.html"
+  )
+  local missing=()
+  local required_path
+
+  for required_path in "${required_paths[@]}"; do
+    if [[ ! -e "$RELEASE_DIR/$required_path" ]]; then
+      missing+=("$required_path")
+    fi
+  done
+
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "Release archive is incomplete; missing required path(s):" >&2
+    printf ' - %s\n' "${missing[@]}" >&2
+    rm -rf "$RELEASE_DIR"
+    exit 6
+  fi
+}
+
 cleanup_old_deploys() {
   local keep_count="$KEEP_RELEASE_COUNT"
   local -A keep=()
@@ -229,6 +255,7 @@ ensure_venv
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARTIFACT_FILE" -C "$RELEASE_DIR"
+verify_release_contents
 sync_avatar_storage
 sync_chat_media_storage
 
