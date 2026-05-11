@@ -2159,7 +2159,7 @@
             --msg-meta-font-size: calc(11px * var(--chat-message-scale));
             --msg-meta-gap: calc(3px * var(--chat-message-scale));
             --msg-meta-row-height: calc(12px * var(--chat-message-scale));
-            --msg-meta-tick-size: calc(18px * var(--chat-message-scale));
+            --msg-meta-tick-size: var(--msg-meta-font-size);
             --msg-meta-tick-stroke: 1.35;
             --msg-meta-read-color: color-mix(in srgb, #5ea8ff 86%, var(--chat-bubble-out-text) 14%);
             --chat-bubble-max-width: min(68%, 720px);
