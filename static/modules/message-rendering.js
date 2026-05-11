@@ -763,6 +763,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     if (typeof msg.message === 'string') messageDiv.setAttribute('data-message-content', msg.message);
 
     const isSelf = msg.sender === 'self';
+    const isIncoming = !isSelf;
     const showSenderLabel = Boolean(
         isGroupChat
         && !isSelf
@@ -876,12 +877,15 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     const audioDurationHtml = (isAudioPayload && isVoiceAudioPayload)
         ? `<span class="audio-message-duration-wrap" data-audio-listened-wrap="1"><span class="audio-message-duration" data-audio-duration="${audioDurationSeconds > 0 ? String(audioDurationSeconds) : ''}">${formatMediaDuration(audioDurationSeconds)}</span><span class="audio-message-listen-dot" aria-hidden="true"></span></span>`
         : '';
-    const placeReactionsOutsideBubble = Boolean(isVisualMediaPayload && !hasVisualMediaCaption);
+    const placeReactionsOutsideBubble = Boolean(isIncoming || (isVisualMediaPayload && !hasVisualMediaCaption));
     const reactionsHtml = typeof buildMessageReactionsHtml === 'function'
         ? buildMessageReactionsHtml(msg.id, msg.reactions)
         : '';
+    const hasReactions = Boolean(String(reactionsHtml || '').trim());
     const reactionsInsideHtml = placeReactionsOutsideBubble ? '' : reactionsHtml;
-    const reactionsOutsideHtml = placeReactionsOutsideBubble ? reactionsHtml : '';
+    const reactionsOutsideHtml = placeReactionsOutsideBubble
+        ? (hasReactions ? reactionsHtml : `<div class="message-reactions message-reactions-placeholder" data-msg-id="${msg.id || ''}"></div>`)
+        : '';
     const metaHtml = `<div class="msg-meta message-meta">
                     ${audioDurationHtml}
                     ${favoriteLabel}
@@ -917,6 +921,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
 
     messageDiv.classList.toggle('message-reactions-outside', placeReactionsOutsideBubble);
     messageDiv.classList.toggle('message-reactions-inside', !placeReactionsOutsideBubble);
+    messageDiv.classList.toggle('message-has-reactions', hasReactions);
     messageDiv.classList.toggle('message-pinned', isPinned);
     messageDiv.classList.toggle('message-favorite', isFavorite);
     messageDiv.classList.toggle('message-group-other', showSenderLabel);
