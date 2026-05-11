@@ -47,7 +47,7 @@ import {
 } from './modules/chat-block-ui.js';
 import { createVoiceRecorderControls } from './modules/chat-voice-controls.js';
 import { createLastActiveChatController } from './modules/chat-last-active-chat.js';
-import { createSidebarStatusController } from './modules/chat-sidebar-status-controller.js';
+import { createChatSidebarStatusRuntime } from './modules/chat-sidebar-status-runtime.js';
 import {
     createHistoryAbortController as createHistoryAbortControllerFlow,
     releaseHistoryAbortController as releaseHistoryAbortControllerFlow,
@@ -1188,7 +1188,8 @@ export const initChatPage = async () => {
     // realtime-orchestrator может вызвать syncSidebarStatusBar() на connect
     // ещё до того, как initChatPage дойдёт до этой строки.
     // eslint-disable-next-line no-var
-    var sidebarStatusController = createSidebarStatusController({
+    var sidebarStatusController = createChatSidebarStatusRuntime({
+        windowRef: window,
         computeSidebarStatusSnapshot: _computeSidebarStatusSnapshot,
         runSidebarStatusActionFn: _runSidebarStatusAction,
         syncSidebarStatusBarFn: _syncSidebarStatusBar,
@@ -1207,12 +1208,16 @@ export const initChatPage = async () => {
         openMyQrModal: (...args) => window.openMyQrModal?.(...args),
         openSettingsOverlay: (...args) => window.openSettingsOverlay?.(...args),
         showToast,
+        sidebarProfileShortcut,
+        sidebarStatusBar,
+        sidebarStatusSettingsBtn,
         sidebarElements: {
             sidebarSyncChip,
             sidebarStatusBar,
             sidebarStatusTitle,
             sidebarStatusHint,
         },
+        syncChatConnectionStatus,
     });
 
     function getSidebarStatusSnapshot() {
@@ -1226,27 +1231,6 @@ export const initChatPage = async () => {
     function syncSidebarStatusBar() {
         sidebarStatusController?.syncSidebarStatusBar();
     }
-
-    sidebarProfileShortcut?.addEventListener('click', () => {
-        window.openSettingsOverlay?.('settings');
-    });
-
-    sidebarStatusBar?.addEventListener('click', () => {
-        const action = sidebarStatusBar?.dataset.action || getSidebarStatusSnapshot().action;
-        runSidebarStatusAction(action);
-    });
-    sidebarStatusSettingsBtn?.addEventListener('click', () => {
-        window.openSettingsOverlay?.('settings');
-    });
-
-    const syncConnectionUi = () => {
-        syncSidebarStatusBar();
-        syncChatConnectionStatus();
-    };
-    window.addEventListener('online', syncConnectionUi);
-    window.addEventListener('offline', syncConnectionUi);
-    window.addEventListener('focus', syncConnectionUi);
-    syncSidebarStatusBar();
 
     // \u041A\u043D\u043E\u043F\u043A\u0430 "\u041D\u0430\u0437\u0430\u0434" (\u043C\u043E\u0431\u0438\u043B\u044C\u043D\u0430\u044F)
     const backBtnMobile = document.getElementById('backBtnMobile');
