@@ -10762,7 +10762,7 @@
     gap: calc(5px * var(--chat-message-scale));
     margin: 0;
     padding: 0;
-    max-width: calc(100% - 54px);
+    max-width: none;
     min-height: 0;
     width: fit-content;
     order: 1;
