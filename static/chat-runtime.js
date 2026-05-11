@@ -184,6 +184,10 @@ import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
 import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
 import { createChatBrowserEnv } from './modules/chat-browser-env.js';
+import {
+    createProfileContactRequestSender,
+    createProfileActionHandler,
+} from './modules/chat-profile-action-handlers.js';
 import { createChatLazyUiRuntime } from './modules/chat-lazy-ui-runtime.js';
 import { createChatTabTitleRuntime } from './modules/chat-tab-title-runtime.js';
 import { createChatComposerAttachmentsRuntime } from './modules/chat-composer-attachments-runtime.js';
@@ -1917,39 +1921,14 @@ export const initChatPage = async () => {
         });
     }
 
-    async function sendProfileContactRequest({ userId, displayName } = {}) {
-        const normalizedUserId = Number.parseInt(String(userId || '').trim(), 10);
-        if (!Number.isFinite(normalizedUserId) || normalizedUserId <= 0) {
-            showToast('Не удалось определить пользователя для запроса.', 'warning');
-            return false;
-        }
-        try {
-            const response = await fetch(withAppRoot('/send_request'), {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({ contact_user_id: normalizedUserId }),
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok || !payload?.success) {
-                showToast(`Ошибка: ${getErrorMessage(payload?.error || 'Не удалось отправить запрос.')}`, 'danger');
-                return false;
-            }
-            const safeName = String(displayName || '').trim();
-            showToast(
-                safeName ? `Запрос пользователю ${safeName} отправлен.` : 'Запрос отправлен.',
-                'success',
-            );
-            loadDialogRequests?.();
-            return true;
-        } catch (_) {
-            showToast('Ошибка при отправке запроса.', 'danger');
-            return false;
-        }
-    }
+    const sendProfileContactRequest = createProfileContactRequestSender({
+        fetchImpl: fetch,
+        resolveAppUrl: withAppRoot,
+        getCsrfToken,
+        getErrorMessage,
+        showToast,
+        loadDialogRequests,
+    });
 
     function clearLocalChatDataAfterDeletion(chatId) {
         const normalizedChatId = String(chatId || '').trim();
@@ -2151,33 +2130,14 @@ export const initChatPage = async () => {
         profileOrchestrator.renderProfileMeta(profile);
     }
 
-    async function handleProfileAction(action) {
-        if (action === 'report-user') {
-            closeProfileMoreMenu();
-            const partnerData = getCurrentPartnerData() || {};
-            if (partnerData._group_profile) {
-                showToast('\u0416\u0430\u043B\u043E\u0431\u0430 \u043D\u0430 \u0433\u0440\u0443\u043F\u043F\u0443 \u043F\u043E\u043A\u0430 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F. \u0415\u0441\u043B\u0438 \u043D\u0443\u0436\u043D\u043E, \u043E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430 \u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u0436\u0430\u043B\u043E\u0431\u0443 \u043D\u0430 \u043D\u0435\u0433\u043E.', 'info');
-                return;
-            }
-            const parsedTargetId = Number.parseInt(
-                String(partnerData.userId || profileMetaUserId?.textContent || '').trim(),
-                10,
-            );
-            if (!Number.isFinite(parsedTargetId) || parsedTargetId <= 0) {
-                showToast('Невозможно пожаловаться: для этого чата недоступен идентификатор пользователя.', 'warning');
-                return;
-            }
-            openReportModal({
-                targetType: 'user',
-                targetId: String(parsedTargetId),
-                messageId: null,
-                displayName: String(partnerData.display_name || '').trim(),
-                username: String(partnerData.username || '').replace(/^@+/, '').trim(),
-            });
-            return;
-        }
-        await profileOrchestrator.handleProfileAction(action);
-    }
+    const handleProfileAction = createProfileActionHandler({
+        profileOrchestrator,
+        profileMetaUserId,
+        closeProfileMoreMenu,
+        getCurrentPartnerData,
+        openReportModal,
+        showToast,
+    });
 
     const profileMoreMenuController = createProfileMoreMenuController({
         profileMoreMenu,
