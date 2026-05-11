@@ -10580,6 +10580,7 @@
     --tg-compact-bubble-tail-radius: 6px;
     --tg-reaction-overlap: 4px;
     --tg-reaction-inline-inset: 0px;
+    --chat-reaction-asset-size: 20px;
     --chat-bubble-pad-y: calc(5px * var(--chat-message-scale));
     --chat-bubble-pad-x: calc(8px * var(--chat-message-scale));
     --chat-bubble-radius: var(--tg-compact-bubble-radius);
@@ -10798,37 +10799,44 @@
 }
 
 .reaction-pill {
-    min-height: calc(30px * var(--chat-message-scale));
-    padding: calc(4px * var(--chat-message-scale)) calc(10px * var(--chat-message-scale));
+    min-height: 30px;
+    padding: 4px 10px;
     border-radius: 999px;
-    gap: calc(4px * var(--chat-message-scale));
-    font-size: calc(13px * var(--chat-message-scale));
+    gap: 4px;
+    font-size: 13px;
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 
 .reaction-pill__emoji {
-    width: calc(19px * var(--chat-message-scale));
-    min-width: calc(19px * var(--chat-message-scale));
-    height: calc(19px * var(--chat-message-scale));
-    font-size: calc(19px * var(--chat-message-scale));
+    width: var(--chat-reaction-asset-size);
+    min-width: var(--chat-reaction-asset-size);
+    height: var(--chat-reaction-asset-size);
+    font-size: var(--chat-reaction-asset-size);
 }
 
 .reaction-pill__emoji .emoji-graphic {
-    width: calc(20px * var(--chat-message-scale));
-    height: calc(20px * var(--chat-message-scale));
+    width: var(--chat-reaction-asset-size);
+    height: var(--chat-reaction-asset-size);
 }
 
 .reaction-reactor {
-    width: 19px;
-    height: 19px;
+    width: var(--chat-reaction-asset-size);
+    height: var(--chat-reaction-asset-size);
+    flex: 0 0 var(--chat-reaction-asset-size);
+    font-size: 9px;
+    line-height: 1;
+}
+
+.reaction-reactor + .reaction-reactor {
+    margin-left: -6px;
 }
 
 .reaction-pill__reactors {
     display: inline-flex !important;
     align-items: center;
-    margin-left: calc(2px * var(--chat-message-scale));
+    margin-left: 2px;
 }
 
 .reaction-pill__count {
@@ -10836,7 +10844,7 @@
     align-items: center;
     justify-content: center;
     min-width: 0;
-    font-size: calc(11px * var(--chat-message-scale));
+    font-size: 11px;
     font-weight: 650;
     line-height: 1;
 }
@@ -11012,26 +11020,26 @@
     }
 
     .reaction-pill {
-        min-height: 34px;
-        padding: 4px 12px;
-        font-size: 12px;
+        min-height: 30px;
+        padding: 4px 10px;
+        font-size: 13px;
     }
 
     .reaction-pill__emoji {
-        width: 21px;
-        min-width: 21px;
-        height: 21px;
-        font-size: 21px;
+        width: var(--chat-reaction-asset-size);
+        min-width: var(--chat-reaction-asset-size);
+        height: var(--chat-reaction-asset-size);
+        font-size: var(--chat-reaction-asset-size);
     }
 
     .reaction-pill__emoji .emoji-graphic {
-        width: 22px;
-        height: 22px;
+        width: var(--chat-reaction-asset-size);
+        height: var(--chat-reaction-asset-size);
     }
 
     .reaction-reactor {
-        width: 21px;
-        height: 21px;
+        width: var(--chat-reaction-asset-size);
+        height: var(--chat-reaction-asset-size);
     }
 }
 

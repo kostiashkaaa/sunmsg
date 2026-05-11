@@ -2608,6 +2608,7 @@ export const initChatPage = async () => {
         saveChatScrollPosition,
         updateJumpToNewMessagesButton,
         requestAnimationFrameFn: requestAnimationFrame,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
     });
 
     function isCurrentUserReactionReactor(reactor) {
@@ -2627,8 +2628,8 @@ export const initChatPage = async () => {
         return date ? date.getTime() : Date.now();
     }
 
-    function buildMessageReactionsHtml(msgId, rawReactions) {
-        return messageVisualRuntime?.buildMessageReactionsHtml(msgId, rawReactions) || '';
+    function buildMessageReactionsHtml(msgId, rawReactions, opts = {}) {
+        return messageVisualRuntime?.buildMessageReactionsHtml(msgId, rawReactions, opts) || '';
     }
 
     function applyReactionOperationUiState(operation, options = {}) {

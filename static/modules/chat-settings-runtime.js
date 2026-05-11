@@ -16,8 +16,51 @@ export function createChatSettingsRuntime({
     documentRef = document,
     windowRef = window,
 } = {}) {
+    const MESSAGE_SCALE_MOBILE_QUERY = '(max-width: 768px)';
+
     function ChatContainer(chatId = getCurrentChatId(), options = {}) {
         renderChatMessages(chatId, options);
+    }
+
+    function isMobileMessageScaleScope() {
+        if (typeof windowRef.matchMedia === 'function') {
+            return Boolean(windowRef.matchMedia(MESSAGE_SCALE_MOBILE_QUERY).matches);
+        }
+        return Number(windowRef.innerWidth || 0) > 0 && Number(windowRef.innerWidth) <= 768;
+    }
+
+    function getMessageScaleScope() {
+        return isMobileMessageScaleScope() ? 'mobile' : 'desktop';
+    }
+
+    function getScopedMessageScaleStorageKey(scope = getMessageScaleScope()) {
+        return `${messageScaleStorageKey}:${scope}`;
+    }
+
+    function readStoredMessageScale() {
+        try {
+            const scope = getMessageScaleScope();
+            const scopedValue = windowRef.localStorage?.getItem(getScopedMessageScaleStorageKey(scope));
+            if (scopedValue !== null && scopedValue !== undefined) return scopedValue;
+            return scope === 'desktop'
+                ? windowRef.localStorage?.getItem(messageScaleStorageKey)
+                : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function persistMessageScale(scale) {
+        try {
+            const scope = getMessageScaleScope();
+            const value = scale.toFixed(2);
+            windowRef.localStorage?.setItem(getScopedMessageScaleStorageKey(scope), value);
+            if (scope === 'desktop') {
+                windowRef.localStorage?.setItem(messageScaleStorageKey, value);
+            }
+        } catch (_) {
+            // Ignore storage write failures.
+        }
     }
 
     function clampMessageScale(value) {
@@ -40,11 +83,7 @@ export function createChatSettingsRuntime({
         });
 
         if (persist) {
-            try {
-                windowRef.localStorage?.setItem(messageScaleStorageKey, scale.toFixed(2));
-            } catch (_) {
-                // Ignore storage write failures.
-            }
+            persistMessageScale(scale);
         }
 
         const currentChatId = getCurrentChatId();
@@ -60,19 +99,36 @@ export function createChatSettingsRuntime({
     }
 
     function SettingsPanel() {
-        const storedScale = (() => {
-            try {
-                return windowRef.localStorage?.getItem(messageScaleStorageKey);
-            } catch (_) {
-                return null;
-            }
-        })();
+        let activeMessageScaleScope = getMessageScaleScope();
 
-        applyMessageScale(storedScale || 1, { persist: false, rerender: false });
+        applyMessageScale(readStoredMessageScale() || 1, { persist: false, rerender: false });
         refreshVisibleTimePreferenceRendering(documentRef);
+
+        const syncScaleForViewport = () => {
+            const nextScope = getMessageScaleScope();
+            if (nextScope === activeMessageScaleScope) return;
+            activeMessageScaleScope = nextScope;
+            applyMessageScale(readStoredMessageScale() || 1, { persist: false, rerender: true });
+        };
+
+        const scaleMediaQuery = typeof windowRef.matchMedia === 'function'
+            ? windowRef.matchMedia(MESSAGE_SCALE_MOBILE_QUERY)
+            : null;
+        if (scaleMediaQuery) {
+            if (typeof scaleMediaQuery.addEventListener === 'function') {
+                scaleMediaQuery.addEventListener('change', syncScaleForViewport);
+            } else if (typeof scaleMediaQuery.addListener === 'function') {
+                scaleMediaQuery.addListener(syncScaleForViewport);
+            }
+        } else {
+            windowRef.addEventListener('resize', syncScaleForViewport);
+        }
+
         windowRef.addEventListener('storage', (event) => {
             const key = String(event.key || '');
-            if (key === messageScaleStorageKey) {
+            const scope = getMessageScaleScope();
+            const scopedKey = getScopedMessageScaleStorageKey(scope);
+            if (key === scopedKey || (scope === 'desktop' && key === messageScaleStorageKey)) {
                 applyMessageScale(event.newValue || 1, { persist: false, rerender: true });
                 return;
             }

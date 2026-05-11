@@ -1446,9 +1446,9 @@
     .chat-area {
         --chat-mobile-outgoing-edge-offset: calc(var(--composer-action-size) + 8px);
         --chat-bubble-max-width: min(92%, 680px);
-        --chat-message-font-size: calc(14.5px * var(--chat-message-scale));
+        --chat-message-font-size: calc(14px * var(--chat-message-scale));
         --chat-message-line-height: 1.3;
-        --chat-message-letter-spacing: -0.005em;
+        --chat-message-letter-spacing: 0;
         --chat-message-pad-y: 7px;
         --chat-message-pad-x: 11px;
     }
@@ -1719,7 +1719,7 @@
     }
 
     .reaction-pill {
-        min-height: 34px;
-        padding: 4px 12px;
+        min-height: 30px;
+        padding: 4px 10px;
     }
 }

@@ -878,7 +878,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         : '';
     const placeReactionsOutsideBubble = Boolean(isVisualMediaPayload && !hasVisualMediaCaption);
     const reactionsHtml = typeof buildMessageReactionsHtml === 'function'
-        ? buildMessageReactionsHtml(msg.id, msg.reactions)
+        ? buildMessageReactionsHtml(msg.id, msg.reactions, { isGroupChat })
         : '';
     const reactionsInsideHtml = placeReactionsOutsideBubble ? '' : reactionsHtml;
     const reactionsOutsideHtml = placeReactionsOutsideBubble ? reactionsHtml : '';
