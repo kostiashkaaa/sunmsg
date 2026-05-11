@@ -73,6 +73,7 @@ import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtim
 import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
 import { createChatMessageAppendRuntime } from './modules/chat-message-append-runtime.js';
 import { createChatMessageRenderRuntime } from './modules/chat-message-render-runtime.js';
+import { createChatMobileViewportRuntime } from './modules/chat-mobile-viewport-runtime.js';
 import { createChatEncryptionRuntime } from './modules/chat-encryption-runtime.js';
 import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-runtime.js';
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
@@ -164,7 +165,6 @@ import {
     initTelegramRipple,
     waitForMotionEnd,
 } from './modules/motion.js';
-import { createVisualViewportCssSyncer } from './modules/mobile-viewport.js';
 import {
     syncCurrentUserIdentityLegacyGlobals as syncCurrentUserIdentityLegacyGlobalsBridge,
     setCurrentPartnerLegacyGlobals as setCurrentPartnerLegacyGlobalsBridge,
@@ -192,9 +192,8 @@ import { initWebPush } from './modules/web-push.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
 import { syncE2EPillState as syncE2EPillStateFlow } from './chat/e2e-flows.js';
-import { createThreadShell, createMobileThreadShell } from './chat/thread-shell.js';
+import { createThreadShell } from './chat/thread-shell.js';
 import { createChatStateShell } from './chat/chat-state-shell.js';
-import { initMobileBackSwipe } from './chat/mobile-back-swipe.js';
 import { createMessageEditController } from './chat/message-edit-controller.js';
 import { initMessageTouchContext } from './chat/message-touch-context.js';
 import { createProfileOrchestrator } from './chat/profile-orchestrator.js';
@@ -330,6 +329,7 @@ export const initChatPage = async () => {
     let chatSearchRuntime = null;
     let messageAppendRuntime = null;
     let messageRenderRuntime = null;
+    let mobileViewportRuntime = null;
     let chatEncryptionRuntime = null;
     let contactPreviewRuntime = null;
     let reactionOperationsRuntime = null;
@@ -1485,140 +1485,97 @@ export const initChatPage = async () => {
     });
     SettingsPanel();
 
-    function resizeComposerInput() {
-        if (!messageInput) return;
-        messageInput.style.height = '0px';
-        const computed = window.getComputedStyle(messageInput);
-        const maxHeight = Number.parseFloat(computed.maxHeight) || 136;
-        const minHeight = Number.parseFloat(computed.minHeight) || 32;
-        const targetHeight = Math.min(messageInput.scrollHeight, maxHeight);
-        messageInput.style.height = `${Math.max(targetHeight, minHeight)}px`;
-        messageInput.classList.toggle('composer-scroll', messageInput.scrollHeight > maxHeight + 1);
-        updateChatMessagesBottomInset();
-    }
-
-    const mobileThreadShell = createMobileThreadShell({
+    mobileViewportRuntime = createChatMobileViewportRuntime({
+        documentRef: document,
+        windowRef: window,
+        requestAnimationFrameFn: requestAnimationFrame,
+        cancelAnimationFrameFn: cancelAnimationFrame,
+        setTimeoutFn: setTimeout,
+        resizeObserverCtor: window.ResizeObserver,
+        chatBottomThresholdPx: CHAT_BOTTOM_THRESHOLD_PX,
         chatArea,
         sidebar,
+        chatMessages,
+        chatInputArea,
+        messageInput,
+        messageForm,
+        composerRow,
+        headerSearchWrap,
+        headerDropdown,
+        partnerProfileDrawer,
+        reactionPicker,
+        backBtnMobile,
         prefersReducedMotion,
-        scheduleComposerFocus,
         leaveCurrentChatRoom,
-        isMobileViewport: () => isMobileViewport(),
+        closeChatUI,
+        isProfileDrawerOpen,
+        getCurrentChatId: () => currentChatId,
+        getLastMobileKeyboardDismissAt: () => lastMobileKeyboardDismissAt,
+        getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
+        setChatScrollTop,
+        saveChatScrollPosition: (chatId) => saveChatScrollPosition(chatId),
+        updateJumpToNewMessagesButton,
     });
 
-    // mobile-revealing/mobile-hiding and prefersReducedMotion are handled by createMobileThreadShell.
+    function resizeComposerInput() {
+        return mobileViewportRuntime?.resizeComposerInput();
+    }
+
     function openChat() {
-        // mobile-revealing/mobile-hiding and prefersReducedMotion are
-        // handled inside createMobileThreadShell.openChat.
-        mobileThreadShell.openChat();
+        return mobileViewportRuntime?.openChat();
     }
 
     function isMobileViewport() {
-        return window.innerWidth <= 768;
+        return Boolean(mobileViewportRuntime?.isMobileViewport());
     }
 
     function closeMobileChatView({ leaveRoom = true, animated = true } = {}) {
-        mobileThreadShell.closeMobileChatView({ leaveRoom, animated });
+        return mobileViewportRuntime?.closeMobileChatView({ leaveRoom, animated });
     }
 
     function isComposerFocusBlocked() {
-        if (!messageInput || messageInput.disabled) return true;
-        if (headerSearchWrap?.classList.contains('active')) return true;
-        if (headerDropdown?.classList.contains('active')) return true;
-        if (partnerProfileDrawer?.classList.contains('active')) return true;
-        if (document.querySelector('.modal.show')) return true;
-        if (document.getElementById('deleteChatModal')) return true;
-        const captionModal = document.getElementById('captionModal');
-        if (captionModal?.classList.contains('is-open') && !captionModal.classList.contains('is-closing')) return true;
-        const keyRestoreModal = document.getElementById('keyRestoreModal');
-        if (keyRestoreModal?.classList.contains('is-open') && !keyRestoreModal.classList.contains('is-closing')) return true;
-        if (document.getElementById('lightbox')?.classList.contains('active')) return true;
-
-        const contextMenu = document.getElementById('messageContextMenu');
-        const isContextMenuOpen = Boolean(
-            contextMenu
-            && contextMenu.getAttribute('aria-hidden') !== 'true'
-            && (contextMenu.classList.contains('is-open') || contextMenu.classList.contains('is-opening'))
-        );
-        if (isContextMenuOpen) return true;
-        if (reactionPicker && reactionPicker.classList.contains('active')) return true;
-        return false;
+        return Boolean(mobileViewportRuntime?.isComposerFocusBlocked());
     }
 
     function resetHorizontalViewportDrift() {
-        const targets = [
-            document.scrollingElement,
-            document.documentElement,
-            document.body,
-            chatArea,
-            chatMessages,
-            chatInputArea,
-        ];
-        for (const target of targets) {
-            if (!target) continue;
-            try {
-                if (target.scrollLeft) target.scrollLeft = 0;
-            } catch (_) {
-                // Some browser internals expose read-only scroll containers.
-            }
-        }
+        return mobileViewportRuntime?.resetHorizontalViewportDrift();
     }
 
-    function scheduleComposerFocus({ delay = 0, force = false } = {}) {
-        if (!messageInput) return;
-        window.setTimeout(() => {
-            if (!force) {
-                if (isComposerFocusBlocked()) return;
-                const active = document.activeElement;
-                if (active && active !== document.body && active !== messageInput && !active.closest('#messageForm, #composerRow')) {
-                    return;
-                }
-                if (window.matchMedia('(pointer: coarse)').matches && Date.now() - lastMobileKeyboardDismissAt < 900) {
-                    return;
-                }
-            } else if (isComposerFocusBlocked()) {
-                return;
-            }
-            if (force && window.matchMedia('(pointer: coarse)').matches && document.activeElement !== messageInput) return;
-
-            requestAnimationFrame(() => {
-                if (messageInput.disabled || isComposerFocusBlocked()) return;
-                const end = messageInput.value.length;
-                resetHorizontalViewportDrift();
-                messageInput.focus({ preventScroll: true });
-                try {
-                    messageInput.setSelectionRange(end, end);
-                } catch (_) {
-                    // setSelectionRange may throw in some browsers/input modes.
-                }
-                resetHorizontalViewportDrift();
-                requestAnimationFrame(resetHorizontalViewportDrift);
-                window.setTimeout(resetHorizontalViewportDrift, 80);
-            });
-        }, delay);
+    function scheduleComposerFocus(options = {}) {
+        return mobileViewportRuntime?.scheduleComposerFocus(options);
     }
 
-    if (backBtnMobile) {
-        backBtnMobile.addEventListener('click', () => {
-            if (document.getElementById('emojiPicker')?.classList.contains('active')) { document.dispatchEvent(new CustomEvent('sun-close-emoji-picker')); return; }
-            if (currentChatId) {
-                closeChatUI();
-                return;
-            }
-            closeMobileChatView({ leaveRoom: true, animated: true });
-        });
+    function isChatViewportPinnedToBottom(thresholdPx = CHAT_BOTTOM_THRESHOLD_PX) {
+        return Boolean(mobileViewportRuntime?.isChatViewportPinnedToBottom(thresholdPx));
     }
 
-    const mobileBackSwipeController = initMobileBackSwipe({
-        isMobileViewport: () => isMobileViewport(),
-        chatArea,
-        sidebar,
-        isProfileDrawerOpen,
-        getCurrentChatId: () => currentChatId,
-        closeChatUI,
-        closeMobileChatView,
-    });
+    function syncChatViewportToBottomIfNeeded(shouldPin) {
+        return mobileViewportRuntime?.syncChatViewportToBottomIfNeeded(shouldPin);
+    }
 
+    function applyChatMessagesBottomInset() {
+        return mobileViewportRuntime?.applyChatMessagesBottomInset();
+    }
+
+    function syncVisualViewportCssVars() {
+        return mobileViewportRuntime?.syncVisualViewportCssVars();
+    }
+
+    function syncViewportAndInsets(options = {}) {
+        return mobileViewportRuntime?.syncViewportAndInsets(options);
+    }
+
+    function updateChatMessagesBottomInset(options = {}) {
+        return mobileViewportRuntime?.updateChatMessagesBottomInset(options);
+    }
+
+    function bindMobileViewportEvents() {
+        return mobileViewportRuntime?.bindViewportEvents();
+    }
+
+    function disposeMobileBackSwipe() {
+        return mobileViewportRuntime?.getMobileBackSwipeController?.()?.dispose?.();
+    }
     function saveChatScrollPosition(chatId = currentChatId) {
         if (!chatMessages || !chatId) return;
         const safeTop = Math.max(0, chatMessages.scrollTop || 0);
@@ -1663,82 +1620,6 @@ export const initChatPage = async () => {
 
     function renderChatAtBottom(chatId = currentChatId) {
         return chatDomSnapshotRuntime?.renderChatAtBottom(chatId);
-    }
-
-    let _bottomInsetFrame = 0;
-    function isChatViewportPinnedToBottom(thresholdPx = CHAT_BOTTOM_THRESHOLD_PX) {
-        if (!chatMessages) return true;
-        const maxScrollTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-        const distance = maxScrollTop - chatMessages.scrollTop;
-        return distance <= thresholdPx;
-    }
-
-    function syncChatViewportToBottomIfNeeded(shouldPin) {
-        if (!shouldPin || !chatMessages || !currentChatId) return;
-        requestAnimationFrame(() => {
-            if (!chatMessages || !currentChatId) return;
-            setChatScrollTop(chatMessages.scrollHeight);
-            saveChatScrollPosition(currentChatId);
-            updateJumpToNewMessagesButton();
-        });
-    }
-
-    function applyChatMessagesBottomInset() {
-        if (!chatArea) return;
-        const shouldPinToBottom = getKeepChatPinnedToBottom();
-        const areaStyles = window.getComputedStyle(chatArea);
-        const floatingGap = Number.parseFloat(areaStyles.getPropertyValue('--floating-composer-gap')) || 16;
-        const messageToComposerGap = 8;
-        let reserve = floatingGap;
-        let inputHeight = 0;
-        if (chatInputArea) {
-            const cs = window.getComputedStyle(chatInputArea);
-            const isVisible = cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
-            if (isVisible) {
-                inputHeight = Math.ceil(chatInputArea.getBoundingClientRect().height);
-                if (inputHeight > 0) reserve = inputHeight + floatingGap + messageToComposerGap;
-            }
-        }
-        chatArea.style.setProperty('--input-height', `${Math.max(0, inputHeight)}px`);
-        chatArea.style.setProperty('--floating-composer-reserve', `${reserve}px`);
-        syncChatViewportToBottomIfNeeded(shouldPinToBottom);
-
-    }
-
-    const runVisualViewportCssSync = createVisualViewportCssSyncer({
-        appVhVar: '--app-vh',
-        appVwVar: '--app-vw',
-        topOffsetVar: '--vv-top-offset',
-        leftOffsetVar: '--vv-left-offset',
-        keyboardInsetVar: '--vv-keyboard-inset',
-        composerBottomInsetVar: '--mobile-composer-bottom-inset',
-        layoutKeyboardInsetVar: '--mobile-keyboard-layout-inset',
-    });
-
-    function syncVisualViewportCssVars() {
-        runVisualViewportCssSync();
-    }
-
-    function syncViewportAndInsets(options = {}) {
-        syncVisualViewportCssVars();
-        updateChatMessagesBottomInset(options);
-    }
-
-    function updateChatMessagesBottomInset(options = {}) {
-        if (!chatArea) return;
-        if (options.immediate) {
-            if (_bottomInsetFrame) {
-                cancelAnimationFrame(_bottomInsetFrame);
-                _bottomInsetFrame = 0;
-            }
-            applyChatMessagesBottomInset();
-            return;
-        }
-        if (_bottomInsetFrame) return;
-        _bottomInsetFrame = requestAnimationFrame(() => {
-            _bottomInsetFrame = 0;
-            applyChatMessagesBottomInset();
-        });
     }
 
     function markCurrentChatSeenIfPossible() {
@@ -2609,29 +2490,7 @@ export const initChatPage = async () => {
         updateJumpToNewMessagesButton();
     }, { passive: true });
 
-    if (typeof ResizeObserver !== 'undefined' && chatInputArea) {
-        const chatInputResizeObserver = new ResizeObserver(() => {
-            updateChatMessagesBottomInset();
-        });
-        chatInputResizeObserver.observe(chatInputArea);
-    }
-    window.addEventListener('resize', syncViewportAndInsets);
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', syncViewportAndInsets);
-        window.visualViewport.addEventListener('scroll', syncViewportAndInsets);
-    }
-    document.addEventListener('focusin', (event) => {
-        if (event.target?.closest?.('#messageForm, #composerRow')) {
-            syncViewportAndInsets({ immediate: true });
-        }
-    });
-    document.addEventListener('focusout', (event) => {
-        if (event.target?.closest?.('#messageForm, #composerRow')) {
-            window.setTimeout(() => syncViewportAndInsets({ immediate: true }), 0);
-            window.setTimeout(() => syncViewportAndInsets({ immediate: true }), 220);
-        }
-    });
-    syncViewportAndInsets({ immediate: true });
+    bindMobileViewportEvents();
 
     // \u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A \u043A\u043E\u043C\u043D\u0430\u0442\u0435 \u0447\u0430\u0442\u0430
     function joinChatRoom(chatId) {
@@ -4766,7 +4625,7 @@ export const initChatPage = async () => {
         unbindWindowActivityEvents: () => {
             unbindWindowActivityEvents();
             unbindVisibilityEvents();
-            mobileBackSwipeController.dispose();
+            disposeMobileBackSwipe();
             messageTouchContextController.dispose();
         },
         voiceRecorderController,
