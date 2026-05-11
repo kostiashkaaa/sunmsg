@@ -129,8 +129,13 @@ export function normalizeMessageReactions(rawReactions, { currentUserPublicKey }
         if (!REACTION_PICKER_EMOJIS.includes(emoji)) return;
         const reactors = normalizeReactionReactors(item?.reactors);
         const parsedCount = Number.parseInt(item?.count, 10);
-        const count = Math.max(1, Number.isFinite(parsedCount) ? parsedCount : 1, reactors.length || 0);
         const reactedByMe = Boolean(item?.reactedByMe ?? item?.reacted_by_me) || reactors.some(isMe);
+        const count = Math.max(
+            Number.isFinite(parsedCount) ? parsedCount : 0,
+            reactors.length || 0,
+            reactedByMe ? 1 : 0,
+        );
+        if (count <= 0) return;
         const prev = merged.get(emoji);
         if (!prev) {
             merged.set(emoji, { emoji, count, reactedByMe, reactors });
