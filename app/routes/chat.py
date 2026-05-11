@@ -56,7 +56,7 @@ MAX_AVATAR_SIZE = 4 * 1024 * 1024  # 4 MB
 CHAT_MEDIA_FOLDER = os.path.join(PROJECT_ROOT, 'storage', 'chat_media')
 MAX_CHAT_MEDIA_SIZE = 100 * 1024 * 1024  # 100 MB
 ALLOWED_CHAT_MEDIA_EXTENSIONS = {
-    'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp',
+    'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'heif', 'avif',
     'mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv', 'mpeg', 'mpg', '3gp',
     'ogg', 'wav', 'mp3', 'm4a', 'aac', 'opus',
     'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'csv', 'xlsx',
@@ -76,6 +76,9 @@ _CHAT_MEDIA_MAGIC_RULES = {
     'gif': [[(0, b'GIF87a')], [(0, b'GIF89a')]],
     'webp': [[(0, b'RIFF'), (8, b'WEBP')]],
     'bmp': [[(0, b'BM')]],
+    'heic': [[(4, b'ftypheic')], [(4, b'ftypheix')], [(4, b'ftyphevc')], [(4, b'ftyphevx')]],
+    'heif': [[(4, b'ftypheif')], [(4, b'ftypheim')], [(4, b'ftypmif1')], [(4, b'ftypmsf1')]],
+    'avif': [[(4, b'ftypavif')], [(4, b'ftypavis')]],
     'mp4': [[(4, b'ftyp')]],
     'm4v': [[(4, b'ftyp')]],
     'mov': [[(4, b'ftyp')]],
