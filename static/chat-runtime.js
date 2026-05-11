@@ -22,7 +22,7 @@ import { initProfileDrawer, parseUtcDate as _parseUtcDate, formatLastSeenText as
 import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js';
 import { renderMessageLinkPreview } from './modules/message-link-preview.js';
 import { getChatState as _getChatState, createChatState as _createChatState, getMessageKey as _getMessageKey, findMessageIndex as _findMessageIndex, findMessageById as _findMessageById, compareChatMessages as _compareChatMessages, normalizeChatMessageOrder as _normalizeChatMessageOrder, upsertChatMessage as _upsertChatMessage, prependChatMessages as _prependChatMessages, removeChatMessages as _removeChatMessages, setChatMessages as _setChatMessages, estimateMessageHeight as _estimateMessageHeight, CHAT_DEFAULT_MESSAGE_HEIGHT as _CHAT_DEFAULT_MESSAGE_HEIGHT } from './modules/chat-state.js';
-import { REACTION_PICKER_EMOJIS, normalizeReactionReactor as _normalizeReactionReactor, getReactionReactorKey as _getReactionReactorKey, normalizeReactionReactors as _normalizeReactionReactors, isCurrentUserReactionReactor as _isCurrentUserReactionReactor, buildCurrentUserReactionReactor as _buildCurrentUserReactionReactor, buildReactionReactorInitials as _buildReactionReactorInitials, buildReactionReactorsHtml as _buildReactionReactorsHtml, normalizeMessageReactions as _normalizeMessageReactions, areMessageReactionsEqual as _areMessageReactionsEqual, getReactionMessageKey as _getReactionMessageKey, computeOptimisticReactions as _computeOptimisticReactions, buildMessageReactionsHtml as _buildMessageReactionsHtml } from './modules/reactions.js';
+import { REACTION_PICKER_EMOJIS, areMessageReactionsEqual as _areMessageReactionsEqual, getReactionMessageKey as _getReactionMessageKey, computeOptimisticReactions as _computeOptimisticReactions } from './modules/reactions.js';
 import { initComposer as _initComposer } from './modules/composer.js';
 import { buildContactItemHtml as _buildContactItemHtml, hydrateContactAvatarLoading as _hydrateContactAvatarLoading, updateSidebarContactTick as _updateSidebarContactTick, updateActiveContactLastMessage as _updateActiveContactLastMessage } from './modules/contacts.js';
 import { applyBlockNoticeUI as _applyBlockNoticeUI, normalizeBlockState as _normalizeBlockState } from './modules/block-ui.js';
@@ -35,7 +35,7 @@ import { createChatMuteRuntime } from './modules/chat-mute-runtime.js';
 import { createProfileMoreMenuController } from './modules/chat-profile-menu-ui.js';
 import { createChatSettingsRuntime } from './modules/chat-settings-runtime.js';
 import { createProfileMediaPanelController } from './modules/chat-profile-media-panel.js';
-import { getCurrentGroupMediaAvailability, resolveGroupTabByAvailability, syncGroupTabVisibility } from './modules/chat-group-profile-tabs.js';
+import { createChatGroupProfileRuntime } from './modules/chat-group-profile-runtime.js';
 import { loadAndShowPartnerProfileFlow } from './modules/chat-profile-loader.js';
 import {
     resolveCurrentPartnerId as resolveCurrentPartnerIdFlow,
@@ -75,6 +75,8 @@ import { createChatMessageAppendRuntime } from './modules/chat-message-append-ru
 import { createChatEncryptionRuntime } from './modules/chat-encryption-runtime.js';
 import { createChatContactPreviewRuntime } from './modules/chat-contact-preview-runtime.js';
 import { createChatReactionOperationsRuntime } from './modules/chat-reaction-operations-runtime.js';
+import { createChatMessageStatusRuntime } from './modules/chat-message-status-runtime.js';
+import { createChatMessageVisualRuntime } from './modules/chat-message-visual-runtime.js';
 import { initSidebarBrandQuickActions } from './modules/sidebar-brand-quick-actions.js';
 import { createSavedMessagesUiController } from './modules/saved-messages-ui.js';
 import { initContactContextMenu, initDeleteMessagesModal } from './modules/chat-overlays.js';
@@ -92,7 +94,7 @@ import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewar
 import { initMessageActionHandlers } from './modules/message-action-handlers.js';
 import { initChatDateNavigator } from './modules/chat-date-navigator.js';
 import { sendFileMessageFlow } from './modules/chat-file-send.js';
-import { createTypingSignalHeartbeat } from './modules/chat-typing-signal-heartbeat.js';
+import { createChatComposerPresenceRuntime } from './modules/chat-composer-presence-runtime.js';
 import { sendTextMessageFlow } from './modules/chat-text-send.js';
 import { handleComposerEditFlow } from './modules/chat-edit-flow.js';
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
@@ -101,9 +103,6 @@ import { registerRealtimeUiSocketHandlers } from './modules/chat-realtime-ui-eve
 import { registerProfileRealtimeSocketHandlers } from './modules/chat-profile-realtime-events.js';
 import { registerSystemSocketHandlers } from './modules/chat-system-events.js';
 import {
-    normalizeGroupRole,
-    groupRoleLabel,
-    formatGroupSanctionSummary,
     createGroupModerationApi,
     bindGroupModerationUiHandlers,
 } from './modules/chat-group-moderation.js';
@@ -335,6 +334,10 @@ export const initChatPage = async () => {
     let chatEncryptionRuntime = null;
     let contactPreviewRuntime = null;
     let reactionOperationsRuntime = null;
+    let groupProfileRuntime = null;
+    let messageStatusRuntime = null;
+    let messageVisualRuntime = null;
+    let composerPresenceRuntime = null;
 
     // Forward (\u043F\u0435\u0440\u0435\u0441\u044B\u043B\u043A\u0430) \u2014 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0438\u0436\u0435 \u043F\u043E\u0441\u043B\u0435 \u0432\u0441\u0435\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u0435\u0439.
     // var-\u0445\u043E\u0439\u0441\u0442: \u0434\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438 \u043E\u0431\u0451\u0440\u0442\u043A\u0438 \u0432\u0438\u0434\u044F\u0442 undefined \u0438 \u043D\u0435 \u043F\u0430\u0434\u0430\u044E\u0442.
@@ -659,7 +662,7 @@ export const initChatPage = async () => {
         chatTitle,
         profileLargeAvatar,
         profileDisplayName,
-        getCurrentGroupProfile: () => currentGroupProfile,
+        getCurrentGroupProfile: () => getCurrentGroupProfile(),
         getCurrentChatId: () => currentChatId,
         withAppRoot,
         getCsrfToken,
@@ -686,11 +689,8 @@ export const initChatPage = async () => {
         withAppRoot,
         getCsrfToken,
         showToast,
-        getCurrentGroupProfile: () => currentGroupProfile,
-        onPermissionsUpdated: (nextPermissions) => {
-            if (!currentGroupProfile) return;
-            currentGroupProfile.group_permissions = { ...nextPermissions };
-        },
+        getCurrentGroupProfile: () => getCurrentGroupProfile(),
+        onPermissionsUpdated: (nextPermissions) => setCurrentGroupPermissions(nextPermissions),
     });
 
     chatAnimationsController = createChatAnimationsController({
@@ -1271,11 +1271,6 @@ export const initChatPage = async () => {
     const buildTickHtml         = _buildTickHtml;
     const applyTickToElement    = _applyTickToElement;
     const isSameMessageGroup    = _isSameMessageGroup;
-    const normalizeReactionReactor   = _normalizeReactionReactor;
-    const getReactionReactorKey      = _getReactionReactorKey;
-    const normalizeReactionReactors  = _normalizeReactionReactors;
-    const buildReactionReactorInitials = _buildReactionReactorInitials;
-    const buildReactionReactorsHtml  = _buildReactionReactorsHtml;
     const areMessageReactionsEqual   = _areMessageReactionsEqual;
     const getReactionMessageKey      = _getReactionMessageKey;
     const computeOptimisticReactions = (rawReactions, emoji) => _computeOptimisticReactions(rawReactions, emoji, {
@@ -2763,50 +2758,78 @@ export const initChatPage = async () => {
     async function loadProfileMediaHistory(chatId, loadToken) {
         return profileMediaPanelController.loadProfileMediaHistory(chatId, loadToken);
     }
-    let profileGroupActiveTab = 'members';
-    // var-hoisted: контроллер группы (инициализируется выше) читает это
-    // через геттер ещё до этой строки.
-    // eslint-disable-next-line no-var
-    var currentGroupProfile = null;
+    groupProfileRuntime = createChatGroupProfileRuntime({
+        documentRef: document,
+        windowRef: window,
+        currentUserId: CURRENT_USER_ID,
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        getCurrentPartnerData: () => window.currentPartnerData,
+        isCurrentChatGroup: () => isCurrentChatGroup(),
+        isProfileDrawerOpen: () => isProfileDrawerOpen(),
+        loadAndShowPartnerProfile: () => loadAndShowPartnerProfile(),
+        syncGroupPermissionsPanel: (profile) => syncGroupPermissionsPanel(profile),
+        escapeHtml,
+        applyFallbackAvatarTint,
+        formatLastSeenText,
+        profileDeleteChatMenuBtn,
+        groupEditAvatarPreview,
+        groupEditMembersList,
+        profileGroupMembers,
+        profileGroupTabs,
+        profileMediaSection,
+        getProfileMediaPanelController: () => profileMediaPanelController,
+        partnerProfileDrawer,
+        profileMoreMenu,
+        profileGroupEditBtn,
+        profileGroupSection,
+        profileTopbarTitle,
+        profileDisplayName,
+        profileLargeAvatar,
+        profileLastSeen,
+        chatTitle,
+    });
+
+    function getCurrentGroupProfile() {
+        return groupProfileRuntime?.getCurrentGroupProfile() || null;
+    }
+
+    function setCurrentGroupPermissions(nextPermissions) {
+        return groupProfileRuntime?.setCurrentGroupPermissions(nextPermissions);
+    }
+
     function buildMemberInitials(displayName, username) {
-        const source = String(displayName || username || '?').trim();
-        return source.split(/\s+/).slice(0, 2).map((chunk) => chunk[0] || '').join('').toUpperCase() || '?';
+        return groupProfileRuntime?.buildMemberInitials(displayName, username) || '?';
     }
-    function resolveMemberDisplayName(member) {
-        return String(member?.display_name || member?.username || `Пользователь ${member?.user_id || ''}`).trim();
-    }
-    function formatGroupPresence(member) {
-        if (member?.online) return '\u0432 \u0441\u0435\u0442\u0438';
-        const lastSeen = String(member?.last_seen || '').trim();
-        if (!lastSeen) return '\u0431\u044B\u043B(\u0430) \u043D\u0435\u0434\u0430\u0432\u043D\u043E';
-        return formatLastSeenText(lastSeen);
-    }
+
     function formatGroupMembersCountLabel(rawCount) {
-        const count = Math.max(0, Number(rawCount) || 0);
-        const language = String(window.SUN_I18N?.getLanguage?.() || '').toLowerCase();
-        if (language === 'en') {
-            return `${count} ${count === 1 ? 'member' : 'members'}`;
-        }
-        return `${count} \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u043E\u0432`;
+        return groupProfileRuntime?.formatGroupMembersCountLabel(rawCount) || '';
     }
-    function syncGroupDangerActionLabel(profile) {
-        const isGroup = Boolean(profile?._group_profile);
-        const menuDeleteLabel = profileDeleteChatMenuBtn?.querySelector('span');
-        if (menuDeleteLabel) {
-            menuDeleteLabel.textContent = isGroup ? '\u041F\u043E\u043A\u0438\u043D\u0443\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443' : '\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0447\u0430\u0442';
-        }
-    }
+
     function renderGroupEditAvatar(profile) {
-        if (!groupEditAvatarPreview) return;
-        const displayName = String(profile?.display_name || '').trim();
-        const avatarUrl = String(profile?.avatar_url || '').trim();
-        const initials = buildMemberInitials(displayName || '\u0413\u0440\u0443\u043F\u043F\u0430', '');
-        if (avatarUrl) {
-            groupEditAvatarPreview.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName || 'Group')}">`;
-            return;
-        }
-        groupEditAvatarPreview.textContent = initials;
+        return groupProfileRuntime?.renderGroupEditAvatar(profile);
     }
+
+    function renderGroupEditMembers(profile) {
+        return groupProfileRuntime?.renderGroupEditMembers(profile);
+    }
+
+    function renderGroupMembers(profile) {
+        return groupProfileRuntime?.renderGroupMembers(profile);
+    }
+
+    function setGroupProfileTab(tabKey) {
+        return groupProfileRuntime?.setGroupProfileTab(tabKey);
+    }
+
+    function applyGroupProfileUi(profile) {
+        return groupProfileRuntime?.applyGroupProfileUi(profile);
+    }
+
+    function refreshCurrentGroupProfileIfVisible() {
+        return groupProfileRuntime?.refreshCurrentGroupProfileIfVisible();
+    }
+
     const {
         updateGroupMemberRole,
         removeGroupMember,
@@ -2817,297 +2840,10 @@ export const initChatPage = async () => {
         getCsrfToken,
         showToast,
         loadContacts,
-        getCurrentGroupProfile: () => currentGroupProfile,
+        getCurrentGroupProfile: () => getCurrentGroupProfile(),
         getCurrentChatId: () => currentChatId,
         refreshCurrentGroupProfileIfVisible: () => refreshCurrentGroupProfileIfVisible(),
     });
-
-    function renderGroupEditMembers(profile) {
-        if (!groupEditMembersList) return;
-        const members = Array.isArray(profile?.members) ? profile.members : [];
-        if (!members.length) {
-            groupEditMembersList.innerHTML = '<div class="profile-group-members-empty">\u0423\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0438 \u043F\u043E\u043A\u0430 \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B.</div>';
-            return;
-        }
-        const myUserId = Number(CURRENT_USER_ID || 0);
-        const myRole = normalizeGroupRole(profile?.my_role);
-        const permissions = profile?.permissions || {};
-        const canManageRoles = Boolean(permissions?.can_manage_roles || profile?.can_manage_admins);
-        const canKick = Boolean(permissions?.can_kick);
-        const canBan = Boolean(permissions?.can_ban);
-        groupEditMembersList.innerHTML = members.map((member) => {
-            const userId = Number(member?.user_id || 0);
-            const displayName = resolveMemberDisplayName(member);
-            const role = normalizeGroupRole(member?.role);
-            const roleLabel = groupRoleLabel(role);
-            const avatarUrl = String(member?.avatar_url || '').trim();
-            const avatarHtml = avatarUrl
-                ? `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName)}">`
-                : escapeHtml(buildMemberInitials(displayName, member?.username || ''));
-            const canMutateMember = userId > 0 && userId !== myUserId;
-
-            let roleActionHtml = '';
-            if (canManageRoles && canMutateMember) {
-                if (role === 'member') {
-                    roleActionHtml = `
-                        <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="moderator">
-                            Назначить модератором
-                        </button>
-                    `;
-                } else if (role === 'moderator') {
-                    roleActionHtml = `
-                        <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="member">
-                            Сделать участником
-                        </button>
-                    `;
-                } else if (role === 'admin' && myRole === 'owner') {
-                    roleActionHtml = `
-                        <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="moderator">
-                            Снять администратора
-                        </button>
-                    `;
-                }
-                if (myRole === 'owner' && role !== 'owner') {
-                    roleActionHtml += `
-                        <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="owner">
-                            Передать владельца
-                        </button>
-                    `;
-                }
-                if (myRole === 'owner' && ['member', 'moderator'].includes(role)) {
-                    roleActionHtml += `
-                        <button type="button" class="group-edit-member-role-btn" data-group-role-target="${userId}" data-group-role-next="admin">
-                            Назначить администратором
-                        </button>
-                    `;
-                }
-            }
-
-            const moderationActions = [];
-            if (canKick && canMutateMember) {
-                moderationActions.push(
-                    `<button type="button" class="group-edit-member-role-btn" data-group-remove-target="${userId}">Удалить участника</button>`,
-                );
-            }
-            if (canBan && canMutateMember) {
-                moderationActions.push(
-                    `<button type="button" class="group-edit-member-role-btn" data-group-sanction-target="${userId}" data-group-sanction-action="mute_temp" data-group-sanction-duration="3600">Мут на 1 ч</button>`,
-                );
-                moderationActions.push(
-                    `<button type="button" class="group-edit-member-role-btn" data-group-sanction-target="${userId}" data-group-sanction-action="ban_temp" data-group-sanction-duration="86400">Бан на 24 ч</button>`,
-                );
-            }
-            return `
-                <div class="group-edit-member-row">
-                    <div class="group-edit-member-avatar">${avatarHtml}</div>
-                    <div class="group-edit-member-copy">
-                        <div class="group-edit-member-name">${escapeHtml(displayName)}</div>
-                        <div class="group-edit-member-meta">${escapeHtml(roleLabel)}</div>
-                    </div>
-                    <div class="group-edit-member-actions">
-                        ${roleActionHtml}
-                        ${moderationActions.join('')}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    function renderGroupMembers(profile) {
-        if (!profileGroupMembers) return;
-        const members = Array.isArray(profile?.members) ? profile.members : [];
-        if (!members.length) {
-            profileGroupMembers.innerHTML = '<div class="profile-group-members-empty">\u0423\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0438 \u043F\u043E\u043A\u0430 \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B.</div>';
-            return;
-        }
-        const myUserId = Number(CURRENT_USER_ID || 0);
-        const pendingAppealId = Number(profile?.my_pending_group_appeal?.appeal_id || 0);
-
-        profileGroupMembers.innerHTML = members.map((member) => {
-            const memberUserId = Number(member?.user_id || 0);
-            const displayName = resolveMemberDisplayName(member);
-            const username = String(member.username || '').trim();
-            const memberRowClickable = memberUserId > 0;
-            const role = normalizeGroupRole(member?.role);
-            const roleLabel = groupRoleLabel(role);
-            const avatarUrl = String(member.avatar_url || '').trim();
-            const avatarHtml = avatarUrl
-                ? `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(displayName)}">`
-                : escapeHtml(buildMemberInitials(displayName, username));
-            const activeSanction = member?.active_sanction || null;
-            const sanctionLabel = formatGroupSanctionSummary(activeSanction, { formatLastSeenText });
-            const subtitle = sanctionLabel || formatGroupPresence(member);
-            const canAppealOwnSanction = Boolean(
-                activeSanction
-                && memberUserId > 0
-                && memberUserId === myUserId
-                && Number(activeSanction.sanction_id || 0) > 0
-                && pendingAppealId <= 0,
-            );
-            const appealActionHtml = canAppealOwnSanction
-                ? `<button type="button" class="group-edit-member-role-btn" data-group-appeal-sanction-id="${Number(activeSanction.sanction_id)}">Обжаловать</button>`
-                : '';
-            const pendingAppealHtml = (
-                activeSanction
-                && memberUserId === myUserId
-                && pendingAppealId > 0
-            ) ? '<div class="profile-group-member-meta">Appeal is pending review.</div>' : '';
-            return `
-                <div class="profile-group-member${memberRowClickable ? ' profile-group-member--clickable' : ''}"${memberRowClickable ? ` data-group-member-user-id="${memberUserId}" data-group-member-username="${escapeHtml(username)}" role="button" tabindex="0"` : ''}>
-                    <div class="profile-group-member-avatar">${avatarHtml}</div>
-                    <div class="profile-group-member-copy">
-                        <div class="profile-group-member-name">${escapeHtml(displayName)}</div>
-                        <div class="profile-group-member-meta">${escapeHtml(subtitle)}</div>
-                        ${pendingAppealHtml}
-                    </div>
-                    <div class="profile-group-member-role-wrap">
-                        <div class="profile-group-member-role">${escapeHtml(roleLabel)}</div>
-                        ${appealActionHtml}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    function setGroupProfileTab(tabKey) {
-        const normalized = String(tabKey || '').trim().toLowerCase();
-        const requestedTab = ['members', 'media', 'files', 'links'].includes(normalized) ? normalized : 'members';
-        const mediaAvailability = getCurrentGroupMediaAvailability({
-            chatId: currentChatId,
-            getChatState,
-        });
-        syncGroupTabVisibility(profileGroupTabs, mediaAvailability);
-        const nextTab = resolveGroupTabByAvailability(requestedTab, mediaAvailability);
-        profileGroupActiveTab = nextTab;
-
-        if (profileGroupTabs) {
-            profileGroupTabs.querySelectorAll('[data-group-tab]').forEach((btn) => {
-                const active = String(btn.getAttribute('data-group-tab') || '') === nextTab;
-                btn.classList.toggle('is-active', active);
-                btn.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-        }
-
-        const showMembers = nextTab === 'members';
-        profileGroupMembers?.classList.toggle('profile-group-section--hidden', !showMembers);
-        if (profileMediaSection) {
-            profileMediaSection.style.display = showMembers ? 'none' : '';
-        }
-
-        if (!showMembers && profileMediaPanelController) {
-            const mappedTab = nextTab === 'files' ? 'files' : nextTab === 'links' ? 'links' : 'media';
-            profileMediaPanelController.renderProfileMediaPanel({ preferredTab: mappedTab });
-        }
-    }
-
-    function applyGroupProfileUi(profile) {
-        const isGroupProfile = Boolean(profile?._group_profile);
-        const canEditGroup = Boolean(profile?.can_edit_group);
-        const permissions = profile?.permissions || {};
-        const canOpenGroupManagePanel = Boolean(
-            canEditGroup
-            || permissions?.can_manage_roles
-            || permissions?.can_kick
-            || permissions?.can_ban,
-        );
-        currentGroupProfile = isGroupProfile ? profile : null;
-        syncGroupPermissionsPanel(currentGroupProfile);
-        const profileUsernameLine = document.getElementById('profileUsernameLine');
-        const profileBioLine = document.getElementById('profileBioLine');
-        const profileMetaBio = document.getElementById('profileMetaBio');
-        const profileBioLabel = profileBioLine?.querySelector('.profile-info-label') || null;
-        const profileRequestLine = document.getElementById('profileRequestLine');
-        const profilePrivateLine = document.getElementById('profilePrivateLine');
-        const copyUsernameMenuItem = profileMoreMenu?.querySelector('[data-profile-action="copy-username"]');
-        const reportUserMenuItem = profileMoreMenu?.querySelector('[data-profile-action="report-user"]');
-        const messageMenuItem = profileMoreMenu?.querySelector('[data-profile-action="message"]');
-
-        partnerProfileDrawer?.classList.toggle('is-group-profile', isGroupProfile);
-        syncGroupDangerActionLabel(profile);
-        profileGroupEditBtn?.classList.toggle('profile-group-edit-btn--hidden', !(isGroupProfile && canOpenGroupManagePanel));
-        profileGroupSection?.classList.toggle('profile-group-section--hidden', !isGroupProfile);
-        if (profileUsernameLine) profileUsernameLine.style.display = isGroupProfile ? 'none' : '';
-        if (isGroupProfile) {
-            profileRequestLine?.classList.add('profile-info-line--hidden');
-            profilePrivateLine?.classList.add('profile-info-line--hidden');
-            if (profileRequestLine) profileRequestLine.style.display = 'none';
-            if (profilePrivateLine) profilePrivateLine.style.display = 'none';
-        }
-        if (profileBioLine) {
-            if (!isGroupProfile) {
-                profileBioLine.style.display = '';
-                if (profileBioLabel) profileBioLabel.textContent = '\u041E \u0441\u0435\u0431\u0435';
-            } else {
-                const description = String(
-                    profile?.description
-                    || profile?.chat_description
-                    || profile?.group_description
-                    || '',
-                ).trim();
-                profileBioLine.classList.toggle('profile-info-line--hidden', !description);
-                profileBioLine.style.display = description ? '' : 'none';
-                if (profileMetaBio) profileMetaBio.textContent = description;
-                if (profileBioLabel) profileBioLabel.textContent = '\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435';
-            }
-        }
-        if (copyUsernameMenuItem) copyUsernameMenuItem.style.display = isGroupProfile ? 'none' : '';
-        if (reportUserMenuItem) reportUserMenuItem.style.display = isGroupProfile ? 'none' : '';
-        if (messageMenuItem) messageMenuItem.style.display = isGroupProfile ? 'none' : '';
-
-        if (!isGroupProfile) {
-            if (profileTopbarTitle) profileTopbarTitle.textContent = '\u0418\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F';
-            if (profileMediaSection) profileMediaSection.style.display = '';
-            return;
-        }
-
-        if (profileTopbarTitle) profileTopbarTitle.textContent = '\u0418\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u043E \u0433\u0440\u0443\u043F\u043F\u0435';
-        const membersCount = Number(profile?.members_count || 0);
-        const groupDisplayName = String(
-            profile?.display_name
-            || profile?.chat_name
-            || window.currentPartnerData?.display_name
-            || chatTitle?.textContent
-            || 'Group chat'
-        ).trim();
-        if (profileDisplayName) {
-            profileDisplayName.textContent = groupDisplayName;
-        }
-        if (profileLargeAvatar) {
-            const avatarUrl = String(profile?.avatar_url || '').trim();
-            if (avatarUrl) {
-                profileLargeAvatar.removeAttribute('data-avatar-tint');
-                profileLargeAvatar.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(groupDisplayName || 'Group')}">`;
-            } else {
-                profileLargeAvatar.textContent = buildMemberInitials(groupDisplayName, '');
-                applyFallbackAvatarTint(profileLargeAvatar, groupDisplayName);
-            }
-        }
-        if (profileLastSeen) {
-            profileLastSeen.textContent = formatGroupMembersCountLabel(membersCount);
-        }
-        if (isCurrentChatGroup() && String(currentChatId || '') === String(profile?.chat_id || '')) {
-            const headerStatus = document.getElementById('chatOnlineStatus');
-            if (headerStatus) {
-                headerStatus.textContent = formatGroupMembersCountLabel(membersCount);
-                headerStatus.classList.remove('chat-online-status--hidden');
-                headerStatus.style.display = 'block';
-                headerStatus.setAttribute('data-last-seen', '');
-                headerStatus.dataset.state = 'group';
-            }
-        }
-
-        renderGroupMembers(profile);
-        renderGroupEditMembers(profile);
-        renderGroupEditAvatar(profile);
-        setGroupProfileTab(profileGroupActiveTab);
-    }
-
-    function refreshCurrentGroupProfileIfVisible() {
-        if (!currentChatId) return;
-        if (!isCurrentChatGroup()) return;
-        if (!isProfileDrawerOpen()) return;
-        loadAndShowPartnerProfile();
-    }
 
     function applyChatBlockState(state, { syncChatRoom = true } = {}) {
         applyChatBlockStateFlow({
@@ -3701,15 +3437,7 @@ export const initChatPage = async () => {
             leaveCurrentChatRoom();
             tabAlertController.clearAlertForChat(closedChatId);
         }
-        if (currentChatId) {
-            emitSocket('stop_typing', { chat_id: currentChatId });
-        }
-        voiceTypingSignal.stopAll();
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-            typingTimeout = null;
-        }
-        lastTypingEmitAt = 0;
+        stopComposerPresence();
         clearStoredLastActiveChatId(closedChatId);
 
         if (currentChatId) saveChatScrollPosition(currentChatId);
@@ -3777,12 +3505,14 @@ export const initChatPage = async () => {
     }
 
     // \u0418\u0441\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439 \u0438 \u043F\u0430\u043D\u0435\u043B\u0438 \u043D\u0430 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0439 \u0432\u0435\u0440\u0441\u0438\u0438
-    let typingTimeout = null;
-    let lastTypingEmitAt = 0;
-    const voiceTypingSignal = createTypingSignalHeartbeat({
+    composerPresenceRuntime = createChatComposerPresenceRuntime({
         emitSocket,
-        getChatId: () => currentChatId,
-        isBlocked: () => isChatBlocked(),
+        getCurrentChatId: () => currentChatId,
+        isChatBlocked: () => isChatBlocked(),
+        isEditingMessage: () => Boolean(isEditingMessageId),
+        typingEmitIntervalMs: TYPING_EMIT_INTERVAL_MS,
+        setTimeoutFn: setTimeout,
+        clearTimeoutFn: clearTimeout,
     });
     if (messageInput) {
         messageInput.addEventListener('input', () => {
@@ -3812,47 +3542,19 @@ export const initChatPage = async () => {
     }
 
     function onComposerTyping() {
-        if (!currentChatId || isEditingMessageId || isChatBlocked()) return;
-        const now = Date.now();
-        if ((now - lastTypingEmitAt) >= TYPING_EMIT_INTERVAL_MS) {
-            emitSocket('typing', { chat_id: currentChatId });
-            lastTypingEmitAt = now;
-        }
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-        }
-        typingTimeout = setTimeout(() => {
-            if (currentChatId) {
-                emitSocket('stop_typing', { chat_id: currentChatId });
-            }
-            lastTypingEmitAt = 0;
-        }, 2000);
+        return composerPresenceRuntime?.onComposerTyping();
     }
 
     function onComposerStopTyping() {
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-            typingTimeout = null;
-        }
-        if (currentChatId) {
-            emitSocket('stop_typing', { chat_id: currentChatId });
-        }
-        lastTypingEmitAt = 0;
+        return composerPresenceRuntime?.onComposerStopTyping();
     }
 
     function onVoiceRecordingPresenceChange(isRecording) {
-        if (!currentChatId || isChatBlocked()) return;
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-            typingTimeout = null;
-        }
-        if (isRecording) {
-            voiceTypingSignal.start('voice');
-            lastTypingEmitAt = Date.now();
-            return;
-        }
-        voiceTypingSignal.stop('voice');
-        lastTypingEmitAt = 0;
+        return composerPresenceRuntime?.onVoiceRecordingPresenceChange(isRecording);
+    }
+
+    function stopComposerPresence() {
+        return composerPresenceRuntime?.stopAll();
     }
 
     _initComposer({
@@ -3882,21 +3584,34 @@ export const initChatPage = async () => {
         onStopTyping: onComposerStopTyping,
     });
 
+    messageVisualRuntime = createChatMessageVisualRuntime({
+        documentRef: document,
+        windowRef: window,
+        getCurrentChatId: () => currentChatId,
+        getChatMessages: () => chatMessages,
+        getChatState,
+        getCurrentUserPublicKey: () => currentUserPublicKey,
+        getCurrentDisplayName: () => currentDisplayName,
+        getCurrentUsername: () => currentUsername,
+        getCurrentAvatarUrl: () => currentAvatarUrl,
+        getKeepChatPinnedToBottom: () => keepChatPinnedToBottom,
+        isChatViewportPinnedToBottom,
+        setChatScrollTop,
+        saveChatScrollPosition,
+        updateJumpToNewMessagesButton,
+        requestAnimationFrameFn: requestAnimationFrame,
+    });
+
     function isCurrentUserReactionReactor(reactor) {
-        return _isCurrentUserReactionReactor(reactor, currentUserPublicKey);
+        return Boolean(messageVisualRuntime?.isCurrentUserReactionReactor(reactor));
     }
 
     function buildCurrentUserReactionReactor() {
-        return _buildCurrentUserReactionReactor({
-            currentUserPublicKey: currentUserPublicKey || '',
-            currentDisplayName: currentDisplayName || currentUsername || '\u0412\u044B',
-            currentUsername: currentUsername || '',
-            currentAvatarUrl: currentAvatarUrl || '',
-        });
+        return messageVisualRuntime?.buildCurrentUserReactionReactor() || null;
     }
 
     function normalizeMessageReactions(rawReactions) {
-        return _normalizeMessageReactions(rawReactions, { currentUserPublicKey });
+        return messageVisualRuntime?.normalizeMessageReactions(rawReactions) || [];
     }
 
     function getReactionEventTimestamp(rawValue) {
@@ -3905,386 +3620,39 @@ export const initChatPage = async () => {
     }
 
     function buildMessageReactionsHtml(msgId, rawReactions) {
-        return _buildMessageReactionsHtml(msgId, rawReactions, { currentUserPublicKey });
+        return messageVisualRuntime?.buildMessageReactionsHtml(msgId, rawReactions) || '';
     }
 
-    const REACTION_ROW_STATE_CLASSES = [
-        'reaction-row--active',
-        'reaction-row--syncing',
-        'reaction-row--failed',
-        'reaction-row--disabled',
-    ];
-    const REACTION_PILL_STATE_CLASSES = [
-        'reaction-pill--pending',
-        'reaction-pill--removing',
-        'reaction-pill--failed',
-        'reaction-pill--disabled',
-    ];
-
-    function resolveCurrentChatMessageElementById(messageId) {
-        const numericMessageId = Number(messageId);
-        if (!Number.isFinite(numericMessageId) || numericMessageId <= 0) return null;
-        return chatMessages?.querySelector(`.message[data-msg-id="${numericMessageId}"]`) || null;
-    }
-
-    function resolveMessageReactionRow(messageEl) {
-        if (!messageEl) return null;
-        return messageEl.querySelector('.message-stack > .message-reactions')
-            || messageEl.querySelector('.message-reactions')
-            || null;
-    }
-
-    function clearReactionStateClasses(rowEl) {
-        if (!rowEl) return;
-        REACTION_ROW_STATE_CLASSES.forEach((className) => {
-            if (className === 'reaction-row--active') return;
-            rowEl.classList.remove(className);
-        });
-        rowEl.querySelectorAll('.reaction-pill').forEach((pill) => {
-            REACTION_PILL_STATE_CLASSES.forEach((className) => pill.classList.remove(className));
-        });
-    }
-
-    function applyReactionOperationUiState(operation, { syncing = false, failed = false, disabled = false } = {}) {
-        if (!operation) return;
-        if (String(operation.chatId || '') !== String(currentChatId || '')) return;
-        const messageEl = resolveCurrentChatMessageElementById(operation.messageId);
-        if (!messageEl) return;
-        const rowEl = resolveMessageReactionRow(messageEl);
-        if (!rowEl) return;
-
-        rowEl.classList.toggle('reaction-row--syncing', Boolean(syncing));
-        rowEl.classList.toggle('reaction-row--failed', Boolean(failed));
-        rowEl.classList.toggle('reaction-row--disabled', Boolean(disabled));
-
-        const targetEmoji = String(operation.emoji || '').trim();
-        if (!targetEmoji) {
-            if (!syncing) clearReactionStateClasses(rowEl);
-            return;
-        }
-
-        const targetPill = Array.from(rowEl.querySelectorAll('.reaction-pill')).find(
-            (pill) => String(pill.getAttribute('data-emoji') || '').trim() === targetEmoji
-        ) || null;
-        if (!targetPill) {
-            if (!syncing) clearReactionStateClasses(rowEl);
-            return;
-        }
-
-        targetPill.classList.toggle('reaction-pill--pending', Boolean(syncing));
-        targetPill.classList.toggle('reaction-pill--removing', Boolean(syncing) && String(operation.mode || '') === 'remove');
-        targetPill.classList.toggle('reaction-pill--failed', Boolean(failed));
-        targetPill.classList.toggle('reaction-pill--disabled', Boolean(disabled));
-        if (!syncing && !failed && !disabled) {
-            REACTION_PILL_STATE_CLASSES.forEach((className) => targetPill.classList.remove(className));
-        }
-    }
-
-    function resolveMessageReactionLayoutState(messageEl, bubble = messageEl?.querySelector('.bubble')) {
-        if (!messageEl || !bubble) {
-            return {
-                isMediaBubble: false,
-                isAudioBubble: false,
-                isVisualMediaBubble: false,
-                hasVisualCaption: false,
-                useOutsidePlacement: false,
-            };
-        }
-
-        const isImageBubble = bubble.classList.contains('bubble--image');
-        const isVideoBubble = bubble.classList.contains('bubble--video');
-        const isAudioBubble = bubble.classList.contains('bubble--audio');
-        const isVisualMediaBubble = isImageBubble || isVideoBubble;
-        const hasVisualCaption = bubble.classList.contains('bubble--image-has-caption')
-            || bubble.classList.contains('bubble--video-has-caption');
-        const useOutsidePlacement = Boolean(isVisualMediaBubble && !hasVisualCaption);
-
-        messageEl.classList.toggle('message-reactions-outside', useOutsidePlacement);
-        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacement);
-
-        return {
-            isMediaBubble: isImageBubble || isVideoBubble || isAudioBubble,
-            isAudioBubble,
-            isVisualMediaBubble,
-            hasVisualCaption,
-            useOutsidePlacement,
-        };
+    function applyReactionOperationUiState(operation, options = {}) {
+        return messageVisualRuntime?.applyReactionOperationUiState(operation, options);
     }
 
     function syncMessageBubbleLayoutClasses(messageEl) {
-        if (!messageEl) return;
-        const stack = messageEl.querySelector('.message-stack');
-        if (!stack) return;
-        const bubble = messageEl.querySelector('.bubble');
-        if (!bubble) return;
-
-        const { isMediaBubble, isAudioBubble, useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
-        const directChildren = Array.from(bubble.children || []);
-        const messageText = directChildren.find((child) => child.classList?.contains('message-text')) || null;
-        const audioBody = directChildren.find((child) => child.classList?.contains('audio-message-body')) || null;
-
-        let footer = directChildren.find((child) => child.classList?.contains('message-footer')) || null;
-        if (!footer) {
-            footer = document.createElement('div');
-            footer.className = 'message-footer';
-            bubble.append(footer);
-        } else {
-            directChildren
-                .filter((child) => child !== footer && child.classList?.contains('message-footer'))
-                .forEach((extraFooter) => extraFooter.remove());
-        }
-
-        const meta = bubble.querySelector(':scope > .msg-meta, :scope > .message-meta')
-            || audioBody?.querySelector(':scope > .msg-meta, :scope > .message-meta')
-            || footer.querySelector(':scope > .msg-meta, :scope > .message-meta')
-            || null;
-        if (meta && meta.parentElement !== footer) {
-            footer.append(meta);
-        }
-
-        const allReactionRows = Array.from(messageEl.querySelectorAll('.message-reactions'));
-        let keptReactionRow = null;
-        allReactionRows.forEach((row) => {
-            if (!keptReactionRow) {
-                keptReactionRow = row;
-                return;
-            }
-            row.remove();
-        });
-        const hasReactionItems = Boolean(keptReactionRow?.querySelector('.reaction-pill'));
-        const useOutsidePlacementFinal = Boolean(useOutsidePlacement);
-
-        if (keptReactionRow) {
-            const targetReactionContainer = useOutsidePlacementFinal ? stack : footer;
-            if (keptReactionRow.parentElement !== targetReactionContainer) {
-                targetReactionContainer.append(keptReactionRow);
-            }
-            keptReactionRow.classList.toggle('has-items', hasReactionItems);
-        }
-
-        footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems));
-        bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
-        bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems && messageText));
-        bubble.classList.remove('bubble--text-meta-edited');
-        bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
-        bubble.classList.toggle('bubble--has-footer', Boolean(meta));
-        messageEl.classList.toggle('message-reactions-outside', useOutsidePlacementFinal);
-        messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacementFinal);
+        return messageVisualRuntime?.syncMessageBubbleLayoutClasses(messageEl);
     }
 
     function patchPinnedMessageState(messageEl, isPinned) {
-        if (!messageEl) return;
-        const meta = messageEl.querySelector('.msg-meta, .message-meta');
-        if (!meta) return;
-
-        let pinEl = meta.querySelector('.msg-pin');
-        if (isPinned) {
-            if (!pinEl) {
-                pinEl = document.createElement('span');
-                pinEl.className = 'msg-pin';
-                pinEl.title = '\u0417\u0430\u043A\u0440\u0435\u043F\u043B\u0435\u043D\u043E';
-                pinEl.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
-                const editedEl = meta.querySelector('.msg-edited');
-                const timeEl = meta.querySelector('.msg-time');
-                if (editedEl) {
-                    editedEl.before(pinEl);
-                } else if (timeEl) {
-                    timeEl.before(pinEl);
-                } else {
-                    meta.prepend(pinEl);
-                }
-            }
-        } else {
-            pinEl?.remove();
-        }
-
-        messageEl.classList.toggle('message-pinned', Boolean(isPinned));
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
+        return messageVisualRuntime?.patchPinnedMessageState(messageEl, isPinned);
     }
 
     function clearPinnedMessageStates() {
-        chatMessages?.querySelectorAll('.message.message-pinned, .message .msg-pin').forEach((node) => {
-            const messageEl = node.classList?.contains('message') ? node : node.closest('.message');
-            if (messageEl) {
-                patchPinnedMessageState(messageEl, false);
-            }
-        });
+        return messageVisualRuntime?.clearPinnedMessageStates();
     }
 
     function patchFavoriteMessageState(messageEl, isFavorite) {
-        if (!messageEl) return;
-        const meta = messageEl.querySelector('.msg-meta, .message-meta');
-        if (!meta) return;
-
-        let favoriteEl = meta.querySelector('.msg-favorite');
-        if (isFavorite) {
-            if (!favoriteEl) {
-                favoriteEl = document.createElement('span');
-                favoriteEl.className = 'msg-favorite';
-                favoriteEl.title = '\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C';
-                favoriteEl.innerHTML = '<i class="bi bi-star-fill"></i>';
-                const pinEl = meta.querySelector('.msg-pin');
-                const editedEl = meta.querySelector('.msg-edited');
-                const timeEl = meta.querySelector('.msg-time');
-                if (pinEl) {
-                    pinEl.before(favoriteEl);
-                } else if (editedEl) {
-                    editedEl.before(favoriteEl);
-                } else if (timeEl) {
-                    timeEl.before(favoriteEl);
-                } else {
-                    meta.prepend(favoriteEl);
-                }
-            }
-        } else {
-            favoriteEl?.remove();
-        }
-
-        messageEl.classList.toggle('message-favorite', Boolean(isFavorite));
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
+        return messageVisualRuntime?.patchFavoriteMessageState(messageEl, isFavorite);
     }
 
     function clearFavoriteMessageStates() {
-        chatMessages?.querySelectorAll('.message.message-favorite, .message .msg-favorite').forEach((node) => {
-            const messageEl = node.classList?.contains('message') ? node : node.closest('.message');
-            if (messageEl) {
-                patchFavoriteMessageState(messageEl, false);
-            }
-        });
+        return messageVisualRuntime?.clearFavoriteMessageStates();
     }
 
     function refreshMessageHeightCache(messageEl, options = {}) {
-        if (!messageEl || !chatMessages || !currentChatId) return;
-        const key = messageEl.getAttribute('data-message-key');
-        if (!key) return;
-        const shouldPinToBottom = options.keepBottomPinned ?? keepChatPinnedToBottom;
-
-        requestAnimationFrame(() => {
-            if (!chatMessages.contains(messageEl)) return;
-            const state = getChatState(currentChatId);
-            const height = Math.ceil(messageEl.getBoundingClientRect().height);
-            if (!Number.isFinite(height) || height <= 0) return;
-            state.messageHeights.set(key, height);
-            if (shouldPinToBottom) {
-                setChatScrollTop(chatMessages.scrollHeight);
-                saveChatScrollPosition(currentChatId);
-                updateJumpToNewMessagesButton();
-            }
-        });
+        return messageVisualRuntime?.refreshMessageHeightCache(messageEl, options);
     }
 
-    function patchMessageReactions(messageEl, reactions, { animate = false, animatedEmoji = '' } = {}) {
-        if (!messageEl) return;
-        const msgId = Number(messageEl.getAttribute('data-msg-id'));
-        if (!Number.isFinite(msgId) || msgId <= 0) return;
-        const highlightedEmoji = String(animatedEmoji || '').trim();
-        const shouldPinToBottom = keepChatPinnedToBottom && isChatViewportPinnedToBottom();
-
-        const stack = messageEl.querySelector('.message-stack');
-        if (!stack) return;
-        const bubble = stack.querySelector('.bubble');
-        if (!bubble) return;
-        const { useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
-        const existingFooter = bubble.querySelector(':scope > .message-footer');
-        const targetContainer = useOutsidePlacement ? stack : (existingFooter || bubble);
-        let currentRow = null;
-        const allRows = Array.from(stack.querySelectorAll('.message-reactions'));
-        allRows.forEach((row) => {
-            const isInTarget = row.parentElement === targetContainer;
-            if (isInTarget && !currentRow) {
-                currentRow = row;
-                return;
-            }
-            row.remove();
-        });
-        const nextMarkup = buildMessageReactionsHtml(msgId, reactions);
-
-        if (!nextMarkup) {
-            currentRow?.remove();
-            syncMessageBubbleLayoutClasses(messageEl);
-            refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
-            return;
-        }
-
-        const template = document.createElement('template');
-        template.innerHTML = nextMarkup.trim();
-        const nextRow = Array.from(template.content.children)
-            .find((child) => child?.classList?.contains('message-reactions')) || null;
-
-        let updatedRow = currentRow;
-        if (!nextRow) {
-            currentRow?.remove();
-            targetContainer.insertAdjacentHTML('beforeend', nextMarkup);
-            updatedRow = Array.from(targetContainer.children).find((child) => child?.classList?.contains('message-reactions')) || null;
-        } else if (!updatedRow) {
-            targetContainer.append(nextRow);
-            updatedRow = nextRow;
-        } else {
-            const preservedRowStateClasses = REACTION_ROW_STATE_CLASSES.filter((className) => updatedRow.classList.contains(className));
-            updatedRow.className = nextRow.className;
-            updatedRow.setAttribute('data-msg-id', String(msgId));
-            preservedRowStateClasses.forEach((className) => updatedRow.classList.add(className));
-
-            const syncPill = (targetPill, sourcePill) => {
-                if (!targetPill || !sourcePill) return;
-                const nextEmoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
-                const preservedPillStateClasses = REACTION_PILL_STATE_CLASSES.filter((className) => targetPill.classList.contains(className));
-                targetPill.className = sourcePill.className;
-                targetPill.setAttribute('data-msg-id', String(msgId));
-                targetPill.setAttribute('data-emoji', nextEmoji);
-                preservedPillStateClasses.forEach((className) => targetPill.classList.add(className));
-                targetPill.innerHTML = sourcePill.innerHTML;
-            };
-
-            const currentPills = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'));
-            const currentPillByEmoji = new Map();
-            currentPills.forEach((pill) => {
-                const emoji = String(pill.getAttribute('data-emoji') || '').trim();
-                if (!emoji || currentPillByEmoji.has(emoji)) return;
-                currentPillByEmoji.set(emoji, pill);
-            });
-
-            const nextPills = Array.from(nextRow.querySelectorAll(':scope > .reaction-pill'));
-            const nextEmojiSet = new Set();
-            nextPills.forEach((sourcePill) => {
-                const emoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
-                if (!emoji) return;
-                nextEmojiSet.add(emoji);
-
-                const existingPill = currentPillByEmoji.get(emoji);
-                if (existingPill) {
-                    syncPill(existingPill, sourcePill);
-                    updatedRow.append(existingPill);
-                    return;
-                }
-
-                updatedRow.append(sourcePill.cloneNode(true));
-            });
-
-            currentPillByEmoji.forEach((pill, emoji) => {
-                if (!nextEmojiSet.has(emoji)) {
-                    pill.remove();
-                }
-            });
-        }
-
-        if (updatedRow && animate) {
-            updatedRow.classList.add('is-updated');
-            window.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
-            if (highlightedEmoji) {
-                const targetPill = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'))
-                    .find((pill) => String(pill.getAttribute('data-emoji') || '').trim() === highlightedEmoji);
-                if (targetPill) {
-                    targetPill.classList.add('reaction-just-added');
-                    window.setTimeout(() => targetPill.classList.remove('reaction-just-added'), 280);
-                }
-            }
-        }
-        if (updatedRow) applyEmojiGraphics(updatedRow);
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
+    function patchMessageReactions(messageEl, reactions, options = {}) {
+        return messageVisualRuntime?.patchMessageReactions(messageEl, reactions, options);
     }
 
     function buildMessageAvatarHtml(msg) {
@@ -4971,46 +4339,31 @@ export const initChatPage = async () => {
         }
     }
 
+    messageStatusRuntime = createChatMessageStatusRuntime({
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        getChatMessages: () => chatMessages,
+        findMessageIndex,
+        applyTickToElement,
+        scheduleForcedCurrentChatRerender,
+        prefersReducedMotionSetting,
+        runBottomInertiaScroll,
+        setChatScrollTop,
+        isTailRangeRendered,
+        cancelBottomInertiaScroll,
+        renderChatMessages: (chatId, options) => renderChatMessages(chatId, options),
+        setKeepChatPinnedToBottom: (value) => { keepChatPinnedToBottom = Boolean(value); },
+        saveChatScrollPosition,
+        updateJumpToNewMessagesButton,
+    });
+
     // \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0433\u0430\u043B\u043E\u0447\u043A\u0438 (\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E) \u0434\u043B\u044F \u0432\u0441\u0435\u0445 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439 \u0432 \u0447\u0430\u0442\u0435
     function markAllTicksRead(readAtRaw = '') {
-        const readAt = String(readAtRaw || '').trim() || null;
-        if (currentChatId) {
-            const state = getChatState(currentChatId);
-            state.messages = state.messages.map((msg) => (
-                msg.sender === 'self'
-                    ? (
-                        msg.is_read
-                            ? msg
-                            : { ...msg, is_read: true, is_delivered: true, pending: false, read_at: readAt || msg.read_at || null }
-                    )
-                    : msg
-            ));
-        }
-        chatMessages?.querySelectorAll('.message.self .msg-tick.sent, .message.self .msg-tick.delivered').forEach(function(el) {
-            applyTickToElement(el, { is_read: true, is_delivered: true, pending: false, read_at: readAt });
-        });
+        return messageStatusRuntime?.markAllTicksRead(readAtRaw);
     }
 
     function markOutgoingVoiceMessageListenedByPartner(chatId, msgId) {
-        if (!chatId || !Number.isFinite(msgId)) return;
-        const state = getChatState(chatId);
-        if (state?.initialized) {
-            const msgIndex = findMessageIndex(state, (msg) => Number(msg.id) === Number(msgId));
-            if (msgIndex >= 0 && state.messages[msgIndex]?.sender === 'self') {
-                state.messages[msgIndex] = {
-                    ...state.messages[msgIndex],
-                    voice_listened_by_partner: true,
-                };
-            }
-        }
-
-        if (chatId !== currentChatId) return;
-        const messageEl = chatMessages?.querySelector(`.message.self[data-msg-id="${Number(msgId)}"]`);
-        if (messageEl) {
-            messageEl.setAttribute('data-audio-listened-by-partner', '1');
-        } else if (state?.initialized) {
-            scheduleForcedCurrentChatRerender();
-        }
+        return messageStatusRuntime?.markOutgoingVoiceMessageListenedByPartner(chatId, msgId);
     }
 
     function updateE2EIndicator() {
@@ -5051,23 +4404,7 @@ export const initChatPage = async () => {
 
     // \u041F\u0440\u043E\u043A\u0440\u0443\u0442\u043A\u0430 \u0447\u0430\u0442\u0430 \u0432\u043D\u0438\u0437
     function scrollToBottom({ smooth = true } = {}) {
-        if (!chatMessages) return;
-
-        if (smooth && !prefersReducedMotionSetting()) {
-            if (!runBottomInertiaScroll()) {
-                setChatScrollTop(chatMessages.scrollHeight);
-            }
-        } else if (!isTailRangeRendered(currentChatId)) {
-            cancelBottomInertiaScroll();
-            // Fallback: \u0435\u0441\u043B\u0438 \u0445\u0432\u043E\u0441\u0442 \u043D\u0435 \u0432 \u043E\u043A\u043D\u0435 \u0432\u0438\u0440\u0442\u0443\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438, \u0441\u043D\u0430\u0447\u0430\u043B\u0430 \u0444\u043E\u0440\u0441-\u0440\u0435\u043D\u0434\u0435\u0440\u0438\u043C \u0435\u0433\u043E.
-            renderChatMessages(currentChatId, { force: true, scrollToBottom: true });
-        } else {
-            setChatScrollTop(chatMessages.scrollHeight);
-        }
-
-        keepChatPinnedToBottom = true;
-        saveChatScrollPosition(currentChatId);
-        updateJumpToNewMessagesButton();
+        return messageStatusRuntime?.scrollToBottom({ smooth });
     }
 
     // Message status/edit ingress handlers are registered via extracted modules.
@@ -5493,13 +4830,7 @@ export const initChatPage = async () => {
         profileGroupMembers,
         updateGroupMemberRole: (targetUserId, role) => updateGroupMemberRole(targetUserId, role, {
             onLocalRoleUpdated: (updatedUserId, nextRole) => {
-                if (!currentGroupProfile?.members) return;
-                currentGroupProfile.members = currentGroupProfile.members.map((member) => {
-                    if (Number(member?.user_id) !== Number(updatedUserId)) return member;
-                    return { ...member, role: nextRole };
-                });
-                renderGroupMembers(currentGroupProfile);
-                renderGroupEditMembers(currentGroupProfile);
+                groupProfileRuntime?.updateLocalMemberRole(updatedUserId, nextRole);
             },
         }),
         removeGroupMember,
