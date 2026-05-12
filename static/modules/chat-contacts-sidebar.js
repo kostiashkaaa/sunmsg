@@ -135,6 +135,7 @@ export function initChatContactsSidebar({
             String(item?.draft_text || ''),
             String(item?.draft_updated_at || ''),
             String(item?.unreadCount || 0),
+            String(item?.message_count ?? item?.messageCount ?? 0),
             String(item?.last_sender_id || ''),
             String(item?.last_message_is_read || 0),
             String(item?.last_message_is_delivered || 0),
@@ -306,6 +307,7 @@ export function initChatContactsSidebar({
                     || rawIsGroup === '1'
                     || String(rawIsGroup || '').trim().toLowerCase() === 'true';
                 const membersCount = Math.max(0, Number(contact?.members_count) || 0);
+                const messageCount = Math.max(0, Number(contact?.message_count ?? contact?.messageCount) || 0);
                 const shouldShowOnline = Boolean(contact.is_online) && !isBlocked;
                 existing.setAttribute('data-blocked-by-me', blockedByMe ? '1' : '0');
                 existing.setAttribute('data-blocked-me', blockedMe ? '1' : '0');
@@ -313,6 +315,7 @@ export function initChatContactsSidebar({
                 existing.setAttribute('data-public-key', contact.public_key || '');
                 existing.setAttribute('data-is-group', isGroup ? '1' : '0');
                 existing.setAttribute('data-members-count', String(membersCount));
+                existing.setAttribute('data-message-count', String(messageCount));
                 existing.setAttribute('data-raw-last-message', String(contact.last_message || ''));
                 existing.setAttribute('data-raw-last-message-time', String(contact.last_message_time || ''));
                 existing.setAttribute('data-last-sender-id', String(contact.last_sender_id || ''));

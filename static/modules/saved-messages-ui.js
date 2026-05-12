@@ -43,6 +43,11 @@ function countMessagesFromState(getChatState, chatId) {
     return loadedCount;
 }
 
+function readContactMessageCount(contactItem) {
+    const value = Number(contactItem?.getAttribute?.('data-message-count'));
+    return Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
+}
+
 function paintSavedAvatar(avatarEl) {
     if (!avatarEl) return;
     avatarEl.classList.add('saved-messages-avatar');
@@ -90,6 +95,15 @@ export function createSavedMessagesUiController({
         return true;
     }
 
+    function syncTotalMessagesFromContactItem(chatId, contactItem) {
+        if (!chatId || typeof getChatState !== 'function') return;
+        const total = readContactMessageCount(contactItem);
+        if (total === null) return;
+        const state = getChatState(chatId);
+        if (!state || typeof state !== 'object') return;
+        state.totalMessages = total;
+    }
+
     function applyChatMode({ contactItem, chatId } = {}) {
         const saved = Boolean(contactItem && isSavedContactItem(contactItem));
         chatAreaEl?.classList.toggle('is-saved-messages-chat', saved);
@@ -99,6 +113,7 @@ export function createSavedMessagesUiController({
             return false;
         }
         applyContactItem(contactItem);
+        syncTotalMessagesFromContactItem(chatId, contactItem);
 
         if (chatTitleEl) {
             chatTitleEl.textContent = getSavedMessagesTitle();
