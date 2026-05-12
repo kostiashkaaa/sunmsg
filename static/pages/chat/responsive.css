@@ -734,17 +734,15 @@
                 opacity: 0;
                 touch-action: pan-y;
             }
-.chat-messages {
+            .chat-messages {
                 min-height: 0;
                 overscroll-behavior: contain;
                 -webkit-overflow-scrolling: touch;
                 touch-action: pan-y;
-    transition:
-        padding-bottom var(--m-dur-fast) var(--m-decel),
-        scroll-padding-bottom var(--m-dur-fast) var(--m-decel),
-        opacity var(--m-dur-fast) var(--m-decel),
-        transform var(--m-dur-fast) var(--m-decel);
-}
+                transition:
+                    opacity var(--m-dur-fast) var(--m-decel),
+                    transform var(--m-dur-fast) var(--m-decel);
+            }
             html.mobile-keyboard-active .chat-messages,
             html.mobile-keyboard-active .chat-input-area {
                 transition: none !important;
@@ -969,27 +967,23 @@
                 width: min(280px, calc(100vw - 20px));
             }
 
-            /* Input area */
-.chat-input-area {
+            /* Input area — always fixed, no bottom animation */
+            .chat-input-area {
                 --composer-min-height: 38px;
                 --composer-max-height: 88px;
                 --composer-action-size: 44px;
+                position: fixed !important;
                 left: 0;
                 right: 0;
-                bottom: calc(
-                    var(--floating-composer-gap)
-                    + var(--mobile-keyboard-layout-inset, 0px)
-                    + env(safe-area-inset-bottom)
-                );
+                bottom: var(--mobile-composer-bottom-inset, 0px);
                 padding-left: max(8px, env(safe-area-inset-left, 0px));
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
-                padding-bottom: 8px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
                 z-index: 1004;
-    transition:
-        bottom var(--m-dur-fast) var(--m-decel),
-        opacity var(--m-dur-fast) var(--m-decel),
-        transform var(--m-dur-fast) var(--m-decel);
-}
+                transition:
+                    opacity var(--m-dur-fast) var(--m-decel),
+                    transform var(--m-dur-fast) var(--m-decel);
+            }
             .jump-to-new-btn {
                 --jump-to-new-size: 44px;
                 left: auto !important;
@@ -1210,20 +1204,11 @@
                 --mobile-emoji-sheet-height: 460px;
             }
 
+            /* When emoji sheet is open: lift composer above picker, no animation */
             .chat-area.emoji-sheet-open .chat-input-area {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: calc(
-                    var(--mobile-emoji-sheet-height, 460px)
-                    + env(safe-area-inset-bottom)
-                );
+                bottom: var(--mobile-emoji-sheet-height, 460px);
                 z-index: 1010;
-                transition: none;
-            }
-
-            .chat-area.emoji-keyboard-handoff .chat-input-area {
-                will-change: bottom;
+                transition: none !important;
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area,
