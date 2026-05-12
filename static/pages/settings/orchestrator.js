@@ -487,9 +487,9 @@ function initHomeMetaSync({ tr, i18nApi }) {
     };
 
     const readDevicesLabel = () => {
-        const list = document.querySelector('#sessionsList, [data-sessions-list]');
+        const list = document.getElementById('sessionDevicesList');
         if (!list) return PLACEHOLDER;
-        const items = list.querySelectorAll('[data-session-item], li, .session-item, .device-row');
+        const items = list.querySelectorAll('.session-device-item');
         const n = items.length;
         if (!n) return PLACEHOLDER;
         const word = n === 1 ? tr('активная') : (n < 5 ? tr('активных') : tr('активных'));

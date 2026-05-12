@@ -45,6 +45,7 @@ export function initSettingsNavShell({
         account: 'Устройства',
         'chat-style': 'Внешний вид',
         keys: 'Безопасность',
+        support: 'Поддержка',
     };
     const navKeyTitles = {
         language: 'Язык',
