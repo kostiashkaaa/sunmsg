@@ -718,6 +718,7 @@
                 --floating-composer-gap: 4px;
                 --floating-composer-reserve: 84px;
                 --mobile-bottom-dock-height: 0px;
+                --emoji-sheet-motion-duration: 240ms;
                 --chat-bubble-max-width: min(92%, 680px);
                 --chat-profile-drawer-width: 0px;
                 --mobile-exit-swipe-shift: 0px;
@@ -994,6 +995,7 @@
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
                 z-index: 1004;
                 transition:
+                    bottom var(--emoji-sheet-motion-duration) var(--m-decel),
                     opacity var(--m-dur-fast) var(--m-decel),
                     transform var(--m-dur-fast) var(--m-decel);
             }
@@ -1218,10 +1220,13 @@
                 --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, 460px);
             }
 
-            /* When emoji sheet is open: composer sits on top of the bottom dock, no animation. */
+            /* When emoji sheet is open: composer follows the bottom dock as one animated surface. */
             .chat-area.emoji-sheet-open .chat-input-area {
                 z-index: 1010;
-                transition: none !important;
+                transition:
+                    bottom var(--emoji-sheet-motion-duration) var(--m-decel),
+                    opacity var(--m-dur-fast) var(--m-decel),
+                    transform var(--m-dur-fast) var(--m-decel) !important;
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area,
@@ -1293,10 +1298,10 @@
                 pointer-events: auto;
                 transform: translate3d(0, 0, 0) scale(1);
                 transition:
-                    opacity var(--m-dur-fast) var(--m-decel),
-                    transform var(--m-dur-fast) var(--m-decel),
+                    opacity var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel),
+                    transform var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel),
                     visibility 0s linear 0s;
-                animation: emojiSheetUp var(--m-dur-fast) var(--m-decel);
+                animation: emojiSheetUp var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel);
             }
 
             .emoji-picker.is-closing {
@@ -1306,9 +1311,9 @@
                 pointer-events: none;
                 transform: translate3d(0, 100%, 0) scale(1);
                 transition:
-                    opacity var(--m-dur-fast) var(--m-accel),
-                    transform var(--m-dur-fast) var(--m-spring),
-                    visibility 0s linear var(--m-dur-fast);
+                    opacity var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-accel),
+                    transform var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-accel),
+                    visibility 0s linear var(--emoji-sheet-motion-duration, var(--m-dur-medium));
             }
 
             .emoji-picker-topbar {

@@ -627,6 +627,9 @@ def test_mobile_emoji_picker_resets_shell_scroll_before_positioning() -> None:
 
     assert 'function measureMobileEmojiTopReserve' in emoji
     assert 'MOBILE_EMOJI_COMPACT_MIN_HEIGHT' in emoji
+    assert 'const MOBILE_EMOJI_MIN_HEIGHT = 320;' in emoji
+    assert 'const MOBILE_EMOJI_MAX_HEIGHT = 480;' in emoji
+    assert 'const MOBILE_EMOJI_HEIGHT_RATIO = 0.46;' in emoji
     assert 'mobileViewportHeight - topReserve' in emoji
     assert 'emojiBtn.closest(\'.chat-input-area\')' in emoji
 
@@ -655,8 +658,8 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     )
     assert block, 'chat.css: mobile .emoji-sheet-open .chat-input-area block not found'
     transition_part = block.group(1).split('transition:', 1)[1]
-    assert 'bottom var(' not in transition_part, (
-        'chat.css: emoji-open composer must not animate bottom; it should lock to the sheet edge.'
+    assert 'bottom var(--emoji-sheet-motion-duration)' in transition_part, (
+        'chat.css: emoji-open composer must animate bottom with the sheet instead of jumping.'
     )
 
 
@@ -720,6 +723,9 @@ def test_mobile_chat_uses_single_bottom_dock_for_keyboard_and_emoji() -> None:
     chat_area_blocks = re.findall(r'\.chat-area\s*\{([^}]*)\}', css, re.DOTALL)
     assert any('--mobile-bottom-dock-height: 0px' in block for block in chat_area_blocks), (
         'chat.css: mobile chat area should define a single bottom dock variable.'
+    )
+    assert any('--emoji-sheet-motion-duration: 240ms' in block for block in chat_area_blocks), (
+        'chat.css: emoji sheet and composer should share one motion duration from chat area.'
     )
 
     input_blocks = re.findall(r'\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
