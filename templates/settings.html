@@ -161,11 +161,11 @@
         <div class="settings-nav-list" id="settingsNavList">
             <section class="settings-nav-group" aria-label="Уведомления и данные">
                 <div class="settings-nav-group-label">Уведомления и данные</div>
-                <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications">
+                <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications" data-meta="Push для браузера" id="navMetaNotifications">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
                     <span>Уведомления</span>
                 </a>
-                <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory">
+                <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory" data-meta="—" id="navMetaDataMemory">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg>
                     <span>Данные и память</span>
                 </a>
@@ -173,11 +173,11 @@
 
             <section class="settings-nav-group" aria-label="Приватность">
                 <div class="settings-nav-group-label">Приватность</div>
-                <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy">
+                <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy" data-meta="—" id="navMetaPrivacy">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-lock"></use></svg>
                     <span>Конфиденциальность</span>
                 </a>
-                <a href="#keys" class="nav-item" data-section="keys" data-nav-key="keys">
+                <a href="#keys" class="nav-item" data-section="keys" data-nav-key="keys" data-meta="2FA · выкл" id="navMetaSecurity">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-lock"></use></svg>
                     <span>Безопасность</span>
                 </a>
@@ -185,15 +185,15 @@
 
             <section class="settings-nav-group" aria-label="Интерфейс">
                 <div class="settings-nav-group-label">Интерфейс</div>
-                <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style">
+                <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style" data-meta="Тема" id="navMetaAppearance">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
                     <span>Внешний вид</span>
                 </a>
-                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow">
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow" data-meta="Русский" id="navMetaLanguage">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
                     <span>Язык</span>
                 </a>
-                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard">
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard" data-meta="Enter — отправить" id="navMetaBehavior">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
                     <span>Поведение чата</span>
                 </a>
@@ -201,7 +201,7 @@
 
             <section class="settings-nav-group" aria-label="Устройства">
                 <div class="settings-nav-group-label">Устройства</div>
-                <a href="#account" class="nav-item" data-section="account" data-nav-key="account">
+                <a href="#account" class="nav-item" data-section="account" data-nav-key="account" data-meta="—" id="navMetaDevices">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
                     <span>Устройства</span>
                 </a>
