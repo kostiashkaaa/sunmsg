@@ -657,6 +657,24 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     )
 
 
+def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
+    """Opening emoji sheet should keep bottom-pinned messages above the composer."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    assert 'const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;' in emoji
+    assert 'function isMobileEmojiChatPinnedToBottom(chatArea)' in emoji
+    assert 'function pinMobileEmojiChatToBottom(chatArea)' in emoji
+
+    state_start = emoji.find('function setMobileEmojiSheetState')
+    assert state_start >= 0, 'emoji.js: setMobileEmojiSheetState not found'
+    pinned_idx = emoji.find('const shouldPinChatToBottom', state_start)
+    toggle_idx = emoji.find("chatArea.classList.toggle('emoji-sheet-open'", state_start)
+    pin_idx = emoji.find('pinMobileEmojiChatToBottom(chatArea);', state_start)
+    assert state_start < pinned_idx < toggle_idx < pin_idx, (
+        'emoji.js: mobile emoji open must capture pinned state before changing sheet layout '
+        'and then scroll the message list to the new bottom.'
+    )
+
+
 def test_mobile_inline_message_meta_aligns_to_text_bottom() -> None:
     """Mobile inline text footer should reserve vertical offset for meta baseline."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
