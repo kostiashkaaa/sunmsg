@@ -10,12 +10,13 @@ export function initReactionPickerController({
     resolveMessageElement,
     onSelectEmoji,
 } = {}) {
-    const QUICK_REACTION_COUNT = 9;
+    const QUICK_REACTION_COUNT = 7;
     const PICKER_MOTION_TIMEOUT_MS = 120;
     let activeMessageId = null;
     let activeAnchorEl = null;
     let pickerTransitionSeq = 0;
     let positionRafId = 0;
+    let viewportBoundsLock = null;
     let quickContainerEl = null;
     let expandToggleEl = null;
 
@@ -116,6 +117,9 @@ export function initReactionPickerController({
     }
 
     function getViewportBounds() {
+        if (viewportBoundsLock) {
+            return { ...viewportBoundsLock };
+        }
         const vv = window.visualViewport;
         const left = vv ? Number(vv.offsetLeft || 0) : 0;
         const top = vv ? Number(vv.offsetTop || 0) : 0;
@@ -184,6 +188,7 @@ export function initReactionPickerController({
         if (!pickerEl) return;
         const isPickerVisible = pickerEl.classList.contains('active') || pickerEl.classList.contains('is-opening');
         if (!isPickerVisible && !reactionEmojiPopup.isOpen()) return;
+        if (viewportBoundsLock) return;
         if (positionRafId) return;
         positionRafId = window.requestAnimationFrame(() => {
             positionRafId = 0;
@@ -240,6 +245,7 @@ export function initReactionPickerController({
         clearActiveReactionRow();
         activeMessageId = null;
         activeAnchorEl = null;
+        viewportBoundsLock = null;
         waitForMotionEnd(pickerEl, PICKER_MOTION_TIMEOUT_MS).then(() => {
             if (closeSeq !== pickerTransitionSeq) return;
             pickerEl.classList.remove('is-closing');
@@ -317,6 +323,8 @@ export function initReactionPickerController({
 
         activeMessageId = numericMessageId;
         activeAnchorEl = anchorEl;
+        viewportBoundsLock = null;
+        viewportBoundsLock = getViewportBounds();
         const openSeq = ++pickerTransitionSeq;
         clearScheduledPosition();
         reactionEmojiPopup.close();

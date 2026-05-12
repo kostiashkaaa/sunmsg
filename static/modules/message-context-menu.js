@@ -28,8 +28,12 @@ export function initMessageContextMenu({
     let currentMessageId = null;
     let menuTransitionSeq = 0;
     let repositionRafId = 0;
+    let viewportBoundsLock = null;
 
     function getViewportBounds() {
+        if (viewportBoundsLock) {
+            return { ...viewportBoundsLock };
+        }
         const vv = window.visualViewport;
         const left = vv ? Number(vv.offsetLeft || 0) : 0;
         const top = vv ? Number(vv.offsetTop || 0) : 0;
@@ -120,6 +124,7 @@ export function initMessageContextMenu({
         if (!menuEl || !currentMessageId) return;
         const isVisible = menuEl.classList.contains('is-open') || menuEl.classList.contains('is-opening');
         if (!isVisible) return;
+        if (viewportBoundsLock) return;
         if (repositionRafId) return;
         repositionRafId = window.requestAnimationFrame(() => {
             repositionRafId = 0;
@@ -146,6 +151,8 @@ export function initMessageContextMenu({
             ? Boolean(messageEl.classList.contains('self'))
             : Boolean(isSelf);
         const canEdit = options?.canEdit !== false;
+        viewportBoundsLock = null;
+        viewportBoundsLock = getViewportBounds();
         if (replyItemEl) replyItemEl.hidden = blocked;
         if (editItemEl) editItemEl.hidden = blocked || !isOwnMessage || !canEdit;
         if (deleteItemEl) deleteItemEl.hidden = blocked;
@@ -168,6 +175,7 @@ export function initMessageContextMenu({
 
     function hideContextMenu() {
         currentMessageId = null;
+        viewportBoundsLock = null;
         if (!menuEl) return;
         if (repositionRafId) {
             window.cancelAnimationFrame(repositionRafId);
