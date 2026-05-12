@@ -144,10 +144,16 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
 }
 
 .my-qr-modal__title-icon {
     color: var(--accent);
+    flex-shrink: 0;
 }
 
 .my-qr-modal__close {
@@ -159,6 +165,8 @@
     line-height: 1;
     padding: 4px;
     border-radius: 6px;
+    flex-shrink: 0;
+    margin-left: 8px;
     transition: background var(--dur-quick), color var(--dur-quick);
 }
 
