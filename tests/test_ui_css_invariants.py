@@ -788,19 +788,36 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     )
 
 
-def test_mobile_inline_message_meta_aligns_to_text_bottom() -> None:
-    """Mobile inline text footer should reserve vertical offset for meta baseline."""
+def test_mobile_inline_message_meta_uses_shared_flex_layout() -> None:
+    """Mobile inline text footer should use the same flex alignment model as desktop."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
-    blocks = list(re.finditer(
+    footer_blocks = list(re.finditer(
         r'\.message:not\(\.message-emoji-only\)\s+\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\):not\(:has\(>\s+\.message-link-preview\)\):not\(:has\(>\s+\.message-sender-label\)\)\s+>\s+\.message-footer\s*\{([^}]*)\}',
         css,
         re.DOTALL,
     ))
-    assert blocks, 'chat.css: compact mobile text footer block not found'
-    body = next((match.group(1) for match in blocks if 'float: right' in match.group(1)), '')
-    assert body, 'chat.css: mobile compact text footer must keep float:right inline placement'
-    assert 'padding-top: calc(5px * var(--chat-message-scale))' in body, (
-        'chat.css: compact mobile text footer must offset meta down to align with text bottom.'
+    bubble_blocks = list(re.finditer(
+        r'\.message:not\(\.message-emoji-only\)\s+\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\):not\(:has\(>\s+\.message-link-preview\)\):not\(:has\(>\s+\.message-sender-label\)\)\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    ))
+    assert footer_blocks, 'chat.css: compact mobile text footer block not found'
+    assert bubble_blocks, 'chat.css: compact mobile text bubble block not found'
+    footer_bodies = [match.group(1) for match in footer_blocks]
+    bubble_bodies = [match.group(1) for match in bubble_blocks]
+    assert not any('float: right' in body for body in footer_bodies), (
+        'chat.css: compact mobile text footer must not use float:right; it desynchronizes '
+        'mobile text and meta baselines.'
+    )
+    flex_body = next((body for body in bubble_bodies if 'display: inline-flex' in body), '')
+    assert flex_body, 'chat.css: mobile compact text bubble must keep inline-flex placement'
+    assert 'align-items: flex-end' in flex_body, (
+        'chat.css: mobile compact text bubble must align text and meta on the shared bottom edge.'
+    )
+    footer_body = next((body for body in footer_bodies if 'float: none' in body), '')
+    assert footer_body, 'chat.css: mobile compact text footer must neutralize legacy float placement'
+    assert 'padding-top: 0' in footer_body, (
+        'chat.css: mobile compact text footer must not add a mobile-only vertical offset.'
     )
 
 

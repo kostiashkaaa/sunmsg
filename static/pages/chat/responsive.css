@@ -1750,18 +1750,20 @@
     }
 
     .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) {
-        display: block;
+        display: inline-flex;
+        flex-direction: row;
+        align-items: flex-end;
     }
 
     .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-text {
-        display: inline;
+        display: block;
     }
 
     .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-footer {
         display: inline-flex !important;
-        float: right;
+        float: none;
         margin-left: calc(4px * var(--chat-message-scale));
-        padding-top: calc(5px * var(--chat-message-scale));
+        padding-top: 0;
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
