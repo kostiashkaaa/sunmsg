@@ -708,6 +708,23 @@ def test_mobile_chat_header_partner_plate_is_overflow_safe() -> None:
     )
 
 
+def test_mobile_header_search_uses_stable_header_row_height() -> None:
+    """Mobile header search should not make the message stream jump vertically."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    mobile_start = css.find('@media (max-width: 768px)')
+    assert mobile_start >= 0, 'chat.css: mobile media block not found'
+    mobile_css = css[mobile_start:]
+    blocks = re.findall(
+        r'\.chat-header\s+\.header-search-wrap\s*\{([^}]*)\}',
+        mobile_css,
+        re.DOTALL,
+    )
+    assert blocks, 'chat.css: mobile .chat-header .header-search-wrap block not found'
+    assert any('height: 42px' in block for block in blocks), (
+        'chat.css: mobile header search must match the 42px header row'
+    )
+
+
 def test_header_dropdown_is_solid_above_message_stream() -> None:
     """The top-right chat menu must not reveal messages while opening."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
