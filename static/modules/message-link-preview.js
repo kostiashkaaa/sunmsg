@@ -86,6 +86,7 @@ function clearPreviewNode(messageTextEl) {
 
 function resolveChatScrollContainer(referenceNode) {
     if (!referenceNode) return null;
+    if (!referenceNode.isConnected) return null;
     const scopedContainer = referenceNode.closest('#chatMessages, .chat-messages');
     if (scopedContainer instanceof HTMLElement) return scopedContainer;
     const globalContainer = document.getElementById('chatMessages');

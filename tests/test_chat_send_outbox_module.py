@@ -67,6 +67,60 @@ if (!calls.some((call) => call[0] === 'toast' && call[2] === 'warning')) {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_text_send_settles_composer_before_optimistic_append():
+    module_path = ROOT / 'static' / 'modules' / 'chat-text-send.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+const source = await readFile({str(module_path)!r}, 'utf8');
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ sendTextMessageFlow }} = await import(moduleUrl);
+const calls = [];
+
+Object.defineProperty(globalThis, 'crypto', {{ value: {{ randomUUID: () => 'client-1' }}, configurable: true }});
+Object.defineProperty(globalThis, 'window', {{ value: {{ matchMedia: () => ({{ matches: true }}) }}, configurable: true }});
+Object.defineProperty(globalThis, 'requestAnimationFrame', {{
+  value: () => {{ throw new Error('composer resize must be synchronous in the send frame'); }},
+  configurable: true,
+}});
+
+await sendTextMessageFlow({{
+  message: 'https://example.com',
+  isChatBlocked: () => false,
+  getBlockedNoticeText: () => '',
+  currentBlockState: null,
+  showToast: (...args) => calls.push(['toast', ...args]),
+  setSendingState: (value) => calls.push(['sending', value]),
+  encryptForCurrentChat: async (message) => `enc:${{message}}`,
+  getReplyState: () => ({{}}),
+  cancelReply: () => calls.push(['cancelReply']),
+  emitSocket: () => true,
+  currentChatId: 'chat-1',
+  appendMessage: () => calls.push(['append']),
+  setKeepChatPinnedToBottom: (value) => calls.push(['pin', value]),
+  updateActiveContactLastMessage: () => calls.push(['lastMessage']),
+  schedulePendingTimeout: () => calls.push(['timeout']),
+  clearComposerInput: () => calls.push(['clear']),
+  resizeComposerInput: () => calls.push(['resize']),
+  restoreComposerFocus: () => calls.push(['focus']),
+  prewarmMessageLinkPreview: () => calls.push(['prewarm']),
+  enqueueOutbox: async () => true,
+  failPendingMessage: (clientId) => calls.push(['fail', clientId]),
+}});
+
+const order = calls.map((call) => call[0]);
+const pinAt = order.indexOf('pin');
+const clearAt = order.indexOf('clear');
+const resizeAt = order.indexOf('resize');
+const appendAt = order.indexOf('append');
+if (!(pinAt > -1 && pinAt < clearAt && clearAt < resizeAt && resizeAt < appendAt)) {{
+  throw new Error(`Composer should settle before optimistic append: ${{JSON.stringify(calls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_file_send_marks_queued_outbox_message_failed_without_pending_timeout():
     module_path = ROOT / 'static' / 'modules' / 'chat-file-send.js'
     node_harness = f"""
@@ -141,3 +195,10 @@ if (!calls.some((call) => call[0] === 'toast' && call[2] === 'warning')) {{
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_link_preview_scroll_stabilization_skips_detached_nodes():
+    module_path = ROOT / 'static' / 'modules' / 'message-link-preview.js'
+    source = module_path.read_text(encoding='utf-8')
+
+    assert 'if (!referenceNode.isConnected) return null;' in source
