@@ -158,7 +158,9 @@ export function createChatGroupCreateController(deps = {}) {
 
     function updateGroupCreateCountBadge() {
         if (!groupCreateCountBadge) return;
-        groupCreateCountBadge.textContent = `${groupCreateMembers.size} / ${GROUP_MEMBER_LIMIT}`;
+        const count = groupCreateMembers.size;
+        groupCreateCountBadge.hidden = count === 0;
+        groupCreateCountBadge.textContent = `${count} / ${GROUP_MEMBER_LIMIT}`;
     }
 
     function updateGroupCreateSubmitState() {

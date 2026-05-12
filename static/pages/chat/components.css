@@ -568,8 +568,8 @@
 
         .empty-state-headline {
             font-family: var(--font-serif);
-            font-size: clamp(2rem, 4vw, 3rem);
-            line-height: 1.02;
+            font-size: clamp(1.6rem, 5vw, 3rem);
+            line-height: 1.05;
             letter-spacing: -0.015em;
             font-weight: 400;
             color: var(--text);
