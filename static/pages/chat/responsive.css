@@ -238,6 +238,10 @@
                 animation: desktopMobileSidebarHideOut var(--dur-medium) var(--ease-quick) both;
                 will-change: transform, opacity;
             }
+
+            .chat-area.desktop-mobile-revealing .chat-header .back-btn {
+                display: inline-flex !important;
+            }
         }
 
 
@@ -246,6 +250,11 @@
             .header-search-wrap input,
             #searchUserInput {
                 font-size: 16px !important;
+            }
+
+            #voiceRecordBtn:disabled,
+            .voice-record-control:disabled {
+                cursor: default;
             }
         }
 
@@ -590,10 +599,10 @@
                 padding: 10px 12px;
             }
             .caption-modal-footer {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr) 46px;
             }
             .caption-modal-footer .btn-send {
-                width: 100%;
+                width: 46px;
                 border-radius: 11px;
             }
             .caption-options-menu {
@@ -1201,15 +1210,7 @@
             }
 
             .chat-area.emoji-sheet-open .chat-input-area {
-                bottom: calc(
-                    var(--floating-composer-gap)
-                    + env(safe-area-inset-bottom)
-                    + var(--mobile-emoji-sheet-height, 460px)
-                );
-                z-index: 1002;
-                transition:
-                    opacity var(--m-dur-fast) var(--m-decel),
-                    transform var(--m-dur-fast) var(--m-decel);
+                /* composer stays fixed — picker slides in behind it */
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area {
@@ -1228,16 +1229,16 @@
 
             .chat-area.emoji-sheet-open .chat-messages {
                 padding-bottom: calc(
-                    var(--floating-composer-reserve, 72px)
+                    var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
                     + env(safe-area-inset-bottom)
-                    + 10px
+                    + 8px
                 );
                 scroll-padding-bottom: calc(
-                    var(--floating-composer-reserve, 72px)
+                    var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
                     + env(safe-area-inset-bottom)
-                    + 16px
+                    + 12px
                 );
             }
 
