@@ -959,7 +959,8 @@
                 max-width: min(100%, clamp(220px, 78vw, 430px));
                 margin: 2px 0 0;
             }
-            .chat-header .pinned-bar[aria-hidden="true"] {
+            .chat-header .pinned-bar[aria-hidden="true"],
+            .chat-header .pinned-bar--hidden {
                 display: none !important;
             }
             .message-scale-panel {
