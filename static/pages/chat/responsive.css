@@ -915,6 +915,7 @@
             }
             .chat-header .header-search-wrap {
                 display: none;
+                height: 42px;
             }
             .chat-header.chat-header--search-active .header-search-wrap {
                 display: flex;
