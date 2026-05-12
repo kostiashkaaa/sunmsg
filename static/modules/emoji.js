@@ -22,10 +22,10 @@ const DISALLOWED_PICKER_EMOJIS = new Set([
 ]);
 
 const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
-const MOBILE_EMOJI_MIN_HEIGHT = 344;
-const MOBILE_EMOJI_COMPACT_MIN_HEIGHT = 180;
-const MOBILE_EMOJI_MAX_HEIGHT = 520;
-const MOBILE_EMOJI_HEIGHT_RATIO = 0.56;
+const MOBILE_EMOJI_MIN_HEIGHT = 400;
+const MOBILE_EMOJI_COMPACT_MIN_HEIGHT = 260;
+const MOBILE_EMOJI_MAX_HEIGHT = 560;
+const MOBILE_EMOJI_HEIGHT_RATIO = 0.60;
 const MOBILE_EMOJI_MIN_HEADER_GAP = 8;
 const EMOJI_CLOSE_ANIMATION_MS = 190;
 const EMOJI_KEYBOARD_HANDOFF_MS = 720;
@@ -843,7 +843,11 @@ export function initEmojiPicker(messageInput) {
 
         updateSearchUi(strings);
         renderCategoryButtons(emojiCategories, activeCategory, localeCode);
-        setEmojiStatus(emojiList, '<i class="bi bi-hourglass-split"></i>');
+
+        const showSpinner = !emojiData && !emojiLoadFailed;
+        if (showSpinner) {
+            setEmojiStatus(emojiList, '<i class="bi bi-hourglass-split"></i>');
+        }
 
         const data = await loadEmojiData();
         if (requestId !== lastPopulateRequestId) return;
@@ -1158,8 +1162,8 @@ export function initEmojiPicker(messageInput) {
             .catch(() => {});
     };
     if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(() => prewarmEmojiData(), { timeout: 1400 });
+        window.requestIdleCallback(() => prewarmEmojiData(), { timeout: 600 });
     } else {
-        window.setTimeout(prewarmEmojiData, 320);
+        window.setTimeout(prewarmEmojiData, 80);
     }
 }

@@ -4247,6 +4247,10 @@
         }
 
 
+        .emoji-picker-handle {
+            display: none;
+        }
+
         .emoji-picker-topbar {
             display: flex;
             flex-direction: column;
