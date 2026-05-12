@@ -2154,10 +2154,10 @@
             --chat-message-font-size: calc(14px * var(--chat-message-scale));
             --chat-message-pad-y: calc(9px * var(--chat-message-scale));
             --chat-message-pad-x: calc(14px * var(--chat-message-scale));
-            --chat-bubble-pad-y: var(--chat-message-pad-y);
-            --chat-bubble-pad-x: var(--chat-message-pad-x);
-            --chat-bubble-radius: 14px;
-            --chat-bubble-line-height: 1.45;
+            --chat-bubble-pad-y: calc(5px * var(--chat-message-scale));
+            --chat-bubble-pad-x: calc(8px * var(--chat-message-scale));
+            --chat-bubble-radius: var(--tg-compact-bubble-radius, 12px);
+            --chat-bubble-line-height: 1.3;
             --chat-bubble-shadow-base: var(--shadow-1);
             --chat-bubble-shadow-incoming: var(--shadow-md);
             --chat-bubble-shadow-outgoing: 0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
@@ -11017,8 +11017,8 @@
 
 @media (max-width: 768px) {
     .message .bubble {
-        padding: 5px 8px;
-        border-radius: 11px;
+        padding: var(--chat-bubble-pad-y) var(--chat-bubble-pad-x);
+        border-radius: var(--chat-bubble-radius);
     }
 
     .message .bubble.bubble--text,
