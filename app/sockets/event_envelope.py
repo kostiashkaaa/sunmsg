@@ -93,8 +93,6 @@ def _deserialize_payload(payload_json: str | None) -> Any:
 def _public_payload(payload: Any) -> Any:
     if not isinstance(payload, dict):
         return payload
-    if _INTERNAL_EMIT_CACHE_KEY not in payload:
-        return payload
     return {
         key: value
         for key, value in payload.items()
