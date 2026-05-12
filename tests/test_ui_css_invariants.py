@@ -767,6 +767,23 @@ def test_mobile_header_dropdown_is_viewport_bounded() -> None:
     )
 
 
+def test_hidden_group_profile_panels_stay_out_of_direct_profile_layout() -> None:
+    """Hidden group-only panels must not override [hidden] inside direct profiles."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    assert '.group-edit-side-panel {' in css and 'display: flex' in css
+    assert '.group-permissions-panel {' in css and 'display: flex' in css
+
+    hidden_block = re.search(
+        r'\.group-edit-side-panel\[hidden\],\s*\.group-permissions-panel\[hidden\]\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert hidden_block, 'chat.css: hidden group profile panels must have an explicit override'
+    assert 'display: none' in hidden_block.group(1), (
+        'chat.css: hidden group profile panels must not remain flex-visible in direct profiles'
+    )
+
+
 def test_header_dropdown_close_does_not_linger() -> None:
     """The top-right chat menu should close with a short exit motion, not hang."""
     states = _read_css_text(STATIC / 'pages' / 'chat.css')

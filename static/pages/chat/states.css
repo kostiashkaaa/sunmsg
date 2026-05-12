@@ -2633,6 +2633,11 @@ body.dark-mode #messageForwardModal .forward-target-status {
     transition: transform var(--dur-medium) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick);
 }
 
+.group-edit-side-panel[hidden],
+.group-permissions-panel[hidden] {
+    display: none;
+}
+
 .group-edit-side-panel.is-open {
     transform: translate3d(0, 0, 0);
     opacity: 1;
