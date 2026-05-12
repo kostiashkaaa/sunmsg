@@ -171,6 +171,7 @@
         min-height: 92px;
     }
 
+    /* ── HOME view (Telegram-style compact profile + icon-chip list) ── */
     body.settings-home-open .settings-nav {
         display: flex;
         flex-direction: column;
@@ -179,106 +180,121 @@
         z-index: auto;
         width: 100%;
         margin: 0 auto;
-        padding: 8px 0 10px;
-        gap: 6px;
+        padding: 0;
+        gap: 0;
         background: transparent;
         overflow: visible;
     }
 
+    /* Profile chip — compact horizontal card */
     body.settings-home-open .settings-nav-profile {
         position: relative;
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr) 36px;
+        grid-template-areas:
+            "avatar info action"
+            "rows   rows rows";
         align-items: center;
-        row-gap: 0;
-        padding: 14px 16px 10px;
-        text-align: center;
-        border-radius: 0;
+        gap: 14px;
+        row-gap: 10px;
+        margin: 14px 12px 8px;
+        padding: 14px;
+        text-align: left;
+        background: var(--sx-bg-elev, #fff);
+        border-radius: 18px;
         border: 0;
-        border-bottom: 0;
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--paper) 86%, var(--surface) 14%) 0%, color-mix(in srgb, var(--surface) 88%, var(--chat-bg) 12%) 100%);
-        box-shadow: none;
+        box-shadow: 0 0 0 1px var(--sx-line, #e7dcc0) inset;
     }
 
     body.settings-home-open .settings-nav-avatar-wrap {
-        grid-column: auto;
-        grid-row: auto;
-        justify-content: center;
+        grid-area: avatar;
+        width: 56px;
+        height: 56px;
+        justify-content: flex-start;
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 128px;
-        height: 128px;
-        font-size: 42px;
+        width: 56px;
+        height: 56px;
+        font-size: 22px;
+        border-radius: 50%;
     }
 
     body.settings-home-open .settings-nav-profile-main {
-        grid-column: auto;
-        grid-row: auto;
-        margin-top: 8px;
-        gap: 0;
+        grid-area: info;
+        margin: 0;
         padding-right: 0;
-        text-align: center;
+        text-align: left;
+        min-width: 0;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 34px;
-        line-height: 1.04;
-        font-weight: 615;
+        font-size: 17px;
+        line-height: 1.2;
+        font-weight: 600;
         letter-spacing: -0.01em;
-        white-space: normal;
+        color: var(--sx-ink, #1c1916);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     body.settings-home-open .settings-nav-profile-status {
-        font-size: 14px;
+        margin-top: 2px;
+        font-size: 13px;
         line-height: 1.2;
-        color: color-mix(in srgb, var(--sub-text) 90%, transparent);
+        color: var(--sx-ink-2, #6b6358);
     }
 
     body.settings-home-open .settings-nav-profile-action {
-        position: absolute;
-        top: 184px;
-        right: 20px;
-        width: 52px;
-        height: 52px;
+        position: static;
+        grid-area: action;
+        width: 36px;
+        height: 36px;
         margin: 0;
-        border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-        transform: none;
-        background: color-mix(in srgb, var(--accent) 78%, var(--paper) 22%);
-        box-shadow: 0 8px 16px -13px color-mix(in srgb, var(--accent) 56%, #000);
+        border: 0;
+        border-radius: 50%;
+        background: var(--sx-accent, #d9a637);
+        color: #1a1407;
+        box-shadow: 0 4px 14px rgba(180, 120, 20, .25);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: filter .12s, transform .08s;
     }
-
     body.settings-home-open .settings-nav-profile-action:hover {
         transform: translateY(-1px);
-        filter: brightness(1.03);
+        filter: brightness(1.04);
     }
-
     body.settings-home-open .settings-nav-profile-action .sun-icon {
-        width: 22px;
-        height: 22px;
+        width: 18px;
+        height: 18px;
     }
 
+    /* Inline chips under the profile card (display_name / @username / bio) */
     body.settings-home-open .settings-nav-profile-rows {
+        grid-area: rows;
+        display: flex;
+        flex-wrap: wrap;
         width: 100%;
-        max-width: 292px;
-        margin-top: 10px;
-        margin-left: 0;
-        margin-right: auto;
-        padding-top: 0;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        gap: 6px 8px;
         border-top: 0;
-        gap: 0;
         text-align: left;
     }
 
     body.settings-home-open .settings-nav-profile-row {
-        grid-template-columns: 22px minmax(0, 1fr);
-        align-items: start;
-        min-height: 48px;
-        column-gap: 10px;
-        padding: 0 6px;
-        border-radius: 0;
-        background: transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 0;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--sx-bg-soft, #f4ecd9);
+        grid-template-columns: none;
     }
 
     body.settings-home-open .settings-nav-profile-row + .settings-nav-profile-row {
@@ -286,50 +302,69 @@
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
-        width: 22px;
-        min-width: 22px;
-        height: 22px;
-        margin-top: 1px;
+        width: 14px;
+        min-width: 14px;
+        height: 14px;
+        margin: 0;
+        opacity: .7;
+        color: var(--sx-ink-2, #6b6358);
     }
 
     body.settings-home-open .settings-nav-profile-row-copy {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         text-align: left;
     }
 
     body.settings-home-open .settings-nav-profile-row-value {
-        font-size: 16px;
-        line-height: 1.24;
-        font-weight: 560;
+        font-size: 12.5px;
+        line-height: 1.2;
+        font-weight: 500;
+        color: var(--sx-ink-2, #6b6358);
     }
 
     body.settings-home-open .settings-nav-profile-row-label {
-        margin-top: 0;
-        font-size: 12px;
-        color: color-mix(in srgb, var(--sub-text) 64%, transparent);
+        display: none;
     }
 
+    body.settings-home-open .settings-nav-profile-row-value--bio {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Hide the (mobile-only) "Раздел" collapse toggle */
+    body.settings-home-open .settings-nav-toggle {
+        display: none !important;
+    }
+
+    /* Category list — continuous list with hairline dividers (no boxed groups) */
     body.settings-home-open .settings-nav-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px 10px 8px;
-        border-top: 0;
-        border-bottom: 0;
+        display: block;
+        padding: 8px 0 0;
+        gap: 0;
+        border: 0;
         background: transparent;
         overflow: visible;
         flex: 0 0 auto;
     }
 
     body.settings-home-open .settings-nav-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
+        display: block;
         padding: 0;
+        margin: 0;
+        gap: 0;
         border-radius: 0;
         border: 0;
         background: transparent;
         box-shadow: none;
         overflow: visible;
+    }
+
+    body.settings-home-open .settings-nav-group-label {
+        display: none;
     }
 
     body.settings-home-open .settings-nav-group + .settings-nav-group {
@@ -338,38 +373,82 @@
         border-top: 0;
     }
 
-    body.settings-home-open .settings-nav-group-label {
-        display: none;
-    }
-
     body.settings-home-open .settings-nav-group .nav-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
         min-height: 56px;
-        padding: 0 14px;
-        border: 1px solid transparent;
-        border-radius: 12px;
-        box-shadow: none;
-        column-gap: 13px;
         margin: 0;
-        font-size: 16px;
-        font-weight: 540;
-        color: color-mix(in srgb, var(--text) 88%, var(--sub-text) 12%);
-        transition: border-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick);
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        column-gap: 14px;
+        font-family: var(--sx-font, "Inter Tight", system-ui, sans-serif);
+        font-size: 14.5px;
+        font-weight: 500;
+        color: var(--sx-ink, #1c1916);
+        text-decoration: none;
+        cursor: pointer;
+        transition: background var(--dur-instant) var(--ease-quick);
     }
 
-    body.settings-home-open .settings-nav-group .nav-item + .nav-item {
-        border-top: 0;
+    /* Hairline divider between rows (not on the very first one) */
+    body.settings-home-open .settings-nav-group .nav-item + .nav-item,
+    body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
+        box-shadow: inset 0 1px 0 var(--sx-line, #e7dcc0);
     }
 
-    body.settings-home-open .settings-nav-group .nav-item .sun-icon {
-        width: 24px;
-        min-width: 24px;
-        height: 24px;
-        color: color-mix(in srgb, var(--sub-text) 84%, var(--text) 16%);
+    /* Icon chip on the left (28px circle, accent-tint background) */
+    body.settings-home-open .settings-nav-group .nav-item > .sun-icon:first-child {
+        width: 28px;
+        min-width: 28px;
+        height: 28px;
+        padding: 6px;
+        border-radius: 50%;
+        background: var(--sx-accent-tint, #fbeec8);
+        color: var(--sx-accent-2, #b88517);
+        box-sizing: border-box;
+        flex: 0 0 28px;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        flex: 1;
+        min-width: 0;
+        font-size: 14.5px;
+        font-weight: 500;
+    }
+
+    /* Meta value (right-aligned). Filled from data-meta via CSS attr() */
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::before {
+        content: attr(data-meta);
+        margin-left: auto;
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--sx-ink-3, #a39a8a);
+        white-space: nowrap;
+        max-width: 60%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Chevron at the very right */
+    body.settings-home-open .settings-nav-group .nav-item::after {
+        content: "";
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        margin-left: 4px;
+        border-right: 2px solid var(--sx-ink-3, #a39a8a);
+        border-top: 2px solid var(--sx-ink-3, #a39a8a);
+        transform: rotate(45deg);
+        opacity: .55;
     }
 
     body.settings-home-open .settings-nav-group .nav-item:hover {
-        background: transparent;
-        border-color: color-mix(in srgb, var(--border) 68%, transparent);
+        background: var(--sx-bg-soft, #f4ecd9);
+        border-color: transparent;
     }
 
     body.settings-home-open .settings-nav-group .nav-item:active {
@@ -377,32 +456,41 @@
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active {
-        background: transparent;
-        color: var(--text);
+        background: var(--sx-accent-tint, #fbeec8);
+        color: var(--sx-ink, #1c1916);
     }
 
-    body.settings-home-open .settings-nav-group .nav-item.active .sun-icon {
-        color: var(--accent);
+    body.settings-home-open .settings-nav-group .nav-item.active > .sun-icon:first-child {
+        background: var(--sx-accent, #d9a637);
+        color: #1a1407;
     }
 
+    /* Logout / footer */
     body.settings-home-open .settings-logout-form {
-        margin: 0;
+        margin: 8px 0 0;
         padding: 0;
-        border-top: 0;
+        border-top: 1px solid var(--sx-line, #e7dcc0);
     }
 
     body.settings-home-open .settings-logout-form .nav-item {
         min-height: 56px;
-        border-radius: 12px;
+        border-radius: 0;
         border: 0;
         box-shadow: none;
-        padding: 0 14px;
+        padding: 11px 18px;
         margin: 0;
+        color: var(--sx-danger, #c95a3a);
     }
 
     body.settings-home-open .settings-logout-form .nav-item:hover {
-        background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
+        background: color-mix(in srgb, var(--sx-danger, #c95a3a) 12%, var(--sx-bg-panel, #fbf7ed) 88%);
     }
+
+    body.settings-home-open .settings-logout-form .nav-item > .sun-icon:first-child {
+        background: color-mix(in srgb, var(--sx-danger, #c95a3a) 16%, transparent);
+        color: var(--sx-danger, #c95a3a);
+    }
+    body.settings-home-open .settings-logout-form .nav-item::after { display: none; }
 
     body.settings-detail-open .settings-profile-section {
         min-height: 0;
@@ -530,33 +618,18 @@
 
     @media (max-width: 399px) {
         body.settings-home-open .settings-nav-profile {
-            padding: 14px 14px 10px;
+            margin: 10px 8px 6px;
+            padding: 12px;
         }
 
-        body.settings-home-open .settings-nav-avatar {
-            width: 104px;
-            height: 104px;
-            font-size: 34px;
-        }
-
-        body.settings-home-open .settings-nav-profile-name {
-            font-size: 28px;
-        }
-
-        body.settings-home-open .settings-nav-profile-action {
-            top: 112px;
-            right: calc(50% - 64px);
-            width: 42px;
-            height: 42px;
-        }
-
-        body.settings-home-open .settings-nav-profile-rows {
-            max-width: 100%;
+        body.settings-home-open .settings-nav-profile-row-value--bio {
+            max-width: 140px;
         }
 
         body.settings-home-open .settings-nav-group .nav-item {
             min-height: 52px;
-            font-size: 15px;
+            padding: 10px 14px;
+            font-size: 14.5px;
         }
 
         body.settings-detail-open .settings-content {
