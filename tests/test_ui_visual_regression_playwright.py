@@ -247,7 +247,7 @@ def _wait_settings_ready(page: Page) -> None:
 
 
 def _open_settings_via_test_login(context: BrowserContext) -> Page:
-    return _open_page(context, '/__visual_test__/login?next=/settings')
+    return _open_page(context, '/__visual_test__/login?next=/settings', wait_until='domcontentloaded')
 
 
 def _stub_qr_login_api(context: BrowserContext) -> None:

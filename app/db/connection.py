@@ -257,19 +257,20 @@ def close_request_db_connection() -> None:
             pass
 
 
-def get_db_connection():
+def get_db_connection(*, request_scoped: bool = True):
     current_database_url = database_url()
     if not current_database_url:
         raise RuntimeError('DATABASE_URL must be set')
 
-    request_scoped = _get_request_scoped_connection()
-    if request_scoped is not None:
-        return request_scoped
+    if request_scoped:
+        scoped_connection = _get_request_scoped_connection()
+        if scoped_connection is not None:
+            return scoped_connection
 
     schema_name = _resolve_schema_name()
     pooled_connection = _pool_for(current_database_url, schema_name).acquire()
 
-    if has_app_context():
+    if request_scoped and has_app_context():
         setattr(g, _REQUEST_CONNECTION_KEY, pooled_connection)
 
     return pooled_connection
