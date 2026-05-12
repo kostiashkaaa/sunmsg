@@ -61,6 +61,10 @@ export async function sendTextMessageFlow({
     } = getReplyState();
     cancelReply();
 
+    setKeepChatPinnedToBottom(true);
+    clearComposerInput();
+    resizeComposerInput();
+
     appendMessage({
         sender: 'self',
         message,
@@ -77,17 +81,12 @@ export async function sendTextMessageFlow({
         reactions: [],
     }, { renderOptions: { force: true, scrollToBottom: true } });
 
-    setKeepChatPinnedToBottom(true);
     updateActiveContactLastMessage(
         message,
         true,
         { pending: true, is_read: false, is_delivered: false },
         sentAt,
     );
-    clearComposerInput();
-    requestAnimationFrame(() => {
-        resizeComposerInput();
-    });
     isSent = true;
 
     try {
