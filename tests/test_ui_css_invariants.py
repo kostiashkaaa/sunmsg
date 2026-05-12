@@ -604,6 +604,33 @@ def test_emoji_picker_hidden_by_default() -> None:
         'chat.css: .emoji-picker should default to display:none to avoid offscreen overflow.'
     )
 
+
+def test_mobile_emoji_picker_resets_shell_scroll_before_positioning() -> None:
+    """Mobile emoji positioning must ignore accidental chat shell scroll."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    reset_start = emoji.find('function resetMobileEmojiShellScroll')
+    assert reset_start >= 0, 'emoji.js: mobile emoji shell scroll reset helper is missing'
+    reset_end = emoji.find('function stopEmojiKeyboardHandoff', reset_start)
+    reset_body = emoji[reset_start:reset_end]
+    assert 'resolveEmojiChatArea(emojiPicker)' in reset_body
+    assert 'chatArea.scrollTop = 0' in reset_body
+    assert '#chatMessages' not in reset_body
+
+    position_start = emoji.find('function positionEmojiPicker')
+    assert position_start >= 0, 'emoji.js: positionEmojiPicker not found'
+    is_mobile_idx = emoji.find('const isMobile = isMobileEmojiViewport();', position_start)
+    reset_call_idx = emoji.find('resetMobileEmojiShellScroll(emojiPicker);', position_start)
+    form_rect_idx = emoji.find("const formRect = emojiBtn.closest('#messageForm')", position_start)
+    assert position_start < is_mobile_idx < reset_call_idx < form_rect_idx, (
+        'emoji.js: mobile shell scroll must be reset before reading composer geometry'
+    )
+
+    assert 'function measureMobileEmojiTopReserve' in emoji
+    assert 'MOBILE_EMOJI_COMPACT_MIN_HEIGHT' in emoji
+    assert 'mobileViewportHeight - topReserve' in emoji
+    assert 'emojiBtn.closest(\'.chat-input-area\')' in emoji
+
+
 def test_chat_page_hides_horizontal_scrollbar_tracks_for_webkit() -> None:
     """Desktop webview: chat page should hide horizontal scrollbar tracks."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')

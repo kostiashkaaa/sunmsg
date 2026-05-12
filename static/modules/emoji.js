@@ -23,8 +23,10 @@ const DISALLOWED_PICKER_EMOJIS = new Set([
 
 const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
 const MOBILE_EMOJI_MIN_HEIGHT = 344;
+const MOBILE_EMOJI_COMPACT_MIN_HEIGHT = 180;
 const MOBILE_EMOJI_MAX_HEIGHT = 520;
 const MOBILE_EMOJI_HEIGHT_RATIO = 0.56;
+const MOBILE_EMOJI_MIN_HEADER_GAP = 8;
 const EMOJI_CLOSE_ANIMATION_MS = 190;
 const EMOJI_KEYBOARD_HANDOFF_MS = 720;
 // Keep in sync with keyboard viewport detection in mobile-viewport.js
@@ -164,6 +166,28 @@ function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
 
 function clearMobileEmojiSheetState(emojiPicker) {
     setMobileEmojiSheetState(emojiPicker, false);
+}
+
+function resetMobileEmojiShellScroll(emojiPicker) {
+    if (!isMobileEmojiViewport()) return;
+    const chatArea = resolveEmojiChatArea(emojiPicker);
+    if (!chatArea || chatArea.scrollTop === 0) return;
+    chatArea.scrollTop = 0;
+}
+
+function measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop) {
+    const chatArea = resolveEmojiChatArea(emojiPicker);
+    const header = chatArea?.querySelector?.('.chat-header');
+    const headerRect = header?.getBoundingClientRect?.();
+    const headerReserve = headerRect
+        ? Math.max(0, Math.round(headerRect.bottom - viewportOffsetTop))
+        : 0;
+    const composerShell = emojiBtn.closest('.chat-input-area') || emojiBtn.closest('#messageForm');
+    const composerRect = composerShell?.getBoundingClientRect?.();
+    const composerHeight = composerRect ? Math.ceil(composerRect.height) : 0;
+    const chatStyles = chatArea ? window.getComputedStyle(chatArea) : null;
+    const floatingGap = Number.parseFloat(chatStyles?.getPropertyValue('--floating-composer-gap')) || 8;
+    return headerReserve + composerHeight + floatingGap + MOBILE_EMOJI_MIN_HEADER_GAP;
 }
 
 function stopEmojiKeyboardHandoff(emojiPicker, { clearLayout = false } = {}) {
@@ -552,6 +576,9 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     const viewportOffsetTop = vv?.offsetTop || 0;
     const margin = 10;
     const isMobile = isMobileEmojiViewport();
+    if (isMobile) {
+        resetMobileEmojiShellScroll(emojiPicker);
+    }
     const formRect = emojiBtn.closest('#messageForm')?.getBoundingClientRect() || emojiBtn.getBoundingClientRect();
     const anchorGap = 10;
 
@@ -566,7 +593,12 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
                 Math.round(document.documentElement.clientHeight || 0),
                 readRootPixelVar('--app-vh'),
             );
-        const maxSheetHeight = Math.max(300, Math.min(MOBILE_EMOJI_MAX_HEIGHT, mobileViewportHeight - 80));
+        const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop);
+        const maxSheetHeight = Math.min(
+            MOBILE_EMOJI_MAX_HEIGHT,
+            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, mobileViewportHeight - 80),
+            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, mobileViewportHeight - topReserve),
+        );
         const defaultSheetHeight = Math.min(
             maxSheetHeight,
             Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
