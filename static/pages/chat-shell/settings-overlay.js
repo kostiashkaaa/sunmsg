@@ -16,6 +16,7 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     let settingsOverlayLoadTimer = 0;
     let settingsOverlayReadyTimer = 0;
+    let commandPaletteOpenPromise = null;
     let settingsOverlayAwaitingReadySignal = false;
     let settingsOverlayPhase = 'closed';
     let settingsOverlayTransitionSeq = 0;
@@ -308,11 +309,24 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (visibleInput && typeof prefill === 'string' && prefill) {
             visibleInput.value = prefill;
         }
-        if (typeof window.openCommandPalette === 'function' && window.openCommandPalette !== openCommandPalette) {
-            window.openCommandPalette(prefill);
-        } else if (visibleInput) {
-            try { visibleInput.focus({ preventScroll: true }); } catch (_) {}
+        if (!commandPaletteOpenPromise) {
+            commandPaletteOpenPromise = import('../../modules/search-overlay.js')
+                .then(({ initSearchOverlay }) => initSearchOverlay())
+                .catch((error) => {
+                    commandPaletteOpenPromise = null;
+                    throw error;
+                });
         }
+        void commandPaletteOpenPromise
+            .then((controller) => {
+                controller?.openCommandPalette?.(prefill);
+            })
+            .catch((error) => {
+                console.warn('Failed to open command palette', error);
+                if (visibleInput) {
+                    try { visibleInput.focus({ preventScroll: true }); } catch (_) {}
+                }
+            });
         markFirstRunCompleted();
     }
 

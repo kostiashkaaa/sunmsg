@@ -21,8 +21,13 @@ const OPENING_CLASS = 'is-opening';
 const CLOSING_CLASS = 'is-closing';
 const SIDEBAR_DIMMED_CLASS = 'has-search-overlay';
 const PANEL_ORDER = ['chats', 'contacts', 'actions', 'media', 'links', 'files', 'music', 'voice'];
+const CONTROLLER_KEY = '__sunSearchOverlayController';
 
 export function initSearchOverlay() {
+    if (window[CONTROLLER_KEY]) {
+        return window[CONTROLLER_KEY];
+    }
+
     const overlay = document.getElementById('newChatModal');
     const sidebar = document.getElementById('sidebar');
     const sidebarTopCard = sidebar?.querySelector('.sidebar-top-card');
@@ -334,21 +339,30 @@ export function initSearchOverlay() {
     syncSearchNetworkState();
 
     // \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430 \u043F\u0440\u0435\u0436\u043D\u0435\u0433\u043E API: window.openCommandPalette(prefill).
-    window.closeCommandPalette = function () { close(); };
-    window.openCommandPalette = function (prefill = '') {
+    function openCommandPalette(prefill = '') {
+        const query = typeof prefill === 'string' ? prefill : '';
         open();
-        if (typeof prefill === 'string' && prefill !== visibleInput.value) {
-            visibleInput.value = prefill;
+        if (query !== visibleInput.value) {
+            visibleInput.value = query;
             syncQuery();
         }
+        if (!query.trim()) {
+            setTab('actions');
+        }
         try { visibleInput.focus({ preventScroll: true }); } catch (_) {}
-    };
+    }
 
-    return {
+    const controller = {
         open,
         close,
         setTab,
+        openCommandPalette,
         syncOverlayPerfGuards,
     };
+    window[CONTROLLER_KEY] = controller;
+    window.closeCommandPalette = function () { close(); };
+    window.openCommandPalette = openCommandPalette;
+
+    return controller;
 }
 

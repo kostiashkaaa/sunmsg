@@ -25,6 +25,8 @@ CHAT_JS = STATIC / 'chat.js'
 CHAT_RUNTIME_JS = STATIC / 'chat-runtime.js'
 CHAT_ENTRYPOINTS = [CHAT_JS, CHAT_RUNTIME_JS]
 SETTINGS_NAV_SHELL_JS = STATIC / 'pages' / 'settings' / 'nav-shell.js'
+SEARCH_OVERLAY_JS = MODULES_DIR / 'search-overlay.js'
+CHAT_SHELL_SETTINGS_OVERLAY_JS = STATIC / 'pages' / 'chat-shell' / 'settings-overlay.js'
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -470,6 +472,23 @@ def test_settings_mobile_nav_toggle_uses_section_title_without_nav_item() -> Non
     assert 'const fallbackLabel = activeNavKey || id' in src
     assert 'navKeyTitles[activeNavKey] || sectionTitles[id]' in src
     assert 'updateNavToggleLabel(activeItem, fallbackLabel)' in src
+
+
+def test_command_palette_api_opens_actions_panel() -> None:
+    """Imperative command palette open should expose command actions, not just search."""
+    overlay = _read(SEARCH_OVERLAY_JS)
+    settings_overlay = _read(CHAT_SHELL_SETTINGS_OVERLAY_JS)
+
+    assert "if (!query.trim()) {" in overlay
+    assert "setTab('actions')" in overlay, (
+        'search-overlay.js: window.openCommandPalette("") must reveal action buttons.'
+    )
+    assert 'const CONTROLLER_KEY = ' in overlay
+    assert 'window[CONTROLLER_KEY] = controller' in overlay
+    assert "import('../../modules/search-overlay.js')" in settings_overlay
+    assert 'controller?.openCommandPalette?.(prefill)' in settings_overlay, (
+        'settings-overlay.js: chat shell wrapper must open the real search overlay controller.'
+    )
 
 # ---------------------------------------------------------------------------
 # Test: размер chat.js не растёт после рефакторинга
