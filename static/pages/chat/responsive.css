@@ -807,7 +807,7 @@
             }
             @keyframes mobileChatRevealIn {
                 0% {
-                    transform: translateX(0);
+                    transform: translateX(100%);
                     opacity: 0.72;
                 }
                 60% {

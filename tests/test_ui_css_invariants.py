@@ -334,9 +334,9 @@ def test_keyboard_shortcuts_module_exists() -> None:
 
 def test_keyboard_shortcuts_wired_in_chatjs() -> None:
     """Шорткаты подключаются к bootstrap'у chat.js."""
-    src = (STATIC / 'chat.js').read_text(encoding='utf-8')
+    src = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
     assert 'keyboard-shortcuts.js' in src, (
-        'chat.js не импортирует модуль keyboard-shortcuts.js'
+        'chat-runtime.js не импортирует модуль keyboard-shortcuts.js'
     )
     assert 'initKeyboardShortcuts' in src
 
@@ -373,6 +373,11 @@ def test_mobile_chat_reveal_animation_present() -> None:
     )
     assert '.sidebar.mobile-hiding' in css, (
         'chat.css: нет правила .mobile-hiding для уходящего sidebar'
+    )
+    reveal_kf = re.search(r'@keyframes\s+mobileChatRevealIn\s*\{([\s\S]+?)\n\s*\}', css)
+    assert reveal_kf, 'chat.css: @keyframes mobileChatRevealIn не найден'
+    assert 'transform: translateX(100%)' in reveal_kf.group(1), (
+        'mobileChatRevealIn должен начинаться справа, иначе mobile-open сразу показывает chat-area без slide-in'
     )
 
     # Длительности reveal/hide должны быть tokenized (или legacy-числом в 240-380ms).
@@ -442,15 +447,15 @@ def test_mobile_animations_reduced_motion_disabled() -> None:
 
 
 def test_open_chat_uses_animated_path() -> None:
-    """`openChat()` в chat.js должен использовать новые классы
+    """`openChat()` в mobile thread shell должен использовать новые классы
     mobile-revealing/mobile-hiding и не делать display:none мгновенно."""
-    src = (STATIC / 'chat.js').read_text(encoding='utf-8')
+    src = (STATIC / 'chat' / 'thread-shell.js').read_text(encoding='utf-8')
     # Берём первый openChat функцию
     func = re.search(
         r'function openChat\(\)\s*\{([\s\S]+?)\n    \}\n',
         src,
     )
-    assert func, 'chat.js: функция openChat() не найдена'
+    assert func, 'chat/thread-shell.js: функция openChat() не найдена'
     body = func.group(1)
     assert 'mobile-revealing' in body, (
         'openChat: не выставляет .mobile-revealing — нет анимации входа'
@@ -486,8 +491,9 @@ def test_mobile_chat_open_keeps_message_stream_stable() -> None:
 
 
 def test_mobile_chatjs_skips_inner_thread_reveal_motion() -> None:
-    """chat.js should not start desktop thread reveal/switch motion on mobile."""
-    src = (STATIC / 'chat.js').read_text(encoding='utf-8')
+    """Chat runtime should not start desktop thread reveal/switch motion on mobile."""
+    src = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
+    selection_runtime = (STATIC / 'modules' / 'chat-contact-selection-runtime.js').read_text(encoding='utf-8')
 
     surface_func = re.search(
         r'function triggerChatSurfaceEnterAnimation\(\)\s*\{([\s\S]+?)\n    \}',
@@ -505,8 +511,8 @@ def test_mobile_chatjs_skips_inner_thread_reveal_motion() -> None:
     assert 'isMobileViewport()' in history_func.group(1)
     assert "chatArea.classList.remove('chat-history-reveal', 'is-switching')" in history_func.group(1)
 
-    assert 'const useDesktopSwitchMotion = !isMobileViewport() && !reduceMotion' in src
-    assert 'if (chatArea && useDesktopSwitchMotion)' in src
+    assert 'const useDesktopSwitchMotion = !isMobileViewport() && !reduceMotion' in selection_runtime
+    assert 'if (chatArea && useDesktopSwitchMotion)' in selection_runtime
 
 
 def test_icon_button_press_keeps_glyph_centered() -> None:
@@ -736,9 +742,9 @@ def test_header_dropdown_close_does_not_linger() -> None:
     assert '0%   { opacity: 1' in close_body
     assert '100% { opacity: 0' in close_body
 
-    chat_js = (STATIC / 'chat.js').read_text(encoding='utf-8')
-    assert "closeFloatingPanel(headerDropdown, 'active', 120)" in chat_js, (
-        'chat.js: header dropdown close fallback should be short enough to avoid a visible hang'
+    lazy_ui_runtime = (STATIC / 'modules' / 'chat-lazy-ui-runtime.js').read_text(encoding='utf-8')
+    assert "closeFloatingPanel(headerDropdown, 'active', 120)" in lazy_ui_runtime, (
+        'chat-lazy-ui-runtime.js: header dropdown close fallback should be short enough to avoid a visible hang'
     )
 
 
@@ -834,17 +840,18 @@ def test_message_alignment_self_vs_other_on_chat_page() -> None:
 
 def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
     """Optimistic self messages should reuse the same rendered layout as history."""
-    chat_js = (STATIC / 'chat.js').read_text(encoding='utf-8')
+    append_runtime = (STATIC / 'modules' / 'chat-message-append-runtime.js').read_text(encoding='utf-8')
+    composer_send_runtime = (STATIC / 'modules' / 'chat-composer-send-runtime.js').read_text(encoding='utf-8')
     text_send = (STATIC / 'modules' / 'chat-text-send.js').read_text(encoding='utf-8')
     file_send = (STATIC / 'modules' / 'chat-file-send.js').read_text(encoding='utf-8')
 
-    assert 'const previousTailMessage = lastIdx > 0 ? state.messages[lastIdx - 1] : null' in chat_js
-    assert 'const tailGroupWouldChange = isSameMessageGroup(previousTailMessage, inserted)' in chat_js
-    assert '&& !tailGroupWouldChange' in chat_js, (
-        'chat.js: fast append must not leave stale grouped tail DOM next to new messages'
+    assert 'const previousTailMessage = lastIdx > 0 ? state.messages[lastIdx - 1] : null' in append_runtime
+    assert 'const tailGroupWouldChange = isSameMessageGroup(previousTailMessage, inserted)' in append_runtime
+    assert '&& !tailGroupWouldChange' in append_runtime, (
+        'chat-message-append-runtime.js: fast append must not leave stale grouped tail DOM next to new messages'
     )
-    assert "chat-text-send.js" in chat_js
-    assert "chat-file-send.js" in chat_js
+    assert "chat-text-send.js" in composer_send_runtime
+    assert "chat-file-send.js" in composer_send_runtime
     assert 'renderOptions: { force: true, scrollToBottom: true }' in text_send, (
         'chat-text-send.js: optimistic text sends should force a tail rerender for alignment'
     )
@@ -854,10 +861,11 @@ def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
 
 
 def test_chatjs_syncs_visual_viewport_css_vars() -> None:
-    """chat.js must sync visualViewport metrics to CSS vars for mobile keyboards."""
-    src = (STATIC / 'chat.js').read_text(encoding='utf-8')
-    assert 'function syncVisualViewportCssVars()' in src, (
-        'chat.js: visual viewport sync helper is missing'
+    """Chat mobile viewport runtime must sync visualViewport metrics to CSS vars."""
+    runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')
+    viewport = (STATIC / 'modules' / 'mobile-viewport.js').read_text(encoding='utf-8')
+    assert 'function syncVisualViewportCssVars()' in runtime, (
+        'chat-mobile-viewport-runtime.js: visual viewport sync helper is missing'
     )
     for token in (
         '--app-vh',
@@ -868,21 +876,21 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
         '--mobile-composer-bottom-inset',
         '--mobile-keyboard-layout-inset',
     ):
-        assert token in src, f'chat.js: missing CSS var sync for {token}'
-    assert 'function resetHorizontalViewportDrift()' in src, (
-        'chat.js: composer focus should guard against mobile horizontal viewport drift'
+        assert token in viewport, f'mobile-viewport.js: missing CSS var sync for {token}'
+    assert 'function resetHorizontalViewportDrift()' in runtime, (
+        'chat-mobile-viewport-runtime.js: composer focus should guard against mobile horizontal viewport drift'
     )
-    assert 'target.scrollLeft = 0' in src, (
-        'chat.js: mobile focus drift guard should reset horizontal scrollLeft'
+    assert 'target.scrollLeft = 0' in runtime, (
+        'chat-mobile-viewport-runtime.js: mobile focus drift guard should reset horizontal scrollLeft'
     )
-    assert 'requestAnimationFrame(resetHorizontalViewportDrift)' in src, (
-        'chat.js: drift reset should run after focus/keyboard layout settles'
+    assert 'requestAnimationFrameFn(resetHorizontalViewportDrift)' in runtime, (
+        'chat-mobile-viewport-runtime.js: drift reset should run after focus/keyboard layout settles'
     )
-    assert 'window.visualViewport.addEventListener(\'resize\', syncViewportAndInsets)' in src, (
-        'chat.js: visualViewport resize should use syncViewportAndInsets'
+    assert 'windowRef.visualViewport.addEventListener(\'resize\', syncViewportAndInsets)' in runtime, (
+        'chat-mobile-viewport-runtime.js: visualViewport resize should use syncViewportAndInsets'
     )
-    assert 'window.visualViewport.addEventListener(\'scroll\', syncViewportAndInsets)' in src, (
-        'chat.js: visualViewport scroll should use syncViewportAndInsets'
+    assert 'windowRef.visualViewport.addEventListener(\'scroll\', syncViewportAndInsets)' in runtime, (
+        'chat-mobile-viewport-runtime.js: visualViewport scroll should use syncViewportAndInsets'
     )
 
 
