@@ -750,9 +750,15 @@ def test_mobile_chat_uses_single_bottom_dock_for_keyboard_and_emoji() -> None:
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     """Opening emoji sheet should keep bottom-pinned messages above the composer."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
     assert 'const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;' in emoji
+    assert 'const MOBILE_EMOJI_CHAT_SCROLL_LOCK_EXTRA_MS = 320;' in emoji
     assert 'function isMobileEmojiChatPinnedToBottom(chatArea)' in emoji
     assert 'function pinMobileEmojiChatToBottom(chatArea)' in emoji
+    assert 'function lockMobileEmojiChatScroll' in emoji
+    assert 'chatMessages.scrollHeight - chatMessages.clientHeight - chatMessages.scrollTop' in emoji
+    assert '.chat-area.emoji-keyboard-handoff .chat-messages' in css
+    assert 'overflow-anchor: none' in css
 
     state_start = emoji.find('function setMobileEmojiSheetState')
     assert state_start >= 0, 'emoji.js: setMobileEmojiSheetState not found'
@@ -762,6 +768,23 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     assert state_start < pinned_idx < toggle_idx < pin_idx, (
         'emoji.js: mobile emoji open must capture pinned state before changing sheet layout '
         'and then scroll the message list to the new bottom.'
+    )
+
+    open_start = emoji.find('const openPicker = async (options = {}) => {')
+    wait_branch_idx = emoji.find('options.waitForKeyboard === true', open_start)
+    open_lock_idx = emoji.find('lockMobileEmojiChatScroll(openChatArea', wait_branch_idx)
+    open_blur_idx = emoji.find('messageInput.blur();', wait_branch_idx)
+    wait_hidden_idx = emoji.find('await waitForMobileKeyboardHidden();', wait_branch_idx)
+    assert open_start < wait_branch_idx < open_lock_idx < open_blur_idx < wait_hidden_idx, (
+        'emoji.js: keyboard-to-emoji handoff must lock chat scroll before blurring the native keyboard.'
+    )
+
+    close_start = emoji.find('const closePicker = ({ focusInput = false } = {}) => {')
+    handoff_idx = emoji.find('if (wantsKeyboardHandoff)', close_start)
+    close_lock_idx = emoji.find('lockMobileEmojiChatScroll(handoffChatArea', handoff_idx)
+    focus_idx = emoji.find('if (focusInput) focusComposerInput();', handoff_idx)
+    assert close_start < handoff_idx < close_lock_idx < focus_idx, (
+        'emoji.js: emoji-to-keyboard handoff must lock chat scroll before focusing the native keyboard.'
     )
 
 

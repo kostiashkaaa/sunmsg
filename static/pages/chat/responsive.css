@@ -1234,6 +1234,12 @@
                 transition: none !important;
             }
 
+            .chat-area.emoji-keyboard-handoff .chat-messages,
+            .chat-area.emoji-sheet-open .chat-messages,
+            .chat-area.emoji-sheet-releasing .chat-messages {
+                overflow-anchor: none;
+            }
+
             .chat-area.emoji-sheet-releasing .chat-input-area,
             .chat-area.emoji-sheet-releasing .chat-messages {
                 transition: none !important;
