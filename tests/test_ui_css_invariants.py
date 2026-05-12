@@ -636,12 +636,15 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     open_start = emoji.find('const openPicker = async (options = {}) => {')
     assert open_start >= 0, 'emoji.js: openPicker not found'
+    wait_branch_idx = emoji.find('options.waitForKeyboard === true', open_start)
+    wait_blur_idx = emoji.find('messageInput.blur();', wait_branch_idx)
+    wait_hidden_idx = emoji.find('await waitForMobileKeyboardHidden();', wait_branch_idx)
     active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
     position_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, {', open_start)
-    blur_idx = emoji.find('messageInput.blur();', open_start)
-    assert open_start < active_idx < position_idx < blur_idx, (
-        'emoji.js: mobile emoji sheet layout must be positioned before blurring input '
-        'so keyboard handoff cannot drop and re-raise the composer.'
+    fallback_blur_idx = emoji.find('messageInput.blur();', position_idx)
+    assert open_start < wait_branch_idx < wait_blur_idx < wait_hidden_idx < active_idx < position_idx < fallback_blur_idx, (
+        'emoji.js: keyboard-to-emoji should close the native keyboard before opening the custom sheet, '
+        'while non-keyboard opens still position the sheet before fallback blur.'
     )
 
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
@@ -664,7 +667,7 @@ def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
     assert pointer_start >= 0, 'emoji.js: emoji button pointerdown handler not found'
     inactive_idx = emoji.find("if (!emojiPicker.classList.contains('active'))", pointer_start)
     prevent_idx = emoji.find('event.preventDefault();', inactive_idx)
-    open_idx = emoji.find('openPicker({ preferredMobileSheetHeight: keyboardInset })', inactive_idx)
+    open_idx = emoji.find('openPicker({ preferredMobileSheetHeight: keyboardInset, waitForKeyboard: true })', inactive_idx)
     return_idx = emoji.find('return;', inactive_idx)
     assert pointer_start < inactive_idx < prevent_idx < open_idx < return_idx, (
         'emoji.js: mobile keyboard-to-emoji switch must prevent default pointer blur '
@@ -683,7 +686,7 @@ def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
     lazy_click_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('click'")
     lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
     lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
-    lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen(keyboardInset);', lazy_pointer_idx)
+    lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen(keyboardInset, { waitForKeyboard: true });', lazy_pointer_idx)
     assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
     assert lazy_pointer_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
         'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur '
@@ -706,7 +709,36 @@ def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     assert 'function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {})' in emoji
     assert 'keyboardInset >= targetKeyboardInset' in emoji
     assert 'startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset })' in emoji
+    assert 'function waitForMobileKeyboardHidden' in emoji
+    assert 'waitForKeyboard: true' in emoji
     assert "document.addEventListener('sun-open-emoji-picker'" in emoji
+
+
+def test_mobile_chat_uses_single_bottom_dock_for_keyboard_and_emoji() -> None:
+    """Mobile composer should be anchored to one dock; visualViewport handles keyboard size."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    chat_area_blocks = re.findall(r'\.chat-area\s*\{([^}]*)\}', css, re.DOTALL)
+    assert any('--mobile-bottom-dock-height: 0px' in block for block in chat_area_blocks), (
+        'chat.css: mobile chat area should define a single bottom dock variable.'
+    )
+
+    input_blocks = re.findall(r'\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
+    assert any('bottom: var(--mobile-bottom-dock-height, 0px)' in block for block in input_blocks), (
+        'chat.css: mobile composer should anchor to the bottom dock, not directly to keyboard inset.'
+    )
+    assert not any('bottom: var(--mobile-composer-bottom-inset' in block for block in input_blocks), (
+        'chat.css: mobile composer must not double-count keyboard height after app binds to visualViewport.'
+    )
+
+    emoji_area_block = re.search(r'\.chat-area\.emoji-sheet-open\s*\{([^}]*)\}', css, re.DOTALL)
+    assert emoji_area_block, 'chat.css: .chat-area.emoji-sheet-open block not found'
+    emoji_area_body = emoji_area_block.group(1)
+    assert '--mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, 460px)' in emoji_area_body
+
+    emoji_picker_blocks = re.findall(r'\.emoji-picker\s*\{([^}]*)\}', css, re.DOTALL)
+    assert any('bottom: 0' in block and 'top: auto' in block for block in emoji_picker_blocks), (
+        'chat.css: mobile emoji picker should be a fixed bottom dock.'
+    )
 
 
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:

@@ -100,10 +100,10 @@ export function createChatLazyUiRuntime({
         return Math.max(cssInset, Math.max(0, layoutViewportHeight - visibleBottom));
     }
 
-    function dispatchEmojiOpen(preferredMobileSheetHeight) {
+    function dispatchEmojiOpen(preferredMobileSheetHeight, { waitForKeyboard = false } = {}) {
         const documentRef = messageInput?.ownerDocument || windowRef.document;
         documentRef?.dispatchEvent(new windowRef.CustomEvent('sun-open-emoji-picker', {
-            detail: { preferredMobileSheetHeight },
+            detail: { preferredMobileSheetHeight, waitForKeyboard },
         }));
     }
 
@@ -194,7 +194,7 @@ export function createChatLazyUiRuntime({
         handledEmojiPointerOpen = true;
         try {
             await ensureEmojiPicker();
-            dispatchEmojiOpen(keyboardInset);
+            dispatchEmojiOpen(keyboardInset, { waitForKeyboard: true });
         } catch (error) {
             console.warn('Failed to initialize emoji picker', error);
         } finally {
