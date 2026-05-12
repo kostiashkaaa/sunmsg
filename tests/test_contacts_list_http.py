@@ -102,6 +102,7 @@ def test_get_chat_history_marks_messages_read_and_paginates(monkeypatch, tmp_pat
     assert response.status_code == 200
     assert payload['success'] is True
     assert payload['has_more_before'] is True
+    assert payload['total_messages'] == 2
     assert payload['block_state'] == {
         'is_blocked': False,
         'blocked_by_me': False,
@@ -155,6 +156,7 @@ def test_get_chat_history_marks_messages_read_and_paginates(monkeypatch, tmp_pat
     assert response.status_code == 200
     assert payload['success'] is True
     assert payload['has_more_before'] is False
+    assert payload['total_messages'] == 2
     assert [message['id'] for message in payload['messages']] == [101]
     assert payload['messages'][0]['is_favorite'] is False
     assert emitted == []
