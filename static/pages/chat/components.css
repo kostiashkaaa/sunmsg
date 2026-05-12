@@ -4969,6 +4969,7 @@
             width: 100%;
             display: block;
             min-height: 140px;
+            max-height: 420px;
             aspect-ratio: var(--media-aspect-ratio, 1);
             background:
                 linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 72%, transparent) 0%, color-mix(in srgb, var(--accent-soft) 26%, transparent) 100%);
@@ -5022,6 +5023,7 @@
             width: 100%;
             max-width: 100%;
             min-height: 140px;
+            max-height: 420px;
             aspect-ratio: var(--media-aspect-ratio, 1);
             cursor: pointer;
             display: block;

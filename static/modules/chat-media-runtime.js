@@ -95,7 +95,7 @@ export function initChatMediaRuntime(deps = {}) {
         const videoWidth = Number(videoEl.videoWidth);
         const videoHeight = Number(videoEl.videoHeight);
         if (preview && Number.isFinite(videoWidth) && videoWidth > 0 && Number.isFinite(videoHeight) && videoHeight > 0) {
-            const ratio = String(Math.max(0.56, Math.min(1.91, videoWidth / videoHeight)));
+            const ratio = String(Math.max(0.75, Math.min(1.91, videoWidth / videoHeight)));
             preview.style.setProperty('--media-aspect-ratio', ratio);
             preview.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);
             persistPendingMediaDimensions(videoEl.closest('.message'), videoWidth, videoHeight);
@@ -1201,7 +1201,7 @@ export function initChatMediaRuntime(deps = {}) {
         const naturalWidth = Number(mediaEl.naturalWidth || mediaEl.videoWidth);
         const naturalHeight = Number(mediaEl.naturalHeight || mediaEl.videoHeight);
         if (mediaWrap && Number.isFinite(naturalWidth) && naturalWidth > 0 && Number.isFinite(naturalHeight) && naturalHeight > 0) {
-            const ratio = String(Math.max(0.56, Math.min(1.91, naturalWidth / naturalHeight)));
+            const ratio = String(Math.max(0.75, Math.min(1.91, naturalWidth / naturalHeight)));
             mediaWrap.style.setProperty('--media-aspect-ratio', ratio);
             mediaWrap.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);
             persistPendingMediaDimensions(mediaEl.closest('.message'), naturalWidth, naturalHeight);
