@@ -678,6 +678,18 @@ def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
         'emoji.js: async emoji list render must preserve the locked sheet size.'
     )
 
+    lazy_ui_runtime = (STATIC / 'modules' / 'chat-lazy-ui-runtime.js').read_text(encoding='utf-8')
+    lazy_pointer_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('pointerdown'")
+    lazy_click_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('click'")
+    lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
+    lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
+    lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen(keyboardInset);', lazy_pointer_idx)
+    assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
+    assert lazy_pointer_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
+        'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur '
+        'and dispatch the captured keyboard height.'
+    )
+
 
 def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     """Keyboard-to-emoji handoff should replace the keyboard area, not render above it."""
@@ -694,6 +706,7 @@ def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     assert 'function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {})' in emoji
     assert 'keyboardInset >= targetKeyboardInset' in emoji
     assert 'startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset })' in emoji
+    assert "document.addEventListener('sun-open-emoji-picker'" in emoji
 
 
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
