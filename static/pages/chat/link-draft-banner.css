@@ -31,6 +31,7 @@
 }
 
 .link-draft-bar.is-visible {
+    display: flex;
     max-height: 74px;
     opacity: 1;
     pointer-events: auto;
