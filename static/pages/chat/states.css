@@ -1062,6 +1062,12 @@
         }
 
 
+        #voiceRecordBtn.is-mic-state:hover {
+            color: var(--text);
+            filter: none;
+        }
+
+
         #voiceRecordBtn:focus-visible {
             outline: none;
             box-shadow:
