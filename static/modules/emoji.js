@@ -140,9 +140,24 @@ function readRootPixelVar(name) {
     return Number.isFinite(value) ? value : 0;
 }
 
+function readMobileKeyboardInset() {
+    const cssInset = readRootPixelVar('--mobile-composer-bottom-inset');
+    const vv = window.visualViewport;
+    if (!vv) return cssInset;
+
+    const layoutViewportHeight = Math.max(
+        Math.round(window.innerHeight || 0),
+        Math.round(document.documentElement.clientHeight || 0),
+        readRootPixelVar('--app-vh'),
+    );
+    const visibleBottom = Math.round((vv.offsetTop || 0) + (vv.height || 0));
+    const viewportInset = Math.max(0, layoutViewportHeight - visibleBottom);
+    return Math.max(cssInset, viewportInset);
+}
+
 function captureMobileKeyboardInsetSnapshot() {
     if (!isMobileEmojiViewport()) return;
-    const inset = readRootPixelVar('--mobile-composer-bottom-inset');
+    const inset = readMobileKeyboardInset();
     if (inset <= 0) return;
     lastMobileKeyboardInsetPx = inset;
     lastMobileKeyboardInsetAt = performance.now();
@@ -251,7 +266,7 @@ function startEmojiKeyboardHandoff(emojiPicker) {
     };
     const tick = () => {
         const elapsed = performance.now() - startedAt;
-        const keyboardInset = readRootPixelVar('--mobile-composer-bottom-inset');
+        const keyboardInset = readMobileKeyboardInset();
         if (keyboardInset >= EMOJI_KEYBOARD_INSET_MIN || elapsed >= EMOJI_KEYBOARD_HANDOFF_MS) {
             finish();
             return;
@@ -619,14 +634,13 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     if (isMobile) {
         const preserveSize = Boolean(options.preserveSize);
         const visualViewportHeight = Math.round(vv?.height || 0);
-        const mobileViewportHeight = visualViewportHeight > 0
-            ? visualViewportHeight
-            : Math.max(
-                viewportHeight,
-                Math.round(window.innerHeight || 0),
-                Math.round(document.documentElement.clientHeight || 0),
-                readRootPixelVar('--app-vh'),
-            );
+        const layoutViewportHeight = Math.max(
+            viewportHeight,
+            Math.round(window.innerHeight || 0),
+            Math.round(document.documentElement.clientHeight || 0),
+            readRootPixelVar('--app-vh'),
+        );
+        const mobileViewportHeight = visualViewportHeight > 0 ? visualViewportHeight : layoutViewportHeight;
         const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop);
         const maxSheetHeight = Math.min(
             MOBILE_EMOJI_MAX_HEIGHT,
@@ -649,7 +663,10 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
         const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(minSheetHeight, targetSheetHeight)));
         const sheetWidth = Math.max(0, viewportWidth);
         const left = Math.round(viewportOffsetLeft);
-        const top = Math.round(viewportOffsetTop + mobileViewportHeight - sheetHeight);
+        const sheetBottom = hasPreferredMobileSheetHeight
+            ? Math.max(viewportOffsetTop + mobileViewportHeight, layoutViewportHeight)
+            : viewportOffsetTop + mobileViewportHeight;
+        const top = Math.round(sheetBottom - sheetHeight);
         const layoutSheetHeight = sheetHeight;
 
         emojiPicker.style.setProperty('--emoji-left', `${left}px`);
@@ -942,7 +959,7 @@ export function initEmojiPicker(messageInput) {
         emojiCloseSeq += 1;
         const renderSeq = ++openRenderSeq;
         const shouldOpenMobile = isMobileEmojiViewport();
-        const keyboardInsetBeforeOpen = shouldOpenMobile ? readRootPixelVar('--mobile-composer-bottom-inset') : 0;
+        const keyboardInsetBeforeOpen = shouldOpenMobile ? readMobileKeyboardInset() : 0;
         const recentKeyboardInset = (
             shouldOpenMobile
             && lastMobileKeyboardInsetPx > 0

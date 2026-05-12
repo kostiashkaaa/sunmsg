@@ -657,6 +657,19 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     )
 
 
+def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
+    """Keyboard-to-emoji handoff should replace the keyboard area, not render above it."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    assert 'function readMobileKeyboardInset' in emoji
+    assert "readRootPixelVar('--mobile-composer-bottom-inset')" in emoji
+    assert 'window.visualViewport' in emoji
+    assert 'layoutViewportHeight - visibleBottom' in emoji
+    assert 'const sheetBottom = hasPreferredMobileSheetHeight' in emoji
+    assert '? Math.max(viewportOffsetTop + mobileViewportHeight, layoutViewportHeight)' in emoji
+    assert ': viewportOffsetTop + mobileViewportHeight' in emoji
+    assert 'const top = Math.round(sheetBottom - sheetHeight)' in emoji
+
+
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     """Opening emoji sheet should keep bottom-pinned messages above the composer."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
