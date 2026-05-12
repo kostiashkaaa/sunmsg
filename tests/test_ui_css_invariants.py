@@ -634,7 +634,7 @@ def test_mobile_emoji_picker_resets_shell_scroll_before_positioning() -> None:
 def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     """Opening the mobile emoji sheet must lock composer layout before input blur."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
-    open_start = emoji.find('const openPicker = async () => {')
+    open_start = emoji.find('const openPicker = async (options = {}) => {')
     assert open_start >= 0, 'emoji.js: openPicker not found'
     active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
     position_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, {', open_start)
@@ -657,10 +657,33 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     )
 
 
+def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
+    """Emoji button pointerdown should open the sheet before textarea blur can drop the composer."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    pointer_start = emoji.find("emojiBtn.addEventListener('pointerdown'")
+    assert pointer_start >= 0, 'emoji.js: emoji button pointerdown handler not found'
+    inactive_idx = emoji.find("if (!emojiPicker.classList.contains('active'))", pointer_start)
+    prevent_idx = emoji.find('event.preventDefault();', inactive_idx)
+    open_idx = emoji.find('openPicker({ preferredMobileSheetHeight: keyboardInset })', inactive_idx)
+    return_idx = emoji.find('return;', inactive_idx)
+    assert pointer_start < inactive_idx < prevent_idx < open_idx < return_idx, (
+        'emoji.js: mobile keyboard-to-emoji switch must prevent default pointer blur '
+        'and open with the captured keyboard height.'
+    )
+
+    open_start = emoji.find('const openPicker = async (options = {}) => {')
+    render_idx = emoji.find('renderEmojiList({ forceCategoryScroll: true }).then', open_start)
+    preserve_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, { preserveSize: true });', render_idx)
+    assert open_start < render_idx < preserve_idx < pointer_start, (
+        'emoji.js: async emoji list render must preserve the locked sheet size.'
+    )
+
+
 def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     """Keyboard-to-emoji handoff should replace the keyboard area, not render above it."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     assert 'function readMobileKeyboardInset' in emoji
+    assert 'function readCurrentMobileEmojiSheetHeight' in emoji
     assert "readRootPixelVar('--mobile-composer-bottom-inset')" in emoji
     assert 'window.visualViewport' in emoji
     assert 'layoutViewportHeight - visibleBottom' in emoji
@@ -668,6 +691,9 @@ def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     assert '? Math.max(viewportOffsetTop + mobileViewportHeight, layoutViewportHeight)' in emoji
     assert ': viewportOffsetTop + mobileViewportHeight' in emoji
     assert 'const top = Math.round(sheetBottom - sheetHeight)' in emoji
+    assert 'function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {})' in emoji
+    assert 'keyboardInset >= targetKeyboardInset' in emoji
+    assert 'startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset })' in emoji
 
 
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
