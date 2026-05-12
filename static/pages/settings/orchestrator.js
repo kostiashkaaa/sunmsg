@@ -417,4 +417,122 @@ export function initSettingsPage() {
         navigateOut,
         showAlert,
     });
+
+    initHomeMetaSync({ tr, i18nApi });
+}
+
+/**
+ * Populate the home-list nav items' `data-meta` attribute (right-aligned
+ * value shown next to the row title in the redesigned home view).
+ *
+ * Reads from existing DOM state and public APIs so we don't need to refactor
+ * each section to expose its current value. Re-runs whenever a relevant input
+ * changes (theme, language, toggles, totp).
+ */
+function initHomeMetaSync({ tr, i18nApi }) {
+    const PLACEHOLDER = '—';
+
+    const setMeta = (id, value) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const text = value == null || value === '' ? PLACEHOLDER : String(value);
+        if (el.getAttribute('data-meta') !== text) {
+            el.setAttribute('data-meta', text);
+        }
+    };
+
+    const readLanguageLabel = () => {
+        const lang = i18nApi && typeof i18nApi.getLanguage === 'function'
+            ? i18nApi.getLanguage()
+            : (document.documentElement.lang || 'ru');
+        return lang === 'en' ? 'English' : 'Русский';
+    };
+
+    const readThemeLabel = () => {
+        try {
+            const api = window.InterfaceTheme;
+            const isDark = document.body.classList.contains('dark-mode');
+            const themeKey = isDark ? 'dark' : 'light';
+            if (api && typeof api.getActivePreset === 'function') {
+                const preset = api.getActivePreset(themeKey);
+                if (preset && preset.label) return tr(preset.label);
+                if (preset && preset.id) return tr(preset.id);
+            }
+            return tr(isDark ? 'Тёмная' : 'Светлая');
+        } catch (_) {
+            return PLACEHOLDER;
+        }
+    };
+
+    const readTotpLabel = () => {
+        const el = document.getElementById('totpStatusText');
+        const raw = (el?.textContent || '').trim().toLowerCase();
+        if (!raw) return tr('2FA · выкл');
+        if (raw.includes('вкл') || raw.includes('on') || raw.includes('enabled')) return tr('2FA · вкл');
+        return tr('2FA · выкл');
+    };
+
+    const readPrivacyLabel = () => {
+        const sel = document.getElementById('avatarVisibilitySelect');
+        if (!sel) return PLACEHOLDER;
+        const opt = sel.options?.[sel.selectedIndex];
+        return opt ? opt.textContent.trim() : PLACEHOLDER;
+    };
+
+    const readSendModeLabel = () => {
+        const input = document.querySelector('input[name="chatSendMode"]:checked, input[name="sendMode"]:checked');
+        if (!input) return tr('Enter — отправить');
+        const v = String(input.value || '').toLowerCase();
+        return v.includes('ctrl') ? tr('Ctrl+Enter') : tr('Enter');
+    };
+
+    const readDevicesLabel = () => {
+        const list = document.querySelector('#sessionsList, [data-sessions-list]');
+        if (!list) return PLACEHOLDER;
+        const items = list.querySelectorAll('[data-session-item], li, .session-item, .device-row');
+        const n = items.length;
+        if (!n) return PLACEHOLDER;
+        const word = n === 1 ? tr('активная') : (n < 5 ? tr('активных') : tr('активных'));
+        return `${n} ${word}`;
+    };
+
+    const readDataMemoryLabel = () => {
+        const el = document.querySelector('#cacheSizeValue, [data-cache-size]');
+        const txt = (el?.textContent || '').trim();
+        return txt || PLACEHOLDER;
+    };
+
+    const syncAll = () => {
+        setMeta('navMetaNotifications', tr('Push для браузера'));
+        setMeta('navMetaDataMemory', readDataMemoryLabel());
+        setMeta('navMetaPrivacy', readPrivacyLabel());
+        setMeta('navMetaSecurity', readTotpLabel());
+        setMeta('navMetaAppearance', readThemeLabel());
+        setMeta('navMetaLanguage', readLanguageLabel());
+        setMeta('navMetaBehavior', readSendModeLabel());
+        setMeta('navMetaDevices', readDevicesLabel());
+    };
+
+    // First pass + a few delayed passes so async sections finish loading
+    syncAll();
+    setTimeout(syncAll, 300);
+    setTimeout(syncAll, 1500);
+
+    // React to relevant changes
+    document.addEventListener('change', (e) => {
+        const t = e.target;
+        if (!t) return;
+        if (t.id === 'avatarVisibilitySelect'
+            || (t.name && /sendMode|chatSendMode/i.test(t.name))) {
+            syncAll();
+        }
+    }, true);
+
+    document.addEventListener('sun-theme-changed', syncAll);
+    document.addEventListener('sun-language-changed', syncAll);
+    document.addEventListener('sun-settings-refresh', syncAll);
+
+    // MutationObserver on body class for dark-mode toggle
+    const bodyObserver = new MutationObserver(syncAll);
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-ui-language'] });
 }

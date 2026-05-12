@@ -380,7 +380,7 @@
         gap: 14px;
         min-height: 56px;
         margin: 0;
-        padding: 11px 18px;
+        padding: 11px 36px 11px 18px;       /* right padding reserves chevron */
         border: 0;
         border-radius: 0;
         box-shadow: none;
@@ -392,6 +392,12 @@
         text-decoration: none;
         cursor: pointer;
         transition: background var(--dur-instant) var(--ease-quick);
+
+        /* chevron drawn as a background image so we keep ::before/::after free */
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M3 1.5l3.5 3.5L3 8.5' stroke='%23a39a8a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        background-size: 10px 10px;
     }
 
     /* Hairline divider between rows (not on the very first one) */
@@ -411,39 +417,38 @@
         color: var(--sx-accent-2, #b88517);
         box-sizing: border-box;
         flex: 0 0 28px;
+        order: 0;
     }
 
     body.settings-home-open .settings-nav-group .nav-item > span {
-        flex: 1;
+        flex: 1 1 auto;
         min-width: 0;
         font-size: 14.5px;
         font-weight: 500;
-    }
-
-    /* Meta value (right-aligned). Filled from data-meta via CSS attr() */
-    body.settings-home-open .settings-nav-group .nav-item[data-meta]::before {
-        content: attr(data-meta);
-        margin-left: auto;
-        font-size: 13px;
-        font-weight: 400;
-        color: var(--sx-ink-3, #a39a8a);
+        order: 1;
         white-space: nowrap;
-        max-width: 60%;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Chevron at the very right */
-    body.settings-home-open .settings-nav-group .nav-item::after {
+    /* Meta value (right-aligned, before the chevron). Filled via attr(data-meta) */
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::after {
+        content: attr(data-meta);
+        order: 2;
+        margin-left: 12px;
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--sx-ink-3, #a39a8a);
+        white-space: nowrap;
+        max-width: 55%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Hide meta when empty/placeholder */
+    body.settings-home-open .settings-nav-group .nav-item[data-meta=""]::after,
+    body.settings-home-open .settings-nav-group .nav-item[data-meta="—"]::after {
         content: "";
-        width: 8px;
-        height: 8px;
-        flex: 0 0 auto;
-        margin-left: 4px;
-        border-right: 2px solid var(--sx-ink-3, #a39a8a);
-        border-top: 2px solid var(--sx-ink-3, #a39a8a);
-        transform: rotate(45deg);
-        opacity: .55;
     }
 
     body.settings-home-open .settings-nav-group .nav-item:hover {
@@ -490,7 +495,11 @@
         background: color-mix(in srgb, var(--sx-danger, #c95a3a) 16%, transparent);
         color: var(--sx-danger, #c95a3a);
     }
-    body.settings-home-open .settings-logout-form .nav-item::after { display: none; }
+    body.settings-home-open .settings-logout-form .nav-item {
+        background-image: none;
+        padding-right: 18px;
+    }
+    body.settings-home-open .settings-logout-form .nav-item::after { content: none; }
 
     body.settings-detail-open .settings-profile-section {
         min-height: 0;
