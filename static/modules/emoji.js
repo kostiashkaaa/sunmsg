@@ -1182,6 +1182,15 @@ export function initEmojiPicker(messageInput) {
         }
     });
 
+    document.addEventListener('sun-open-emoji-picker', (event) => {
+        const preferredMobileSheetHeight = Number.parseFloat(event?.detail?.preferredMobileSheetHeight);
+        openPicker({
+            preferredMobileSheetHeight: Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0
+                ? preferredMobileSheetHeight
+                : null,
+        }).catch(() => {});
+    });
+
     document.addEventListener('sun-close-emoji-picker', () => closePicker());
 
     window.addEventListener('resize', reposition, { passive: true });

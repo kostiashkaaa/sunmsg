@@ -18,6 +18,8 @@ export function createChatLazyUiRuntime({
 } = {}) {
     let applyActiveMessageSearchFilterImpl = () => {};
     let emojiPickerInitPromise = null;
+    let handledEmojiPointerOpen = false;
+    let handledEmojiPointerTimer = null;
     let messageSearchInitPromise = null;
     let sidebarSearchInitPromise = null;
     let isSidebarSearchReady = false;
@@ -69,6 +71,40 @@ export function createChatLazyUiRuntime({
                 throw error;
             });
         return emojiPickerInitPromise;
+    }
+
+    function isMobileViewport() {
+        return windowRef.innerWidth <= 768;
+    }
+
+    function readRootPixelVar(name) {
+        const root = messageInput?.ownerDocument?.documentElement || windowRef.document?.documentElement;
+        if (!root) return 0;
+        const raw = windowRef.getComputedStyle(root).getPropertyValue(name).trim();
+        if (!raw.endsWith('px')) return 0;
+        const value = Number.parseFloat(raw);
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    function readMobileKeyboardInset() {
+        const cssInset = readRootPixelVar('--mobile-composer-bottom-inset');
+        const vv = windowRef.visualViewport;
+        if (!vv) return cssInset;
+        const root = messageInput?.ownerDocument?.documentElement || windowRef.document?.documentElement;
+        const layoutViewportHeight = Math.max(
+            Math.round(windowRef.innerHeight || 0),
+            Math.round(root?.clientHeight || 0),
+            readRootPixelVar('--app-vh'),
+        );
+        const visibleBottom = Math.round((vv.offsetTop || 0) + (vv.height || 0));
+        return Math.max(cssInset, Math.max(0, layoutViewportHeight - visibleBottom));
+    }
+
+    function dispatchEmojiOpen(preferredMobileSheetHeight) {
+        const documentRef = messageInput?.ownerDocument || windowRef.document;
+        documentRef?.dispatchEvent(new windowRef.CustomEvent('sun-open-emoji-picker', {
+            detail: { preferredMobileSheetHeight },
+        }));
     }
 
     function ensureMessageSearch() {
@@ -146,7 +182,36 @@ export function createChatLazyUiRuntime({
         }
     }, { capture: true });
 
+    emojiBtn?.addEventListener('pointerdown', async (event) => {
+        if (emojiPickerInitPromise) return;
+        if (!isMobileViewport() || messageInput?.ownerDocument?.activeElement !== messageInput) return;
+        const keyboardInset = readMobileKeyboardInset();
+        if (keyboardInset < 24) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        windowRef.clearTimeout(handledEmojiPointerTimer);
+        handledEmojiPointerOpen = true;
+        try {
+            await ensureEmojiPicker();
+            dispatchEmojiOpen(keyboardInset);
+        } catch (error) {
+            console.warn('Failed to initialize emoji picker', error);
+        } finally {
+            handledEmojiPointerTimer = windowRef.setTimeout(() => {
+                handledEmojiPointerOpen = false;
+            }, 450);
+        }
+    }, { capture: true });
+
     emojiBtn?.addEventListener('click', async (event) => {
+        if (handledEmojiPointerOpen) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            windowRef.clearTimeout(handledEmojiPointerTimer);
+            handledEmojiPointerOpen = false;
+            return;
+        }
         if (isProfileDrawerOpen()) {
             await closePartnerProfileDrawer();
         }
