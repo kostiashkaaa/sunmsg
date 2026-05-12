@@ -747,6 +747,26 @@ def test_header_dropdown_is_solid_above_message_stream() -> None:
     )
 
 
+def test_mobile_header_dropdown_is_viewport_bounded() -> None:
+    """Mobile header menu should scroll internally instead of being clipped."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    mobile_start = css.find('@media (max-width: 768px)')
+    assert mobile_start >= 0, 'chat.css: mobile media block not found'
+    mobile_css = css[mobile_start:]
+    blocks = re.findall(
+        r'\.chat-header\s+\.header-dropdown\s*\{([^}]*)\}',
+        mobile_css,
+        re.DOTALL,
+    )
+    assert blocks, 'chat.css: mobile .chat-header .header-dropdown block not found'
+    assert any('--app-vh' in block and 'max-height:' in block for block in blocks), (
+        'chat.css: mobile header dropdown must be capped by the visual app height'
+    )
+    assert any('overflow-y: auto' in block for block in blocks), (
+        'chat.css: mobile header dropdown must scroll internally when viewport is short'
+    )
+
+
 def test_header_dropdown_close_does_not_linger() -> None:
     """The top-right chat menu should close with a short exit motion, not hang."""
     states = _read_css_text(STATIC / 'pages' / 'chat.css')

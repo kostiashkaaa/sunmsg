@@ -925,6 +925,14 @@
             .chat-header .header-dropdown .dropdown-item-mobile-only {
                 display: flex;
             }
+            .chat-header .header-dropdown {
+                max-height: calc(
+                    var(--app-vh, 100dvh)
+                    - 56px
+                    - env(safe-area-inset-bottom, 0px)
+                );
+                overflow-y: auto;
+            }
             .chat-partner-name { font-size: 14px; }
             .chat-header .back-btn,
             .chat-header .header-actions-group .btn-icon {
