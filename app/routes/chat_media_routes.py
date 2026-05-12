@@ -120,9 +120,9 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
     @limiter.limit("10 per hour")
     def upload_avatar():
         if 'user_id' not in session:
-            return jsonify({'success': False, 'error': 'РќРµРѕР±С…РѕРґРёРјРѕ РІРѕР№С‚Рё.'}), 401
+            return jsonify({'success': False, 'error': 'Необходимо войти.'}), 401
         if 'avatar' not in request.files:
-            return jsonify({'success': False, 'error': 'Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ.'}), 400
+            return jsonify({'success': False, 'error': 'Файл не найден.'}), 400
 
         user_id = session['user_id']
         conn = get_db_connection_func()
@@ -150,12 +150,12 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
     @limiter.limit("120 per hour")
     def upload_chat_media():
         if 'user_id' not in session:
-            return jsonify({'success': False, 'error': 'РќРµРѕР±С…РѕРґРёРјРѕ РІРѕР№С‚Рё РІ СЃРёСЃС‚РµРјСѓ.'}), 401
+            return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
         # Allow multipart envelope bytes so a valid chat media file is not rejected
         # by global MAX_CONTENT_LENGTH before route-level validation runs.
         request.max_content_length = int(get_max_chat_media_size_func()) + _CHAT_MEDIA_MULTIPART_OVERHEAD_BYTES
         if 'file' not in request.files:
-            return jsonify({'success': False, 'error': 'Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ.'}), 400
+            return jsonify({'success': False, 'error': 'Файл не найден.'}), 400
 
         uploaded = request.files['file']
         chat_id = (request.form.get('chat_id') or '').strip()
@@ -194,7 +194,7 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
                 )
             return _upload_chat_media_success_response(result=result)
         except DatabaseError:
-            return jsonify({'success': False, 'error': 'РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ С„Р°Р№Р»Р°.'}), 500
+            return jsonify({'success': False, 'error': 'Ошибка сохранения файла.'}), 500
         finally:
             conn.close()
 
@@ -203,7 +203,7 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
     @limiter.limit("1200 per minute", key_func=chat_media_rate_limit_key_func)
     def get_chat_media(media_id: int):
         if 'user_id' not in session:
-            return jsonify({'success': False, 'error': 'РќРµРѕР±С…РѕРґРёРјРѕ РІРѕР№С‚Рё РІ СЃРёСЃС‚РµРјСѓ.'}), 401
+            return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401
 
         user_id = session['user_id']
         conn = get_db_connection_func()
@@ -219,12 +219,12 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
                 cache_max_age_seconds=int(current_app.config.get('CHAT_MEDIA_CACHE_MAX_AGE_SECONDS', 3600) or 0),
             )
             if result['status'] == 'not_found':
-                return jsonify({'success': False, 'error': 'Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ.'}), 404
+                return jsonify({'success': False, 'error': 'Файл не найден.'}), 404
             if result['status'] == 'forbidden':
-                return jsonify({'success': False, 'error': 'Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ.'}), 403
+                return jsonify({'success': False, 'error': 'Доступ запрещен.'}), 403
             if result['status'] == 'blocked':
                 return block_forbidden_response_func(
-                    'Р”РѕСЃС‚СѓРї Рє РјРµРґРёР° Р·Р°РїСЂРµС‰РµРЅ: РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.',
+                    'Доступ к медиа запрещен: пользователь заблокирован.',
                     result['block_state'],
                 )
 

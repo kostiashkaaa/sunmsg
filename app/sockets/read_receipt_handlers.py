@@ -12,7 +12,7 @@ def _is_missing_read_at_column_error(exc: Exception) -> bool:
         and (
             'no such column' in message
             or 'does not exist' in message
-            or 'РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚' in message
+            or 'не существует' in message
         )
     )
 
