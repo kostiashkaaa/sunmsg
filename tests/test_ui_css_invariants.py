@@ -631,6 +631,48 @@ def test_mobile_emoji_picker_resets_shell_scroll_before_positioning() -> None:
     assert 'emojiBtn.closest(\'.chat-input-area\')' in emoji
 
 
+def test_mobile_emoji_open_locks_composer_before_blur() -> None:
+    """Opening the mobile emoji sheet must lock composer layout before input blur."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    open_start = emoji.find('const openPicker = async () => {')
+    assert open_start >= 0, 'emoji.js: openPicker not found'
+    active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
+    position_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, {', open_start)
+    blur_idx = emoji.find('messageInput.blur();', open_start)
+    assert open_start < active_idx < position_idx < blur_idx, (
+        'emoji.js: mobile emoji sheet layout must be positioned before blurring input '
+        'so keyboard handoff cannot drop and re-raise the composer.'
+    )
+
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    block = re.search(
+        r'\.chat-area\.emoji-sheet-open\s+\.chat-input-area\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert block, 'chat.css: mobile .emoji-sheet-open .chat-input-area block not found'
+    transition_part = block.group(1).split('transition:', 1)[1]
+    assert 'bottom var(' not in transition_part, (
+        'chat.css: emoji-open composer must not animate bottom; it should lock to the sheet edge.'
+    )
+
+
+def test_mobile_inline_message_meta_aligns_to_text_bottom() -> None:
+    """Mobile inline text footer should reserve vertical offset for meta baseline."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    blocks = list(re.finditer(
+        r'\.message:not\(\.message-emoji-only\)\s+\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\):not\(:has\(>\s+\.message-link-preview\)\):not\(:has\(>\s+\.message-sender-label\)\)\s+>\s+\.message-footer\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    ))
+    assert blocks, 'chat.css: compact mobile text footer block not found'
+    body = next((match.group(1) for match in blocks if 'float: right' in match.group(1)), '')
+    assert body, 'chat.css: mobile compact text footer must keep float:right inline placement'
+    assert 'padding-top: calc(5px * var(--chat-message-scale))' in body, (
+        'chat.css: compact mobile text footer must offset meta down to align with text bottom.'
+    )
+
+
 def test_chat_page_hides_horizontal_scrollbar_tracks_for_webkit() -> None:
     """Desktop webview: chat page should hide horizontal scrollbar tracks."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
