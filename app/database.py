@@ -40,8 +40,8 @@ def _database_url() -> str:
     return _database_url_impl()
 
 
-def get_db_connection():
-    return _get_db_connection_impl()
+def get_db_connection(*, request_scoped: bool = True):
+    return _get_db_connection_impl(request_scoped=request_scoped)
 
 
 def ensure_chat_exists(conn, chat_id: str, *, chat_name: str = 'New Chat') -> None:

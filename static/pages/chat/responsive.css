@@ -1700,6 +1700,20 @@
         display: flex !important;
     }
 
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) {
+        display: block;
+    }
+
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-text {
+        display: inline;
+    }
+
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-footer {
+        display: inline-flex !important;
+        float: right;
+        margin-left: calc(4px * var(--chat-message-scale));
+    }
+
     .message.message-reactions-outside .message-stack > .message-reactions {
         margin: calc(var(--tg-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0 !important;
         max-width: 100%;
