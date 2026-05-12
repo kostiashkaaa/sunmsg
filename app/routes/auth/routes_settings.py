@@ -50,6 +50,12 @@ def settings():
         return redirect(url_for('auth.index'))
 
     embed_mode = str(request.args.get('embed', '')).strip().lower() in {'1', 'true', 'yes'}
+
+    if not embed_mode and request.method == 'GET':
+        section = str(request.args.get('section', '')).strip()
+        hash_part = f'#{section}' if section else ''
+        return redirect(url_for('chat.chat_page') + hash_part)
+
     user_public_key_pem = session['public_key_pem']
     form = SettingsForm()
 

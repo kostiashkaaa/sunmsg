@@ -530,6 +530,7 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     window.openCommandPalette = openCommandPalette;
     window.openSettingsOverlay = openSettingsOverlay;
+    window.closeSettingsOverlay = closeSettingsOverlay;
     window.sunDialogController = {
         openAnimatedDialog,
         closeAnimatedDialog,
