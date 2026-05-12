@@ -77,6 +77,27 @@ export function createChatLazyUiRuntime({
         return windowRef.innerWidth <= 768;
     }
 
+    let emojiWarmupScheduled = false;
+    function scheduleEmojiPickerWarmup(delayMs = 0) {
+        if (!isMobileViewport() || emojiPickerInitPromise || emojiWarmupScheduled) return;
+        emojiWarmupScheduled = true;
+        const runWarmup = () => {
+            emojiWarmupScheduled = false;
+            ensureEmojiPicker().catch((error) => {
+                console.warn('Failed to warm up emoji picker', error);
+            });
+        };
+        if (delayMs > 0) {
+            windowRef.setTimeout(runWarmup, delayMs);
+            return;
+        }
+        if (typeof windowRef.requestIdleCallback === 'function') {
+            windowRef.requestIdleCallback(runWarmup, { timeout: 900 });
+            return;
+        }
+        windowRef.setTimeout(runWarmup, 120);
+    }
+
     function readRootPixelVar(name) {
         const root = messageInput?.ownerDocument?.documentElement || windowRef.document?.documentElement;
         if (!root) return 0;
@@ -225,6 +246,11 @@ export function createChatLazyUiRuntime({
             console.warn('Failed to initialize emoji picker', error);
         }
     }, { capture: true });
+
+    messageInput?.addEventListener('focus', () => {
+        scheduleEmojiPickerWarmup();
+    }, { passive: true });
+    scheduleEmojiPickerWarmup(350);
 
     searchChatBtn?.addEventListener('click', async (event) => {
         if (messageSearchInitPromise) return;

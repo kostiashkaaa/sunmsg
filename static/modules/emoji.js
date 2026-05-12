@@ -29,7 +29,6 @@ const MOBILE_EMOJI_HEIGHT_RATIO = 0.46;
 const MOBILE_EMOJI_MIN_HEADER_GAP = 8;
 const EMOJI_CLOSE_ANIMATION_MS = 190;
 const EMOJI_KEYBOARD_HANDOFF_MS = 720;
-const MOBILE_EMOJI_CHAT_SCROLL_LOCK_EXTRA_MS = 320;
 // Keep in sync with keyboard viewport detection in mobile-viewport.js
 // so handoff ends as soon as the keyboard is actually visible.
 const EMOJI_KEYBOARD_INSET_MIN = 24;
@@ -55,8 +54,6 @@ const EMOJI_INLINE_KEYWORDS = {
 let emojiCloseSeq = 0;
 let emojiKeyboardHandoffTimer = null;
 let emojiKeyboardHandoffFrame = 0;
-let mobileEmojiChatScrollLockTimer = null;
-let mobileEmojiChatScrollLockFrame = 0;
 let lastMobileKeyboardInsetPx = 0;
 let lastMobileKeyboardInsetAt = 0;
 
@@ -202,46 +199,6 @@ function pinMobileEmojiChatToBottom(chatArea) {
     });
 }
 
-function stopMobileEmojiChatScrollLock() {
-    window.clearTimeout(mobileEmojiChatScrollLockTimer);
-    mobileEmojiChatScrollLockTimer = null;
-    if (mobileEmojiChatScrollLockFrame) {
-        window.cancelAnimationFrame(mobileEmojiChatScrollLockFrame);
-        mobileEmojiChatScrollLockFrame = 0;
-    }
-}
-
-function lockMobileEmojiChatScroll(chatArea, { durationMs = EMOJI_KEYBOARD_HANDOFF_MS, pinToBottom = false } = {}) {
-    const chatMessages = resolveMobileEmojiChatMessages(chatArea);
-    if (!chatMessages || !isMobileEmojiViewport()) return;
-
-    stopMobileEmojiChatScrollLock();
-    const bottomOffset = pinToBottom
-        ? 0
-        : Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight - chatMessages.scrollTop);
-    const startedAt = performance.now();
-    const lock = () => {
-        const maxScrollTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
-        chatMessages.scrollTop = Math.max(0, maxScrollTop - bottomOffset);
-    };
-    const finish = () => {
-        stopMobileEmojiChatScrollLock();
-        lock();
-    };
-    const tick = () => {
-        lock();
-        if (performance.now() - startedAt >= durationMs) {
-            finish();
-            return;
-        }
-        mobileEmojiChatScrollLockFrame = window.requestAnimationFrame(tick);
-    };
-
-    lock();
-    mobileEmojiChatScrollLockTimer = window.setTimeout(finish, durationMs + 80);
-    mobileEmojiChatScrollLockFrame = window.requestAnimationFrame(tick);
-}
-
 function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
     const chatArea = resolveEmojiChatArea(emojiPicker);
     if (!chatArea) return;
@@ -253,6 +210,7 @@ function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
     );
 
     chatArea.classList.toggle('emoji-sheet-open', Boolean(isOpen));
+    document.documentElement.classList.toggle('mobile-emoji-sheet-open', Boolean(isOpen));
     if (isOpen && Number.isFinite(height)) {
         chatArea.style.setProperty('--mobile-emoji-sheet-height', `${Math.round(height)}px`);
         if (shouldPinChatToBottom) {
@@ -298,19 +256,9 @@ function stopEmojiKeyboardHandoff(emojiPicker, { clearLayout = false } = {}) {
         emojiKeyboardHandoffFrame = 0;
     }
     const chatArea = resolveEmojiChatArea(emojiPicker);
-    const shouldPinAfterLayoutClear = Boolean(
-        clearLayout
-        && chatArea
-        && isMobileEmojiViewport()
-        && isMobileEmojiChatPinnedToBottom(chatArea),
-    );
     chatArea?.classList.remove('emoji-keyboard-handoff');
     if (clearLayout) {
         clearMobileEmojiSheetState(emojiPicker);
-        lockMobileEmojiChatScroll(chatArea, {
-            durationMs: EMOJI_CLOSE_ANIMATION_MS,
-            pinToBottom: shouldPinAfterLayoutClear,
-        });
     }
 }
 
@@ -342,32 +290,6 @@ function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {}) {
     emojiKeyboardHandoffTimer = window.setTimeout(finish, EMOJI_KEYBOARD_HANDOFF_MS);
     emojiKeyboardHandoffFrame = window.requestAnimationFrame(tick);
     return true;
-}
-
-function waitForMobileKeyboardHidden(timeoutMs = EMOJI_KEYBOARD_HANDOFF_MS) {
-    if (!isMobileEmojiViewport() || readMobileKeyboardInset() < EMOJI_KEYBOARD_INSET_MIN) {
-        return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-        const startedAt = performance.now();
-        let frameId = 0;
-        let timeoutId = 0;
-        const finish = () => {
-            if (frameId) window.cancelAnimationFrame(frameId);
-            if (timeoutId) window.clearTimeout(timeoutId);
-            resolve();
-        };
-        const tick = () => {
-            if (readMobileKeyboardInset() < EMOJI_KEYBOARD_INSET_MIN
-                || performance.now() - startedAt >= timeoutMs) {
-                finish();
-                return;
-            }
-            frameId = window.requestAnimationFrame(tick);
-        };
-        timeoutId = window.setTimeout(finish, timeoutMs + 80);
-        frameId = window.requestAnimationFrame(tick);
-    });
 }
 
 function isAllowedPickerEmoji(value) {
@@ -733,17 +655,18 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
         );
         const mobileViewportHeight = visualViewportHeight > 0 ? visualViewportHeight : layoutViewportHeight;
         const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop);
+        const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
+        const hasPreferredMobileSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0;
+        const sheetViewportHeight = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight;
         const maxSheetHeight = Math.min(
             MOBILE_EMOJI_MAX_HEIGHT,
-            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, mobileViewportHeight - 80),
-            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, mobileViewportHeight - topReserve),
+            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, sheetViewportHeight - 80),
+            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, sheetViewportHeight - topReserve),
         );
         const defaultSheetHeight = Math.min(
             maxSheetHeight,
             Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
         );
-        const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
-        const hasPreferredMobileSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0;
         const currentSheetHeight = preserveSize
             ? Number.parseFloat(String(emojiPicker.style.getPropertyValue('--emoji-height') || ''))
             : NaN;
@@ -1020,11 +943,6 @@ export function initEmojiPicker(messageInput) {
         const keyboardHandoffTargetInset = wantsKeyboardHandoff
             ? readCurrentMobileEmojiSheetHeight(emojiPicker)
             : 0;
-        const handoffChatArea = wantsKeyboardHandoff ? resolveEmojiChatArea(emojiPicker) : null;
-        const shouldPinHandoffChat = Boolean(
-            handoffChatArea
-            && isMobileEmojiChatPinnedToBottom(handoffChatArea),
-        );
         if (!emojiPicker.classList.contains('active') && !emojiPicker.classList.contains('is-closing')) {
             // Picker is already closed: never restart handoff here, just normalize layout.
             stopEmojiKeyboardHandoff(emojiPicker, { clearLayout: true });
@@ -1039,10 +957,6 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.add('is-closing');
         emojiPicker.setAttribute('aria-hidden', 'true');
         if (wantsKeyboardHandoff) {
-            lockMobileEmojiChatScroll(handoffChatArea, {
-                durationMs: EMOJI_KEYBOARD_HANDOFF_MS + MOBILE_EMOJI_CHAT_SCROLL_LOCK_EXTRA_MS,
-                pinToBottom: shouldPinHandoffChat,
-            });
             startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset });
         }
         syncEmojiButtonMode(false);
@@ -1067,20 +981,6 @@ export function initEmojiPicker(messageInput) {
         const keyboardInsetBeforeOpen = shouldOpenMobile
             ? (hasExplicitMobileSheetHeight ? explicitMobileSheetHeight : readMobileKeyboardInset())
             : 0;
-        if (shouldOpenMobile && options.waitForKeyboard === true && document.activeElement === messageInput) {
-            const openChatArea = resolveEmojiChatArea(emojiPicker);
-            lockMobileEmojiChatScroll(openChatArea, {
-                durationMs: EMOJI_KEYBOARD_HANDOFF_MS + MOBILE_EMOJI_CHAT_SCROLL_LOCK_EXTRA_MS,
-                pinToBottom: isMobileEmojiChatPinnedToBottom(openChatArea),
-            });
-            try {
-                messageInput.blur();
-            } catch (_) {
-                // Mobile browsers may reject blur during pointer processing.
-            }
-            await waitForMobileKeyboardHidden();
-            if (renderSeq !== openRenderSeq) return;
-        }
         const recentKeyboardInset = (
             shouldOpenMobile
             && lastMobileKeyboardInsetPx > 0
