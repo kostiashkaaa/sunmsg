@@ -921,13 +921,13 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.remove('is-closing');
         emojiPicker.classList.add('active');
         emojiPicker.setAttribute('aria-hidden', 'false');
-        if (shouldOpenMobile && document.activeElement === messageInput) {
-            messageInput.blur();
-        }
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
         positionEmojiPicker(emojiPicker, emojiBtn, {
             preferredMobileSheetHeight: preferredMobileSheetHeight > 0 ? preferredMobileSheetHeight : null,
         });
+        if (shouldOpenMobile && document.activeElement === messageInput) {
+            messageInput.blur();
+        }
         syncEmojiButtonMode(true);
 
         const { localeCode } = getLocaleStrings();

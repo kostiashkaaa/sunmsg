@@ -1207,6 +1207,9 @@
                     + var(--mobile-emoji-sheet-height, 320px)
                 );
                 z-index: 1002;
+                transition:
+                    opacity var(--m-dur-fast) var(--m-decel),
+                    transform var(--m-dur-fast) var(--m-decel);
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area {
@@ -1721,6 +1724,7 @@
         display: inline-flex !important;
         float: right;
         margin-left: calc(4px * var(--chat-message-scale));
+        padding-top: calc(5px * var(--chat-message-scale));
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
