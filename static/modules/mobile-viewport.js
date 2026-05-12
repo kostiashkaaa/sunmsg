@@ -88,6 +88,7 @@ export function createVisualViewportCssSyncer({
         root.style.setProperty(topOffsetVar, `${appTopOffset}px`);
         root.style.setProperty(leftOffsetVar, `${appLeftOffset}px`);
         root.style.setProperty(keyboardInsetVar, `${keyboardInset}px`);
+        // composerBottomInset = keyboard height (already includes safe-area via env() in CSS)
         root.style.setProperty(composerBottomInsetVar, `${keyboardInset}px`);
         root.style.setProperty(layoutKeyboardInsetVar, '0px');
         root.classList.toggle('mobile-keyboard-active', hasKeyboardViewport);
