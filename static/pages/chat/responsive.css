@@ -657,6 +657,13 @@
                 min-height: 0;
                 touch-action: pan-y;
             }
+            html.mobile-emoji-sheet-open .app {
+                top: 0;
+                left: 0;
+                width: var(--layout-vw, var(--app-vw, 100vw));
+                height: var(--layout-vh, var(--app-vh, 100dvh));
+                max-height: var(--layout-vh, var(--app-vh, 100dvh));
+            }
             .sidebar-top-row {
                 gap: 10px;
                 padding: 14px 12px 10px;

@@ -9,6 +9,8 @@ function isCoarsePointer() {
 export function createVisualViewportCssSyncer({
     appVhVar = '--app-vh',
     appVwVar = '--app-vw',
+    layoutVhVar = '--layout-vh',
+    layoutVwVar = '--layout-vw',
     topOffsetVar = '--vv-top-offset',
     leftOffsetVar = '--vv-left-offset',
     keyboardInsetVar = '--vv-keyboard-inset',
@@ -24,8 +26,12 @@ export function createVisualViewportCssSyncer({
 
         const vv = window.visualViewport;
         if (!vv) {
-            root.style.setProperty(appVhVar, `${roundedPx(window.innerHeight)}px`);
-            root.style.setProperty(appVwVar, `${roundedPx(window.innerWidth)}px`);
+            const fallbackHeight = roundedPx(window.innerHeight);
+            const fallbackWidth = roundedPx(window.innerWidth);
+            root.style.setProperty(appVhVar, `${fallbackHeight}px`);
+            root.style.setProperty(appVwVar, `${fallbackWidth}px`);
+            root.style.setProperty(layoutVhVar, `${fallbackHeight}px`);
+            root.style.setProperty(layoutVwVar, `${fallbackWidth}px`);
             root.style.setProperty(topOffsetVar, '0px');
             root.style.setProperty(leftOffsetVar, '0px');
             root.style.setProperty(keyboardInsetVar, '0px');
@@ -85,6 +91,8 @@ export function createVisualViewportCssSyncer({
 
         root.style.setProperty(appVhVar, `${appHeight}px`);
         root.style.setProperty(appVwVar, `${appWidth}px`);
+        root.style.setProperty(layoutVhVar, `${layoutViewportHeight}px`);
+        root.style.setProperty(layoutVwVar, `${layoutViewportWidth}px`);
         root.style.setProperty(topOffsetVar, `${appTopOffset}px`);
         root.style.setProperty(leftOffsetVar, `${appLeftOffset}px`);
         root.style.setProperty(keyboardInsetVar, `${keyboardInset}px`);

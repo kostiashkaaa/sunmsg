@@ -630,7 +630,8 @@ def test_mobile_emoji_picker_resets_shell_scroll_before_positioning() -> None:
     assert 'const MOBILE_EMOJI_MIN_HEIGHT = 320;' in emoji
     assert 'const MOBILE_EMOJI_MAX_HEIGHT = 480;' in emoji
     assert 'const MOBILE_EMOJI_HEIGHT_RATIO = 0.46;' in emoji
-    assert 'mobileViewportHeight - topReserve' in emoji
+    assert 'const sheetViewportHeight = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight' in emoji
+    assert 'sheetViewportHeight - topReserve' in emoji
     assert 'emojiBtn.closest(\'.chat-input-area\')' in emoji
 
 
@@ -639,15 +640,12 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     open_start = emoji.find('const openPicker = async (options = {}) => {')
     assert open_start >= 0, 'emoji.js: openPicker not found'
-    wait_branch_idx = emoji.find('options.waitForKeyboard === true', open_start)
-    wait_blur_idx = emoji.find('messageInput.blur();', wait_branch_idx)
-    wait_hidden_idx = emoji.find('await waitForMobileKeyboardHidden();', wait_branch_idx)
     active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
     position_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, {', open_start)
     fallback_blur_idx = emoji.find('messageInput.blur();', position_idx)
-    assert open_start < wait_branch_idx < wait_blur_idx < wait_hidden_idx < active_idx < position_idx < fallback_blur_idx, (
-        'emoji.js: keyboard-to-emoji should close the native keyboard before opening the custom sheet, '
-        'while non-keyboard opens still position the sheet before fallback blur.'
+    assert 'await waitForMobileKeyboardHidden();' not in emoji
+    assert open_start < active_idx < position_idx < fallback_blur_idx, (
+        'emoji.js: keyboard-to-emoji must install the emoji dock before blurring the native keyboard.'
     )
 
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
@@ -690,10 +688,15 @@ def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
     lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
     lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
     lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen(keyboardInset, { waitForKeyboard: true });', lazy_pointer_idx)
+    lazy_warmup_idx = lazy_ui_runtime.find('function scheduleEmojiPickerWarmup')
+    lazy_focus_warmup_idx = lazy_ui_runtime.find("messageInput?.addEventListener('focus'", lazy_warmup_idx)
     assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
     assert lazy_pointer_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
         'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur '
         'and dispatch the captured keyboard height.'
+    )
+    assert 0 <= lazy_warmup_idx < lazy_focus_warmup_idx, (
+        'chat-lazy-ui-runtime.js: emoji module should warm up before the first emoji button tap.'
     )
 
 
@@ -712,7 +715,7 @@ def test_mobile_emoji_keyboard_handoff_uses_layout_bottom() -> None:
     assert 'function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {})' in emoji
     assert 'keyboardInset >= targetKeyboardInset' in emoji
     assert 'startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset })' in emoji
-    assert 'function waitForMobileKeyboardHidden' in emoji
+    assert 'mobile-emoji-sheet-open' in emoji
     assert 'waitForKeyboard: true' in emoji
     assert "document.addEventListener('sun-open-emoji-picker'" in emoji
 
@@ -727,6 +730,8 @@ def test_mobile_chat_uses_single_bottom_dock_for_keyboard_and_emoji() -> None:
     assert any('--emoji-sheet-motion-duration: 240ms' in block for block in chat_area_blocks), (
         'chat.css: emoji sheet and composer should share one motion duration from chat area.'
     )
+    assert 'html.mobile-emoji-sheet-open .app' in css
+    assert 'height: var(--layout-vh, var(--app-vh, 100dvh))' in css
 
     input_blocks = re.findall(r'\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
     assert any('bottom: var(--mobile-bottom-dock-height, 0px)' in block for block in input_blocks), (
@@ -752,13 +757,11 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     assert 'const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;' in emoji
-    assert 'const MOBILE_EMOJI_CHAT_SCROLL_LOCK_EXTRA_MS = 320;' in emoji
     assert 'function isMobileEmojiChatPinnedToBottom(chatArea)' in emoji
     assert 'function pinMobileEmojiChatToBottom(chatArea)' in emoji
-    assert 'function lockMobileEmojiChatScroll' in emoji
-    assert 'chatMessages.scrollHeight - chatMessages.clientHeight - chatMessages.scrollTop' in emoji
     assert '.chat-area.emoji-keyboard-handoff .chat-messages' in css
     assert 'overflow-anchor: none' in css
+    assert "document.documentElement.classList.toggle('mobile-emoji-sheet-open'" in emoji
 
     state_start = emoji.find('function setMobileEmojiSheetState')
     assert state_start >= 0, 'emoji.js: setMobileEmojiSheetState not found'
@@ -771,20 +774,19 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     )
 
     open_start = emoji.find('const openPicker = async (options = {}) => {')
-    wait_branch_idx = emoji.find('options.waitForKeyboard === true', open_start)
-    open_lock_idx = emoji.find('lockMobileEmojiChatScroll(openChatArea', wait_branch_idx)
-    open_blur_idx = emoji.find('messageInput.blur();', wait_branch_idx)
-    wait_hidden_idx = emoji.find('await waitForMobileKeyboardHidden();', wait_branch_idx)
-    assert open_start < wait_branch_idx < open_lock_idx < open_blur_idx < wait_hidden_idx, (
-        'emoji.js: keyboard-to-emoji handoff must lock chat scroll before blurring the native keyboard.'
+    active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
+    position_idx = emoji.find('positionEmojiPicker(emojiPicker, emojiBtn, {', active_idx)
+    open_blur_idx = emoji.find('messageInput.blur();', position_idx)
+    assert open_start < active_idx < position_idx < open_blur_idx, (
+        'emoji.js: keyboard-to-emoji handoff must set emoji layout before blurring the native keyboard.'
     )
 
     close_start = emoji.find('const closePicker = ({ focusInput = false } = {}) => {')
     handoff_idx = emoji.find('if (wantsKeyboardHandoff)', close_start)
-    close_lock_idx = emoji.find('lockMobileEmojiChatScroll(handoffChatArea', handoff_idx)
+    close_handoff_idx = emoji.find('startEmojiKeyboardHandoff(emojiPicker', handoff_idx)
     focus_idx = emoji.find('if (focusInput) focusComposerInput();', handoff_idx)
-    assert close_start < handoff_idx < close_lock_idx < focus_idx, (
-        'emoji.js: emoji-to-keyboard handoff must lock chat scroll before focusing the native keyboard.'
+    assert close_start < handoff_idx < close_handoff_idx < focus_idx, (
+        'emoji.js: emoji-to-keyboard handoff must keep the emoji layout until the native keyboard is visible.'
     )
 
 
@@ -1141,6 +1143,8 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     for token in (
         '--app-vh',
         '--app-vw',
+        '--layout-vh',
+        '--layout-vw',
         '--vv-top-offset',
         '--vv-left-offset',
         '--vv-keyboard-inset',
@@ -1181,7 +1185,10 @@ def test_mobile_keyboard_binds_chat_surface_to_visual_viewport() -> None:
     assert 'const appWidth = hasKeyboardViewport && vvWidth > 0 ? vvWidth : layoutViewportWidth' in viewport
     assert 'const appLeftOffset = hasKeyboardViewport ? vvLeft : 0' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', hasKeyboardViewport)" in viewport
+    assert "root.style.setProperty(appVhVar, `${appHeight}px`)" in viewport
     assert "root.style.setProperty(appVwVar, `${appWidth}px`)" in viewport
+    assert "root.style.setProperty(layoutVhVar, `${layoutViewportHeight}px`)" in viewport
+    assert "root.style.setProperty(layoutVwVar, `${layoutViewportWidth}px`)" in viewport
     assert "root.style.setProperty(leftOffsetVar, `${appLeftOffset}px`)" in viewport
     assert "root.style.setProperty(layoutKeyboardInsetVar, '0px')" in viewport
     assert "root.style.setProperty(composerBottomInsetVar, `${keyboardInset}px`)" in viewport
