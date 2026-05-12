@@ -35,6 +35,15 @@ function closeTopmostOverlay() {
     // Order: lightbox → context menus / pickers → drawer → modal.
     // \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u043C true \u0435\u0441\u043B\u0438 \u0447\u0442\u043E-\u0442\u043E \u0437\u0430\u043A\u0440\u044B\u043B\u0438 — \u0442\u043E\u0433\u0434\u0430 \u043D\u0435 \u043F\u0440\u043E\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0435\u043C \u0434\u0430\u043B\u044C\u0448\u0435.
     const lightbox = document.getElementById('lightbox');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if (settingsOverlay?.classList.contains('active')) {
+        if (typeof window.closeSettingsOverlay === 'function') {
+            window.closeSettingsOverlay();
+        } else {
+            settingsOverlay.classList.remove('active');
+        }
+        return true;
+    }
     if (lightbox && lightbox.classList.contains('active')) {
         lightbox.classList.remove('active');
         return true;
