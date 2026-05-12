@@ -408,6 +408,13 @@ export function createChatHistoryRuntime(ctx = {}) {
         return buildRenderableMessageSignature(currentRows) !== buildRenderableMessageSignature(nextRows);
     }
 
+    function syncTotalMessagesFromResponse(state, response) {
+        const total = Number(response?.total_messages);
+        if (Number.isFinite(total) && total >= 0) {
+            state.totalMessages = Math.floor(total);
+        }
+    }
+
     async function fetchChatHistory(chatId) {
         if (!chatId) return;
 
@@ -512,6 +519,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 }
                 return;
             }
+            syncTotalMessagesFromResponse(state, response);
 
             ctx.setChatPinnedMessages(chatId, response.pins || (response.pin ? [response.pin] : []), {
                 activeMessageId: ctx.getChatState(chatId).activePinMessageId,
@@ -665,9 +673,11 @@ export function createChatHistoryRuntime(ctx = {}) {
             if (requestToken !== state.historyOlderToken) return false;
             if (String(chatId) !== String(ctx.getCurrentChatId())) return false;
             if (!response?.success || !Array.isArray(response.messages) || response.messages.length === 0) {
+                syncTotalMessagesFromResponse(state, response);
                 state.hasMoreBefore = Boolean(response?.has_more_before);
                 return false;
             }
+            syncTotalMessagesFromResponse(state, response);
 
             const decodedMessages = await decodeChatMessages(response.messages);
             if (requestToken !== state.historyOlderToken) return false;

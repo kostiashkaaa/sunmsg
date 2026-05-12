@@ -52,3 +52,30 @@ if (statusEl.dataset.state !== 'saved') {
 """
     result = _run_saved_messages_ui_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_saved_messages_status_uses_total_messages_when_history_is_paginated():
+    harness_body = """
+const statusEl = {
+  textContent: '',
+  style: { display: 'block' },
+  classList: { remove: () => {} },
+  dataset: {},
+  setAttribute() {},
+};
+
+const loadedMessages = Array.from({ length: 24 }, (_, index) => ({ id: index + 1 }));
+const ui = moduleApi.createSavedMessagesUiController({
+  currentUserId: '42',
+  getChatState: () => ({ messages: loadedMessages, totalMessages: 37 }),
+  chatOnlineStatusEl: statusEl,
+});
+
+ui.syncCurrentChatMeta({ chatId: 'chat-1', contactId: '42' });
+
+if (statusEl.textContent !== '37 сообщений') {
+  throw new Error(`Expected total message count, got: ${statusEl.textContent}`);
+}
+"""
+    result = _run_saved_messages_ui_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

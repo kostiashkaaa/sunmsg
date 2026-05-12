@@ -33,6 +33,7 @@ export function createChatStateShell(options = {}) {
             favorites: [],
             favorite: null,
             activeFavoriteMessageId: null,
+            totalMessages: null,
             hasMoreBefore: true,
             savedScrollTop: 0,
             hasSavedScrollTop: false,

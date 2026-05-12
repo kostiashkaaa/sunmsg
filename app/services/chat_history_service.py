@@ -7,6 +7,32 @@ from app.services.group_receipts import (
 from app.services.reactions import fetch_reactions_map
 
 
+def _count_visible_messages(conn, *, chat_id: str, user_id: int, is_group_chat: bool) -> int:
+    if is_group_chat:
+        row = conn.execute(
+            '''
+            SELECT COUNT(*) AS total
+            FROM messages m
+            JOIN message_receipts mr ON mr.message_id = m.id
+            WHERE m.chat_id = ?
+              AND mr.user_id = ?
+              AND mr.deleted_for_user = 0
+            ''',
+            (chat_id, user_id),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            '''
+            SELECT COUNT(*) AS total
+            FROM messages m
+            WHERE m.chat_id = ?
+              AND ((m.sender_id = ? AND m.deleted_by_sender = 0) OR (m.receiver_id = ? AND m.deleted_by_receiver = 0))
+            ''',
+            (chat_id, user_id, user_id),
+        ).fetchone()
+    return int(row['total'] or 0) if row else 0
+
+
 def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected history loader contract
     conn,
     *,
@@ -350,6 +376,12 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
     response_payload = {
         'success': True,
         'messages': messages_list,
+        'total_messages': _count_visible_messages(
+            conn,
+            chat_id=chat_id,
+            user_id=user_id,
+            is_group_chat=is_group_chat,
+        ),
         'pins': pins_data,
         'pin': pin_data,
         'favorites': favorites_data,

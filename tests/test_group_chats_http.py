@@ -239,6 +239,7 @@ def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert payload['success'] is True
+    assert payload['total_messages'] == 2
     assert [msg['id'] for msg in payload['messages']] == [301, 302]
     assert payload['messages'][0]['is_read'] is True
     assert payload['messages'][0]['is_self'] is False

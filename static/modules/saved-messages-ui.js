@@ -35,7 +35,12 @@ function countMessagesFromState(getChatState, chatId) {
     if (!chatId || typeof getChatState !== 'function') return 0;
     const state = getChatState(chatId);
     const messages = Array.isArray(state?.messages) ? state.messages : [];
-    return messages.filter(Boolean).length;
+    const loadedCount = messages.filter(Boolean).length;
+    const total = Number(state?.totalMessages);
+    if (Number.isFinite(total) && total >= 0) {
+        return Math.max(loadedCount, Math.floor(total));
+    }
+    return loadedCount;
 }
 
 function paintSavedAvatar(avatarEl) {
