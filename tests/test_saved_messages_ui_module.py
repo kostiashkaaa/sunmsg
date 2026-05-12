@@ -79,3 +79,45 @@ if (statusEl.textContent !== '37 сообщений') {
 """
     result = _run_saved_messages_ui_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_saved_messages_status_primes_total_from_contact_item_before_history_load():
+    harness_body = """
+const statusEl = {
+  textContent: '',
+  style: { display: 'block' },
+  classList: { remove: () => {} },
+  dataset: {},
+  setAttribute() {},
+};
+const state = {
+  messages: Array.from({ length: 24 }, (_, index) => ({ id: index + 1 })),
+  totalMessages: null,
+};
+const contactItem = {
+  attrs: new Map([
+    ['data-contact-id', '42'],
+    ['data-message-count', '37'],
+  ]),
+  getAttribute(name) { return this.attrs.get(name) || ''; },
+  setAttribute(name, value) { this.attrs.set(name, String(value)); },
+  querySelector() { return null; },
+};
+
+const ui = moduleApi.createSavedMessagesUiController({
+  currentUserId: '42',
+  getChatState: () => state,
+  chatOnlineStatusEl: statusEl,
+});
+
+ui.applyChatMode({ contactItem, chatId: 'chat-1' });
+
+if (state.totalMessages !== 37) {
+  throw new Error(`Expected state.totalMessages=37, got: ${state.totalMessages}`);
+}
+if (statusEl.textContent !== '37 сообщений') {
+  throw new Error(`Expected contact message count, got: ${statusEl.textContent}`);
+}
+"""
+    result = _run_saved_messages_ui_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

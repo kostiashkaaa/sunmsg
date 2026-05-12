@@ -122,7 +122,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
             FROM user_contacts uc
         ),
         latest_visible_message_ids AS (
-            SELECT visible.chat_id, MAX(visible.id) AS last_message_id
+            SELECT visible.chat_id, MAX(visible.id) AS last_message_id, COUNT(DISTINCT visible.id) AS message_count
             FROM (
                 SELECT m.chat_id, m.id
                 FROM messages m
@@ -145,7 +145,8 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
                 m.sender_id AS last_sender_id,
                 m.is_read AS last_message_is_read,
                 m.is_delivered AS last_message_is_delivered,
-                m.created_at AS last_message_time
+                m.created_at AS last_message_time,
+                lvm.message_count
             FROM latest_visible_message_ids lvm
             JOIN messages m ON m.id = lvm.last_message_id
         ),
@@ -181,6 +182,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
             lm.last_message_is_read,
             lm.last_message_is_delivered,
             lm.last_message_time,
+            COALESCE(lm.message_count, 0) AS message_count,
             COALESCE(ucnt.unread_count, 0) AS unread_count,
             {pinned_select_sql},
             {draft_select_sql}
@@ -300,6 +302,7 @@ def _serialize_personal_contacts(  # noqa: PLR0913
                 'chatId': contact['chat_id'],
                 'last_message': raw_last_message,
                 'last_message_time': contact['last_message_time'],
+                'message_count': int(contact['message_count'] or 0) if is_saved_messages else 0,
                 'sidebar_time_text': format_sidebar_time_func(
                     preview_timestamp,
                     language=resolved_language,
@@ -522,9 +525,11 @@ def _sort_contacts_with_pin_and_activity(contacts_list: list[dict]):
             return 0.0
 
     def _sort_key(item: dict):
+        is_saved_messages = bool(item.get('is_saved_messages'))
         is_pinned = bool(item.get('is_pinned'))
         pin_order = int(item.get('pin_order') or 0)
         return (
+            0 if is_saved_messages else 1,
             0 if is_pinned else 1,
             pin_order if is_pinned else 0,
             -_sort_timestamp(item),

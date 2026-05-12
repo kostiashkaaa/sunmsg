@@ -350,6 +350,7 @@ def test_fetch_contacts_for_user_forces_zero_unread_for_saved_messages(tmp_path)
     self_contact = next(item for item in contacts if item['userId'] == 1)
     assert self_contact['is_saved_messages'] is True
     assert self_contact['unreadCount'] == 0
+    assert self_contact['message_count'] == 1
 
 
 def test_fetch_contacts_for_user_renames_self_chat_to_saved_messages(tmp_path):
