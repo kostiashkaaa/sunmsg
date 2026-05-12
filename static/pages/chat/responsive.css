@@ -717,6 +717,7 @@
             .chat-area {
                 --floating-composer-gap: 4px;
                 --floating-composer-reserve: 84px;
+                --mobile-bottom-dock-height: 0px;
                 --chat-bubble-max-width: min(92%, 680px);
                 --chat-profile-drawer-width: 0px;
                 --mobile-exit-swipe-shift: 0px;
@@ -742,12 +743,12 @@
                 /* Account for fixed composer + keyboard height */
                 padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
-                    + var(--mobile-composer-bottom-inset, 0px)
+                    + var(--mobile-bottom-dock-height, 0px)
                     + env(safe-area-inset-bottom)
                 ) !important;
                 scroll-padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
-                    + var(--mobile-composer-bottom-inset, 0px)
+                    + var(--mobile-bottom-dock-height, 0px)
                     + env(safe-area-inset-bottom)
                     + 12px
                 ) !important;
@@ -987,7 +988,7 @@
                 position: fixed !important;
                 left: 0;
                 right: 0;
-                bottom: var(--mobile-composer-bottom-inset, 0px);
+                bottom: var(--mobile-bottom-dock-height, 0px);
                 padding-left: max(8px, env(safe-area-inset-left, 0px));
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
@@ -1002,7 +1003,7 @@
                 right: calc(8px + env(safe-area-inset-right, 0px)) !important;
                 bottom: calc(
                     var(--floating-composer-reserve, 84px)
-                    + var(--mobile-composer-bottom-inset, 0px)
+                    + var(--mobile-bottom-dock-height, 0px)
                     + env(safe-area-inset-bottom, 0px)
                     + 14px
                 ) !important;
@@ -1214,11 +1215,11 @@
 
             .chat-area.emoji-sheet-open {
                 --mobile-emoji-sheet-height: 460px;
+                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, 460px);
             }
 
-            /* When emoji sheet is open: lift composer above picker, no animation */
+            /* When emoji sheet is open: composer sits on top of the bottom dock, no animation. */
             .chat-area.emoji-sheet-open .chat-input-area {
-                bottom: var(--mobile-emoji-sheet-height, 460px);
                 z-index: 1010;
                 transition: none !important;
             }
@@ -1273,6 +1274,10 @@
                 border-bottom: 0;
                 border-left: 0;
                 border-radius: 18px 18px 0 0;
+                top: auto;
+                right: 0;
+                bottom: 0;
+                left: 0;
                 box-shadow:
                     0 -18px 40px rgba(0, 0, 0, 0.34),
                     inset 0 1px 0 rgba(255, 255, 255, 0.05);

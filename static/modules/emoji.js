@@ -291,6 +291,32 @@ function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {}) {
     return true;
 }
 
+function waitForMobileKeyboardHidden(timeoutMs = EMOJI_KEYBOARD_HANDOFF_MS) {
+    if (!isMobileEmojiViewport() || readMobileKeyboardInset() < EMOJI_KEYBOARD_INSET_MIN) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        const startedAt = performance.now();
+        let frameId = 0;
+        let timeoutId = 0;
+        const finish = () => {
+            if (frameId) window.cancelAnimationFrame(frameId);
+            if (timeoutId) window.clearTimeout(timeoutId);
+            resolve();
+        };
+        const tick = () => {
+            if (readMobileKeyboardInset() < EMOJI_KEYBOARD_INSET_MIN
+                || performance.now() - startedAt >= timeoutMs) {
+                finish();
+                return;
+            }
+            frameId = window.requestAnimationFrame(tick);
+        };
+        timeoutId = window.setTimeout(finish, timeoutMs + 80);
+        frameId = window.requestAnimationFrame(tick);
+    });
+}
+
 function isAllowedPickerEmoji(value) {
     return typeof value === 'string'
         && value.trim().length > 0
@@ -979,6 +1005,15 @@ export function initEmojiPicker(messageInput) {
         const keyboardInsetBeforeOpen = shouldOpenMobile
             ? (hasExplicitMobileSheetHeight ? explicitMobileSheetHeight : readMobileKeyboardInset())
             : 0;
+        if (shouldOpenMobile && options.waitForKeyboard === true && document.activeElement === messageInput) {
+            try {
+                messageInput.blur();
+            } catch (_) {
+                // Mobile browsers may reject blur during pointer processing.
+            }
+            await waitForMobileKeyboardHidden();
+            if (renderSeq !== openRenderSeq) return;
+        }
         const recentKeyboardInset = (
             shouldOpenMobile
             && lastMobileKeyboardInsetPx > 0
@@ -1055,7 +1090,7 @@ export function initEmojiPicker(messageInput) {
                 event.stopPropagation();
                 window.clearTimeout(keyboardSwitchPointerTimer);
                 handledKeyboardSwitchPointer = true;
-                openPicker({ preferredMobileSheetHeight: keyboardInset }).catch(() => {});
+                openPicker({ preferredMobileSheetHeight: keyboardInset, waitForKeyboard: true }).catch(() => {});
                 keyboardSwitchPointerTimer = window.setTimeout(() => {
                     handledKeyboardSwitchPointer = false;
                 }, 450);
@@ -1188,6 +1223,7 @@ export function initEmojiPicker(messageInput) {
             preferredMobileSheetHeight: Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0
                 ? preferredMobileSheetHeight
                 : null,
+            waitForKeyboard: event?.detail?.waitForKeyboard === true,
         }).catch(() => {});
     });
 
