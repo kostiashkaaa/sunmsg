@@ -739,6 +739,18 @@
                 overscroll-behavior: contain;
                 -webkit-overflow-scrolling: touch;
                 touch-action: pan-y;
+                /* Account for fixed composer + keyboard height */
+                padding-bottom: calc(
+                    var(--floating-composer-reserve, 84px)
+                    + var(--mobile-composer-bottom-inset, 0px)
+                    + env(safe-area-inset-bottom)
+                ) !important;
+                scroll-padding-bottom: calc(
+                    var(--floating-composer-reserve, 84px)
+                    + var(--mobile-composer-bottom-inset, 0px)
+                    + env(safe-area-inset-bottom)
+                    + 12px
+                ) !important;
                 transition:
                     opacity var(--m-dur-fast) var(--m-decel),
                     transform var(--m-dur-fast) var(--m-decel);
@@ -989,8 +1001,8 @@
                 left: auto !important;
                 right: calc(8px + env(safe-area-inset-right, 0px)) !important;
                 bottom: calc(
-                    var(--floating-composer-reserve, 72px)
-                    + var(--mobile-keyboard-layout-inset, 0px)
+                    var(--floating-composer-reserve, 84px)
+                    + var(--mobile-composer-bottom-inset, 0px)
                     + env(safe-area-inset-bottom, 0px)
                     + 14px
                 ) !important;
@@ -1225,15 +1237,13 @@
                 padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
-                    + env(safe-area-inset-bottom)
                     + 12px
-                );
+                ) !important;
                 scroll-padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
-                    + env(safe-area-inset-bottom)
                     + 16px
-                );
+                ) !important;
             }
 
             .emoji-picker-handle {
