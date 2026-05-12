@@ -459,6 +459,18 @@ def test_settings_search_clear_event_unhides_cards() -> None:
         'settings nav-shell must not hide navigation tabs during search filtering.'
     )
 
+
+def test_settings_mobile_nav_toggle_uses_section_title_without_nav_item() -> None:
+    """Mobile settings toggle should show the open detail title even when a section has no nav item."""
+    src = _read(SETTINGS_NAV_SHELL_JS)
+    assert "function updateNavToggleLabel(activeItem, fallbackLabel = '')" in src
+    assert "|| fallbackLabel" in src, (
+        'settings nav-shell must let non-nav detail entries provide the mobile toggle label.'
+    )
+    assert 'const fallbackLabel = activeNavKey || id' in src
+    assert 'navKeyTitles[activeNavKey] || sectionTitles[id]' in src
+    assert 'updateNavToggleLabel(activeItem, fallbackLabel)' in src
+
 # ---------------------------------------------------------------------------
 # Test: размер chat.js не растёт после рефакторинга
 # ---------------------------------------------------------------------------

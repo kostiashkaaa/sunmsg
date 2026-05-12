@@ -37,7 +37,7 @@ export function initSettingsNavShell({
     let headerMenuOpen = false;
 
     const sectionTitles = {
-        profile: 'Профиль',
+        profile: 'Изменить профиль',
         notifications: 'Уведомления',
         'data-memory': 'Данные и память',
         privacy: 'Конфиденциальность',
@@ -91,10 +91,11 @@ export function initSettingsNavShell({
         return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
     }
 
-    function updateNavToggleLabel(activeItem) {
+    function updateNavToggleLabel(activeItem, fallbackLabel = '') {
         if (!settingsNavToggleLabelEl) return;
         const label = activeItem?.querySelector('span:not(.nav-item-meta)')?.textContent?.trim()
             || activeItem?.textContent?.trim()
+            || fallbackLabel
             || tr('Разделы');
         settingsNavToggleLabelEl.textContent = label;
     }
@@ -144,7 +145,10 @@ export function initSettingsNavShell({
                 item.removeAttribute('aria-current');
             }
         });
-        updateNavToggleLabel(activeItem);
+        const fallbackLabel = activeNavKey || id
+            ? tr(navKeyTitles[activeNavKey] || sectionTitles[id] || 'Разделы')
+            : '';
+        updateNavToggleLabel(activeItem, fallbackLabel);
         if (activeItem && typeof activeItem.scrollIntoView === 'function') {
             activeItem.scrollIntoView({
                 block: 'nearest',
