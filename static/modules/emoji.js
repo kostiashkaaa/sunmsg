@@ -33,6 +33,7 @@ const EMOJI_KEYBOARD_HANDOFF_MS = 720;
 // so handoff ends as soon as the keyboard is actually visible.
 const EMOJI_KEYBOARD_INSET_MIN = 24;
 const MOBILE_OPEN_KEYBOARD_INSET_TTL_MS = 900;
+const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;
 const CATEGORY_SCROLL_SYNC_OFFSET = 24;
 
 const EMOJI_INLINE_KEYWORDS = {
@@ -151,13 +152,46 @@ function resolveEmojiChatArea(emojiPicker) {
     return emojiPicker?.closest('.chat-area') || document.getElementById('chatArea');
 }
 
+function resolveMobileEmojiChatMessages(chatArea) {
+    return chatArea?.querySelector?.('#chatMessages, .chat-messages') || null;
+}
+
+function isMobileEmojiChatPinnedToBottom(chatArea) {
+    const chatMessages = resolveMobileEmojiChatMessages(chatArea);
+    if (!chatMessages) return false;
+    const maxScrollTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
+    return maxScrollTop - chatMessages.scrollTop <= MOBILE_EMOJI_CHAT_PIN_THRESHOLD;
+}
+
+function pinMobileEmojiChatToBottom(chatArea) {
+    const chatMessages = resolveMobileEmojiChatMessages(chatArea);
+    if (!chatMessages) return;
+
+    const pin = () => {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
+    window.requestAnimationFrame(() => {
+        pin();
+        window.requestAnimationFrame(pin);
+    });
+}
+
 function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
     const chatArea = resolveEmojiChatArea(emojiPicker);
     if (!chatArea) return;
 
+    const shouldPinChatToBottom = Boolean(
+        isOpen
+        && isMobileEmojiViewport()
+        && isMobileEmojiChatPinnedToBottom(chatArea),
+    );
+
     chatArea.classList.toggle('emoji-sheet-open', Boolean(isOpen));
     if (isOpen && Number.isFinite(height)) {
         chatArea.style.setProperty('--mobile-emoji-sheet-height', `${Math.round(height)}px`);
+        if (shouldPinChatToBottom) {
+            pinMobileEmojiChatToBottom(chatArea);
+        }
     } else if (!isOpen) {
         chatArea.classList.remove('emoji-keyboard-handoff');
         chatArea.style.removeProperty('--mobile-emoji-sheet-height');
