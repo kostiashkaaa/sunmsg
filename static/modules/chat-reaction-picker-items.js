@@ -1,7 +1,7 @@
 import { REACTION_PICKER_EMOJIS } from './reactions.js';
 import { escapeHtml } from './utils.js';
 
-const QUICK_REACTION_EMOJIS_LIMIT = 9;
+const QUICK_REACTION_EMOJIS_LIMIT = 7;
 
 export function syncReactionPickerItems(reactionPicker) {
     if (!reactionPicker) return;

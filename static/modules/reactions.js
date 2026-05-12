@@ -2,12 +2,12 @@
 import { escapeHtml } from './utils.js';
 
 export const REACTION_PICKER_EMOJIS = [
-    '\u{1F44D}', // 👍
     '\u{2764}\u{FE0F}', // ❤️
+    '\u{1F525}', // 🔥
+    '\u{1F44D}', // 👍
     '\u{1F602}', // 😂
     '\u{1F62E}', // 😮
     '\u{1F622}', // 😢
-    '\u{1F525}', // 🔥
     '\u{1F44F}', // 👏
     '\u{1F389}', // 🎉
     '\u{1F440}', // 👀
