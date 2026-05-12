@@ -1211,7 +1211,15 @@
             }
 
             .chat-area.emoji-sheet-open .chat-input-area {
-                /* composer stays fixed — picker slides in behind it */
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: calc(
+                    var(--mobile-emoji-sheet-height, 460px)
+                    + env(safe-area-inset-bottom)
+                );
+                z-index: 1010;
+                transition: none;
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area {
@@ -1233,13 +1241,13 @@
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
                     + env(safe-area-inset-bottom)
-                    + 8px
+                    + 12px
                 );
                 scroll-padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-emoji-sheet-height, 460px)
                     + env(safe-area-inset-bottom)
-                    + 12px
+                    + 16px
                 );
             }
 
