@@ -1,4 +1,5 @@
 import { withAppRoot } from './app-url.js';
+import { updateDeleteMessageDialog } from './delete-message-dialog.js';
 import { setMotionOriginFromPoint, waitForMotionEnd } from './motion.js';
 
 export function initContactContextMenu({
@@ -312,7 +313,11 @@ export function initDeleteMessagesModal({
     confirmButtonEl,
     deleteForBothCheckEl,
     deleteForBothWrapEl,
+    deleteForBothLabelEl,
     titleEl,
+    textEl,
+    authorAvatarEl,
+    authorNameEl,
     isChatBlocked,
     getBlockedNoticeText,
     currentBlockState,
@@ -332,16 +337,20 @@ export function initDeleteMessagesModal({
         }
 
         pendingMessageIds = Array.isArray(msgIds) ? msgIds : [msgIds];
-        if (titleEl) {
-            titleEl.textContent = pendingMessageIds.length > 1
-                ? `\u0423\u0434\u0430\u043B\u0438\u0442\u044C ${pendingMessageIds.length} \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F?`
-                : '\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u044D\u0442\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435?';
-        }
+        const messageEls = pendingMessageIds
+            .map((id) => resolveMessageElement(id))
+            .filter(Boolean);
 
-        const allMine = pendingMessageIds.every((id) => {
-            const el = resolveMessageElement(id);
-            return Boolean(el?.classList.contains('self'));
+        updateDeleteMessageDialog({
+            messageEls,
+            titleEl,
+            textEl,
+            authorAvatarEl,
+            authorNameEl,
+            deleteForBothLabelEl,
         });
+
+        const allMine = messageEls.length > 0 && messageEls.every((el) => el.classList.contains('self'));
 
         if (deleteForBothWrapEl) {
             deleteForBothWrapEl.style.display = allMine ? 'block' : 'none';
@@ -350,7 +359,7 @@ export function initDeleteMessagesModal({
             deleteForBothCheckEl.checked = false;
         }
 
-        openDialog(modalEl);
+        openDialog(modalEl, { focusTarget: modalEl });
     }
 
     cancelButtonEl?.addEventListener('click', () => closeDialog(modalEl));
