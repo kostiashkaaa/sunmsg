@@ -173,7 +173,7 @@ export function initMessageContextMenu({
         });
     }
 
-    function hideContextMenu() {
+    function hideContextMenu(options = {}) {
         currentMessageId = null;
         viewportBoundsLock = null;
         if (!menuEl) return;
@@ -183,13 +183,23 @@ export function initMessageContextMenu({
         }
         const closeSeq = ++menuTransitionSeq;
         menuEl.classList.remove('is-opening', 'is-open');
-        menuEl.classList.add('is-closing');
         menuEl.setAttribute('aria-hidden', 'true');
+        if (options?.immediate) {
+            menuEl.classList.remove('is-closing');
+            menuEl.style.left = '-9999px';
+            menuEl.style.top = '-9999px';
+            return;
+        }
+        menuEl.classList.add('is-closing');
         waitForMotionEnd(menuEl, 180).then(() => {
             if (!menuEl || closeSeq !== menuTransitionSeq) return;
             menuEl.classList.remove('is-closing');
         });
     }
+
+    menuEl?.addEventListener('sun:context-menu-hide', (event) => {
+        hideContextMenu(event?.detail || {});
+    });
 
     document.addEventListener('click', (event) => {
         if (menuEl && !menuEl.contains(event.target)) {
