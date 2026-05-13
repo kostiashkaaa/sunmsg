@@ -205,6 +205,10 @@ export function resolveChatDomRefs(documentRef = document) {
         reportSubmitBtn: byId('reportSubmitBtn'),
         reportCancelBtn: byId('reportCancelBtn'),
         lightbox: byId('lightbox'),
-        resolveMessageElement: (msgId) => documentRef.querySelector(`.message[data-msg-id="${msgId}"]`),
+        resolveMessageElement: (msgId) => {
+            const token = String(msgId ?? '');
+            if (!token) return null;
+            return documentRef.querySelector(`.message[data-msg-id="${CSS.escape(token)}"]`);
+        },
     };
 }

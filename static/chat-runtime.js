@@ -2920,7 +2920,11 @@ export const initChatPage = async () => {
         updateMessageReactionsState,
         getActiveReactionMessageId: () => reactionPickerController.getActiveMessageId(),
         closeReactionPicker,
-        resolveCurrentChatMessageElement: (messageId) => chatMessages?.querySelector(`.message[data-msg-id="${messageId}"]`),
+        resolveCurrentChatMessageElement: (messageId) => {
+            const token = String(messageId ?? '');
+            if (!token) return null;
+            return chatMessages?.querySelector(`.message[data-msg-id="${CSS.escape(token)}"]`);
+        },
         patchMessageReactions,
         rerenderCurrentChat: () => {
             if (!currentChatId) return;
