@@ -327,8 +327,33 @@ export function initDeleteMessagesModal({
     onConfirm,
     onBlocked,
     onAfterConfirm,
+    isSavedMessagesChat = () => false,
 } = {}) {
     let pendingMessageIds = [];
+
+    function getMessageWindowRef(messageEls) {
+        return messageEls[0]?.ownerDocument?.defaultView
+            || modalEl?.ownerDocument?.defaultView
+            || (typeof window !== 'undefined' ? window : globalThis);
+    }
+
+    function isCurrentChatGroup(messageEls) {
+        return Boolean(getMessageWindowRef(messageEls)?.currentPartnerData?._group_profile);
+    }
+
+    function canShowDeleteForBoth(messageEls) {
+        if (!messageEls.length || isSavedMessagesChat()) return false;
+        if (!isCurrentChatGroup(messageEls)) return true;
+        return messageEls.every((el) => el.classList.contains('self'));
+    }
+
+    function confirmDelete(messageIds, mode) {
+        onConfirm?.({
+            messageIds,
+            mode,
+        });
+        onAfterConfirm?.();
+    }
 
     function openDeleteModal(msgIds) {
         if (isChatBlocked()) {
@@ -341,6 +366,11 @@ export function initDeleteMessagesModal({
             .map((id) => resolveMessageElement(id))
             .filter(Boolean);
 
+        if (isSavedMessagesChat()) {
+            confirmDelete(pendingMessageIds, 'for_me');
+            return;
+        }
+
         updateDeleteMessageDialog({
             messageEls,
             titleEl,
@@ -350,10 +380,11 @@ export function initDeleteMessagesModal({
             deleteForBothLabelEl,
         });
 
-        const allMine = messageEls.length > 0 && messageEls.every((el) => el.classList.contains('self'));
+        const showDeleteForBoth = canShowDeleteForBoth(messageEls);
 
         if (deleteForBothWrapEl) {
-            deleteForBothWrapEl.style.display = allMine ? 'block' : 'none';
+            deleteForBothWrapEl.classList.toggle('delete-confirm-modal__for-both--hidden', !showDeleteForBoth);
+            deleteForBothWrapEl.style.display = showDeleteForBoth ? 'block' : 'none';
         }
         if (deleteForBothCheckEl) {
             deleteForBothCheckEl.checked = false;
@@ -370,6 +401,16 @@ export function initDeleteMessagesModal({
         event.preventDefault();
         closeDialog(modalEl);
     });
+    deleteForBothWrapEl?.addEventListener('click', (event) => {
+        if (!deleteForBothCheckEl) return;
+        const rowEl = event.target?.closest?.('.delete-checkbox-row');
+        if (!rowEl || !deleteForBothWrapEl.contains(rowEl)) return;
+        if (event.target === deleteForBothCheckEl) return;
+        event.preventDefault();
+        deleteForBothCheckEl.checked = !deleteForBothCheckEl.checked;
+        const EventCtor = deleteForBothCheckEl.ownerDocument?.defaultView?.Event || Event;
+        deleteForBothCheckEl.dispatchEvent(new EventCtor('change', { bubbles: true }));
+    });
 
     confirmButtonEl?.addEventListener('click', () => {
         if (isChatBlocked()) {
@@ -379,10 +420,7 @@ export function initDeleteMessagesModal({
         if (!pendingMessageIds.length) return;
 
         const mode = deleteForBothCheckEl?.checked ? 'for_both' : 'for_me';
-        onConfirm?.({
-            messageIds: pendingMessageIds,
-            mode,
-        });
+        onConfirm?.({ messageIds: pendingMessageIds, mode });
         closeDialog(modalEl);
         onAfterConfirm?.();
     });

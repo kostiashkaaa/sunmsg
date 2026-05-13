@@ -24,6 +24,7 @@ export function initChatMessageActionsRuntime({
     barCancelBtn = null,
     chatMessages = null,
     isChatBlocked = () => false,
+    isSavedMessagesChat = () => false,
     getBlockedNoticeText = () => '',
     getCurrentBlockState = () => null,
     getCurrentChatId = () => '',
@@ -69,6 +70,7 @@ export function initChatMessageActionsRuntime({
             if (messageSelectionController?.isSelectionMode()) toggleSelectionMode(false);
             closeMessageActionsBar();
         },
+        isSavedMessagesChat,
     });
 
     initMessageActionHandlers({

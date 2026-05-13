@@ -1140,7 +1140,11 @@ def _partition_delete_rows(rows, *, context: dict | None = None) -> dict[str, li
     for msg in rows:
         msg_id = msg['id']
         if mode == 'for_both':
-            if msg['sender_id'] == uid or (chat_type == 'group' and can_delete_any_group_message):
+            if chat_type == 'group':
+                can_delete_for_both = msg['sender_id'] == uid or can_delete_any_group_message
+            else:
+                can_delete_for_both = msg['sender_id'] == uid or msg['receiver_id'] == uid
+            if can_delete_for_both:
                 for_both_delete_ids.append(msg_id)
                 deleted_ids.append(msg_id)
         elif mode == 'for_me':
