@@ -164,6 +164,7 @@ export function initChatMediaRuntime(deps = {}) {
     const AUDIO_REPEAT_STORAGE_KEY = 'sun_audio_repeat_enabled';
     const AUDIO_WAVEFORM_BARS_COUNT = 48;
     let activeVoicePlaybackAudioEl = null;
+    let activeVoicePlaybackMeta = null;
     let isAudioRepeatEnabled = false;
 
     function normalizeAudioPlaybackRate(value) {
@@ -260,7 +261,7 @@ export function initChatMediaRuntime(deps = {}) {
 
     isAudioRepeatEnabled = getPreferredAudioRepeatEnabled();
 
-    function resolveVoicePlaybackTimeLabel(audioEl) {
+    function resolveVoicePlaybackTimeLabelFromDom(audioEl) {
         const messageEl = resolveAudioMessageElement(audioEl);
         const timeEl = messageEl?.querySelector('.msg-time');
         const title = String(timeEl?.getAttribute('title') || '').trim();
@@ -268,7 +269,7 @@ export function initChatMediaRuntime(deps = {}) {
         return title || raw || '—';
     }
 
-    function resolveVoicePlaybackSenderLabel(audioEl) {
+    function resolveVoicePlaybackSenderLabelFromDom(audioEl) {
         const messageEl = resolveAudioMessageElement(audioEl);
         if (!messageEl) return '—';
         const senderLabel = String(messageEl.querySelector('.message-sender-label')?.textContent || '').trim();
@@ -278,12 +279,29 @@ export function initChatMediaRuntime(deps = {}) {
         return partner || 'Собеседник';
     }
 
+    function captureVoicePlaybackMeta(audioEl) {
+        return {
+            time: resolveVoicePlaybackTimeLabelFromDom(audioEl),
+            sender: resolveVoicePlaybackSenderLabelFromDom(audioEl),
+        };
+    }
+
+    function resolveVoicePlaybackTimeLabel(audioEl) {
+        if (audioEl === activeVoicePlaybackAudioEl && activeVoicePlaybackMeta?.time) {
+            return activeVoicePlaybackMeta.time;
+        }
+        return resolveVoicePlaybackTimeLabelFromDom(audioEl);
+    }
+
+    function resolveVoicePlaybackSenderLabel(audioEl) {
+        if (audioEl === activeVoicePlaybackAudioEl && activeVoicePlaybackMeta?.sender) {
+            return activeVoicePlaybackMeta.sender;
+        }
+        return resolveVoicePlaybackSenderLabelFromDom(audioEl);
+    }
+
     function resolveActiveVoicePlaybackAudio() {
         if (!activeVoicePlaybackAudioEl) return null;
-        if (!activeVoicePlaybackAudioEl.isConnected) {
-            activeVoicePlaybackAudioEl = null;
-            return null;
-        }
         return activeVoicePlaybackAudioEl;
     }
 
@@ -325,6 +343,7 @@ export function initChatMediaRuntime(deps = {}) {
             scheduleAudioPlayerUiSync(audio);
         }
         activeVoicePlaybackAudioEl = null;
+        activeVoicePlaybackMeta = null;
         setVoicePlaybackBarVisible(false);
     }
 
@@ -337,8 +356,10 @@ export function initChatMediaRuntime(deps = {}) {
     }
 
     function setActiveVoicePlaybackAudio(audioEl) {
-        if (!audioEl || !audioEl.isConnected) return;
+        if (!audioEl) return;
+        const previousMeta = audioEl === activeVoicePlaybackAudioEl ? activeVoicePlaybackMeta : null;
         activeVoicePlaybackAudioEl = audioEl;
+        activeVoicePlaybackMeta = previousMeta || captureVoicePlaybackMeta(audioEl);
         applyPreferredVolumeToAudio(audioEl);
         setVoicePlaybackBarVisible(true);
     }
@@ -347,10 +368,6 @@ export function initChatMediaRuntime(deps = {}) {
         if (!voicePlaybackBar || !voicePlaybackProgress || !voicePlaybackPlayBtn || !voicePlaybackDetails || !voicePlaybackSender || !voicePlaybackSpeedBtn || !voicePlaybackVolume) return;
         const activeAudio = audioEl || resolveActiveVoicePlaybackAudio();
         if (!activeAudio) {
-            clearActiveVoicePlaybackAudio();
-            return;
-        }
-        if (!activeAudio.isConnected) {
             clearActiveVoicePlaybackAudio();
             return;
         }
@@ -757,12 +774,12 @@ export function initChatMediaRuntime(deps = {}) {
     }
 
     function startAudioPlayerUiLoop(audioEl) {
-        if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) return;
+        if (!audioEl || (audioEl !== activeVoicePlaybackAudioEl && !audioEl.isConnected) || audioEl.paused || audioEl.ended) return;
         stopAudioPlayerUiLoop(audioEl);
         captureAudioInterpolationBase(audioEl);
         // 60fps. Reflow нет — только запись CSS-переменных.
         const tick = () => {
-            if (!audioEl || !audioEl.isConnected || audioEl.paused || audioEl.ended) {
+            if (!audioEl || (audioEl !== activeVoicePlaybackAudioEl && !audioEl.isConnected) || audioEl.paused || audioEl.ended) {
                 stopAudioPlayerUiLoop(audioEl);
                 syncAudioPlayerUi(audioEl);
                 return;
@@ -944,6 +961,11 @@ export function initChatMediaRuntime(deps = {}) {
             candidate.playbackRate = nextRate;
             scheduleAudioPlayerUiSync(candidate);
         });
+        const activeAudio = resolveActiveVoicePlaybackAudio();
+        if (activeAudio && !activeAudio.isConnected) {
+            activeAudio.playbackRate = nextRate;
+            scheduleAudioPlayerUiSync(activeAudio);
+        }
         if (audio) {
             syncAudioPlayerUi(audio);
         }
@@ -967,6 +989,13 @@ export function initChatMediaRuntime(deps = {}) {
             void ensureGeneratedAudioWaveform(audio);
 
             // \u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C \u0432\u0441\u0435 \u043E\u0441\u0442\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u0443\u0434\u0438\u043E \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u043E.
+            const activeAudio = resolveActiveVoicePlaybackAudio();
+            if (activeAudio && activeAudio !== audio) {
+                activeAudio.dataset.playRequested = '0';
+                try { activeAudio.pause(); } catch (_) {}
+                stopAudioPlayerUiLoop(activeAudio);
+                scheduleAudioPlayerUiSync(activeAudio);
+            }
             const all = document.querySelectorAll('.file-msg-audio-el');
             all.forEach((candidate) => {
                 if (candidate !== audio) {
@@ -1087,8 +1116,7 @@ export function initChatMediaRuntime(deps = {}) {
             const audio = resolveActiveVoicePlaybackAudio();
             if (!audio) return;
             const toggleBtn = audio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
-            if (!toggleBtn) return;
-            window._toggleAudioPlayer(toggleBtn);
+            window._toggleAudioPlayer(toggleBtn || audio);
         });
     }
 
@@ -1129,6 +1157,7 @@ export function initChatMediaRuntime(deps = {}) {
             });
             const activeAudio = resolveActiveVoicePlaybackAudio();
             if (activeAudio) {
+                activeAudio.volume = normalized;
                 syncVoicePlaybackBar(activeAudio);
             }
         });
