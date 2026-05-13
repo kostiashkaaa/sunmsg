@@ -6505,9 +6505,22 @@
 
 
         /* Reply quote inside bubble */
-        .reply-quote { border-left:3px solid var(--accent); padding:4px 8px;
-            margin-bottom:6px; border-radius:0 6px 6px 0;
-            background: color-mix(in srgb, var(--accent) 12%, transparent); cursor:pointer; transition:background var(--dur-quick); }
+        .reply-quote,
+        .forward-quote {
+            display: block;
+            box-sizing: border-box;
+            max-width: 100%;
+            margin-bottom: 6px;
+            padding: 5px 8px 5px 9px;
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+
+        .reply-quote {
+            cursor: pointer;
+            transition: background var(--dur-quick);
+        }
 
 
         .reply-quote-name { font-size:11px; color:var(--accent); font-weight:600;
@@ -6524,7 +6537,6 @@
         }
 
         .forward-quote {
-            margin-bottom: 6px;
             line-height: 1.15;
             user-select: none;
             pointer-events: none;
@@ -8508,6 +8520,13 @@
             grid-column: 2;
             justify-self: end;
             margin-left: 0 !important;
+        }
+
+        .message .bubble.bubble--text-has-reactions:has(> .reply-quote),
+        .message .bubble.bubble--text-has-reactions:has(> .forward-quote) {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: stretch;
         }
 
 
