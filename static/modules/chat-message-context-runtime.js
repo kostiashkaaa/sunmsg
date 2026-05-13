@@ -1,4 +1,8 @@
 import { initMessageContextMenu } from './message-context-menu.js';
+import {
+    runMessageActionMotion,
+    runMessageActionMotionById,
+} from './message-action-motion.js';
 import { initReactionPickerController } from './reaction-picker.js';
 import { syncReactionPickerItems } from './chat-reaction-picker-items.js';
 
@@ -52,14 +56,21 @@ export function initChatMessageContextRuntime({
         getPartnerDisplayName,
         copyTextToClipboard,
         showToast,
-        onReply: (msgId, text, sender) => startReply(msgId, text, sender),
-        onEdit: (msgId, text) => startEditMessage(msgId, text),
+        onReply: (msgId, text, sender) => {
+            runMessageActionMotionById(documentRef, msgId, 'reply');
+            startReply(msgId, text, sender);
+        },
+        onEdit: (msgId, text) => {
+            runMessageActionMotionById(documentRef, msgId, 'edit');
+            startEditMessage(msgId, text);
+        },
         onPin: (msgId) => {
             if (isChatBlocked()) return;
             const currentChatId = getCurrentChatId();
             if (!msgId || !currentChatId) return;
             const normalizedMessageId = parseInt(String(msgId), 10);
             if (!Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) return;
+            runMessageActionMotionById(documentRef, normalizedMessageId, 'pin');
             if (isPinnedMessage(currentChatId, normalizedMessageId)) {
                 emitSocket('unpin_message', { chat_id: currentChatId, message_id: normalizedMessageId });
                 return;
@@ -72,17 +83,23 @@ export function initChatMessageContextRuntime({
             if (!msgId || !currentChatId) return;
             const normalizedMessageId = parseInt(String(msgId), 10);
             if (!Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) return;
+            runMessageActionMotionById(documentRef, normalizedMessageId, 'favorite');
             if (isFavoriteMessage(currentChatId, normalizedMessageId)) {
                 emitSocket('unfavorite_message', { chat_id: currentChatId, message_id: normalizedMessageId });
                 return;
             }
             emitSocket('favorite_message', { chat_id: currentChatId, message_id: normalizedMessageId });
         },
-        onDelete: (msgId) => openDeleteModal(msgId),
+        onDelete: (msgId) => {
+            runMessageActionMotionById(documentRef, msgId, 'delete');
+            openDeleteModal(msgId);
+        },
         onForward: (msgId) => {
+            runMessageActionMotionById(documentRef, msgId, 'forward');
             openForwardModal([msgId]);
         },
         onSelect: (msgId, element) => {
+            runMessageActionMotion(element, 'select');
             toggleSelectionMode(true);
             toggleMessageSelection(msgId, element);
         },
@@ -92,6 +109,7 @@ export function initChatMessageContextRuntime({
                 .replace(/\s+/g, ' ')
                 .trim()
                 .slice(0, 120);
+            runMessageActionMotionById(documentRef, msgId, 'report');
             openReportModal({
                 targetType: 'message',
                 targetId: Number.isFinite(safeId) && safeId > 0 ? String(safeId) : String(msgId || ''),
