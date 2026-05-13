@@ -1771,17 +1771,17 @@
         display: flex !important;
     }
 
-    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) {
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) {
         display: inline-flex;
         flex-direction: row;
         align-items: flex-end;
     }
 
-    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-text {
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-text {
         display: block;
     }
 
-    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)) > .message-footer {
+    .message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-footer {
         display: inline-flex !important;
         float: none;
         margin-left: calc(4px * var(--chat-message-scale));
