@@ -283,6 +283,8 @@ def handle_pin_message_event(  # noqa: PLR0913 - dependency-injected socket hand
     get_group_member_role_func=None,
     authorize_group_action_func=None,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return
@@ -400,6 +402,8 @@ def handle_unpin_message_event(  # noqa: PLR0913 - dependency-injected socket ha
     get_group_member_role_func=None,
     authorize_group_action_func=None,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return

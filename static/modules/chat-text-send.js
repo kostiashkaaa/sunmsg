@@ -1,3 +1,5 @@
+import { generateRequestId } from './utils.js';
+
 const LINK_MESSAGE_PATTERN = /((https?:\/\/|www\.)[^\s<]+)/i;
 const OFFLINE_RETRY_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443 \u0447\u0435\u0440\u0435\u0437 \u043F\u0430\u0440\u0443 \u0441\u0435\u043A\u0443\u043D\u0434.';
 const OFFLINE_QUEUED_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E \u0434\u043B\u044F \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0439 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438.';
@@ -49,7 +51,7 @@ export async function sendTextMessageFlow({
     if (!keepComposerEnabled) {
         setSendingState(true);
     }
-    const clientId = crypto.randomUUID();
+    const clientId = generateRequestId();
     const sentAt = new Date().toISOString();
     const isLink = LINK_MESSAGE_PATTERN.test(message);
     const msgType = isLink ? 'link' : 'text';

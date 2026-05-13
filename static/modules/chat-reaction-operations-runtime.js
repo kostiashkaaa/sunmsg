@@ -207,7 +207,9 @@ export function createChatReactionOperationsRuntime({
         });
         if (!changed) return;
 
-        const requestId = cryptoRef.randomUUID();
+        const requestId = (typeof cryptoRef?.randomUUID === 'function')
+            ? cryptoRef.randomUUID()
+            : `rxn_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
         registerPendingReactionOp(currentChatId, normalizedMsgId, previousReactions, requestId, {
             emoji: normalizedEmoji,
             mode: reactionMode,

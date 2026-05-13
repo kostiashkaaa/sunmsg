@@ -36,7 +36,11 @@ export function initChatMessageContextRuntime({
     openReportModal = () => {},
     emitReactionToggle = () => {},
 } = {}) {
-    const resolveMessageElement = (msgId) => documentRef.querySelector(`.message[data-msg-id="${msgId}"]`);
+    const resolveMessageElement = (msgId) => {
+        const token = String(msgId ?? '');
+        if (!token) return null;
+        return documentRef.querySelector(`.message[data-msg-id="${CSS.escape(token)}"]`);
+    };
 
     syncReactionPickerItems(reactionPicker);
 

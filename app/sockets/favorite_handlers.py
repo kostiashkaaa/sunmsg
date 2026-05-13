@@ -13,6 +13,8 @@ def handle_favorite_message_event(  # noqa: PLR0913 - dependency-injected socket
     emit_func,
     utc_now_z_func,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return
@@ -98,6 +100,8 @@ def handle_unfavorite_message_event(  # noqa: PLR0913 - dependency-injected sock
     emit_blocked_error_func,
     emit_func,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return

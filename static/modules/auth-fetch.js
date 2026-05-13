@@ -54,7 +54,24 @@ export async function authFetch(input, init) {
         return response;
     }
 
-    return fetch(requestInput, opts);
+    const retryOpts = Object.assign({}, opts);
+    if (retryOpts.headers) {
+        const refreshedToken = getCsrfToken();
+        if (refreshedToken) {
+            const nextHeaders = retryOpts.headers instanceof Headers
+                ? new Headers(retryOpts.headers)
+                : Object.assign({}, retryOpts.headers);
+            if (nextHeaders instanceof Headers) {
+                if (nextHeaders.has('X-CSRFToken')) {
+                    nextHeaders.set('X-CSRFToken', refreshedToken);
+                }
+            } else if ('X-CSRFToken' in nextHeaders) {
+                nextHeaders['X-CSRFToken'] = refreshedToken;
+            }
+            retryOpts.headers = nextHeaders;
+        }
+    }
+    return fetch(requestInput, retryOpts);
 }
 
 window.authFetch = authFetch;
