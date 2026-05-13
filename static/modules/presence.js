@@ -45,7 +45,7 @@ function resolveTypingName(entry) {
 function isGroupChatById(chatId) {
     const key = String(chatId || '').trim();
     if (!key) return false;
-    const item = document.querySelector(`.contact-item[data-chat-id="${key}"]`);
+    const item = document.querySelector(`.contact-item[data-chat-id="${CSS.escape(key)}"]`);
     return String(item?.getAttribute('data-is-group') || '') === '1';
 }
 
@@ -164,7 +164,9 @@ function hideTyping() {
 }
 
 function showSidebarTyping(chatId, text, kind = 'text') {
-    const item = document.querySelector(`.contact-item[data-chat-id="${chatId}"]`);
+    const chatIdKey = String(chatId || '');
+    if (!chatIdKey) return;
+    const item = document.querySelector(`.contact-item[data-chat-id="${CSS.escape(chatIdKey)}"]`);
     if (!item) return;
     const lastMessage = item.querySelector('.contact-last-msg');
     if (!lastMessage) return;
@@ -176,7 +178,9 @@ function showSidebarTyping(chatId, text, kind = 'text') {
 }
 
 function hideSidebarTyping(chatId) {
-    const item = document.querySelector(`.contact-item[data-chat-id="${chatId}"]`);
+    const chatIdKey = String(chatId || '');
+    if (!chatIdKey) return;
+    const item = document.querySelector(`.contact-item[data-chat-id="${CSS.escape(chatIdKey)}"]`);
     if (!item) return;
     const lastMessage = item.querySelector('.contact-last-msg');
     if (!lastMessage) return;
