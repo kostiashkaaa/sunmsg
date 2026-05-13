@@ -222,6 +222,25 @@ export function initReactionPickerController({
         rowEl?.classList?.remove('reaction-row--active');
     }
 
+    function hideContextMenuForEmojiPopup() {
+        if (!contextMenuEl) return;
+        contextMenuEl.dispatchEvent(new CustomEvent('sun:context-menu-hide', {
+            detail: { immediate: true },
+        }));
+        if (
+            contextMenuEl.getAttribute('aria-hidden') === 'true'
+            && !contextMenuEl.classList.contains('is-open')
+            && !contextMenuEl.classList.contains('is-opening')
+            && !contextMenuEl.classList.contains('is-closing')
+        ) {
+            return;
+        }
+        contextMenuEl.classList.remove('is-opening', 'is-open', 'is-closing');
+        contextMenuEl.setAttribute('aria-hidden', 'true');
+        contextMenuEl.style.left = '-9999px';
+        contextMenuEl.style.top = '-9999px';
+    }
+
     function closeReactionPicker() {
         if (!pickerEl) return;
         const isPickerActive = pickerEl.classList.contains('active')
@@ -381,6 +400,7 @@ export function initReactionPickerController({
             if (reactionEmojiPopup.isOpen()) {
                 reactionEmojiPopup.close();
             } else {
+                hideContextMenuForEmojiPopup();
                 await reactionEmojiPopup.open();
                 reactionEmojiPopup.position();
             }
