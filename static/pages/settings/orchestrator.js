@@ -24,6 +24,7 @@ import { initAccountDangerSection } from './account-danger-section.js';
 import { initNotificationsSection } from './notifications-section.js';
 import { initSettingsTransferSection } from './settings-transfer-section.js';
 import { initDataMemorySection } from './data-memory-section.js';
+import { initSecuritySummarySection } from './security-summary-section.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -262,6 +263,7 @@ export function initSettingsPage() {
     });
 
     initTotpSection({ api, tr, showAlert, uiLocale });
+    initSecuritySummarySection({ tr });
     initNotificationsSection({ api, tr, showAlert });
     initDataMemorySection({
         tr,
