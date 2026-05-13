@@ -113,7 +113,10 @@ export function createMessageFocusRuntime({
         const chatMessages = getChatMessages?.();
         if (!chatMessages) return false;
 
-        let el = documentRef.querySelector(`.message[data-msg-id="${msgId}"]`);
+        const msgIdToken = String(msgId ?? '');
+        if (!msgIdToken) return false;
+        const messageSelector = `.message[data-msg-id="${CSS.escape(msgIdToken)}"]`;
+        let el = documentRef.querySelector(messageSelector);
         if (!el) {
             const loaded = await ensureMessageLoaded(msgId);
             if (!loaded) return false;
@@ -122,7 +125,7 @@ export function createMessageFocusRuntime({
                 force: true,
                 scrollTop: Number.isFinite(estimatedTop) ? estimatedTop : chatMessages.scrollTop,
             });
-            el = documentRef.querySelector(`.message[data-msg-id="${msgId}"]`);
+            el = documentRef.querySelector(messageSelector);
         }
         if (!el) return false;
 

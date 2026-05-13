@@ -775,6 +775,9 @@ export function initPrivacySection({
             syncClientPreferencesLocal(true);
         });
     }
+    languageSelectEl?.addEventListener('change', () => {
+        scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
+    });
 
     window.addEventListener('sun-time-format-changed', () => {
         if (!latestPresencePayload) return;
@@ -786,10 +789,6 @@ export function initPrivacySection({
         if (document.visibilityState === 'visible') {
             setSettingsNavProfileLocalPresence(true);
         }
-    });
-
-    languageSelectEl?.addEventListener('change', () => {
-        scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
     });
 
     animationsEnabledSwitchEl?.addEventListener('change', () => {

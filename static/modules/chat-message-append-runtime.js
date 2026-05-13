@@ -85,7 +85,7 @@ export function createChatMessageAppendRuntime({
                 return chatMessages.querySelector(`.message[data-message-key="${escapeCss(normalizedKey)}"]`);
             };
 
-            if (isAtTail && rangeCoversTail && !alreadyRendered && !tailGroupWouldChange) {
+            if (isAtTail && rangeCoversTail && !alreadyRendered) {
                 if (tailGroupWouldChange && previousTailMessage) {
                     const previousTailKey = getMessageKey(previousTailMessage);
                     const previousTailNode = findRenderedMessageNodeByKey(previousTailKey);

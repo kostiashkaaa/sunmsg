@@ -204,6 +204,8 @@ def handle_toggle_reaction_event(  # noqa: PLR0913 - dependency-injected socket 
     database_error_cls=None,
 ):
     error_cls = database_error_cls or Exception
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return
@@ -230,7 +232,7 @@ def handle_toggle_reaction_event(  # noqa: PLR0913 - dependency-injected socket 
     uid = session_store['user_id']
     sender_pub = session_store.get('public_key_pem')
     if not socket_rate_ok_func(uid, 'toggle_reaction'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        _emit_error_with_request(emit_func, 'Too many messages. Please wait a little.', request_id)
         return
 
     conn = get_db_connection_func()

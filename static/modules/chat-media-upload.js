@@ -270,6 +270,7 @@ export function uploadChatMedia(file, {
 
         xhr.upload.onprogress = (event) => {
             if (!event.lengthComputable || typeof onProgress !== 'function') return;
+            if (!(event.total > 0)) return;
             onProgress((event.loaded / event.total) * 100);
         };
 

@@ -76,7 +76,7 @@ function arrayBufferToBase64(buffer) {
 }
 
 function base64ToArrayBuffer(base64) {
-    const binary_string = window.atob(base64);
+    const binary_string = atob(base64);
     const len = binary_string.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
@@ -101,7 +101,7 @@ async function importPublicKeyForEncryption(pem) {
     if (cached) return cached;
 
     const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
-    const key = await window.crypto.subtle.importKey(
+    const key = await crypto.subtle.importKey(
         "spki",
         binaryDer,
         {
@@ -123,7 +123,7 @@ async function importPrivateKeyForDecryption(pem) {
     if (cached) return cached;
 
     const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
-    const key = await window.crypto.subtle.importKey(
+    const key = await crypto.subtle.importKey(
         "pkcs8",
         binaryDer,
         {
@@ -145,7 +145,7 @@ async function importPrivateKeyForSigning(pem) {
     if (cached) return cached;
 
     const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
-    const key = await window.crypto.subtle.importKey(
+    const key = await crypto.subtle.importKey(
         "pkcs8",
         binaryDer,
         {
@@ -166,7 +166,7 @@ async function signChallenge(pemPrivateKey, challengeStr) {
     const privKey = await importPrivateKeyForSigning(pemPrivateKey);
     const encoder = new TextEncoder();
     const data = encoder.encode(challengeStr);
-    const signature = await window.crypto.subtle.sign(
+    const signature = await crypto.subtle.sign(
         CRYPTO_CONFIG.signAlgo,
         privKey,
         data
@@ -184,35 +184,35 @@ async function encryptMessageE2E(pemPublicKeyReceiver, pemPublicKeySender, plain
     const pubKeySender = await importPublicKeyForEncryption(pemPublicKeySender);
     
     // \u0413\u0435\u043D\u0435\u0440\u0438\u0440\u0443\u0435\u043C \u0441\u043B\u0443\u0447\u0430\u0439\u043D\u044B\u0439 AES-GCM \u043A\u043B\u044E\u0447
-    const aesKey = await window.crypto.subtle.generateKey(
+    const aesKey = await crypto.subtle.generateKey(
         { name: "AES-GCM", length: 256 },
         true,
         ["encrypt", "decrypt"]
     );
 
     // \u0428\u0438\u0444\u0440\u0443\u0435\u043C \u0441\u0430\u043C \u0442\u0435\u043A\u0441\u0442 \u0441 \u043F\u043E\u043C\u043E\u0449\u044C\u044E AES
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const encoder = new TextEncoder();
     const encodedPlaintext = encoder.encode(plaintext);
     
-    const ciphertextBuffer = await window.crypto.subtle.encrypt(
+    const ciphertextBuffer = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv: iv },
         aesKey,
         encodedPlaintext
     );
 
     // \u042D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u0443\u0435\u043C \u0441\u044B\u0440\u043E\u0439 AES \u043A\u043B\u044E\u0447
-    const rawAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
+    const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
 
     // \u0428\u0438\u0444\u0440\u0443\u0435\u043C \u0441\u044B\u0440\u043E\u0439 AES \u043A\u043B\u044E\u0447 \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u043C RSA \u043A\u043B\u044E\u0447\u043E\u043C \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A\u0430
-    const encryptedAesKeyReceiver = await window.crypto.subtle.encrypt(
+    const encryptedAesKeyReceiver = await crypto.subtle.encrypt(
         { name: CRYPTO_CONFIG.encryptAlgo },
         pubKeyReceiver,
         rawAesKey
     );
 
     // \u0428\u0438\u0444\u0440\u0443\u0435\u043C \u0441\u044B\u0440\u043E\u0439 AES \u043A\u043B\u044E\u0447 \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u044B\u043C RSA \u043A\u043B\u044E\u0447\u043E\u043C \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044F
-    const encryptedAesKeySender = await window.crypto.subtle.encrypt(
+    const encryptedAesKeySender = await crypto.subtle.encrypt(
         { name: CRYPTO_CONFIG.encryptAlgo },
         pubKeySender,
         rawAesKey
@@ -252,14 +252,14 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf) {
         }
 
         const encryptedAesKeyBuffer = base64ToArrayBuffer(targetEncryptedKey);
-        const rawAesKeyBuffer = await window.crypto.subtle.decrypt(
+        const rawAesKeyBuffer = await crypto.subtle.decrypt(
             { name: CRYPTO_CONFIG.encryptAlgo },
             privKey,
             encryptedAesKeyBuffer
         );
 
         // \u0418\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u0443\u0435\u043C \u0440\u0430\u0441\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 AES \u043A\u043B\u044E\u0447 \u043E\u0431\u0440\u0430\u0442\u043D\u043E \u0432 WebCrypto
-        const aesKey = await window.crypto.subtle.importKey(
+        const aesKey = await crypto.subtle.importKey(
             "raw",
             rawAesKeyBuffer,
             { name: "AES-GCM" },
@@ -271,7 +271,7 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf) {
         const ciphertextBuffer = base64ToArrayBuffer(payload.encrypted_message);
         const ivBuffer = base64ToArrayBuffer(payload.iv);
 
-        const plaintextBuffer = await window.crypto.subtle.decrypt(
+        const plaintextBuffer = await crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(ivBuffer) },
             aesKey,
             ciphertextBuffer
@@ -286,10 +286,12 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf) {
     }
 }
 
-window.e2e = {
-    signChallenge,
-    encryptMessageE2E,
-    decryptMessageE2E,
-    arrayBufferToBase64,
-    base64ToArrayBuffer
-};
+if (typeof window !== 'undefined') {
+    window.e2e = {
+        signChallenge,
+        encryptMessageE2E,
+        decryptMessageE2E,
+        arrayBufferToBase64,
+        base64ToArrayBuffer
+    };
+}

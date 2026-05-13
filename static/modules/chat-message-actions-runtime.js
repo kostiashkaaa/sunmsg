@@ -55,7 +55,11 @@ export function initChatMessageActionsRuntime({
         isChatBlocked,
         getBlockedNoticeText,
         currentBlockState: getCurrentBlockState,
-        resolveMessageElement: (id) => documentRef.querySelector(`.message[data-msg-id="${id}"]`),
+        resolveMessageElement: (id) => {
+            const token = String(id ?? '');
+            if (!token) return null;
+            return documentRef.querySelector(`.message[data-msg-id="${CSS.escape(token)}"]`);
+        },
         openDialog,
         closeDialog,
         onConfirm: ({ messageIds, mode }) => {
@@ -96,7 +100,11 @@ export function initChatMessageActionsRuntime({
         },
         toggleMessageSelection,
         closeMessageActionsBar,
-        resolveMessageElement: (id) => documentRef.querySelector(`.message[data-msg-id="${id}"]`),
+        resolveMessageElement: (id) => {
+            const token = String(id ?? '');
+            if (!token) return null;
+            return documentRef.querySelector(`.message[data-msg-id="${CSS.escape(token)}"]`);
+        },
     });
     barCancelBtn?.addEventListener('click', () => closeMessageActionsBar());
 

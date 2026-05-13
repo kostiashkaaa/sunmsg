@@ -318,6 +318,8 @@ def handle_messages_seen_event(  # noqa: PLR0913 - dependency-injected socket ha
     chat_partner_state_func,
     emit_func,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return
@@ -404,6 +406,8 @@ def handle_voice_message_listened_event(  # noqa: PLR0913 - dependency-injected 
     chat_partner_state_func,
     emit_func,
 ):
+    if 'user_id' not in session_store:
+        return
     data = require_payload_dict_func(data)
     if data is None:
         return

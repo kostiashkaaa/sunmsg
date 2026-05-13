@@ -210,20 +210,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    const userMenuBtn = document.getElementById('userMenuBtn');
-    const userPopupMenu = document.getElementById('userPopupMenu');
-    if (userMenuBtn && userPopupMenu) {
-        userMenuBtn.addEventListener('click', function (event) {
-            event.stopPropagation();
-            userPopupMenu.classList.toggle('open');
-        });
-        document.addEventListener('click', function (event) {
-            if (!event.target.closest('#userPopupMenu') && !event.target.closest('#userMenuBtn')) {
-                userPopupMenu.classList.remove('open');
-            }
-        });
-    }
-
     let themeSyncApi = {
         isDark: () => localStorage.getItem('darkMode') === 'true',
         applyDark: () => {},

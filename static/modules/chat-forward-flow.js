@@ -2,7 +2,7 @@
 // шифрование под получателя, отправка. Вынесено из chat.js без изменения
 // поведения — все внешние зависимости приходят через deps.
 
-import { applyEmojiGraphics, escapeHtml } from './utils.js';
+import { applyEmojiGraphics, escapeHtml, generateRequestId } from './utils.js';
 
 const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file']);
 
@@ -389,7 +389,7 @@ export function createChatForwardFlow(deps = {}) {
                     message: encryptedPayload,
                     chat_id: targetRow.chatId,
                     message_type: sourceMessage.messageType,
-                    client_id: crypto.randomUUID(),
+                    client_id: generateRequestId(),
                     reply_to_id: null,
                     forward_from_name: String(sourceMessage.forwardFromName || '').trim() || null,
                     forward_from_user_id: Number(sourceMessage.forwardFromUserId) || null,

@@ -376,6 +376,7 @@ export function registerIncomingMessageSocketHandlers({
             }
         }
         } catch (err) {
+            console.error('[receive_message]', err);
             showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F', 'danger');
         }
     });
@@ -409,6 +410,7 @@ export function registerIncomingMessageSocketHandlers({
         }
         loadContacts();
         } catch (err) {
+            console.error('[message_edited]', err);
             showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F', 'danger');
         }
     });

@@ -105,7 +105,7 @@ export function renderMessageTextWithMentions(targetEl, content, options = {}) {
                 options,
             );
         }
-        const href = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+        const href = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
         if (/^https?:\/\//i.test(href)) {
             const anchor = document.createElement('a');
             anchor.href = href;
