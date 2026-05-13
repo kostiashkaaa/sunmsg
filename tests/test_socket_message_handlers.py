@@ -373,6 +373,49 @@ def test_handle_delete_messages_event_for_both_deletes_and_notifies(tmp_path):
     assert any(event[0] == 'messages_deleted' and event[2].get('room') == 'pk-2' for event in emitted)
 
 
+def test_handle_delete_messages_event_for_both_deletes_incoming_private_message(tmp_path):
+    db_path = tmp_path / 'socket-message-handler-delete-incoming-for-both.db'
+    with _connect(db_path) as conn:
+        _prepare_delete_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO messages (id, sender_id, receiver_id, chat_id)
+            VALUES (13, 2, 1, 'chat-a')
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_delete_messages_event(
+        {'msg_ids': [13], 'chat_id': 'chat-a', 'mode': 'for_both'},
+        session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_blocked_error_func=lambda message, state: emitted.append(('blocked_error', message, state)),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+        logger=type('Logger', (), {'error': lambda self, msg, *args: None})(),
+        database_error_cls=DatabaseError,
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT 1 FROM messages WHERE id = 13').fetchone()
+
+    assert row is None
+    assert any(
+        event[0] == 'messages_deleted'
+        and event[1]['mode'] == 'for_both'
+        and event[1]['msg_ids'] == [13]
+        and event[2].get('room') == 'chat-a'
+        for event in emitted
+    )
+
+
 def test_handle_send_message_event_success_inserts_and_emits(tmp_path):
     db_path = tmp_path / 'socket-message-handler-send-ok.db'
     with _connect(db_path) as conn:

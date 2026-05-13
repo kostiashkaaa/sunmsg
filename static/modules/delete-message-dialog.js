@@ -102,15 +102,12 @@ function resolveMessageAuthor(messageEl) {
 }
 
 function resolveDialogAuthor(messageEls) {
-    const authors = messageEls.map(resolveMessageAuthor);
-    const first = authors[0] || resolveMessageAuthor(null);
-    const hasMixedAuthors = authors.length > 1 && authors.some((author) => author.key !== first.key);
-    if (!hasMixedAuthors) return first;
-
+    const windowRef = getWindowRef(messageEls[0]);
+    const partner = resolvePartner(windowRef);
     return {
-        key: 'mixed',
-        name: '\u041D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0430\u0432\u0442\u043E\u0440\u043E\u0432',
-        avatarUrl: '',
+        key: partner.isGroup ? 'group' : 'partner',
+        name: partner.name || DEFAULT_PEER_NAME,
+        avatarUrl: partner.avatarUrl,
     };
 }
 

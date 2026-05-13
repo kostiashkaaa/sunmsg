@@ -3864,6 +3864,10 @@ export const initChatPage = async () => {
         barCancelBtn,
         chatMessages,
         isChatBlocked,
+        isSavedMessagesChat: () => Boolean(
+            chatArea?.classList?.contains('is-saved-messages-chat')
+            || savedMessagesUi?.isSavedContactId?.(currentContactId),
+        ),
         getBlockedNoticeText: getChatBlockNoticeText,
         getCurrentBlockState: () => currentBlockState,
         getCurrentChatId: () => currentChatId,
