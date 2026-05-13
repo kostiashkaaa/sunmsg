@@ -2777,3 +2777,26 @@ button > i[class*=" bi-"],
     animation: none !important;
 }
 
+/* Chat flat surfaces: remove decorative shadows after all chat styles are loaded. */
+body[data-current-user-id] {
+    --shadow-1: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --profile-sheet-shadow: none;
+    --text-shadow-1: none;
+    --text-shadow-media: none;
+    --chat-bubble-shadow-base: none;
+    --chat-bubble-shadow-incoming: none;
+    --chat-bubble-shadow-outgoing: none;
+}
+
+body[data-current-user-id] * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+body[data-current-user-id] :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent, #c4943c) 72%, transparent);
+    outline-offset: 2px;
+}
+
