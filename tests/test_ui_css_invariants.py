@@ -655,10 +655,15 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
         re.DOTALL,
     )
     assert block, 'chat.css: mobile .emoji-sheet-open .chat-input-area block not found'
+    body = block.group(1)
+    assert 'display: flex !important' in body
+    assert 'visibility: visible !important' in body
+    assert 'opacity: 1 !important' in body
     transition_part = block.group(1).split('transition:', 1)[1]
     assert 'bottom var(--emoji-sheet-motion-duration)' in transition_part, (
         'chat.css: emoji-open composer must animate bottom with the sheet instead of jumping.'
     )
+    assert '.chat-area.emoji-sheet-open .chat-input-area.chat-input-area--hidden' in css
 
 
 def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
