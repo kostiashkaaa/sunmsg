@@ -157,13 +157,16 @@
     </div>
 </dialog>
 
-<dialog id="deleteConfirmModal" class="delete-confirm-modal" data-animated-dialog role="alertdialog" aria-labelledby="deleteModalTitle">
+<dialog id="deleteConfirmModal" class="delete-confirm-modal" data-animated-dialog role="alertdialog" aria-labelledby="deleteModalTitle" aria-describedby="deleteModalText" tabindex="-1">
     <div class="delete-confirm-modal__body">
-        <div class="delete-confirm-modal__icon-wrap">
-            <i class="bi bi-trash3 delete-confirm-modal__icon"></i>
+        <div class="delete-confirm-modal__header">
+            <div id="deleteModalAuthorAvatar" class="delete-confirm-modal__avatar" aria-hidden="true">?</div>
+            <div class="delete-confirm-modal__heading">
+                <h5 id="deleteModalTitle" class="delete-confirm-modal__title">Удалить сообщение</h5>
+                <div id="deleteModalAuthorName" class="delete-confirm-modal__author">Собеседник</div>
+            </div>
         </div>
-        <h5 id="deleteModalTitle" class="delete-confirm-modal__title">Удалить сообщение?</h5>
-        <p id="deleteModalText" class="delete-confirm-modal__text">Это действие нельзя отменить.</p>
+        <p id="deleteModalText" class="delete-confirm-modal__text">Вы точно хотите удалить это сообщение?</p>
 
         <div id="deleteForBothWrap" class="delete-confirm-modal__for-both delete-confirm-modal__for-both--hidden">
             <label class="delete-checkbox-row">
