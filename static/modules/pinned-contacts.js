@@ -9,7 +9,9 @@ import {
 
 export function updatePinIcon(itemOrChatId, isPinned, { root = document } = {}) {
     const item = typeof itemOrChatId === 'string'
-        ? root.querySelector(`.contact-item[data-chat-id="${itemOrChatId}"]`)
+        ? (itemOrChatId
+            ? root.querySelector(`.contact-item[data-chat-id="${CSS.escape(itemOrChatId)}"]`)
+            : null)
         : itemOrChatId;
     if (!item) return;
 

@@ -299,7 +299,9 @@ export function initChatContactsSidebar({
                 : Math.max(0, Number(contact.unreadCount) || 0);
             const unread = unreadCount > 0;
             const currentChatId = getCurrentChatId();
-            const existing = document.querySelector(`.contact-item[data-chat-id="${contact.chatId}"]`);
+            const existing = contact.chatId
+                ? document.querySelector(`.contact-item[data-chat-id="${CSS.escape(String(contact.chatId))}"]`)
+                : null;
             if (existing) {
                 const rawIsGroup = contact?.is_group;
                 const isGroup = rawIsGroup === true
@@ -598,7 +600,9 @@ export function initChatContactsSidebar({
         status = { is_read: false, is_delivered: false },
         setContactUnreadBadge,
     ) {
-        const contactItem = document.querySelector(`.contact-item[data-chat-id="${chatId}"]`);
+        const contactItem = chatId
+            ? document.querySelector(`.contact-item[data-chat-id="${CSS.escape(String(chatId))}"]`)
+            : null;
         if (!contactItem) {
             loadContacts();
             return;

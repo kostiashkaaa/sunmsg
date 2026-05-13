@@ -302,7 +302,10 @@ export function createChatMessageMutations({
                 is_edited: true,
             };
         }
-        const msgDiv = doc.querySelector(`.message[data-msg-id="${msgId}"]`);
+        const msgIdToken = String(msgId ?? '');
+        const msgDiv = msgIdToken
+            ? doc.querySelector(`.message[data-msg-id="${CSS.escape(msgIdToken)}"]`)
+            : null;
         if (msgDiv) {
             updateMessageContent(msgDiv, plainText);
             return;
