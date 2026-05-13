@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.sockets.message_handlers import (
+    _partition_delete_rows,
     _validate_send_payload,
     handle_delete_messages_event,
     handle_edit_message_event,
@@ -186,6 +187,45 @@ def _prepare_group_send_schema(conn):
         '''
     )
     conn.commit()
+
+
+def test_partition_delete_rows_for_me_marks_saved_self_message_for_both_roles():
+    result = _partition_delete_rows(
+        [{'id': 14, 'sender_id': 1, 'receiver_id': 1}],
+        context={'mode': 'for_me', 'uid': 1, 'chat_type': 'direct'},
+    )
+
+    assert result['deleted_ids'] == [14]
+    assert result['for_me_sender_ids'] == [14]
+    assert result['for_me_receiver_ids'] == [14]
+
+
+def test_partition_delete_rows_for_me_keeps_regular_direct_roles_separate():
+    result = _partition_delete_rows(
+        [
+            {'id': 21, 'sender_id': 1, 'receiver_id': 2},
+            {'id': 22, 'sender_id': 2, 'receiver_id': 1},
+        ],
+        context={'mode': 'for_me', 'uid': 1, 'chat_type': 'direct'},
+    )
+
+    assert result['deleted_ids'] == [21, 22]
+    assert result['for_me_sender_ids'] == [21]
+    assert result['for_me_receiver_ids'] == [22]
+
+
+def test_partition_delete_rows_for_me_keeps_group_delete_as_user_receipt_delete():
+    result = _partition_delete_rows(
+        [
+            {'id': 31, 'sender_id': 1, 'receiver_id': None},
+            {'id': 32, 'sender_id': 2, 'receiver_id': None},
+        ],
+        context={'mode': 'for_me', 'uid': 1, 'chat_type': 'group'},
+    )
+
+    assert result['deleted_ids'] == [31, 32]
+    assert result['for_me_sender_ids'] == [31]
+    assert result['for_me_receiver_ids'] == [32]
 
 
 def test_handle_edit_message_event_updates_message_and_emits(tmp_path):

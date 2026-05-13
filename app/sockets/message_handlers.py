@@ -1148,10 +1148,16 @@ def _partition_delete_rows(rows, *, context: dict | None = None) -> dict[str, li
                 for_both_delete_ids.append(msg_id)
                 deleted_ids.append(msg_id)
         elif mode == 'for_me':
-            if msg['sender_id'] == uid:
-                for_me_sender_ids.append(msg_id)
+            if chat_type == 'group':
+                if msg['sender_id'] == uid:
+                    for_me_sender_ids.append(msg_id)
+                else:
+                    for_me_receiver_ids.append(msg_id)
             else:
-                for_me_receiver_ids.append(msg_id)
+                if msg['sender_id'] == uid:
+                    for_me_sender_ids.append(msg_id)
+                if msg['receiver_id'] == uid:
+                    for_me_receiver_ids.append(msg_id)
             deleted_ids.append(msg_id)
 
     return {
