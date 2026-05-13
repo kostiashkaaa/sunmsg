@@ -1,3 +1,5 @@
+import { runMessageSelectionMotion } from './message-action-motion.js';
+
 export function initMessageSelection({
     chatMessages,
     headerSelectionWrap,
@@ -67,9 +69,11 @@ export function initMessageSelection({
         if (selectedMsgIds.has(normalizedId)) {
             selectedMsgIds.delete(normalizedId);
             element?.classList.remove('selected');
+            runMessageSelectionMotion(element, false);
         } else {
             selectedMsgIds.add(normalizedId);
             element?.classList.add('selected');
+            runMessageSelectionMotion(element, true);
         }
 
         updateSelectionUI();

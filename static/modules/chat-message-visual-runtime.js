@@ -1,4 +1,5 @@
 import { applyEmojiGraphics } from './utils.js';
+import { runMessageStateMotion } from './message-action-motion.js';
 import {
     isCurrentUserReactionReactor as baseIsCurrentUserReactionReactor,
     buildCurrentUserReactionReactor as baseBuildCurrentUserReactionReactor,
@@ -247,6 +248,7 @@ export function createChatMessageVisualRuntime({
         if (!messageEl) return;
         const meta = messageEl.querySelector('.msg-meta, .message-meta');
         if (!meta) return;
+        const wasPinned = messageEl.classList.contains('message-pinned');
 
         let pinEl = meta.querySelector('.msg-pin');
         if (isPinned) {
@@ -272,6 +274,9 @@ export function createChatMessageVisualRuntime({
         messageEl.classList.toggle('message-pinned', Boolean(isPinned));
         syncMessageBubbleLayoutClasses(messageEl);
         refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
+        if (wasPinned !== Boolean(isPinned)) {
+            runMessageStateMotion(messageEl, isPinned ? 'pin' : 'unpin');
+        }
     }
 
     function clearPinnedMessageStates() {
@@ -287,6 +292,7 @@ export function createChatMessageVisualRuntime({
         if (!messageEl) return;
         const meta = messageEl.querySelector('.msg-meta, .message-meta');
         if (!meta) return;
+        const wasFavorite = messageEl.classList.contains('message-favorite');
 
         let favoriteEl = meta.querySelector('.msg-favorite');
         if (isFavorite) {
@@ -315,6 +321,9 @@ export function createChatMessageVisualRuntime({
         messageEl.classList.toggle('message-favorite', Boolean(isFavorite));
         syncMessageBubbleLayoutClasses(messageEl);
         refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
+        if (wasFavorite !== Boolean(isFavorite)) {
+            runMessageStateMotion(messageEl, isFavorite ? 'favorite' : 'unfavorite');
+        }
     }
 
     function clearFavoriteMessageStates() {

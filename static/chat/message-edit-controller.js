@@ -1,3 +1,5 @@
+import { runMessageStateMotion } from '../modules/message-action-motion.js';
+
 export function createMessageEditController(options = {}) {
     const {
         getCurrentChatId,
@@ -293,6 +295,13 @@ export function createMessageEditController(options = {}) {
         if (getReplyState().replyToId) cancelReply();
         setIsEditingMessageId(msgId);
         isEditingFilePayload = null;
+        const normalizedMsgId = Number(msgId);
+        if (Number.isFinite(normalizedMsgId) && normalizedMsgId > 0) {
+            runMessageStateMotion(
+                document.querySelector(`.message[data-msg-id="${normalizedMsgId}"]`),
+                'edit-target',
+            );
+        }
 
         let inputValue = oldContent;
         let bannerText = 'Редактирование сообщения';

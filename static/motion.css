@@ -1797,6 +1797,201 @@ button > i[class*=" bi-"],
     will-change: opacity, transform;
 }
 
+.message-action-motion .message-stack,
+.message-selection-motion .message-stack,
+.message-state-motion .message-stack {
+    will-change: transform, opacity;
+}
+
+.message-action-motion {
+    --message-action-shift-x: 0;
+    --message-action-shift-y: -1px;
+    --message-action-scale: 1.012;
+}
+
+.message-action-motion--reply {
+    --message-action-shift-x: -3px;
+}
+
+.message-action-motion--forward {
+    --message-action-shift-x: 3px;
+}
+
+.message-action-motion--delete,
+.message-action-motion--report {
+    --message-action-shift-y: 1px;
+    --message-action-scale: 0.992;
+}
+
+.message-action-motion .message-stack {
+    animation: messageActionFeedback 420ms var(--tg3-ease-surface) both;
+}
+
+.message-selection-motion--selected .message-stack {
+    animation: messageSelectionPick 280ms var(--tg3-ease-pop) both;
+}
+
+.message-selection-motion--cleared .message-stack {
+    animation: messageSelectionClear 240ms var(--tg3-ease-surface) both;
+}
+
+.chat-messages.selecting .message .message-row-track::before {
+    animation: messageSelectionMarkerIn 180ms var(--tg3-ease-surface) both;
+}
+
+.chat-messages.selecting .message.selected::before {
+    animation: messageSelectionWashIn 220ms var(--tg3-ease-enter) both;
+}
+
+.chat-messages.selecting .message.selected .message-row-track::before {
+    animation: messageSelectionCheckIn 240ms var(--tg3-ease-pop) both;
+}
+
+.message-state-motion--edit-target .message-stack {
+    animation: messageEditTargetFeedback 520ms var(--tg3-ease-surface) both;
+}
+
+.message-state-motion--edit-applied .message-stack,
+.message-state-motion--pin .message-stack,
+.message-state-motion--favorite .message-stack,
+.message-state-motion--unpin .message-stack,
+.message-state-motion--unfavorite .message-stack {
+    animation: messageStateFeedback 520ms var(--tg3-ease-surface) both;
+}
+
+.message-state-motion--pin .msg-pin,
+.message-state-motion--favorite .msg-favorite,
+.message-state-motion--edit-applied .msg-edited {
+    animation: messageMetaPop 320ms var(--tg3-ease-pop) both;
+    will-change: transform, opacity;
+}
+
+@keyframes messageActionFeedback {
+    0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    36% {
+        opacity: 1;
+        transform: translate3d(var(--message-action-shift-x), var(--message-action-shift-y), 0) scale(var(--message-action-scale));
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes messageSelectionPick {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    42% {
+        transform: translate3d(0, -1px, 0) scale(1.014);
+    }
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes messageSelectionClear {
+    0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    42% {
+        opacity: 0.94;
+        transform: translate3d(0, 1px, 0) scale(0.992);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes messageSelectionMarkerIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) scale(0.82);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+@keyframes messageSelectionWashIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes messageSelectionCheckIn {
+    0% {
+        opacity: 0.84;
+        transform: translateY(-50%) scale(0.9);
+    }
+    62% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.08);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+}
+
+@keyframes messageEditTargetFeedback {
+    0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    34% {
+        opacity: 1;
+        transform: translate3d(0, -2px, 0) scale(1.018);
+    }
+    70% {
+        opacity: 0.98;
+        transform: translate3d(0, 0, 0) scale(1.004);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes messageStateFeedback {
+    0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    40% {
+        opacity: 1;
+        transform: translate3d(0, -1px, 0) scale(1.012);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
+@keyframes messageMetaPop {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 2px, 0) scale(0.74);
+    }
+    62% {
+        opacity: 1;
+        transform: translate3d(0, -1px, 0) scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+}
+
 #lightbox {
     transition:
         opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
@@ -2530,6 +2725,14 @@ button > i[class*=" bi-"],
     html[data-motion-level="lite"] .edit-message-banner,
     html[data-motion-level="lite"] .reply-bar,
     html[data-motion-level="lite"] .pinned-bar,
+    html[data-motion-level="lite"] .message-action-motion .message-stack,
+    html[data-motion-level="lite"] .message-selection-motion .message-stack,
+    html[data-motion-level="lite"] .message-state-motion .message-stack,
+    html[data-motion-level="lite"] .message-state-motion .msg-pin,
+    html[data-motion-level="lite"] .message-state-motion .msg-favorite,
+    html[data-motion-level="lite"] .message-state-motion .msg-edited,
+    html[data-motion-level="lite"] .chat-messages.selecting .message .message-row-track::before,
+    html[data-motion-level="lite"] .chat-messages.selecting .message.selected::before,
     html[data-motion-level="lite"] #lightbox,
     html[data-motion-level="lite"] .lightbox-main,
     html[data-motion-level="lite"] .lightbox-topbar,

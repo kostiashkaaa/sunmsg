@@ -1,3 +1,8 @@
+import {
+    runMessageActionMotion,
+    runMessageActionMotionForIds,
+} from './message-action-motion.js';
+
 export function initMessageActionHandlers({
     barCopyButtonEl,
     barEditButtonEl,
@@ -21,9 +26,12 @@ export function initMessageActionHandlers({
     closeMessageActionsBar,
     resolveMessageElement,
 } = {}) {
+    const documentRef = chatMessages?.ownerDocument || globalThis.document || null;
+
     barCopyButtonEl?.addEventListener('click', async () => {
         const state = getSelectedMessageState();
         if (!state.messageText || state.isFile) return;
+        runMessageActionMotion(resolveMessageElement(state.messageId), 'copy');
         const copied = await copyTextToClipboard(state.messageText);
         if (copied) {
             showToast('\u0422\u0435\u043A\u0441\u0442 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D', 'success');
@@ -35,6 +43,7 @@ export function initMessageActionHandlers({
         const state = getSelectedMessageState();
         if (isChatBlocked()) return;
         if (!state.messageId || state.isFile || state.canEdit === false) return;
+        runMessageActionMotion(resolveMessageElement(state.messageId), 'edit');
         startEditMessage(state.messageId, state.messageText);
         closeMessageActionsBar();
     });
@@ -46,7 +55,10 @@ export function initMessageActionHandlers({
         if (!targetMessageId) return;
         toggleSelectionMode(true);
         const element = resolveMessageElement(targetMessageId);
-        if (element) toggleMessageSelection(targetMessageId, element);
+        if (element) {
+            runMessageActionMotion(element, 'select');
+            toggleMessageSelection(targetMessageId, element);
+        }
     });
 
     cancelSelectionButtonEl?.addEventListener('click', () => toggleSelectionMode(false));
@@ -54,6 +66,7 @@ export function initMessageActionHandlers({
     bulkDeleteButtonEl?.addEventListener('click', () => {
         if (isChatBlocked()) return;
         if (messageSelectionController.getSelectedCount() > 0) {
+            runMessageActionMotionForIds(documentRef, messageSelectionController.getSelectedIds(), 'delete');
             openDeleteModal(messageSelectionController.getSelectedIds());
         }
     });
@@ -62,6 +75,7 @@ export function initMessageActionHandlers({
         if (isChatBlocked()) return;
         const selectedIds = messageSelectionController.getSelectedIds();
         if (!selectedIds.length) return;
+        runMessageActionMotionForIds(documentRef, selectedIds, 'forward');
         onForwardSelected?.(selectedIds);
     });
 
@@ -75,6 +89,7 @@ export function initMessageActionHandlers({
         });
         if (!texts.length) return;
 
+        runMessageActionMotionForIds(documentRef, messageSelectionController.getSelectedIds(), 'copy');
         const copied = await copyTextToClipboard(texts.join('\n'));
         if (copied) {
             showToast('\u0422\u0435\u043A\u0441\u0442\u044B \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u044B', 'success');
@@ -85,7 +100,10 @@ export function initMessageActionHandlers({
     barDeleteButtonEl?.addEventListener('click', () => {
         const state = getSelectedMessageState();
         if (isChatBlocked()) return;
-        if (state.messageId) openDeleteModal(state.messageId);
+        if (state.messageId) {
+            runMessageActionMotion(resolveMessageElement(state.messageId), 'delete');
+            openDeleteModal(state.messageId);
+        }
     });
 
     chatMessages?.addEventListener('click', (event) => {

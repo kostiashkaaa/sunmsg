@@ -1,3 +1,5 @@
+import { runMessageStateMotion } from './message-action-motion.js';
+
 export function createChatMessageMutations({
     documentRef,
     windowRef,
@@ -276,6 +278,9 @@ export function createChatMessageMutations({
 
         syncMessageBubbleLayoutClasses(msgDiv);
         refreshMessageHeightCache(msgDiv);
+        if (!isRedecrypt) {
+            runMessageStateMotion(msgDiv, 'edit-applied');
+        }
 
         if (msgDiv.classList.contains('self')) {
             const state = getCurrentChatId() ? getChatState(getCurrentChatId()) : null;
