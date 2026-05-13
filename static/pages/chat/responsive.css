@@ -1229,11 +1229,18 @@
 
             /* When emoji sheet is open: composer follows the bottom dock as one animated surface. */
             .chat-area.emoji-sheet-open .chat-input-area {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
                 z-index: 1010;
                 transition:
                     bottom var(--emoji-sheet-motion-duration) var(--m-decel),
                     opacity var(--m-dur-fast) var(--m-decel),
                     transform var(--m-dur-fast) var(--m-decel) !important;
+            }
+
+            .chat-area.emoji-sheet-open .chat-input-area.chat-input-area--hidden {
+                display: flex !important;
             }
 
             .chat-area.emoji-keyboard-handoff .chat-input-area,
