@@ -664,6 +664,20 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
         'chat.css: emoji-open composer must animate bottom with the sheet instead of jumping.'
     )
     assert '.chat-area.emoji-sheet-open .chat-input-area.chat-input-area--hidden' in css
+    composer_stack = re.search(
+        r'\.chat-area\.emoji-sheet-open\s+\.composer-row\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert composer_stack, 'chat.css: mobile emoji-open composer stack rule not found'
+    assert 'z-index: 2' in composer_stack.group(1)
+    picker_stack = re.search(
+        r'\.chat-area\.emoji-sheet-open\s+\.emoji-picker\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert picker_stack, 'chat.css: mobile emoji-open picker stack rule not found'
+    assert 'z-index: 1' in picker_stack.group(1)
 
 
 def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
