@@ -44,9 +44,11 @@ export function initMessageContextMenu({
         const safeTop = headerRect && headerRect.bottom > top && headerRect.bottom < top + height
             ? headerRect.bottom
             : top;
-        const safeBottom = inputRect && inputRect.top > safeTop && inputRect.top < top + height
+        const visualBottom = top + height;
+        const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
+        const safeBottom = !keyboardActive && inputRect && inputRect.top > safeTop && inputRect.top < visualBottom
             ? inputRect.top
-            : top + height;
+            : visualBottom;
         return {
             left,
             top: safeTop,
