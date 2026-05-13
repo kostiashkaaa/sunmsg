@@ -1243,6 +1243,14 @@
                 display: flex !important;
             }
 
+            .chat-area.emoji-sheet-open .composer-row {
+                z-index: 2;
+            }
+
+            .chat-area.emoji-sheet-open .emoji-picker {
+                z-index: 1;
+            }
+
             .chat-area.emoji-keyboard-handoff .chat-input-area,
             .chat-area.emoji-keyboard-handoff .chat-messages {
                 transition: none !important;
