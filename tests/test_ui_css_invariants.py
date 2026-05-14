@@ -1070,6 +1070,26 @@ def test_theme_toggle_syncs_chat_and_settings_surfaces() -> None:
     assert "notifyParent('sun-settings-theme-updated', { dark })" in settings
 
 
+def test_interface_theme_runtime_updates_all_accent_variants() -> None:
+    """Preset/accent changes must update every semantic accent token used by CSS."""
+    interface_theme = (STATIC / 'interface-theme.js').read_text(encoding='utf-8')
+    bootstrap = (STATIC / 'bootstrap.js').read_text(encoding='utf-8')
+    early_boot = (ROOT / 'templates' / '_client_preferences_early_boot.html').read_text(encoding='utf-8')
+
+    assert "target.style.setProperty('--accent-deep', tokens.deep)" in interface_theme
+    assert "target.style.setProperty('--accent-soft', tokens.soft)" in interface_theme
+
+    for name, source in (
+        ('bootstrap.js', bootstrap),
+        ('_client_preferences_early_boot.html', early_boot),
+    ):
+        assert "'--accent-deep': deep" in source, f'{name}: --accent-deep is not bootstrapped'
+        assert "'--accent-soft': soft" in source, f'{name}: --accent-soft is not bootstrapped'
+
+    assert "hasOwnProperty.call(cssVars, '--accent-deep')" in early_boot
+    assert "hasOwnProperty.call(cssVars, '--accent-soft')" in early_boot
+
+
 def test_message_alignment_self_vs_other_on_chat_page() -> None:
     """Outgoing and incoming messages must not share the same left alignment.
 

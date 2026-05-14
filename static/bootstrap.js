@@ -679,12 +679,16 @@
         const light = themeKey === 'dark'
             ? mixColors(accent, '#0b1f21', 0.72)
             : mixColors(accent, '#ffffff', 0.86);
+        const deep = themeKey === 'dark' ? bright : hover;
+        const soft = themeKey === 'dark' ? rgbaFromHex(accent, 0.14) : light;
         const glow = rgbaFromHex(accent, themeKey === 'dark' ? 0.24 : 0.2);
         const gradient = `linear-gradient(135deg, ${accent} 0%, ${bright} 100%)`;
 
         return {
             ...(preset?.vars || {}),
             '--accent': accent,
+            '--accent-deep': deep,
+            '--accent-soft': soft,
             '--accent-hover': hover,
             '--accent-bright': bright,
             '--accent-light': light,
