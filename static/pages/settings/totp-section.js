@@ -17,6 +17,17 @@ export function initTotpSection({
     const totpVerifyPanel = document.getElementById('totpVerifyPanel');
     const totpVerifyCodeInput = document.getElementById('totpVerifyCode');
     const totpVerifyBtn = document.getElementById('totpVerifyBtn');
+    const totpBackupCodesPanel = document.getElementById('totpBackupCodesPanel');
+    const totpBackupCodesRemainingEl = document.getElementById('totpBackupCodesRemaining');
+    const totpShowBackupCodesBtn = document.getElementById('totpShowBackupCodesBtn');
+    const totpBackupCodesList = document.getElementById('totpBackupCodesList');
+    const totpRegenerateBackupPanel = document.getElementById('totpRegenerateBackupPanel');
+    const totpRegenerateBackupCodeInput = document.getElementById('totpRegenerateBackupCode');
+    const totpRegenerateBackupConfirmBtn = document.getElementById('totpRegenerateBackupConfirmBtn');
+    const totpNewBackupCodesPanel = document.getElementById('totpNewBackupCodesPanel');
+    const totpNewBackupCodesList = document.getElementById('totpNewBackupCodesList');
+    const totpCopyBackupCodesBtn = document.getElementById('totpCopyBackupCodesBtn');
+    const totpBackupCodesDoneBtn = document.getElementById('totpBackupCodesDoneBtn');
 
     if (!totpStatusTextEl) {
         return {
@@ -80,6 +91,36 @@ export function initTotpSection({
         if (totpDisableBtn) totpDisableBtn.style.display = isEnabled ? 'inline-block' : 'none';
         if (totpRegenerateBtn) totpRegenerateBtn.style.display = isEnabled ? 'inline-block' : 'none';
         toggleTotpVerifyPanel(!!setupPending);
+        if (totpBackupCodesPanel) {
+            totpBackupCodesPanel.style.display = isEnabled && !setupPending ? 'block' : 'none';
+        }
+    }
+
+    function renderBackupCodesRemaining(count) {
+        if (!totpBackupCodesRemainingEl) return;
+        totpBackupCodesRemainingEl.textContent = `Осталось неиспользованных: ${count} из 10`;
+    }
+
+    function renderBackupCodesList(codes, containerEl) {
+        if (!containerEl) return;
+        containerEl.replaceChildren();
+        const grid = document.createElement('div');
+        grid.className = 'totp-backup-codes-grid';
+        (codes || []).forEach((code) => {
+            const span = document.createElement('code');
+            span.className = 'totp-backup-code-item';
+            span.textContent = String(code);
+            grid.appendChild(span);
+        });
+        containerEl.appendChild(grid);
+        containerEl.style.display = 'block';
+    }
+
+    function showNewBackupCodes(codes) {
+        if (!totpNewBackupCodesPanel) return;
+        renderBackupCodesList(codes, totpNewBackupCodesList);
+        totpNewBackupCodesPanel.style.display = 'block';
+        if (totpBackupCodesPanel) totpBackupCodesPanel.style.display = 'none';
     }
 
     async function renderTotpSetup(secret, uri) {
@@ -117,6 +158,9 @@ export function initTotpSection({
             const setupPending = !!payload.setup_pending;
             renderTotpState(!!payload.enabled, payload.totp_enabled_at, setupPending);
             await renderTotpSetup(setupPending ? payload.totp_secret : '', setupPending ? payload.totp_uri : '');
+            if (payload.enabled && !setupPending) {
+                renderBackupCodesRemaining(Number(payload.backup_codes_remaining ?? 0));
+            }
         } catch (_err) {
             totpStatusTextEl.textContent = tr('неизвестно');
             showAlert('Не удалось загрузить состояние TOTP.', 'danger');
@@ -176,7 +220,12 @@ export function initTotpSection({
             const payload = await api.verifyTotpSetup(code);
             renderTotpState(true, payload.totp_enabled_at, false);
             await renderTotpSetup('', '');
-            showAlert('Настройка подтверждена успешно.', 'success');
+            if (payload.backup_codes && payload.backup_codes.length) {
+                showNewBackupCodes(payload.backup_codes);
+                renderBackupCodesRemaining(payload.backup_codes.length);
+            } else {
+                showAlert('Настройка подтверждена успешно.', 'success');
+            }
         } catch (err) {
             showAlert(String(err?.message || 'Ошибка подтверждения TOTP.'), 'danger');
         } finally {
@@ -184,6 +233,50 @@ export function initTotpSection({
             setTotpVerifyDisabled(false);
         }
     }
+
+    async function submitRegenerateBackupCodes() {
+        const code = String(totpRegenerateBackupCodeInput?.value || '').replace(/\D+/g, '').slice(0, 6);
+        if (code.length !== 6) {
+            showAlert('Введите 6-значный код из Authenticator.', 'warning');
+            return;
+        }
+        if (totpRegenerateBackupConfirmBtn) totpRegenerateBackupConfirmBtn.disabled = true;
+        try {
+            const payload = await api.regenerateBackupCodes(code);
+            if (totpRegenerateBackupPanel) totpRegenerateBackupPanel.style.display = 'none';
+            if (totpRegenerateBackupCodeInput) totpRegenerateBackupCodeInput.value = '';
+            showNewBackupCodes(payload.backup_codes);
+            renderBackupCodesRemaining(payload.backup_codes.length);
+        } catch (err) {
+            showAlert(String(err?.message || 'Ошибка обновления кодов.'), 'danger');
+        } finally {
+            if (totpRegenerateBackupConfirmBtn) totpRegenerateBackupConfirmBtn.disabled = false;
+        }
+    }
+
+    totpShowBackupCodesBtn?.addEventListener('click', () => {
+        if (!totpRegenerateBackupPanel) return;
+        const isVisible = totpRegenerateBackupPanel.style.display === 'block';
+        totpRegenerateBackupPanel.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible && totpBackupCodesList) totpBackupCodesList.style.display = 'none';
+    });
+
+    totpRegenerateBackupConfirmBtn?.addEventListener('click', submitRegenerateBackupCodes);
+    totpRegenerateBackupCodeInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submitRegenerateBackupCodes(); }
+    });
+
+    totpCopyBackupCodesBtn?.addEventListener('click', () => {
+        const codes = Array.from(totpNewBackupCodesList?.querySelectorAll('.totp-backup-code-item') || [])
+            .map((el) => el.textContent).join('\n');
+        navigator.clipboard?.writeText(codes).catch(() => {});
+        showAlert('Коды скопированы.', 'success');
+    });
+
+    totpBackupCodesDoneBtn?.addEventListener('click', () => {
+        if (totpNewBackupCodesPanel) totpNewBackupCodesPanel.style.display = 'none';
+        if (totpBackupCodesPanel) totpBackupCodesPanel.style.display = 'block';
+    });
 
     totpEnableBtn?.addEventListener('click', () => {
         submitTotpAction('enable');

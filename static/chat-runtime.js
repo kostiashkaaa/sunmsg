@@ -183,6 +183,8 @@ import { createChatMediaMetaController } from './modules/chat-media-meta.js';
 import { createChatGroupCreateController } from './modules/chat-group-create.js';
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
+import { createDisappearingMessagesController } from './modules/chat-disappearing-messages.js';
+import { createGroupInviteLinkController } from './modules/chat-group-invite-link.js';
 import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
 import { createChatBrowserEnv } from './modules/chat-browser-env.js';
 import {
@@ -726,6 +728,17 @@ export const initChatPage = async () => {
         showToast,
         getCurrentGroupProfile: () => getCurrentGroupProfile(),
         onPermissionsUpdated: (nextPermissions) => setCurrentGroupPermissions(nextPermissions),
+    });
+
+    disappearingMessagesController = createDisappearingMessagesController({
+        socketEmit: (event, data) => socket.emit(event, data),
+        getCsrfToken,
+        getCurrentChatId: () => currentChatId,
+    });
+
+    groupInviteLinkController = createGroupInviteLinkController({
+        withAppRoot,
+        getCsrfToken,
     });
 
     chatAnimationsController = createChatAnimationsController({

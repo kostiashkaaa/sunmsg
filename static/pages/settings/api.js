@@ -92,6 +92,10 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
             method: 'POST',
             json: { totp_code: totpCode },
         }, 'Не удалось подтвердить TOTP-код.'),
+        regenerateBackupCodes: (totpCode) => requestSuccess('/api/totp_backup_codes/regenerate', {
+            method: 'POST',
+            json: { totp_code: totpCode },
+        }, 'Не удалось обновить резервные коды.'),
         getChallenge: (username) => requestSuccess('/api/get_challenge', {
             method: 'POST',
             json: { username },

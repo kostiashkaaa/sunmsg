@@ -42,6 +42,7 @@ from app.routes.chat_presence_route_handlers import process_get_online_status as
 from app.routes.chat_profile_routes import register_chat_profile_routes
 from app.routes.chat_profile_utils import fetch_conversation_stats
 from app.routes.chat_user_profile_route_handlers import process_get_user_profile as _process_get_user_profile
+from app.routes.chat_group_invite_link_routes import register_chat_group_invite_link_routes
 from app.routes.contacts import fetch_contacts_for_user
 from app.routes.socket_emit import build_route_socket_emitter
 

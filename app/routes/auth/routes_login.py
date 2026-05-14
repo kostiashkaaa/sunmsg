@@ -50,6 +50,7 @@ from .context import (
     auth_bp,
 )
 from app.services.web_push import deactivate_user_push_subscriptions
+from app.services.totp_backup_codes import verify_and_consume_backup_code
 
 logger = logging.getLogger(__name__)
 
@@ -399,25 +400,34 @@ def login_totp():
     totp_code = data.get('totp_code', '').strip()
     pending = _pending_totp_context()
 
+    backup_code = str(data.get('backup_code') or '').strip()
+
     if not pending:
-        return jsonify({'success': False, 'error': '\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0432\u0445\u043e\u0434 24 \u0441\u043b\u043e\u0432\u0430\u043c\u0438.'}), 401
-    if not totp_code:
-        return jsonify({'success': False, 'error': 'Введите 6-значный код.'}), 400
+        return jsonify({'success': False, 'error': 'Сначала подтвердите вход паролем.'}), 401
+    if not totp_code and not backup_code:
+        return jsonify({'success': False, 'error': 'Введите 6-значный код или резервный код.'}), 400
 
     conn = get_db_connection()
-    user = conn.execute(
-        'SELECT id, public_key, totp_secret, language FROM users WHERE id = ?',
-        (pending['user_id'],),
-    ).fetchone()
-    conn.close()
+    try:
+        user = conn.execute(
+            'SELECT id, public_key, totp_secret, language FROM users WHERE id = ?',
+            (pending['user_id'],),
+        ).fetchone()
 
-    if not user or not user['totp_secret'] or user['public_key'] != pending['public_key']:
-        _clear_pending_totp()
-        return jsonify({'success': False, 'error': 'Неверные данные для входа.'}), 401
+        if not user or not user['totp_secret'] or user['public_key'] != pending['public_key']:
+            _clear_pending_totp()
+            return jsonify({'success': False, 'error': 'Неверные данные для входа.'}), 401
 
-    totp = pyotp.TOTP(user['totp_secret'])
-    if not totp.verify(totp_code, valid_window=1):
-        return jsonify({'success': False, 'error': 'Неверный код. Проверьте время на устройстве.'}), 401
+        if backup_code:
+            if not verify_and_consume_backup_code(conn, int(user['id']), backup_code):
+                return jsonify({'success': False, 'error': 'Неверный или уже использованный резервный код.'}), 401
+            conn.commit()
+        else:
+            totp = pyotp.TOTP(user['totp_secret'])
+            if not totp.verify(totp_code, valid_window=1):
+                return jsonify({'success': False, 'error': 'Неверный код. Проверьте время на устройстве.'}), 401
+    finally:
+        conn.close()
 
     remember = bool(pending['remember'])
     session.clear()

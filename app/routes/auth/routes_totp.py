@@ -11,6 +11,12 @@ from app.routes.auth_helpers_totp import (
     pending_totp_setup_context,
     stage_pending_totp_setup,
 )
+from app.services.totp_backup_codes import (
+    count_unused_backup_codes,
+    delete_backup_codes,
+    generate_backup_codes,
+    store_backup_codes,
+)
 from .context import auth_bp
 
 @auth_bp.route('/api/totp_status', methods=['GET'])
@@ -25,11 +31,11 @@ def api_totp_status():
             'SELECT id, username, totp_secret, totp_enabled_at FROM users WHERE id = ?',
             (session['user_id'],),
         ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'Пользователь не найден.'}), 404
+        unused_codes = count_unused_backup_codes(conn, int(user['id']))
     finally:
         conn.close()
-
-    if not user:
-        return jsonify({'success': False, 'error': 'Пользователь не найден.'}), 404
 
     pending_setup = pending_totp_setup_context(session, user_id=session['user_id'])
     setup_pending = pending_setup is not None
@@ -50,6 +56,7 @@ def api_totp_status():
         'totp_secret': totp_secret,
         'totp_uri': totp_uri,
         'username': user['username'],
+        'backup_codes_remaining': unused_codes,
     })
 
 @auth_bp.route('/api/totp_manage', methods=['POST'])
@@ -77,6 +84,7 @@ def api_totp_manage():
                 'UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL WHERE id = ?',
                 (user['id'],),
             )
+            delete_backup_codes(conn, int(user['id']))
             conn.commit()
             clear_pending_totp(session)
             clear_pending_totp_setup(session)
@@ -120,6 +128,7 @@ def api_totp_setup_verify():
     if not totp.verify(totp_code, valid_window=1):
         return jsonify({'success': False, 'error': 'Неверный код. Проверьте время на устройстве.'}), 400
 
+    raw_codes = generate_backup_codes()
     conn = get_db_connection()
     try:
         conn.execute(
@@ -130,6 +139,7 @@ def api_totp_setup_verify():
             ''',
             (pending_setup['secret'], int(session['user_id'])),
         )
+        store_backup_codes(conn, int(session['user_id']), raw_codes)
         conn.commit()
         user = conn.execute(
             'SELECT totp_enabled_at FROM users WHERE id = ?',
@@ -144,4 +154,38 @@ def api_totp_setup_verify():
         'enabled': True,
         'setup_pending': False,
         'totp_enabled_at': str((user['totp_enabled_at'] if user else '') or ''),
+        'backup_codes': raw_codes,
     })
+
+@auth_bp.route('/api/totp_backup_codes/regenerate', methods=['POST'])
+@limiter.limit("5 per hour")
+def api_totp_backup_codes_regenerate():
+    """Regenerate TOTP backup codes. Requires re-verification with current TOTP code."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
+
+    data = request.get_json(silent=True) or {}
+    totp_code = str(data.get('totp_code') or '').strip()
+    if not re.fullmatch(r'\d{6}', totp_code):
+        return jsonify({'success': False, 'error': 'Введите 6-значный код из Authenticator.'}), 400
+
+    conn = get_db_connection()
+    try:
+        user = conn.execute(
+            'SELECT id, totp_secret FROM users WHERE id = ?',
+            (session['user_id'],),
+        ).fetchone()
+        if not user or not user['totp_secret']:
+            return jsonify({'success': False, 'error': 'TOTP не включён.'}), 400
+
+        totp = pyotp.TOTP(user['totp_secret'])
+        if not totp.verify(totp_code, valid_window=1):
+            return jsonify({'success': False, 'error': 'Неверный код.'}), 401
+
+        raw_codes = generate_backup_codes()
+        store_backup_codes(conn, int(user['id']), raw_codes)
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({'success': True, 'backup_codes': raw_codes})

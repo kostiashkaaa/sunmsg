@@ -4,6 +4,7 @@ from app.routes.chat_group_authorization import build_authorize_group_action_or_
 from app.routes.chat_group_management_routes import register_chat_group_management_routes
 from app.routes.chat_group_membership_routes import register_chat_group_membership_routes
 from app.routes.chat_group_profile_routes import register_chat_group_profile_routes
+from app.routes.chat_group_invite_link_routes import register_chat_group_invite_link_routes
 
 
 def register_chat_group_routes(  # noqa: PLR0913 - dependency-injected route registration contract
@@ -43,6 +44,14 @@ def register_chat_group_routes(  # noqa: PLR0913 - dependency-injected route reg
     )
 
     register_chat_group_membership_routes(
+        chat_bp,
+        limiter=limiter,
+        get_db_connection_func=get_db_connection_func,
+        socketio_emit_func=socketio_emit_func,
+        authorize_group_action_or_error_func=authorize_group_action_or_error,
+    )
+
+    register_chat_group_invite_link_routes(
         chat_bp,
         limiter=limiter,
         get_db_connection_func=get_db_connection_func,

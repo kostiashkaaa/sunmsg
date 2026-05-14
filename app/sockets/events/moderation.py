@@ -38,6 +38,13 @@ from app.sockets.favorite_handlers import (
     handle_unfavorite_message_event,
 )
 from app.sockets.reaction_handlers import handle_toggle_reaction_event
+from app.services.disappearing_messages import (
+    VALID_TIMERS,
+    set_chat_auto_delete,
+    get_chat_auto_delete,
+    normalize_auto_delete_seconds,
+)
+from app.services.chat_members import is_chat_member
 
 from . import context as ctx
 
@@ -248,4 +255,50 @@ def handle_unfavorite_message(data):
         chat_partner_state_func=ctx._chat_partner_state,
         emit_blocked_error_func=ctx._emit_blocked_error,
         emit_func=ctx._emit_socket_event,
+    )
+
+
+@socketio.on('set_chat_auto_delete')
+@ctx.authenticated_only
+def handle_set_chat_auto_delete(data):
+    """Set or clear per-chat disappearing message timer. Admin/owner only for groups."""
+    if not ctx._require_payload_dict(data):
+        return
+    if not ctx._socket_csrf_ok(data):
+        return
+    user_id = int(session.get('user_id', 0))
+    chat_id = str(data.get('chat_id') or '').strip()
+    if not chat_id or not is_valid_chat_id(chat_id):
+        ctx._emit_socket_event('error', {'message': 'Invalid chat_id.'})
+        return
+
+    seconds = normalize_auto_delete_seconds(data.get('seconds'))
+    if seconds is None:
+        ctx._emit_socket_event('error', {'message': 'Invalid timer value.'})
+        return
+
+    conn = get_db_connection()
+    try:
+        if not is_chat_member(conn, user_id, chat_id):
+            ctx._emit_socket_event('error', {'message': 'Not a member.'})
+            return
+        chat = conn.execute(
+            'SELECT chat_type, created_by_user_id FROM chats WHERE chat_id = ?', (chat_id,)
+        ).fetchone()
+        if not chat:
+            return
+        if str(chat['chat_type'] or '') == 'group':
+            decision = authorize_group_action(conn, actor_user_id=user_id, chat_id=chat_id, action='change_settings')
+            if not decision.allowed:
+                ctx._emit_socket_event('error', {'message': 'No permission.'})
+                return
+        set_chat_auto_delete(conn, chat_id, seconds)
+        conn.commit()
+    finally:
+        conn.close()
+
+    ctx._emit_socket_event(
+        'chat_auto_delete_updated',
+        {'chat_id': chat_id, 'seconds': seconds},
+        room=chat_id,
     )

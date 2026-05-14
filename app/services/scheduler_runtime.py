@@ -6,6 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.database import get_db_connection
 from app.services.refresh_tokens import cleanup_expired as cleanup_expired_refresh
+from app.services.disappearing_messages import cleanup_expired_messages as cleanup_disappearing
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,13 @@ def create_scheduler():
         trigger='interval',
         hours=6,
         id='cleanup_refresh_tokens',
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        func=cleanup_disappearing,
+        trigger='interval',
+        seconds=30,
+        id='cleanup_disappearing_messages',
         replace_existing=True,
     )
     return scheduler
