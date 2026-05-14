@@ -18,6 +18,7 @@ export function createProfileMediaPanelController({
     openLightbox = null,
     scrollToMessage = null,
     reportVoiceListened = () => {},
+    isGroupMembersTabActive = () => false,
 } = {}) {
     let profileMediaActiveTab = null;
     let profileMediaRenderFrame = 0;
@@ -157,7 +158,7 @@ export function createProfileMediaPanelController({
             return;
         }
 
-        if (mediaSection) mediaSection.style.display = '';
+        if (mediaSection && !isGroupMembersTabActive()) mediaSection.style.display = '';
         if (hasMoreHistory || isLoadingHistory) {
             const note = document.createElement('div');
             note.className = 'profile-media-footnote';

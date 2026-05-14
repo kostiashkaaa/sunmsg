@@ -396,6 +396,10 @@ export function createChatGroupProfileRuntime({
         renderGroupEditMembers(currentGroupProfile);
     }
 
+    function getActiveGroupTab() {
+        return profileGroupActiveTab;
+    }
+
     return {
         getCurrentGroupProfile,
         setCurrentGroupPermissions,
@@ -410,5 +414,6 @@ export function createChatGroupProfileRuntime({
         applyGroupProfileUi,
         refreshCurrentGroupProfileIfVisible,
         updateLocalMemberRole,
+        getActiveGroupTab,
     };
 }
