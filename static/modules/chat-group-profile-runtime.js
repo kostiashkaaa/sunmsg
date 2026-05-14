@@ -39,6 +39,7 @@ export function createChatGroupProfileRuntime({
     profileLargeAvatar,
     profileLastSeen,
     chatTitle,
+    getGroupInviteLinkController,
 } = {}) {
     let profileGroupActiveTab = 'members';
     let currentGroupProfile = null;
@@ -377,6 +378,16 @@ export function createChatGroupProfileRuntime({
         renderGroupEditMembers(profile);
         renderGroupEditAvatar(profile);
         setGroupProfileTab(profileGroupActiveTab);
+
+        const inviteLinkContainer = documentRef.getElementById('groupInviteLinkContainer');
+        const inviteLinkCtrl = typeof getGroupInviteLinkController === 'function'
+            ? getGroupInviteLinkController()
+            : null;
+        const chatId = String(profile?.chat_id || '');
+        if (inviteLinkContainer && inviteLinkCtrl && chatId) {
+            const canManage = Boolean(profile?.can_edit_group);
+            inviteLinkCtrl.renderInviteLinkSection(inviteLinkContainer, chatId, { canManage });
+        }
     }
 
     function refreshCurrentGroupProfileIfVisible() {
