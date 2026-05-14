@@ -172,7 +172,7 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     uploaded_file.save(path)
 
     scan_extensions = _normalize_scan_extensions(av_scan_extensions)
-    should_scan_this_file = av_scan_enabled and ext in scan_extensions
+    should_scan_this_file = av_scan_enabled and ('*' in scan_extensions or ext in scan_extensions)
     if should_scan_this_file:
         try:
             av_result = scan_file_func(

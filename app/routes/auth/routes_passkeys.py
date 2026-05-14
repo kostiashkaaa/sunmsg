@@ -103,9 +103,10 @@ def _login_success_response(user_id: int, *, remember: bool):
     payload = {'success': True}
     session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    raw, _exp = issue_refresh_token(user_id)
-    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, raw, secure=secure)
+    if remember:
+        raw, _exp = issue_refresh_token(user_id)
+        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+        set_refresh_cookie(response, raw, secure=secure)
     return response
 
 
@@ -270,7 +271,7 @@ def _extract_passkey_credential_id(credential):
 @limiter.limit("60 per minute")
 def api_passkeys():
     if 'user_id' not in session:
-        return jsonify({'success': False, 'error': '?? ???????????.'}), 401
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
 
     conn = get_db_connection()
     try:
@@ -308,7 +309,7 @@ def passkeys_register_options():
     if generate_registration_options is None:
         return _webauthn_unavailable_response()
     if 'user_id' not in session:
-        return jsonify({'success': False, 'error': '?? ???????????.'}), 401
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
     configuration_error = _passkey_configuration_error()
     if configuration_error:
         return jsonify({'success': False, 'error': configuration_error}), 400
@@ -320,7 +321,7 @@ def passkeys_register_options():
             (session['user_id'],),
         ).fetchone()
         if not user:
-            return jsonify({'success': False, 'error': '???????????? ?? ??????.'}), 404
+            return jsonify({'success': False, 'error': 'Пользователь не найден.'}), 404
 
         existing_rows = conn.execute(
             'SELECT credential_id FROM user_passkeys WHERE user_id = ?',
@@ -362,7 +363,7 @@ def passkeys_register_options():
         )
     except Exception as exc:
         logger.warning('passkeys_register_options failed user_id=%s: %s', session.get('user_id'), exc)
-        return jsonify({'success': False, 'error': '?? ??????? ??????????? Passkey-????? ??? ????? ??????.'}), 400
+        return jsonify({'success': False, 'error': 'Не удалось подготовить Passkey-вход для этого устройства.'}), 400
 
     return jsonify({
         'success': True,
@@ -375,20 +376,20 @@ def passkeys_register_verify():  # noqa: C901 - passkey verification flow and pe
     if verify_registration_response is None:
         return _webauthn_unavailable_response()
     if 'user_id' not in session:
-        return jsonify({'success': False, 'error': '?? ???????????.'}), 401
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
 
     pending = _pending_passkey_register_context()
     if not pending:
-        return jsonify({'success': False, 'error': '?????? ??????????? passkey ???????. ????????? ???????.'}), 401
+        return jsonify({'success': False, 'error': 'Сессия регистрации passkey истекла. Повторите попытку.'}), 401
     if int(session['user_id']) != int(pending['user_id']):
         _clear_pending_passkey_register()
-        return jsonify({'success': False, 'error': '???????????? ???????????? ??? ??????????? passkey.'}), 401
+        return jsonify({'success': False, 'error': 'Некорректный пользователь для регистрации passkey.'}), 401
 
     data = request.get_json(silent=True) or {}
     credential = data.get('credential')
     label = str(data.get('label') or '').strip()[:80]
     if not isinstance(credential, dict):
-        return jsonify({'success': False, 'error': '???????????? ?????? passkey.'}), 400
+        return jsonify({'success': False, 'error': 'Некорректный ответ passkey.'}), 400
 
     try:
         verification = verify_registration_response(
@@ -400,7 +401,7 @@ def passkeys_register_verify():  # noqa: C901 - passkey verification flow and pe
         )
     except Exception as exc:
         logger.warning('Passkey register verify failed user_id=%s: %s', session.get('user_id'), exc)
-        return jsonify({'success': False, 'error': '?? ??????? ??????????? passkey.'}), 400
+        return jsonify({'success': False, 'error': 'Не удалось зарегистрировать passkey.'}), 400
     finally:
         _clear_pending_passkey_register()
 
@@ -432,7 +433,7 @@ def passkeys_register_verify():  # noqa: C901 - passkey verification flow and pe
         )
         conn.commit()
     except IntegrityError:
-        return jsonify({'success': False, 'error': '???? passkey ??? ????????.'}), 400
+        return jsonify({'success': False, 'error': 'Этот passkey уже зарегистрирован.'}), 400
     finally:
         conn.close()
 
@@ -442,12 +443,12 @@ def passkeys_register_verify():  # noqa: C901 - passkey verification flow and pe
 @limiter.limit("20 per minute")
 def passkeys_delete():
     if 'user_id' not in session:
-        return jsonify({'success': False, 'error': '?? ???????????.'}), 401
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
 
     data = request.get_json(silent=True) or {}
     credential_id = str(data.get('credential_id') or '').strip()
     if not credential_id:
-        return jsonify({'success': False, 'error': '?? ?????? credential_id.'}), 400
+        return jsonify({'success': False, 'error': 'Не указан credential_id.'}), 400
 
     conn = get_db_connection()
     try:
@@ -456,7 +457,7 @@ def passkeys_delete():
             (session['user_id'], credential_id),
         ).fetchone()
         if not existing:
-            return jsonify({'success': False, 'error': 'Passkey ?? ??????.'}), 404
+            return jsonify({'success': False, 'error': 'Passkey не найден.'}), 404
         conn.execute(
             'DELETE FROM user_passkeys WHERE user_id = ? AND credential_id = ?',
             (session['user_id'], credential_id),

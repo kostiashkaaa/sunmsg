@@ -292,6 +292,7 @@ export const initChatPage = async () => {
     const LAST_ACTIVE_CHAT_STORAGE_KEY = 'sun_last_active_chat_id';
     const CONTACT_USERNAME_PATTERN = /^[a-z0-9_]{1,50}$/;
     const initialUrlSearchParams = new URLSearchParams(browserEnv.getLocationSearch());
+    const initialRequestedChatId = String(initialUrlSearchParams.get('chat_id') || '').trim();
     const initialRequestedContactUserId = String(initialUrlSearchParams.get('user_id') || '').trim();
     const initialRequestedContactUsername = String(
         bootstrapUser.initialChatContactUsername
@@ -1130,6 +1131,7 @@ export const initChatPage = async () => {
         setStoredString,
         getCurrentChatId: () => currentChatId,
         contactsList,
+        initialRequestedChatId,
         initialRequestedContactUserId,
         initialRequestedContactUsername,
         resolveContactItemByUserId,
@@ -1871,6 +1873,7 @@ export const initChatPage = async () => {
         getPrivateKeyPem,
         isEncryptedPayload,
         decryptForDisplay,
+        encryptForCurrentChat,
     });
     savedMessagesUi = createSavedMessagesUiController({
         currentUserId: CURRENT_USER_ID,

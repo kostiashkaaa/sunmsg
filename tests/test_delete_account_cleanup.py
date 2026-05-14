@@ -43,7 +43,7 @@ def _init_schema(db_path: Path) -> None:
                 id INTEGER PRIMARY KEY,
                 chat_id TEXT NOT NULL,
                 sender_id INTEGER NOT NULL,
-                receiver_id INTEGER NOT NULL,
+                receiver_id INTEGER,
                 message TEXT NOT NULL
             );
             CREATE TABLE contacts (
@@ -103,7 +103,13 @@ def _init_schema(db_path: Path) -> None:
             CREATE TABLE chats (
                 id INTEGER PRIMARY KEY,
                 chat_id TEXT NOT NULL,
-                chat_name TEXT NOT NULL
+                chat_name TEXT NOT NULL,
+                chat_type TEXT NOT NULL DEFAULT 'direct'
+            );
+            CREATE TABLE chat_members (
+                user_id INTEGER NOT NULL,
+                chat_id TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'member'
             );
             '''
         )
@@ -340,7 +346,109 @@ def test_delete_account_also_removes_media_files(monkeypatch, tmp_path):
             "SELECT 1 FROM chats WHERE chat_id = 'chat-keep'"
         ).fetchone() is not None
 
-    assert not (avatar_dir / 'alice.png').exists()
+        assert not (avatar_dir / 'alice.png').exists()
+        assert not (chat_media_dir / 'alice-main.png').exists()
+        assert not (chat_media_dir / 'bob-main.png').exists()
+        assert (chat_media_dir / 'bob-keep.png').exists()
+
+
+def test_delete_account_keeps_group_chat_and_other_members_media(monkeypatch, tmp_path):
+    db_path = tmp_path / 'test-group-delete.db'
+    _init_schema(db_path)
+
+    chat_media_dir = tmp_path / 'storage' / 'chat_media'
+    avatar_dir = tmp_path / 'static' / 'avatars'
+    chat_media_dir.mkdir(parents=True, exist_ok=True)
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO chats (id, chat_id, chat_name, chat_type)
+            VALUES (3, 'group-main', 'Group Main', 'group')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES (1, 'group-main', 'member'),
+                   (2, 'group-main', 'owner'),
+                   (3, 'group-main', 'member')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, message)
+            VALUES (4, 'group-main', 1, NULL, 'remove me'),
+                   (5, 'group-main', 2, NULL, 'keep me')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_media (id, chat_id, uploader_id, storage_name)
+            VALUES (4, 'group-main', 1, 'alice-group.png'),
+                   (5, 'group-main', 2, 'bob-group.png')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO pinned_chats (user_id, chat_id, pin_order)
+            VALUES (2, 'group-main', 2)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_pins (chat_id, message_id, message_content, pinned_by, sender_pub)
+            VALUES ('group-main', 5, 'keep me', 2, 'pk-2')
+            '''
+        )
+        conn.commit()
+
+    for filename, content in {
+        'alice-main.png': b'alice-direct',
+        'bob-main.png': b'bob-direct',
+        'alice-group.png': b'alice-group',
+        'bob-group.png': b'bob-group',
+        'bob-keep.png': b'bob-keep',
+    }.items():
+        (chat_media_dir / filename).write_bytes(content)
+
+    def _test_connection():
+        return _connect(db_path)
+
+    monkeypatch.setattr(auth_routes, 'get_db_connection', _test_connection)
+    monkeypatch.setattr(auth_routes, 'CHAT_MEDIA_FOLDER', str(chat_media_dir))
+    monkeypatch.setattr(auth_routes, 'AVATAR_FOLDER', str(avatar_dir))
+
+    app = Flask(__name__)
+    app.config['TESTING'] = True
+    app.secret_key = 'test-secret'
+    app.register_blueprint(auth_routes.auth_bp)
+    client = app.test_client()
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+
+    response = client.post('/api/delete_account')
+    assert response.status_code == 200
+
+    with _connect(db_path) as conn:
+        assert conn.execute("SELECT 1 FROM chats WHERE chat_id = 'group-main'").fetchone() is not None
+        assert conn.execute(
+            "SELECT message FROM messages WHERE chat_id = 'group-main' ORDER BY id"
+        ).fetchall()[0]['message'] == 'keep me'
+        assert conn.execute(
+            "SELECT storage_name FROM chat_media WHERE chat_id = 'group-main'"
+        ).fetchone()['storage_name'] == 'bob-group.png'
+        assert conn.execute(
+            "SELECT 1 FROM pinned_chats WHERE user_id = 2 AND chat_id = 'group-main'"
+        ).fetchone() is not None
+        assert conn.execute(
+            "SELECT 1 FROM chat_pins WHERE chat_id = 'group-main'"
+        ).fetchone() is not None
+
+    assert not (chat_media_dir / 'alice-group.png').exists()
+    assert (chat_media_dir / 'bob-group.png').exists()
     assert not (chat_media_dir / 'alice-main.png').exists()
     assert not (chat_media_dir / 'bob-main.png').exists()
     assert (chat_media_dir / 'bob-keep.png').exists()

@@ -246,12 +246,14 @@ def _build_push_message_context(
 
 
 def _build_push_payload(message_context: dict[str, str]) -> str:
+    chat_id = str(message_context.get('chat_id') or '').strip()
+    destination_url = f'/chat?chat_id={chat_id}' if chat_id else '/chat'
     return json.dumps(
         {
             'title': message_context['title'],
             'body': message_context['body'],
-            'url': '/chat',
-            'chat_id': message_context['chat_id'],
+            'url': destination_url,
+            'chat_id': chat_id,
             'tag': message_context['tag'],
             'kind': message_context['kind'],
         },

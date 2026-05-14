@@ -5,6 +5,9 @@ from app.services.crypto import generate_chat_id
 from tests._chat_contacts_http_helpers import _authed_client, _connect
 
 
+ENCRYPTED_DRAFT = '{"encrypted_message":"hello-cipher","iv":"draft-iv","encrypted_key_sender":"key"}'
+
+
 def test_save_and_get_chat_draft_and_clear(monkeypatch, tmp_path):
     db_path = tmp_path / 'chat-draft-routes.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -41,17 +44,17 @@ def test_save_and_get_chat_draft_and_clear(monkeypatch, tmp_path):
 
     save_response = client.post(
         '/save_chat_draft',
-        json={'chat_id': chat_id, 'draft_text': 'hello draft'},
+        json={'chat_id': chat_id, 'draft_text': ENCRYPTED_DRAFT},
     )
     save_payload = save_response.get_json()
     assert save_response.status_code == 200
     assert save_payload['success'] is True
     assert save_payload['has_draft'] is True
-    assert save_payload['draft_text'] == 'hello draft'
+    assert save_payload['draft_text'] == ENCRYPTED_DRAFT
     assert save_payload['updated_at']
     assert emitted and emitted[-1]['name'] == 'chat_draft_updated'
     assert emitted[-1]['payload']['chat_id'] == chat_id
-    assert emitted[-1]['payload']['draft_text'] == 'hello draft'
+    assert emitted[-1]['payload']['draft_text'] == ENCRYPTED_DRAFT
     assert emitted[-1]['kwargs'].get('room') == 'pk-1'
 
     get_response = client.get(f'/get_chat_draft?chat_id={chat_id}')
@@ -59,7 +62,7 @@ def test_save_and_get_chat_draft_and_clear(monkeypatch, tmp_path):
     assert get_response.status_code == 200
     assert get_payload['success'] is True
     assert get_payload['has_draft'] is True
-    assert get_payload['draft_text'] == 'hello draft'
+    assert get_payload['draft_text'] == ENCRYPTED_DRAFT
 
     clear_response = client.post(
         '/save_chat_draft',
@@ -81,6 +84,38 @@ def test_save_and_get_chat_draft_and_clear(monkeypatch, tmp_path):
     assert get_after_clear_payload['success'] is True
     assert get_after_clear_payload['has_draft'] is False
     assert get_after_clear_payload['draft_text'] == ''
+
+
+def test_save_chat_draft_rejects_plaintext_for_member(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-draft-routes-plaintext.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    chat_id = generate_chat_id('pk-1', 'pk-2')
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, ?), (2, 1, ?)
+            ''',
+            (chat_id, chat_id),
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post('/save_chat_draft', json={'chat_id': chat_id, 'draft_text': 'plain draft'})
+    payload = response.get_json()
+
+    assert response.status_code == 400
+    assert payload['success'] is False
 
 
 def test_chat_draft_requires_chat_membership(monkeypatch, tmp_path):
