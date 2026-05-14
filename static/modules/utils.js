@@ -49,6 +49,7 @@ export function applyFallbackAvatarTint(element, label = '') {
 
 const DEFAULT_CUSTOM_EMOJI_BASE_PATH = '/static/emoji/custom';
 const DEFAULT_CUSTOM_EMOJI_EXTENSION = 'webp';
+const ENCRYPTED_MESSAGE_PLACEHOLDER = '\uD83D\uDD12 \u0417\u0430\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435';
 const EMOJI_FLAG_RE = /^\p{Regional_Indicator}{2}$/u;
 const EMOJI_KEYCAP_RE = /^[#*0-9]\uFE0F?\u20E3$/u;
 const EMOJI_TAG_FLAG_RE = /^\u{1F3F4}(?:[\u{E0061}-\u{E007A}])+\u{E007F}$/u;
@@ -300,6 +301,23 @@ function tr(value) {
     return String(value ?? '');
 }
 
+export function isEncryptedMessagePayload(value) {
+    return typeof value === 'string'
+        && value.trim().startsWith('{')
+        && value.includes('encrypted_message');
+}
+
+export function getEncryptedMessagePlaceholder() {
+    return tr(ENCRYPTED_MESSAGE_PLACEHOLDER);
+}
+
+export function resolveMessageDisplayText(messageText) {
+    if (isEncryptedMessagePayload(messageText)) {
+        return getEncryptedMessagePlaceholder();
+    }
+    return String(messageText ?? '');
+}
+
 function activeLocale() {
     const api = window.SUN_I18N;
     const language = api && typeof api.getLanguage === 'function'
@@ -500,6 +518,11 @@ export function renderMessagePreviewHtml(messageText, options = {}) {
     const filePayload = parseSunFilePayload(messageText);
     const selfPrefix = isSelf ? `${tr('\u0412\u044B')}: ` : '';
     const photoFallback = tr(defaultPhotoText);
+
+    if (isEncryptedMessagePayload(messageText)) {
+        const text = clipPreviewText(selfPrefix + getEncryptedMessagePlaceholder(), maxLen);
+        return escapeHtml(text || emptyText);
+    }
 
     if (filePayload) {
         const image = extractImagePreview(filePayload);
