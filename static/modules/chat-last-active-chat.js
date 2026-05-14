@@ -5,6 +5,7 @@ export function createLastActiveChatController({
     setStoredString,
     getCurrentChatId = () => '',
     contactsList = null,
+    initialRequestedChatId = '',
     initialRequestedContactUserId = '',
     initialRequestedContactUsername = '',
     resolveContactItemByUserId = () => null,
@@ -31,6 +32,17 @@ export function createLastActiveChatController({
 
     function restoreLastActiveChatSelection() {
         if (getCurrentChatId() || !contactsList) return false;
+        if (initialRequestedChatId) {
+            const normalizedRequestedChatId = String(initialRequestedChatId || '').trim();
+            const preferredContactItem = Array.from(contactsList.querySelectorAll('.contact-item')).find((item) => {
+                return String(item?.getAttribute('data-chat-id') || '').trim() === normalizedRequestedChatId;
+            }) || null;
+            if (preferredContactItem) {
+                preferredContactItem.click();
+                syncBrowserUrlForActiveChat(preferredContactItem);
+                return true;
+            }
+        }
         if (initialRequestedContactUserId) {
             const preferredContactItem = resolveContactItemByUserId(initialRequestedContactUserId);
             if (preferredContactItem) {

@@ -282,7 +282,19 @@ export function initChatContactsSidebar({
             const isSelfContact = String(contact.last_sender_id) === String(getCurrentUserId());
             const isSavedMessagesContact = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
             const hasDraft = hasContactDraft(contact);
-            const draftText = hasDraft ? String(contact.draft_text || '') : '';
+            let draftText = hasDraft ? String(contact.draft_text || '') : '';
+            if (!isBlocked && hasDraft && isEncryptedPayload(draftText)) {
+                const privateKeyPem = getPrivateKeyPem();
+                if (privateKeyPem) {
+                    try {
+                        draftText = await decryptForDisplay(privateKeyPem, draftText, true);
+                    } catch (_) {
+                        draftText = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+                    }
+                } else {
+                    draftText = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+                }
+            }
             const previewMessage = hasDraft ? draftText : displayLastMessage;
             const previewIsSelf = hasDraft || isSavedMessagesContact ? false : isSelfContact;
             const previewTimestamp = hasDraft
@@ -626,4 +638,3 @@ export function initChatContactsSidebar({
         updateSidebarForOtherChat,
     };
 }
-

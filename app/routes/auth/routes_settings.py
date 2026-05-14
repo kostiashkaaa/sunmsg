@@ -27,6 +27,7 @@ from app.routes.auth_helpers_settings import (
     safe_remove_stored_file_from_dir,
 )
 from app.services.blocking import list_visible_contact_public_keys
+from app.services.chat_members import CHAT_TYPE_GROUP, get_chat_type
 from app.services.client_preferences import client_preferences_from_db, client_preferences_to_json
 from app.services.chat_page_state import build_socketio_client_config
 from app.services.locale import language_from_user_row
@@ -41,6 +42,20 @@ _emit_socket_event = build_route_socket_emitter(
     get_db_connection_func=get_db_connection,
     logger=logger,
 )
+
+
+def _partition_account_chat_ids(conn, chat_ids: list[str]) -> tuple[list[str], list[str]]:
+    direct_chat_ids: list[str] = []
+    group_chat_ids: list[str] = []
+    for chat_id in chat_ids:
+        normalized_chat_id = str(chat_id or '').strip()
+        if not normalized_chat_id:
+            continue
+        if get_chat_type(conn, normalized_chat_id) == CHAT_TYPE_GROUP:
+            group_chat_ids.append(normalized_chat_id)
+        else:
+            direct_chat_ids.append(normalized_chat_id)
+    return direct_chat_ids, group_chat_ids
 
 
 @auth_bp.route('/settings', methods=['GET', 'POST'])
@@ -432,28 +447,28 @@ def delete_account():
             (user_id, user_id, user_id, user_id)
         ).fetchall()
         chat_ids = [row['chat_id'] for row in chat_id_rows if row and row['chat_id']]
-        if chat_ids:
-            placeholders = ','.join(['?'] * len(chat_ids))
+        direct_chat_ids, _group_chat_ids = _partition_account_chat_ids(conn, chat_ids)
+        media_lookup_params = [user_id]
+        media_where = 'uploader_id = ?'
+        if direct_chat_ids:
+            direct_placeholders = ','.join(['?'] * len(direct_chat_ids))
+            media_where = f'{media_where} OR chat_id IN ({direct_placeholders})'
+            media_lookup_params.extend(direct_chat_ids)
+
+        if media_lookup_params:
             media_rows = conn.execute(
                 f'''
                 SELECT storage_name
                 FROM chat_media
-                WHERE uploader_id = ? OR chat_id IN ({placeholders})
+                WHERE {media_where}
                 ''',
-                (user_id, *chat_ids)
+                tuple(media_lookup_params)
             ).fetchall()
             media_storage_names = [row['storage_name'] for row in media_rows if row and row['storage_name']]
             conn.execute(
-                f'DELETE FROM chat_media WHERE uploader_id = ? OR chat_id IN ({placeholders})',
-                (user_id, *chat_ids)
+                f'DELETE FROM chat_media WHERE {media_where}',
+                tuple(media_lookup_params)
             )
-        else:
-            media_rows = conn.execute(
-                'SELECT storage_name FROM chat_media WHERE uploader_id = ?',
-                (user_id,)
-            ).fetchall()
-            media_storage_names = [row['storage_name'] for row in media_rows if row and row['storage_name']]
-            conn.execute('DELETE FROM chat_media WHERE uploader_id = ?', (user_id,))
 
         # 1. Удаляем все сообщения, где пользователь отправитель или получатель
         conn.execute('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?', (user_id, user_id))
@@ -470,18 +485,19 @@ def delete_account():
         conn.execute('DELETE FROM socket_rate_limits WHERE user_id = ?', (user_id,))
         conn.execute('DELETE FROM dialog_keys WHERE creator_id = ?', (user_id,))
         conn.execute('DELETE FROM refresh_tokens WHERE user_id = ?', (user_id,))
-        if chat_ids:
+        if direct_chat_ids:
+            direct_placeholders = ','.join(['?'] * len(direct_chat_ids))
             conn.execute(
-                f'DELETE FROM pinned_chats WHERE chat_id IN ({placeholders})',
-                tuple(chat_ids),
+                f'DELETE FROM pinned_chats WHERE chat_id IN ({direct_placeholders})',
+                tuple(direct_chat_ids),
             )
             conn.execute(
-                f'DELETE FROM chat_pins WHERE chat_id IN ({placeholders})',
-                tuple(chat_ids),
+                f'DELETE FROM chat_pins WHERE chat_id IN ({direct_placeholders})',
+                tuple(direct_chat_ids),
             )
             conn.execute(
-                f'DELETE FROM chats WHERE chat_id IN ({placeholders})',
-                tuple(chat_ids),
+                f'DELETE FROM chats WHERE chat_id IN ({direct_placeholders})',
+                tuple(direct_chat_ids),
             )
 
         # 5. Удаляем самого пользователя

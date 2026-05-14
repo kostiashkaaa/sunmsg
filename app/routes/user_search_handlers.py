@@ -13,11 +13,15 @@ def _coerce_bool_flag(value, *, default: bool = True) -> bool:
 
 
 def fetch_public_search_results(conn, *, user_id: int, query: str):
+    normalized_query = str(query or '').strip().lower()
+    escaped_query = normalized_query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    contains_pattern = f'%{escaped_query}%'
+    prefix_pattern = f'{escaped_query}%'
     users = conn.execute(
         '''
         SELECT u.id, u.username, u.display_name, u.public_key
         FROM users u
-        WHERE (u.username LIKE ? OR u.display_name LIKE ?)
+        WHERE (LOWER(u.username) LIKE ? ESCAPE '\\' OR LOWER(u.display_name) LIKE ? ESCAPE '\\')
           AND u.is_public = 1
           AND u.id != ?
           AND NOT EXISTS (
@@ -26,8 +30,26 @@ def fetch_public_search_results(conn, *, user_id: int, query: str):
               WHERE (b.blocker_id = ? AND b.blocked_id = u.id)
                  OR (b.blocker_id = u.id AND b.blocked_id = ?)
           )
+        ORDER BY
+          CASE
+            WHEN LOWER(u.username) = ? THEN 0
+            WHEN LOWER(u.username) LIKE ? ESCAPE '\\' THEN 1
+            WHEN LOWER(u.display_name) LIKE ? ESCAPE '\\' THEN 2
+            ELSE 3
+          END,
+          LOWER(u.username),
+          u.id ASC
         ''',
-        (f'%{query}%', f'%{query}%', user_id, user_id, user_id),
+        (
+            contains_pattern,
+            contains_pattern,
+            user_id,
+            user_id,
+            user_id,
+            normalized_query,
+            prefix_pattern,
+            prefix_pattern,
+        ),
     ).fetchall()
 
     return [
@@ -153,14 +175,16 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             'min_query_length': min_query_length,
         }
 
-    broad_pattern = like_pattern_func(query)
+    normalized_query = str(query or '').strip().lower()
+    broad_pattern = like_pattern_func(normalized_query)
+    prefix_pattern = broad_pattern[1:] if broad_pattern.startswith('%') else broad_pattern
     users = conn.execute(
         f'''
         SELECT id, username, display_name, avatar_url, avatar_visibility,
                EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
                {group_add_direct_select_sql}
         FROM users
-        WHERE (username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\')
+        WHERE (LOWER(username) LIKE ? ESCAPE '\\' OR LOWER(display_name) LIKE ? ESCAPE '\\')
           AND id != ?
           AND is_public = 1
           AND NOT EXISTS (
@@ -169,7 +193,16 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
               WHERE (b.blocker_id = ? AND b.blocked_id = users.id)
                  OR (b.blocker_id = users.id AND b.blocked_id = ?)
           )
-        ORDER BY id ASC
+        ORDER BY
+          is_contact DESC,
+          CASE
+            WHEN LOWER(username) = ? THEN 0
+            WHEN LOWER(username) LIKE ? ESCAPE '\\' THEN 1
+            WHEN LOWER(display_name) LIKE ? ESCAPE '\\' THEN 2
+            ELSE 3
+          END,
+          LOWER(username),
+          id ASC
         LIMIT ? OFFSET ?
         ''',
         (
@@ -180,6 +213,9 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             user_id,
             user_id,
             user_id,
+            normalized_query,
+            prefix_pattern,
+            prefix_pattern,
             limit + 1,
             offset,
         ),

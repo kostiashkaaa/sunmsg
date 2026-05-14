@@ -22,6 +22,7 @@ export function createChatDraftsController(deps = {}) {
         getPrivateKeyPem,
         isEncryptedPayload,
         decryptForDisplay,
+        encryptForCurrentChat,
     } = deps;
 
     let chatDraftSaveTimer = 0;
@@ -61,6 +62,38 @@ export function createChatDraftsController(deps = {}) {
 
     function hasMeaningfulDraft(value) {
         return Boolean(normalizeDraftText(value).trim());
+    }
+
+    async function decryptDraftForLocalDisplay(rawDraftText) {
+        const normalizedDraftText = normalizeDraftText(rawDraftText);
+        if (!normalizedDraftText) return '';
+        if (typeof isEncryptedPayload !== 'function' || !isEncryptedPayload(normalizedDraftText)) {
+            return normalizedDraftText;
+        }
+        const privateKeyPem = typeof getPrivateKeyPem === 'function' ? getPrivateKeyPem() : '';
+        if (!privateKeyPem || typeof decryptForDisplay !== 'function') {
+            return '';
+        }
+        try {
+            return normalizeDraftText(await decryptForDisplay(privateKeyPem, normalizedDraftText, true));
+        } catch (_) {
+            return '';
+        }
+    }
+
+    async function encryptDraftForServer(draftText) {
+        const normalizedDraft = normalizeDraftText(draftText);
+        if (!hasMeaningfulDraft(normalizedDraft)) return '';
+        if (typeof encryptForCurrentChat !== 'function') return null;
+        try {
+            const encryptedDraft = await encryptForCurrentChat(normalizedDraft);
+            if (typeof isEncryptedPayload === 'function' && isEncryptedPayload(encryptedDraft)) {
+                return encryptedDraft;
+            }
+        } catch (_) {
+            return null;
+        }
+        return null;
     }
 
     function applyComposerDraftText(value) {
@@ -149,6 +182,11 @@ export function createChatDraftsController(deps = {}) {
             return null;
         }
 
+        const draftTextForServer = await encryptDraftForServer(normalizedDraft);
+        if (draftTextForServer === null) {
+            return null;
+        }
+
         try {
             const response = await fetch(withAppRoot('/save_chat_draft'), {
                 method: 'POST',
@@ -158,13 +196,15 @@ export function createChatDraftsController(deps = {}) {
                 },
                 body: JSON.stringify({
                     chat_id: normalizedChatId,
-                    draft_text: normalizedDraft,
+                    draft_text: draftTextForServer,
                 }),
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) return null;
 
-            const savedText = payload.has_draft ? normalizeDraftText(payload.draft_text || '') : '';
+            const savedText = payload.has_draft
+                ? await decryptDraftForLocalDisplay(payload.draft_text || '')
+                : '';
             const savedUpdatedAt = String(payload.updated_at || '').trim();
             lastSavedDraftByChatId.set(normalizedChatId, savedText);
             if (savedUpdatedAt) {
@@ -222,7 +262,12 @@ export function createChatDraftsController(deps = {}) {
         if (!contactItem) return;
         const hasDraft = contactItem.getAttribute('data-has-draft') === '1';
         const draftText = String(contactItem.getAttribute('data-draft-text') || '');
-        applyComposerDraftText(hasDraft ? draftText : '');
+        const canPrefillSynchronously = !(
+            hasDraft
+            && typeof isEncryptedPayload === 'function'
+            && isEncryptedPayload(draftText)
+        );
+        applyComposerDraftText(hasDraft && canPrefillSynchronously ? draftText : '');
     }
 
     async function loadDraftForChat(chatId, { fallbackContactItem = null } = {}) {
@@ -244,7 +289,9 @@ export function createChatDraftsController(deps = {}) {
                 return;
             }
 
-            const draftText = payload.has_draft ? normalizeDraftText(payload.draft_text || '') : '';
+            const draftText = payload.has_draft
+                ? await decryptDraftForLocalDisplay(payload.draft_text || '')
+                : '';
             const draftUpdatedAt = String(payload.updated_at || '');
             lastSavedDraftByChatId.set(normalizedChatId, draftText);
             if (draftUpdatedAt) {
@@ -259,17 +306,17 @@ export function createChatDraftsController(deps = {}) {
         }
     }
 
-    function handleRealtimeChatDraftUpdated(payload) {
+    async function applyRealtimeChatDraftUpdated(payload) {
         const chatId = String(payload?.chat_id || '').trim();
         if (!chatId) return;
 
         const updatedAt = String(payload?.updated_at || '').trim();
-        if (!shouldApplyDraftUpdate(chatId, updatedAt, payload?.has_draft ? payload?.draft_text || '' : '')) return;
+        const normalizedDraftText = payload?.has_draft
+            ? await decryptDraftForLocalDisplay(payload?.draft_text || '')
+            : '';
+        if (!shouldApplyDraftUpdate(chatId, updatedAt, normalizedDraftText)) return;
 
         const previousSavedDraftText = String(lastSavedDraftByChatId.get(chatId) || '');
-        const normalizedDraftText = payload?.has_draft
-            ? normalizeDraftText(payload?.draft_text || '')
-            : '';
         lastSavedDraftByChatId.set(chatId, normalizedDraftText);
         if (updatedAt) {
             lastDraftUpdatedAtByChatId.set(chatId, toDraftTimestampMs(updatedAt));
@@ -283,6 +330,10 @@ export function createChatDraftsController(deps = {}) {
         const hasUnsavedLocalChanges = currentValue !== previousSavedDraftText;
         if (isComposerFocused && hasUnsavedLocalChanges) return;
         applyComposerDraftText(normalizedDraftText);
+    }
+
+    function handleRealtimeChatDraftUpdated(payload) {
+        void applyRealtimeChatDraftUpdated(payload);
     }
 
     function clearLocalDraftStateForChat(chatId) {

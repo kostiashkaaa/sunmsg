@@ -132,10 +132,33 @@ self.addEventListener('notificationclick', (event) => {
             const normalizedDestination = destination.startsWith('http')
                 ? destination
                 : `${origin}${destination.startsWith('/') ? destination : `/${destination}`}`;
+            let destinationUrl = null;
+            try {
+                destinationUrl = new URL(normalizedDestination);
+            } catch (_error) {
+                destinationUrl = null;
+            }
 
             for (const client of clients) {
-                if (client.url === normalizedDestination && 'focus' in client) {
+                if (!('focus' in client)) continue;
+                if (client.url === normalizedDestination) {
                     return client.focus();
+                }
+                if (destinationUrl) {
+                    try {
+                        const clientUrl = new URL(client.url);
+                        const sameChatShell = clientUrl.origin === destinationUrl.origin
+                            && clientUrl.pathname === destinationUrl.pathname
+                            && destinationUrl.pathname.endsWith('/chat');
+                        if (sameChatShell) {
+                            if ('navigate' in client) {
+                                return client.navigate(normalizedDestination).then((navigatedClient) => {
+                                    return (navigatedClient || client).focus();
+                                });
+                            }
+                            return client.focus();
+                        }
+                    } catch (_error) {}
                 }
             }
             if (self.clients.openWindow) {

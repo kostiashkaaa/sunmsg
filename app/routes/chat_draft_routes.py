@@ -28,6 +28,15 @@ def _validate_draft_text_or_error(raw_draft):
     return draft_text, has_draft, None
 
 
+def _is_encrypted_draft_payload(value: str) -> bool:
+    normalized = str(value or '').strip()
+    return (
+        normalized.startswith('{')
+        and 'encrypted_message' in normalized
+        and 'iv' in normalized
+    )
+
+
 def _has_chat_access(conn, *, user_id: int, chat_id: str) -> bool:
     return is_chat_member(conn, int(user_id), str(chat_id))
 
@@ -168,6 +177,8 @@ def _handle_save_chat_draft(
     try:
         if not _has_chat_access(conn, user_id=int(user_id), chat_id=chat_id):
             return jsonify({'success': False, 'error': 'Chat not found.'}), 403
+        if has_draft and not _is_encrypted_draft_payload(draft_text):
+            return jsonify({'success': False, 'error': 'Draft must be encrypted before sync.'}), 400
         updated_at = _persist_chat_draft(
             conn,
             user_id=int(user_id),

@@ -81,7 +81,7 @@ class BaseConfig:
         'clamdscan --fdpass --no-summary {path} || '
         'clamscan --no-summary --infected --stdout {path}'
     )
-    CHAT_MEDIA_AV_SCAN_EXTENSIONS = 'zip,rar,7z'
+    CHAT_MEDIA_AV_SCAN_EXTENSIONS = '*'
     RATELIMIT_DEFAULT = '300 per minute'
     RATELIMIT_APPLICATION = '5000 per minute'
     SOCKET_CONNECT_IP_LIMIT = 180

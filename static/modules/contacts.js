@@ -190,7 +190,8 @@ export function buildContactItemHtml(contact, currentChatId) {
     const messageCount = Math.max(0, Number(contact?.message_count ?? contact?.messageCount) || 0);
     const draftTextRaw = String(contact?.draft_text || '');
     const hasDraft = Boolean(contact?.has_draft) && Boolean(draftTextRaw.trim());
-    const draftText = hasDraft ? draftTextRaw : '';
+    const draftIsEncrypted = draftTextRaw.trim().startsWith('{') && draftTextRaw.includes('encrypted_message');
+    const draftText = hasDraft && !draftIsEncrypted ? draftTextRaw : '';
     const lastMessageText = hasDraft ? draftText : (contact?.last_message || '');
     const previewIsSelf = hasDraft || isSavedMessages ? false : isSelf;
     const draftUpdatedAtRaw = String(contact?.draft_updated_at || '').trim();
