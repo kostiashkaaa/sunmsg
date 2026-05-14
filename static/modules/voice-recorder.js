@@ -131,9 +131,9 @@ export function initVoiceRecorder({
 
     function updateTranscriptDisplay() {
         if (!voiceRecordTranscriptLive) return;
-        const text = (speechFinalTranscript + (speechInterimTranscript ? ` ${speechInterimTranscript}` : '')).trim();
-        voiceRecordTranscriptLive.textContent = text;
-        voiceRecordTranscriptLive.setAttribute('aria-hidden', text ? 'false' : 'true');
+        // Keep recognition internal while recording; final text is attached after stop.
+        voiceRecordTranscriptLive.textContent = '';
+        voiceRecordTranscriptLive.setAttribute('aria-hidden', 'true');
     }
 
     function startTranscription() {
