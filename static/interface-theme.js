@@ -573,11 +573,15 @@
         const light = key === 'dark'
             ? mixColors(accent, '#0b1f21', 0.72)
             : mixColors(accent, '#ffffff', 0.86);
+        const deep = key === 'dark' ? bright : hover;
+        const soft = key === 'dark' ? rgbaFromHex(accent, 0.14) : light;
         const glow = rgbaFromHex(accent, key === 'dark' ? 0.24 : 0.2);
         const gradient = `linear-gradient(135deg, ${accent} 0%, ${bright} 100%)`;
 
         return {
             accent,
+            deep,
+            soft,
             hover,
             bright,
             light,
@@ -589,6 +593,8 @@
     function applyAccentVars(target, tokens) {
         if (!target || !target.style) return;
         target.style.setProperty('--accent', tokens.accent);
+        target.style.setProperty('--accent-deep', tokens.deep);
+        target.style.setProperty('--accent-soft', tokens.soft);
         target.style.setProperty('--accent-hover', tokens.hover);
         target.style.setProperty('--accent-bright', tokens.bright);
         target.style.setProperty('--accent-light', tokens.light);
