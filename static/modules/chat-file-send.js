@@ -87,6 +87,7 @@ export async function sendFileMessageFlow({
     const category = forceDocumentVisual ? 'file' : sourceCategory;
     const msgType = getMessageTypeByCategory(category);
     const providedAudioDuration = Number(options?.audioDurationSeconds);
+    const voiceTranscript = typeof options?.transcript === 'string' ? options.transcript.trim() : '';
     // Для голосовых сначала используем длительность от рекордера и не ждём декода
     // waveform — иначе на iOS Safari (webm/opus не декодируется) сообщение появлялось
     // с большой задержкой и казалось «потерянным».
@@ -124,6 +125,7 @@ export async function sendFileMessageFlow({
         ...(Number.isFinite(audioDurationSeconds) && audioDurationSeconds > 0
             ? { duration_seconds: Math.max(1, Math.floor(audioDurationSeconds)) }
             : {}),
+        ...(voiceTranscript ? { transcript: voiceTranscript } : {}),
         ...(visualMeta || {}),
     };
     const optimisticPayloadText = JSON.stringify(optimisticPayload);
@@ -199,6 +201,7 @@ export async function sendFileMessageFlow({
             ...(Array.isArray(audioWaveform) && audioWaveform.length
                 ? { waveform: audioWaveform }
                 : {}),
+            ...(voiceTranscript ? { transcript: voiceTranscript } : {}),
             ...(visualMeta || {}),
         };
         const payload = JSON.stringify(finalPayload);

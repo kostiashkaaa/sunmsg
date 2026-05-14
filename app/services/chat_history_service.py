@@ -1,4 +1,5 @@
 from app.services.chat_members import get_chat_type, list_chat_member_public_keys
+from app.services.disappearing_messages import get_chat_auto_delete
 from app.services.group_receipts import (
     build_group_read_updates,
     collect_group_read_details_map,
@@ -157,6 +158,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 m.reply_to_id,
                 m.forward_from_name,
                 m.forward_from_user_id,
+                m.expires_at,
                 us.public_key AS sender_public_key,
                 COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
                 COALESCE(us.username, '') AS sender_username,
@@ -184,7 +186,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
         messages = conn.execute(f'''
             SELECT m.id, m.sender_id, m.receiver_id, m.message, m.message_type,
                    m.is_read, m.read_at, m.is_delivered, m.voice_listened_by_receiver, m.is_edited, m.created_at, m.reply_to_id,
-                   m.forward_from_name, m.forward_from_user_id,
+                   m.forward_from_name, m.forward_from_user_id, m.expires_at,
                    us.public_key as sender_public_key,
                    COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
                    COALESCE(us.username, '') AS sender_username,
@@ -283,6 +285,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 'reply_sender_pub': msg['reply_sender_pub'],
                 'forward_from_name': str(msg['forward_from_name'] or '').strip(),
                 'forward_from_user_id': int(msg['forward_from_user_id']) if msg['forward_from_user_id'] is not None else None,
+                'expires_at': int(msg['expires_at']) if msg['expires_at'] is not None else None,
                 'reactions': reactions_map.get(msg_id, []),
                 'is_favorite': msg_id in favorite_message_ids,
                 **group_read_payload,
@@ -387,6 +390,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
         'favorites': favorites_data,
         'has_more_before': has_more_before,
         'block_state': block_state,
+        'auto_delete_seconds': get_chat_auto_delete(conn, chat_id),
     }
     if after_id is not None:
         response_payload['has_more_after'] = len(messages_list) == limit

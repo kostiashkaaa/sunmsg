@@ -14,6 +14,7 @@ import {
     STANDARD_DOUBLE_CHECK_TICK_HTML,
 } from './check-glyph.js';
 import { buildGroupReadMetaHtml } from './chat-group-read-receipts.js';
+import { formatExpiresAt } from './chat-disappearing-messages.js';
 
 const DEFAULT_AUDIO_WAVEFORM = [
     30, 46, 62, 42, 58, 76, 40, 28, 64, 84, 52, 34,
@@ -314,11 +315,28 @@ function bindMessageInteractiveHandlers(messageDiv) {
             if (!rangeEl) return;
             window._seekAudioPlayerByClientX?.(rangeEl, Number(event.clientX));
         });
+
+        // Double-tap ±10s seek: tap left half = -10s, right half = +10s
+        let waveLastTapTime = 0;
+        let waveLastTapX = 0;
         waveWrap.addEventListener('touchstart', (event) => {
             const touch = event.touches?.[0];
             if (!touch) return;
             const rangeEl = waveWrap.querySelector('.audio-player-progress');
             if (!rangeEl) return;
+            const now = Date.now();
+            const timeSinceLast = now - waveLastTapTime;
+            const tapDeltaX = Math.abs(touch.clientX - waveLastTapX);
+            if (timeSinceLast < 320 && tapDeltaX < 60) {
+                // Double-tap: seek by ±10s based on tap position
+                const rect = waveWrap.getBoundingClientRect();
+                const isLeftHalf = touch.clientX < rect.left + rect.width / 2;
+                window._seekAudioPlayerByDeltaSeconds?.(rangeEl, isLeftHalf ? -10 : 10);
+                waveLastTapTime = 0;
+                return;
+            }
+            waveLastTapTime = now;
+            waveLastTapX = touch.clientX;
             window._seekAudioPlayerByClientX?.(rangeEl, Number(touch.clientX));
         }, { passive: true });
     });
@@ -643,9 +661,13 @@ function buildFileBubble(filePayload) {
         const waveformSource = hasProvidedWaveform(filePayload.waveform) ? 'provided' : 'fallback';
         const waveform = normalizeWaveform(filePayload.waveform);
         const waveBars = buildWaveBarsHtml(waveform);
+        const voiceTranscriptText = isVoiceAudio && typeof filePayload.transcript === 'string'
+            ? filePayload.transcript.trim()
+            : '';
         bubbleClass += ' bubble--audio';
         if (!isVoiceAudio) bubbleClass += ' bubble--audio-file';
         if (caption) bubbleClass += ' bubble--audio-has-caption';
+        if (voiceTranscriptText) bubbleClass += ' bubble--has-transcript';
         content = `
             <div class="file-msg-audio-wrap">
                 <div class="file-msg-audio-player" data-waveform-source="${waveformSource}">
@@ -679,7 +701,9 @@ function buildFileBubble(filePayload) {
                                     step="0.1"
                                     aria-label="\u041F\u043E\u0437\u0438\u0446\u0438\u044F \u0430\u0443\u0434\u0438\u043E" />
                             </div>
+                            <button class="audio-player-speed" type="button" onclick="window._cycleAudioPlaybackRate(this)" aria-label="\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C 1x. \u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C" title="\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C">1x</button>
                         </div>
+                        ${voiceTranscriptText ? `<div class="voice-transcript">${escapeHtml(voiceTranscriptText)}</div>` : ''}
                     </div>
                 </div>
                 ${captionHtml}
@@ -963,5 +987,19 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     bindMessageInteractiveHandlers(messageDiv);
     applyEmojiGraphics(messageDiv);
     if (isSelectionMode) messageDiv.classList.add('selecting');
+
+    const expiresAt = Number(msg.expires_at);
+    if (expiresAt > 0) {
+        const bubbleEl = messageDiv.querySelector('.bubble');
+        if (bubbleEl) {
+            const badge = document.createElement('span');
+            badge.className = 'expiry-badge';
+            badge.title = 'Исчезающее сообщение';
+            badge.textContent = formatExpiresAt(expiresAt) || '';
+            badge.dataset.expiresAt = String(expiresAt);
+            bubbleEl.appendChild(badge);
+        }
+    }
+
     return messageDiv;
 }

@@ -497,11 +497,16 @@ export const initChatPage = async () => {
         voiceRecordComposer,
         voiceRecordCancelBtn,
         voiceRecordSendBtn,
+        voiceRecordWaveLive,
+        voiceLockIndicator,
+        voiceRecordTranscriptLive,
         cancelReplyBtn,
         cancelEditBtn,
         sendMessageBtnMobile,
         deleteChatBtn,
         reportUserMenuBtn,
+        disappearingMsgMenuBtn,
+        disappearingTimerPickerContainer,
         chatArea,
         chatHeaderActions,
         headerDropdown,
@@ -1078,6 +1083,9 @@ export const initChatPage = async () => {
         voiceRecordComposer,
         voiceRecordCancelBtn,
         voiceRecordSendBtn,
+        voiceRecordWaveLive,
+        voiceLockIndicator,
+        voiceRecordTranscriptLive,
         maxSeconds: VOICE_RECORD_MAX_SECONDS,
         mimeCandidates: VOICE_RECORD_MIME_CANDIDATES,
         getCurrentChatId: () => currentChatId,
@@ -2466,6 +2474,9 @@ export const initChatPage = async () => {
         isProfileDrawerOpen,
         loadAndShowPartnerProfile,
         closeProfileMoreMenu,
+        disappearingMsgMenuBtn,
+        disappearingTimerPickerContainer,
+        renderDisappearingTimerPicker: (container, chatId) => disappearingMessagesController?.renderTimerPickerInContainer(container, chatId),
     });
     bindChatProfileActionsRuntime({
         documentRef: document,
@@ -3484,6 +3495,7 @@ export const initChatPage = async () => {
             dropChatCache,
             onChatDraftUpdated: handleRealtimeChatDraftUpdated,
             refreshCurrentGroupProfileIfVisible,
+            onChatAutoDeleteUpdated: (data) => disappearingMessagesController?.onChatAutoDeleteUpdated(data),
         },
     });
 
@@ -3657,6 +3669,9 @@ export const initChatPage = async () => {
             historyInitialAbortControllers,
             historyOlderAbortControllers,
             isAbortError,
+            onAutoDeleteSecondsLoaded: (chatId, seconds) => {
+                disappearingMessagesController?.setAutoDeleteSeconds(chatId, seconds);
+            },
         });
         return chatHistoryRuntime;
     }

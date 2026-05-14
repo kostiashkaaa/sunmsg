@@ -127,6 +127,7 @@ export function registerSystemSocketHandlers({
     dropChatCache,
     onChatDraftUpdated = null,
     refreshCurrentGroupProfileIfVisible = null,
+    onChatAutoDeleteUpdated = null,
 } = {}) {
     socket.on('chat_deleted', (data) => {
         const deletedChatId = String(data?.chat_id || '');
@@ -380,6 +381,13 @@ export function registerSystemSocketHandlers({
             return;
         }
         loadContacts();
+    });
+
+    socket.on('chat_auto_delete_updated', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (typeof onChatAutoDeleteUpdated === 'function') {
+            onChatAutoDeleteUpdated(data);
+        }
     });
 }
 

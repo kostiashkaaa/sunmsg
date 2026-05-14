@@ -1113,13 +1113,24 @@
 
 
         #composerRow.is-voice-recording #messageInput {
+            flex: 0 0 0 !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            opacity: 0 !important;
+            overflow: hidden !important;
             pointer-events: none;
             user-select: none;
-            caret-color: transparent;
-            opacity: 0.86;
-            padding-right: 0;
         }
 
+        #composerRow.is-voice-recording .voice-record-wave-live {
+            display: flex;
+        }
+
+        #composerRow.is-voice-recording #voiceRecordTranscriptLive {
+            display: block;
+        }
 
         #composerRow.is-voice-recording #attachBtn,
         #composerRow.is-voice-recording #sendMessageBtn {

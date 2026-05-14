@@ -4,7 +4,7 @@
 
 import { applyEmojiGraphics, escapeHtml, generateRequestId } from './utils.js';
 
-const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file']);
+const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file', 'voice']);
 
 export function createChatForwardFlow(deps = {}) {
     const {
