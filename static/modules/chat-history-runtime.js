@@ -227,6 +227,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 group_readers: normalizedGroupReaders,
                 mentionedUserIds: normalizedMentionedUserIds,
                 mentionedUsernames: normalizedMentionedUsernames,
+                expires_at: msg.expires_at ? Number(msg.expires_at) : null,
                 reactions: ctx.normalizeMessageReactions(msg.reactions),
             };
         };
@@ -529,6 +530,9 @@ export function createChatHistoryRuntime(ctx = {}) {
             });
             state.blockState = ctx.normalizeBlockState(response.block_state || state.blockState || {});
             ctx.applyChatBlockState(state.blockState, { syncChatRoom: true });
+            if (typeof ctx.onAutoDeleteSecondsLoaded === 'function' && 'auto_delete_seconds' in response) {
+                ctx.onAutoDeleteSecondsLoaded(chatId, Number(response.auto_delete_seconds) || 0);
+            }
             ctx.hidePinnedBar();
             await restorePinnedBar(state.pins, { activeMessageId: state.activePinMessageId });
             ctx.hideFavoriteBar();

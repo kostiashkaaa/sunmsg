@@ -81,6 +81,9 @@ export function initVoiceRecorder({
     voiceRecordComposer,
     voiceRecordCancelBtn,
     voiceRecordSendBtn,
+    voiceRecordWaveLive,
+    voiceLockIndicator,
+    voiceRecordTranscriptLive,
     maxSeconds = 180,
     mimeCandidates = [],
     getCurrentChatId,
@@ -116,6 +119,176 @@ export function initVoiceRecorder({
     let suppressMicStartUntil = 0;
     let isVoiceTypingActive = false;
     const MIC_GHOST_CLICK_GUARD_MS = 900;
+
+    // Speech recognition / transcription state
+    let speechRecognizer = null;
+    let speechFinalTranscript = '';
+    let speechInterimTranscript = '';
+
+    function getSpeechRecognitionCtor() {
+        return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    }
+
+    function updateTranscriptDisplay() {
+        if (!voiceRecordTranscriptLive) return;
+        const text = (speechFinalTranscript + (speechInterimTranscript ? ` ${speechInterimTranscript}` : '')).trim();
+        voiceRecordTranscriptLive.textContent = text;
+        voiceRecordTranscriptLive.setAttribute('aria-hidden', text ? 'false' : 'true');
+    }
+
+    function startTranscription() {
+        const SpeechRecognitionCtor = getSpeechRecognitionCtor();
+        if (!SpeechRecognitionCtor) return;
+        try {
+            speechFinalTranscript = '';
+            speechInterimTranscript = '';
+            updateTranscriptDisplay();
+            speechRecognizer = new SpeechRecognitionCtor();
+            speechRecognizer.continuous = true;
+            speechRecognizer.interimResults = true;
+            speechRecognizer.maxAlternatives = 1;
+            speechRecognizer.lang = document.documentElement.lang || navigator.language || 'ru-RU';
+            speechRecognizer.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                    const text = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
+                    } else {
+                        interim += text;
+                    }
+                }
+                speechInterimTranscript = interim;
+                updateTranscriptDisplay();
+            };
+            speechRecognizer.onerror = () => {
+                speechRecognizer = null;
+            };
+            speechRecognizer.onend = () => {
+                // Restart if still recording (browser may stop after silence)
+                if (isActive() && speechRecognizer) {
+                    try { speechRecognizer.start(); } catch (_) {}
+                }
+            };
+            speechRecognizer.start();
+        } catch (_) {
+            speechRecognizer = null;
+        }
+    }
+
+    function stopTranscription() {
+        if (speechRecognizer) {
+            speechRecognizer.onend = null;
+            try { speechRecognizer.stop(); } catch (_) {}
+            speechRecognizer = null;
+        }
+        speechInterimTranscript = '';
+        updateTranscriptDisplay();
+    }
+
+    function getFinalTranscript() {
+        return speechFinalTranscript.trim();
+    }
+
+    // Hold-to-record / lock-to-record state
+    let isHoldRecording = false;
+    let isLockedRecording = false;
+    let holdPointerId = null;
+    let holdStartClientY = 0;
+    let holdStartClientX = 0;
+    let holdLockReady = false;
+    const HOLD_LOCK_DELTA_Y = 60;
+    const HOLD_CANCEL_DELTA_X = -60;
+
+    // Live waveform state
+    const WAVE_BARS = 36;
+    let waveAnalyserCtx = null;
+    let waveAnalyserNode = null;
+    let waveAnalyserSource = null;
+    let waveAnimFrameId = null;
+    let waveBarElements = null;
+    const waveSmoothValues = new Float32Array(WAVE_BARS);
+
+    function buildWaveBars() {
+        if (!voiceRecordWaveLive) return;
+        voiceRecordWaveLive.innerHTML = '';
+        waveBarElements = [];
+        for (let i = 0; i < WAVE_BARS; i += 1) {
+            const bar = document.createElement('span');
+            bar.className = 'voice-record-wave-bar';
+            bar.style.height = '3px';
+            voiceRecordWaveLive.appendChild(bar);
+            waveBarElements.push(bar);
+        }
+    }
+
+    function stopWaveAnimation() {
+        if (waveAnimFrameId != null) {
+            cancelAnimationFrame(waveAnimFrameId);
+            waveAnimFrameId = null;
+        }
+        if (waveAnalyserSource) {
+            try { waveAnalyserSource.disconnect(); } catch (_) {}
+            waveAnalyserSource = null;
+        }
+        if (waveAnalyserCtx) {
+            try { waveAnalyserCtx.close(); } catch (_) {}
+            waveAnalyserCtx = null;
+        }
+        waveAnalyserNode = null;
+        waveSmoothValues.fill(0);
+        if (waveBarElements) {
+            waveBarElements.forEach((bar) => { bar.style.height = '3px'; });
+        }
+    }
+
+    function startWaveAnimation(stream) {
+        stopWaveAnimation();
+        if (!voiceRecordWaveLive || !waveBarElements || !waveBarElements.length) return;
+        const AudioCtxCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtxCtor) return;
+        try {
+            waveAnalyserCtx = new AudioCtxCtor();
+            waveAnalyserNode = waveAnalyserCtx.createAnalyser();
+            waveAnalyserNode.fftSize = 128;
+            waveAnalyserNode.smoothingTimeConstant = 0.5;
+            waveAnalyserSource = waveAnalyserCtx.createMediaStreamSource(stream);
+            waveAnalyserSource.connect(waveAnalyserNode);
+            const dataArray = new Uint8Array(waveAnalyserNode.frequencyBinCount);
+            const binsPerBar = Math.max(1, Math.floor(dataArray.length / WAVE_BARS));
+            const maxBarHeight = 24;
+            const minBarHeight = 3;
+
+            const tick = () => {
+                if (!isActive()) {
+                    stopWaveAnimation();
+                    return;
+                }
+                waveAnalyserNode.getByteFrequencyData(dataArray);
+                for (let i = 0; i < WAVE_BARS; i += 1) {
+                    let sum = 0;
+                    const start = i * binsPerBar;
+                    for (let j = 0; j < binsPerBar; j += 1) {
+                        sum += (dataArray[start + j] || 0);
+                    }
+                    const raw = (sum / binsPerBar) / 255;
+                    // Fast attack, slow decay for natural feel
+                    waveSmoothValues[i] = raw > waveSmoothValues[i]
+                        ? waveSmoothValues[i] * 0.5 + raw * 0.5
+                        : waveSmoothValues[i] * 0.8 + raw * 0.2;
+                    const height = Math.max(
+                        minBarHeight,
+                        Math.round(waveSmoothValues[i] * maxBarHeight),
+                    );
+                    waveBarElements[i].style.height = `${height}px`;
+                }
+                waveAnimFrameId = requestAnimationFrame(tick);
+            };
+            tick();
+        } catch (_) {
+            stopWaveAnimation();
+        }
+    }
 
     function isSupported() {
         return typeof MediaRecorder !== 'undefined'
@@ -401,6 +574,20 @@ export function initVoiceRecorder({
         }, 450);
     };
 
+    function syncLockIndicator() {
+        if (!voiceLockIndicator) return;
+        voiceLockIndicator.classList.toggle('is-hold', isHoldRecording);
+        voiceLockIndicator.classList.toggle('is-ready', holdLockReady);
+        voiceLockIndicator.classList.toggle('is-locked', isLockedRecording);
+    }
+
+    function resetHoldState() {
+        isHoldRecording = false;
+        holdLockReady = false;
+        holdPointerId = null;
+        syncLockIndicator();
+    }
+
     if (voiceRecordBtn) {
         voiceRecordBtn.addEventListener('pointerdown', handleTextSubmitPress, true);
         voiceRecordBtn.addEventListener('touchstart', handleTextSubmitPress, { capture: true, passive: false });
@@ -422,6 +609,71 @@ export function initVoiceRecorder({
             event.stopImmediatePropagation();
             cancelActiveUpload?.();
         }, true);
+
+        // Hold-to-record: only on coarse pointer (touch) in mic state
+        voiceRecordBtn.addEventListener('pointerdown', (event) => {
+            if (!isCoarsePointer()) return;
+            if (!voiceRecordBtn.classList.contains('is-mic-state')) return;
+            if (isActive() && isLockedRecording) return;
+            if (event.button !== 0 && event.pointerType !== 'touch') return;
+            holdPointerId = event.pointerId;
+            holdStartClientY = event.clientY;
+            holdStartClientX = event.clientX;
+            holdLockReady = false;
+            try { voiceRecordBtn.setPointerCapture(event.pointerId); } catch (_) {}
+            // Start recording; suppress the subsequent click from triggering again
+            suppressMicStartUntil = 0;
+            if (!isActive()) {
+                start().catch(() => {});
+            }
+            isHoldRecording = true;
+            syncLockIndicator();
+        }, { passive: true });
+
+        voiceRecordBtn.addEventListener('pointermove', (event) => {
+            if (!isHoldRecording || event.pointerId !== holdPointerId) return;
+            const deltaY = holdStartClientY - event.clientY;
+            const deltaX = event.clientX - holdStartClientX;
+            // Cancel immediately on leftward swipe
+            if (deltaX < HOLD_CANCEL_DELTA_X && isActive() && !isLockedRecording) {
+                resetHoldState();
+                stop({ reason: 'cancel' }).catch(() => {});
+                return;
+            }
+            const newReady = deltaY >= HOLD_LOCK_DELTA_Y;
+            if (newReady !== holdLockReady) {
+                holdLockReady = newReady;
+                syncLockIndicator();
+            }
+        }, { passive: true });
+
+        const finishHold = (event) => {
+            if (!isHoldRecording) return;
+            if (event.pointerId !== holdPointerId) return;
+            const wasReady = holdLockReady;
+            resetHoldState();
+            // Suppress the ghost click that follows pointerup on touch devices
+            suppressMicStartUntil = Date.now() + MIC_GHOST_CLICK_GUARD_MS;
+            if (wasReady) {
+                // Lock the recording — user slid up
+                isLockedRecording = true;
+                syncLockIndicator();
+                updateButtonState();
+            } else if (isActive()) {
+                // Quick release without lock → send
+                stop({ reason: 'send' }).catch(() => {});
+            }
+        };
+
+        voiceRecordBtn.addEventListener('pointerup', finishHold, { passive: true });
+        voiceRecordBtn.addEventListener('pointercancel', (event) => {
+            if (!isHoldRecording || event.pointerId !== holdPointerId) return;
+            resetHoldState();
+            if (isActive() && !isLockedRecording) {
+                stop({ reason: 'cancel' }).catch(() => {});
+            }
+        }, { passive: true });
+        voiceRecordBtn.addEventListener('lostpointercapture', finishHold, { passive: true });
     }
 
     async function requestMicrophoneStream() {
@@ -487,6 +739,10 @@ export function initVoiceRecorder({
             recorder = null;
             stopTimer();
             stopStream();
+            stopWaveAnimation();
+            stopTranscription();
+            isLockedRecording = false;
+            resetHoldState();
             syncVoiceTypingState(false);
             updateButtonState();
 
@@ -514,8 +770,13 @@ export function initVoiceRecorder({
             const file = new File([blob], `voice-${ts}.${extension}`, {
                 type: normalizedMime || 'audio/webm',
             });
+            const transcript = getFinalTranscript();
             recordChunks = [];
-            await sendFileMessage(file, '', { audioDurationSeconds: recordedSeconds, typingKindHint: 'voice' });
+            await sendFileMessage(file, '', {
+                audioDurationSeconds: recordedSeconds,
+                typingKindHint: 'voice',
+                ...(transcript ? { transcript } : {}),
+            });
             return file;
         } finally {
             isStopping = false;
@@ -523,6 +784,10 @@ export function initVoiceRecorder({
             recordChunks = [];
             stopTimer();
             stopStream();
+            stopWaveAnimation();
+            stopTranscription();
+            isLockedRecording = false;
+            resetHoldState();
             syncVoiceTypingState(false);
             updateButtonState();
         }
@@ -578,6 +843,9 @@ export function initVoiceRecorder({
             if (document.activeElement === messageInput) {
                 messageInput.blur();
             }
+            buildWaveBars();
+            startWaveAnimation(stream);
+            startTranscription();
             startTimer();
             updateButtonState();
         } catch (_) {
@@ -598,6 +866,10 @@ export function initVoiceRecorder({
         recordChunks = [];
         stopTimer();
         stopStream();
+        stopWaveAnimation();
+        stopTranscription();
+        isLockedRecording = false;
+        resetHoldState();
         syncVoiceTypingState(false);
         clearComposerTransition();
     }

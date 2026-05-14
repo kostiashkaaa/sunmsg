@@ -172,7 +172,7 @@ export function initChatMediaRuntime(deps = {}) {
     const audioUiPlaybackLoopByElement = new WeakMap();
     const audioWaveformCacheBySource = new Map();
     const audioWaveformJobByPlayer = new WeakMap();
-    const AUDIO_PLAYBACK_RATES = Object.freeze([1, 1.5, 2]);
+    const AUDIO_PLAYBACK_RATES = Object.freeze([1, 1.25, 1.5, 2]);
     const AUDIO_PLAYBACK_RATE_STORAGE_KEY = 'sun_audio_playback_rate';
     const AUDIO_VOLUME_STORAGE_KEY = 'sun_audio_volume';
     const AUDIO_REPEAT_STORAGE_KEY = 'sun_audio_repeat_enabled';
@@ -756,9 +756,7 @@ export function initChatMediaRuntime(deps = {}) {
             if (knownDuration > 0) {
                 durationLabel.dataset.audioDuration = String(Math.floor(knownDuration));
             }
-            const mode = (isSeeking || isPlaybackActive || (current > 0.2 && current < knownDuration))
-                ? 'current'
-                : 'duration';
+            const mode = (isSeeking || isPlaybackActive) ? 'current' : 'duration';
             const displaySeconds = mode === 'duration' ? knownDuration : effectiveCurrentSeconds;
             const roundedSeconds = Math.max(0, Math.floor(displaySeconds));
             const prevSeconds = durationLabel.dataset.displaySeconds || '';

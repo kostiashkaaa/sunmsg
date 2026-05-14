@@ -3496,6 +3496,46 @@
             margin: 0 !important;
         }
 
+        .voice-lock-indicator {
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            width: 36px;
+            padding: 6px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s, transform 0.15s;
+            z-index: 10;
+        }
+
+        .voice-lock-indicator .sun-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--text-secondary, var(--sub-text));
+            transition: color 0.15s;
+        }
+
+        .voice-lock-indicator.is-hold {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .voice-lock-indicator.is-ready .sun-icon {
+            color: var(--accent);
+        }
+
+        .voice-lock-indicator.is-locked {
+            opacity: 0;
+        }
+
 
 #voiceRecordCancelBtn {
             display: none;
@@ -3597,6 +3637,31 @@
         @keyframes voiceRecordDotPulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.55; transform: scale(0.84); }
+        }
+
+
+        .voice-record-wave-live {
+            display: none;
+            flex: 1 1 auto;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2px;
+            height: 26px;
+            overflow: hidden;
+            min-width: 0;
+            padding: 0 4px;
+        }
+
+        .voice-record-wave-bar {
+            flex-shrink: 0;
+            width: 3px;
+            border-radius: 2px;
+            background: var(--accent, #5b8af5);
+            opacity: 0.85;
+            min-height: 3px;
+            max-height: 24px;
+            will-change: height;
+            transition: height 0.04s linear;
         }
 
 
@@ -3909,7 +3974,42 @@
             display: flex;
         }
 
+        #disappearingTimerPickerContainer {
+            display: none;
+            padding: 4px 16px 10px;
+            border-top: 1px solid var(--border);
+        }
 
+        #disappearingTimerPickerContainer.is-open {
+            display: block;
+        }
+
+        .disappearing-timer-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .disappearing-timer-label {
+            font-size: 13px;
+            color: var(--text-secondary, var(--text));
+        }
+
+        .disappearing-timer-select {
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .disappearing-timer-select:focus {
+            border-color: var(--accent);
+        }
 
         .message-scale-panel {
             position: absolute;
@@ -5619,6 +5719,78 @@
             gap: 8px;
             min-width: 0;
             width: 100%;
+        }
+
+        .audio-player-speed {
+            flex-shrink: 0;
+            background: none;
+            border: 1.5px solid color-mix(in srgb, var(--text) 28%, transparent);
+            border-radius: 6px;
+            color: var(--text-secondary, var(--text));
+            font-size: 10px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            padding: 3px 4px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color var(--dur-quick) var(--ease-quick),
+                        border-color var(--dur-quick) var(--ease-quick),
+                        background var(--dur-quick) var(--ease-quick);
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .audio-player-speed:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .audio-player-speed.is-active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+
+        .voice-transcript {
+            margin-top: 5px;
+            font-size: 12.5px;
+            line-height: 1.45;
+            color: var(--text-secondary, var(--text));
+            opacity: 0.85;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding: 0 2px;
+        }
+
+        .expiry-badge {
+            display: inline-flex;
+            align-self: flex-end;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent) 16%, transparent);
+            color: var(--accent);
+            pointer-events: none;
+            user-select: none;
+            margin-top: 2px;
+        }
+
+        .voice-record-transcript-live {
+            display: none;
+            font-size: 12px;
+            color: var(--text-secondary, var(--text));
+            opacity: 0.8;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .audio-player-wave-wrap {

@@ -101,6 +101,10 @@
                         <div class="dropdown-item ripple-target" id="reportUserMenuBtn">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-flag"></use></svg> Пожаловаться на пользователя
                         </div>
+                        <div class="dropdown-item ripple-target" id="disappearingMsgMenuBtn">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-clock"></use></svg> <span id="disappearingMsgMenuLabel">Исчезающие сообщения</span>
+                        </div>
+                        <div id="disappearingTimerPickerContainer"></div>
                         <div class="dropdown-item ripple-target danger" id="deleteChatBtn">
                             <i class="bi bi-trash3"></i> Удалить чат
                         </div>
@@ -548,10 +552,12 @@
                         </button>
                         <input type="file" id="fileAttachInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" />
                         <textarea id="messageInput" placeholder="Сообщение..." autocomplete="off" autocapitalize="sentences" autocorrect="on" spellcheck="true" enterkeyhint="send" rows="1" disabled></textarea>
+                        <div class="voice-record-wave-live" id="voiceRecordWaveLive" aria-hidden="true"></div>
                         <span class="voice-record-meta" id="voiceRecordMeta" aria-hidden="true">
                             <span id="voiceRecordTimer">00:00</span>
                             <span class="voice-record-dot" aria-hidden="true"></span>
                         </span>
+                        <span class="voice-record-transcript-live" id="voiceRecordTranscriptLive" aria-live="polite" aria-hidden="true"></span>
                         <button type="button" class="btn-icon ripple-target btn-attach" id="attachBtn" title="Прикрепить" aria-label="Прикрепить" aria-haspopup="menu" aria-expanded="false">
                             <i class="bi bi-paperclip"></i>
                         </button>
@@ -579,6 +585,9 @@
                     <span class="jump-to-new-count jump-to-new-count--hidden" id="jumpToNewMessagesCount">0</span>
                 </button>
                 <div class="voice-record-action-stack" id="voiceRecordActionStack">
+                    <div class="voice-lock-indicator" id="voiceLockIndicator" aria-hidden="true">
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-lock"></use></svg>
+                    </div>
                     <button type="button" class="btn-icon ripple-target" id="voiceRecordBtn" title="Записать голосовое" aria-label="Записать голосовое" disabled>
                         <i class="bi bi-mic-fill"></i>
                     </button>

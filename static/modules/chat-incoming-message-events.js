@@ -68,6 +68,7 @@ function buildIncomingMessageState({
         group_readers: normalizedGroupReaders,
         mentionedUserIds: normalizedMentionedUserIds,
         mentionedUsernames: normalizedMentionedUsernames,
+        expires_at: data.expires_at ? Number(data.expires_at) : null,
         ...(hasReactionPayload ? { reactions: normalizeMessageReactions(data.reactions) } : {}),
     };
 }

@@ -41,6 +41,9 @@ export function bindChatHeaderActionsRuntime({
     isProfileDrawerOpen,
     loadAndShowPartnerProfile,
     closeProfileMoreMenu,
+    disappearingMsgMenuBtn,
+    disappearingTimerPickerContainer,
+    renderDisappearingTimerPicker,
 } = {}) {
     deleteChatBtn?.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -120,10 +123,32 @@ export function bindChatHeaderActionsRuntime({
         void handleProfileAction?.('report-user');
     });
 
-    documentRef.addEventListener('sun-close-header-dropdown', () => closeHeaderDropdown?.());
+    disappearingMsgMenuBtn?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const chatId = String(getCurrentChatId?.() || '').trim();
+        if (!chatId || !disappearingTimerPickerContainer) return;
+        const isOpen = disappearingTimerPickerContainer.classList.toggle('is-open');
+        if (isOpen) {
+            renderDisappearingTimerPicker?.(disappearingTimerPickerContainer, chatId);
+        } else {
+            disappearingTimerPickerContainer.innerHTML = '';
+        }
+    });
+
+    documentRef.addEventListener('sun-close-header-dropdown', () => {
+        closeHeaderDropdown?.();
+        if (disappearingTimerPickerContainer) {
+            disappearingTimerPickerContainer.classList.remove('is-open');
+            disappearingTimerPickerContainer.innerHTML = '';
+        }
+    });
     documentRef.addEventListener('click', (event) => {
         if (headerDropdown && !event.target.closest('.header-more-actions')) {
             closeHeaderDropdown?.();
+            if (disappearingTimerPickerContainer) {
+                disappearingTimerPickerContainer.classList.remove('is-open');
+                disappearingTimerPickerContainer.innerHTML = '';
+            }
         }
         if (profileMoreMenu && !event.target.closest('.profile-topbar-more')) {
             closeProfileMoreMenu?.();

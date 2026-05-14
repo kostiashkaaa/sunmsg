@@ -58,6 +58,7 @@ export function buildEncryptedCacheMessageFromSocketPayload(data) {
         mentioned_user_ids: Array.isArray(data.mentioned_user_ids) ? data.mentioned_user_ids : [],
         mentioned_usernames: Array.isArray(data.mentioned_usernames) ? data.mentioned_usernames : [],
         reactions: Array.isArray(data.reactions) ? data.reactions : [],
+        expires_at: data.expires_at ? Number(data.expires_at) : null,
     };
 }
 
