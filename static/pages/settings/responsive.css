@@ -809,6 +809,10 @@
 }
 
 @media (max-width: 768px) {
+    body.settings-detail-open .settings-nav {
+        display: none;
+    }
+
     .settings-panel-head {
         padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 10px;
     }
