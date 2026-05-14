@@ -3617,6 +3617,7 @@ export const initChatPage = async () => {
             chatMessagesEl: chatMessages,
             isMobileViewport: () => isMobileViewport(),
             getCurrentChatId: () => currentChatId,
+            getCurrentUserId: () => CURRENT_USER_ID,
             getCurrentUserPublicKey: () => currentUserPublicKey,
             getCurrentPartnerData,
             getPrivateKeyPem,

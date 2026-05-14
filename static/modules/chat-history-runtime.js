@@ -185,9 +185,23 @@ export function createChatHistoryRuntime(ctx = {}) {
 
         const privateKeyPem = ctx.getPrivateKeyPem();
         const currentUserPublicKey = ctx.getCurrentUserPublicKey();
+        const currentUserId = ctx.getCurrentUserId?.();
         const currentPartnerData = ctx.getCurrentPartnerData();
+        const isMessageFromCurrentUser = (msg) => {
+            const senderUserId = Number(msg?.sender_user_id);
+            const normalizedCurrentUserId = Number(currentUserId);
+            if (
+                Number.isFinite(senderUserId)
+                && senderUserId > 0
+                && Number.isFinite(normalizedCurrentUserId)
+                && normalizedCurrentUserId > 0
+            ) {
+                return senderUserId === normalizedCurrentUserId;
+            }
+            return String(msg?.sender_public_key || '').trim() === String(currentUserPublicKey || '').trim();
+        };
         const toDecodedMessage = (msg, decMessage, replyText) => {
-            const isSelf = msg.sender_public_key === currentUserPublicKey;
+            const isSelf = isMessageFromCurrentUser(msg);
             const normalizedMentionedUserIds = normalizeMentionUserIds(msg.mentioned_user_ids);
             const normalizedMentionedUsernames = Array.isArray(msg.mentioned_usernames)
                 ? msg.mentioned_usernames
@@ -236,7 +250,7 @@ export function createChatHistoryRuntime(ctx = {}) {
             const workerJobs = source.map((msg, index) => ({
                 index,
                 message: msg.message,
-                isSelf: msg.sender_public_key === currentUserPublicKey,
+                isSelf: isMessageFromCurrentUser(msg),
                 hasReply: Boolean(msg.reply_to_id && msg.reply_message),
                 replyMessage: msg.reply_message || '',
                 replyIsSelf: msg.reply_sender_pub === currentUserPublicKey,
@@ -282,7 +296,7 @@ export function createChatHistoryRuntime(ctx = {}) {
             source,
             ctx.chatDecryptConcurrency,
             async (msg) => {
-                const isSelf = msg.sender_public_key === currentUserPublicKey;
+                const isSelf = isMessageFromCurrentUser(msg);
                 let decMessage = msg.message;
                 decMessage = await decryptCached(msg.message, isSelf);
 

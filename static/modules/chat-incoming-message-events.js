@@ -20,6 +20,20 @@ async function decryptReplyPreview({
     }
 }
 
+function isIncomingSenderCurrentUser(data, currentUserPublicKey, currentUserId) {
+    const senderUserId = Number(data?.sender_user_id);
+    const normalizedCurrentUserId = Number(currentUserId);
+    if (
+        Number.isFinite(senderUserId)
+        && senderUserId > 0
+        && Number.isFinite(normalizedCurrentUserId)
+        && normalizedCurrentUserId > 0
+    ) {
+        return senderUserId === normalizedCurrentUserId;
+    }
+    return String(data?.sender_public_key || '').trim() === String(currentUserPublicKey || '').trim();
+}
+
 function buildIncomingMessageState({
     data,
     isSelf,
@@ -161,7 +175,7 @@ export function registerIncomingMessageSocketHandlers({
         const currentUsername = String(getCurrentUsername?.() || '').trim();
 
         if (normalizedIncomingChatId === normalizedCurrentChatId) {
-            const isSelf = data.sender_public_key === currentUserPublicKey;
+            const isSelf = isIncomingSenderCurrentUser(data, currentUserPublicKey, currentUserId);
             const wasNearBottom = isChatNearBottom();
             const previousScrollTop = getCurrentChatScrollTop();
             const rawDecryptedMessage = await decryptForDisplay(privateKeyPem, data.message, isSelf);
@@ -335,7 +349,7 @@ export function registerIncomingMessageSocketHandlers({
             return;
         }
 
-        const isSelfOther = data.sender_public_key === currentUserPublicKey;
+        const isSelfOther = isIncomingSenderCurrentUser(data, currentUserPublicKey, currentUserId);
         const rawDecryptedOtherMessage = await decryptForDisplay(privateKeyPem, data.message, isSelfOther);
         const decryptedMessage = typeof enrichVisualMediaMessage === 'function'
             ? await enrichVisualMediaMessage(rawDecryptedOtherMessage)

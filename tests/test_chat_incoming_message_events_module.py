@@ -132,3 +132,119 @@ if (calls.some((call) => call[0] === 'rerender')) {{
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_self_echo_uses_sender_user_id_when_public_key_differs():
+    module_path = ROOT / 'static' / 'modules' / 'chat-incoming-message-events.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-mentions\\.js';/,
+  `const isCurrentUserMentioned = () => false;
+const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];`,
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ registerIncomingMessageSocketHandlers }} = await import(moduleUrl);
+const handlers = new Map();
+const calls = [];
+const decryptCalls = [];
+const encrypted = '{{"encrypted_message":"cipher","encrypted_key_receiver":"receiver","encrypted_key_sender":"sender","iv":"iv"}}';
+const state = {{
+  messages: [{{
+    sender: 'self',
+    message: 'visible text',
+    message_type: 'text',
+    pending: true,
+    clientId: 'client-1',
+    created_at: '2026-05-14T23:00:00Z',
+    reactions: [],
+  }}],
+  messageHeights: new Map(),
+  renderedKeys: new Set(['client:client-1']),
+}};
+
+registerIncomingMessageSocketHandlers({{
+  socket: {{
+    on(event, handler) {{
+      handlers.set(event, handler);
+    }},
+  }},
+  isBlockedChat: () => false,
+  getCurrentChatId: () => 'chat-1',
+  currentUserPublicKey: 'pk-current',
+  getPrivateKeyPem: () => 'private-key',
+  decryptForDisplay: async (_privateKey, payload, isSelf) => {{
+    decryptCalls.push(isSelf);
+    return payload;
+  }},
+  getChatState: () => state,
+  findMessageIndex: (targetState, predicate) => targetState.messages.findIndex(predicate),
+  cancelPendingTimeout: (clientId) => calls.push(['cancel', clientId]),
+  normalizeChatMessageOrder: () => {{}},
+  updateActiveContactLastMessage: (...args) => calls.push(['last', ...args]),
+  isChatNearBottom: () => true,
+  isWindowActiveForUnreadHandling: () => true,
+  getCurrentChatScrollTop: () => 0,
+  getCurrentChatScrollHeight: () => 0,
+  appendMessage: () => calls.push(['append']),
+  isEncryptedPayload: (value) => typeof value === 'string' && value.includes('encrypted_message'),
+  normalizeMessageReactions: (value) => value || [],
+  getCurrentPartnerDisplayName: () => 'Partner',
+  markCurrentChatSeenIfPossible: () => {{}},
+  setKeepChatPinnedToBottom: () => {{}},
+  incrementOpenChatUnreadCount: () => {{}},
+  updateJumpToNewMessagesButton: () => {{}},
+  setContactUnreadBadge: () => {{}},
+  upsertChatMessage: () => calls.push(['upsert']),
+  updateSidebarForOtherChat: () => calls.push(['sidebar-other']),
+  showToast: (...args) => calls.push(['toast', ...args]),
+  updateMessageContent: () => {{}},
+  rerenderCurrentChat: () => calls.push(['rerender']),
+  resolveMessageElement: () => null,
+  getMessageKey: (msg) => msg.id ? `id:${{msg.id}}` : `client:${{msg.clientId}}`,
+  confirmPendingMessageDom: (payload) => {{
+    calls.push(['confirm', payload.message.message]);
+    return true;
+  }},
+  loadContacts: () => {{}},
+  enrichVisualMediaMessage: async (value) => value,
+  notifyIncomingMessage: () => {{}},
+  onIncomingRawMessage: () => {{}},
+  prewarmMessageLinkPreview: async () => {{}},
+  getCurrentUserId: () => '1',
+  getCurrentUsername: () => 'self',
+}});
+
+await handlers.get('receive_message')({{
+  id: 45,
+  chat_id: 'chat-1',
+  sender_public_key: 'pk-stale-format',
+  sender_user_id: 1,
+  message: encrypted,
+  message_type: 'text',
+  client_id: 'client-1',
+  created_at: '2026-05-14T23:00:01Z',
+  reactions: [],
+}});
+
+if (decryptCalls[0] !== true) {{
+  throw new Error(`Expected self decrypt key path, got ${{JSON.stringify(decryptCalls)}}`);
+}}
+if (state.messages[0].sender !== 'self' || state.messages[0].message !== 'visible text') {{
+  throw new Error(`Expected pending self message to stay visible: ${{JSON.stringify(state.messages[0])}}`);
+}}
+if (calls.some((call) => call[0] === 'append' || call[0] === 'upsert' || call[0] === 'sidebar-other')) {{
+  throw new Error(`Self echo should not be appended as other: ${{JSON.stringify(calls)}}`);
+}}
+if (!calls.some((call) => call[0] === 'confirm' && call[1] === 'visible text')) {{
+  throw new Error(`Expected DOM confirmation with plaintext: ${{JSON.stringify(calls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
