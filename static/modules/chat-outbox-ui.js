@@ -14,10 +14,11 @@ function ensurePillElement() {
         <span class="sun-outbox-pill__icon" aria-hidden="true">
             <i class="bi bi-clock-history"></i>
         </span>
-        <span class="sun-outbox-pill__label"></span>
         <span class="sun-outbox-pill__count"></span>
+        <span class="sun-outbox-pill__label"></span>
     `;
-    document.body.appendChild(pill);
+    const container = document.getElementById('chatInputArea') || document.body;
+    container.appendChild(pill);
     return pill;
 }
 
