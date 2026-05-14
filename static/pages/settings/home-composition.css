@@ -378,7 +378,7 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        min-height: 56px;
+        min-height: clamp(56px, calc((100dvh - 130px) / 9), 78px);
         margin: 0;
         padding: 11px 36px 11px 18px;       /* right padding reserves chevron */
         border: 0;
@@ -636,7 +636,7 @@
         }
 
         body.settings-home-open .settings-nav-group .nav-item {
-            min-height: 52px;
+            min-height: clamp(52px, calc((100dvh - 130px) / 9), 78px);
             padding: 10px 14px;
             font-size: 14.5px;
         }
