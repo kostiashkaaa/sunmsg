@@ -12,7 +12,7 @@
             @keyframes settings-section-in {
                 from {
                     opacity: 0;
-                    transform: translate3d(0, 28px, 0) scale(0.972);
+                    transform: translate3d(var(--motion-distance-section-in-compact-x, 30px), 0, 0) scale(0.972);
                     filter: blur(3px);
                 }
                 to {
@@ -30,7 +30,7 @@
                 }
                 to {
                     opacity: 0;
-                    transform: translate3d(0, -14px, 0) scale(0.985);
+                    transform: translate3d(var(--motion-distance-section-out-compact-x-negative, -18px), 0, 0) scale(0.985);
                     filter: blur(2px);
                 }
             }
