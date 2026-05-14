@@ -7,6 +7,8 @@ import {
     formatFullTimestamp,
     renderMessagePreviewHtml,
     applyEmojiGraphics,
+    parseSunFilePayload,
+    resolveMessageDisplayText,
 } from './utils.js';
 import { renderMessageLinkPreview } from './message-link-preview.js';
 import {
@@ -776,6 +778,8 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     } = context;
 
     const messageDiv = document.createElement('div');
+    const rawMessageText = typeof msg.message === 'string' ? msg.message : '';
+    const displayMessageText = resolveMessageDisplayText(rawMessageText);
     messageDiv.classList.add('message', msg.sender);
     messageDiv.classList.add(layout.groupClass || 'group-single');
     if (layout.showAvatar) messageDiv.classList.add('show-avatar');
@@ -784,7 +788,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     if (msg.pending)      messageDiv.setAttribute('data-pending', 'true');
     if (msg.clientId)     messageDiv.setAttribute('data-client-id', msg.clientId);
     if (getMessageKey)    messageDiv.setAttribute('data-message-key', getMessageKey(msg));
-    if (typeof msg.message === 'string') messageDiv.setAttribute('data-message-content', msg.message);
+    if (typeof msg.message === 'string') messageDiv.setAttribute('data-message-content', displayMessageText);
     if (msg.expires_at)   messageDiv.setAttribute('data-expires-at', String(msg.expires_at));
 
     const isSelf = msg.sender === 'self';
@@ -859,11 +863,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         : '';
 
     // File or text bubble
-    let filePayload = null;
-    try {
-        const parsed = typeof msg.message === 'string' ? JSON.parse(msg.message) : null;
-        if (parsed?.__sunfile) filePayload = parsed;
-    } catch (_) {}
+    const filePayload = parseSunFilePayload(rawMessageText);
 
     let bubbleClass = 'bubble';
     let bubbleContent;
@@ -945,7 +945,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     messageDiv.classList.toggle('message-pinned', isPinned);
     messageDiv.classList.toggle('message-favorite', isFavorite);
     messageDiv.classList.toggle('message-group-other', showSenderLabel);
-    messageDiv.classList.toggle('message-emoji-only', !filePayload && isEmojiOnlyMessageText(msg.message));
+    messageDiv.classList.toggle('message-emoji-only', !filePayload && isEmojiOnlyMessageText(displayMessageText));
     if (isAudioPayload && isSelf) {
         messageDiv.setAttribute('data-audio-listened-by-partner', audioListenedByPartner ? '1' : '0');
     }
@@ -964,7 +964,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
 
     if (!filePayload) {
         const textEl = messageDiv.querySelector('.message-text');
-        const messageText = String(msg.message ?? '');
+        const messageText = displayMessageText;
         if (textEl) {
             if (typeof renderMessageTextContent === 'function') {
                 renderMessageTextContent(textEl, messageText, { message: msg });
@@ -972,7 +972,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
                 textEl.textContent = messageText;
             }
         }
-        renderMessageLinkPreview(messageDiv, msg);
+        renderMessageLinkPreview(messageDiv, { ...msg, message: messageText });
     }
 
     if (filePayload) {
