@@ -1090,6 +1090,14 @@ def test_interface_theme_runtime_updates_all_accent_variants() -> None:
     assert "hasOwnProperty.call(cssVars, '--accent-soft')" in early_boot
 
 
+def test_settings_redesign_uses_local_fonts_only() -> None:
+    """Settings CSS must not import remote fonts under production CSP."""
+    settings_redesign = (STATIC / 'pages' / 'settings-redesign.css').read_text(encoding='utf-8')
+
+    assert 'fonts.googleapis.com' not in settings_redesign
+    assert 'Inter Tight' not in settings_redesign
+
+
 def test_message_alignment_self_vs_other_on_chat_page() -> None:
     """Outgoing and incoming messages must not share the same left alignment.
 
