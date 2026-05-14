@@ -145,7 +145,7 @@ export async function sendFileMessageFlow({
         replyToSender: snapReplySender,
         ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
         reactions: [],
-    }, { renderOptions: { force: true, scrollToBottom: true } });
+    }, { renderOptions: { scrollToBottom: true } });
     setKeepChatPinnedToBottom(true);
     updateActiveContactLastMessage(
         optimisticPayloadText,

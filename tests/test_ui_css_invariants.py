@@ -1151,7 +1151,7 @@ def test_message_alignment_self_vs_other_on_chat_page() -> None:
 
 
 def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
-    """Optimistic self messages should reuse the same rendered layout as history."""
+    """Optimistic self messages should update tail grouping without remounting media."""
     append_runtime = (STATIC / 'modules' / 'chat-message-append-runtime.js').read_text(encoding='utf-8')
     composer_send_runtime = (STATIC / 'modules' / 'chat-composer-send-runtime.js').read_text(encoding='utf-8')
     text_send = (STATIC / 'modules' / 'chat-text-send.js').read_text(encoding='utf-8')
@@ -1159,16 +1159,22 @@ def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
 
     assert 'const previousTailMessage = lastIdx > 0 ? state.messages[lastIdx - 1] : null' in append_runtime
     assert 'const tailGroupWouldChange = isSameMessageGroup(previousTailMessage, inserted)' in append_runtime
-    assert '&& !tailGroupWouldChange' in append_runtime, (
-        'chat-message-append-runtime.js: fast append must not leave stale grouped tail DOM next to new messages'
+    assert 'syncReusedMessageNodeState?.(previousTailNode, previousTailMessage, previousTailLayout)' in append_runtime, (
+        'chat-message-append-runtime.js: fast append must refresh previous tail grouping before appending'
     )
     assert "chat-text-send.js" in composer_send_runtime
     assert "chat-file-send.js" in composer_send_runtime
-    assert 'renderOptions: { force: true, scrollToBottom: true }' in text_send, (
-        'chat-text-send.js: optimistic text sends should force a tail rerender for alignment'
+    assert 'renderOptions: { scrollToBottom: true }' in text_send, (
+        'chat-text-send.js: optimistic text sends should append without forcing chat media remount'
     )
-    assert 'renderOptions: { force: true, scrollToBottom: true }' in file_send, (
-        'chat-file-send.js: optimistic file sends should force a tail rerender for alignment'
+    assert 'renderOptions: { force: true, scrollToBottom: true }' not in text_send, (
+        'chat-text-send.js: optimistic text sends must not force full chat rerender'
+    )
+    assert 'renderOptions: { scrollToBottom: true }' in file_send, (
+        'chat-file-send.js: optimistic file sends should append without forcing chat media remount'
+    )
+    assert 'renderOptions: { force: true, scrollToBottom: true }' not in file_send, (
+        'chat-file-send.js: optimistic file sends must not force full chat rerender'
     )
 
 
