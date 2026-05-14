@@ -912,7 +912,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
                 'message_created_at': message_created_at,
             },
         )
-        expires_at = _apply_message_expiry(conn, msg_id=msg_id, chat_id=chat_id)
+        expires_at = _apply_message_expiry(conn, message_id=msg_id, chat_id=chat_id)
         conn.commit()
 
         reply_to_id, reply_message, reply_sender_pub = _resolve_reply_preview_for_send(
