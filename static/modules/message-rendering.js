@@ -761,6 +761,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     if (msg.clientId)     messageDiv.setAttribute('data-client-id', msg.clientId);
     if (getMessageKey)    messageDiv.setAttribute('data-message-key', getMessageKey(msg));
     if (typeof msg.message === 'string') messageDiv.setAttribute('data-message-content', msg.message);
+    if (msg.expires_at)   messageDiv.setAttribute('data-expires-at', String(msg.expires_at));
 
     const isSelf = msg.sender === 'self';
     const showSenderLabel = Boolean(

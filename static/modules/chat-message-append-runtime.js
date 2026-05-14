@@ -130,7 +130,7 @@ export function createChatMessageAppendRuntime({
                 } else if (wasNearBottom) {
                     requestAutoScrollToBottom?.();
                 }
-                schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true });
+                schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
                 return inserted;
             }
         }

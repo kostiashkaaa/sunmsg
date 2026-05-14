@@ -338,7 +338,7 @@ export function createChatMessageRenderRuntime({
                 }
             });
             saveChatScrollPosition?.(chatId);
-            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true });
+            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
         } else if (options.preserveHeightDelta && Number.isFinite(options.previousScrollTop) && Number.isFinite(options.previousScrollHeight)) {
             const expectedTop = options.previousScrollTop + (chatMessages.scrollHeight - options.previousScrollHeight);
             setChatScrollTop(expectedTop);
@@ -352,7 +352,7 @@ export function createChatMessageRenderRuntime({
                 }
             });
             saveChatScrollPosition?.(chatId);
-            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true });
+            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
         } else if (options.scrollToBottom) {
             suppressChatScrollHandling = true;
             requestAnimationFrameFn(() => {
@@ -369,10 +369,10 @@ export function createChatMessageRenderRuntime({
                     schedulePostRenderUiRefresh?.({ jumpButton: true });
                 });
             });
-            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true });
+            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
         } else {
             saveChatScrollPosition?.(chatId);
-            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true });
+            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
         }
         syncSavedMessagesMeta?.({
             chatId: getCurrentChatId?.(),

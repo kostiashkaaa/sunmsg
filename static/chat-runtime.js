@@ -407,6 +407,10 @@ export const initChatPage = async () => {
     function updateGroupEditSubmitState() { return groupEditController?.updateGroupEditSubmitState(); }
     // Group permissions controller — initialised below.
     var groupPermissionsController;
+    // Disappearing messages controller — initialised below.
+    var disappearingMessagesController;
+    // Group invite link controller — initialised below.
+    var groupInviteLinkController;
     function syncGroupPermissionsPanel(profile) { return groupPermissionsController?.syncFromProfile?.(profile); }
     function closeGroupPermissionsPanel() { return groupPermissionsController?.closePermissionsPanel?.(); }
 
@@ -909,6 +913,17 @@ export const initChatPage = async () => {
         applyActiveMessageSearchFilter,
         updateJumpToNewMessagesButton: () => updateJumpToNewMessagesButton(),
         syncE2EPillState,
+        applyExpiryBadges: () => {
+            if (!chatMessages || !disappearingMessagesController) return;
+            chatMessages.querySelectorAll('.message[data-expires-at]').forEach((msgEl) => {
+                if (!msgEl.querySelector('.expiry-badge')) {
+                    disappearingMessagesController.addExpiryBadgeToMessage(
+                        msgEl,
+                        Number(msgEl.getAttribute('data-expires-at')),
+                    );
+                }
+            });
+        },
     });
 
     function isAbortError(error) {
@@ -2021,6 +2036,10 @@ export const initChatPage = async () => {
                 chatId: currentChatId,
                 contactId: currentContactId,
             });
+            const timerContainer = document.getElementById('disappearingTimerContainer');
+            if (timerContainer && disappearingMessagesController && currentChatId) {
+                disappearingMessagesController.renderTimerPickerInContainer(timerContainer, currentChatId);
+            }
         },
         fetchUserProfile,
     });
@@ -2190,6 +2209,7 @@ export const initChatPage = async () => {
         profileLargeAvatar,
         profileLastSeen,
         chatTitle,
+        getGroupInviteLinkController: () => groupInviteLinkController,
     });
 
     function getCurrentGroupProfile() {
@@ -3465,6 +3485,19 @@ export const initChatPage = async () => {
             onChatDraftUpdated: handleRealtimeChatDraftUpdated,
             refreshCurrentGroupProfileIfVisible,
         },
+    });
+
+    socket.on('chat_auto_delete_updated', (payload) => {
+        disappearingMessagesController?.onChatAutoDeleteUpdated(payload);
+    });
+
+    socket.on('messages_expired', (payload) => {
+        const expiredIds = Array.isArray(payload?.message_ids) ? payload.message_ids : [];
+        if (!expiredIds.length || !chatMessages) return;
+        expiredIds.forEach((msgId) => {
+            const el = chatMessages.querySelector(`.message[data-msg-id="${String(msgId)}"]`);
+            el?.remove();
+        });
     });
 
     function updateDialogRequestsBadge() {
