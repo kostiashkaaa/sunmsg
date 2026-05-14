@@ -10583,6 +10583,39 @@
     padding: 0 10px;
 }
 
+/* Profile drawer — disappearing timer scoped overrides */
+#partnerProfileDrawer #disappearingTimerContainer {
+    padding: 0 var(--profile-panel-x-pad) 0;
+}
+
+#partnerProfileDrawer .disappearing-timer-row {
+    padding: 9px 0;
+    border-top-color: var(--profile-panel-divider);
+}
+
+#partnerProfileDrawer .disappearing-timer-select {
+    background-color: color-mix(in srgb, var(--surface-2) 80%, transparent);
+    border-color: color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+/* Profile drawer — group invite link scoped overrides */
+#partnerProfileDrawer .group-invite-link-container {
+    padding: 10px var(--profile-panel-x-pad);
+    border-top-color: var(--profile-panel-divider);
+    margin-top: 0;
+}
+
+#partnerProfileDrawer .group-invite-link-input {
+    font-size: 11px;
+    background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+    border-color: color-mix(in srgb, var(--border) 46%, transparent);
+}
+
+#partnerProfileDrawer .btn-sm-action {
+    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+    border-color: color-mix(in srgb, var(--border) 46%, transparent);
+}
+
 @media (max-width: 768px) {
     #partnerProfileDrawer .profile-topbar {
         min-height: calc(52px + env(safe-area-inset-top, 0px));
@@ -11104,4 +11137,215 @@
     .message .bubble {
         font-size: 12.5px;
     }
+}
+
+/* ── Disappearing messages — profile drawer timer picker ─────────── */
+
+#disappearingTimerContainer {
+    padding: 0 var(--profile-panel-x-pad, 12px) 2px;
+}
+
+.disappearing-timer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--profile-panel-divider, color-mix(in srgb, var(--border) 46%, transparent));
+}
+
+.disappearing-timer-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.disappearing-timer-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: color-mix(in srgb, var(--surface-2, var(--surface)) 90%, transparent)
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E")
+                no-repeat right 8px center / 8px 5px;
+    border: 1px solid color-mix(in srgb, var(--border, #ccc) 60%, transparent);
+    border-radius: 8px;
+    padding: 5px 26px 5px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--dur-quick, 100ms) ease,
+                background-color var(--dur-quick, 100ms) ease;
+    flex-shrink: 0;
+    max-width: 100px;
+}
+
+.disappearing-timer-select:focus {
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ── Expiry badge on disappearing messages ───────────────────────── */
+
+.expiry-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #d97706;
+    background: color-mix(in srgb, #f59e0b 14%, transparent);
+    border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+    border-radius: 6px;
+    padding: 1px 5px;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    line-height: 1.4;
+    animation: expiry-badge-in 200ms ease both;
+}
+
+.expiry-badge::before {
+    content: '⏱';
+    font-size: 9px;
+}
+
+@keyframes expiry-badge-in {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Group invite link section (profile drawer) ──────────────────── */
+
+.group-invite-link-container {
+    padding: var(--profile-panel-x-pad, 12px);
+    border-top: 1px solid var(--profile-panel-divider, color-mix(in srgb, var(--border) 46%, transparent));
+    margin-top: 4px;
+    animation: invite-section-in 220ms var(--ease-out, ease-out) both;
+}
+
+@keyframes invite-section-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.group-invite-link-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.group-invite-link-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.group-invite-link-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.group-invite-link-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: invite-section-in 180ms ease both;
+}
+
+.group-invite-link-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 11.5px;
+    font-family: var(--font-mono, monospace);
+    letter-spacing: 0.02em;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border, #ccc) 55%, transparent);
+    background: color-mix(in srgb, var(--surface-2, var(--surface)) 85%, transparent);
+    color: var(--text);
+    outline: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+    caret-color: transparent;
+}
+
+.group-invite-link-input:focus {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.btn-sm-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border, #ccc) 55%, transparent);
+    background: color-mix(in srgb, var(--surface-2, var(--surface)) 85%, transparent);
+    color: var(--sub-text);
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background var(--dur-quick, 100ms) ease,
+                color var(--dur-quick, 100ms) ease,
+                transform 80ms ease;
+    outline: none;
+}
+
+.btn-sm-action:hover {
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface-2, var(--surface)));
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.btn-sm-action:active {
+    transform: scale(0.91);
+}
+
+.btn-sm-action:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.btn-sm-action.btn-sm-danger:hover {
+    background: color-mix(in srgb, #ef4444 12%, var(--surface-2, var(--surface)));
+    color: #ef4444;
+    border-color: color-mix(in srgb, #ef4444 30%, transparent);
+}
+
+/* "Создать" button inside invite link header uses same sm-action style but auto-width */
+.group-invite-link-create.btn-sm-action {
+    width: auto;
+    padding: 0 10px;
+    height: 28px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    letter-spacing: 0.01em;
+}
+
+.group-invite-link-create.btn-sm-action:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+}
+
+.group-invite-link-status {
+    font-size: 12px;
+    color: var(--sub-text);
+    min-height: 16px;
+    line-height: 1.4;
 }
