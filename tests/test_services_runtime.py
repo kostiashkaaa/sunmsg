@@ -555,6 +555,8 @@ def test_csp_uses_script_nonce_and_restricts_websocket_sources():
 
     script_src = directives.get('script-src', '')
     style_src = directives.get('style-src', '')
+    style_src_elem = directives.get('style-src-elem', '')
+    style_src_attr = directives.get('style-src-attr', '')
     connect_src = directives.get('connect-src', '')
     media_src = directives.get('media-src', '')
     manifest_src = directives.get('manifest-src', '')
@@ -567,6 +569,9 @@ def test_csp_uses_script_nonce_and_restricts_websocket_sources():
     assert "'unsafe-inline'" not in script_src
     assert "'nonce-" in script_src
     assert "'unsafe-inline'" not in style_src
+    assert "'unsafe-inline'" not in style_src_elem
+    assert "'self'" in style_src_elem
+    assert style_src_attr == "style-src-attr 'unsafe-inline'"
     assert object_src == "object-src 'none'"
     assert base_uri == "base-uri 'self'"
     assert form_action == "form-action 'self'"
