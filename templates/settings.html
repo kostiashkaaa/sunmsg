@@ -261,6 +261,13 @@
 
                 <div class="settings-inline-fields">
                     <label class="settings-field settings-field--full">
+                        <span class="settings-field-label">Статус</span>
+                        <input type="text" class="settings-input settings-field-input" id="statusTextInput" maxlength="100" placeholder="Что у вас нового? (до 100 символов)">
+                        <span class="settings-field-hint">Отображается под именем в профиле.</span>
+                    </label>
+                </div>
+                <div class="settings-inline-fields">
+                    <label class="settings-field settings-field--full">
                         <span class="settings-field-label">Био</span>
                         <textarea class="settings-input settings-field-input settings-bio-input" id="bioInput" rows="2" maxlength="280" placeholder="Несколько слов о себе (до 280 символов)"></textarea>
                         <span class="settings-field-hint">Короткое описание, видимое в профиле. <span id="bioCounter" class="settings-bio-counter">0/280</span></span>
@@ -655,6 +662,42 @@
                             <button type="button" class="btn-settings primary" id="totpVerifyBtn">Подтвердить</button>
                         </div>
                         <div class="settings-row-desc">Введите 6-значный код из приложения-аутентификатора, чтобы завершить подключение.</div>
+                    </div>
+                    <div class="totp-backup-codes-panel settings-hidden" id="totpBackupCodesPanel">
+                        <div class="settings-row settings-row-borderless">
+                            <div class="settings-row-info">
+                                <div class="settings-row-label">Резервные коды</div>
+                                <div class="settings-row-desc" id="totpBackupCodesRemaining"></div>
+                            </div>
+                            <div class="settings-action-cluster">
+                                <button type="button" class="btn-settings secondary" id="totpShowBackupCodesBtn">Показать коды</button>
+                            </div>
+                        </div>
+                        <div class="totp-backup-codes-list settings-hidden" id="totpBackupCodesList"></div>
+                        <div class="totp-regenerate-backup-panel settings-hidden" id="totpRegenerateBackupPanel">
+                            <label for="totpRegenerateBackupCode" class="settings-row-label">Код из приложения для подтверждения</label>
+                            <div class="totp-verify-controls">
+                                <input
+                                    type="text"
+                                    id="totpRegenerateBackupCode"
+                                    class="settings-input totp-verify-input"
+                                    inputmode="numeric"
+                                    autocomplete="one-time-code"
+                                    maxlength="6"
+                                    placeholder="000000"
+                                >
+                                <button type="button" class="btn-settings primary" id="totpRegenerateBackupConfirmBtn">Обновить</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="totp-new-backup-codes-panel settings-hidden" id="totpNewBackupCodesPanel">
+                        <div class="settings-row-label">Сохраните резервные коды</div>
+                        <div class="settings-row-desc">Каждый код можно использовать только один раз вместо TOTP при входе.</div>
+                        <div class="totp-backup-codes-list" id="totpNewBackupCodesList"></div>
+                        <div class="totp-verify-controls">
+                            <button type="button" class="btn-settings secondary" id="totpCopyBackupCodesBtn">Скопировать</button>
+                            <button type="button" class="btn-settings primary" id="totpBackupCodesDoneBtn">Сохранил</button>
+                        </div>
                     </div>
                 </div>
             </div>

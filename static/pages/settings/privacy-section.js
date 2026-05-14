@@ -570,6 +570,7 @@ export function initPrivacySection({
             display_name: document.getElementById('displayName').value.trim(),
             language: (document.getElementById('languageSelect') || {}).value || 'ru',
             bio: bioEl ? bioEl.value.trim().slice(0, 280) : '',
+            status_text: String(document.getElementById('statusTextInput')?.value || '').trim().slice(0, 100),
             is_public: document.getElementById('isPublicSwitch').checked,
             auto_decline_requests: document.getElementById('autoDeclineSwitch').checked,
             mute_dialog_requests: document.getElementById('muteDialogRequestsSwitch').checked,
@@ -605,6 +606,8 @@ export function initPrivacySection({
         if (displayNameEl && typeof payload.display_name === 'string') displayNameEl.value = payload.display_name.trim();
         if (languageEl) languageEl.value = payload.language === 'en' ? 'en' : 'ru';
         if (bioEl) bioEl.value = String(payload.bio || '').slice(0, 280);
+        const statusTextEl = document.getElementById('statusTextInput');
+        if (statusTextEl) statusTextEl.value = String(payload.status_text || '').slice(0, 100);
         if (isPublicEl) isPublicEl.checked = !!payload.is_public;
         if (hideOnlineEl) hideOnlineEl.checked = !!payload.hide_online_status;
         if (autoDeclineEl) autoDeclineEl.checked = !!payload.auto_decline_requests;
@@ -727,6 +730,7 @@ export function initPrivacySection({
         document.getElementById('username'),
         document.getElementById('languageSelect'),
         document.getElementById('bioInput'),
+        document.getElementById('statusTextInput'),
         document.getElementById('isPublicSwitch'),
         document.getElementById('hideOnlineStatusSwitch'),
         document.getElementById('autoDeclineSwitch'),

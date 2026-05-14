@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 
+from app.services.disappearing_messages import apply_expiry_to_new_message as _apply_message_expiry
 from app.services.chat_members import (
     get_chat_type,
     get_group_member_role,
@@ -911,6 +912,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
                 'message_created_at': message_created_at,
             },
         )
+        expires_at = _apply_message_expiry(conn, msg_id=msg_id, chat_id=chat_id)
         conn.commit()
 
         reply_to_id, reply_message, reply_sender_pub = _resolve_reply_preview_for_send(
@@ -950,6 +952,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
         'sender_display_name': sender_display_name,
         'sender_username': sender_username,
         'sender_avatar_url': sender_avatar_url,
+        'expires_at': expires_at,
     }
 
 
@@ -977,6 +980,7 @@ def _finalize_send_message(context: dict | None = None) -> None:
         'forward_from_name': send_context.get('forward_from_name'),
         'forward_from_user_id': send_context.get('forward_from_user_id'),
         'reactions': [],
+        'expires_at': send_context.get('expires_at'),
     }
     if chat_type == 'group':
         payload['group_read_count'] = 0
@@ -1902,6 +1906,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         sender_display_name,
         sender_username,
         sender_avatar_url,
+        expires_at,
     ) = (
         persisted['msg_id'],
         persisted['message_created_at'],
@@ -1912,6 +1917,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         persisted['sender_display_name'],
         persisted['sender_username'],
         persisted['sender_avatar_url'],
+        persisted.get('expires_at'),
     )
 
     _finalize_send_message(
@@ -1947,5 +1953,6 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'group_chat_display_name': group_chat_display_name,
             'group_member_public_keys': group_member_public_keys,
             'mentioned_members': mentioned_members,
+            'expires_at': expires_at,
         }
     )

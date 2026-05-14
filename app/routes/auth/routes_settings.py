@@ -156,7 +156,7 @@ def get_settings():
                auto_decline_requests, mute_dialog_requests, hide_online_status, is_online, last_seen,
                avatar_url, avatar_visibility,
                group_invite_privacy,
-               bio, language, client_preferences
+               bio, status_text, language, client_preferences
         FROM users
         WHERE public_key = ?
         ''',
@@ -187,6 +187,7 @@ def get_settings():
             else 'all'
         ),
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
+        'status_text':          (user['status_text'] if 'status_text' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
         'online':               bool(effective_online),
         'last_seen':            user['last_seen'] if 'last_seen' in user.keys() else None,
@@ -292,7 +293,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         # Читаем старые настройки ДО обновления (чтобы отследить изменения)
         old_user = conn.execute(
             '''
-            SELECT username, display_name, avatar_url, bio, hide_online_status
+            SELECT username, display_name, avatar_url, bio, status_text, hide_online_status
             FROM users
             WHERE public_key = ?
             ''',
@@ -305,6 +306,10 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
             bio_value = None
             if bio_raw is not None:
                 bio_value = str(bio_raw).strip()[:280]
+            status_text_raw = data.get('status_text')
+            status_text_value = None
+            if status_text_raw is not None:
+                status_text_value = str(status_text_raw).strip()[:100]
             conn.execute('''
                 UPDATE users SET
                     username             = COALESCE(?, username),
@@ -316,6 +321,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     avatar_visibility    = COALESCE(?, avatar_visibility),
                     group_invite_privacy = COALESCE(?, group_invite_privacy),
                     bio                  = COALESCE(?, bio),
+                    status_text          = COALESCE(?, status_text),
                     language             = COALESCE(?, language),
                     client_preferences   = COALESCE(?, client_preferences)
                 WHERE public_key = ?
@@ -329,6 +335,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                 avatar_visibility,
                 group_invite_privacy,
                 bio_value,
+                status_text_value,
                 new_language,
                 client_preferences_json,
                 pub
@@ -340,7 +347,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         # Читаем актуальные данные после обновления
         updated = conn.execute(
             '''
-            SELECT id, username, display_name, public_key, avatar_url, bio,
+            SELECT id, username, display_name, public_key, avatar_url, bio, status_text,
                    hide_online_status, is_online, last_seen, language
             FROM users
             WHERE public_key = ?
@@ -357,7 +364,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     str(updated[field_name] or '').strip()
                     != str(old_user[field_name] or '').strip()
                 )
-                for field_name in ('username', 'display_name', 'avatar_url', 'bio')
+                for field_name in ('username', 'display_name', 'avatar_url', 'bio', 'status_text')
             )
             status_changed = old_hide != new_hide
 
@@ -373,6 +380,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     'username':     updated['username'],
                     'avatar_url':   updated['avatar_url'],
                     'bio':          (updated['bio'] or ''),
+                    'status_text':  (updated['status_text'] or '') if 'status_text' in updated.keys() else '',
                 }
 
                 # Эмитим каждому контакту в его персональную комнату
