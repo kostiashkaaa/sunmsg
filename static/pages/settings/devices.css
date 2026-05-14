@@ -189,3 +189,75 @@
     font-size: 12px;
     color: var(--sub-text);
 }
+
+/* ── TOTP Backup Codes ─────────────────────────────────────────────── */
+
+.totp-backup-codes-panel {
+    border-top: 1px solid color-mix(in srgb, var(--rule) 46%, transparent);
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: totp-panel-in var(--dur-medium, 240ms) var(--ease-out, ease-out) both;
+}
+
+.totp-new-backup-codes-panel {
+    border: 1px solid color-mix(in srgb, #f59e0b 36%, transparent);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: color-mix(in srgb, #f59e0b 6%, var(--paper-alt));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: totp-panel-in var(--dur-medium, 240ms) var(--ease-out, ease-out) both;
+}
+
+.totp-regenerate-backup-panel {
+    border-top: 1px solid color-mix(in srgb, var(--rule) 42%, transparent);
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: totp-panel-in var(--dur-medium, 240ms) var(--ease-out, ease-out) both;
+}
+
+@keyframes totp-panel-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.totp-backup-codes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.totp-backup-code-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--paper-alt) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--rule) 48%, transparent);
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    text-align: center;
+    word-break: break-all;
+    transition: background var(--dur-quick, 100ms) ease;
+}
+
+.totp-new-backup-codes-panel .totp-backup-code-item {
+    background: color-mix(in srgb, #f59e0b 10%, var(--paper-alt));
+    border-color: color-mix(in srgb, #f59e0b 28%, transparent);
+}
+
+.totp-backup-codes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: totp-panel-in var(--dur-medium, 240ms) var(--ease-out, ease-out) both;
+}

@@ -117,6 +117,8 @@ export function initPrivacySection({
     const floatingSaveBtn = document.getElementById('settingsFloatingSaveBtn');
     const bioInputEl = document.getElementById('bioInput');
     const bioCounterEl = document.getElementById('bioCounter');
+    const statusTextInputEl = document.getElementById('statusTextInput');
+    const statusTextCounterEl = document.getElementById('statusTextCounter');
     const sendShortcutEnterEl = document.getElementById('sendShortcutEnterOption');
     const sendShortcutCtrlEnterEl = document.getElementById('sendShortcutCtrlEnterOption');
     const timeFormat12hEl = document.getElementById('timeFormat12hOption');
@@ -570,7 +572,7 @@ export function initPrivacySection({
             display_name: document.getElementById('displayName').value.trim(),
             language: (document.getElementById('languageSelect') || {}).value || 'ru',
             bio: bioEl ? bioEl.value.trim().slice(0, 280) : '',
-            status_text: String(document.getElementById('statusTextInput')?.value || '').trim().slice(0, 100),
+            status_text: String(statusTextInputEl?.value || '').trim().slice(0, 100),
             is_public: document.getElementById('isPublicSwitch').checked,
             auto_decline_requests: document.getElementById('autoDeclineSwitch').checked,
             mute_dialog_requests: document.getElementById('muteDialogRequestsSwitch').checked,
@@ -606,8 +608,10 @@ export function initPrivacySection({
         if (displayNameEl && typeof payload.display_name === 'string') displayNameEl.value = payload.display_name.trim();
         if (languageEl) languageEl.value = payload.language === 'en' ? 'en' : 'ru';
         if (bioEl) bioEl.value = String(payload.bio || '').slice(0, 280);
-        const statusTextEl = document.getElementById('statusTextInput');
-        if (statusTextEl) statusTextEl.value = String(payload.status_text || '').slice(0, 100);
+        if (statusTextInputEl) {
+            statusTextInputEl.value = String(payload.status_text || '').slice(0, 100);
+            if (statusTextCounterEl) statusTextCounterEl.textContent = `${statusTextInputEl.value.length}/100`;
+        }
         if (isPublicEl) isPublicEl.checked = !!payload.is_public;
         if (hideOnlineEl) hideOnlineEl.checked = !!payload.hide_online_status;
         if (autoDeclineEl) autoDeclineEl.checked = !!payload.auto_decline_requests;
@@ -766,6 +770,12 @@ export function initPrivacySection({
     if (bioInputEl && bioCounterEl) {
         bioInputEl.addEventListener('input', () => {
             bioCounterEl.textContent = `${bioInputEl.value.length}/280`;
+        });
+    }
+
+    if (statusTextInputEl && statusTextCounterEl) {
+        statusTextInputEl.addEventListener('input', () => {
+            statusTextCounterEl.textContent = `${statusTextInputEl.value.length}/100`;
         });
     }
 

@@ -262,8 +262,8 @@
                 <div class="settings-inline-fields">
                     <label class="settings-field settings-field--full">
                         <span class="settings-field-label">Статус</span>
-                        <input type="text" class="settings-input settings-field-input" id="statusTextInput" maxlength="100" placeholder="Что у вас нового? (до 100 символов)">
-                        <span class="settings-field-hint">Отображается под именем в профиле.</span>
+                        <input type="text" class="settings-input settings-field-input" id="statusTextInput" maxlength="100" placeholder="Что у вас нового?">
+                        <span class="settings-field-hint">Отображается под именем в профиле. <span id="statusTextCounter" class="settings-bio-counter">0/100</span></span>
                     </label>
                 </div>
                 <div class="settings-inline-fields">
@@ -670,12 +670,14 @@
                                 <div class="settings-row-desc" id="totpBackupCodesRemaining"></div>
                             </div>
                             <div class="settings-action-cluster">
-                                <button type="button" class="btn-settings secondary" id="totpShowBackupCodesBtn">Показать коды</button>
+                                <button type="button" class="btn-settings secondary" id="totpShowBackupCodesBtn">
+                                    <i class="bi bi-key"></i> Обновить коды
+                                </button>
                             </div>
                         </div>
                         <div class="totp-backup-codes-list settings-hidden" id="totpBackupCodesList"></div>
                         <div class="totp-regenerate-backup-panel settings-hidden" id="totpRegenerateBackupPanel">
-                            <label for="totpRegenerateBackupCode" class="settings-row-label">Код из приложения для подтверждения</label>
+                            <label for="totpRegenerateBackupCode" class="settings-row-label">Подтвердите действие кодом из аутентификатора</label>
                             <div class="totp-verify-controls">
                                 <input
                                     type="text"
@@ -688,14 +690,17 @@
                                 >
                                 <button type="button" class="btn-settings primary" id="totpRegenerateBackupConfirmBtn">Обновить</button>
                             </div>
+                            <div class="settings-row-desc">Генерируется новый набор из 10 кодов, старые станут недействительными.</div>
                         </div>
                     </div>
                     <div class="totp-new-backup-codes-panel settings-hidden" id="totpNewBackupCodesPanel">
-                        <div class="settings-row-label">Сохраните резервные коды</div>
-                        <div class="settings-row-desc">Каждый код можно использовать только один раз вместо TOTP при входе.</div>
+                        <div class="settings-row-label"><i class="bi bi-exclamation-triangle" style="color:#f59e0b;margin-right:5px"></i>Сохраните резервные коды</div>
+                        <div class="settings-row-desc">Каждый код используется один раз вместо TOTP при входе. Запишите или сохраните в надёжном месте.</div>
                         <div class="totp-backup-codes-list" id="totpNewBackupCodesList"></div>
                         <div class="totp-verify-controls">
-                            <button type="button" class="btn-settings secondary" id="totpCopyBackupCodesBtn">Скопировать</button>
+                            <button type="button" class="btn-settings secondary" id="totpCopyBackupCodesBtn">
+                                <i class="bi bi-clipboard"></i> Скопировать
+                            </button>
                             <button type="button" class="btn-settings primary" id="totpBackupCodesDoneBtn">Сохранил</button>
                         </div>
                     </div>
