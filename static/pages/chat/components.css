@@ -4732,6 +4732,10 @@
             gap: 2px;
         }
 
+        .voice-playback-bar--jumpable .voice-playback-bar__meta {
+            cursor: pointer;
+        }
+
         .voice-playback-bar__sender {
             font-size: 13px;
             font-weight: 600;

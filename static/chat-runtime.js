@@ -3143,6 +3143,8 @@ export const initChatPage = async () => {
         updateJumpToNewMessagesButton,
         getCurrentChatId: () => currentChatId,
         getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
+        openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
+        focusMessageById: (messageId, options = {}) => _focusMessageById(messageId, options),
     });
 
     contactPreviewRuntime = createChatContactPreviewRuntime({

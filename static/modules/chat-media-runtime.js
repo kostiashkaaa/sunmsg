@@ -62,6 +62,8 @@ export function initChatMediaRuntime(deps = {}) {
         updateJumpToNewMessagesButton,
         getCurrentChatId,
         getKeepChatPinnedToBottom,
+        openChatByIdWhenReady,
+        focusMessageById,
     } = deps;
 
     const getCurrentChatIdSafe = typeof getCurrentChatId === 'function'
@@ -70,6 +72,12 @@ export function initChatMediaRuntime(deps = {}) {
     const getKeepChatPinnedToBottomSafe = typeof getKeepChatPinnedToBottom === 'function'
         ? getKeepChatPinnedToBottom
         : () => false;
+    const openChatByIdWhenReadySafe = typeof openChatByIdWhenReady === 'function'
+        ? openChatByIdWhenReady
+        : null;
+    const focusMessageByIdSafe = typeof focusMessageById === 'function'
+        ? focusMessageById
+        : null;
 
     window._onPreviewThumbError = function(imgEl) {
         const thumb = imgEl?.closest('.msg-preview-thumb');
@@ -114,6 +122,12 @@ export function initChatMediaRuntime(deps = {}) {
         if (!messageEl) return null;
         const raw = Number(messageEl.getAttribute('data-msg-id'));
         return Number.isFinite(raw) && raw > 0 ? raw : null;
+    }
+
+    function resolveAudioMessageChatId(sourceEl) {
+        const messageEl = resolveAudioMessageElement(sourceEl);
+        const raw = messageEl?.getAttribute('data-chat-id') || getCurrentChatIdSafe() || '';
+        return String(raw).trim();
     }
 
     function initAudioMessageListenState(sourceEl) {
@@ -165,6 +179,8 @@ export function initChatMediaRuntime(deps = {}) {
     const AUDIO_WAVEFORM_BARS_COUNT = 48;
     let activeVoicePlaybackAudioEl = null;
     let activeVoicePlaybackMeta = null;
+    let voicePlaybackParkingHost = null;
+    let voicePlaybackJumpPromise = null;
     let isAudioRepeatEnabled = false;
 
     function normalizeAudioPlaybackRate(value) {
@@ -281,6 +297,8 @@ export function initChatMediaRuntime(deps = {}) {
 
     function captureVoicePlaybackMeta(audioEl) {
         return {
+            chatId: resolveAudioMessageChatId(audioEl),
+            messageId: resolveAudioMessageId(audioEl),
             time: resolveVoicePlaybackTimeLabelFromDom(audioEl),
             sender: resolveVoicePlaybackSenderLabelFromDom(audioEl),
         };
@@ -304,6 +322,81 @@ export function initChatMediaRuntime(deps = {}) {
         if (!activeVoicePlaybackAudioEl) return null;
         return activeVoicePlaybackAudioEl;
     }
+
+    function getVoicePlaybackParkingHost() {
+        if (voicePlaybackParkingHost?.isConnected) return voicePlaybackParkingHost;
+        const host = document.createElement('div');
+        host.id = 'voicePlaybackParkingHost';
+        host.setAttribute('aria-hidden', 'true');
+        host.style.position = 'absolute';
+        host.style.width = '0';
+        host.style.height = '0';
+        host.style.overflow = 'hidden';
+        host.style.opacity = '0';
+        host.style.pointerEvents = 'none';
+        (chatArea || document.body || document.documentElement)?.appendChild(host);
+        voicePlaybackParkingHost = host;
+        return voicePlaybackParkingHost;
+    }
+
+    function isParkedVoicePlaybackPlayer(audioEl) {
+        const player = audioEl?.closest?.('.file-msg-audio-player');
+        return Boolean(player && voicePlaybackParkingHost?.contains(player));
+    }
+
+    function removeParkedVoicePlaybackPlayer(audioEl) {
+        const player = audioEl?.closest?.('.file-msg-audio-player');
+        if (player && voicePlaybackParkingHost?.contains(player)) {
+            player.remove();
+        }
+    }
+
+    function parkActiveVoicePlaybackPlayerBeforeChatReplace() {
+        const audio = resolveActiveVoicePlaybackAudio();
+        if (!audio || audio.ended) return;
+        const player = audio.closest?.('.file-msg-audio-player');
+        if (!player || !chatMessages?.contains(player)) return;
+        const host = getVoicePlaybackParkingHost();
+        if (!host) return;
+        host.appendChild(player);
+        syncVoicePlaybackBar(audio);
+    }
+
+    function restoreActiveVoicePlaybackPlayerIntoMessage() {
+        const audio = resolveActiveVoicePlaybackAudio();
+        const messageId = activeVoicePlaybackMeta?.messageId;
+        const chatId = activeVoicePlaybackMeta?.chatId;
+        if (!audio || !messageId || !chatId || !chatMessages) return false;
+        if (String(chatId) !== String(getCurrentChatIdSafe() || '')) return false;
+        if (!isParkedVoicePlaybackPlayer(audio)) return false;
+
+        const selectorId = String(messageId);
+        const escaped = window.CSS?.escape ? window.CSS.escape(selectorId) : selectorId.replace(/["\\]/g, '\\$&');
+        const messageEl = chatMessages.querySelector(`.message[data-msg-id="${escaped}"]`);
+        const activePlayer = audio.closest?.('.file-msg-audio-player');
+        const renderedPlayer = messageEl?.querySelector('.file-msg-audio-player');
+        if (!messageEl || !activePlayer || !renderedPlayer || activePlayer === renderedPlayer) return false;
+
+        renderedPlayer.replaceWith(activePlayer);
+        syncAudioPlayerUi(audio);
+        syncVoicePlaybackBar(audio);
+        return true;
+    }
+
+    function patchChatMessagesReplaceChildrenForVoicePlayback() {
+        if (!chatMessages || chatMessages.__sunVoicePlaybackReplaceChildrenPatched) return;
+        const nativeReplaceChildren = chatMessages.replaceChildren.bind(chatMessages);
+        Object.defineProperty(chatMessages, '__sunVoicePlaybackReplaceChildrenPatched', {
+            value: true,
+            configurable: true,
+        });
+        chatMessages.replaceChildren = (...nodes) => {
+            parkActiveVoicePlaybackPlayerBeforeChatReplace();
+            return nativeReplaceChildren(...nodes);
+        };
+    }
+
+    patchChatMessagesReplaceChildrenForVoicePlayback();
 
     function setVoicePlaybackBarVisible(isVisible) {
         if (!voicePlaybackBar) return;
@@ -342,8 +435,10 @@ export function initChatMediaRuntime(deps = {}) {
             stopAudioPlayerUiLoop(audio);
             scheduleAudioPlayerUiSync(audio);
         }
+        removeParkedVoicePlaybackPlayer(audio);
         activeVoicePlaybackAudioEl = null;
         activeVoicePlaybackMeta = null;
+        syncVoicePlaybackJumpState();
         setVoicePlaybackBarVisible(false);
     }
 
@@ -362,6 +457,29 @@ export function initChatMediaRuntime(deps = {}) {
         activeVoicePlaybackMeta = previousMeta || captureVoicePlaybackMeta(audioEl);
         applyPreferredVolumeToAudio(audioEl);
         setVoicePlaybackBarVisible(true);
+    }
+
+    function syncVoicePlaybackJumpState() {
+        if (!voicePlaybackBar) return;
+        const canJump = Boolean(
+            activeVoicePlaybackMeta?.chatId
+            && activeVoicePlaybackMeta?.messageId
+            && openChatByIdWhenReadySafe
+            && focusMessageByIdSafe
+        );
+        voicePlaybackBar.classList.toggle('voice-playback-bar--jumpable', canJump);
+        if (canJump) {
+            voicePlaybackBar.dataset.canJump = '1';
+            voicePlaybackBar.dataset.chatId = String(activeVoicePlaybackMeta.chatId);
+            voicePlaybackBar.dataset.msgId = String(activeVoicePlaybackMeta.messageId);
+            voicePlaybackBar.setAttribute('title', 'Открыть сообщение');
+        } else {
+            voicePlaybackBar.classList.remove('voice-playback-bar--jumpable');
+            delete voicePlaybackBar.dataset.canJump;
+            delete voicePlaybackBar.dataset.chatId;
+            delete voicePlaybackBar.dataset.msgId;
+            voicePlaybackBar.removeAttribute('title');
+        }
     }
 
     function syncVoicePlaybackBar(audioEl = null) {
@@ -403,6 +521,7 @@ export function initChatMediaRuntime(deps = {}) {
         if (voicePlaybackVolume.dataset.seeking !== '1') {
             voicePlaybackVolume.value = String(Math.round((activeAudio.volume ?? 1) * 100));
         }
+        syncVoicePlaybackJumpState();
     }
 
     function buildAudioWaveBarsHtml(values) {
@@ -995,6 +1114,7 @@ export function initChatMediaRuntime(deps = {}) {
                 try { activeAudio.pause(); } catch (_) {}
                 stopAudioPlayerUiLoop(activeAudio);
                 scheduleAudioPlayerUiSync(activeAudio);
+                removeParkedVoicePlaybackPlayer(activeAudio);
             }
             const all = document.querySelectorAll('.file-msg-audio-el');
             all.forEach((candidate) => {
@@ -1111,12 +1231,63 @@ export function initChatMediaRuntime(deps = {}) {
         window._toggleAudioPlayer(targetToggle);
     }
 
+    function waitForVoicePlaybackJumpRetry(ms = 160) {
+        return new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    async function jumpToActiveVoicePlaybackMessage() {
+        if (voicePlaybackJumpPromise) return voicePlaybackJumpPromise;
+        voicePlaybackJumpPromise = (async () => {
+            const chatId = String(activeVoicePlaybackMeta?.chatId || '').trim();
+            const messageId = activeVoicePlaybackMeta?.messageId;
+            if (!chatId || !messageId || !focusMessageByIdSafe) return false;
+
+            if (String(getCurrentChatIdSafe() || '') !== chatId) {
+                if (!openChatByIdWhenReadySafe) return false;
+                await openChatByIdWhenReadySafe(chatId);
+            }
+
+            for (let attempt = 0; attempt < 10; attempt += 1) {
+                restoreActiveVoicePlaybackPlayerIntoMessage();
+                const focused = await focusMessageByIdSafe(messageId, {
+                    smooth: true,
+                    align: 'center',
+                });
+                restoreActiveVoicePlaybackPlayerIntoMessage();
+                if (focused) return true;
+                await waitForVoicePlaybackJumpRetry();
+            }
+
+            showToast?.('Не удалось открыть голосовое сообщение.', 'warning');
+            return false;
+        })().finally(() => {
+            voicePlaybackJumpPromise = null;
+        });
+        return voicePlaybackJumpPromise;
+    }
+
+    function isVoicePlaybackJumpIgnoredTarget(target) {
+        if (!(target instanceof Element)) return true;
+        return Boolean(target.closest(
+            'button,input,select,textarea,a,label,[role="button"],.voice-playback-bar__progress-wrap',
+        ));
+    }
+
     if (voicePlaybackPlayBtn) {
         voicePlaybackPlayBtn.addEventListener('click', () => {
             const audio = resolveActiveVoicePlaybackAudio();
             if (!audio) return;
             const toggleBtn = audio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
             window._toggleAudioPlayer(toggleBtn || audio);
+        });
+    }
+
+    if (voicePlaybackBar) {
+        voicePlaybackBar.addEventListener('click', (event) => {
+            if (isVoicePlaybackJumpIgnoredTarget(event.target)) return;
+            void jumpToActiveVoicePlaybackMessage();
         });
     }
 
