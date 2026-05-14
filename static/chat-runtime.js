@@ -2132,6 +2132,7 @@ export const initChatPage = async () => {
                 { requireConnected: false },
             );
         },
+        isGroupMembersTabActive: () => groupProfileRuntime?.getActiveGroupTab?.() === 'members',
     });
 
     function renderProfileMediaPanel(options) {
