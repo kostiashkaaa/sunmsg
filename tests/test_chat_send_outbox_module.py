@@ -21,7 +21,11 @@ def test_text_send_marks_queued_outbox_message_failed_without_pending_timeout():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const patchedSource = source.replace(
+  "import {{ generateRequestId }} from './utils.js';",
+  "const generateRequestId = () => crypto.randomUUID();",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(patchedSource, 'utf8').toString('base64');
 const {{ sendTextMessageFlow }} = await import(moduleUrl);
 const calls = [];
 
@@ -73,7 +77,11 @@ def test_text_send_settles_composer_before_optimistic_append():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const patchedSource = source.replace(
+  "import {{ generateRequestId }} from './utils.js';",
+  "const generateRequestId = () => crypto.randomUUID();",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(patchedSource, 'utf8').toString('base64');
 const {{ sendTextMessageFlow }} = await import(moduleUrl);
 const calls = [];
 
@@ -141,6 +149,10 @@ const probeVisualMediaMetadata = async () => null;`,
 source = source.replace(
   "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
   "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ generateRequestId }} from './utils.js';",
+  "const generateRequestId = () => crypto.randomUUID();",
 );
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ sendFileMessageFlow }} = await import(moduleUrl);

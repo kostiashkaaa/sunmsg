@@ -51,6 +51,7 @@ function buildIncomingMessageState({
         senderUsername: String(data.sender_username || '').trim(),
         senderAvatarUrl: String(data.sender_avatar_url || '').trim(),
         message: decryptedMessage,
+        message_type: data.message_type || 'text',
         encrypted: isEncryptedPayload(data.message),
         is_read: Boolean(data.is_read),
         read_at: String(data.read_at || '').trim() || null,
@@ -71,6 +72,32 @@ function buildIncomingMessageState({
         expires_at: data.expires_at ? Number(data.expires_at) : null,
         ...(hasReactionPayload ? { reactions: normalizeMessageReactions(data.reactions) } : {}),
     };
+}
+
+function preserveSelfEchoPlaintextFallback(previousMessage, incomingMessageState, isEncryptedPayload) {
+    if (!previousMessage || !incomingMessageState || typeof isEncryptedPayload !== 'function') {
+        return incomingMessageState;
+    }
+    const messageType = String(incomingMessageState.message_type || previousMessage.message_type || 'text');
+    const canReusePreviousMessage = messageType === 'text' || messageType === 'link';
+
+    const nextMessage = { ...incomingMessageState };
+    if (
+        canReusePreviousMessage
+        && isEncryptedPayload(nextMessage.message)
+        && previousMessage.message
+        && !isEncryptedPayload(previousMessage.message)
+    ) {
+        nextMessage.message = previousMessage.message;
+    }
+    if (
+        isEncryptedPayload(nextMessage.replyToText)
+        && previousMessage.replyToText
+        && !isEncryptedPayload(previousMessage.replyToText)
+    ) {
+        nextMessage.replyToText = previousMessage.replyToText;
+    }
+    return nextMessage;
 }
 
 export function registerIncomingMessageSocketHandlers({
@@ -173,12 +200,17 @@ export function registerIncomingMessageSocketHandlers({
                 if (pendingIdx >= 0) {
                     cancelPendingTimeout?.(data.client_id);
                     const previousMessage = state.messages[pendingIdx];
+                    const safeIncomingMessageState = preserveSelfEchoPlaintextFallback(
+                        previousMessage,
+                        incomingMessageState,
+                        isEncryptedPayload,
+                    );
                     const previousKey = typeof getMessageKey === 'function'
                         ? getMessageKey(previousMessage)
                         : null;
                     const confirmedMessage = {
                         ...previousMessage,
-                        ...incomingMessageState,
+                        ...safeIncomingMessageState,
                         id: data.id,
                         pending: false,
                         failed: false,
@@ -211,7 +243,7 @@ export function registerIncomingMessageSocketHandlers({
                         rerenderCurrentChat?.();
                     }
                     updateActiveContactLastMessage(
-                        decryptedMessage,
+                        confirmedMessage.message,
                         isSelf,
                         {
                             is_read: Boolean(data.is_read),
@@ -227,16 +259,22 @@ export function registerIncomingMessageSocketHandlers({
                 const state = getChatState(currentChatId);
                 const existingIdx = findMessageIndex(state, (msg) => Number(msg.id) === Number(data.id));
                 if (existingIdx >= 0) {
+                    const previousMessage = state.messages[existingIdx];
+                    const safeIncomingMessageState = preserveSelfEchoPlaintextFallback(
+                        previousMessage,
+                        incomingMessageState,
+                        isEncryptedPayload,
+                    );
                     state.messages[existingIdx] = {
-                        ...state.messages[existingIdx],
-                        ...incomingMessageState,
+                        ...previousMessage,
+                        ...safeIncomingMessageState,
                         pending: false,
                         failed: false,
                         clientId: null,
                     };
                     normalizeChatMessageOrder?.(state);
                     updateActiveContactLastMessage(
-                        decryptedMessage,
+                        state.messages[existingIdx].message,
                         isSelf,
                         {
                             is_read: Boolean(data.is_read),
