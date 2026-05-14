@@ -1336,6 +1336,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     z-index: 1400;
     display: flex;
     justify-content: flex-end;
+    overflow: hidden;
+    overscroll-behavior: contain;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -1368,11 +1370,13 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     position: relative;
     z-index: 1;
     width: clamp(360px, 34vw, 38vw);
+    max-width: 100%;
     min-width: 360px;
     height: 100vh;
     height: 100dvh;
     margin-left: auto;
     overflow: hidden;
+    overscroll-behavior: contain;
     background: var(--bg);
     box-shadow: var(--profile-sheet-shadow);
     transform: translate3d(40px, 0, 0) scale(0.986);

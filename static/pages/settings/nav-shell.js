@@ -203,15 +203,15 @@ export function initSettingsNavShell({
         cancelSectionAnimations(outgoing);
         cancelSectionAnimations(incoming);
         const compact = isCompactNav();
-        const sectionOutCompactY = getMotionDistanceTokenPx('--motion-distance-section-out-compact-y', 14);
+        const sectionOutCompactX = getMotionDistanceTokenPx('--motion-distance-section-out-compact-x', 18);
         const sectionOutDesktopX = getMotionDistanceTokenPx('--motion-distance-section-out-desktop-x', 22);
-        const sectionInCompactY = getMotionDistanceTokenPx('--motion-distance-section-in-compact-y', 28);
+        const sectionInCompactX = getMotionDistanceTokenPx('--motion-distance-section-in-compact-x', 30);
         const sectionInDesktopX = getMotionDistanceTokenPx('--motion-distance-section-in-desktop-x', 34);
         const outgoingEnd = compact
-            ? `translate3d(0, -${sectionOutCompactY}px, 0) scale(0.985)`
+            ? `translate3d(-${sectionOutCompactX}px, 0, 0) scale(0.985)`
             : `translate3d(-${sectionOutDesktopX}px, 0, 0) scale(0.988)`;
         const incomingStart = compact
-            ? `translate3d(0, ${sectionInCompactY}px, 0) scale(0.972)`
+            ? `translate3d(${sectionInCompactX}px, 0, 0) scale(0.972)`
             : `translate3d(${sectionInDesktopX}px, 0, 0) scale(0.982)`;
         const outgoingBaseDuration = compact
             ? getMotionDurationTokenMs('--motion-duration-section-out-compact', 240)
@@ -221,7 +221,7 @@ export function initSettingsNavShell({
             : getMotionDurationTokenMs('--motion-duration-section-in-desktop', 500);
         const outgoingDuration = Math.max(
             outgoingBaseDuration,
-            getVelocityAwareDurationMs(compact ? sectionOutCompactY : sectionOutDesktopX, {
+            getVelocityAwareDurationMs(compact ? sectionOutCompactX : sectionOutDesktopX, {
                 minToken: '--motion-duration-fast',
                 maxToken: '--motion-duration-medium',
                 fallbackMinMs: 180,
@@ -230,7 +230,7 @@ export function initSettingsNavShell({
         );
         const incomingDuration = Math.max(
             incomingBaseDuration,
-            getVelocityAwareDurationMs(compact ? sectionInCompactY : sectionInDesktopX, {
+            getVelocityAwareDurationMs(compact ? sectionInCompactX : sectionInDesktopX, {
                 minToken: '--motion-duration-fast',
                 maxToken: '--motion-duration-emphasis',
                 fallbackMinMs: 180,

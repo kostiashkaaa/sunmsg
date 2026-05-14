@@ -71,8 +71,11 @@
     --motion-distance-md: 18px;
     --motion-distance-lg: 24px;
     --motion-distance-xl: 34px;
+    --motion-distance-section-out-compact-x: 18px;
+    --motion-distance-section-out-compact-x-negative: -18px;
     --motion-distance-section-out-compact-y: 14px;
     --motion-distance-section-out-desktop-x: 22px;
+    --motion-distance-section-in-compact-x: 30px;
     --motion-distance-section-in-compact-y: 28px;
     --motion-distance-section-in-desktop-x: 34px;
 
