@@ -749,7 +749,7 @@
     }
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1024px) {
     .settings-panel-body {
         flex-direction: column;
     }
@@ -843,8 +843,10 @@
     }
 }
 
-body.settings-detail-open .settings-nav {
-    display: none;
+@media (min-width: 769px) {
+    body.settings-detail-open .settings-nav {
+        display: none;
+    }
 }
 
 body.settings-detail-open .settings-content {

@@ -3300,7 +3300,8 @@
             position: absolute;
             right: 52px;
             bottom: calc(100% + 10px);
-            min-width: 228px;
+            min-width: min(228px, calc(100vw - 72px));
+            max-width: min(280px, calc(100vw - 24px));
             padding: 8px;
             border-radius: 14px;
             border: 1px solid color-mix(in srgb, var(--border) 76%, transparent 24%);
