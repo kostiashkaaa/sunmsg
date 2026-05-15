@@ -59,14 +59,16 @@ function ensurePreviewNode(messageTextEl) {
     node.setAttribute('data-link-preview', '1');
     node.innerHTML = `
         <a class="message-link-preview__surface" target="_blank" rel="noopener noreferrer">
-            <span class="message-link-preview__meta">
-                <span class="message-link-preview__site"></span>
-                <span class="message-link-preview__title"></span>
-                <span class="message-link-preview__description" hidden></span>
-                <span class="message-link-preview__url"></span>
-            </span>
-            <span class="message-link-preview__media" hidden>
-                <img class="message-link-preview__image" alt="" loading="lazy" decoding="async">
+            <span class="message-link-preview__bar"></span>
+            <span class="message-link-preview__body">
+                <span class="message-link-preview__meta">
+                    <span class="message-link-preview__site"></span>
+                    <span class="message-link-preview__title"></span>
+                    <span class="message-link-preview__description" hidden></span>
+                </span>
+                <span class="message-link-preview__media" hidden>
+                    <img class="message-link-preview__image" alt="" loading="lazy" decoding="async">
+                </span>
             </span>
         </a>`;
 
@@ -188,7 +190,6 @@ function applyPreviewState(node, {
         const siteEl = node.querySelector('.message-link-preview__site');
         const titleEl = node.querySelector('.message-link-preview__title');
         const descriptionEl = node.querySelector('.message-link-preview__description');
-        const urlEl = node.querySelector('.message-link-preview__url');
         const mediaEl = node.querySelector('.message-link-preview__media');
         const imageEl = node.querySelector('.message-link-preview__image');
 
@@ -213,9 +214,6 @@ function applyPreviewState(node, {
             const hasDescription = Boolean(safeDescription);
             descriptionEl.hidden = !hasDescription;
             descriptionEl.textContent = hasDescription ? safeDescription : '';
-        }
-        if (urlEl) {
-            urlEl.textContent = safeHref;
         }
         if (mediaEl && imageEl) {
             const hasImage = Boolean(safeImageUrl);
