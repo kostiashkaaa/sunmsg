@@ -25,28 +25,29 @@ function collectAlbumGroups(container) {
     const nodes = Array.from(container.querySelectorAll(`.message[${ALBUM_ATTR}]`));
     if (!nodes.length) return [];
 
-    const groups = [];
-    let current = null;
-
+    // Group by albumId+sender using a map, then sort each group by DOM order.
+    // We don't rely on strict DOM adjacency — same album_id + same sender = same group.
+    const groupMap = new Map();
     for (const node of nodes) {
         const albumId = node.getAttribute(ALBUM_ATTR);
         const sender = node.classList.contains('self') ? 'self' : 'other';
         const key = `${albumId}::${sender}`;
-
-        if (current && current.key === key) {
-            // Only group if siblings with no non-album messages between them
-            const lastNode = current.nodes[current.nodes.length - 1];
-            if (areConsecutiveInDOM(lastNode, node)) {
-                current.nodes.push(node);
-                continue;
-            }
+        if (!groupMap.has(key)) {
+            groupMap.set(key, { key, albumId, sender, nodes: [] });
         }
-        // Start new group
-        current = { key, albumId, sender, nodes: [node] };
-        groups.push(current);
+        groupMap.get(key).nodes.push(node);
     }
 
-    return groups.filter((g) => g.nodes.length > 1);
+    // Sort each group's nodes by DOM order (compareDocumentPosition)
+    for (const group of groupMap.values()) {
+        group.nodes.sort((a, b) => {
+            const rel = a.compareDocumentPosition(b);
+            // eslint-disable-next-line no-bitwise
+            return rel & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+        });
+    }
+
+    return Array.from(groupMap.values()).filter((g) => g.nodes.length > 1);
 }
 
 /**
