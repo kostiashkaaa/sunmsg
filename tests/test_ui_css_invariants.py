@@ -1186,6 +1186,27 @@ def test_optimistic_outgoing_messages_rebuild_tail_alignment() -> None:
     )
 
 
+def test_failed_image_media_does_not_become_visible_loaded_image() -> None:
+    """Broken chat images must not expose the browser's native broken-image icon and alt text."""
+    media_runtime = (STATIC / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+    error_handler_idx = media_runtime.find('window._onMessageMediaLoadError = function(mediaEl)')
+    image_guard_idx = media_runtime.find('mediaEl instanceof HTMLImageElement', error_handler_idx)
+    remove_loaded_idx = media_runtime.find("mediaEl.removeAttribute('data-loaded')", image_guard_idx)
+    return_idx = media_runtime.find('return;', remove_loaded_idx)
+    set_loaded_idx = media_runtime.find("mediaEl.setAttribute('data-loaded', '1')", return_idx)
+
+    assert error_handler_idx >= 0, 'chat-media-runtime.js: media load error handler is missing'
+    assert image_guard_idx > error_handler_idx, (
+        'chat-media-runtime.js: failed image loads must be handled separately from video/audio'
+    )
+    assert remove_loaded_idx > image_guard_idx and return_idx > remove_loaded_idx, (
+        'chat-media-runtime.js: failed images must not keep the visible data-loaded state'
+    )
+    assert set_loaded_idx > return_idx, (
+        'chat-media-runtime.js: non-image media can still finish the existing error path'
+    )
+
+
 def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     """Chat mobile viewport runtime must sync visualViewport metrics to CSS vars."""
     runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')

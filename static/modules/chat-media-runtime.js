@@ -1482,6 +1482,10 @@ export function initChatMediaRuntime(deps = {}) {
         if (!mediaEl) return;
         const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
         mediaWrap?.classList.add('is-loaded');
+        if (mediaEl instanceof HTMLImageElement) {
+            mediaEl.removeAttribute('data-loaded');
+            return;
+        }
         mediaEl.setAttribute('data-loaded', '1');
     };
 
