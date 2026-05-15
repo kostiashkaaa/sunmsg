@@ -41,18 +41,23 @@ export function initSettingsNavShell({
         notifications: 'Уведомления',
         'data-memory': 'Данные и память',
         privacy: 'Конфиденциальность',
-        appearance: 'Настройки',
+        language: 'Язык',
+        'chat-behavior': 'Поведение чата',
+        'sidebar-label': 'Верхний лейбл',
+        'settings-transfer': 'Перенос настроек',
         account: 'Устройства',
+        'account-danger': 'Аккаунт',
         'chat-style': 'Внешний вид',
         keys: 'Безопасность',
         support: 'Поддержка',
     };
     const navKeyTitles = {
-        language: 'Язык',
-        'chat-behavior': 'Поведение чата',
     };
 
     const sectionIdSet = new Set(Object.keys(sectionTitles));
+    const sectionAliases = {
+        appearance: 'language',
+    };
 
     function isCompactNav() {
         return compactNavMedia.matches;
@@ -286,7 +291,8 @@ export function initSettingsNavShell({
 
     function normalizeHashSection(hashValue) {
         const value = String(hashValue || '').trim().replace(/^#/, '');
-        return sectionIdSet.has(value) ? value : '';
+        const resolvedValue = sectionAliases[value] || value;
+        return sectionIdSet.has(resolvedValue) ? resolvedValue : '';
     }
 
     function showHome(pushState = true) {

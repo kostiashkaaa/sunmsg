@@ -108,13 +108,21 @@
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
                     <span>Внешний вид</span>
                 </a>
-                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow" data-meta="Русский" id="navMetaLanguage">
+                <a href="#language" class="nav-item" data-section="language" data-nav-key="language" data-meta="Русский" id="navMetaLanguage">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
                     <span>Язык</span>
                 </a>
-                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard" data-meta="Enter — отправить" id="navMetaBehavior">
+                <a href="#chat-behavior" class="nav-item" data-section="chat-behavior" data-nav-key="chat-behavior" data-meta="Enter — отправить" id="navMetaBehavior">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
                     <span>Поведение чата</span>
+                </a>
+                <a href="#sidebar-label" class="nav-item" data-section="sidebar-label" data-nav-key="sidebar-label" data-meta="Погода" id="navMetaSidebarLabel">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-info-circle"></use></svg>
+                    <span>Верхний лейбл</span>
+                </a>
+                <a href="#settings-transfer" class="nav-item" data-section="settings-transfer" data-nav-key="settings-transfer" data-meta="JSON" id="navMetaSettingsTransfer">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-download"></use></svg>
+                    <span>Перенос настроек</span>
                 </a>
             </section>
 
@@ -123,6 +131,10 @@
                 <a href="#account" class="nav-item" data-section="account" data-nav-key="account" data-meta="—" id="navMetaDevices">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
                     <span>Устройства</span>
+                </a>
+                <a href="#account-danger" class="nav-item" data-section="account-danger" data-nav-key="account-danger" data-meta="Удаление" id="navMetaAccountDanger">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-trash"></use></svg>
+                    <span>Аккаунт</span>
                 </a>
             </section>
 
@@ -637,7 +649,7 @@
             </div>
         </section>
 
-        <section id="section-appearance" class="settings-hidden">
+        <section id="section-language" class="settings-hidden">
 
             <div class="settings-card">
                 <div class="settings-card-header">
@@ -656,6 +668,9 @@
                     </select>
                 </div>
             </div>
+        </section>
+
+        <section id="section-chat-behavior" class="settings-hidden">
 
             <div class="settings-card" id="appearanceBehaviorCard">
                 <div class="settings-card-header">
@@ -715,7 +730,16 @@
                         <div class="toggle-knob"></div>
                     </label>
                 </div>
-                <div class="settings-row settings-row-divider-top">
+            </div>
+        </section>
+
+        <section id="section-sidebar-label" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-cloud-sun"></i>
+                    <h3>Верхний лейбл</h3>
+                </div>
+                <div class="settings-row settings-row-borderless">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Погода в верхнем лейбле</div>
                         <div class="settings-row-desc">Показывает погоду в верхней строке слева.</div>
@@ -801,7 +825,9 @@
                     </div>
                 </div>
             </div>
+        </section>
 
+        <section id="section-settings-transfer" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-download"></i>
@@ -1073,6 +1099,9 @@
                     </button>
                 </div>
             </div>
+        </section>
+
+        <section id="section-account-danger" class="settings-hidden">
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-exclamation-octagon"></i>
