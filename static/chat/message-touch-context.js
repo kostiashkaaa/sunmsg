@@ -36,11 +36,14 @@ export function initMessageTouchContext(options = {}) {
     }
 
     const MESSAGE_LONG_PRESS_MS = 320;
+    const DESKTOP_CONTEXT_HOVER_CLOSE_MS = 140;
     const SWIPE_REPLY_TRIGGER_PX = 72;
     const SWIPE_REPLY_MAX_SHIFT_PX = 96;
     const SWIPE_REPLY_MAX_VERTICAL_PX = 52;
     let activeMessageTouchGesture = null;
     let suppressMessageTapUntil = 0;
+    let desktopContextHoverCloseTimer = 0;
+    let desktopContextHoverCloseArmed = false;
 
     function prefersTouchMessageGestures() {
         try {
@@ -48,6 +51,59 @@ export function initMessageTouchContext(options = {}) {
         } catch (_) {
             return false;
         }
+    }
+
+    function prefersDesktopContextHover() {
+        try {
+            return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isDesktopContextHovered() {
+        return Boolean(
+            contextMenu?.matches?.(':hover')
+            || reactionPicker?.matches?.(':hover')
+        );
+    }
+
+    function clearDesktopContextHoverCloseTimer() {
+        if (!desktopContextHoverCloseTimer) return;
+        window.clearTimeout(desktopContextHoverCloseTimer);
+        desktopContextHoverCloseTimer = 0;
+    }
+
+    function disarmDesktopContextHoverClose() {
+        desktopContextHoverCloseArmed = false;
+        clearDesktopContextHoverCloseTimer();
+    }
+
+    function scheduleDesktopContextHoverClose() {
+        if (!desktopContextHoverCloseArmed) return;
+        clearDesktopContextHoverCloseTimer();
+        desktopContextHoverCloseTimer = window.setTimeout(() => {
+            desktopContextHoverCloseTimer = 0;
+            if (!desktopContextHoverCloseArmed || isDesktopContextHovered()) return;
+            desktopContextHoverCloseArmed = false;
+            closeReactionPicker();
+            hideContextMenu();
+        }, DESKTOP_CONTEXT_HOVER_CLOSE_MS);
+    }
+
+    function armDesktopContextHoverClose() {
+        if (!prefersDesktopContextHover()) return;
+        desktopContextHoverCloseArmed = true;
+        clearDesktopContextHoverCloseTimer();
+    }
+
+    function handleDesktopContextPointerEnter() {
+        if (!desktopContextHoverCloseArmed) return;
+        clearDesktopContextHoverCloseTimer();
+    }
+
+    function handleDesktopContextPointerLeave() {
+        scheduleDesktopContextHoverClose();
     }
 
     function isInteractiveMessageTarget(target) {
@@ -133,6 +189,7 @@ export function initMessageTouchContext(options = {}) {
         } = {},
     ) {
         if (!msg) return;
+        disarmDesktopContextHoverClose();
         closeReactionPicker();
         const msgId = msg.getAttribute('data-msg-id');
         const isSelf = msg.classList.contains('self');
@@ -197,6 +254,7 @@ export function initMessageTouchContext(options = {}) {
                 openReactions();
             }
         }
+        armDesktopContextHoverClose();
         if (prefersTouchMessageGestures()) {
             const swallowSyntheticClick = (ev) => {
                 const target = ev.target;
@@ -379,7 +437,6 @@ export function initMessageTouchContext(options = {}) {
         event.preventDefault();
         openMessageContextMenuFor(msg, event.clientX, event.clientY, {
             withReactions: true,
-            deferReactions: true,
             originTarget: event.target,
         });
     }
@@ -423,6 +480,10 @@ export function initMessageTouchContext(options = {}) {
     chatMessages.addEventListener('touchcancel', handleMessageTouchCancel, { passive: true });
     chatMessages.addEventListener('contextmenu', handleContextMenu);
     chatMessages.addEventListener('click', handleReactionPillClick);
+    contextMenu?.addEventListener('pointerenter', handleDesktopContextPointerEnter);
+    contextMenu?.addEventListener('pointerleave', handleDesktopContextPointerLeave);
+    reactionPicker?.addEventListener('pointerenter', handleDesktopContextPointerEnter);
+    reactionPicker?.addEventListener('pointerleave', handleDesktopContextPointerLeave);
 
     return {
         dispose() {
@@ -432,6 +493,11 @@ export function initMessageTouchContext(options = {}) {
             chatMessages.removeEventListener('touchcancel', handleMessageTouchCancel);
             chatMessages.removeEventListener('contextmenu', handleContextMenu);
             chatMessages.removeEventListener('click', handleReactionPillClick);
+            contextMenu?.removeEventListener('pointerenter', handleDesktopContextPointerEnter);
+            contextMenu?.removeEventListener('pointerleave', handleDesktopContextPointerLeave);
+            reactionPicker?.removeEventListener('pointerenter', handleDesktopContextPointerEnter);
+            reactionPicker?.removeEventListener('pointerleave', handleDesktopContextPointerLeave);
+            disarmDesktopContextHoverClose();
         },
     };
 }
