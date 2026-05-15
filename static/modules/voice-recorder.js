@@ -186,6 +186,40 @@ export function initVoiceRecorder({
         updateTranscriptDisplay();
     }
 
+    function flushAndStopTranscription() {
+        return new Promise((resolve) => {
+            if (!speechRecognizer) { resolve(); return; }
+            const rec = speechRecognizer;
+            const timeout = setTimeout(() => {
+                rec.onresult = null;
+                rec.onend = null;
+                try { rec.stop(); } catch (_) {}
+                speechRecognizer = null;
+                speechInterimTranscript = '';
+                resolve();
+            }, 1200);
+            rec.onend = () => {
+                clearTimeout(timeout);
+                speechRecognizer = null;
+                speechInterimTranscript = '';
+                resolve();
+            };
+            // Последний onresult перед onend сохранит interim как final
+            rec.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                    const text = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
+                    } else {
+                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
+                    }
+                }
+                speechInterimTranscript = '';
+            };
+            try { rec.stop(); } catch (_) { clearTimeout(timeout); speechRecognizer = null; resolve(); }
+        });
+    }
+
     function getFinalTranscript() {
         return (speechFinalTranscript + (speechInterimTranscript ? ` ${speechInterimTranscript}` : '')).trim();
     }
@@ -740,8 +774,8 @@ export function initVoiceRecorder({
             stopTimer();
             stopStream();
             stopWaveAnimation();
+            await flushAndStopTranscription();
             const transcript = getFinalTranscript();
-            stopTranscription();
             isLockedRecording = false;
             resetHoldState();
             syncVoiceTypingState(false);
