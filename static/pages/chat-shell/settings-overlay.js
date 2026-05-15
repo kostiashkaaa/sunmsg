@@ -6,110 +6,19 @@ export function initChatShellSettingsOverlay(options = {}) {
     const onAvatarUpdated = options.onAvatarUpdated || (() => {});
     const onRedecrypt = options.onRedecrypt || (() => {});
     const onWeatherLabelUpdated = options.onWeatherLabelUpdated || (() => {});
-    const isPrivateKeyUnlocked = options.isPrivateKeyUnlocked || (() => false);
 
     const commandLauncherInput = document.getElementById('searchInput');
     const settingsOverlay = document.getElementById('settingsOverlay');
-    const settingsOverlayFrame = document.getElementById('settingsOverlayFrame');
     const settingsOverlayBackdrop = document.getElementById('settingsOverlayBackdrop');
-    const settingsOverlayShell = document.getElementById('settingsOverlayShell');
 
-    let settingsOverlayLoadTimer = 0;
-    let settingsOverlayReadyTimer = 0;
-    let commandPaletteOpenPromise = null;
-    let settingsOverlayAwaitingReadySignal = false;
     let settingsOverlayPhase = 'closed';
     let settingsOverlayTransitionSeq = 0;
     let settingsOverlayScrollLocked = false;
     let settingsOverlayBodyOverflow = '';
     let settingsOverlayBodyPaddingRight = '';
-    const SETTINGS_ASSETS_WARMED_STORAGE_KEY = 'sun.settings.assets.warmed.v1';
-    const SETTINGS_ASSETS_REQUIRED_PATHS = new Set([
-        '/static/pages/settings.css',
-        '/static/pages/settings.js',
-    ]);
-    let settingsAssetsWarmupPromise = null;
+    let settingsPanelInitialized = false;
+    let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
-
-    function isSettingsAssetsWarmed() {
-        try {
-            return window.localStorage.getItem(SETTINGS_ASSETS_WARMED_STORAGE_KEY) === '1';
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function markSettingsAssetsWarmed() {
-        try {
-            window.localStorage.setItem(SETTINGS_ASSETS_WARMED_STORAGE_KEY, '1');
-        } catch (_) {}
-    }
-
-    function collectSettingsAssetUrls(html, baseUrl) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(String(html || ''), 'text/html');
-        const urls = new Set();
-        doc.querySelectorAll('link[rel="stylesheet"][href], script[src]').forEach((node) => {
-            const rawUrl = node.getAttribute('href') || node.getAttribute('src') || '';
-            if (!rawUrl) return;
-            try {
-                const absoluteUrl = new URL(rawUrl, baseUrl);
-                if (absoluteUrl.origin !== window.location.origin) return;
-                urls.add(absoluteUrl.toString());
-            } catch (_) {}
-        });
-        return urls;
-    }
-
-    function warmSettingsAssets() {
-        if (navigator.onLine === false || isSettingsAssetsWarmed()) {
-            return Promise.resolve(false);
-        }
-        if (settingsAssetsWarmupPromise) return settingsAssetsWarmupPromise;
-
-        settingsAssetsWarmupPromise = (async () => {
-            const settingsDocUrl = withAppRoot('/settings?embed=1');
-            const response = await fetch(settingsDocUrl, {
-                method: 'GET',
-                credentials: 'include',
-                cache: 'reload',
-            });
-            if (!response.ok) return false;
-
-            const html = await response.text();
-            const assetUrls = collectSettingsAssetUrls(html, response.url || window.location.href);
-            if (!assetUrls.size) return false;
-
-            const loadedPaths = new Set();
-            const warmupResults = await Promise.allSettled(
-                Array.from(assetUrls).map(async (assetUrl) => {
-                    const assetResponse = await fetch(assetUrl, {
-                        method: 'GET',
-                        credentials: 'include',
-                        cache: 'reload',
-                    });
-                    if (!assetResponse.ok) {
-                        throw new Error(`HTTP ${assetResponse.status}`);
-                    }
-                    const assetPath = new URL(assetUrl, window.location.href).pathname;
-                    loadedPaths.add(assetPath);
-                    return assetPath;
-                }),
-            );
-
-            const hasLoadErrors = warmupResults.some((result) => result.status === 'rejected');
-            if (hasLoadErrors) return false;
-            const hasRequiredAssets = Array.from(SETTINGS_ASSETS_REQUIRED_PATHS).every((requiredPath) => loadedPaths.has(requiredPath));
-            if (!hasRequiredAssets) return false;
-
-            markSettingsAssetsWarmed();
-            return true;
-        })().catch(() => false).finally(() => {
-            settingsAssetsWarmupPromise = null;
-        });
-
-        return settingsAssetsWarmupPromise;
-    }
 
     function prefersReducedMotion() {
         if (document.documentElement.classList.contains('perf-lite')) {
@@ -266,25 +175,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         });
     }
 
-    function setSettingsOverlayLoading(isLoading) {
-        if (!settingsOverlay) return;
-        settingsOverlay.setAttribute('data-loading', isLoading ? 'true' : 'false');
-        if (settingsOverlayShell) {
-            settingsOverlayShell.setAttribute('aria-hidden', isLoading ? 'false' : 'true');
-        }
-    }
-
-    function clearSettingsOverlayTimers() {
-        window.clearTimeout(settingsOverlayLoadTimer);
-        window.clearTimeout(settingsOverlayReadyTimer);
-    }
-
-    function resolveSettingsOverlayReady() {
-        settingsOverlayAwaitingReadySignal = false;
-        window.clearTimeout(settingsOverlayReadyTimer);
-        setSettingsOverlayLoading(false);
-    }
-
     function lockSettingsOverlayScroll() {
         if (settingsOverlayScrollLocked) return;
         settingsOverlayBodyOverflow = document.body.style.overflow;
@@ -302,6 +192,35 @@ export function initChatShellSettingsOverlay(options = {}) {
         document.body.style.overflow = settingsOverlayBodyOverflow;
         document.body.style.paddingRight = settingsOverlayBodyPaddingRight;
         settingsOverlayScrollLocked = false;
+    }
+
+    function initSettingsPanelOnce() {
+        if (settingsPanelInitialized) return;
+        settingsPanelInitialized = true;
+        import('../settings/orchestrator.js')
+            .then(({ initSettingsPage }) => {
+                initSettingsPage();
+            })
+            .catch((err) => {
+                console.warn('[settings-overlay] Failed to init settings panel', err);
+            });
+    }
+
+    function scrollSettingsPanelToSection(section) {
+        const targetId = `section-${section}`;
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const frame = document.getElementById('settingsOverlayFrame');
+        if (frame) {
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (_) {}
+        }
+        // Trigger nav-shell section switch via custom event
+        document.dispatchEvent(new CustomEvent('sun-settings-navigate', {
+            detail: { section },
+            bubbles: false,
+        }));
     }
 
     function openCommandPalette(prefill = '') {
@@ -334,8 +253,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (!settingsOverlay) return;
         if (settingsOverlayPhase === 'closing') return;
         if (!settingsOverlay.classList.contains('active') && settingsOverlayPhase === 'closed') return;
-        clearSettingsOverlayTimers();
-        settingsOverlayAwaitingReadySignal = false;
         const closeSeq = ++settingsOverlayTransitionSeq;
         settingsOverlayPhase = 'closing';
         settingsOverlay.classList.remove('is-opening');
@@ -347,7 +264,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         waitForAnimationEnd(transitionTarget, maxTransitionMs(transitionTarget, 280)).then(() => {
             if (closeSeq !== settingsOverlayTransitionSeq) return;
             settingsOverlay.classList.remove('active', 'is-closing', 'is-opening');
-            setSettingsOverlayLoading(false);
             settingsOverlayPhase = 'closed';
             unlockSettingsOverlayScroll();
         });
@@ -355,37 +271,23 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     function openSettingsOverlay(section = 'profile') {
         const targetSection = String(section || 'profile').trim() || 'profile';
-        const sectionHash = `#${encodeURIComponent(targetSection)}`;
-        const embeddedUrl = withAppRoot(`/settings?embed=1${sectionHash}`);
-        const fallbackUrl = withAppRoot(`/settings${sectionHash}`);
 
-        if (!settingsOverlay || !settingsOverlayFrame) {
-            window.location.href = fallbackUrl;
+        if (!settingsOverlay) {
+            window.location.href = withAppRoot('/chat');
             markFirstRunCompleted();
             return;
         }
 
-        const frameWindow = settingsOverlayFrame.contentWindow;
-        if (settingsOverlay.classList.contains('active') && frameWindow) {
-            try {
-                const frameLocation = new URL(frameWindow.location.href, window.location.href);
-                const settingsPath = new URL(withAppRoot('/settings'), window.location.href).pathname;
-                if (frameLocation.pathname === settingsPath) {
-                    frameWindow.location.hash = sectionHash;
-                    settingsOverlayPhase = 'open';
-                    settingsOverlayAwaitingReadySignal = false;
-                    clearSettingsOverlayTimers();
-                    setSettingsOverlayLoading(false);
-                    markFirstRunCompleted();
-                    return;
-                }
-            } catch (_) {}
+        // Init settings JS lazily on first open
+        initSettingsPanelOnce();
+
+        if (settingsOverlay.classList.contains('active')) {
+            scrollSettingsPanelToSection(targetSection);
+            markFirstRunCompleted();
+            return;
         }
 
-        clearSettingsOverlayTimers();
-        settingsOverlayAwaitingReadySignal = true;
         settingsOverlayPhase = 'opening';
-        setSettingsOverlayLoading(true);
         lockSettingsOverlayScroll();
         settingsOverlay.setAttribute('aria-hidden', 'false');
         settingsOverlay.classList.remove('is-closing');
@@ -397,61 +299,11 @@ export function initChatShellSettingsOverlay(options = {}) {
             settingsOverlay.classList.add('active');
             settingsOverlay.classList.remove('is-opening');
             settingsOverlayPhase = 'open';
+            scrollSettingsPanelToSection(targetSection);
         });
 
-        settingsOverlayReadyTimer = window.setTimeout(() => {
-            if (!settingsOverlayAwaitingReadySignal) return;
-            resolveSettingsOverlayReady();
-        }, 2600);
-        settingsOverlayFrame.setAttribute('src', embeddedUrl);
         markFirstRunCompleted();
     }
-
-    function notifySettingsPrivateKeyStatus() {
-        const frameWindow = settingsOverlayFrame?.contentWindow;
-        if (!frameWindow) return;
-        try {
-            frameWindow.postMessage({
-                type: 'sun-settings-private-key-status',
-                detail: { unlocked: Boolean(isPrivateKeyUnlocked()) },
-            }, window.location.origin);
-        } catch (_) {}
-    }
-
-    settingsOverlayFrame?.addEventListener('load', () => {
-        window.clearTimeout(settingsOverlayLoadTimer);
-        const frameWindow = settingsOverlayFrame.contentWindow;
-        const isAboutBlank = settingsOverlayFrame.getAttribute('src') === 'about:blank'
-            || frameWindow?.location?.href === 'about:blank';
-        if (isAboutBlank) {
-            resolveSettingsOverlayReady();
-            return;
-        }
-        settingsOverlayLoadTimer = window.setTimeout(() => {
-            if (!settingsOverlayAwaitingReadySignal) return;
-            resolveSettingsOverlayReady();
-        }, 1800);
-        notifySettingsPrivateKeyStatus();
-    });
-
-    settingsOverlayBackdrop?.addEventListener('click', closeSettingsOverlay);
-    settingsOverlay?.addEventListener('click', (event) => {
-        if (!settingsOverlay.classList.contains('active')) return;
-        const panel = settingsOverlay.querySelector('.settings-overlay-panel');
-        if (panel && event.target instanceof Node && panel.contains(event.target)) return;
-        closeSettingsOverlay();
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if ((event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 'k') {
-            event.preventDefault();
-            openCommandPalette(commandLauncherInput?.value || '');
-            return;
-        }
-        if (event.key === 'Escape' && settingsOverlay?.classList.contains('active')) {
-            closeSettingsOverlay();
-        }
-    });
 
     function applyMotionSettingsFromDetail(detail) {
         const rawPerformanceMode = String(detail?.performanceMode || '').trim().toLowerCase();
@@ -483,49 +335,75 @@ export function initChatShellSettingsOverlay(options = {}) {
         };
     }
 
-    window.addEventListener('message', (event) => {
-        if (event.origin !== window.location.origin) return;
-        if (event.data?.type === 'sun-settings-close') {
-            closeSettingsOverlay();
-        }
-        if (event.data?.type === 'sun-settings-ready') {
-            resolveSettingsOverlayReady();
-        }
-        if (event.data?.type === 'sun-settings-theme-updated'
-            || event.data?.type === 'sun-settings-interface-theme-updated'
-            || event.data?.type === 'sun-settings-chat-appearance-updated') {
-            onThemeUpdated().catch(() => {});
-        }
-        if (event.data?.type === 'sun-settings-language-updated') {
-            onLanguageUpdated(event.data?.detail?.language, {
-                persist: event.data?.detail?.persisted !== false,
-            });
-        }
-        if (event.data?.type === 'sun-settings-message-scale-updated') {
-            if (typeof window.applyChatMessageScale === 'function') {
-                window.applyChatMessageScale(event.data?.detail?.scale, { persist: false, rerender: true });
-            }
-        }
-        if (event.data?.type === 'sun-settings-motion-updated') {
-            applyMotionSettingsFromDetail(event.data?.detail || {});
-        }
-        if (event.data?.type === 'sun-settings-avatar-updated') {
-            onAvatarUpdated({
-                avatarUrl: event.data?.detail?.avatarUrl,
-                displayName: event.data?.detail?.displayName,
-                username: event.data?.detail?.username,
-            });
-        }
-        if (event.data?.type === 'sun-settings-redecrypt') {
-            onRedecrypt();
-            closeSettingsOverlay();
-        }
-        if (event.data?.type === 'sun-settings-weather-label-updated') {
-            onWeatherLabelUpdated(event.data?.detail || {});
+    // Listen for CustomEvents dispatched by settings orchestrator (replaces postMessage)
+    document.addEventListener('sun-settings-close', () => {
+        closeSettingsOverlay();
+    });
+
+    document.addEventListener('sun-settings-ready', () => {
+        // Panel is already visible in DOM, nothing to do
+    });
+
+    document.addEventListener('sun-settings-theme-updated', () => {
+        onThemeUpdated().catch(() => {});
+    });
+    document.addEventListener('sun-settings-interface-theme-updated', () => {
+        onThemeUpdated().catch(() => {});
+    });
+    document.addEventListener('sun-settings-chat-appearance-updated', () => {
+        onThemeUpdated().catch(() => {});
+    });
+
+    document.addEventListener('sun-settings-language-updated', (event) => {
+        onLanguageUpdated(event.detail?.language, {
+            persist: event.detail?.persisted !== false,
+        });
+    });
+
+    document.addEventListener('sun-settings-message-scale-updated', (event) => {
+        if (typeof window.applyChatMessageScale === 'function') {
+            window.applyChatMessageScale(event.detail?.scale, { persist: false, rerender: true });
         }
     });
-    window.addEventListener('online', () => {
-        void warmSettingsAssets();
+
+    document.addEventListener('sun-settings-motion-updated', (event) => {
+        applyMotionSettingsFromDetail(event.detail || {});
+    });
+
+    document.addEventListener('sun-settings-avatar-updated', (event) => {
+        onAvatarUpdated({
+            avatarUrl: event.detail?.avatarUrl,
+            displayName: event.detail?.displayName,
+            username: event.detail?.username,
+        });
+    });
+
+    document.addEventListener('sun-settings-redecrypt', () => {
+        onRedecrypt();
+        closeSettingsOverlay();
+    });
+
+    document.addEventListener('sun-settings-weather-label-updated', (event) => {
+        onWeatherLabelUpdated(event.detail || {});
+    });
+
+    settingsOverlayBackdrop?.addEventListener('click', closeSettingsOverlay);
+    settingsOverlay?.addEventListener('click', (event) => {
+        if (!settingsOverlay.classList.contains('active')) return;
+        const panel = settingsOverlay.querySelector('.settings-overlay-panel');
+        if (panel && event.target instanceof Node && panel.contains(event.target)) return;
+        closeSettingsOverlay();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 'k') {
+            event.preventDefault();
+            openCommandPalette(commandLauncherInput?.value || '');
+            return;
+        }
+        if (event.key === 'Escape' && settingsOverlay?.classList.contains('active')) {
+            closeSettingsOverlay();
+        }
     });
 
     window.openCommandPalette = openCommandPalette;
@@ -540,8 +418,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         openCommandPalette,
         openSettingsOverlay,
         closeSettingsOverlay,
-        resolveSettingsOverlayReady,
-        notifySettingsPrivateKeyStatus,
         openAnimatedDialog,
         closeAnimatedDialog,
         attachAnimatedDialog,

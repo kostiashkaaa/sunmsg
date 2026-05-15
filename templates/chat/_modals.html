@@ -99,31 +99,12 @@
     </div>
 </dialog>
 
-<div class="settings-overlay" id="settingsOverlay" aria-hidden="true" data-loading="true">
+<div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
     <button type="button" class="settings-overlay-backdrop" id="settingsOverlayBackdrop" aria-label="Закрыть настройки"></button>
     <section class="settings-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settingsOverlayTitle">
-        <div class="settings-overlay-shell" id="settingsOverlayShell" aria-hidden="true">
-            <div class="settings-overlay-shell-head">
-                <div class="sun-skeleton-line settings-overlay-shell-line"></div>
-                <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
-            </div>
-            <div class="settings-overlay-shell-grid">
-                <div class="settings-overlay-shell-nav">
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                </div>
-                <div class="settings-overlay-shell-content">
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-line"></div>
-                    <div class="sun-skeleton-block"></div>
-                </div>
-            </div>
+        <div class="settings-overlay-frame" id="settingsOverlayFrame">
+            {% include 'chat/_settings_panel.html' %}
         </div>
-        <iframe class="settings-overlay-frame" id="settingsOverlayFrame" src="about:blank" loading="lazy" title="Настройки"></iframe>
     </section>
 </div>
 
