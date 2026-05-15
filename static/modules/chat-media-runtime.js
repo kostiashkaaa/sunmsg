@@ -502,10 +502,7 @@ export function initChatMediaRuntime(deps = {}) {
         }
         voicePlaybackProgress.setAttribute('aria-valuenow', String(Math.round(roundedPercent)));
         voicePlaybackProgressFill?.style.setProperty('--voice-playback-progress', String(roundedPercent));
-        const currentLabel = formatAudioPlayerTime(Math.floor(current));
-        const durationLabelText = formatAudioPlayerTime(Math.floor(knownDuration));
-        const timeLabel = resolveVoicePlaybackTimeLabel(activeAudio);
-        voicePlaybackDetails.textContent = `${currentLabel} / ${durationLabelText} • ${timeLabel}`;
+        syncVoicePlaybackTimeText(activeAudio, roundedPercent, { force: true });
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
         const playIconUse = voicePlaybackPlayBtn.querySelector('use');
@@ -522,6 +519,23 @@ export function initChatMediaRuntime(deps = {}) {
             voicePlaybackVolume.value = String(Math.round((activeAudio.volume ?? 1) * 100));
         }
         syncVoicePlaybackJumpState();
+    }
+
+    function syncVoicePlaybackTimeText(audioEl, percent = null, { force = false } = {}) {
+        if (!voicePlaybackDetails || resolveActiveVoicePlaybackAudio() !== audioEl) return;
+        const { durationLabel } = resolveAudioPlayerElements(audioEl);
+        const knownDuration = resolveKnownAudioDuration(audioEl, durationLabel);
+        const numericPercent = Number(percent);
+        const current = knownDuration > 0 && Number.isFinite(numericPercent)
+            ? (clampAudioSeekPercent(numericPercent) / 100) * knownDuration
+            : (Number.isFinite(audioEl?.currentTime) ? Math.max(0, audioEl.currentTime) : 0);
+        const roundedCurrent = Math.max(0, Math.floor(current));
+        const roundedDuration = Math.max(0, Math.floor(knownDuration));
+        const timeLabel = resolveVoicePlaybackTimeLabel(audioEl);
+        const nextKey = `${roundedCurrent}|${roundedDuration}|${timeLabel}`;
+        if (!force && voicePlaybackDetails.dataset.displayKey === nextKey) return;
+        voicePlaybackDetails.dataset.displayKey = nextKey;
+        voicePlaybackDetails.textContent = `${formatAudioPlayerTime(roundedCurrent)} / ${formatAudioPlayerTime(roundedDuration)} • ${timeLabel}`;
     }
 
     function buildAudioWaveBarsHtml(values) {
@@ -668,6 +682,28 @@ export function initChatMediaRuntime(deps = {}) {
         return Number.isFinite(fallbackDuration) && fallbackDuration > 0 ? fallbackDuration : 0;
     }
 
+    function syncAudioDurationLabel(audioEl, durationLabel, { mode = null, percent = null } = {}) {
+        if (!audioEl || !durationLabel) return;
+        const knownDuration = resolveKnownAudioDuration(audioEl, durationLabel);
+        if (knownDuration > 0) {
+            durationLabel.dataset.audioDuration = String(Math.floor(knownDuration));
+        }
+        const displayMode = mode || ((!audioEl.paused && !audioEl.ended) ? 'current' : 'duration');
+        const numericPercent = Number(percent);
+        const currentSeconds = knownDuration > 0 && Number.isFinite(numericPercent)
+            ? (clampAudioSeekPercent(numericPercent) / 100) * knownDuration
+            : (Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0);
+        const displaySeconds = displayMode === 'duration' ? knownDuration : currentSeconds;
+        const roundedSeconds = Math.max(0, Math.floor(displaySeconds));
+        const prevSeconds = durationLabel.dataset.displaySeconds || '';
+        const prevMode = durationLabel.dataset.displayMode || '';
+        if (prevSeconds !== String(roundedSeconds) || prevMode !== displayMode) {
+            durationLabel.textContent = formatAudioPlayerTime(roundedSeconds);
+            durationLabel.dataset.displaySeconds = String(roundedSeconds);
+            durationLabel.dataset.displayMode = displayMode;
+        }
+    }
+
     function clampAudioSeekPercent(value) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return 0;
@@ -752,21 +788,10 @@ export function initChatMediaRuntime(deps = {}) {
                 wave.dataset.playedPercent = String(visualPercent);
             }
         }
-        if (durationLabel) {
-            if (knownDuration > 0) {
-                durationLabel.dataset.audioDuration = String(Math.floor(knownDuration));
-            }
-            const mode = (isSeeking || isPlaybackActive) ? 'current' : 'duration';
-            const displaySeconds = mode === 'duration' ? knownDuration : effectiveCurrentSeconds;
-            const roundedSeconds = Math.max(0, Math.floor(displaySeconds));
-            const prevSeconds = durationLabel.dataset.displaySeconds || '';
-            const prevMode = durationLabel.dataset.displayMode || '';
-            if (prevSeconds !== String(roundedSeconds) || prevMode !== mode) {
-                durationLabel.textContent = formatAudioPlayerTime(roundedSeconds);
-                durationLabel.dataset.displaySeconds = String(roundedSeconds);
-                durationLabel.dataset.displayMode = mode;
-            }
-        }
+        syncAudioDurationLabel(audio, durationLabel, {
+            mode: (isSeeking || isPlaybackActive) ? 'current' : 'duration',
+            percent: effectivePercent,
+        });
         if (toggle) {
             toggle.setAttribute('aria-label', isStarting ? '\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430' : (isPlaybackActive ? '\u041F\u0430\u0443\u0437\u0430' : '\u0412\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438'));
         }
@@ -877,16 +902,19 @@ export function initChatMediaRuntime(deps = {}) {
     function tickAudioProgressOnly(audioEl) {
         const player = audioEl.closest?.('.file-msg-audio-player');
         const wave = player?.querySelector('.audio-player-wave');
+        const durationLabel = player?.closest('.bubble')?.querySelector('.audio-message-duration');
         const percent = getInterpolatedAudioPercent(audioEl);
         if (wave) {
             wave.style.setProperty('--audio-played-percent', String(percent));
         }
+        syncAudioDurationLabel(audioEl, durationLabel, { mode: 'current', percent });
         if (resolveActiveVoicePlaybackAudio() === audioEl && voicePlaybackProgress) {
             const isSeeking = voicePlaybackProgress.dataset?.seeking === '1';
             if (!isSeeking) {
                 voicePlaybackProgress.value = String(percent);
                 voicePlaybackProgressFill?.style.setProperty('--voice-playback-progress', String(percent));
             }
+            syncVoicePlaybackTimeText(audioEl, percent);
         }
     }
 

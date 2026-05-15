@@ -8924,6 +8924,16 @@
         }
 
 
+        .bubble--audio:not(.bubble--audio-file) > .message-footer > .msg-meta,
+        .bubble--audio:not(.bubble--audio-file) > .message-footer > .message-meta {
+            width: 100%;
+            flex: 1 1 auto;
+            margin: 0;
+            padding-left: var(--audio-leading-offset);
+            box-sizing: border-box;
+        }
+
+
         .bubble--image > .message-footer > .message-reactions,
         .bubble--video > .message-footer > .message-reactions {
             background: transparent;
