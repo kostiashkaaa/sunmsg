@@ -12,12 +12,13 @@
 
 .settings-scene {
     /* единая шкала геометрии — её используют строки, карточки, отступы */
-    --tg-row-min:        52px;   /* фикс. минимальная высота строки  */
-    --tg-pad-x:          18px;   /* горизонтальный внутренний отступ  */
-    --tg-card-gap:       10px;   /* зазор между карточками            */
+    --tg-row-min:        56px;   /* фикс. минимальная высота строки  */
+    --tg-pad-x:          22px;   /* горизонтальный внутренний отступ  */
+    --tg-card-gap:       12px;   /* зазор между карточками            */
     --tg-radius:         12px;
-    --tg-radius-lg:      16px;
-    --tg-content-max:    640px;  /* макс. ширина читаемой колонки     */
+    --tg-radius-lg:      18px;
+    --tg-content-max:    760px;  /* макс. ширина читаемой колонки     */
+    --tg-panel-max:      820px;  /* макс. ширина всей панели          */
     --tg-ease:           cubic-bezier(0.25, 0.1, 0.25, 1);
     --tg-ease-spring:    cubic-bezier(0.34, 1.2, 0.64, 1);
     --tg-dur:            0.22s;
@@ -27,7 +28,7 @@
 .settings-scene .settings-layout,
 body.settings-home-open .settings-layout,
 body.settings-detail-open .settings-layout {
-    width: min(720px, 100%) !important;
+    width: min(var(--tg-panel-max), 100%) !important;
     margin-left: auto !important;
     margin-right: auto !important;
     /* меняем не геометрию, а только обстановку — без layout-«прыжка» */
@@ -125,7 +126,7 @@ body.settings-detail-open .settings-card {
     box-sizing: border-box !important;
 }
 .settings-scene .settings-card-header h3 {
-    font-size: 13px !important;
+    font-size: 14px !important;
     font-weight: 600 !important;
     letter-spacing: 0.01em !important;
     color: var(--sx-accent-2, var(--accent)) !important;
@@ -135,10 +136,10 @@ body.settings-detail-open .settings-card {
 .settings-scene .settings-body-copy,
 .settings-scene .settings-trust-intro,
 .settings-scene .settings-copy-muted-sm {
-    padding: 0 var(--tg-pad-x) 8px !important;
+    padding: 0 var(--tg-pad-x) 10px !important;
     margin: 0 !important;
-    font-size: 13px !important;
-    line-height: 1.45 !important;
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
     color: var(--sx-ink-2, var(--sub-text)) !important;
 }
 
@@ -169,15 +170,15 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     padding: 0 !important;
 }
 .settings-scene .settings-row-label {
-    font-size: 14px !important;
+    font-size: 15px !important;
     font-weight: 500 !important;
     line-height: 1.3 !important;
     color: var(--sx-ink, var(--text)) !important;
 }
 .settings-scene .settings-row-desc {
-    font-size: 12px !important;
-    line-height: 1.4 !important;
-    margin-top: 2px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    margin-top: 3px !important;
     color: var(--sx-ink-2, var(--sub-text)) !important;
 }
 /* Строки-действия (несколько кнопок) — выравниваем по правому краю */
@@ -242,20 +243,76 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     resize: vertical !important;
 }
 
-/* ── Аватар-блок профиля ─────────────────────────────────────────────────── */
+/* ── Аватар-блок профиля: крупный, по центру — как в Telegram ────────────── */
 .settings-scene .settings-avatar-row {
+    flex-direction: column !important;
     align-items: center !important;
-    gap: 16px !important;
+    gap: 12px !important;
     margin: 0 !important;
-    padding: 10px var(--tg-pad-x) 14px !important;
+    padding: 18px var(--tg-pad-x) 8px !important;
+    text-align: center !important;
+}
+.settings-scene .settings-avatar-edit-wrap {
+    width: 120px !important;
+    height: 120px !important;
+    flex: 0 0 120px !important;
+}
+.settings-scene .settings-avatar-edit-wrap .avatar-preview,
+.settings-scene .avatar-preview {
+    font-size: 44px !important;
+}
+.settings-scene .settings-avatar-edit-btn {
+    right: 4px !important;
+    bottom: 4px !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-width: 3px !important;
+}
+.settings-scene .settings-avatar-edit-btn i { font-size: 17px !important; }
+.settings-scene .settings-avatar-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
 }
 .settings-scene .settings-avatar-name {
-    font-size: 20px !important;
-    font-weight: 600 !important;
+    font-size: 23px !important;
+    font-weight: 650 !important;
     letter-spacing: -0.01em !important;
 }
 .settings-scene .settings-avatar-username {
-    font-size: 13px !important;
+    font-size: 14px !important;
+    margin-top: 3px !important;
+}
+.settings-scene .settings-avatar-actions {
+    justify-content: center !important;
+}
+
+/* Профиль в detail-виде: переопределяем grid из home-composition,
+   чтобы аватар был крупным и по центру над полями (не сбоку и мелкий). */
+body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+    display: block !important;
+}
+body.settings-detail-open .settings-profile-section .settings-avatar-row {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 18px var(--tg-pad-x) 10px !important;
+}
+body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+    width: 120px !important;
+    height: 120px !important;
+}
+body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+    width: 40px !important;
+    height: 40px !important;
+    right: 4px !important;
+    bottom: 4px !important;
+}
+body.settings-detail-open .settings-profile-section .settings-inline-fields,
+body.settings-detail-open .settings-profile-section .settings-save-row {
+    grid-column: auto !important;
 }
 
 /* ── Сетка ввода 24 слов — ровные одинаковые ячейки ──────────────────────── */
@@ -369,12 +426,58 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
 }
 .settings-scene .settings-content::-webkit-scrollbar-track { background: transparent; }
 
-/* ── HOME-вид: профиль-карточка + список разделов ровными строками ──────── */
+/* ── HOME-вид: крупная профиль-карточка как в Telegram ───────────────────── */
 body.settings-home-open .settings-nav-profile {
-    margin: 12px 0 0 !important;
-    padding: 14px !important;
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+        "avatar  action"
+        "info    info"
+        "rows    rows" !important;
+    justify-items: center !important;
+    align-items: center !important;
+    margin: 14px 0 0 !important;
+    padding: 22px 18px 16px !important;
     border-radius: var(--tg-radius-lg) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
+    text-align: center !important;
+}
+body.settings-home-open .settings-nav-avatar-wrap {
+    grid-area: avatar !important;
+    width: 96px !important;
+    height: 96px !important;
+    justify-self: center !important;
+    justify-content: center !important;
+}
+body.settings-home-open .settings-nav-avatar {
+    width: 96px !important;
+    height: 96px !important;
+    font-size: 36px !important;
+}
+body.settings-home-open .settings-nav-profile-main {
+    grid-area: info !important;
+    justify-self: center !important;
+    text-align: center !important;
+    margin-top: 10px !important;
+}
+body.settings-home-open .settings-nav-profile-name {
+    font-size: 21px !important;
+    font-weight: 650 !important;
+}
+body.settings-home-open .settings-nav-profile-status {
+    font-size: 13.5px !important;
+}
+body.settings-home-open .settings-nav-profile-action {
+    grid-area: action !important;
+    align-self: start !important;
+    justify-self: end !important;
+    width: 38px !important;
+    height: 38px !important;
+}
+body.settings-home-open .settings-nav-profile-rows {
+    grid-area: rows !important;
+    justify-content: center !important;
+    margin-top: 12px !important;
 }
 body.settings-home-open .settings-nav-list {
     margin-top: var(--tg-card-gap) !important;
@@ -410,6 +513,120 @@ body.settings-home-open .settings-nav {
     padding: 0 clamp(14px, 4vw, 28px) calc(20px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
+/* ── Вкладка «Внешний вид»: превью тем — адаптивная резиновая сетка ──────── */
+.settings-scene .theme-preview-row {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    gap: 12px !important;
+    padding: 6px var(--tg-pad-x) 12px !important;
+}
+.settings-scene .theme-preview {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    width: 100% !important;
+}
+.settings-scene .theme-preview-inner {
+    width: 100% !important;       /* было фикс. 128px — теперь резиновое */
+    height: 78px !important;
+    border-radius: 12px !important;
+}
+.settings-scene .theme-preview-label {
+    font-size: 12px !important;
+    text-align: center !important;
+}
+
+/* Цвет интерфейса / акцент-контролы — выравниваем по правому краю */
+.settings-scene .interface-accent-controls {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+}
+
+/* Кнопки режимов фона чата — ровный ряд «таблеток» */
+.settings-scene .chat-style-mode-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+.settings-scene .chat-style-mode-btn {
+    border-radius: 999px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+}
+.settings-scene .chat-style-panel,
+.settings-scene .chat-style-block {
+    padding-left: var(--tg-pad-x) !important;
+    padding-right: var(--tg-pad-x) !important;
+}
+.settings-scene .chat-style-block { padding-bottom: 10px !important; }
+
+/* Слайдеры фона — резиновая сетка, ничего не вылезает */
+.settings-scene .chat-style-slider-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+    gap: 12px !important;
+}
+.settings-scene .chat-style-slider input[type="range"] {
+    width: 100% !important;
+}
+.settings-scene .chat-bubble-color-controls,
+.settings-scene .chat-bubble-color-grid {
+    min-width: 0 !important;
+}
+
+/* QR-код и публичный ключ — по центру, без переполнения */
+.settings-scene .settings-qr-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 4px var(--tg-pad-x) 12px !important;
+}
+.settings-scene .key-textarea {
+    width: calc(100% - 2 * var(--tg-pad-x)) !important;
+    margin: 0 var(--tg-pad-x) !important;
+    box-sizing: border-box !important;
+}
+.settings-scene .copy-row,
+.settings-scene .settings-qr-actions {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 var(--tg-pad-x) 8px !important;
+}
+
+/* TOTP / 2FA — QR-сетка адаптивная */
+.settings-scene .totp-setup-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+    gap: 16px !important;
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+.settings-scene .totp-settings-body { padding: 0 !important; }
+.settings-scene .totp-verify-panel,
+.settings-scene .totp-backup-codes-panel,
+.settings-scene .totp-new-backup-codes-panel,
+.settings-scene .totp-setup-panel {
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+.settings-scene .totp-verify-controls {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+}
+
+/* ── Планшет / средний экран ─────────────────────────────────────────────── */
+@media (max-width: 880px) {
+    .settings-scene .settings-content,
+    body.settings-home-open .settings-nav {
+        max-width: 100% !important;
+    }
+}
+
 /* ── Мобилка: панель на весь экран, без свободного места ─────────────────── */
 @media (max-width: 600px) {
     .settings-scene .settings-layout,
@@ -425,11 +642,20 @@ body.settings-home-open .settings-nav {
         padding-left: 12px !important;
         padding-right: 12px !important;
     }
+    .settings-scene {
+        --tg-pad-x: 16px;
+    }
     .settings-scene .settings-inline-fields {
         grid-template-columns: 1fr !important;
     }
     .settings-scene .mnemonic-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .settings-scene .theme-preview-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .settings-scene .totp-setup-grid {
+        grid-template-columns: 1fr !important;
     }
     .settings-scene .settings-panel-head {
         min-height: 56px !important;
@@ -437,6 +663,37 @@ body.settings-home-open .settings-nav {
     }
     .settings-scene .settings-panel-title {
         font-size: 18px !important;
+    }
+    /* аватар чуть компактнее, но всё ещё крупный */
+    .settings-scene .settings-avatar-edit-wrap,
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 104px !important;
+        height: 104px !important;
+        flex-basis: 104px !important;
+    }
+    .settings-scene .avatar-preview {
+        font-size: 38px !important;
+    }
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: 88px !important;
+        height: 88px !important;
+    }
+    /* строки-действия с кнопками в столбик на узком экране */
+    .settings-scene .settings-action-cluster {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+}
+
+/* ── Очень узкие экраны ──────────────────────────────────────────────────── */
+@media (max-width: 380px) {
+    .settings-scene .mnemonic-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .settings-scene .settings-action-cluster .btn-settings {
+        width: 100% !important;
     }
 }
 
