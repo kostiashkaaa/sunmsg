@@ -1101,10 +1101,34 @@ export function initChatMediaRuntime(deps = {}) {
         syncVoicePlaybackBar();
     };
 
+    let chatCenterNoticeTimer = null;
+    function showChatCenterNotice(text) {
+        const chatArea = document.getElementById('chatArea');
+        if (!chatArea) return;
+        let notice = chatArea.querySelector('.chat-center-notice');
+        if (notice) {
+            clearTimeout(chatCenterNoticeTimer);
+            notice.remove();
+        }
+        notice = document.createElement('div');
+        notice.className = 'chat-center-notice';
+        notice.textContent = text;
+        chatArea.appendChild(notice);
+        requestAnimationFrame(() => notice.classList.add('chat-center-notice--visible'));
+        chatCenterNoticeTimer = setTimeout(() => {
+            notice.classList.remove('chat-center-notice--visible');
+            notice.addEventListener('transitionend', () => notice.remove(), { once: true });
+        }, 2500);
+    }
+
     window._toggleVoiceTranscript = function(toggleBtn) {
         const player = toggleBtn?.closest?.('.file-msg-audio-player');
         const transcript = player?.querySelector('.voice-transcript');
-        if (!toggleBtn || !transcript) return;
+        if (!toggleBtn) return;
+        if (!transcript) {
+            showChatCenterNotice('Не удалось расшифровать голосовое сообщение');
+            return;
+        }
         const nextExpanded = transcript.hidden || transcript.getAttribute('aria-hidden') !== 'false';
         transcript.hidden = !nextExpanded;
         transcript.setAttribute('aria-hidden', nextExpanded ? 'false' : 'true');
