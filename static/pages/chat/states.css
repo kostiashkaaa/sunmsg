@@ -1129,7 +1129,7 @@
         }
 
         #composerRow.is-voice-recording #voiceRecordTranscriptLive {
-            display: none;
+            display: block;
         }
 
         #composerRow.is-voice-recording #attachBtn,

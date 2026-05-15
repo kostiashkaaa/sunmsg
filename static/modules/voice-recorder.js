@@ -84,7 +84,7 @@ export function initVoiceRecorder({
     voiceRecordWaveLive,
     voiceLockIndicator,
     voiceRecordTranscriptLive,
-    maxSeconds = 180,
+    maxSeconds = 600,
     mimeCandidates = [],
     getCurrentChatId,
     isChatBlocked,
@@ -118,7 +118,7 @@ export function initVoiceRecorder({
     let handledTextSubmitTimer = null;
     let suppressMicStartUntil = 0;
     let isVoiceTypingActive = false;
-    const MIC_GHOST_CLICK_GUARD_MS = 900;
+    const MIC_GHOST_CLICK_GUARD_MS = 400;
 
     // Speech recognition / transcription state
     let speechRecognizer = null;
@@ -131,9 +131,9 @@ export function initVoiceRecorder({
 
     function updateTranscriptDisplay() {
         if (!voiceRecordTranscriptLive) return;
-        // Keep recognition internal while recording; final text is attached after stop.
-        voiceRecordTranscriptLive.textContent = '';
-        voiceRecordTranscriptLive.setAttribute('aria-hidden', 'true');
+        const text = (speechFinalTranscript + (speechInterimTranscript ? ' ' + speechInterimTranscript : '')).trim();
+        voiceRecordTranscriptLive.textContent = text;
+        voiceRecordTranscriptLive.setAttribute('aria-hidden', text ? 'false' : 'true');
     }
 
     function startTranscription() {
@@ -691,6 +691,7 @@ export function initVoiceRecorder({
             if (wasReady) {
                 // Lock the recording — user slid up
                 isLockedRecording = true;
+                try { navigator.vibrate?.(40); } catch (_) {}
                 syncLockIndicator();
                 updateButtonState();
             } else if (isActive()) {

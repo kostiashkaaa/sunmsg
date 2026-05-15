@@ -5782,24 +5782,25 @@
 
         .voice-transcript-btn {
             flex-shrink: 0;
-            width: 26px;
-            height: 26px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             border: none;
             background: none;
-            color: color-mix(in srgb, currentColor 55%, transparent);
+            color: color-mix(in srgb, currentColor 50%, transparent);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             padding: 0;
             transition: color var(--dur-quick) var(--ease-quick),
-                        background var(--dur-quick) var(--ease-quick);
+                        background var(--dur-quick) var(--ease-quick),
+                        transform var(--dur-instant) var(--ease-quick);
             -webkit-tap-highlight-color: transparent;
         }
 
         .voice-transcript-btn i {
-            font-size: 15px;
+            font-size: 14px;
             line-height: 1;
         }
 
@@ -5808,30 +5809,51 @@
             background: color-mix(in srgb, var(--accent) 12%, transparent);
         }
 
+        .voice-transcript-btn:active {
+            transform: scale(0.88);
+        }
+
         .voice-transcript-btn.is-active {
             color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 14%, transparent);
+            background: color-mix(in srgb, var(--accent) 16%, transparent);
         }
 
         .voice-transcript-btn--unavailable {
-            color: color-mix(in srgb, currentColor 30%, transparent);
+            color: color-mix(in srgb, currentColor 28%, transparent);
             cursor: default;
         }
 
         .voice-transcript-btn--unavailable:hover {
-            color: color-mix(in srgb, currentColor 30%, transparent);
+            color: color-mix(in srgb, currentColor 28%, transparent);
             background: none;
         }
 
+        .voice-transcript-btn--unavailable:active {
+            transform: none;
+        }
+
         .voice-transcript {
-            margin-top: 5px;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
             font-size: 12.5px;
             line-height: 1.45;
             color: var(--text-secondary, var(--text));
-            opacity: 0.85;
             white-space: pre-wrap;
             word-break: break-word;
             padding: 0 2px;
+            user-select: text;
+            -webkit-user-select: text;
+            transition: max-height 0.24s var(--ease-quick),
+                        opacity 0.2s var(--ease-quick),
+                        margin-top 0.24s var(--ease-quick);
+        }
+
+        .voice-transcript.is-expanded {
+            max-height: 300px;
+            opacity: 0.88;
+            margin-top: 6px;
         }
 
         .chat-center-notice {
@@ -5890,6 +5912,8 @@
             white-space: nowrap;
             flex: 1 1 auto;
             min-width: 0;
+            font-style: italic;
+            transition: opacity 0.15s ease;
         }
 
         .audio-player-wave-wrap {
@@ -5905,9 +5929,18 @@
         .audio-player-wave {
             position: relative;
             width: 100%;
-            height: 20px;
+            height: 22px;
             overflow: hidden;
-            border-radius: 10px;
+            border-radius: 11px;
+        }
+
+        .bubble--audio:not(.bubble--audio-file) .audio-player-wave {
+            height: 24px;
+            border-radius: 12px;
+        }
+
+        .bubble--audio:not(.bubble--audio-file) .audio-player-wave-wrap {
+            height: 26px;
         }
 
 
