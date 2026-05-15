@@ -3301,7 +3301,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             height: 100dvh;
             display: flex;
             flex-direction: column;
-            background: transparent;
+            /* Solid panel background: the embedded settings iframe paints
+               with a transparent background until it finishes loading, so a
+               transparent panel here leaves the page body showing through
+               (the checkerboard gap around/behind the frame). */
+            background: var(--bg);
             border-left: 1px solid var(--rule);
             box-shadow: var(--profile-sheet-shadow);
             transform: translateX(108%) scale(0.972);
@@ -3317,7 +3321,10 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             flex: 1;
             width: 100%;
             border: 0;
-            background: transparent;
+            /* Inherit the panel's solid background so the frame area never
+               shows the page body through before the iframe document
+               renders its own background. */
+            background: var(--bg);
         }
 
 

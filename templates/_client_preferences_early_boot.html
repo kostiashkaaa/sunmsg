@@ -700,8 +700,27 @@
     // style.css defines theme variables on `body.dark-mode` / `:root`.
     // A rule that targets `body` directly overrides any value inherited
     // from <html>, so applying preset vars only to documentElement leaves
-    // <body>'s descendants on the stale style.css defaults. Mirror every
-    // inline var we set on <html> onto <body> as soon as it exists.
+    // <body>'s descendants on the stale style.css defaults. Mirror the
+    // interface/accent vars we set on <html> onto <body> as soon as it
+    // exists.
+    //
+    // NOTE: only variables that style.css actually re-declares on `body`
+    // must be mirrored. Variables like `--chat-wallpaper-*` and layout
+    // vars (`--sidebar-width`) are consumed by descendant selectors that
+    // already inherit from <html>; copying them to <body> can clobber the
+    // chat wallpaper (e.g. turning it transparent — the checkerboard bug).
+    const MIRROR_VAR_PREFIXES_SKIP = ['--chat-wallpaper'];
+    const MIRROR_VAR_NAMES_SKIP = new Set(['--sidebar-width']);
+
+    function shouldMirrorVar(name) {
+        if (!name || !name.startsWith('--')) return false;
+        if (MIRROR_VAR_NAMES_SKIP.has(name)) return false;
+        for (let i = 0; i < MIRROR_VAR_PREFIXES_SKIP.length; i += 1) {
+            if (name.startsWith(MIRROR_VAR_PREFIXES_SKIP[i])) return false;
+        }
+        return true;
+    }
+
     function mirrorRootVarsToBody() {
         const root = document.documentElement;
         const body = document.body;
@@ -709,7 +728,7 @@
         const inline = root.style;
         for (let i = 0; i < inline.length; i += 1) {
             const name = inline.item(i);
-            if (!name || !name.startsWith('--')) continue;
+            if (!shouldMirrorVar(name)) continue;
             body.style.setProperty(name, inline.getPropertyValue(name));
         }
     }
