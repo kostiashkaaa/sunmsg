@@ -121,6 +121,7 @@
             .nav-item {
                 padding: 7px 10px;
                 font-size: 12px;
+                min-height: 40px;
             }
             .settings-content {
                 padding: 18px 14px;
