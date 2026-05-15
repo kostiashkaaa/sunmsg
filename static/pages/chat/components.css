@@ -5786,27 +5786,25 @@
             height: 28px;
             border-radius: 50%;
             border: none;
-            background: none;
-            color: color-mix(in srgb, currentColor 50%, transparent);
+            background: var(--audio-btn-bg);
+            color: var(--audio-btn-fg);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             padding: 0;
-            transition: color var(--dur-quick) var(--ease-quick),
-                        background var(--dur-quick) var(--ease-quick),
+            transition: background var(--dur-instant) var(--ease-quick),
                         transform var(--dur-instant) var(--ease-quick);
             -webkit-tap-highlight-color: transparent;
         }
 
         .voice-transcript-btn i {
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1;
         }
 
         .voice-transcript-btn:hover {
-            color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            background: var(--audio-btn-bg-hover);
         }
 
         .voice-transcript-btn:active {
@@ -5814,18 +5812,17 @@
         }
 
         .voice-transcript-btn.is-active {
-            color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 16%, transparent);
+            background: color-mix(in srgb, var(--accent) 88%, transparent);
+            color: #fff;
         }
 
         .voice-transcript-btn--unavailable {
-            color: color-mix(in srgb, currentColor 28%, transparent);
+            opacity: 0.45;
             cursor: default;
         }
 
         .voice-transcript-btn--unavailable:hover {
-            color: color-mix(in srgb, currentColor 28%, transparent);
-            background: none;
+            background: var(--audio-btn-bg);
         }
 
         .voice-transcript-btn--unavailable:active {
