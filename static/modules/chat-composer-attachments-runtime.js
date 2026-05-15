@@ -24,28 +24,37 @@ export function createChatComposerAttachmentsRuntime({
     const attachMenuItems = Array.from(attachMenu?.querySelectorAll('[data-attach-mode]') || []);
     let attachMenuPanelController = null;
 
-    async function handleFileUpload(file, { allowCaption = true, attachMode = null } = {}) {
+    async function handleFileUpload(fileOrFiles, { allowCaption = true, attachMode = null } = {}) {
         if (isChatBlocked()) {
             showToast(getBlockedNoticeText(getCurrentBlockState()), 'warning');
             return;
         }
-        if (!file) return;
-        const normalizedAttachMode = attachMenuPanelController?.resolveAttachModeForFile(file, attachMode) || 'file';
-        if (normalizedAttachMode !== 'media' && file.size > maxChatMediaSize) {
-            showToast(
-                `\u0424\u0430\u0439\u043B "${file.name}" \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441. ${Math.round(maxChatMediaSize / (1024 * 1024))} \u041C\u0411.`,
-                'danger',
-            );
-            return;
-        }
+
+        // Normalize to array
+        const files = Array.isArray(fileOrFiles) ? fileOrFiles : (fileOrFiles ? [fileOrFiles] : []);
+        if (!files.length) return;
+
+        const primaryFile = files[0];
+        const normalizedAttachMode = attachMenuPanelController?.resolveAttachModeForFile(primaryFile, attachMode) || 'file';
+
         if (allowCaption) {
-            showCaptionModal(file, { attachMode: normalizedAttachMode });
+            showCaptionModal(primaryFile, { attachMode: normalizedAttachMode, files });
             return;
         }
-        try {
-            await sendFileMessage(file, '', { attachMode: normalizedAttachMode });
-        } catch (err) {
-            showToast(err.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0444\u0430\u0439\u043B\u0430.', 'danger');
+
+        for (const file of files) {
+            if (normalizedAttachMode !== 'media' && file.size > maxChatMediaSize) {
+                showToast(
+                    `\u0424\u0430\u0439\u043B "${file.name}" \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441. ${Math.round(maxChatMediaSize / (1024 * 1024))} \u041C\u0411.`,
+                    'danger',
+                );
+                continue;
+            }
+            try {
+                await sendFileMessage(file, '', { attachMode: normalizedAttachMode });
+            } catch (err) {
+                showToast(err.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438 \u0444\u0430\u0439\u043B\u0430.', 'danger');
+            }
         }
     }
 

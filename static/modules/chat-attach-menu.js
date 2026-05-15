@@ -117,9 +117,7 @@ export function createChatAttachMenuController(deps = {}) {
             if (files.length === 1) {
                 await handleFileUpload(files[0], { allowCaption: true, attachMode });
             } else {
-                for (const file of files) {
-                    await handleFileUpload(file, { allowCaption: false, attachMode });
-                }
+                await handleFileUpload(files, { allowCaption: true, attachMode });
             }
             this.value = '';
             applyAttachInputMode(ATTACH_MODE_FILE);
