@@ -1,3 +1,6 @@
+from app.services.user_privacy import is_privacy_allowed
+
+
 def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,
@@ -102,6 +105,18 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
         and not is_contact
         and is_public
         and not block_state['is_blocked']
+        and is_privacy_allowed(
+            conn,
+            owner_id=target_user_id,
+            viewer_id=current_user_id,
+            policy=user['message_privacy'] if 'message_privacy' in user.keys() else None,
+        )
+    )
+    can_view_bio = is_privacy_allowed(
+        conn,
+        owner_id=target_user_id,
+        viewer_id=current_user_id,
+        policy=user['bio_visibility'] if 'bio_visibility' in user.keys() else None,
     )
     if is_contact and bool(user['hide_online_status']):
         online = False
@@ -133,7 +148,7 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
             'username': user['username'],
             'public_key': user['public_key'],
             'avatar_url': get_safe_avatar_url_func(user, current_user_id),
-            'bio': (user['bio'] if 'bio' in user.keys() else '') or '',
+            'bio': ((user['bio'] if 'bio' in user.keys() else '') or '') if can_view_bio else '',
             'stats': {
                 'photos': int(stats['photos'] or 0),
                 'videos': int(stats['videos'] or 0),

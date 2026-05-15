@@ -301,11 +301,26 @@ export function initSettingsTransferSection({
                 auto_decline_requests: !!server.auto_decline_requests,
                 mute_dialog_requests: !!server.mute_dialog_requests,
                 hide_online_status: !!server.hide_online_status,
+                last_seen_visibility: ['all', 'contacts', 'nobody'].includes(String(server.last_seen_visibility || '').toLowerCase())
+                    ? String(server.last_seen_visibility).toLowerCase()
+                    : (server.hide_online_status ? 'nobody' : 'all'),
                 avatar_visibility: ['all', 'contacts', 'nobody'].includes(String(server.avatar_visibility || '').toLowerCase())
                     ? String(server.avatar_visibility).toLowerCase()
                     : 'all',
+                bio_visibility: ['all', 'contacts', 'nobody'].includes(String(server.bio_visibility || '').toLowerCase())
+                    ? String(server.bio_visibility).toLowerCase()
+                    : 'all',
+                forward_link_privacy: ['all', 'contacts', 'nobody'].includes(String(server.forward_link_privacy || '').toLowerCase())
+                    ? String(server.forward_link_privacy).toLowerCase()
+                    : 'all',
                 group_invite_privacy: ['all', 'contacts', 'nobody'].includes(String(server.group_invite_privacy || '').toLowerCase())
                     ? String(server.group_invite_privacy).toLowerCase()
+                    : 'all',
+                voice_message_privacy: ['all', 'contacts', 'nobody'].includes(String(server.voice_message_privacy || '').toLowerCase())
+                    ? String(server.voice_message_privacy).toLowerCase()
+                    : 'all',
+                message_privacy: ['all', 'contacts', 'nobody'].includes(String(server.message_privacy || '').toLowerCase())
+                    ? String(server.message_privacy).toLowerCase()
                     : 'all',
             };
 

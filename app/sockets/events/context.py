@@ -59,7 +59,7 @@ _TYPING_EVENT_MIN_INTERVALS = {
     'stop_typing': 1.0,
 }
 _typing_event_last_emit = {}
-_ALLOWED_MESSAGE_TYPES = {'text', 'link', 'photo', 'video', 'audio', 'file'}
+_ALLOWED_MESSAGE_TYPES = {'text', 'link', 'photo', 'video', 'audio', 'file', 'voice'}
 _MAX_MESSAGE_EDITS = 5
 _MESSAGE_EDIT_WINDOW_SECONDS = 48 * 60 * 60
 _DEFAULT_SOCKET_CONNECT_IP_LIMIT = 180

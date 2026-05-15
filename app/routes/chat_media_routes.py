@@ -61,6 +61,7 @@ def _process_upload_chat_media(  # noqa: PLR0913
     normalize_chat_media_mime_func,
     detect_chat_media_type_func,
     scan_file_func,
+    media_hint='',
 ):
     return upload_chat_media_for_user(
         conn,
@@ -83,6 +84,7 @@ def _process_upload_chat_media(  # noqa: PLR0913
         av_command_template=str(current_app.config.get('CHAT_MEDIA_AV_COMMAND') or ''),
         av_timeout_seconds=int(current_app.config.get('CHAT_MEDIA_AV_TIMEOUT_SECONDS', 20) or 20),
         av_scan_extensions=current_app.config.get('CHAT_MEDIA_AV_SCAN_EXTENSIONS') or (),
+        media_hint=media_hint,
     )
 
 
@@ -183,6 +185,7 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
                 normalize_chat_media_mime_func=normalize_chat_media_mime_func,
                 detect_chat_media_type_func=detect_chat_media_type_func,
                 scan_file_func=scan_file_func,
+                media_hint=str(request.form.get('media_hint') or '').strip(),
             )
             if result['status'] != 'ok':
                 return _upload_chat_media_failure_response(

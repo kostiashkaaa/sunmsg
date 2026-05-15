@@ -33,6 +33,7 @@ from app.services.chat_page_state import build_socketio_client_config
 from app.services.locale import language_from_user_row
 from app.services.presence import is_effectively_online
 from app.services.refresh_tokens import clear_refresh_cookie
+from app.services.user_privacy import normalize_privacy_choice
 from .context import (
     auth_bp,
 )
@@ -153,7 +154,8 @@ def get_settings():
         SELECT id, username, display_name, public_key, is_public,
                auto_decline_requests, mute_dialog_requests, hide_online_status, is_online, last_seen,
                avatar_url, avatar_visibility,
-               group_invite_privacy,
+               last_seen_visibility, bio_visibility, forward_link_privacy,
+               group_invite_privacy, voice_message_privacy, message_privacy,
                bio, status_text, language, client_preferences
         FROM users
         WHERE public_key = ?
@@ -177,13 +179,21 @@ def get_settings():
         'auto_decline_requests': bool(user['auto_decline_requests']),
         'mute_dialog_requests': bool(user['mute_dialog_requests']) if 'mute_dialog_requests' in user.keys() else False,
         'hide_online_status':   bool(user['hide_online_status']),
+        'last_seen_visibility': normalize_privacy_choice(
+            user['last_seen_visibility'] if 'last_seen_visibility' in user.keys() else None,
+            default='nobody' if bool(user['hide_online_status']) else 'all',
+        ),
         'avatar_url':           user['avatar_url'] if 'avatar_url' in user.keys() else None,
         'avatar_visibility':    user['avatar_visibility'] if 'avatar_visibility' in user.keys() else 'all',
+        'bio_visibility':       normalize_privacy_choice(user['bio_visibility'] if 'bio_visibility' in user.keys() else None),
+        'forward_link_privacy': normalize_privacy_choice(user['forward_link_privacy'] if 'forward_link_privacy' in user.keys() else None),
         'group_invite_privacy': (
             str(user['group_invite_privacy'] or '').strip().lower()
             if 'group_invite_privacy' in user.keys() and str(user['group_invite_privacy'] or '').strip().lower() in {'all', 'contacts', 'nobody'}
             else 'all'
         ),
+        'voice_message_privacy': normalize_privacy_choice(user['voice_message_privacy'] if 'voice_message_privacy' in user.keys() else None),
+        'message_privacy':       normalize_privacy_choice(user['message_privacy'] if 'message_privacy' in user.keys() else None),
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
         'status_text':          (user['status_text'] if 'status_text' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
@@ -250,6 +260,23 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         if group_invite_privacy not in {'all', 'contacts', 'nobody'}:
             return jsonify({'success': False, 'error': 'Недопустимое значение приватности приглашений в группы.'}), 400
 
+    privacy_choice_fields = {
+        'last_seen_visibility': 'Недопустимое значение видимости времени захода.',
+        'bio_visibility': 'Недопустимое значение видимости раздела "О себе".',
+        'forward_link_privacy': 'Недопустимое значение приватности пересылки.',
+        'voice_message_privacy': 'Недопустимое значение приватности голосовых сообщений.',
+        'message_privacy': 'Недопустимое значение приватности сообщений.',
+    }
+    normalized_privacy_choices = {}
+    for field_name, error_text in privacy_choice_fields.items():
+        if field_name not in data:
+            normalized_privacy_choices[field_name] = None
+            continue
+        field_value = str(data.get(field_name) or '').strip().lower()
+        if field_value not in {'all', 'contacts', 'nobody'}:
+            return jsonify({'success': False, 'error': error_text}), 400
+        normalized_privacy_choices[field_name] = field_value
+
     new_language = data.get('language')
     if new_language is not None:
         new_language = str(new_language).strip().lower()
@@ -284,6 +311,8 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
     is_public_db = None if is_public is None else int(bool(is_public))
     auto_decline_requests_db = None if auto_decline_requests is None else int(bool(auto_decline_requests))
     mute_dialog_requests_db = None if mute_dialog_requests is None else int(bool(mute_dialog_requests))
+    if normalized_privacy_choices.get('last_seen_visibility') is not None:
+        hide_online_status = normalized_privacy_choices['last_seen_visibility'] == 'nobody'
     hide_online_status_db = None if hide_online_status is None else int(bool(hide_online_status))
 
     conn = get_db_connection()
@@ -291,7 +320,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         # Читаем старые настройки ДО обновления (чтобы отследить изменения)
         old_user = conn.execute(
             '''
-            SELECT username, display_name, avatar_url, bio, status_text, hide_online_status
+            SELECT username, display_name, avatar_url, bio, status_text, hide_online_status, bio_visibility
             FROM users
             WHERE public_key = ?
             ''',
@@ -316,8 +345,13 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     auto_decline_requests= COALESCE(?, auto_decline_requests),
                     mute_dialog_requests = COALESCE(?, mute_dialog_requests),
                     hide_online_status   = COALESCE(?, hide_online_status),
+                    last_seen_visibility = COALESCE(?, last_seen_visibility),
                     avatar_visibility    = COALESCE(?, avatar_visibility),
+                    bio_visibility       = COALESCE(?, bio_visibility),
+                    forward_link_privacy = COALESCE(?, forward_link_privacy),
                     group_invite_privacy = COALESCE(?, group_invite_privacy),
+                    voice_message_privacy= COALESCE(?, voice_message_privacy),
+                    message_privacy      = COALESCE(?, message_privacy),
                     bio                  = COALESCE(?, bio),
                     status_text          = COALESCE(?, status_text),
                     language             = COALESCE(?, language),
@@ -330,8 +364,13 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                 auto_decline_requests_db,
                 mute_dialog_requests_db,
                 hide_online_status_db,
+                normalized_privacy_choices['last_seen_visibility'],
                 avatar_visibility,
+                normalized_privacy_choices['bio_visibility'],
+                normalized_privacy_choices['forward_link_privacy'],
                 group_invite_privacy,
+                normalized_privacy_choices['voice_message_privacy'],
+                normalized_privacy_choices['message_privacy'],
                 bio_value,
                 status_text_value,
                 new_language,
@@ -346,7 +385,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         updated = conn.execute(
             '''
             SELECT id, username, display_name, public_key, avatar_url, bio, status_text,
-                   hide_online_status, is_online, last_seen, language
+                   hide_online_status, bio_visibility, is_online, last_seen, language
             FROM users
             WHERE public_key = ?
             ''',
@@ -364,6 +403,11 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                 )
                 for field_name in ('username', 'display_name', 'avatar_url', 'bio', 'status_text')
             )
+            if old_user and 'bio_visibility' in old_user.keys():
+                profile_changed = profile_changed or (
+                    normalize_privacy_choice(updated['bio_visibility'])
+                    != normalize_privacy_choice(old_user['bio_visibility'])
+                )
             status_changed = old_hide != new_hide
 
             contacts = []
@@ -377,7 +421,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     'display_name': updated['display_name'],
                     'username':     updated['username'],
                     'avatar_url':   updated['avatar_url'],
-                    'bio':          (updated['bio'] or ''),
+                    'bio':          (updated['bio'] or '') if normalize_privacy_choice(updated['bio_visibility']) != 'nobody' else '',
                     'status_text':  (updated['status_text'] or '') if 'status_text' in updated.keys() else '',
                 }
 

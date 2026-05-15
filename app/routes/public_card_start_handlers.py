@@ -1,3 +1,6 @@
+from app.services.user_privacy import is_privacy_allowed
+
+
 def start_dialog_from_public_card_workflow(  # noqa: PLR0913 - dependency-injected workflow contract
     conn,
     *,
@@ -9,20 +12,7 @@ def start_dialog_from_public_card_workflow(  # noqa: PLR0913 - dependency-inject
     send_dialog_request_workflow_func,
 ):
     target = conn.execute(
-        '''
-        SELECT
-            id,
-            username,
-            display_name,
-            public_key,
-            avatar_url,
-            avatar_visibility,
-            is_public,
-            auto_decline_requests
-        FROM users
-        WHERE username = ?
-        LIMIT 1
-        ''',
+        'SELECT * FROM users WHERE username = ? LIMIT 1',
         (target_username,),
     ).fetchone()
     if not target:
@@ -52,7 +42,12 @@ def start_dialog_from_public_card_workflow(  # noqa: PLR0913 - dependency-inject
             'target_user_id': target['id'],
         }
 
-    if bool(target['auto_decline_requests']):
+    if bool(target['auto_decline_requests']) or not is_privacy_allowed(
+        conn,
+        owner_id=target['id'],
+        viewer_id=viewer_id,
+        policy=target['message_privacy'] if 'message_privacy' in target.keys() else None,
+    ):
         return {'status': 'auto_decline'}
 
     send_result = send_dialog_request_workflow_func(

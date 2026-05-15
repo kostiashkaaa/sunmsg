@@ -1,3 +1,6 @@
+from app.services.user_privacy import is_privacy_allowed
+
+
 def resolve_public_user_card_context(  # noqa: PLR0913 - dependency-injected resolver contract
     conn,
     *,
@@ -9,19 +12,7 @@ def resolve_public_user_card_context(  # noqa: PLR0913 - dependency-injected res
     get_safe_avatar_url_func,
 ):
     target = conn.execute(
-        '''
-        SELECT
-            id,
-            username,
-            display_name,
-            avatar_url,
-            avatar_visibility,
-            is_public,
-            bio
-        FROM users
-        WHERE username = ?
-        LIMIT 1
-        ''',
+        'SELECT * FROM users WHERE username = ? LIMIT 1',
         (target_username,),
     ).fetchone()
     if not target:
@@ -50,7 +41,22 @@ def resolve_public_user_card_context(  # noqa: PLR0913 - dependency-injected res
     avatar_url = get_safe_avatar_url_func(target_payload, viewer_id)
     can_message = bool(viewer_id and not is_self and not block_state['is_blocked'])
     can_open_chat = bool(can_message and is_contact)
-    can_send_request = bool(can_message and not is_contact)
+    can_send_request = bool(
+        can_message
+        and not is_contact
+        and is_privacy_allowed(
+            conn,
+            owner_id=target['id'],
+            viewer_id=viewer_id,
+            policy=target['message_privacy'] if 'message_privacy' in target.keys() else None,
+        )
+    )
+    can_view_bio = is_privacy_allowed(
+        conn,
+        owner_id=target['id'],
+        viewer_id=viewer_id,
+        policy=target['bio_visibility'] if 'bio_visibility' in target.keys() else None,
+    )
     viewer_username = str(viewer_row['username']).strip() if viewer_row else ''
 
     return {
@@ -59,7 +65,7 @@ def resolve_public_user_card_context(  # noqa: PLR0913 - dependency-injected res
             'id': target['id'],
             'username': target['username'],
             'display_name': target['display_name'],
-            'bio': (target['bio'] or '').strip(),
+            'bio': (target['bio'] or '').strip() if can_view_bio else '',
             'avatar_url': avatar_url,
         },
         'viewer': {

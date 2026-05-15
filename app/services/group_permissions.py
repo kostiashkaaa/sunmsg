@@ -22,7 +22,7 @@ GROUP_PERMISSION_COLUMN_MAP = {
     'slow_mode_seconds': 'group_slow_mode_seconds',
 }
 
-_MEDIA_MESSAGE_TYPES = {'photo', 'video', 'audio', 'file'}
+_MEDIA_MESSAGE_TYPES = {'photo', 'video', 'audio', 'file', 'voice'}
 
 
 def _normalize_bool(value, *, default: bool) -> bool:

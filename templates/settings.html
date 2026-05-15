@@ -290,6 +290,109 @@
         </section>
 
         <section id="section-privacy" class="settings-hidden">
+            <select id="lastSeenVisibilitySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="bioVisibilitySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="forwardLinkPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="voiceMessagePrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="messagePrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+
+            <div class="settings-card settings-privacy-card">
+                <div id="privacyOverviewPanel">
+                    <div class="settings-card-header">
+                        <i class="bi bi-shield-lock"></i>
+                        <h3>Конфиденциальность</h3>
+                    </div>
+                    <div class="settings-privacy-list" aria-label="Настройки конфиденциальности">
+                        <button type="button" class="settings-privacy-item" data-privacy-open="last_seen_visibility">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит время моего последнего захода?</span>
+                                <span class="settings-row-desc" data-privacy-summary="last_seen_visibility">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="avatar_visibility">
+                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит фото в моем профиле?</span>
+                                <span class="settings-row-desc" data-privacy-summary="avatar_visibility">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="bio_visibility">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит мой раздел О себе?</span>
+                                <span class="settings-row-desc" data-privacy-summary="bio_visibility">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="forward_link_privacy">
+                            <i class="bi bi-forward" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может ссылаться на мой аккаунт при пересылке сообщений?</span>
+                                <span class="settings-row-desc" data-privacy-summary="forward_link_privacy">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="group_invite_privacy">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может приглашать меня?</span>
+                                <span class="settings-row-desc" data-privacy-summary="group_invite_privacy">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="voice_message_privacy">
+                            <i class="bi bi-mic" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может отправлять мне голосовые сообщения?</span>
+                                <span class="settings-row-desc" data-privacy-summary="voice_message_privacy">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="message_privacy">
+                            <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может отправлять мне сообщения?</span>
+                                <span class="settings-row-desc" data-privacy-summary="message_privacy">Все</span>
+                            </span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="privacyDetailPanel" class="settings-privacy-detail settings-hidden" aria-live="polite">
+                    <div class="settings-privacy-detail-head">
+                        <button type="button" class="settings-privacy-back" id="privacyDetailBackBtn" aria-label="Назад">
+                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                        </button>
+                        <h3 id="privacyDetailTitle">Конфиденциальность</h3>
+                    </div>
+                    <div class="settings-privacy-question" id="privacyDetailQuestion"></div>
+                    <div class="settings-preference-list settings-privacy-options" id="privacyDetailOptions" role="radiogroup"></div>
+                    <p class="settings-body-copy settings-privacy-detail-hint" id="privacyDetailHint"></p>
+                </div>
+            </div>
             <div class="settings-card">
                 <div class="settings-card-header">
                     <i class="bi bi-eye"></i>
@@ -799,7 +902,25 @@
                     <i class="bi bi-translate"></i>
                     <h3>Язык интерфейса</h3>
                 </div>
-                <p class="settings-body-copy">Выберите язык приложения. Изменение полностью применится после повторного входа.</p>
+                <p class="settings-body-copy">Выберите язык приложения.</p>
+                <div class="settings-language-list" role="radiogroup" aria-label="Язык интерфейса">
+                    <label class="settings-preference-option settings-language-option" for="languageOptionRu">
+                        <input type="radio" name="languageOption" id="languageOptionRu" value="ru" data-language-option>
+                        <span class="settings-preference-indicator" aria-hidden="true"></span>
+                        <span class="settings-preference-copy">
+                            <span class="settings-preference-title">Russian</span>
+                            <span class="settings-row-desc">Русский</span>
+                        </span>
+                    </label>
+                    <label class="settings-preference-option settings-language-option" for="languageOptionEn">
+                        <input type="radio" name="languageOption" id="languageOptionEn" value="en" data-language-option>
+                        <span class="settings-preference-indicator" aria-hidden="true"></span>
+                        <span class="settings-preference-copy">
+                            <span class="settings-preference-title">English</span>
+                            <span class="settings-row-desc">English</span>
+                        </span>
+                    </label>
+                </div>
                 <div class="settings-row settings-row-borderless" id="appearanceLanguageRow">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Язык интерфейса</div>

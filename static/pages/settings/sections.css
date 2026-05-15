@@ -1569,6 +1569,108 @@ select.settings-select-control:focus-visible {
     outline-offset: 2px;
 }
 
+#section-privacy > .settings-card:not(.settings-privacy-card) {
+    display: none;
+}
+
+#appearanceLanguageRow {
+    display: none;
+}
+
+.settings-privacy-list {
+    display: grid;
+    gap: 2px;
+}
+
+.settings-privacy-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 0;
+    border: 0;
+    border-bottom: 1px solid var(--rule-soft);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+}
+
+.settings-privacy-item:last-child {
+    border-bottom: 0;
+}
+
+.settings-privacy-item:hover,
+.settings-privacy-item:focus-visible {
+    color: var(--accent);
+}
+
+.settings-privacy-item > i {
+    color: var(--sub-text);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.settings-privacy-item-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.settings-privacy-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.settings-privacy-detail-head h3 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.settings-privacy-back {
+    width: 36px;
+    height: 36px;
+    display: inline-grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+}
+
+.settings-privacy-back:hover,
+.settings-privacy-back:focus-visible {
+    background: var(--surface-soft);
+    color: var(--accent);
+}
+
+.settings-privacy-question {
+    margin-bottom: 10px;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.settings-privacy-options {
+    margin-top: 4px;
+}
+
+.settings-privacy-detail-hint {
+    margin-top: 14px;
+}
+
+.settings-language-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 .settings-weather-metrics-grid {
     width: min(440px, 100%);
     display: grid;
