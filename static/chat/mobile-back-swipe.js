@@ -13,7 +13,7 @@ export function initMobileBackSwipe(options = {}) {
         return { dispose: () => {} };
     }
 
-    const MOBILE_BACK_SWIPE_EDGE_PX = 30;
+    const MOBILE_BACK_SWIPE_EDGE_PX = 44;
     const MOBILE_BACK_SWIPE_TRIGGER_PX = 86;
     const MOBILE_BACK_SWIPE_MAX_SHIFT_PX = 180;
     const MOBILE_BACK_SWIPE_MAX_VERTICAL_PX = 76;

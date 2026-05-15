@@ -248,7 +248,8 @@
         @media (pointer: coarse) {
             .search-input-wrapper input,
             .header-search-wrap input,
-            #searchUserInput {
+            #searchUserInput,
+            .emoji-picker-search input {
                 font-size: 16px !important;
             }
 
@@ -293,7 +294,7 @@
             }
             .lightbox-caption {
                 font-size: 12px;
-                padding: 10px 12px;
+                padding: 10px max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
                 width: calc(100% - 20px);
                 bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
             }
@@ -343,8 +344,8 @@
                 top: 0;
                 right: 0;
                 bottom: 0;
-                left: auto;
-                width: 100vw;
+                left: 0;
+                width: 100%;
                 max-width: 100%;
                 height: 100dvh;
                 border-left: 1px solid color-mix(in srgb, var(--border) 82%, rgba(255, 255, 255, 0.08));
@@ -376,6 +377,15 @@
             @supports not (height: 100dvh) {
                 .profile-sheet--tg {
                     height: 100vh;
+                }
+            }
+            @media (orientation: landscape) {
+                .profile-sheet--tg {
+                    height: 100dvh;
+                }
+                .profile-scroll {
+                    overflow-y: auto;
+                    max-height: 100%;
                 }
             }
         }
@@ -474,7 +484,7 @@
             }
             .group-create-modal,
             .report-content-modal {
-                width: min(calc(100vw - 12px), 700px);
+                width: min(calc(100vw - 12px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)), 700px);
                 max-height: min(92dvh, 900px);
                 border-radius: 16px;
             }
@@ -717,7 +727,7 @@
                 min-width: 0;
                 max-width: 100%;
                 z-index: 50;
-                padding-bottom: env(safe-area-inset-bottom, 0px);
+                padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
             }
             #sidebarScrollArea {
                 scrollbar-gutter: auto;
@@ -968,7 +978,9 @@
             .chat-header .header-actions-group .btn-icon {
                 width: 36px;
                 height: 36px;
-                padding: 0;
+                min-width: 44px;
+                min-height: 44px;
+                padding: 4px;
                 font-size: 18px;
             }
             .chat-header .pinned-bar {
@@ -1136,6 +1148,8 @@
             .btn-attach {
                 width: 34px;
                 height: 34px;
+                min-width: 42px;
+                min-height: 42px;
                 font-size: 18px;
                 margin-bottom: 0;
             }
@@ -1218,6 +1232,8 @@
             .pinned-bar__close {
                 width: 28px;
                 height: 28px;
+                min-width: 36px;
+                min-height: 36px;
             }
 
             /* Emoji picker on mobile */
@@ -1227,8 +1243,8 @@
             }
 
             .chat-area.emoji-sheet-open {
-                --mobile-emoji-sheet-height: 460px;
-                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, 460px);
+                --mobile-emoji-sheet-height: min(460px, 55dvh);
+                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, min(460px, 55dvh));
             }
 
             /* When emoji sheet is open: composer follows the bottom dock as one animated surface. */
@@ -1295,7 +1311,7 @@
 
             .emoji-picker {
                 --emoji-width: 100vw;
-                --emoji-height: 460px;
+                --emoji-height: min(460px, 55dvh);
                 --emoji-mobile-gutter: 12px;
                 width: var(--emoji-width);
                 height: var(--emoji-height);
