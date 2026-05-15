@@ -535,7 +535,7 @@ export function renderMessagePreviewHtml(messageText, options = {}) {
             </span>`;
         }
         if ((filePayload.mime || '').startsWith('audio/')) {
-            const voiceLabel = tr('\u0413\u043e\u043b\u043e\u0441\u043e\u0432\u043e\u0435');
+            const voiceLabel = tr('\u0413\u043e\u043b\u043e\u0441\u043e\u0432\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435');
             const audioText = clipPreviewText(filePayload.caption || voiceLabel, maxLen);
             const safeAudioText = escapeHtml(audioText || voiceLabel);
             if (mediaTokenStyle === 'plain') {
