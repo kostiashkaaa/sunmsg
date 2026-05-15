@@ -1,0 +1,449 @@
+/* ============================================================================
+   settings-telegram.css — финальный полирующий слой настроек.
+   Загружается ПОСЛЕ settings.css и settings-redesign.css, поэтому имеет
+   приоритет и приводит всю композицию к ровному Telegram-Web-стилю:
+     • строки и карточки фиксированной геометрии — ничего не «дышит»;
+     • переход home ↔ detail без скачка ширины layout;
+     • контент по центру с фоновыми «полями» — нет пустот на десктопе;
+     • полноэкранная панель на мобилке без свободного пространства;
+     • плавные анимации входа секций без скачков высоты.
+   Всё проскоплено под .settings-scene, чтобы не задеть остальной чат.
+   ========================================================================= */
+
+.settings-scene {
+    /* единая шкала геометрии — её используют строки, карточки, отступы */
+    --tg-row-min:        52px;   /* фикс. минимальная высота строки  */
+    --tg-pad-x:          18px;   /* горизонтальный внутренний отступ  */
+    --tg-card-gap:       10px;   /* зазор между карточками            */
+    --tg-radius:         12px;
+    --tg-radius-lg:      16px;
+    --tg-content-max:    640px;  /* макс. ширина читаемой колонки     */
+    --tg-ease:           cubic-bezier(0.25, 0.1, 0.25, 1);
+    --tg-ease-spring:    cubic-bezier(0.34, 1.2, 0.64, 1);
+    --tg-dur:            0.22s;
+}
+
+/* ── Layout: ровная панель, без скачка ширины при home ↔ detail ──────────── */
+.settings-scene .settings-layout,
+body.settings-home-open .settings-layout,
+body.settings-detail-open .settings-layout {
+    width: min(720px, 100%) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    /* меняем не геометрию, а только обстановку — без layout-«прыжка» */
+    transition: box-shadow var(--tg-dur) var(--tg-ease) !important;
+}
+
+/* Внутри overlay-iframe панель занимает весь фрейм */
+.settings-overlay-frame .settings-layout {
+    width: 100% !important;
+}
+
+/* ── Шапка: фиксированная высота, не дёргается ───────────────────────────── */
+.settings-scene .settings-panel-head {
+    min-height: 60px !important;
+    height: 60px !important;
+    padding: 0 14px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+}
+.settings-scene .settings-panel-title {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.015em !important;
+}
+.settings-scene .settings-panel-close,
+.settings-scene .settings-panel-tool-btn {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    transition: background-color var(--tg-dur) var(--tg-ease),
+                transform 0.12s var(--tg-ease) !important;
+}
+.settings-scene .settings-panel-close:active,
+.settings-scene .settings-panel-tool-btn:active {
+    transform: scale(0.9) !important;
+}
+
+/* ── Тело панели и скролл-контейнер ──────────────────────────────────────── */
+.settings-scene .settings-panel-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+.settings-scene .settings-content {
+    width: 100% !important;
+    max-width: var(--tg-content-max) !important;
+    margin: 0 auto !important;
+    padding: 6px clamp(14px, 4vw, 28px) calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    /* стабильная ширина: полоса прокрутки не сдвигает контент */
+    scrollbar-gutter: stable;
+}
+
+/* ── Карточки: одинаковая геометрия, мягкий блок ─────────────────────────── */
+.settings-scene .settings-card,
+body.settings-detail-open .settings-card {
+    background: var(--sx-bg-elev, var(--paper)) !important;
+    border: 0 !important;
+    border-radius: var(--tg-radius-lg) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
+    margin: var(--tg-card-gap) 0 0 !important;
+    padding: 6px 0 !important;
+    overflow: hidden !important;
+    transition: box-shadow var(--tg-dur) var(--tg-ease) !important;
+}
+.settings-scene .settings-card:first-child {
+    margin-top: 12px !important;
+}
+.settings-scene .settings-card:hover {
+    background: var(--sx-bg-elev, var(--paper)) !important;
+}
+
+/* Заголовок карточки — ровная строка фикс. высоты */
+.settings-scene .settings-card-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-height: 44px !important;
+    padding: 8px var(--tg-pad-x) 6px !important;
+    margin: 0 !important;
+}
+.settings-scene .settings-card-header::after {
+    display: none !important;   /* убираем «висящий» разделитель — он создавал неровность */
+}
+.settings-scene .settings-card-header i,
+.settings-scene .settings-card-header > svg {
+    width: 26px !important;
+    height: 26px !important;
+    flex: 0 0 26px !important;
+    border-radius: 50% !important;
+    padding: 5px !important;
+    box-sizing: border-box !important;
+}
+.settings-scene .settings-card-header h3 {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    color: var(--sx-accent-2, var(--accent)) !important;
+}
+
+/* Поясняющий абзац под заголовком */
+.settings-scene .settings-body-copy,
+.settings-scene .settings-trust-intro,
+.settings-scene .settings-copy-muted-sm {
+    padding: 0 var(--tg-pad-x) 8px !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    color: var(--sx-ink-2, var(--sub-text)) !important;
+}
+
+/* ── Строки: ФИКСИРОВАННАЯ минимальная высота — ничего не «дышит» ─────────── */
+.settings-scene .settings-row,
+body.settings-detail-open .settings-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    min-height: var(--tg-row-min) !important;
+    padding: 8px var(--tg-pad-x) !important;
+    border: 0 !important;
+    box-sizing: border-box !important;
+    transition: background-color 0.14s var(--tg-ease) !important;
+}
+/* Разделители — единым «волоском» только между строками */
+.settings-scene .settings-card .settings-row + .settings-row,
+body.settings-detail-open .settings-card .settings-row + .settings-row {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 55%, transparent) !important;
+    border-top: 0 !important;
+}
+.settings-scene .settings-row:hover {
+    background: color-mix(in srgb, var(--sx-bg-soft, var(--paper-alt)) 60%, transparent) !important;
+}
+.settings-scene .settings-row-info {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+}
+.settings-scene .settings-row-label {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.3 !important;
+    color: var(--sx-ink, var(--text)) !important;
+}
+.settings-scene .settings-row-desc {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    margin-top: 2px !important;
+    color: var(--sx-ink-2, var(--sub-text)) !important;
+}
+/* Строки-действия (несколько кнопок) — выравниваем по правому краю */
+.settings-scene .settings-row-actions {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+}
+
+/* ── Контролы фиксированной высоты — не сдвигают строку ──────────────────── */
+.settings-scene .toggle {
+    width: 40px !important;
+    height: 24px !important;
+    flex-shrink: 0 !important;
+}
+.settings-scene .toggle-knob {
+    width: 20px !important;
+    height: 20px !important;
+    top: 2px !important;
+    left: 2px !important;
+}
+.settings-scene .toggle input:checked ~ .toggle-knob {
+    transform: translateX(16px) !important;
+}
+.settings-scene select.settings-select-control {
+    min-height: 38px !important;
+    height: 38px !important;
+    flex-shrink: 0 !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+}
+.settings-scene .btn-settings {
+    min-height: 38px !important;
+    border-radius: 10px !important;
+    font-size: 13.5px !important;
+    flex-shrink: 0 !important;
+}
+
+/* ── Поля профиля: ровная сетка, без рывков ──────────────────────────────── */
+.settings-scene .settings-inline-fields {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 14px !important;
+    padding: 8px var(--tg-pad-x) !important;
+    margin: 0 !important;
+}
+.settings-scene .settings-inline-fields:has(.settings-field--full),
+.settings-scene .settings-inline-fields .settings-field--full {
+    grid-column: 1 / -1 !important;
+}
+.settings-scene .settings-field {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+}
+.settings-scene .settings-field-input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+.settings-scene .settings-bio-input {
+    min-height: 76px !important;
+    resize: vertical !important;
+}
+
+/* ── Аватар-блок профиля ─────────────────────────────────────────────────── */
+.settings-scene .settings-avatar-row {
+    align-items: center !important;
+    gap: 16px !important;
+    margin: 0 !important;
+    padding: 10px var(--tg-pad-x) 14px !important;
+}
+.settings-scene .settings-avatar-name {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+}
+.settings-scene .settings-avatar-username {
+    font-size: 13px !important;
+}
+
+/* ── Сетка ввода 24 слов — ровные одинаковые ячейки ──────────────────────── */
+.settings-scene .mnemonic-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+.settings-scene .mnemonic-word-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    height: 38px !important;
+    padding: 0 8px !important;
+    border-radius: 9px !important;
+    background: var(--sx-bg-soft, var(--paper-alt)) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 60%, transparent) inset !important;
+    box-sizing: border-box !important;
+    transition: box-shadow 0.14s var(--tg-ease) !important;
+}
+.settings-scene .mnemonic-word-wrap:focus-within {
+    box-shadow: 0 0 0 1px var(--sx-accent, var(--accent)) inset,
+                0 0 0 3px color-mix(in srgb, var(--sx-accent, var(--accent)) 22%, transparent) !important;
+}
+.settings-scene .mnemonic-num {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--sx-ink-3, var(--text-muted)) !important;
+    min-width: 16px !important;
+    text-align: right !important;
+    flex-shrink: 0 !important;
+}
+.settings-scene .mnemonic-word-input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    outline: none !important;
+    font-size: 13px !important;
+    font-family: var(--sx-font) !important;
+    color: var(--sx-ink, var(--text)) !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+.settings-scene .settings-actions-end {
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+
+/* ── Карточка восстановления 24 слов: свёрнуто / развёрнуто ──────────────── */
+/* По умолчанию (ключ не активен) — показываем форму, прячем «активно». */
+.settings-scene #mnemonicUnlockedNote { display: none !important; }
+.settings-scene #mnemonicUnlockBody   { display: block !important; }
+
+/* Ключ уже активен — показываем компактную плашку, форму сворачиваем. */
+.settings-scene .mnemonic-card-unlocked #mnemonicUnlockedNote { display: block !important; }
+.settings-scene .mnemonic-card-unlocked #mnemonicUnlockBody   { display: none !important; }
+
+/* Пользователь нажал «Восстановить заново» — снова разворачиваем форму. */
+.settings-scene .mnemonic-card-unlocked.mnemonic-card-reunlock #mnemonicUnlockedNote { display: none !important; }
+.settings-scene .mnemonic-card-unlocked.mnemonic-card-reunlock #mnemonicUnlockBody   { display: block !important; }
+
+.settings-scene #mnemonicUnlockBody {
+    animation: tg-section-in var(--tg-dur) var(--tg-ease) both;
+}
+.settings-scene .mnemonic-unlocked-note .settings-row-label i {
+    color: var(--sx-good, #5fa052) !important;
+    margin-right: 5px;
+}
+
+/* ── Анимация входа секций — плавная, без скачка высоты ──────────────────── */
+.settings-scene .settings-section {
+    transform: none !important;
+}
+.settings-scene .settings-section.section-active {
+    opacity: 1 !important;
+}
+.settings-scene .settings-section.section-entering {
+    animation: tg-section-in var(--tg-dur) var(--tg-ease) both !important;
+}
+/* Уходящую секцию накладываем абсолютом поверх (crossfade, как в Telegram).
+   Контейнер во время перехода держит max-высоту (minHeight ставит JS),
+   поэтому скачка не происходит. */
+.settings-scene .settings-section.section-leaving {
+    position: absolute !important;
+    inset: 6px clamp(14px, 4vw, 28px) auto !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    animation: tg-section-out 0.16s var(--tg-ease) both !important;
+}
+/* Плавный возврат высоты контейнера после перехода — без резкого «щелчка». */
+.settings-scene .settings-content {
+    transition: min-height var(--tg-dur) var(--tg-ease) !important;
+}
+@keyframes tg-section-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tg-section-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-6px); }
+}
+
+/* ── Прокрутка ───────────────────────────────────────────────────────────── */
+.settings-scene .settings-content::-webkit-scrollbar { width: 8px; }
+.settings-scene .settings-content::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--sx-line, var(--rule)) 80%, transparent);
+    border-radius: 4px;
+}
+.settings-scene .settings-content::-webkit-scrollbar-track { background: transparent; }
+
+/* ── HOME-вид: профиль-карточка + список разделов ровными строками ──────── */
+body.settings-home-open .settings-nav-profile {
+    margin: 12px 0 0 !important;
+    padding: 14px !important;
+    border-radius: var(--tg-radius-lg) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
+}
+body.settings-home-open .settings-nav-list {
+    margin-top: var(--tg-card-gap) !important;
+    border-radius: var(--tg-radius-lg) !important;
+    background: var(--sx-bg-elev, var(--paper)) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
+    overflow: hidden !important;
+    padding: 4px 0 !important;
+}
+/* строки разделов — ФИКСИРОВАННАЯ высота вместо clamp(...dvh) */
+body.settings-home-open .settings-nav-group .nav-item {
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 0 36px 0 16px !important;
+}
+body.settings-home-open .settings-nav-group .nav-item + .nav-item,
+body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 55%, transparent) !important;
+}
+body.settings-home-open .settings-logout-form .nav-item {
+    min-height: 52px !important;
+    height: 52px !important;
+}
+
+/* HOME-вид: контент колонкой по центру, без пустот */
+body.settings-home-open .settings-panel-body {
+    overflow-y: auto !important;
+}
+body.settings-home-open .settings-nav {
+    width: 100% !important;
+    max-width: var(--tg-content-max) !important;
+    margin: 0 auto !important;
+    padding: 0 clamp(14px, 4vw, 28px) calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* ── Мобилка: панель на весь экран, без свободного места ─────────────────── */
+@media (max-width: 600px) {
+    .settings-scene .settings-layout,
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: 100% !important;
+        min-height: 100dvh !important;
+        box-shadow: none !important;
+    }
+    .settings-scene .settings-content,
+    body.settings-home-open .settings-nav {
+        max-width: 100% !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+    .settings-scene .settings-inline-fields {
+        grid-template-columns: 1fr !important;
+    }
+    .settings-scene .mnemonic-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .settings-scene .settings-panel-head {
+        min-height: 56px !important;
+        height: 56px !important;
+    }
+    .settings-scene .settings-panel-title {
+        font-size: 18px !important;
+    }
+}
+
+/* ── Снижение анимаций по системной настройке ───────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .settings-scene .settings-section.section-entering,
+    .settings-scene .settings-section.section-leaving {
+        animation: none !important;
+    }
+}

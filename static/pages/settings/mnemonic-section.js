@@ -14,7 +14,11 @@ export function initMnemonicSection({
     const syncMnemonicUnlockUi = () => {
         if (!mnemonicUnlockCard || !e2eStatusCard) return;
         const unlocked = hasRuntimePrivateKey({ isEmbedMode });
-        mnemonicUnlockCard.style.display = unlocked ? 'none' : '';
+        // Карточку восстановления 24 слов держим доступной ВСЕГДА —
+        // как в Telegram, восстановить доступ можно в любой момент.
+        // Когда ключ уже активен, карточка просто сворачивается.
+        mnemonicUnlockCard.style.display = '';
+        mnemonicUnlockCard.classList.toggle('mnemonic-card-unlocked', unlocked);
         e2eStatusCard.style.display = unlocked ? 'none' : 'block';
     };
 
@@ -42,6 +46,13 @@ export function initMnemonicSection({
         `;
         mnemonicGrid.appendChild(wrap);
     }
+
+    // «Восстановить заново» — разворачивает форму ввода 24 слов,
+    // даже если доступ уже активен (повторное восстановление на устройстве).
+    document.getElementById('mnemonicReunlockBtn')?.addEventListener('click', () => {
+        mnemonicUnlockCard?.classList.add('mnemonic-card-reunlock');
+        document.querySelector('.mnemonic-word-input')?.focus();
+    });
 
     mnemonicGrid.addEventListener('paste', (event) => {
         event.preventDefault();
