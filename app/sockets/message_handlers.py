@@ -604,6 +604,7 @@ def _insert_message_row(
     reply_to_id = send_context.get('reply_to_id')
     forward_from_name = send_context.get('forward_from_name')
     forward_from_user_id = send_context.get('forward_from_user_id')
+    album_id = send_context.get('album_id') or None
     receiver_is_connected = bool(send_context.get('receiver_is_connected'))
 
     if supports_forward_metadata:
@@ -619,9 +620,10 @@ def _insert_message_row(
                     reply_to_id,
                     forward_from_name,
                     forward_from_user_id,
+                    album_id,
                     is_delivered
                 )
-                VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 1)
+                VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 1)
                 RETURNING id, created_at
                 ''',
                 (
@@ -632,6 +634,7 @@ def _insert_message_row(
                     reply_to_id,
                     forward_from_name,
                     forward_from_user_id,
+                    album_id,
                 ),
             )
         return conn.execute(
@@ -645,9 +648,10 @@ def _insert_message_row(
                 reply_to_id,
                 forward_from_name,
                 forward_from_user_id,
+                album_id,
                 is_delivered
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id, created_at
             ''',
             (
@@ -659,6 +663,7 @@ def _insert_message_row(
                 reply_to_id,
                 forward_from_name,
                 forward_from_user_id,
+                album_id,
                 int(receiver_is_connected),
             ),
         )
@@ -666,19 +671,19 @@ def _insert_message_row(
     if chat_type == 'group':
         return conn.execute(
             '''
-            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
-            VALUES (?, ?, NULL, ?, ?, ?, 1)
+            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
+            VALUES (?, ?, NULL, ?, ?, ?, ?, 1)
             RETURNING id, created_at
             ''',
-            (chat_id, sender_id, message, message_type, reply_to_id),
+            (chat_id, sender_id, message, message_type, reply_to_id, album_id),
         )
     return conn.execute(
         '''
-        INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, created_at
         ''',
-        (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, int(receiver_is_connected)),
+        (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, int(receiver_is_connected)),
     )
 
 
@@ -805,6 +810,8 @@ def _initialize_send_runtime_state(conn, *, context: dict | None = None) -> dict
     raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
     forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
     forward_from_user_id = positive_int_func(data.get('forward_from_user_id'))
+    raw_album_id = str(data.get('album_id') or '').strip()
+    album_id = raw_album_id[:64] if raw_album_id else None
     group_member_public_keys = []
     mentioned_members: list[dict] = []
     mentioned_user_ids: list[int] = []
@@ -833,6 +840,7 @@ def _initialize_send_runtime_state(conn, *, context: dict | None = None) -> dict
         'reply_to_id': reply_to_id,
         'forward_from_name': forward_from_name,
         'forward_from_user_id': forward_from_user_id,
+        'album_id': album_id,
         'group_member_public_keys': group_member_public_keys,
         'mentioned_members': mentioned_members,
         'mentioned_user_ids': mentioned_user_ids,
@@ -863,6 +871,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
     reply_to_id = send_context.get('reply_to_id')
     forward_from_name = send_context.get('forward_from_name')
     forward_from_user_id = send_context.get('forward_from_user_id')
+    album_id = send_context.get('album_id') or None
     receiver_is_connected = bool(send_context.get('receiver_is_connected'))
     looks_like_ciphertext_func = send_context.get('looks_like_ciphertext_func')
     sender_display_name = str(send_context.get('sender_display_name') or '')
@@ -893,6 +902,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
                 'reply_to_id': reply_to_id,
                 'forward_from_name': forward_from_name,
                 'forward_from_user_id': forward_from_user_id,
+                'album_id': album_id,
                 'receiver_is_connected': receiver_is_connected,
             },
         )
@@ -953,6 +963,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
         'sender_username': sender_username,
         'sender_avatar_url': sender_avatar_url,
         'expires_at': expires_at,
+        'album_id': album_id,
     }
 
 
@@ -979,6 +990,7 @@ def _finalize_send_message(context: dict | None = None) -> None:
         'reply_sender_pub': send_context.get('reply_sender_pub'),
         'forward_from_name': send_context.get('forward_from_name'),
         'forward_from_user_id': send_context.get('forward_from_user_id'),
+        'album_id': send_context.get('album_id') or None,
         'reactions': [],
         'expires_at': send_context.get('expires_at'),
     }
@@ -1841,6 +1853,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         reply_to_id,
         forward_from_name,
         forward_from_user_id,
+        album_id,
         group_member_public_keys,
         mentioned_members,
         mentioned_user_ids,
@@ -1853,6 +1866,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         runtime_state['reply_to_id'],
         runtime_state['forward_from_name'],
         runtime_state['forward_from_user_id'],
+        runtime_state.get('album_id'),
         runtime_state['group_member_public_keys'],
         runtime_state['mentioned_members'],
         runtime_state['mentioned_user_ids'],
@@ -1897,6 +1911,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'reply_to_id': reply_to_id,
             'forward_from_name': forward_from_name,
             'forward_from_user_id': forward_from_user_id,
+            'album_id': album_id,
             'receiver_is_connected': receiver_is_connected,
             'looks_like_ciphertext_func': looks_like_ciphertext_func,
             'sender_display_name': sender_display_name,
@@ -1917,6 +1932,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         sender_username,
         sender_avatar_url,
         expires_at,
+        album_id,
     ) = (
         persisted['msg_id'],
         persisted['message_created_at'],
@@ -1928,6 +1944,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         persisted['sender_username'],
         persisted['sender_avatar_url'],
         persisted.get('expires_at'),
+        persisted.get('album_id'),
     )
 
     _finalize_send_message(
@@ -1951,6 +1968,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             'reply_sender_pub': reply_sender_pub,
             'forward_from_name': forward_from_name,
             'forward_from_user_id': forward_from_user_id,
+            'album_id': album_id,
             'mentioned_user_ids': mentioned_user_ids,
             'mentioned_usernames': mentioned_usernames,
             'emit_func': emit_func,

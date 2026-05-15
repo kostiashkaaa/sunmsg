@@ -806,6 +806,16 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     if (msg.clientId)     messageDiv.setAttribute('data-client-id', msg.clientId);
     if (getMessageKey)    messageDiv.setAttribute('data-message-key', getMessageKey(msg));
     if (typeof msg.message === 'string') messageDiv.setAttribute('data-message-content', displayMessageText);
+    const msgAlbumId = String(msg.album_id || '').trim();
+    if (msgAlbumId) {
+        messageDiv.setAttribute('data-album-id', msgAlbumId);
+        if (Number.isFinite(Number(msg.album_index))) {
+            messageDiv.setAttribute('data-album-index', String(Number(msg.album_index)));
+        }
+        if (Number.isFinite(Number(msg.album_size))) {
+            messageDiv.setAttribute('data-album-size', String(Number(msg.album_size)));
+        }
+    }
     if (msg.expires_at)   messageDiv.setAttribute('data-expires-at', String(msg.expires_at));
 
     const isSelf = msg.sender === 'self';
@@ -965,6 +975,12 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     messageDiv.classList.toggle('message-emoji-only', !filePayload && isEmojiOnlyMessageText(displayMessageText));
     if (isAudioPayload && isSelf) {
         messageDiv.setAttribute('data-audio-listened-by-partner', audioListenedByPartner ? '1' : '0');
+    }
+    if (isAudioPayload && isVoiceAudioPayload) {
+        messageDiv.setAttribute('data-is-voice', '1');
+    }
+    if (isVisualMediaPayload) {
+        messageDiv.setAttribute('data-is-media', '1');
     }
 
     messageDiv.innerHTML = `

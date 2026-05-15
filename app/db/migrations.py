@@ -35,6 +35,7 @@ GROUP_INVITE_LINKS_MIGRATION = (20, 'create_group_invite_links_table')
 USER_STATUS_TEXT_MIGRATION = (21, 'add_status_text_to_users')
 MESSAGE_EXPIRES_AT_MIGRATION = (22, 'add_expires_at_to_messages')
 CHAT_AUTO_DELETE_MIGRATION = (23, 'add_auto_delete_seconds_to_chats')
+MESSAGE_ALBUM_ID_MIGRATION = (24, 'add_album_id_to_messages')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -521,6 +522,13 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
     # auto_delete_seconds on chats (per-chat disappearing timer)
     add_column_if_missing(conn, cursor, 'chats', 'auto_delete_seconds', 'auto_delete_seconds INTEGER NOT NULL DEFAULT 0')
     _record_migration(cursor, CHAT_AUTO_DELETE_MIGRATION)
+
+    # album_id on messages (groups multiple media files into one visual album)
+    add_column_if_missing(conn, cursor, 'messages', 'album_id', 'album_id TEXT DEFAULT NULL')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_messages_album_id ON messages(album_id) WHERE album_id IS NOT NULL'
+    )
+    _record_migration(cursor, MESSAGE_ALBUM_ID_MIGRATION)
 
 
 def run_migrations() -> None:

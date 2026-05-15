@@ -66,6 +66,7 @@ import {
     resetOpenChatUnreadCounter as resetOpenChatUnreadCounterFlow,
 } from './modules/chat-unread-jump.js';
 import { createPostRenderUiRefreshScheduler } from './modules/chat-post-render-refresh.js';
+import { processAlbums, resetAlbums } from './modules/chat-album-runtime.js';
 import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtime.js';
 import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.js';
 import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
@@ -939,6 +940,9 @@ export const initChatPage = async () => {
                     );
                 }
             });
+        },
+        applyAlbums: () => {
+            if (chatMessages) processAlbums(chatMessages, { registerHydration: registerMediaElementsForLazyHydration });
         },
     });
 
