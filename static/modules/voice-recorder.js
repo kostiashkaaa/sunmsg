@@ -187,7 +187,7 @@ export function initVoiceRecorder({
     }
 
     function getFinalTranscript() {
-        return speechFinalTranscript.trim();
+        return (speechFinalTranscript + (speechInterimTranscript ? ` ${speechInterimTranscript}` : '')).trim();
     }
 
     // Hold-to-record / lock-to-record state
@@ -740,6 +740,7 @@ export function initVoiceRecorder({
             stopTimer();
             stopStream();
             stopWaveAnimation();
+            const transcript = getFinalTranscript();
             stopTranscription();
             isLockedRecording = false;
             resetHoldState();
@@ -770,7 +771,6 @@ export function initVoiceRecorder({
             const file = new File([blob], `voice-${ts}.${extension}`, {
                 type: normalizedMime || 'audio/webm',
             });
-            const transcript = getFinalTranscript();
             recordChunks = [];
             await sendFileMessage(file, '', {
                 audioDurationSeconds: recordedSeconds,
