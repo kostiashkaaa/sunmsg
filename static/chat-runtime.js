@@ -2383,6 +2383,7 @@ export const initChatPage = async () => {
         cancelBottomInertiaScroll,
         isSelectionMode: () => messageSelectionController.isSelectionMode(),
         openUserProfileById,
+        openLightbox: browserEnv.openLightbox,
         getCurrentChatId: () => currentChatId,
         getSuppressChatScrollHandling,
         isReactionPickerOpen: () => reactionPickerController.isOpen(),

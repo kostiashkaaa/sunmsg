@@ -197,17 +197,120 @@ export function initCaptionModal({
         `;
     }
 
+    // Track current preview slide index and per-file object URLs
+    let previewSlideIndex = 0;
+    const previewObjectUrls = [];
+
+    function cleanupPreviewObjectUrls() {
+        for (const u of previewObjectUrls) {
+            try { URL.revokeObjectURL(u); } catch (_) {}
+        }
+        previewObjectUrls.length = 0;
+    }
+
+    function renderSingleFilePreview(file) {
+        // Returns HTML string for one file preview (main area only, no strips)
+        const mime = String(file?.type || '').toLowerCase();
+        const isImage = mime.startsWith('image/');
+        const isVideo = mime.startsWith('video/');
+        if (isImage || isVideo) {
+            const objectUrl = URL.createObjectURL(file);
+            previewObjectUrls.push(objectUrl);
+            return isImage
+                ? `<img class="caption-slide-media" src="${escapeHtml(objectUrl)}" alt="${escapeHtml(file.name)}">`
+                : `<video class="caption-preview-video caption-slide-media" src="${escapeHtml(objectUrl)}" preload="metadata" muted playsinline></video>`;
+        }
+        return `<div class="caption-file-icon"><i class="bi ${resolveFilePreviewIcon(file)}"></i></div>`;
+    }
+
     function renderPreview(file, totalFiles = 1, allFiles = []) {
         if (!previewEl) return;
+        cleanupPreviewObjectUrls();
         cleanupPreviewObjectUrl();
         previewEl.innerHTML = '';
 
+        const allVisual = Array.isArray(allFiles) && allFiles.length > 1
+            && allFiles.every((f) => isVisualMediaFile(f));
+
+        // Multi-media: show gallery strip + main preview
+        if (totalFiles > 1 && allVisual) {
+            if (previewSlideIndex >= totalFiles) previewSlideIndex = 0;
+
+            // Build strip thumbnails
+            const thumbsHtml = allFiles.map((f, i) => {
+                const mime = String(f?.type || '').toLowerCase();
+                const isImg = mime.startsWith('image/');
+                const isVid = mime.startsWith('video/');
+                const objectUrl = URL.createObjectURL(f);
+                previewObjectUrls.push(objectUrl);
+                const mediaHtml = isImg
+                    ? `<img src="${escapeHtml(objectUrl)}" alt="">`
+                    : (isVid
+                        ? `<video src="${escapeHtml(objectUrl)}" preload="metadata" muted playsinline></video>`
+                        : `<i class="bi ${resolveFilePreviewIcon(f)}"></i>`);
+                return `<div class="caption-thumb${i === previewSlideIndex ? ' is-active' : ''}" data-thumb-index="${i}">
+                    ${mediaHtml}
+                    <button class="caption-thumb-remove" data-remove-index="${i}" type="button" aria-label="Удалить"><i class="bi bi-x"></i></button>
+                </div>`;
+            }).join('');
+
+            const currentFile = allFiles[previewSlideIndex];
+            const currentMime = String(currentFile?.type || '').toLowerCase();
+            const isCurrentImg = currentMime.startsWith('image/');
+            const isCurrentVid = currentMime.startsWith('video/');
+            // Find the already-created objectUrl for current slide (it was created in the thumbs loop above, at index previewSlideIndex)
+            const currentUrl = previewObjectUrls[previewSlideIndex];
+
+            const mainMediaHtml = isCurrentImg
+                ? `<img class="caption-slide-media" src="${escapeHtml(currentUrl)}" alt="${escapeHtml(currentFile.name)}">`
+                : (isCurrentVid
+                    ? `<video class="caption-preview-video caption-slide-media" src="${escapeHtml(currentUrl)}" preload="metadata" muted playsinline></video>`
+                    : `<div class="caption-file-icon"><i class="bi ${resolveFilePreviewIcon(currentFile)}"></i></div>`);
+
+            previewEl.innerHTML = `
+                <div class="caption-slide-main">
+                    ${mainMediaHtml}
+                    ${totalFiles > 1 ? `<span class="caption-file-count">${totalFiles}</span>` : ''}
+                </div>
+                <div class="caption-thumb-strip">${thumbsHtml}</div>`;
+
+            // Delegated events on strip
+            const strip = previewEl.querySelector('.caption-thumb-strip');
+            strip?.addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.caption-thumb-remove');
+                if (removeBtn) {
+                    e.stopPropagation();
+                    const idx = parseInt(removeBtn.getAttribute('data-remove-index') || '0', 10);
+                    if (!pendingPayload) return;
+                    pendingPayload.files = getPendingFiles().filter((_, i) => i !== idx);
+                    if (!pendingPayload.files.length) {
+                        closeCaptionModal();
+                        return;
+                    }
+                    if (previewSlideIndex >= pendingPayload.files.length) {
+                        previewSlideIndex = pendingPayload.files.length - 1;
+                    }
+                    renderPendingState();
+                    return;
+                }
+                const thumb = e.target.closest('.caption-thumb');
+                if (thumb) {
+                    previewSlideIndex = parseInt(thumb.getAttribute('data-thumb-index') || '0', 10);
+                    renderPendingState();
+                }
+            });
+            return;
+        }
+
+        // Single file or mixed (non-visual) files — original layout
+        previewSlideIndex = 0;
         const mime = String(file?.type || '').toLowerCase();
         const isImage = mime.startsWith('image/');
         const isVideo = mime.startsWith('video/');
 
         if (isImage || isVideo) {
             previewObjectUrl = URL.createObjectURL(file);
+            previewObjectUrls.push(previewObjectUrl);
             previewEl.innerHTML = isImage
                 ? `<img src="${escapeHtml(previewObjectUrl)}" alt="${escapeHtml(file.name)}">`
                 : `<video class="caption-preview-video" src="${escapeHtml(previewObjectUrl)}" preload="metadata" muted playsinline controls></video>`;
@@ -225,20 +328,6 @@ export function initCaptionModal({
                 'beforeend',
                 `<span class="caption-file-count">${totalFiles}</span>`,
             );
-            const extraFiles = Array.isArray(allFiles) ? allFiles.slice(1) : [];
-            if (extraFiles.length) {
-                const visibleNames = extraFiles.slice(0, 3)
-                    .map((entry) => `<div class="caption-extra-files__item" title="${escapeHtml(entry?.name || '')}">${escapeHtml(entry?.name || '')}</div>`)
-                    .join('');
-                const hiddenCount = Math.max(0, extraFiles.length - 3);
-                const hiddenTail = hiddenCount > 0
-                    ? `<div class="caption-extra-files__item">+${hiddenCount}</div>`
-                    : '';
-                previewEl.insertAdjacentHTML(
-                    'beforeend',
-                    `<div class="caption-extra-files"><div class="caption-extra-files__label">Также прикреплено:</div>${visibleNames}${hiddenTail}</div>`,
-                );
-            }
         }
     }
 
@@ -313,6 +402,7 @@ export function initCaptionModal({
         const files = normalizeIncomingFiles(options?.files, file);
         if (!files.length) return;
 
+        previewSlideIndex = 0;
         pendingPayload = {
             files,
             options: {
@@ -336,7 +426,9 @@ export function initCaptionModal({
 
     function closeCaptionModal() {
         pendingPayload = null;
+        previewSlideIndex = 0;
         cleanupPreviewObjectUrl();
+        cleanupPreviewObjectUrls();
         closeOptionsMenu();
         if (addInputEl) addInputEl.value = '';
         if (previewEl) previewEl.innerHTML = '';

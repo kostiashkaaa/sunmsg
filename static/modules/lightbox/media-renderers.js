@@ -4,8 +4,23 @@ export function getLightboxPartnerName() {
 
 export function buildLightboxMediaItems({ formatFullTimestamp }) {
     const partnerName = getLightboxPartnerName();
-    return Array.from(document.querySelectorAll('#chatMessages .file-msg-media-trigger')).map((trigger) => {
+
+    // Collect triggers: album cells from visible (non-hidden) messages first,
+    // then fall back to plain .file-msg-media-trigger on non-album messages.
+    // Skip triggers inside .message-album-hidden nodes.
+    const triggers = Array.from(
+        document.querySelectorAll('#chatMessages .file-msg-media-trigger')
+    ).filter((trigger) => {
+        const msg = trigger.closest('.message');
+        if (!msg) return false;
+        // Skip media triggers that belong to a hidden secondary album node
+        if (msg.classList.contains('message-album-hidden')) return false;
+        return true;
+    });
+
+    return triggers.map((trigger) => {
         const messageEl = trigger.closest('.message');
+        // For album cells the footer lives in the primary node; for hidden nodes use primary via album-id
         const timeEl = messageEl?.querySelector('.msg-time');
         const tickEl = messageEl?.querySelector('.msg-tick');
         const createdAt = timeEl?.getAttribute('data-created-at') || '';
@@ -27,6 +42,7 @@ export function buildLightboxMediaItems({ formatFullTimestamp }) {
         const kind = trigger.getAttribute('data-media-kind') === 'video' ? 'video' : 'image';
         const src = trigger.getAttribute('data-media-src')
             || trigger.querySelector('.file-msg-img, .file-msg-video-preview')?.getAttribute('src')
+            || trigger.querySelector('.file-msg-img')?.getAttribute('data-src')
             || '';
         return { kind, src, caption: trigger.getAttribute('data-caption') || '', sender, datetime, time, tick };
     });

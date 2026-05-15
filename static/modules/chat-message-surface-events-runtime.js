@@ -8,6 +8,7 @@ export function bindChatMessageSurfaceEventsRuntime({
     cancelBottomInertiaScroll = () => {},
     isSelectionMode = () => false,
     openUserProfileById = () => {},
+    openLightbox = null,
     getCurrentChatId = () => '',
     getSuppressChatScrollHandling = () => false,
     isReactionPickerOpen = () => false,
@@ -46,6 +47,15 @@ export function bindChatMessageSurfaceEventsRuntime({
         event.stopPropagation();
         openUserProfileById(targetUserId);
     };
+
+    // Delegated click for album cells — created via insertAdjacentHTML after buildMessageElement,
+    // so they don't get the per-trigger listener attached in message-rendering.js
+    chatMessages?.addEventListener('click', (event) => {
+        const cell = event.target?.closest?.('.album-cell.file-msg-media-trigger');
+        if (!cell || !chatMessages.contains(cell)) return;
+        if (isSelectionMode()) return;
+        if (typeof openLightbox === 'function') openLightbox(cell);
+    });
 
     chatMessages?.addEventListener('click', handleMessageProfileTrigger);
     chatMessages?.addEventListener('keydown', (event) => {
