@@ -10908,8 +10908,8 @@
 }
 
 #partnerProfileDrawer .profile-info-card {
-    border-top: 1px solid var(--profile-panel-divider);
-    border-bottom: 1px solid var(--profile-panel-divider);
+    border-top: 0;
+    border-bottom: 0;
     display: grid;
     gap: 0;
     padding: 0;
@@ -10926,7 +10926,7 @@
 }
 
 #partnerProfileDrawer .profile-info-line + .profile-info-line {
-    border-top: 1px solid var(--profile-panel-divider);
+    border-top: 0;
 }
 
 #partnerProfileDrawer .profile-info-line[role="button"]:hover,
@@ -10996,7 +10996,7 @@
 }
 
 #partnerProfileDrawer .profile-media-section {
-    border-top: 1px solid var(--profile-panel-divider);
+    border-top: 0;
     padding: 0;
     margin-top: var(--profile-panel-y-gap);
 }
@@ -11176,10 +11176,10 @@
 /* Profile drawer — disappearing timer scoped overrides */
 #partnerProfileDrawer #disappearingTimerContainer {
     padding: 0;
-    border-top: 1px solid var(--profile-panel-divider);
-    border-bottom: 1px solid var(--profile-panel-divider);
+    border-top: 0;
+    border-bottom: 0;
     background: var(--surface);
-    margin-top: -1px;
+    margin-top: 0;
 }
 
 #partnerProfileDrawer .disappearing-timer-row {
