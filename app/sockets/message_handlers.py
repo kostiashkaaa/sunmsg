@@ -943,6 +943,11 @@ def _persist_send_flow(conn, *, context: dict | None = None):
             },
         )
         expires_at = _apply_message_expiry(conn, message_id=msg_id, chat_id=chat_id)
+        if chat_type != 'group' and receiver_id is not None and int(sender_id) == int(receiver_id):
+            conn.execute(
+                'UPDATE messages SET is_read = 1, is_delivered = 1 WHERE id = ?',
+                (msg_id,),
+            )
         conn.commit()
 
         reply_to_id, reply_message, reply_sender_pub = _resolve_reply_preview_for_send(
@@ -990,6 +995,14 @@ def _persist_send_flow(conn, *, context: dict | None = None):
 def _finalize_send_message(context: dict | None = None) -> None:
     send_context = context or {}
     chat_type = str(send_context.get('chat_type') or '')
+    sender_id = send_context.get('sender_id')
+    receiver_id = send_context.get('receiver_id')
+    is_self_chat = (
+        chat_type != 'group'
+        and sender_id is not None
+        and receiver_id is not None
+        and int(sender_id) == int(receiver_id)
+    )
     payload = {
         'id': send_context.get('msg_id'),
         'chat_id': str(send_context.get('chat_id') or ''),
@@ -999,8 +1012,8 @@ def _finalize_send_message(context: dict | None = None) -> None:
         'sender_username': str(send_context.get('sender_username') or ''),
         'sender_avatar_url': str(send_context.get('sender_avatar_url') or ''),
         'message': str(send_context.get('message') or ''),
-        'is_read': False,
-        'is_delivered': bool(send_context.get('receiver_is_connected')) if chat_type != 'group' else True,
+        'is_read': is_self_chat,
+        'is_delivered': True if is_self_chat else (bool(send_context.get('receiver_is_connected')) if chat_type != 'group' else True),
         'voice_listened_by_partner': False,
         'created_at': send_context.get('message_created_at') or send_context.get('utc_now_text_func')(),
         'client_id': send_context.get('client_id'),
