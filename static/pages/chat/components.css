@@ -1304,7 +1304,14 @@
             font-weight: 400;
             color: var(--text);
             outline: none;
+            box-shadow: none;
+            -webkit-appearance: none;
             line-height: 1.25;
+        }
+
+        .search-input-wrapper input:focus {
+            outline: 0 !important;
+            box-shadow: none !important;
         }
 
 
@@ -4236,6 +4243,13 @@
             font-size: 15px;
             color: var(--text);
             outline: none;
+            box-shadow: none;
+            -webkit-appearance: none;
+        }
+
+        .header-search-wrap input:focus {
+            outline: 0 !important;
+            box-shadow: none !important;
         }
 
 
