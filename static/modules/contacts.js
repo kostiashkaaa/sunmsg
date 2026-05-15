@@ -89,7 +89,12 @@ function buildEncryptedPreviewLoadingHtml() {
 
 function renderSidebarDraftHtml(draftText, { maxLen = 68, draftLabel = '' } = {}) {
     const labelText = resolveDraftLabelText(draftLabel);
-    const previewHtml = renderMessagePreviewHtml(draftText, { isSelf: false, maxLen, emptyText: '' });
+    const previewHtml = renderMessagePreviewHtml(draftText, {
+        isSelf: false,
+        maxLen,
+        emptyText: '',
+        mediaTokenStyle: 'plain',
+    });
     return `<span class="contact-draft-label">${escapeHtml(labelText)}</span> <span class="contact-draft-preview">${previewHtml}</span>`;
 }
 
@@ -100,7 +105,12 @@ function renderSidebarLastMessageHtml(messageText, { isSelf, maxLen = 68, isDraf
     if (isDraft) {
         return renderSidebarDraftHtml(messageText, { maxLen, draftLabel });
     }
-    return renderMessagePreviewHtml(messageText, { isSelf, maxLen, emptyText: '' });
+    return renderMessagePreviewHtml(messageText, {
+        isSelf,
+        maxLen,
+        emptyText: '',
+        mediaTokenStyle: 'plain',
+    });
 }
 
 function buildAvatarLoadingBarsHtml() {
