@@ -68,7 +68,7 @@
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
-    color: var(--text);
+    color: var(--preview-text, var(--text));
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -79,7 +79,7 @@
 .message-link-preview__description {
     font-size: 12px;
     line-height: 1.35;
-    color: var(--sub-text);
+    color: var(--preview-subtext, var(--sub-text));
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
@@ -154,4 +154,29 @@
 .message-link-preview__surface:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
     outline-offset: 2px;
+}
+
+/* ── Bubble-aware text colors ────────────────────────────── */
+
+/* Incoming bubble: use bubble-in text palette */
+.message:not(.self) .bubble .message-link-preview {
+    --preview-text:    var(--chat-bubble-in-text);
+    --preview-subtext: color-mix(in srgb, var(--chat-bubble-in-text) 68%, transparent);
+}
+
+/* Outgoing bubble: use bubble-out text palette */
+.message.self .bubble .message-link-preview {
+    --preview-text:    var(--chat-bubble-out-text);
+    --preview-subtext: color-mix(in srgb, var(--chat-bubble-out-text) 68%, transparent);
+}
+
+/* Outgoing bubble surface background adapts to bubble color */
+.message.self .bubble .message-link-preview__surface {
+    background: color-mix(in srgb, var(--chat-bubble-out-text) 8%, transparent);
+}
+
+@media (hover: hover) {
+    .message.self .bubble .message-link-preview__surface:hover {
+        background: color-mix(in srgb, var(--chat-bubble-out-text) 14%, transparent);
+    }
 }
