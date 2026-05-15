@@ -384,7 +384,10 @@ export async function buildAudioWaveformPeaks(file, barsCount = 48) {
         }
 
         const globalMax = rawPeaks.reduce((acc, value) => Math.max(acc, value), 0);
-        if (!(globalMax > 0)) return null;
+        if (!(globalMax > 0)) {
+            // Тишина — возвращаем ровную низкую волну вместо fallback-псевдоволны
+            return new Array(targetBars).fill(8);
+        }
 
         return rawPeaks.map((value) => {
             const normalized = Math.round((value / globalMax) * 100);

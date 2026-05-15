@@ -772,9 +772,9 @@ export function initVoiceRecorder({
 
             recorder = null;
             stopTimer();
-            stopStream();
             stopWaveAnimation();
             await flushAndStopTranscription();
+            stopStream();
             const transcript = getFinalTranscript();
             isLockedRecording = false;
             resetHoldState();

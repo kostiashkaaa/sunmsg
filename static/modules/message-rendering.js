@@ -84,16 +84,17 @@ function normalizeWaveform(rawWaveform) {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value))
         .map((value) => Math.max(8, Math.min(100, Math.round(value))));
-    if (isWaveformInformative(cleaned)) return cleaned;
+    // Если данные есть — используем их (даже тихая запись), иначе fallback
+    if (cleaned.length >= 8) return cleaned;
     return DEFAULT_AUDIO_WAVEFORM.slice();
 }
 
 function hasProvidedWaveform(rawWaveform) {
-    if (Array.isArray(rawWaveform)) return isWaveformInformative(rawWaveform);
+    if (Array.isArray(rawWaveform)) return rawWaveform.length >= 8;
     if (typeof rawWaveform === 'string') {
         if (!rawWaveform.includes(',')) return false;
         const parsed = rawWaveform.split(',').map((part) => Number(part.trim()));
-        return isWaveformInformative(parsed);
+        return parsed.filter((v) => Number.isFinite(v)).length >= 8;
     }
     return false;
 }
