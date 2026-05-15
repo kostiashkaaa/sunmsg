@@ -177,10 +177,6 @@ export function initChatMediaRuntime(deps = {}) {
     const AUDIO_VOLUME_STORAGE_KEY = 'sun_audio_volume';
     const AUDIO_REPEAT_STORAGE_KEY = 'sun_audio_repeat_enabled';
     const AUDIO_WAVEFORM_BARS_COUNT = 48;
-    const VOICE_TRANSCRIPT_SHOW_LABEL = '\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F';
-    const VOICE_TRANSCRIPT_HIDE_LABEL = '\u0421\u043A\u0440\u044B\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F';
-    const VOICE_TRANSCRIPT_SHOW_TITLE = '\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442';
-    const VOICE_TRANSCRIPT_HIDE_TITLE = '\u0421\u043A\u0440\u044B\u0442\u044C \u0442\u0435\u043A\u0441\u0442';
     let activeVoicePlaybackAudioEl = null;
     let activeVoicePlaybackMeta = null;
     let voicePlaybackParkingHost = null;
@@ -622,19 +618,11 @@ export function initChatMediaRuntime(deps = {}) {
             : player?.querySelector('.file-msg-audio-el');
         const toggle = player?.querySelector('.audio-player-toggle');
         const icon = toggle?.querySelector('i');
-        const speedButton = player?.querySelector('.audio-player-speed:not(.audio-player-transcript-toggle)');
+        const speedButton = player?.querySelector('.audio-player-speed');
         const progress = player?.querySelector('.audio-player-progress');
         const wave = player?.querySelector('.audio-player-wave');
         const durationLabel = bubble?.querySelector('.audio-message-duration');
         return { player, audio, toggle, icon, speedButton, progress, wave, durationLabel };
-    }
-
-    function syncVoiceTranscriptToggle(toggleBtn, expanded) {
-        if (!toggleBtn) return;
-        toggleBtn.classList.toggle('is-active', expanded);
-        toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        toggleBtn.setAttribute('aria-label', expanded ? VOICE_TRANSCRIPT_HIDE_LABEL : VOICE_TRANSCRIPT_SHOW_LABEL);
-        toggleBtn.title = expanded ? VOICE_TRANSCRIPT_HIDE_TITLE : VOICE_TRANSCRIPT_SHOW_TITLE;
     }
 
     async function ensureGeneratedAudioWaveform(audioEl) {
@@ -1099,41 +1087,6 @@ export function initChatMediaRuntime(deps = {}) {
             syncAudioPlayerUi(audio);
         }
         syncVoicePlaybackBar();
-    };
-
-    let chatCenterNoticeTimer = null;
-    function showChatCenterNotice(text) {
-        const chatArea = document.getElementById('chatArea');
-        if (!chatArea) return;
-        let notice = chatArea.querySelector('.chat-center-notice');
-        if (notice) {
-            clearTimeout(chatCenterNoticeTimer);
-            notice.remove();
-        }
-        notice = document.createElement('div');
-        notice.className = 'chat-center-notice';
-        notice.textContent = text;
-        chatArea.appendChild(notice);
-        requestAnimationFrame(() => notice.classList.add('chat-center-notice--visible'));
-        chatCenterNoticeTimer = setTimeout(() => {
-            notice.classList.remove('chat-center-notice--visible');
-            notice.addEventListener('transitionend', () => notice.remove(), { once: true });
-        }, 2500);
-    }
-
-    window._toggleVoiceTranscript = function(toggleBtn) {
-        const player = toggleBtn?.closest?.('.file-msg-audio-player');
-        const transcript = player?.querySelector('.voice-transcript');
-        if (!toggleBtn) return;
-        if (!transcript) {
-            showChatCenterNotice('Не удалось расшифровать голосовое сообщение');
-            return;
-        }
-        const nextExpanded = !transcript.classList.contains('is-expanded');
-        transcript.classList.toggle('is-expanded', nextExpanded);
-        transcript.hidden = false;
-        transcript.setAttribute('aria-hidden', nextExpanded ? 'false' : 'true');
-        syncVoiceTranscriptToggle(toggleBtn, nextExpanded);
     };
 
     window._toggleAudioPlayer = function(toggleBtn) {

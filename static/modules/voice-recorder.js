@@ -83,7 +83,6 @@ export function initVoiceRecorder({
     voiceRecordSendBtn,
     voiceRecordWaveLive,
     voiceLockIndicator,
-    voiceRecordTranscriptLive,
     maxSeconds = 600,
     mimeCandidates = [],
     getCurrentChatId,
@@ -119,110 +118,6 @@ export function initVoiceRecorder({
     let suppressMicStartUntil = 0;
     let isVoiceTypingActive = false;
     const MIC_GHOST_CLICK_GUARD_MS = 400;
-
-    // Speech recognition / transcription state
-    let speechRecognizer = null;
-    let speechFinalTranscript = '';
-    let speechInterimTranscript = '';
-
-    function getSpeechRecognitionCtor() {
-        return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-    }
-
-    function updateTranscriptDisplay() {
-        if (!voiceRecordTranscriptLive) return;
-        const text = (speechFinalTranscript + (speechInterimTranscript ? ' ' + speechInterimTranscript : '')).trim();
-        voiceRecordTranscriptLive.textContent = text;
-        voiceRecordTranscriptLive.setAttribute('aria-hidden', text ? 'false' : 'true');
-    }
-
-    function startTranscription() {
-        const SpeechRecognitionCtor = getSpeechRecognitionCtor();
-        if (!SpeechRecognitionCtor) return;
-        try {
-            speechFinalTranscript = '';
-            speechInterimTranscript = '';
-            updateTranscriptDisplay();
-            speechRecognizer = new SpeechRecognitionCtor();
-            speechRecognizer.continuous = true;
-            speechRecognizer.interimResults = true;
-            speechRecognizer.maxAlternatives = 1;
-            speechRecognizer.lang = document.documentElement.lang || navigator.language || 'ru-RU';
-            speechRecognizer.onresult = (event) => {
-                let interim = '';
-                for (let i = event.resultIndex; i < event.results.length; i += 1) {
-                    const text = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
-                    } else {
-                        interim += text;
-                    }
-                }
-                speechInterimTranscript = interim;
-                updateTranscriptDisplay();
-            };
-            speechRecognizer.onerror = () => {
-                speechRecognizer = null;
-            };
-            speechRecognizer.onend = () => {
-                // Restart if still recording (browser may stop after silence)
-                if (isActive() && speechRecognizer) {
-                    try { speechRecognizer.start(); } catch (_) {}
-                }
-            };
-            speechRecognizer.start();
-        } catch (_) {
-            speechRecognizer = null;
-        }
-    }
-
-    function stopTranscription() {
-        if (speechRecognizer) {
-            speechRecognizer.onend = null;
-            try { speechRecognizer.stop(); } catch (_) {}
-            speechRecognizer = null;
-        }
-        speechInterimTranscript = '';
-        updateTranscriptDisplay();
-    }
-
-    function flushAndStopTranscription() {
-        return new Promise((resolve) => {
-            if (!speechRecognizer) { resolve(); return; }
-            const rec = speechRecognizer;
-            const timeout = setTimeout(() => {
-                rec.onresult = null;
-                rec.onend = null;
-                try { rec.stop(); } catch (_) {}
-                speechRecognizer = null;
-                speechInterimTranscript = '';
-                resolve();
-            }, 1200);
-            rec.onend = () => {
-                clearTimeout(timeout);
-                speechRecognizer = null;
-                speechInterimTranscript = '';
-                resolve();
-            };
-            // Последний onresult перед onend сохранит interim как final
-            rec.onresult = (event) => {
-                for (let i = event.resultIndex; i < event.results.length; i += 1) {
-                    const text = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
-                    } else {
-                        speechFinalTranscript = (speechFinalTranscript + ' ' + text).trim();
-                    }
-                }
-                speechInterimTranscript = '';
-            };
-            try { rec.stop(); } catch (_) { clearTimeout(timeout); speechRecognizer = null; resolve(); }
-        });
-    }
-
-    function getFinalTranscript() {
-        return (speechFinalTranscript + (speechInterimTranscript ? ` ${speechInterimTranscript}` : '')).trim();
-    }
 
     // Hold-to-record / lock-to-record state
     let isHoldRecording = false;
@@ -774,9 +669,7 @@ export function initVoiceRecorder({
             recorder = null;
             stopTimer();
             stopWaveAnimation();
-            await flushAndStopTranscription();
             stopStream();
-            const transcript = getFinalTranscript();
             isLockedRecording = false;
             resetHoldState();
             syncVoiceTypingState(false);
@@ -810,7 +703,6 @@ export function initVoiceRecorder({
             await sendFileMessage(file, '', {
                 audioDurationSeconds: recordedSeconds,
                 typingKindHint: 'voice',
-                ...(transcript ? { transcript } : {}),
             });
             return file;
         } finally {
@@ -820,7 +712,6 @@ export function initVoiceRecorder({
             stopTimer();
             stopStream();
             stopWaveAnimation();
-            stopTranscription();
             isLockedRecording = false;
             resetHoldState();
             syncVoiceTypingState(false);
@@ -880,7 +771,6 @@ export function initVoiceRecorder({
             }
             buildWaveBars();
             startWaveAnimation(stream);
-            startTranscription();
             startTimer();
             updateButtonState();
         } catch (_) {
@@ -902,7 +792,6 @@ export function initVoiceRecorder({
         stopTimer();
         stopStream();
         stopWaveAnimation();
-        stopTranscription();
         isLockedRecording = false;
         resetHoldState();
         syncVoiceTypingState(false);

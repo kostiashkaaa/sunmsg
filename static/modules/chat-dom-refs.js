@@ -50,7 +50,6 @@ export function resolveChatDomRefs(documentRef = document) {
         voiceRecordSendBtn: byId('voiceRecordSendBtn'),
         voiceRecordWaveLive: byId('voiceRecordWaveLive'),
         voiceLockIndicator: byId('voiceLockIndicator'),
-        voiceRecordTranscriptLive: byId('voiceRecordTranscriptLive'),
         cancelReplyBtn: byId('cancelReplyBtn'),
         cancelEditBtn: byId('cancelEditBtn'),
         sendMessageBtnMobile: null,

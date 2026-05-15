@@ -1128,10 +1128,6 @@
             display: flex;
         }
 
-        #composerRow.is-voice-recording #voiceRecordTranscriptLive {
-            display: block;
-        }
-
         #composerRow.is-voice-recording #attachBtn,
         #composerRow.is-voice-recording #sendMessageBtn {
             width: 0 !important;
