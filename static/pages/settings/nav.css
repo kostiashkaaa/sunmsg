@@ -175,7 +175,7 @@
     column-gap: var(--settings-icon-gap);
     justify-content: initial;
     width: 100%;
-    min-height: var(--settings-row-height);
+    min-height: 44px;
     padding: 0 var(--settings-row-inline-pad);
     border-radius: 10px;
     border: 1px solid transparent;

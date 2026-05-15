@@ -77,19 +77,16 @@
 /* Поля ввода */
         .settings-input {
             border: none;
-            border-bottom: 1px solid var(--rule);
             border-radius: 0;
             padding: 8px 0;
             font-size: 15px;
             background: transparent;
             color: var(--ink);
             outline: none;
-            transition: border-color var(--dur-quick);
-            min-width: 200px;
+            transition: box-shadow var(--dur-quick) var(--ease-quick), color var(--dur-quick);
             font-family: var(--font);
         }
         .settings-input:focus {
-            border-bottom: 1.5px solid var(--ink);
             box-shadow: none;
         }
 
@@ -100,10 +97,9 @@
             -moz-appearance: none;
             min-height: 40px;
             border: 1px solid var(--rule);
-            border-bottom: 1px solid var(--rule);
             border-radius: 12px;
             padding: 8px 38px 8px 12px;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 500;
             line-height: 1.25;
             background-color: color-mix(in srgb, var(--paper) 92%, transparent);
@@ -232,8 +228,8 @@
         }
         .settings-avatar-edit-btn {
             position: absolute;
-            right: -4px;
-            bottom: -4px;
+            right: 0;
+            bottom: 0;
             width: 34px;
             height: 34px;
             display: inline-flex;
@@ -1049,7 +1045,7 @@
 
 .theme-preview-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 12px;
     padding: 20px;
 }
