@@ -1268,7 +1268,7 @@
     min-height: 44px;
     padding: 0 16px;
     border-radius: 16px;
-            border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+            border: none;
             background: color-mix(in srgb, var(--surface-2) 84%, transparent);
             transition:
                 background var(--dur-quick) var(--ease-quick),
