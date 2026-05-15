@@ -666,11 +666,10 @@ function buildFileBubble(filePayload) {
         const voiceTranscriptText = isVoiceAudio && typeof filePayload.transcript === 'string'
             ? filePayload.transcript.trim()
             : '';
-        const audioSpeedButtonHtml = `<button class="audio-player-speed" type="button" onclick="window._cycleAudioPlaybackRate(this)" aria-label="\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C 1x. \u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C" title="\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C">1x</button>`;
-        const voiceTranscriptButtonHtml = voiceTranscriptText
-            ? `<button class="audio-player-speed audio-player-transcript-toggle" type="button" onclick="window._toggleVoiceTranscript(this)" aria-label="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F'))}" title="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442'))}" aria-expanded="false">${escapeHtml(tr('\u0422\u0435\u043A\u0441\u0442'))}</button>`
+        const voiceTranscriptButtonHtml = isVoiceAudio
+            ? `<button class="audio-player-speed audio-player-transcript-toggle${voiceTranscriptText ? '' : ' is-disabled'}" type="button" onclick="window._toggleVoiceTranscript(this)" aria-label="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F'))}" title="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442'))}" aria-expanded="false"${voiceTranscriptText ? '' : ' disabled'}>${escapeHtml(tr('\u0422\u0435\u043A\u0441\u0442'))}</button>`
             : '';
-        const audioActionButtonHtml = voiceTranscriptButtonHtml || audioSpeedButtonHtml;
+        const audioActionButtonHtml = voiceTranscriptButtonHtml;
         bubbleClass += ' bubble--audio';
         if (!isVoiceAudio) bubbleClass += ' bubble--audio-file';
         if (caption) bubbleClass += ' bubble--audio-has-caption';
