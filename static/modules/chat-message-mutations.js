@@ -54,9 +54,10 @@ export function createChatMessageMutations({
             const isImageFile = rawIsImageFile && !isDocumentVisual;
             const isVideoFile = rawIsVideoFile && !isDocumentVisual;
 
-            // Keep data-is-voice / data-is-media in sync so the edit/context-menu logic stays correct
+            // Keep data-is-* attrs in sync so the edit / context-menu logic stays correct
             const isVoiceFile = isAudioFile && isLikelyVoiceAudioPayload(filePayload);
             const isVisualMedia = (isImageFile || isVideoFile);
+            msgDiv.setAttribute('data-is-sunfile', '1');
             msgDiv.setAttribute('data-is-voice', isVoiceFile ? '1' : '0');
             msgDiv.setAttribute('data-is-media', isVisualMedia ? '1' : '0');
             const placeReactionsOutside = true;

@@ -976,6 +976,9 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     if (isAudioPayload && isSelf) {
         messageDiv.setAttribute('data-audio-listened-by-partner', audioListenedByPartner ? '1' : '0');
     }
+    if (filePayload) {
+        messageDiv.setAttribute('data-is-sunfile', '1');
+    }
     if (isAudioPayload && isVoiceAudioPayload) {
         messageDiv.setAttribute('data-is-voice', '1');
     }
