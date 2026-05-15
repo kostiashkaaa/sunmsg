@@ -471,7 +471,6 @@ def _fetch_preview_html(url: str) -> tuple[str, str]:
         'User-Agent': _LINK_PREVIEW_BOT_USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
-        'Accept-Encoding': 'gzip, deflate',
         'Cache-Control': 'no-cache',
     }
     req = Request(url, headers=request_headers, method='GET')
