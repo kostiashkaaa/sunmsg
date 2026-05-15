@@ -3385,9 +3385,12 @@ export const initChatPage = async () => {
             isBlockedChat,
             removeChatMessages,
             getCurrentChatId: () => currentChatId,
-            rerenderCurrentChat: () => {
+            rerenderCurrentChat: (options = {}) => {
                 if (!currentChatId) return;
-                renderChatMessages(currentChatId, { force: true, scrollTop: chatMessages.scrollTop });
+                const renderOptions = options && Object.keys(options).length
+                    ? options
+                    : { scrollTop: chatMessages.scrollTop };
+                renderChatMessages(currentChatId, renderOptions);
             },
             loadContacts,
             getChatState,

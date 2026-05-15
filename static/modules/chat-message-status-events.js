@@ -54,12 +54,55 @@ export function registerMessageStatusSocketHandlers({
         }
         return null;
     };
+    const normalizeDeletedMessageIds = (data) => (
+        (data?.msg_id ? [data.msg_id] : (data?.msg_ids || []))
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+    );
+    const resolveDeleteRenderAnchor = (deletedIds) => {
+        const chatMessages = currentChatMessagesEl;
+        if (!chatMessages || typeof chatMessages.querySelectorAll !== 'function') return null;
+        const containerRect = chatMessages.getBoundingClientRect?.();
+        if (!containerRect) return null;
+
+        const messages = Array.from(chatMessages.querySelectorAll('.message[data-message-key]'));
+        const anchorEl = messages.find((node) => {
+            const msgId = Number(node.getAttribute?.('data-msg-id'));
+            if (deletedIds.has(msgId)) return false;
+            const rect = node.getBoundingClientRect?.();
+            if (!rect) return false;
+            return rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+        });
+        if (!anchorEl) return null;
+
+        const anchorMessageKey = String(anchorEl.getAttribute?.('data-message-key') || '').trim();
+        const anchorRect = anchorEl.getBoundingClientRect?.();
+        if (!anchorMessageKey || !anchorRect) return null;
+
+        return {
+            anchorMessageKey,
+            anchorOffsetTop: anchorRect.top - containerRect.top,
+            preserveHeightDelta: true,
+            previousScrollTop: chatMessages.scrollTop,
+            previousScrollHeight: chatMessages.scrollHeight,
+        };
+    };
 
     const handleDeleteEvent = (data) => {
-        const ids = data.msg_id ? [data.msg_id] : (data.msg_ids || []);
+        const ids = normalizeDeletedMessageIds(data);
+        if (!ids.length) return;
+        const isCurrentChat = String(data?.chat_id || '') === String(getCurrentChatId() || '');
+        const deletedIds = new Set(ids);
+        const renderAnchor = isCurrentChat ? resolveDeleteRenderAnchor(deletedIds) : null;
+        const previousScrollTop = currentChatMessagesEl?.scrollTop;
+        const previousScrollHeight = currentChatMessagesEl?.scrollHeight;
         removeChatMessages(data.chat_id, ids);
-        if (String(data?.chat_id || '') === String(getCurrentChatId() || '')) {
-            rerenderCurrentChat();
+        if (isCurrentChat) {
+            rerenderCurrentChat(renderAnchor || {
+                preserveHeightDelta: true,
+                previousScrollTop,
+                previousScrollHeight,
+            });
         }
         loadContacts();
     };

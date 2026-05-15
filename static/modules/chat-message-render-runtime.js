@@ -252,6 +252,8 @@ export function createChatMessageRenderRuntime({
 
         const state = getChatState?.(chatId);
         const forcedScrollTop = Number.isFinite(options.scrollTop) ? options.scrollTop : null;
+        const anchorMessageKey = String(options.anchorMessageKey || '').trim();
+        const hasScrollAnchor = Boolean(anchorMessageKey) && Number.isFinite(options.anchorOffsetTop);
         const effectiveScrollTop = options.scrollToBottom
             ? sumEstimatedHeights?.(state, 0, state.messages.length)
             : (forcedScrollTop ?? chatMessages.scrollTop);
@@ -267,7 +269,7 @@ export function createChatMessageRenderRuntime({
                 };
             }
         }
-        const needsForcedRender = Boolean(options.force || options.preserveHeightDelta || forcedScrollTop !== null || options.scrollToBottom);
+        const needsForcedRender = Boolean(options.force || hasScrollAnchor || options.preserveHeightDelta || forcedScrollTop !== null || options.scrollToBottom);
         if (!needsForcedRender && state.lastRenderRange && state.lastRenderRange.start === range.start && state.lastRenderRange.end === range.end) {
             schedulePostRenderUiRefresh?.({ jumpButton: true });
             return;
@@ -327,7 +329,34 @@ export function createChatMessageRenderRuntime({
         registerMediaElementsForLazyHydration?.(chatMessages);
         measureRenderedMessageHeights(state);
 
-        if (forcedScrollTop !== null) {
+        if (hasScrollAnchor) {
+            const resolveAnchorEl = () => (
+                Array.from(chatMessages.querySelectorAll('.message[data-message-key]'))
+                    .find((node) => String(node.getAttribute('data-message-key') || '') === anchorMessageKey)
+                || null
+            );
+            const restoreAnchorScroll = () => {
+                const anchorEl = resolveAnchorEl();
+                if (!anchorEl) return false;
+                const containerRect = chatMessages.getBoundingClientRect();
+                const anchorRect = anchorEl.getBoundingClientRect();
+                const nextTop = chatMessages.scrollTop + (anchorRect.top - containerRect.top - options.anchorOffsetTop);
+                setChatScrollTop(nextTop);
+                return true;
+            };
+
+            if (!restoreAnchorScroll() && options.preserveHeightDelta && Number.isFinite(options.previousScrollTop) && Number.isFinite(options.previousScrollHeight)) {
+                setChatScrollTop(options.previousScrollTop + (chatMessages.scrollHeight - options.previousScrollHeight));
+            }
+            requestAnimationFrameFn(() => {
+                const currentMessages = getCurrentMessagesElement();
+                if (!currentMessages) return;
+                if (!chatId || String(chatId) !== String(getCurrentChatId?.())) return;
+                restoreAnchorScroll();
+            });
+            saveChatScrollPosition?.(chatId);
+            schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true, albums: true });
+        } else if (forcedScrollTop !== null) {
             setChatScrollTop(forcedScrollTop);
             requestAnimationFrameFn(() => {
                 const currentMessages = getCurrentMessagesElement();
