@@ -615,16 +615,32 @@
             <div class="settings-card" id="mnemonicUnlockCard">
                 <div class="settings-card-header">
                     <i class="bi bi-unlock"></i>
-                    <h3>Активировать историю (24 слова)</h3>
+                    <h3>Восстановление истории (24 слова)</h3>
                 </div>
-                <p class="settings-copy-muted-sm">
-                    Введите ваши секретные 24 слова, чтобы восстановить доступ к зашифрованным сообщениям на этом устройстве.
-                </p>
-                <div class="mnemonic-grid" id="mnemonicInputGrid"></div>
-                <div class="settings-actions-end">
-                    <button class="btn-settings primary" id="activateDecryptionBtn">
-                        <i class="bi bi-key-fill"></i> Активировать доступ
-                    </button>
+                <div class="mnemonic-unlocked-note" id="mnemonicUnlockedNote">
+                    <div class="settings-row settings-row-borderless">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">
+                                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                                Доступ к истории активен
+                            </div>
+                            <div class="settings-row-desc">Зашифрованные сообщения расшифровываются на этом устройстве.</div>
+                        </div>
+                        <button type="button" class="btn-settings secondary" id="mnemonicReunlockBtn">
+                            Восстановить заново
+                        </button>
+                    </div>
+                </div>
+                <div class="mnemonic-unlock-body" id="mnemonicUnlockBody">
+                    <p class="settings-copy-muted-sm">
+                        Введите ваши секретные 24 слова, чтобы восстановить доступ к зашифрованным сообщениям на этом устройстве.
+                    </p>
+                    <div class="mnemonic-grid" id="mnemonicInputGrid"></div>
+                    <div class="settings-actions-end">
+                        <button class="btn-settings primary" id="activateDecryptionBtn">
+                            <i class="bi bi-key-fill"></i> Активировать доступ
+                        </button>
+                    </div>
                 </div>
             </div>
 
