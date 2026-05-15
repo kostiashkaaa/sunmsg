@@ -10851,13 +10851,13 @@
 
 #partnerProfileDrawer .profile-hero {
     margin-top: 0;
-    padding: 12px var(--profile-panel-x-pad) 10px;
+    padding: 14px var(--profile-panel-x-pad) 12px;
     border-radius: 0;
     border: 0;
     background: var(--surface);
     box-shadow: none;
     overflow: visible;
-    row-gap: 1px;
+    row-gap: 2px;
 }
 
 #partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
@@ -10870,17 +10870,17 @@
 }
 
 #partnerProfileDrawer .profile-hero-name {
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     font-size: 20px;
     line-height: 1.2;
     font-weight: 650;
 }
 
 #partnerProfileDrawer .profile-hero-username {
-    margin-top: 2px;
+    margin-top: 1px;
     font-size: 13px;
     font-weight: 500;
-    line-height: 1.35;
+    line-height: 1.3;
     color: var(--sub-text);
 }
 
@@ -10890,9 +10890,9 @@
 
 #partnerProfileDrawer .profile-hero-status {
     margin-top: 1px;
-    min-height: 15px;
+    min-height: 14px;
     font-size: 12px;
-    line-height: 1.35;
+    line-height: 1.3;
     font-family: var(--font);
     letter-spacing: 0;
 }
@@ -10908,25 +10908,25 @@
 }
 
 #partnerProfileDrawer .profile-info-card {
-    border-top: 0;
-    border-bottom: 0;
+    border-top: 1px solid var(--profile-panel-divider);
+    border-bottom: 1px solid var(--profile-panel-divider);
     display: grid;
-    gap: 2px;
-    padding: 2px 0;
+    gap: 0;
+    padding: 0;
     margin-top: var(--profile-panel-y-gap);
 }
 
 #partnerProfileDrawer .profile-info-line {
     grid-template-columns: 28px minmax(0, 1fr);
     column-gap: 10px;
-    min-height: 44px;
-    padding: 8px var(--profile-panel-x-pad);
+    min-height: 46px;
+    padding: 9px var(--profile-panel-x-pad);
     border-top: 0;
     border-radius: 0;
 }
 
 #partnerProfileDrawer .profile-info-line + .profile-info-line {
-    border-top: 0;
+    border-top: 1px solid var(--profile-panel-divider);
 }
 
 #partnerProfileDrawer .profile-info-line[role="button"]:hover,
@@ -10966,7 +10966,7 @@
 #partnerProfileDrawer #profileMuteRow.profile-info-line--toggle {
     grid-template-columns: 28px minmax(0, 1fr) 44px;
     column-gap: 10px;
-    padding: 8px var(--profile-panel-x-pad);
+    padding: 9px var(--profile-panel-x-pad);
 }
 
 #partnerProfileDrawer #profileMuteToggle.profile-toggle {
@@ -10996,7 +10996,7 @@
 }
 
 #partnerProfileDrawer .profile-media-section {
-    border-top: 0;
+    border-top: 1px solid var(--profile-panel-divider);
     padding: 0;
     margin-top: var(--profile-panel-y-gap);
 }
@@ -11175,12 +11175,16 @@
 
 /* Profile drawer — disappearing timer scoped overrides */
 #partnerProfileDrawer #disappearingTimerContainer {
-    padding: 0 var(--profile-panel-x-pad) 0;
+    padding: 0;
+    border-top: 1px solid var(--profile-panel-divider);
+    border-bottom: 1px solid var(--profile-panel-divider);
+    background: var(--surface);
+    margin-top: -1px;
 }
 
 #partnerProfileDrawer .disappearing-timer-row {
-    padding: 9px 0;
-    border-top-color: var(--profile-panel-divider);
+    padding: 9px var(--profile-panel-x-pad);
+    border-top: 0;
 }
 
 #partnerProfileDrawer .disappearing-timer-select {
