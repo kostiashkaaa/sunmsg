@@ -615,17 +615,17 @@ export function initVoiceRecorder({
         const attempts = [
             {
                 audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
                 },
             },
             { audio: true },
             {
                 audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
                 },
             },
         ];
