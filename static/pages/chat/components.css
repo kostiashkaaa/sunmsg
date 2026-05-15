@@ -5595,6 +5595,13 @@
             color: var(--chat-bubble-in-text);
         }
 
+        /* Голосовые сообщения — компактнее обычных аудио-файлов */
+        .message .bubble.bubble--audio:not(.bubble--audio-file) {
+            --audio-leading-offset: 47px; /* play button (38) + gap (9) */
+            min-width: clamp(160px, 22vw, 200px);
+            max-width: min(320px, 68vw);
+        }
+
 
         .message.self .bubble.bubble--audio {
             --audio-btn-bg: #ffffff;
@@ -5607,6 +5614,12 @@
             --audio-listen-dot-done-color: color-mix(in srgb, var(--chat-bubble-out-text) 62%, transparent);
             background: var(--chat-bubble-out-bg);
             color: var(--chat-bubble-out-text);
+        }
+
+        .message.self .bubble.bubble--audio:not(.bubble--audio-file) {
+            --audio-leading-offset: 47px;
+            min-width: clamp(160px, 22vw, 200px);
+            max-width: min(320px, 68vw);
         }
 
 
@@ -5651,6 +5664,11 @@
             transition: background var(--dur-instant) var(--ease-quick), transform var(--dur-instant) var(--ease-quick);
         }
 
+        .bubble--audio:not(.bubble--audio-file) .audio-player-toggle {
+            width: 38px;
+            height: 38px;
+        }
+
         .audio-player-toggle:active {
             transform: scale(0.94);
             background: color-mix(in srgb, var(--audio-btn-bg) 86%, #000 14%);
@@ -5669,6 +5687,9 @@
             transition: transform var(--dur-quick) var(--ease-quick), opacity var(--dur-instant) var(--ease-quick);
         }
 
+        .bubble--audio:not(.bubble--audio-file) .audio-player-toggle i {
+            font-size: 18px;
+        }
 
         .audio-player-toggle i.bi-play-fill {
             transform: translateX(1px);
