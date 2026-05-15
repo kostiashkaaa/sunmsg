@@ -15,12 +15,14 @@
         {
             id: 'light-classic',
             mode: 'light',
+            label: 'Светлая классика',
             accent: '#c58a22',
             vars: {},
         },
         {
             id: 'light-sky',
             mode: 'light',
+            label: 'Светлая прохлада',
             accent: '#3d85e0',
             vars: {
                 '--bg': '#eaf2fb',
@@ -58,6 +60,7 @@
         {
             id: 'light-mist',
             mode: 'light',
+            label: 'Серая дымка',
             accent: '#6d7f99',
             vars: {
                 '--bg': '#eef0f3',
@@ -95,12 +98,14 @@
         {
             id: 'dark-classic',
             mode: 'dark',
+            label: 'Тёмная классика',
             accent: '#d6a449',
             vars: {},
         },
         {
             id: 'dark-forest',
             mode: 'dark',
+            label: 'Тёмный лес',
             accent: '#34b381',
             vars: {
                 '--bg': '#101815',
@@ -138,6 +143,7 @@
         {
             id: 'dark-midnight',
             mode: 'dark',
+            label: 'Тёмная синь',
             accent: '#5b7dff',
             vars: {
                 '--bg': '#10162a',
@@ -175,6 +181,7 @@
         {
             id: 'dark-graphite',
             mode: 'dark',
+            label: 'Тёмный графит',
             accent: '#8a98ad',
             vars: {
                 '--bg': '#121416',
@@ -212,6 +219,7 @@
         {
             id: 'custom-light',
             mode: 'light',
+            label: 'Кастомная светлая',
             accent: null,
             custom: true,
             vars: {
@@ -250,6 +258,7 @@
         {
             id: 'custom-dark',
             mode: 'dark',
+            label: 'Кастомная тёмная',
             accent: null,
             custom: true,
             vars: {
