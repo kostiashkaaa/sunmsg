@@ -371,6 +371,15 @@
         return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
     }
 
+    function toTimestampMs(value) {
+        if (typeof value === 'number' && isFinite(value)) {
+            return value > 1e12 ? value : value * 1000;
+        }
+        if (typeof value !== 'string' || !value.trim()) return 0;
+        const parsed = Date.parse(value.trim());
+        return isFinite(parsed) ? parsed : 0;
+    }
+
     function asLanguage(value) {
         return String(value ?? '').trim().toLowerCase() === 'en' ? 'en' : 'ru';
     }
@@ -768,33 +777,56 @@
         const server = asObject(SERVER_CLIENT_PREFERENCES);
         if (Object.keys(server).length === 0) return;
         try {
+            // Respect a fresher local theme change. If the user picked a theme
+            // locally and that change is newer than the server snapshot, the
+            // server data must NOT overwrite it — otherwise the theme reverts
+            // to the server default and the settings page ends up showing a
+            // different preset than what the chat actually renders.
+            let localPrefs = {};
+            try {
+                localPrefs = asObject(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'));
+            } catch (_parseError) {
+                localPrefs = {};
+            }
+            const serverTs = toTimestampMs(server.updatedAt);
+            const localTs = toTimestampMs(localPrefs.updatedAt);
+            const localIsFresher = localTs > 0 && localTs > serverTs;
+
             let touched = false;
 
-            if (typeof server.darkMode === 'boolean') {
+            if (typeof server.darkMode === 'boolean' && !localIsFresher) {
                 localStorage.setItem('darkMode', server.darkMode ? 'true' : 'false');
                 touched = true;
             }
 
-            if (Object.prototype.hasOwnProperty.call(server, 'language')) {
+            if (Object.prototype.hasOwnProperty.call(server, 'language') && !localIsFresher) {
                 const language = asLanguage(server.language);
                 localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
                 touched = true;
             }
 
             const interfaceThemeStore = asObject(server.interfaceThemeStore);
-            if (Object.keys(interfaceThemeStore).length > 0) {
+            if (Object.keys(interfaceThemeStore).length > 0 && !localIsFresher) {
                 localStorage.setItem(INTERFACE_THEME_STORAGE_KEY, JSON.stringify(interfaceThemeStore));
                 touched = true;
             }
 
             const chatAppearanceStore = asObject(server.chatAppearanceStore);
-            if (Object.keys(chatAppearanceStore).length > 0) {
+            if (Object.keys(chatAppearanceStore).length > 0 && !localIsFresher) {
                 localStorage.setItem(CHAT_APPEARANCE_STORAGE_KEY, JSON.stringify(chatAppearanceStore));
                 touched = true;
             }
 
             if (touched) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(server));
+                // Merge into the existing unified record instead of replacing
+                // it, so any local-only fields survive. The precomputed `boot`
+                // slice is dropped here because it was built from the now
+                // superseded local theme; with no `boot`, applyBootState()
+                // falls back to the legacy preset path which reads the
+                // freshly written interface/chat-appearance stores.
+                const merged = Object.assign({}, localPrefs, server);
+                delete merged.boot;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
             }
         } catch (_error) {
             // Ignore storage write errors.
