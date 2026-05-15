@@ -741,6 +741,14 @@ function buildFileBubble(filePayload) {
             : '';
         const useImageThumb = Boolean(imageThumbSrc);
         const useVideoThumb = isDocumentVisual && rawIsVideo;
+        const extColorMap = {
+            pdf: 'red', doc: 'blue', docx: 'blue',
+            xls: 'green', xlsx: 'green', csv: 'green',
+            zip: 'yellow', rar: 'yellow', '7z': 'yellow',
+            mp3: 'purple', ogg: 'purple', wav: 'purple', m4a: 'purple', aac: 'purple', opus: 'purple',
+            txt: 'gray', ppt: 'orange', pptx: 'orange',
+        };
+        const iconColor = extColorMap[ext] || 'accent';
         const iconWrapClass = `file-icon-wrap${(useImageThumb || useVideoThumb) ? ' file-icon-wrap--media-thumb' : ''}`;
         const iconWrapContent = useImageThumb
             ? `<img class="file-card-thumb-image" src="${escapeHtml(imageThumbSrc)}" loading="lazy" decoding="async" alt="">`
@@ -750,7 +758,7 @@ function buildFileBubble(filePayload) {
         content = `
             <div class="file-msg-card-wrap">
                 <a class="file-msg-link${isUploadingFile ? ' is-uploading' : ''}" href="${escapeHtml(safeUri)}" download="${escapeHtml(fname)}" aria-disabled="${isUploadingFile ? 'true' : 'false'}">
-                    <div class="${iconWrapClass}">${iconWrapContent}</div>
+                    <div class="${iconWrapClass}" data-file-color="${iconColor}">${iconWrapContent}</div>
                     <div class="file-info">
                         <span class="file-info-name">${escapeHtml(fname)}</span>
                         <span class="file-info-size">${escapeHtml(size)}</span>
