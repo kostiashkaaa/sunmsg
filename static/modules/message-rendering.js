@@ -257,6 +257,10 @@ function bindMessageInteractiveHandlers(messageDiv) {
         toggleBtn.addEventListener('click', () => window._toggleAudioPlayer?.(toggleBtn));
     });
 
+    messageDiv.querySelectorAll('.voice-transcript-btn').forEach((btn) => {
+        btn.addEventListener('click', () => window._toggleVoiceTranscript?.(btn));
+    });
+
     messageDiv.querySelectorAll('.audio-player-progress').forEach((rangeEl) => {
         const setSeekingState = (isSeeking) => {
             window._setAudioSeekState?.(rangeEl, Boolean(isSeeking));
@@ -667,7 +671,7 @@ function buildFileBubble(filePayload) {
             ? filePayload.transcript.trim()
             : '';
         const voiceTranscriptButtonHtml = isVoiceAudio
-            ? `<button class="voice-transcript-btn${voiceTranscriptText ? '' : ' voice-transcript-btn--unavailable'}" type="button" onclick="window._toggleVoiceTranscript(this)" aria-label="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F'))}" title="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442'))}" aria-expanded="false"><i class="bi bi-card-text" aria-hidden="true"></i></button>`
+            ? `<button class="voice-transcript-btn${voiceTranscriptText ? '' : ' voice-transcript-btn--unavailable'}" type="button" aria-label="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F'))}" title="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442'))}" aria-expanded="false"><i class="bi bi-card-text" aria-hidden="true"></i></button>`
             : '';
         const audioActionButtonHtml = voiceTranscriptButtonHtml;
         bubbleClass += ' bubble--audio';
