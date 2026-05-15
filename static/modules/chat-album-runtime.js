@@ -140,11 +140,11 @@ function buildAlbumGridHtml(items) {
         ].join(' ');
 
         const mediaEl = isVideo
-            ? `<video class="album-cell-video file-msg-video-preview" data-src="${escapeAttr(src)}" preload="none" playsinline muted onloadeddata="this.classList.add('is-loaded')"></video>
+            ? `<video class="album-cell-video file-msg-video-preview" data-src="${escapeAttr(src)}" preload="none" playsinline muted></video>
                <div class="video-preview-gradient" aria-hidden="true"></div>
                <button class="video-preview-play" type="button" tabindex="-1" aria-hidden="true"><i class="bi bi-play-fill"></i></button>
                ${duration ? `<span class="video-duration video-preview-duration">${escapeAttr(duration)}</span>` : ''}`
-            : `<img class="album-cell-img file-msg-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="" onload="this.classList.add('is-loaded')">`;
+            : `<img class="album-cell-img file-msg-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="">`;
 
         gridHtml += `
             <div class="album-cell file-msg-media-trigger" style="${style}" ${triggerAttrs}>
@@ -258,6 +258,18 @@ function processAlbumGroup(group) {
     } else {
         bubble.insertAdjacentHTML('beforeend', gridHtml + captionHtml);
     }
+
+    // Wire load events via addEventListener (inline onload/onloadeddata violates CSP)
+    bubble.querySelectorAll('.album-cell-img').forEach((img) => {
+        if (img.complete && img.naturalWidth > 0) {
+            img.classList.add('is-loaded');
+        } else {
+            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+        }
+    });
+    bubble.querySelectorAll('.album-cell-video').forEach((vid) => {
+        vid.addEventListener('loadeddata', () => vid.classList.add('is-loaded'), { once: true });
+    });
 
     // Mark processed
     primary.setAttribute(ALBUM_PROCESSED_ATTR, String(nodes.length));
