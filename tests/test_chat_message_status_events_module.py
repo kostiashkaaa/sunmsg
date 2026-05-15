@@ -123,3 +123,74 @@ if (failed !== 0) {
 """
     result = _run_status_events_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_delete_event_rerenders_current_chat_with_visible_anchor():
+    harness_body = """
+const handlers = new Map();
+const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
+const calls = [];
+const makeNode = (id, key, top, bottom) => ({
+  getAttribute: (name) => {
+    if (name === 'data-msg-id') return String(id);
+    if (name === 'data-message-key') return key;
+    return '';
+  },
+  getBoundingClientRect: () => ({ top, bottom }),
+});
+const chatMessages = {
+  scrollTop: 140,
+  scrollHeight: 1200,
+  getBoundingClientRect: () => ({ top: 20, bottom: 620 }),
+  querySelectorAll: () => [
+    makeNode(10, 'id:10', 80, 120),
+    makeNode(11, 'id:11', 130, 170),
+  ],
+};
+
+moduleApi.registerMessageStatusSocketHandlers({
+  socket,
+  isBlockedChat: () => false,
+  removeChatMessages: (chatId, ids) => calls.push(['remove', chatId, ids]),
+  getCurrentChatId: () => 'chat-1',
+  rerenderCurrentChat: (options) => calls.push(['rerender', options]),
+  loadContacts: () => calls.push(['contacts']),
+  getChatState: () => ({ messages: [], messageHeights: new Map(), renderedKeys: new Set() }),
+  findMessageIndex: () => -1,
+  cancelPendingTimeout: () => {},
+  getMessageKey: () => '',
+  normalizeChatMessageOrder: () => {},
+  currentChatMessagesEl: chatMessages,
+  applyTickToElement: () => {},
+  formatTime: () => '',
+  formatFullTimestamp: () => '',
+  patchMessageReactions: () => {},
+  updateSidebarContactTick: () => {},
+  getContactsRoot: () => null,
+  markAllTicksRead: () => {},
+  onMessagesMarkedRead: () => {},
+  failPendingMessage: () => {},
+  showToast: () => {},
+});
+
+handlers.get('messages_deleted')({ chat_id: 'chat-1', msg_ids: [10] });
+
+const rerender = calls.find((entry) => entry[0] === 'rerender')?.[1];
+if (!rerender) {
+  throw new Error(`Expected rerender call, got ${JSON.stringify(calls)}`);
+}
+if (rerender.force === true) {
+  throw new Error(`Delete rerender must not force full DOM rebuild: ${JSON.stringify(rerender)}`);
+}
+if (rerender.anchorMessageKey !== 'id:11' || rerender.anchorOffsetTop !== 110) {
+  throw new Error(`Unexpected delete anchor ${JSON.stringify(rerender)}`);
+}
+if (rerender.preserveHeightDelta !== true) {
+  throw new Error(`Delete anchor should keep height fallback ${JSON.stringify(rerender)}`);
+}
+if (rerender.previousScrollTop !== 140 || rerender.previousScrollHeight !== 1200) {
+  throw new Error(`Unexpected delete scroll fallback ${JSON.stringify(rerender)}`);
+}
+"""
+    result = _run_status_events_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
