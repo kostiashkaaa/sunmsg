@@ -5,50 +5,37 @@
    Design source: redesign-settings handoff bundle (chat 2026-05-12).
 */
 
-/* ── Sand-palette tokens, scoped to the settings page ─────────────── */
+/* ── Settings palette tokens ──────────────────────────────────────────
+   These were hard-coded to a fixed "sand" palette, which meant the
+   settings panel ignored the active interface theme preset and always
+   rendered warm/brown in dark mode — clashing with e.g. the graphite
+   preset. They are now derived from the interface-theme variables
+   (--bg, --paper, --surface, --accent, ...) that interface-theme.js sets
+   per preset, so the settings page always matches the chosen theme.   */
 .settings-scene {
-    --sx-bg-page:    #efe9dc;
-    --sx-bg-panel:   #fbf7ed;
-    --sx-bg-elev:    #ffffff;
-    --sx-bg-soft:    #f4ecd9;
-    --sx-bg-soft-2:  #ebe1c9;
-    --sx-line:       #e7dcc0;
-    --sx-line-2:     #d8cbab;
+    --sx-bg-page:    var(--bg);
+    --sx-bg-panel:   var(--paper);
+    --sx-bg-elev:    var(--surface, var(--paper));
+    --sx-bg-soft:    var(--paper-alt, var(--surface-2, var(--paper)));
+    --sx-bg-soft-2:  var(--surface-2, var(--paper-alt, var(--paper)));
+    --sx-line:       var(--rule, var(--border));
+    --sx-line-2:     var(--border, var(--rule));
 
-    --sx-ink:        #1c1916;
-    --sx-ink-2:      #6b6358;
-    --sx-ink-3:      #a39a8a;
-    --sx-ink-4:      #c6bda9;
+    --sx-ink:        var(--ink, var(--text));
+    --sx-ink-2:      var(--ink-soft, var(--sub-text));
+    --sx-ink-3:      var(--ink-mute, var(--text-muted));
+    --sx-ink-4:      var(--ink-faint, var(--text-muted));
 
-    --sx-accent:      #d9a637;
-    --sx-accent-2:    #b88517;
-    --sx-accent-soft: #f5dea3;
-    --sx-accent-tint: #fbeec8;
+    --sx-accent:      var(--accent);
+    --sx-accent-2:    var(--accent-deep, var(--accent-hover, var(--accent)));
+    --sx-accent-soft: var(--accent-soft);
+    --sx-accent-tint: var(--accent-light, var(--accent-soft));
 
     --sx-danger:     #c95a3a;
     --sx-good:       #5fa052;
     --sx-info:       #5a8acf;
 
     --sx-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-}
-body.dark-mode .settings-scene {
-    --sx-bg-page:    #1b1814;
-    --sx-bg-panel:   #221d18;
-    --sx-bg-elev:    #2a241e;
-    --sx-bg-soft:    #2c251e;
-    --sx-bg-soft-2:  #352c23;
-    --sx-line:       #3a3127;
-    --sx-line-2:     #4a4034;
-
-    --sx-ink:        #f3ede0;
-    --sx-ink-2:      #b9ad99;
-    --sx-ink-3:      #847a6b;
-    --sx-ink-4:      #5a5246;
-
-    --sx-accent:      #e6b649;
-    --sx-accent-2:    #f0c969;
-    --sx-accent-soft: #4a3a1a;
-    --sx-accent-tint: #36281a;
 }
 
 /* ── Surface / typography ─────────────────────────────────────────── */
