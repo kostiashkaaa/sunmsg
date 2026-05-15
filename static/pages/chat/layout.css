@@ -46,7 +46,7 @@
 
 .msg-edited { font-style: italic; font-size: 9.5px; margin-right: 2px; white-space: nowrap; }
 .msg-tick { font-size: 13px; margin-left: 2px; }
-.msg-tick.read { color: #4ade80; }
+.msg-tick.read { color: var(--read-tick-color, #4ade80); }
 .msg-menu-trigger {
     display: inline-flex;
     align-items: stretch;
@@ -149,11 +149,11 @@
 }
 #messageInput:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 #messageInput.editing-active {
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+    border-color: var(--warning);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 22%, transparent);
 }
 .edit-message-banner {
     display: flex;
@@ -161,9 +161,9 @@
     justify-content: space-between;
     gap: 12px;
     padding: 10px 14px;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
     border-radius: 14px;
-    background: rgba(245, 158, 11, 0.08);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 .message-actions-bar {
     display: flex;
@@ -219,11 +219,11 @@
     border-color: rgba(0, 128, 128, 0.35);
 }
 .btn-msg-bar.danger {
-    color: #ef4444;
+    color: var(--danger);
 }
 .btn-msg-bar.danger:hover {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.28);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
 }
 .edit-message-banner__text {
     display: flex;
@@ -244,14 +244,14 @@
     padding: 0;
 }
 .message-text a {
-    color: #7dd3fc;
+    color: var(--link-color, #7dd3fc);
     text-decoration: underline;
     text-underline-offset: 2px;
     pointer-events: auto;
     overflow-wrap: anywhere;
 }
 .message-text a:hover {
-    color: #bae6fd;
+    color: var(--link-hover-color, #bae6fd);
 }
 
 /* Search */
@@ -326,7 +326,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     height: 14px;
     border: 2.5px solid var(--sidebar-bg); /* Masking effect */
     border-radius: 50%;
-    background: #10b981;
+    background: var(--online-dot-color, #10b981);
     opacity: 0;
     transform: scale(0.55);
     box-shadow: none;
@@ -586,7 +586,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #2dcc77;
+    background: var(--online-dot-color, #2dcc77);
     border: 3px solid var(--profile-online-border);
     display: none;
 }

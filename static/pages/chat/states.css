@@ -389,16 +389,16 @@
         }
 
 
-        .menu-item.danger { color: #e53935; }
+        .menu-item.danger { color: var(--danger); }
 
 
-        .menu-item.danger i { color: #e53935; }
+        .menu-item.danger i { color: var(--danger); }
 
 
-        .menu-item.danger:hover { background: rgba(229, 57, 53, 0.11); }
+        .menu-item.danger:hover { background: var(--danger-hover-bg, color-mix(in srgb, var(--danger) 11%, transparent)); }
 
 
-        body.dark-mode .menu-item.danger:hover { background: #3a1010; }
+        body.dark-mode .menu-item.danger:hover { background: var(--danger-dark-hover-bg, color-mix(in srgb, var(--danger) 22%, #1a0808 78%)); }
 
 
         .sidebar-bottom-identity:hover {
@@ -521,16 +521,16 @@
         .user-popup-item:hover { background: var(--contact-hover); text-decoration: none; color: var(--text); }
 
 
-        .user-popup-item.danger { color: #e53935; }
+        .user-popup-item.danger { color: var(--danger); }
 
 
-        .user-popup-item.danger i { color: #e53935; }
+        .user-popup-item.danger i { color: var(--danger); }
 
 
-        .user-popup-item.danger:hover { background: rgba(229,57,53,0.11); }
+        .user-popup-item.danger:hover { background: var(--danger-hover-bg, color-mix(in srgb, var(--danger) 11%, transparent)); }
 
 
-        body.dark-mode .user-popup-item.danger:hover { background: #3a1010; }
+        body.dark-mode .user-popup-item.danger:hover { background: var(--danger-dark-hover-bg, color-mix(in srgb, var(--danger) 22%, #1a0808 78%)); }
 
         .search-input-wrapper[data-network-state="offline"] {
             border-color: color-mix(in srgb, var(--warning) 34%, var(--border) 66%);
@@ -662,7 +662,7 @@
         }
 
         .contact-item.active .contact-draft-label {
-            color: color-mix(in srgb, #e35555 84%, var(--text) 16%);
+            color: color-mix(in srgb, var(--danger) 84%, var(--text) 16%);
         }
 
 
@@ -1229,14 +1229,14 @@
 
 
         #voiceRecordCancelBtn:hover {
-            color: #ff8590;
+            color: color-mix(in srgb, var(--danger) 85%, #ffffff 15%);
             background:
                 linear-gradient(
                     135deg,
                     rgba(255, 255, 255, 0.08) 0%,
                     rgba(255, 255, 255, 0.03) 100%
                 ),
-                color-mix(in srgb, var(--surface-2) 60%, #3a2024 40%);
+                color-mix(in srgb, var(--surface-2) 60%, color-mix(in srgb, var(--danger) 30%, #1a0808 70%) 40%);
             transform: none;
         }
 
@@ -1970,12 +1970,12 @@
 
 
         .profile-more-item.danger {
-            color: #f87171;
+            color: color-mix(in srgb, var(--danger) 90%, #ffffff 10%);
         }
 
 
         .profile-more-item.danger:hover {
-            background: #ef4444;
+            background: var(--danger);
             color: #fff;
         }
 
@@ -3259,11 +3259,11 @@ body.dark-mode #messageForwardModal .forward-target-status {
 }
 
 .report-content-modal__status[data-tone="success"] {
-    color: #15803d;
+    color: var(--success);
 }
 
 .report-content-modal__status[data-tone="error"] {
-    color: #dc2626;
+    color: var(--danger);
 }
 
 .report-content-modal__actions {
@@ -3470,12 +3470,12 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        .context-menu-item.danger { color: #f07178; }
+        .context-menu-item.danger { color: color-mix(in srgb, var(--danger) 90%, #ffffff 10%); }
 
 
         .context-menu-item.danger:hover {
-            background: color-mix(in srgb, #ef4444 22%, transparent);
-            color: #ff9aa1;
+            background: color-mix(in srgb, var(--danger) 22%, transparent);
+            color: color-mix(in srgb, var(--danger) 70%, #ffffff 30%);
         }
 
 
@@ -3883,8 +3883,8 @@ body.dark-mode #messageForwardModal .forward-target-status {
     bottom: 12px;
     min-height: 44px;
     border-radius: 11px;
-    border: 1px solid color-mix(in srgb, #22c55e 78%, white 22%);
-    background: color-mix(in srgb, #16a34a 90%, black 10%);
+    border: 1px solid color-mix(in srgb, var(--success) 78%, white 22%);
+    background: color-mix(in srgb, var(--success) 90%, black 10%);
     color: #f8fff9;
     font: 700 13px/1.1 var(--font);
     letter-spacing: 0.01em;

@@ -244,7 +244,6 @@ export async function sendFileMessageFlow({
                 failPendingMessage?.(clientId);
                 throw new Error(OFFLINE_RETRY_MESSAGE);
             }
-            failPendingMessage?.(clientId);
             showToast?.(OFFLINE_QUEUED_MESSAGE, 'warning');
             isQueuedOffline = true;
         }

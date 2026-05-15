@@ -70,6 +70,14 @@
     --warning:         oklch(70% 0.12 50);
     --warn:            oklch(70% 0.12 50);
 
+    /* Semantic UI tokens */
+    --read-tick-color:  oklch(72% 0.14 155);
+    --online-dot-color: oklch(68% 0.17 155);
+    --link-color:       oklch(72% 0.13 230);
+    --link-hover-color: oklch(82% 0.10 230);
+    --danger-hover-bg:  color-mix(in srgb, var(--danger) 12%, transparent);
+    --danger-dark-hover-bg: color-mix(in srgb, var(--danger) 22%, #1a0808 78%);
+
     /* normalized: removed mojibake comment */
     --chat-hdr:        #f3f0e8;
     --overlay-menu-bg: #fbf8f1;
