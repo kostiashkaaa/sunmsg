@@ -141,6 +141,14 @@
             }
         }
 
+        @media (pointer: coarse) {
+            .settings-overlay-panel {
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+            }
+        }
+
 
         @media (prefers-reduced-motion: reduce) {
             html[data-motion-level="lite"] .contact-last-msg-loading__bar::after {
