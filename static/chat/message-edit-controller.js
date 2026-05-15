@@ -1,4 +1,5 @@
 import { runMessageStateMotion } from '../modules/message-action-motion.js';
+import { isLikelyVoiceAudioPayload } from '../modules/message-rendering.js';
 
 export function createMessageEditController(options = {}) {
     const {
@@ -309,9 +310,24 @@ export function createMessageEditController(options = {}) {
         try {
             const p = JSON.parse(oldContent);
             if (p && p.__sunfile) {
+                // Guard: voice messages cannot be edited
+                if (isLikelyVoiceAudioPayload(p)) {
+                    setIsEditingMessageId(null);
+                    showToast('Голосовые сообщения нельзя редактировать', 'warning');
+                    return;
+                }
                 isEditingFilePayload = p;
                 inputValue = p.caption || '';
-                bannerText = 'Редактирование подписи к файлу';
+                const mime = String(p.mime || '').toLowerCase();
+                if (mime.startsWith('image/')) {
+                    bannerText = 'Редактирование подписи к фото';
+                } else if (mime.startsWith('video/')) {
+                    bannerText = 'Редактирование подписи к видео';
+                } else if (mime.startsWith('audio/')) {
+                    bannerText = 'Редактирование подписи к аудио';
+                } else {
+                    bannerText = 'Редактирование подписи к файлу';
+                }
             }
         } catch (_) {}
 

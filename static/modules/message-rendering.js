@@ -108,7 +108,7 @@ function buildWaveBarsHtml(values) {
         .join('');
 }
 
-function isLikelyVoiceAudioPayload(filePayload) {
+export function isLikelyVoiceAudioPayload(filePayload) {
     if (!filePayload || typeof filePayload !== 'object') return false;
     const rawName = String(filePayload.name || '').trim().toLowerCase();
     if (!rawName) return false;

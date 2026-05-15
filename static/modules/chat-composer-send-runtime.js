@@ -162,7 +162,14 @@ export function createChatComposerSendRuntime({
         const activeChatId = String(getCurrentChatId?.() || '').trim();
         const pendingForwardDraft = getForwardComposerDraftForChat?.(activeChatId);
         const normalizedRaw = String(rawContent || '').replace(/\r\n/g, '\n');
-        if (!normalizedRaw.trim() && !getEditingFilePayload?.() && !pendingForwardDraft) return;
+        const isEditingText = Boolean(getEditingMessageId?.()) && !getEditingFilePayload?.();
+        if (!normalizedRaw.trim() && !getEditingFilePayload?.() && !pendingForwardDraft) {
+            // If the user clears a text message and tries to submit, show a warning instead of silently ignoring
+            if (isEditingText) {
+                showToast?.('Нельзя сохранить пустое сообщение', 'warning');
+            }
+            return;
+        }
         const content = normalizedRaw.trim() ? normalizedRaw : '';
 
         const handledEdit = await handleComposerEditFlow({
@@ -174,6 +181,7 @@ export function createChatComposerSendRuntime({
             emitSocket,
             currentChatId: activeChatId,
             cancelEdit,
+            showToast,
         });
         if (handledEdit) return;
 
