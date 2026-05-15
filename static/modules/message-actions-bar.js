@@ -23,7 +23,13 @@ export function initMessageActionsBar({
         state.messageText = messageText || '';
         state.isFile = Boolean(isFile);
         const explicitCanEdit = options?.canEdit;
-        state.canEdit = Boolean(messageId) && !state.isFile && explicitCanEdit !== false;
+        // When canEdit is explicitly provided (e.g. for photo/video caption editing), honour it;
+        // otherwise fall back to "not a file" heuristic.
+        state.canEdit = Boolean(messageId) && (
+            explicitCanEdit === true
+                ? true
+                : (!state.isFile && explicitCanEdit !== false)
+        );
     }
 
     function openMessageActionsBar(messageId, messageText, isFile, options = {}) {

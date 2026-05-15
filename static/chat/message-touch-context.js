@@ -82,10 +82,18 @@ export function initMessageTouchContext(options = {}) {
         if (!messageEl) return null;
         const msgId = String(messageEl.getAttribute('data-msg-id') || '').trim();
         if (!msgId) return null;
+        const isVoice = messageEl.getAttribute('data-is-voice') === '1';
+        const isMedia = messageEl.getAttribute('data-is-media') === '1';
+        const isFile = Boolean(messageEl.querySelector('.file-msg-img, .file-msg-video-preview, .file-msg-audio-el, .file-msg-link'));
+        // Voice messages cannot be edited; photo/video (isMedia) can have their caption edited
+        const canEditFile = isFile && isMedia && !isVoice;
         return {
             msgId,
             isSelf: messageEl.classList.contains('self'),
-            isFile: Boolean(messageEl.querySelector('.file-msg-img, .file-msg-video-preview, .file-msg-audio-el, .file-msg-link')),
+            isFile,
+            isVoice,
+            isMedia,
+            canEditFile,
             content: messageEl.getAttribute('data-message-content') || '',
             messageEl,
         };
@@ -127,8 +135,12 @@ export function initMessageTouchContext(options = {}) {
         const msgId = msg.getAttribute('data-msg-id');
         const isSelf = msg.classList.contains('self');
         const isFile = Boolean(msg.querySelector('.file-msg-img, .file-msg-video-preview, .file-msg-audio-el, .file-msg-link'));
+        const isVoice = msg.getAttribute('data-is-voice') === '1';
+        const isMedia = msg.getAttribute('data-is-media') === '1';
+        // Allow editing caption for photo/video; disallow for voice messages and plain file attachments
+        const canEditFile = isFile && isMedia && !isVoice;
         const content = msg.getAttribute('data-message-content') || '';
-        const canEdit = isSelf && !isFile && canEditMessageById(msgId);
+        const canEdit = isSelf && (!isFile || canEditFile) && canEditMessageById(msgId);
         const blocked = isChatBlocked();
         if (contextReactionDivider) {
             contextReactionDivider.hidden = blocked;
