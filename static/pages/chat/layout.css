@@ -3608,7 +3608,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             gap: 14px;
             padding: 12px 22px 12px 20px;
             background: color-mix(in srgb, var(--chat-hdr) 96%, transparent 4%);
-            border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
             box-shadow: var(--shadow-1);
             position: sticky;
             top: var(--vv-top-offset, 0px);

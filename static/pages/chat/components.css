@@ -4169,9 +4169,9 @@
             height: 46px;
             box-sizing: border-box;
             padding: 0;
-            border: 0 solid color-mix(in srgb, var(--border) 82%, transparent);
+            border: 0 solid transparent;
             border-radius: 14px;
-            background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+            background: transparent;
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
