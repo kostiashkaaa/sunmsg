@@ -40,8 +40,16 @@
 
         <section class="search-overlay__panel" data-search-panel="chats">
             <div class="command-palette-section" id="paletteFrequentSection">
-                <div class="command-palette-section-title">Частые чаты</div>
                 <div class="search-frequent-chats" id="paletteFrequentChats"></div>
+            </div>
+            <div class="command-palette-section" id="paletteRecentSearchSection" hidden>
+                <div class="command-palette-section-header">
+                    <span class="command-palette-section-title">Недавние</span>
+                    <button type="button" class="palette-recent-clear-btn" id="paletteRecentClearBtn" aria-label="Очистить недавние поиски">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div id="paletteRecentSearchResults"></div>
             </div>
             <div class="command-palette-section command-palette-section--hidden" id="paletteLocalSection">
                 <div class="command-palette-section-title">Ваши чаты</div>

@@ -1,6 +1,32 @@
 import { initSearchOverlayGlobalContent } from './search-overlay-global-content.js';
 import { renderContactsDirectoryList } from './chat-contacts-directory.js';
 
+const RECENT_SEARCHES_KEY = 'sun_recent_searches';
+const RECENT_SEARCHES_MAX = 8;
+
+function loadRecentSearches() {
+    try {
+        return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
+    } catch (_) {
+        return [];
+    }
+}
+
+function saveRecentSearches(list) {
+    try {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list));
+    } catch (_) {}
+}
+
+function addRecentSearch(query) {
+    const trimmed = String(query || '').trim();
+    if (!trimmed || trimmed.length < 2) return;
+    let list = loadRecentSearches().filter((q) => q !== trimmed);
+    list.unshift(trimmed);
+    if (list.length > RECENT_SEARCHES_MAX) list = list.slice(0, RECENT_SEARCHES_MAX);
+    saveRecentSearches(list);
+}
+
 export function createChatSearchRuntime({
     documentRef = document,
     windowRef = window,
@@ -36,10 +62,77 @@ export function createChatSearchRuntime({
         chatsSearchHint.style.display = visible ? '' : 'none';
     }
 
+    // --- \u041d\u0435\u0434\u0430\u0432\u043d\u0438\u0435 \u043f\u043e\u0438\u0441\u043a\u0438 ---
+    const recentSection = documentRef.getElementById('paletteRecentSearchSection');
+    const recentResultsEl = documentRef.getElementById('paletteRecentSearchResults');
+    const recentClearBtn = documentRef.getElementById('paletteRecentClearBtn');
+
+    function renderRecentSearches() {
+        if (!recentSection || !recentResultsEl) return;
+        const list = loadRecentSearches();
+        if (!list.length) {
+            recentSection.hidden = true;
+            return;
+        }
+        recentSection.hidden = false;
+        recentResultsEl.innerHTML = list.map((q) => `
+            <button type="button" class="palette-recent-item" data-recent-query="${escapeHtml(q)}">
+                <span class="palette-recent-item-icon"><i class="bi bi-clock-history"></i></span>
+                <span class="palette-recent-item-text">${escapeHtml(q)}</span>
+            </button>
+        `).join('');
+    }
+
+    recentClearBtn?.addEventListener('click', () => {
+        saveRecentSearches([]);
+        renderRecentSearches();
+    });
+
+    recentResultsEl?.addEventListener('click', (event) => {
+        const btn = event.target.closest('.palette-recent-item');
+        if (!btn) return;
+        const query = String(btn.getAttribute('data-recent-query') || '').trim();
+        if (!query) return;
+        const visibleInput = documentRef.getElementById('searchInput');
+        if (visibleInput) {
+            visibleInput.value = query;
+            visibleInput.dispatchEvent(new Event('input', { bubbles: true }));
+            visibleInput.focus();
+        }
+    });
+
+    // --- \u0421\u043a\u0440\u043e\u043b\u043b \u043a\u043e\u043b\u0451\u0441\u0438\u043a\u043e\u043c \u043f\u043e \u0447\u0430\u0441\u0442\u044b\u043c \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u0430\u043c ---
+    paletteFrequentChats?.addEventListener('wheel', (event) => {
+        const hasOverflowX = paletteFrequentChats.scrollWidth > paletteFrequentChats.clientWidth + 1;
+        if (!hasOverflowX) return;
+        const deltaMode = Number(event.deltaMode) || 0;
+        const unit = deltaMode === 1 ? 16 : (deltaMode === 2 ? paletteFrequentChats.clientWidth : 1);
+        const deltaX = Number(event.deltaX || 0) * unit;
+        const deltaY = Number(event.deltaY || 0) * unit;
+        const primary = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+        if (!Number.isFinite(primary) || primary === 0) return;
+        const before = paletteFrequentChats.scrollLeft;
+        paletteFrequentChats.scrollLeft += primary;
+        if (paletteFrequentChats.scrollLeft !== before) event.preventDefault();
+    }, { passive: false });
+
+    function getActiveChatId() {
+        const activeItem = documentRef.querySelector('#contactsList .contact-item.active');
+        return activeItem ? String(activeItem.getAttribute('data-chat-id') || '') : '';
+    }
+
     function renderFrequentChats() {
         if (!paletteFrequentSection || !paletteFrequentChats) return;
 
-        const frequentItems = Array.from(documentRef.querySelectorAll('#contactsList .contact-item[data-chat-id]'))
+        const activeChatId = getActiveChatId();
+
+        const allItems = Array.from(documentRef.querySelectorAll('#contactsList .contact-item[data-chat-id]'));
+        const frequentItems = allItems
+            .filter((item) => {
+                // \u0418\u0441\u043a\u043b\u044e\u0447\u0430\u0435\u043c \u0433\u0440\u0443\u043f\u043f\u043e\u0432\u044b\u0435 \u0447\u0430\u0442\u044b \u2014 \u0443 \u043d\u0438\u0445 \u0435\u0441\u0442\u044c data-members-count
+                const membersCount = item.getAttribute('data-members-count');
+                return membersCount === null || membersCount === '';
+            })
             .sort((a, b) => {
                 const aPinned = String(a.getAttribute('data-pinned') || '') === '1';
                 const bPinned = String(b.getAttribute('data-pinned') || '') === '1';
@@ -71,8 +164,9 @@ export function createChatSearchRuntime({
                 : '';
             const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
             const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442'));
+            const isActive = activeChatId && chatId === escapeHtml(activeChatId) ? ' is-active-chat' : '';
             return `
-                <button type="button" class="search-frequent-chat-btn" data-chat-id="${chatId}">
+                <button type="button" class="search-frequent-chat-btn${isActive}" data-chat-id="${chatId}">
                     <div class="contact-avatar search-frequent-chat-btn-avatar"${avatarTintAttr}>${avatarHtml}</div>
                     <span class="search-frequent-chat-btn-name">${name}</span>
                 </button>
@@ -97,9 +191,12 @@ export function createChatSearchRuntime({
             paletteLocalSection.style.display = 'none';
             paletteLocalResults.innerHTML = '';
             renderFrequentChats();
-            setChatsSearchHintVisible(true);
+            renderRecentSearches();
+            setChatsSearchHintVisible(false);
             return;
         }
+
+        if (recentSection) recentSection.hidden = true;
 
         if (paletteFrequentSection) {
             paletteFrequentSection.style.display = 'none';
@@ -161,6 +258,9 @@ export function createChatSearchRuntime({
         if (!chatId || !contactsList) return;
         const item = resolveContactItemByChatId?.(chatId);
         if (!item) return;
+        const visibleInput = documentRef.getElementById('searchInput');
+        const currentQuery = String(visibleInput?.value || '').trim();
+        if (currentQuery.length >= 2) addRecentSearch(currentQuery);
         if (typeof windowRef.closeCommandPalette === 'function') {
             windowRef.closeCommandPalette();
         } else {
@@ -438,6 +538,9 @@ export function createChatSearchRuntime({
             if (button) {
                 const userId = button.getAttribute('data-user-id');
                 const displayName = button.getAttribute('data-display-name');
+                const visibleInput = documentRef.getElementById('searchInput');
+                const currentQuery = String(visibleInput?.value || '').trim();
+                if (currentQuery.length >= 2) addRecentSearch(currentQuery);
                 sendDialogRequest?.(userId, displayName);
             }
         });
@@ -472,6 +575,7 @@ export function createChatSearchRuntime({
         setChatsSearchHintVisible,
         renderFrequentChats,
         renderPaletteLocalMatches,
+        renderRecentSearches,
         openPaletteChat,
         buildSearchResultsLoaderHtml,
         normalizeSearchUser,
