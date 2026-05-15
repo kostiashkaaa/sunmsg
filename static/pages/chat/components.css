@@ -5309,14 +5309,14 @@
 
 
         .message .bubble.bubble--file {
-            width: auto;
+            width: clamp(220px, 36vw, 300px);
             max-width: min(340px, 72vw);
-            min-width: 0;
+            min-width: 220px;
             border-radius: 14px !important;
-            padding: 8px 10px 6px !important;
+            padding: 10px 12px 8px !important;
             display: inline-flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 0;
             background: var(--chat-bubble-in-bg);
             color: var(--chat-bubble-in-text);
             box-shadow: var(--shadow-md);
@@ -5343,7 +5343,7 @@
         .file-msg-link {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             padding: 0;
             background: transparent;
             border-radius: 0;
@@ -5362,19 +5362,19 @@
 
 
         .file-msg-link .file-icon-wrap {
-            width: 36px;
-            height: 36px;
+            width: 46px;
+            height: 46px;
             position: relative;
             overflow: hidden;
-            border-radius: 10px;
-            border: 1px solid color-mix(in srgb, var(--chat-bubble-in-text) 20%, transparent);
-            background: color-mix(in srgb, var(--chat-bubble-in-text) 10%, transparent);
+            border-radius: 12px;
+            border: none;
+            background: color-mix(in srgb, var(--accent) 18%, var(--surface-2) 82%);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            color: color-mix(in srgb, var(--chat-bubble-in-text) 88%, #ffffff 12%);
-            font-size: 18px;
+            color: var(--accent);
+            font-size: 22px;
             line-height: 1;
         }
 
@@ -5434,9 +5434,9 @@
 
 
         .file-msg-link .file-info-name {
-            font-size: 13px;
+            font-size: 13.5px;
             font-weight: 600;
-            line-height: 1.2;
+            line-height: 1.25;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -5446,8 +5446,8 @@
 
         .file-msg-link .file-info-size {
             font-size: 12px;
-            line-height: 1.1;
-            color: color-mix(in srgb, currentColor 66%, transparent);
+            line-height: 1.2;
+            color: color-mix(in srgb, currentColor 60%, transparent);
         }
 
 
@@ -5461,9 +5461,24 @@
 
 
         .message.self .file-msg-link .file-icon-wrap {
-            border-color: color-mix(in srgb, #ffffff 24%, transparent);
-            background: color-mix(in srgb, #ffffff 14%, transparent);
-            color: #fff;
+            background: rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        /* Цветные иконки по типу файла (входящие) */
+        .file-msg-link .file-icon-wrap[data-file-color="red"]    { background: #fff0f0; color: #e53935; }
+        .file-msg-link .file-icon-wrap[data-file-color="blue"]   { background: #e8f0fe; color: #1a73e8; }
+        .file-msg-link .file-icon-wrap[data-file-color="green"]  { background: #e6f4ea; color: #2e7d32; }
+        .file-msg-link .file-icon-wrap[data-file-color="yellow"] { background: #fff8e1; color: #f9a825; }
+        .file-msg-link .file-icon-wrap[data-file-color="purple"] { background: #f3e5f5; color: #7b1fa2; }
+        .file-msg-link .file-icon-wrap[data-file-color="orange"] { background: #fff3e0; color: #e65100; }
+        .file-msg-link .file-icon-wrap[data-file-color="gray"]   { background: #f5f5f5; color: #616161; }
+        .file-msg-link .file-icon-wrap[data-file-color="accent"] { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2) 88%); color: var(--accent); }
+
+        /* Исходящие — иконки светлые поверх цветного фона */
+        .message.self .file-msg-link .file-icon-wrap[data-file-color] {
+            background: rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.92);
         }
 
 
@@ -8196,7 +8211,7 @@
             position: relative;
             z-index: 1;
             margin-top: 0;
-            padding: 8px 12px 2px;
+            padding: 7px 12px 4px;
             border-radius: 0;
             background: var(--chat-bubble-in-bg);
             color: var(--chat-bubble-in-text);
@@ -8206,6 +8221,8 @@
             flex: none;
             align-self: stretch;
             flex-grow: 0;
+            font-size: 13.5px;
+            line-height: 1.4;
         }
 
 
@@ -8216,7 +8233,7 @@
         }
 
 
-        /* === Медиа + текст: статус-строка снизу bubble === */
+        /* === Медиа + текст: статус-строка снизу (внутри footer) === */
         .bubble--image-has-caption .msg-meta,
         .bubble--video-has-caption .msg-meta,
         .bubble--image-has-caption .message-meta,
@@ -8224,29 +8241,26 @@
             position: static;
             z-index: 1;
             margin: 0;
-            padding: 2px 12px 7px;
-            display: flex;
+            padding: 0;
+            display: inline-flex;
             align-items: center;
             justify-content: flex-end;
             gap: var(--msg-meta-gap);
-            width: 100%;
+            width: auto;
             float: none;
             clear: none;
-            background: var(--chat-bubble-in-bg);
-            color: var(--chat-bubble-in-text);
-            opacity: 1;
-            border-bottom-left-radius: 14px;
-            border-bottom-right-radius: 14px;
+            background: transparent;
+            color: inherit;
+            opacity: 0.8;
+            border-radius: 0;
             box-sizing: border-box;
         }
-
 
         .message.self .bubble--image-has-caption .msg-meta,
         .message.self .bubble--video-has-caption .msg-meta,
         .message.self .bubble--image-has-caption .message-meta,
         .message.self .bubble--video-has-caption .message-meta {
-            background: var(--chat-bubble-out-bg);
-            color: var(--chat-bubble-out-text);
+            color: inherit;
         }
 
 
@@ -8662,25 +8676,47 @@
         }
 
 
-        .bubble--image > .message-footer,
-        .bubble--video > .message-footer {
+        /* Медиа с caption: footer с фоном снизу пузыря */
+        .bubble--image.bubble--image-has-caption > .message-footer,
+        .bubble--video.bubble--video-has-caption > .message-footer {
             position: relative;
             z-index: 1;
             width: 100%;
             margin-top: 0;
-            padding: 6px 12px 8px;
+            padding: 3px 10px 6px;
             background: var(--chat-bubble-in-bg);
             color: var(--chat-bubble-in-text);
             box-sizing: border-box;
             border-bottom-left-radius: 14px;
             border-bottom-right-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
         }
 
-
-        .message.self .bubble--image > .message-footer,
-        .message.self .bubble--video > .message-footer {
+        .message.self .bubble--image.bubble--image-has-caption > .message-footer,
+        .message.self .bubble--video.bubble--video-has-caption > .message-footer {
             background: var(--chat-bubble-out-bg);
             color: var(--chat-bubble-out-text);
+        }
+
+        /* Медиа без caption: footer прозрачный-контейнер, мета — overlay поверх фото */
+        .bubble--image:not(.bubble--image-has-caption) > .message-footer,
+        .bubble--video:not(.bubble--video-has-caption) > .message-footer {
+            position: absolute;
+            inset: 0;
+            z-index: 9;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            pointer-events: none;
+            border-radius: 0;
+            display: block;
+        }
+
+        .bubble--image:not(.bubble--image-has-caption) > .message-footer > *,
+        .bubble--video:not(.bubble--video-has-caption) > .message-footer > * {
+            pointer-events: auto;
         }
 
 
@@ -8719,14 +8755,43 @@
         }
 
 
-        .bubble--image > .message-footer > .msg-meta,
-        .bubble--image > .message-footer > .message-meta,
-        .bubble--video > .message-footer > .msg-meta,
-        .bubble--video > .message-footer > .message-meta {
+        /* Медиа с caption: мета — статичная строка внутри footer */
+        .bubble--image.bubble--image-has-caption > .message-footer > .msg-meta,
+        .bubble--image.bubble--image-has-caption > .message-footer > .message-meta,
+        .bubble--video.bubble--video-has-caption > .message-footer > .msg-meta,
+        .bubble--video.bubble--video-has-caption > .message-footer > .message-meta {
             width: auto;
             padding: 0;
             background: transparent;
             border-radius: 0;
+            position: static;
+            float: none;
+        }
+
+        /* Медиа без caption: мета — абсолютный overlay снизу-справа поверх фото */
+        .bubble--image:not(.bubble--image-has-caption) > .message-footer > .msg-meta,
+        .bubble--image:not(.bubble--image-has-caption) > .message-footer > .message-meta,
+        .bubble--video:not(.bubble--video-has-caption) > .message-footer > .msg-meta,
+        .bubble--video:not(.bubble--video-has-caption) > .message-footer > .message-meta {
+            position: absolute;
+            bottom: 7px;
+            right: 9px;
+            z-index: 10;
+            margin: 0;
+            padding: 2px 7px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: calc(3px * var(--chat-message-scale));
+            float: none;
+            clear: none;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            border-radius: 8px;
+            width: auto;
+            box-sizing: border-box;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
 
 
@@ -11174,10 +11239,16 @@
     margin-left: auto !important;
 }
 
-.bubble--image > .message-footer,
-.bubble--video > .message-footer {
+.bubble--image.bubble--image-has-caption > .message-footer,
+.bubble--video.bubble--video-has-caption > .message-footer {
     margin-top: 0;
-    padding: 5px 9px 6px;
+    padding: 3px 10px 6px;
+}
+
+.bubble--image:not(.bubble--image-has-caption) > .message-footer,
+.bubble--video:not(.bubble--video-has-caption) > .message-footer {
+    margin-top: 0;
+    padding: 0;
 }
 
 .bubble--audio > .message-footer,
@@ -11339,25 +11410,26 @@
 }
 
 .message .bubble.bubble--file {
-    width: clamp(240px, 34vw, 400px);
-    max-width: min(78vw, 420px);
-    padding: 6px 8px 5px !important;
-    gap: 3px;
+    width: clamp(220px, 36vw, 300px);
+    max-width: min(72vw, 310px);
+    min-width: 220px;
+    padding: 10px 12px 8px !important;
+    gap: 0;
 }
 
 .message .bubble.bubble--audio {
-    width: clamp(250px, 38vw, 480px);
-    min-width: 240px;
-    max-width: min(82vw, 500px);
-    padding: 7px 9px 6px !important;
+    width: clamp(240px, 36vw, 380px);
+    min-width: 230px;
+    max-width: min(76vw, 400px);
+    padding: 9px 12px 7px !important;
     gap: 4px;
 }
 
 .message .bubble.bubble--image,
 .message .bubble.bubble--video {
-    width: clamp(240px, 46vw, 460px);
-    min-width: 220px;
-    max-width: min(80vw, 460px);
+    width: clamp(220px, 44vw, 420px);
+    min-width: 180px;
+    max-width: min(76vw, 420px);
 }
 
 .message.message-emoji-only .bubble.bubble--text {
@@ -11436,8 +11508,9 @@
     }
 
     .message .bubble.bubble--file {
-        width: clamp(210px, 70vw, 330px);
-        max-width: min(88vw, 330px);
+        width: clamp(210px, 72vw, 290px);
+        max-width: min(88vw, 300px);
+        min-width: 210px;
     }
 
     .message .bubble.bubble--image,
