@@ -129,9 +129,7 @@ export function createChatSearchRuntime({
         const allItems = Array.from(documentRef.querySelectorAll('#contactsList .contact-item[data-chat-id]'));
         const frequentItems = allItems
             .filter((item) => {
-                // \u0418\u0441\u043a\u043b\u044e\u0447\u0430\u0435\u043c \u0433\u0440\u0443\u043f\u043f\u043e\u0432\u044b\u0435 \u0447\u0430\u0442\u044b \u2014 \u0443 \u043d\u0438\u0445 \u0435\u0441\u0442\u044c data-members-count
-                const membersCount = item.getAttribute('data-members-count');
-                return membersCount === null || membersCount === '';
+                return String(item.getAttribute('data-is-group') || '0') !== '1';
             })
             .sort((a, b) => {
                 const aPinned = String(a.getAttribute('data-pinned') || '') === '1';
