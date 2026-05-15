@@ -671,9 +671,7 @@ function buildFileBubble(filePayload) {
         const voiceTranscriptText = isVoiceAudio && typeof filePayload.transcript === 'string'
             ? filePayload.transcript.trim()
             : '';
-        const speechApiAvailable = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-        const showTranscriptBtn = isVoiceAudio && (voiceTranscriptText || speechApiAvailable);
-        const voiceTranscriptButtonHtml = showTranscriptBtn
+        const voiceTranscriptButtonHtml = isVoiceAudio
             ? `<button class="voice-transcript-btn${voiceTranscriptText ? '' : ' voice-transcript-btn--unavailable'}" type="button" aria-label="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F'))}" title="${escapeHtml(tr('\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0442\u0435\u043A\u0441\u0442'))}" aria-expanded="false"><i class="bi bi-card-text" aria-hidden="true"></i></button>`
             : '';
         const audioActionButtonHtml = voiceTranscriptButtonHtml;
