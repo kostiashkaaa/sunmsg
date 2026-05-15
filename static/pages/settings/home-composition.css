@@ -366,6 +366,7 @@
         border: 0;
         background: transparent;
         overflow: visible;
+        touch-action: pan-y;
         flex: 0 0 auto;
     }
 
