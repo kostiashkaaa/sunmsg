@@ -697,6 +697,31 @@
         return null;
     }
 
+    // style.css defines theme variables on `body.dark-mode` / `:root`.
+    // A rule that targets `body` directly overrides any value inherited
+    // from <html>, so applying preset vars only to documentElement leaves
+    // <body>'s descendants on the stale style.css defaults. Mirror every
+    // inline var we set on <html> onto <body> as soon as it exists.
+    function mirrorRootVarsToBody() {
+        const root = document.documentElement;
+        const body = document.body;
+        if (!root || !body) return;
+        const inline = root.style;
+        for (let i = 0; i < inline.length; i += 1) {
+            const name = inline.item(i);
+            if (!name || !name.startsWith('--')) continue;
+            body.style.setProperty(name, inline.getPropertyValue(name));
+        }
+    }
+
+    function scheduleBodyVarMirror() {
+        if (document.body) {
+            mirrorRootVarsToBody();
+            return;
+        }
+        document.addEventListener('DOMContentLoaded', mirrorRootVarsToBody, { once: true });
+    }
+
     function applyBootState(rawBoot, rawPreferences) {
         const boot = asObject(rawBoot);
         const preferences = asObject(rawPreferences);
@@ -736,6 +761,8 @@
             applyLegacyChatWallpaper(root, themeKey);
         }
 
+        scheduleBodyVarMirror();
+
         const language = asLanguage(
             boot.language || preferences.language || root.getAttribute('lang') || 'ru',
         );
@@ -764,6 +791,7 @@
             applyLegacyInterfacePreset(root, themeKey);
             applyLegacyInterfaceAccent(root, themeKey);
             applyLegacyChatWallpaper(root, themeKey);
+            scheduleBodyVarMirror();
             const language = asLanguage(
                 localStorage.getItem(LANGUAGE_STORAGE_KEY) || root.getAttribute('lang') || 'ru',
             );
