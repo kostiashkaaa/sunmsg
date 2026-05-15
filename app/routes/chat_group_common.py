@@ -6,6 +6,7 @@ import uuid
 
 MAX_GROUP_TITLE_LENGTH = 120
 MAX_GROUP_DESCRIPTION_LENGTH = 600
+MAX_GROUP_MEMBERS = 200_000
 
 
 def new_group_chat_id(*, creator_user_id: int) -> str:

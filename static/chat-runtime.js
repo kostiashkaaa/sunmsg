@@ -260,6 +260,16 @@ export const initChatPage = async () => {
         showToast,
         config: browserEnv.getWebPushConfig(),
     });
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            const data = event.data || {};
+            if (data.action === 'open_chat' && data.chat_id) {
+                void openChatByIdWhenReady(String(data.chat_id));
+            }
+        });
+    }
+
     wireSocketLifecycleHandlers({
         socket,
         reportActivity,
@@ -282,6 +292,7 @@ export const initChatPage = async () => {
         getHasSocketConnectedOnce: () => hasSocketConnectedOnce,
         setHasSocketConnectedOnce: (value) => { hasSocketConnectedOnce = Boolean(value); },
         setHasSocketConnectionIssue: (value) => { hasSocketConnectionIssue = Boolean(value); },
+        syncOnReconnect: (chatId) => chatUpdatesSyncController.syncOnReconnect(chatId),
     });
     let currentChatId = null;
     let currentContactId = null;
@@ -1866,7 +1877,42 @@ export const initChatPage = async () => {
         toggleMessageSelection,
         openReportModal,
         emitReactionToggle,
+        contextDeleteForAllItem: document.getElementById('cmDeleteForAll'),
+        getCsrfToken,
+        isCurrentUserGroupModerator: () => {
+            const role = String(getCurrentPartnerData()?.my_role || '').trim();
+            return role === 'moderator' || role === 'admin' || role === 'owner';
+        },
     });
+
+    document.addEventListener('sun:message-shortcut', (event) => {
+        const { action, msgId } = event.detail || {};
+        if (!msgId || !action) return;
+        const msgEl = document.querySelector(`.message[data-msg-id="${CSS.escape(String(msgId))}"]`);
+        if (!msgEl) return;
+
+        if (action === 'reply') {
+            const text = msgEl.getAttribute('data-message-content') || '';
+            const isSelf = msgEl.classList.contains('self');
+            const sender = isSelf ? 'Вы' : getCurrentPartnerDisplayName();
+            startReply(msgId, text, sender);
+            return;
+        }
+        if (action === 'edit') {
+            if (!msgEl.classList.contains('self')) return;
+            startEditMessage(msgId, msgEl.getAttribute('data-message-content') || '');
+            return;
+        }
+        if (action === 'forward') {
+            openForwardModal([msgId]);
+            return;
+        }
+        if (action === 'delete') {
+            openDeleteModal(msgId);
+            return;
+        }
+    });
+
     const {
         replyBarController,
         linkDraftBarController,

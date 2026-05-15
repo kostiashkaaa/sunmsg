@@ -277,6 +277,32 @@ export function createChatUpdatesSyncController({
         return syncTask;
     }
 
+    async function syncOnReconnect(chatId) {
+        if (!canUseGapSync()) return false;
+        const normalizedChatId = normalizeChatId(chatId);
+        if (!normalizedChatId) return false;
+
+        const localPts = socket.__sun_getChatPts(normalizedChatId);
+        let serverPts = null;
+        try {
+            const payload = await requestUpdateState(normalizedChatId);
+            serverPts = normalizePositiveInteger(payload?.chat_pts);
+        } catch (_) {
+            return false;
+        }
+
+        if (!serverPts) return false;
+
+        if (!localPts || localPts <= 0) {
+            socket.__sun_setChatPts(normalizedChatId, serverPts);
+            return true;
+        }
+
+        if (serverPts <= localPts) return true;
+
+        return recoverGap({ chatId: normalizedChatId, fromPts: localPts, targetPts: serverPts });
+    }
+
     function bind() {
         if (!canUseGapSync()) return false;
         socket.__sun_setGapSyncHandler(recoverGap);
@@ -286,5 +312,6 @@ export function createChatUpdatesSyncController({
     return {
         bind,
         primeChatState,
+        syncOnReconnect,
     };
 }

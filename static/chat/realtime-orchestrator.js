@@ -13,6 +13,7 @@ export function wireSocketLifecycleHandlers({
     getHasSocketConnectedOnce,
     setHasSocketConnectedOnce,
     setHasSocketConnectionIssue,
+    syncOnReconnect,
 }) {
     socket.on('connect', () => {
         setHasSocketConnectionIssue(false);
@@ -31,6 +32,9 @@ export function wireSocketLifecycleHandlers({
         if (getHasSocketConnectedOnce()) {
             loadContacts();
             loadDialogRequests();
+            if (currentChatId && typeof syncOnReconnect === 'function') {
+                void syncOnReconnect(currentChatId);
+            }
             return;
         }
         setHasSocketConnectedOnce(true);

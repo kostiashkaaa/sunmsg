@@ -1043,6 +1043,9 @@ def _validate_delete_request(data, *, context: dict | None = None) -> dict | Non
         'mode': mode,
         'uid': uid,
         'pub': pub,
+        # for_all: hard-delete for every group member; requires moderator rights.
+        # The actual permission check is deferred to _resolve_group_delete_capability.
+        'requested_for_all': mode == 'for_all',
     }
 
 
@@ -1086,7 +1089,8 @@ def _normalize_delete_message_ids(data, positive_int_func) -> list[int]:
 
 def _resolve_delete_mode(data) -> str:
     mode = data.get('mode', 'for_me')
-    if mode not in ('for_both', 'for_me'):
+    # 'for_all' is the group moderator mode: hard-delete for every member
+    if mode not in ('for_both', 'for_me', 'for_all'):
         return 'for_me'
     return mode
 
@@ -1143,7 +1147,13 @@ def _partition_delete_rows(rows, *, context: dict | None = None) -> dict[str, li
 
     for msg in rows:
         msg_id = msg['id']
-        if mode == 'for_both':
+        if mode == 'for_all':
+            # Moderator/admin hard-delete: removes for every group member.
+            # Requires can_delete_any_group_message flag — enforced by the caller.
+            if chat_type == 'group' and can_delete_any_group_message:
+                for_both_delete_ids.append(msg_id)
+                deleted_ids.append(msg_id)
+        elif mode == 'for_both':
             if chat_type == 'group':
                 can_delete_for_both = msg['sender_id'] == uid or can_delete_any_group_message
             else:
@@ -1228,7 +1238,7 @@ def _emit_deleted_messages(emit_func, *, context: dict | None = None) -> None:
     payload = {'msg_ids': deleted_ids, 'chat_id': chat_id, 'mode': mode}
     if request_id:
         payload['request_id'] = request_id
-    if mode == 'for_both':
+    if mode in ('for_both', 'for_all'):
         emit_func('messages_deleted', payload, room=chat_id)
         emit_func('messages_deleted', payload, room=pub)
         if partner and partner['public_key']:

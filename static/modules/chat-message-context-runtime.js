@@ -19,6 +19,7 @@ export function initChatMessageContextRuntime({
     contextSelectItem = null,
     contextReportItem = null,
     contextDeleteItem = null,
+    contextDeleteForAllItem = null,
     isChatBlocked = () => false,
     getCurrentChatId = () => '',
     getPartnerDisplayName = () => '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A',
@@ -35,6 +36,8 @@ export function initChatMessageContextRuntime({
     toggleMessageSelection = () => {},
     openReportModal = () => {},
     emitReactionToggle = () => {},
+    getCsrfToken = () => '',
+    isCurrentUserGroupModerator = () => false,
 } = {}) {
     const resolveMessageElement = (msgId) => {
         const token = String(msgId ?? '');
@@ -55,11 +58,13 @@ export function initChatMessageContextRuntime({
         selectItemEl: contextSelectItem,
         reportItemEl: contextReportItem,
         deleteItemEl: contextDeleteItem,
+        deleteForAllItemEl: contextDeleteForAllItem,
         isChatBlocked,
         resolveMessageElement,
         getPartnerDisplayName,
         copyTextToClipboard,
         showToast,
+        isCurrentUserGroupModerator,
         onReply: (msgId, text, sender) => {
             runMessageActionMotionById(documentRef, msgId, 'reply');
             startReply(msgId, text, sender);
@@ -97,6 +102,21 @@ export function initChatMessageContextRuntime({
         onDelete: (msgId) => {
             runMessageActionMotionById(documentRef, msgId, 'delete');
             openDeleteModal(msgId);
+        },
+        onDeleteForAll: (msgId) => {
+            if (isChatBlocked()) return;
+            if (!isCurrentUserGroupModerator()) return;
+            const currentChatId = getCurrentChatId();
+            if (!msgId || !currentChatId) return;
+            const normalizedMsgId = parseInt(String(msgId), 10);
+            if (!Number.isFinite(normalizedMsgId) || normalizedMsgId <= 0) return;
+            runMessageActionMotionById(documentRef, normalizedMsgId, 'delete');
+            emitSocket('delete_messages', {
+                msg_ids: [normalizedMsgId],
+                chat_id: currentChatId,
+                mode: 'for_all',
+                csrf_token: getCsrfToken(),
+            });
         },
         onForward: (msgId) => {
             runMessageActionMotionById(documentRef, msgId, 'forward');
