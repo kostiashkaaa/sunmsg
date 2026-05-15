@@ -351,16 +351,29 @@ export function initCaptionModal({
         if (!files.length) return;
 
         const caption = String(inputEl?.value || '').trim();
+        const attachMode = getPendingAttachMode();
         const submitOptions = {
             ...(pendingPayload?.options || {}),
-            attachMode: getPendingAttachMode(),
+            attachMode,
         };
         delete submitOptions.files;
+
+        // Generate a shared album_id when sending multiple visual media files
+        const visualFiles = files.filter((f) => isVisualMediaFile(f));
+        const isMultiMediaAlbum = files.length > 1 && visualFiles.length === files.length && attachMode !== 'file';
+        const albumId = isMultiMediaAlbum
+            ? crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+            : null;
 
         closeCaptionModal();
         try {
             for (let index = 0; index < files.length; index += 1) {
-                await onSubmit?.(files[index], index === 0 ? caption : '', submitOptions);
+                await onSubmit?.(files[index], index === 0 ? caption : '', {
+                    ...submitOptions,
+                    albumId: albumId || undefined,
+                    albumSize: albumId ? files.length : undefined,
+                    albumIndex: albumId ? index : undefined,
+                });
             }
         } catch (error) {
             onError?.(error);

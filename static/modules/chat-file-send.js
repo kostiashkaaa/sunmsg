@@ -112,6 +112,9 @@ export async function sendFileMessageFlow({
     } = getReplyState();
     const optimisticMime = String(uploadFile?.type || '').toLowerCase()
         || (sourceCategory === 'audio' ? 'audio/webm' : 'application/octet-stream');
+    const albumId = typeof options?.albumId === 'string' ? options.albumId : null;
+    const albumSize = albumId && Number.isFinite(Number(options?.albumSize)) ? Number(options.albumSize) : null;
+    const albumIndex = albumId && Number.isFinite(Number(options?.albumIndex)) ? Number(options.albumIndex) : null;
     const optimisticPayload = {
         __sunfile: true,
         name: uploadFile.name,
@@ -140,6 +143,9 @@ export async function sendFileMessageFlow({
         created_at: pendingTimestamp,
         pending: true,
         clientId,
+        album_id: albumId || undefined,
+        album_size: albumSize || undefined,
+        album_index: albumIndex ?? undefined,
         replyToId: snapReplyId,
         replyToText: snapReplyText,
         replyToSender: snapReplySender,
@@ -209,6 +215,7 @@ export async function sendFileMessageFlow({
         transferPresenceSignal.start(transferPresenceKinds.send);
 
         const encrypted = await encryptForCurrentChat(payload);
+        const albumId = typeof options?.albumId === 'string' ? options.albumId : null;
         const sendPayload = {
             message: encrypted,
             chat_id: currentChatId,
@@ -216,6 +223,7 @@ export async function sendFileMessageFlow({
             client_id: clientId,
             reply_to_id: snapReplyId,
             request_id: clientId,
+            ...(albumId ? { album_id: albumId } : {}),
         };
         const emitted = emitSocket('send_message', sendPayload, { requireConnected: true });
         let isQueuedOffline = false;

@@ -448,7 +448,7 @@ export function createChatHistoryRuntime(ctx = {}) {
 
             if (ctx.restoreChatDomSnapshot(chatId)) {
                 ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
-                ctx.schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true });
+                ctx.schedulePostRenderUiRefresh({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true, albums: true });
                 if (shouldAnimateHistoryReveal()) {
                     ctx.triggerChatHistoryRevealAnimation?.();
                 }
