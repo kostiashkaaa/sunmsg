@@ -3579,7 +3579,7 @@ body.auth-page-body--sunrise-v3 #registerStep2Block .auth-private-key-group {
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap {
     position: relative;
     margin-top: 6px;
-    height: 304px;
+    height: auto;
     padding: 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--sun-rule) 20%, #fff);
@@ -3588,7 +3588,7 @@ body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap {
 
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
 }
 
@@ -4028,6 +4028,10 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn {
         min-height: 27px;
         font-size: 0.72rem;
         padding: 5px 6px;
+    }
+
+    body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     body.auth-page-body--sunrise-v3 .auth-btn {
