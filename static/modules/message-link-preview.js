@@ -302,6 +302,10 @@ export function renderMessageLinkPreview(messageRoot, messageLike) {
     previewNode.dataset.previewUrl = normalizedUrl;
     const cachedPayload = getCachedLinkPreviewPayload(normalizedUrl);
     if (cachedPayload !== undefined) {
+        if (!cachedPayload || !cachedPayload.has_meta) {
+            clearPreviewNode(messageTextEl);
+            return;
+        }
         applyResolvedPreviewPayload(previewNode, normalizedUrl, cachedPayload);
         return;
     }
@@ -320,6 +324,10 @@ export function renderMessageLinkPreview(messageRoot, messageLike) {
     requestLinkPreviewPayload(normalizedUrl).then((payload) => {
         if (!previewNode.isConnected) return;
         if (String(previewNode.dataset.previewUrl || '') !== normalizedUrl) return;
+        if (!payload || !payload.has_meta) {
+            clearPreviewNode(messageTextEl);
+            return;
+        }
         applyResolvedPreviewPayload(previewNode, normalizedUrl, payload);
     });
 }

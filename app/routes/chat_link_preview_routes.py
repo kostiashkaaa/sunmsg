@@ -22,12 +22,14 @@ _LINK_PREVIEW_TIMEOUT_SECONDS = 4.0
 _LINK_PREVIEW_MAX_HTML_BYTES = 1_200_000
 _LINK_PREVIEW_CACHE_TTL_SECONDS = 60 * 30
 _LINK_PREVIEW_EMPTY_META_CACHE_TTL_SECONDS = 45
-_LINK_PREVIEW_CACHE_SCHEMA_VERSION = 6
+_LINK_PREVIEW_CACHE_SCHEMA_VERSION = 7
 _LINK_PREVIEW_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 _LINK_PREVIEW_IMAGE_META_TIMEOUT_SECONDS = 3.0
 _LINK_PREVIEW_IMAGE_META_MAX_BYTES = 256 * 1024
 _LINK_PREVIEW_URL_PATTERN = re.compile(r"\bhttps?://[^\s<>\"'`]+|\bwww\.[^\s<>\"'`]+", re.IGNORECASE)
-_LINK_PREVIEW_BOT_USER_AGENT = 'TelegramBot (like TwitterBot)'
+_LINK_PREVIEW_BOT_USER_AGENT = (
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+)
 _LINK_PREVIEW_CHALLENGE_PATH_RE = re.compile(r'(?:^|/)(?:showcaptcha|captcha|cian-captcha)(?:/|$)', re.IGNORECASE)
 _LINK_PREVIEW_COMPACT_MAX_WIDTH = 760
 _LINK_PREVIEW_COMPACT_MAX_HEIGHT = 420
@@ -467,7 +469,10 @@ def _looks_like_challenge_url(url: str) -> bool:
 def _fetch_preview_html(url: str) -> tuple[str, str]:
     request_headers = {
         'User-Agent': _LINK_PREVIEW_BOT_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Cache-Control': 'no-cache',
     }
     req = Request(url, headers=request_headers, method='GET')
 
