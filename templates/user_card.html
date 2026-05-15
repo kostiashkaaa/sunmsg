@@ -376,17 +376,17 @@
             {% endwith %}
 
             <div class="profile-hero">
-                <div class="profile-avatar{% if not profile.avatar_url %} profile-avatar--fallback{% endif %}"{% if not profile.avatar_url %} data-avatar-seed="{{ profile.display_name or profile.username or '?' }}"{% endif %} aria-hidden="true">
+                <div class="profile-avatar{% if not profile.avatar_url %} profile-avatar--fallback{% endif %}"{% if not profile.avatar_url %} data-avatar-seed="{{ (profile.display_name or profile.username or '?')|e }}"{% endif %} aria-hidden="true">
                     {% if profile.avatar_url %}
-                        <img src="{{ profile.avatar_url }}" alt="{{ 'Avatar @' if ui_language == 'en' else 'Аватар @' }}{{ profile.username }}">
+                        <img src="{{ profile.avatar_url|e }}" alt="{{ 'Avatar @' if ui_language == 'en' else 'Аватар @' }}{{ profile.username|e }}">
                     {% else %}
                         {{ (profile.display_name or profile.username or '?')[:1]|upper }}
                     {% endif %}
                 </div>
-                <h1 class="profile-name">{{ profile.display_name or profile.username }}</h1>
-                <p class="profile-username">@{{ profile.username }}</p>
+                <h1 class="profile-name">{{ (profile.display_name or profile.username)|e }}</h1>
+                <p class="profile-username">@{{ profile.username|e }}</p>
                 {% if profile.bio %}
-                    <p class="profile-bio">{{ profile.bio }}</p>
+                    <p class="profile-bio">{{ profile.bio|e }}</p>
                 {% endif %}
             </div>
 
@@ -466,7 +466,7 @@
         </section>
 
         <div class="profile-footnote">
-            Ссылка на профиль: <a href="{{ url_for('contacts.public_user_card', username=profile.username) }}">/u/{{ profile.username }}</a>
+            Ссылка на профиль: <a href="{{ url_for('contacts.public_user_card', username=profile.username) }}">/u/{{ profile.username|e }}</a>
         </div>
         {% endif %}
     </main>

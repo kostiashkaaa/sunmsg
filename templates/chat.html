@@ -2,12 +2,12 @@
 <html lang="{{ ui_language|default('ru') }}">
 {% include 'chat/_head.html' %}
 <body
-    data-current-user-public-key="{{ current_public_key }}"
-    data-current-display-name="{{ current_display_name }}"
-    data-current-username="{{ current_username }}"
+    data-current-user-public-key="{{ current_public_key|e }}"
+    data-current-display-name="{{ current_display_name|e }}"
+    data-current-username="{{ current_username|e }}"
     data-current-user-id="{{ session['user_id'] }}"
-    data-current-avatar-url="{{ current_avatar_url or '' }}"
-    data-initial-chat-contact-username="{{ initial_chat_contact_username or '' }}"
+    data-current-avatar-url="{{ (current_avatar_url or '')|e }}"
+    data-initial-chat-contact-username="{{ (initial_chat_contact_username or '')|e }}"
     data-ui-language="{{ ui_language|default('ru') }}"
 >
 {% include 'chat/_svg_icons_sprite.html' %}

@@ -265,7 +265,7 @@
         <h2>Действия над пользователями</h2>
         <form class="filters" method="get" action="/moderation/console/support">
             <label for="user_query">Пользователь</label>
-            <input id="user_query" name="user_query" value="{{ lookup_query }}" placeholder="id, username, отображаемое имя" maxlength="120">
+            <input id="user_query" name="user_query" value="{{ lookup_query|e }}" placeholder="id, username, отображаемое имя" maxlength="120">
             <button class="btn primary" type="submit">Найти</button>
         </form>
         {% if users %}
@@ -414,7 +414,7 @@
                 </table>
             </div>
         {% elif lookup_query %}
-            <p class="muted" style="margin-top:10px;">Пользователи по запросу "{{ lookup_query }}" не найдены.</p>
+            <p class="muted" style="margin-top:10px;">Пользователи по запросу "{{ lookup_query|e }}" не найдены.</p>
         {% endif %}
     </section>
 

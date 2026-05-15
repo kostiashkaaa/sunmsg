@@ -52,7 +52,7 @@
     class="settings-loading {% if embed_mode %}settings-embed-mode{% endif %}"
     data-embed-mode="{{ 'true' if embed_mode else 'false' }}"
     data-current-user-id="{{ session['user_id'] }}"
-    data-current-username="{{ current_username }}"
+    data-current-username="{{ current_username|e }}"
     data-ui-language="{{ ui_language|default('ru') }}"
 >
 {% include 'chat/_svg_icons_sprite.html' %}
@@ -117,7 +117,7 @@
                 <div class="avatar-preview settings-nav-avatar" id="settingsNavAvatarPreview">?</div>
             </div>
             <div class="settings-nav-profile-main">
-                <div class="settings-nav-profile-name" id="settingsNavProfileName">{{ current_display_name }}</div>
+                <div class="settings-nav-profile-name" id="settingsNavProfileName">{{ current_display_name|e }}</div>
                 <div class="settings-nav-profile-status" id="settingsNavProfileStatus">в сети</div>
             </div>
             <button type="button" class="settings-nav-profile-action" id="settingsNavEditProfileBtn" aria-label="Редактировать профиль">
@@ -127,14 +127,14 @@
                 <div class="settings-nav-profile-row">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value" id="settingsNavNameValue">{{ current_display_name }}</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavNameValue">{{ current_display_name|e }}</div>
                         <div class="settings-nav-profile-row-label">Отображаемое имя</div>
                     </div>
                 </div>
                 <div class="settings-nav-profile-row">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username }}</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username|e }}</div>
                         <div class="settings-nav-profile-row-label">Юзернейм</div>
                     </div>
                 </div>
@@ -237,8 +237,8 @@
                         </label>
                     </div>
                     <div class="settings-avatar-meta">
-                        <div class="settings-avatar-name" id="previewName">{{ current_display_name }}</div>
-                        <div class="settings-avatar-username">@{{ current_username }}</div>
+                        <div class="settings-avatar-name" id="previewName">{{ current_display_name|e }}</div>
+                        <div class="settings-avatar-username">@{{ current_username|e }}</div>
                         <div class="settings-avatar-actions">
                             <input type="file" id="avatarFileInput" accept="image/*" hidden>
                             <p id="avatarUploadStatus" class="settings-avatar-upload-status settings-hidden"></p>
@@ -249,12 +249,12 @@
                 <div class="settings-inline-fields">
                     <label class="settings-field">
                         <span class="settings-field-label">Отображаемое имя</span>
-                        <input type="text" class="settings-input settings-field-input" id="displayName" value="{{ current_display_name }}" placeholder="Ваше имя" maxlength="50">
+                        <input type="text" class="settings-input settings-field-input" id="displayName" value="{{ current_display_name|e }}" placeholder="Ваше имя" maxlength="50">
                         <span class="settings-field-hint">Показывается в чатах и в карточке профиля.</span>
                     </label>
                     <label class="settings-field">
                         <span class="settings-field-label">Юзернейм</span>
-                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username }}" placeholder="имя_пользователя" maxlength="50" pattern="[a-z0-9_]+">
+                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username|e }}" placeholder="имя_пользователя" maxlength="50" pattern="[a-z0-9_]+">
                         <span class="settings-field-hint">Используется в поиске и персональной ссылке.</span>
                     </label>
                 </div>
@@ -742,7 +742,7 @@
                         </button>
                     </div>
                     <p class="settings-copy-muted-xs settings-copy-center settings-copy-no-margin">
-                        <span>Ваш @</span><span data-no-i18n="1">{{ current_username }}</span><span> · QR содержит полный публичный ключ</span>
+                        <span>Ваш @</span><span data-no-i18n="1">{{ current_username|e }}</span><span> · QR содержит полный публичный ключ</span>
                     </p>
                 </div>
             </div>
