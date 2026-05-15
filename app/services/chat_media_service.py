@@ -3,6 +3,7 @@ import uuid
 
 from app.db_backend import DatabaseError
 from app.services.av_scan import AVScanError
+from app.services.user_privacy import can_send_direct_message
 
 
 def delete_file_quietly(path: str) -> None:
@@ -130,6 +131,7 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     av_command_template: str,
     av_timeout_seconds: int,
     av_scan_extensions,
+    media_hint: str = '',
 ):
     partner = get_chat_partner_func(conn, user_id, chat_id)
     if not partner:
@@ -141,7 +143,6 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
             'error': 'Нельзя загружать медиа: пользователь заблокирован.',
             'block_state': block_state,
         }
-
     if not uploaded_file or not uploaded_file.filename:
         return {'status': 'invalid', 'error': 'Файл не найден.', 'code': 400}
 
@@ -149,6 +150,19 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     filename = os.path.basename(raw_filename.replace('\\', '/'))
     if not filename or '.' not in filename:
         return {'status': 'invalid', 'error': 'Неподдерживаемое имя файла.', 'code': 400}
+    normalized_media_hint = str(media_hint or '').strip().lower()
+    is_voice_upload = normalized_media_hint in {'voice', 'voice_message'} or filename.lower().startswith('voice-')
+    if is_voice_upload and not can_send_direct_message(
+        conn,
+        receiver_id=partner['contact_id'],
+        sender_id=user_id,
+        message_type='voice',
+    ):
+        return {
+            'status': 'forbidden',
+            'error': 'Пользователь запретил голосовые сообщения.',
+            'code': 403,
+        }
 
     ext = _normalize_media_extension(
         filename.rsplit('.', 1)[1],
@@ -221,7 +235,7 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
         'status': 'ok',
         'media_id': media_id,
         'mime': mime,
-        'media_type': detect_chat_media_type_func(mime),
+        'media_type': 'voice' if is_voice_upload else detect_chat_media_type_func(mime),
         'name': filename,
         'size': size,
     }

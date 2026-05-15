@@ -25,6 +25,51 @@ const SIDEBAR_WEATHER_CITY_SUGGESTIONS_LIMIT = 8;
 const SIDEBAR_WEATHER_CITY_SUGGESTIONS_DEBOUNCE_MS = 260;
 const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
 const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
+const PRIVACY_VALUES = new Set(['all', 'contacts', 'nobody']);
+const PRIVACY_SETTING_DEFS = Object.freeze({
+    last_seen_visibility: {
+        selectId: 'lastSeenVisibilitySelect',
+        title: 'Время захода',
+        question: 'Кто видит время моего последнего захода?',
+        hint: 'Если выбрать "Никто", контакты не увидят, когда вы были в сети.',
+    },
+    avatar_visibility: {
+        selectId: 'avatarVisibilitySelect',
+        title: 'Фотография профиля',
+        question: 'Кто видит фото в моем профиле?',
+        hint: 'Выберите, кому разрешено видеть фотографию в вашем профиле.',
+    },
+    bio_visibility: {
+        selectId: 'bioVisibilitySelect',
+        title: 'О себе',
+        question: 'Кто видит мой раздел О себе?',
+        hint: 'Выберите, кому доступен просмотр раздела "О себе" в вашем профиле.',
+    },
+    forward_link_privacy: {
+        selectId: 'forwardLinkPrivacySelect',
+        title: 'Пересылка сообщений',
+        question: 'Кто может ссылаться на мой аккаунт при пересылке сообщений?',
+        hint: 'Если доступ запрещен, при пересылке останется имя без ссылки на аккаунт.',
+    },
+    group_invite_privacy: {
+        selectId: 'groupInvitePrivacySelect',
+        title: 'Группы и каналы',
+        question: 'Кто может приглашать меня?',
+        hint: 'Выберите, кто может приглашать вас в группы.',
+    },
+    voice_message_privacy: {
+        selectId: 'voiceMessagePrivacySelect',
+        title: 'Голосовые сообщения',
+        question: 'Кто может отправлять мне голосовые сообщения?',
+        hint: 'Ограничение применяется к личным чатам.',
+    },
+    message_privacy: {
+        selectId: 'messagePrivacySelect',
+        title: 'Сообщения',
+        question: 'Кто может отправлять мне сообщения?',
+        hint: 'Ограничение применяется к личным чатам и новым запросам.',
+    },
+});
 
 function normalizeSendShortcut(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -90,6 +135,18 @@ function normalizeMotionLevel(value) {
     return MOTION_LEVELS.has(raw) ? raw : 'auto';
 }
 
+function normalizePrivacyChoice(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    return PRIVACY_VALUES.has(raw) ? raw : 'all';
+}
+
+function getPrivacyChoiceLabel(value) {
+    const normalized = normalizePrivacyChoice(value);
+    if (normalized === 'contacts') return 'Мои контакты';
+    if (normalized === 'nobody') return 'Никто';
+    return 'Все';
+}
+
 function readStorageValue(key, fallback = '') {
     try {
         return String(window.localStorage.getItem(key) || fallback);
@@ -114,6 +171,22 @@ export function initPrivacySection({
     downloadSettingsQr,
 }) {
     const languageSelectEl = document.getElementById('languageSelect');
+    const languageOptionEls = Array.from(
+        typeof document.querySelectorAll === 'function'
+            ? document.querySelectorAll('[data-language-option]')
+            : [],
+    )
+        .filter((el) => el instanceof HTMLInputElement);
+    const privacyOverviewPanelEl = document.getElementById('privacyOverviewPanel');
+    const privacyDetailPanelEl = document.getElementById('privacyDetailPanel');
+    const privacyDetailBackBtnEl = document.getElementById('privacyDetailBackBtn');
+    const privacyDetailTitleEl = document.getElementById('privacyDetailTitle');
+    const privacyDetailQuestionEl = document.getElementById('privacyDetailQuestion');
+    const privacyDetailOptionsEl = document.getElementById('privacyDetailOptions');
+    const privacyDetailHintEl = document.getElementById('privacyDetailHint');
+    const privacySelectEls = Object.fromEntries(
+        Object.entries(PRIVACY_SETTING_DEFS).map(([key, def]) => [key, document.getElementById(def.selectId)]),
+    );
     const floatingSaveBtn = document.getElementById('settingsFloatingSaveBtn');
     const bioInputEl = document.getElementById('bioInput');
     const bioCounterEl = document.getElementById('bioCounter');
@@ -145,6 +218,11 @@ export function initPrivacySection({
     let sidebarWeatherCitySuggestionsRequestSeq = 0;
     const CLIENT_PREFERENCES_FIELD_IDS = new Set([
         'languageSelect',
+        'lastSeenVisibilitySelect',
+        'bioVisibilitySelect',
+        'forwardLinkPrivacySelect',
+        'voiceMessagePrivacySelect',
+        'messagePrivacySelect',
         'sendShortcutEnterOption',
         'sendShortcutCtrlEnterOption',
         'timeFormat12hOption',
@@ -267,6 +345,78 @@ export function initPrivacySection({
                 hour12: false,
             });
         }
+    }
+
+    function getPrivacySelection(key) {
+        return normalizePrivacyChoice(privacySelectEls[key]?.value);
+    }
+
+    function setPrivacySelection(key, value, { emit = false } = {}) {
+        const selectEl = privacySelectEls[key];
+        if (!selectEl) return 'all';
+        const normalized = normalizePrivacyChoice(value);
+        selectEl.value = normalized;
+        if (emit) {
+            selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return normalized;
+    }
+
+    function syncPrivacyOverview() {
+        Object.keys(PRIVACY_SETTING_DEFS).forEach((key) => {
+            const summaryEl = document.querySelector(`[data-privacy-summary="${key}"]`);
+            if (!summaryEl) return;
+            summaryEl.textContent = getPrivacyChoiceLabel(getPrivacySelection(key));
+        });
+    }
+
+    function closePrivacyDetail() {
+        privacyDetailPanelEl?.classList.add('settings-hidden');
+        privacyOverviewPanelEl?.classList.remove('settings-hidden');
+    }
+
+    function renderPrivacyDetail(key) {
+        const def = PRIVACY_SETTING_DEFS[key];
+        if (!def || !privacyDetailOptionsEl) return;
+        const currentValue = getPrivacySelection(key);
+        privacyOverviewPanelEl?.classList.add('settings-hidden');
+        privacyDetailPanelEl?.classList.remove('settings-hidden');
+        if (privacyDetailTitleEl) privacyDetailTitleEl.textContent = def.title;
+        if (privacyDetailQuestionEl) privacyDetailQuestionEl.textContent = def.question;
+        if (privacyDetailHintEl) privacyDetailHintEl.textContent = def.hint;
+        privacyDetailOptionsEl.setAttribute('aria-label', def.question);
+        privacyDetailOptionsEl.replaceChildren();
+        ['all', 'contacts', 'nobody'].forEach((value) => {
+            const id = `privacy-${key}-${value}`;
+            const labelEl = document.createElement('label');
+            labelEl.className = 'settings-preference-option';
+            labelEl.setAttribute('for', id);
+            labelEl.innerHTML = `
+                <input type="radio" name="privacy-${key}" id="${id}" value="${value}">
+                <span class="settings-preference-indicator" aria-hidden="true"></span>
+                <span class="settings-preference-copy">
+                    <span class="settings-preference-title">${getPrivacyChoiceLabel(value)}</span>
+                </span>
+            `;
+            const inputEl = labelEl.querySelector('input');
+            if (inputEl) {
+                inputEl.checked = value === currentValue;
+                inputEl.addEventListener('change', () => {
+                    if (!inputEl.checked) return;
+                    setPrivacySelection(key, value, { emit: true });
+                    syncPrivacyOverview();
+                });
+            }
+            privacyDetailOptionsEl.appendChild(labelEl);
+        });
+    }
+
+    function syncLanguageOptions() {
+        const normalized = normalizeLanguage(languageSelectEl?.value || document.documentElement.lang || 'ru');
+        languageOptionEls.forEach((inputEl) => {
+            inputEl.checked = inputEl.value === normalized;
+        });
     }
 
     function resolveWeatherCitySuggestionsLanguage() {
@@ -573,12 +723,17 @@ export function initPrivacySection({
             language: (document.getElementById('languageSelect') || {}).value || 'ru',
             bio: bioEl ? bioEl.value.trim().slice(0, 280) : '',
             status_text: String(statusTextInputEl?.value || '').trim().slice(0, 100),
-            is_public: document.getElementById('isPublicSwitch').checked,
-            auto_decline_requests: document.getElementById('autoDeclineSwitch').checked,
-            mute_dialog_requests: document.getElementById('muteDialogRequestsSwitch').checked,
-            hide_online_status: document.getElementById('hideOnlineStatusSwitch').checked,
+            is_public: !!document.getElementById('isPublicSwitch')?.checked,
+            auto_decline_requests: !!document.getElementById('autoDeclineSwitch')?.checked,
+            mute_dialog_requests: !!document.getElementById('muteDialogRequestsSwitch')?.checked,
+            hide_online_status: getPrivacySelection('last_seen_visibility') === 'nobody',
+            last_seen_visibility: getPrivacySelection('last_seen_visibility'),
             avatar_visibility: (document.getElementById('avatarVisibilitySelect') || {}).value || 'all',
+            bio_visibility: getPrivacySelection('bio_visibility'),
+            forward_link_privacy: getPrivacySelection('forward_link_privacy'),
             group_invite_privacy: (document.getElementById('groupInvitePrivacySelect') || {}).value || 'all',
+            voice_message_privacy: getPrivacySelection('voice_message_privacy'),
+            message_privacy: getPrivacySelection('message_privacy'),
             send_shortcut: getSendShortcutSelection(),
             time_format: getTimeFormatSelection(),
             sidebar_weather_enabled: weatherPrefs.sidebarWeatherEnabled,
@@ -614,6 +769,14 @@ export function initPrivacySection({
         }
         if (isPublicEl) isPublicEl.checked = !!payload.is_public;
         if (hideOnlineEl) hideOnlineEl.checked = !!payload.hide_online_status;
+        setPrivacySelection(
+            'last_seen_visibility',
+            payload.last_seen_visibility || (payload.hide_online_status ? 'nobody' : 'all'),
+        );
+        setPrivacySelection('bio_visibility', payload.bio_visibility || 'all');
+        setPrivacySelection('forward_link_privacy', payload.forward_link_privacy || 'all');
+        setPrivacySelection('voice_message_privacy', payload.voice_message_privacy || 'all');
+        setPrivacySelection('message_privacy', payload.message_privacy || 'all');
         if (autoDeclineEl) autoDeclineEl.checked = !!payload.auto_decline_requests;
         if (muteRequestsEl) muteRequestsEl.checked = !!payload.mute_dialog_requests;
         if (avatarVisibilityEl) {
@@ -626,6 +789,8 @@ export function initPrivacySection({
                 ? nextGroupInvitePrivacy
                 : 'all';
         }
+        syncPrivacyOverview();
+        syncLanguageOptions();
 
         const rawClientPreferences = payload.client_preferences && typeof payload.client_preferences === 'object'
             ? payload.client_preferences
@@ -739,8 +904,13 @@ export function initPrivacySection({
         document.getElementById('hideOnlineStatusSwitch'),
         document.getElementById('autoDeclineSwitch'),
         document.getElementById('muteDialogRequestsSwitch'),
+        document.getElementById('lastSeenVisibilitySelect'),
         document.getElementById('avatarVisibilitySelect'),
+        document.getElementById('bioVisibilitySelect'),
+        document.getElementById('forwardLinkPrivacySelect'),
         document.getElementById('groupInvitePrivacySelect'),
+        document.getElementById('voiceMessagePrivacySelect'),
+        document.getElementById('messagePrivacySelect'),
         sendShortcutEnterEl,
         sendShortcutCtrlEnterEl,
         timeFormat12hEl,
@@ -750,6 +920,7 @@ export function initPrivacySection({
         sidebarWeatherCityInputEl,
         sidebarWeatherRotateSelectEl,
         ...sidebarWeatherMetricInputEls,
+        ...languageOptionEls,
     ].forEach((field) => {
         if (!field) return;
         const maybeSyncClientPreferences = () => {
@@ -758,10 +929,12 @@ export function initPrivacySection({
             }
         };
         field.addEventListener('input', () => {
+            syncPrivacyOverview();
             state.syncDirtyState();
             maybeSyncClientPreferences();
         });
         field.addEventListener('change', () => {
+            syncPrivacyOverview();
             state.syncDirtyState();
             maybeSyncClientPreferences();
         });
@@ -787,11 +960,31 @@ export function initPrivacySection({
             syncTimeFormatSamples();
             if (latestPresencePayload) applySettingsNavProfileStatus(latestPresencePayload);
             syncClientPreferencesLocal(true);
+            syncLanguageOptions();
         });
     }
+    languageOptionEls.forEach((inputEl) => {
+        inputEl.addEventListener('change', () => {
+            if (!inputEl.checked || !languageSelectEl) return;
+            languageSelectEl.value = normalizeLanguage(inputEl.value);
+            languageSelectEl.dispatchEvent(new Event('input', { bubbles: true }));
+            languageSelectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
     languageSelectEl?.addEventListener('change', () => {
         scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
     });
+
+    Array.from(
+        typeof document.querySelectorAll === 'function'
+            ? document.querySelectorAll('[data-privacy-open]')
+            : [],
+    ).forEach((buttonEl) => {
+        buttonEl.addEventListener('click', () => {
+            renderPrivacyDetail(String(buttonEl.getAttribute('data-privacy-open') || ''));
+        });
+    });
+    privacyDetailBackBtnEl?.addEventListener('click', closePrivacyDetail);
 
     window.addEventListener('sun-time-format-changed', () => {
         if (!latestPresencePayload) return;
@@ -884,6 +1077,8 @@ export function initPrivacySection({
     });
 
     syncTimeFormatSamples();
+    syncLanguageOptions();
+    syncPrivacyOverview();
     syncSidebarWeatherControls();
 
     api.getSettings()

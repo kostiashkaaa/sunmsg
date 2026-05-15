@@ -36,6 +36,7 @@ USER_STATUS_TEXT_MIGRATION = (21, 'add_status_text_to_users')
 MESSAGE_EXPIRES_AT_MIGRATION = (22, 'add_expires_at_to_messages')
 CHAT_AUTO_DELETE_MIGRATION = (23, 'add_auto_delete_seconds_to_chats')
 MESSAGE_ALBUM_ID_MIGRATION = (24, 'add_album_id_to_messages')
+USER_PRIVACY_CHOICES_MIGRATION = (25, 'add_user_privacy_choices')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -326,10 +327,15 @@ def _run_users_schema_migrations(conn, cursor) -> None:
         ('auto_decline_requests', 'auto_decline_requests INTEGER NOT NULL DEFAULT 0'),
         ('mute_dialog_requests', 'mute_dialog_requests INTEGER NOT NULL DEFAULT 0'),
         ('hide_online_status', 'hide_online_status INTEGER NOT NULL DEFAULT 0'),
+        ('last_seen_visibility', "last_seen_visibility TEXT NOT NULL DEFAULT 'all'"),
         ('last_seen', 'last_seen TEXT'),
         ('avatar_url', 'avatar_url TEXT DEFAULT NULL'),
         ('avatar_visibility', "avatar_visibility TEXT DEFAULT 'all'"),
+        ('bio_visibility', "bio_visibility TEXT NOT NULL DEFAULT 'all'"),
+        ('forward_link_privacy', "forward_link_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('group_invite_privacy', "group_invite_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('voice_message_privacy', "voice_message_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('message_privacy', "message_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('is_online', 'is_online INTEGER DEFAULT 0'),
         ('totp_secret', 'totp_secret TEXT'),
         ('totp_enabled_at', 'totp_enabled_at TIMESTAMP'),
@@ -529,6 +535,49 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
         'CREATE INDEX IF NOT EXISTS idx_messages_album_id ON messages(album_id) WHERE album_id IS NOT NULL'
     )
     _record_migration(cursor, MESSAGE_ALBUM_ID_MIGRATION)
+
+    privacy_columns = (
+        ('last_seen_visibility', "last_seen_visibility TEXT NOT NULL DEFAULT 'all'"),
+        ('bio_visibility', "bio_visibility TEXT NOT NULL DEFAULT 'all'"),
+        ('forward_link_privacy', "forward_link_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('voice_message_privacy', "voice_message_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('message_privacy', "message_privacy TEXT NOT NULL DEFAULT 'all'"),
+    )
+    for column_name, ddl in privacy_columns:
+        add_column_if_missing(conn, cursor, 'users', column_name, ddl)
+    cursor.execute(
+        '''
+        UPDATE users
+        SET
+            last_seen_visibility = CASE
+                WHEN LOWER(COALESCE(last_seen_visibility, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(last_seen_visibility)
+                WHEN COALESCE(hide_online_status, 0) = 1 THEN 'nobody'
+                ELSE 'all'
+            END,
+            bio_visibility = CASE
+                WHEN LOWER(COALESCE(bio_visibility, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(bio_visibility)
+                ELSE 'all'
+            END,
+            forward_link_privacy = CASE
+                WHEN LOWER(COALESCE(forward_link_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(forward_link_privacy)
+                ELSE 'all'
+            END,
+            voice_message_privacy = CASE
+                WHEN LOWER(COALESCE(voice_message_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(voice_message_privacy)
+                ELSE 'all'
+            END,
+            message_privacy = CASE
+                WHEN LOWER(COALESCE(message_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(message_privacy)
+                ELSE 'all'
+            END
+        '''
+    )
+    _record_migration(cursor, USER_PRIVACY_CHOICES_MIGRATION)
 
 
 def run_migrations() -> None:

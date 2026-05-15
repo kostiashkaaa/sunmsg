@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from app.services.user_privacy import is_privacy_allowed, normalize_privacy_choice
+
 
 _SEND_REQUEST_COOLDOWN_SECONDS = 45
 
@@ -30,10 +32,16 @@ def send_dialog_request_workflow(
     normalize_block_state_func,
     build_block_state_func,
 ):
-    contact = conn.execute(
-        'SELECT auto_decline_requests FROM users WHERE id = ?',
-        (receiver_user_id,),
-    ).fetchone()
+    try:
+        contact = conn.execute(
+            'SELECT auto_decline_requests, message_privacy FROM users WHERE id = ?',
+            (receiver_user_id,),
+        ).fetchone()
+    except Exception:
+        contact = conn.execute(
+            'SELECT auto_decline_requests FROM users WHERE id = ?',
+            (receiver_user_id,),
+        ).fetchone()
     if not contact:
         return {'status': 'receiver_missing'}
 
@@ -41,7 +49,15 @@ def send_dialog_request_workflow(
     if block_state['is_blocked']:
         return {'status': 'blocked', 'block_state': block_state}
 
-    if contact['auto_decline_requests']:
+    message_privacy = normalize_privacy_choice(
+        contact['message_privacy'] if 'message_privacy' in contact.keys() else None
+    )
+    if contact['auto_decline_requests'] or not is_privacy_allowed(
+        conn,
+        owner_id=receiver_user_id,
+        viewer_id=sender_user_id,
+        policy=message_privacy,
+    ):
         return {'status': 'auto_decline'}
 
     existing_request = conn.execute(

@@ -18,6 +18,7 @@ from app.services.mentions import (
     resolve_group_mentioned_members,
 )
 from app.services.user import get_safe_avatar_url
+from app.services.user_privacy import can_link_forward_author, can_send_direct_message
 from app.sockets.idempotency import (
     mark_request_completed,
     release_request,
@@ -458,6 +459,19 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
             except TypeError:
                 emit_blocked_error_func('Messaging is unavailable because the user is blocked.', block_state)
             return None
+        if not can_send_direct_message(
+            conn,
+            receiver_id=receiver_id,
+            sender_id=sender_id,
+            message_type=message_type,
+        ):
+            _emit_send_error(
+                emit_func,
+                'This user does not allow this message type.',
+                request_id=request_id,
+                code='recipient_privacy_restricted',
+            )
+            return None
 
     return {
         'chat_type': chat_type,
@@ -810,6 +824,12 @@ def _initialize_send_runtime_state(conn, *, context: dict | None = None) -> dict
     raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
     forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
     forward_from_user_id = positive_int_func(data.get('forward_from_user_id'))
+    if forward_from_user_id and not can_link_forward_author(
+        conn,
+        author_user_id=forward_from_user_id,
+        actor_user_id=sender_id,
+    ):
+        forward_from_user_id = None
     raw_album_id = str(data.get('album_id') or '').strip()
     album_id = raw_album_id[:64] if raw_album_id else None
     group_member_public_keys = []
