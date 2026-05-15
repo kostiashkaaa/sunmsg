@@ -5773,6 +5773,13 @@
             background: color-mix(in srgb, var(--accent) 12%, transparent);
         }
 
+        .audio-player-speed:disabled,
+        .audio-player-speed.is-disabled {
+            opacity: 0.38;
+            cursor: default;
+            pointer-events: none;
+        }
+
         .voice-transcript {
             margin-top: 5px;
             font-size: 12.5px;
