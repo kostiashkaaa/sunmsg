@@ -957,19 +957,30 @@
         const serverTs = toTimestampMs(server.updatedAt);
         const localTs = toTimestampMs(local.updatedAt);
         let preferred = server;
+        let preferLocal = false;
 
         if (localTs > 0 && serverTs > 0) {
-            preferred = localTs > serverTs ? local : server;
+            preferLocal = localTs > serverTs;
         } else if (localTs > 0 && serverTs === 0) {
-            preferred = local;
+            preferLocal = true;
         } else if (serverTs > 0 && localTs === 0) {
-            preferred = server;
-        } else if (hasMeaningfulClientPreferences(local)) {
-            preferred = local;
+            preferLocal = false;
+        } else {
+            preferLocal = hasMeaningfulClientPreferences(local);
         }
+        preferred = preferLocal ? local : server;
+
+        // Only fold server theme fields back in when the server snapshot is
+        // not older than the local one. Otherwise a fresher local theme
+        // change (e.g. picking the "grey mist" preset) would be silently
+        // reverted to whatever the server still has — which also leaves the
+        // settings page showing a different (default) theme than the chat.
+        const effectivePreferences = preferLocal
+            ? preferred
+            : applyServerThemePreferences(preferred, server);
 
         return finalizeClientPreferences(
-            applyServerThemePreferences(preferred, server),
+            effectivePreferences,
             {
                 touchUpdatedAt: false,
                 ensureUpdatedAt: false,
