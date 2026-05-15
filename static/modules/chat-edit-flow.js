@@ -32,8 +32,15 @@ export async function handleComposerEditFlow({
     emitSocket,
     currentChatId,
     cancelEdit,
+    showToast,
 } = {}) {
     if (!isEditingMessageId) return false;
+
+    // For plain-text messages an empty edit is not allowed
+    if (!isEditingFilePayload && !String(content || '').trim()) {
+        showToast?.('Нельзя сохранить пустое сообщение', 'warning');
+        return true; // consumed — don't fall through to send
+    }
 
     const plainToSend = buildEditedMessagePlainText(isEditingFilePayload, content);
     const msgType = getEditableMessageType(isEditingFilePayload, content);
