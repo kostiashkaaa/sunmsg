@@ -1129,8 +1129,9 @@ export function initChatMediaRuntime(deps = {}) {
             showChatCenterNotice('Не удалось расшифровать голосовое сообщение');
             return;
         }
-        const nextExpanded = transcript.hidden || transcript.getAttribute('aria-hidden') !== 'false';
-        transcript.hidden = !nextExpanded;
+        const nextExpanded = !transcript.classList.contains('is-expanded');
+        transcript.classList.toggle('is-expanded', nextExpanded);
+        transcript.hidden = false;
         transcript.setAttribute('aria-hidden', nextExpanded ? 'false' : 'true');
         syncVoiceTranscriptToggle(toggleBtn, nextExpanded);
     };
