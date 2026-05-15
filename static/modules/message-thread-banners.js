@@ -158,7 +158,11 @@ export function initPinnedBar({
                 : String(singularLabel || '');
         }
         if (textEl) {
-            textEl.innerHTML = renderMessagePreviewHtml(currentPinnedMessage.preview, { maxLen: 90, emptyText: '' });
+            textEl.innerHTML = renderMessagePreviewHtml(currentPinnedMessage.preview, {
+                maxLen: 90,
+                emptyText: '',
+                mediaTokenStyle: 'plain',
+            });
             applyEmojiGraphics(textEl);
         }
         if (barEl) {

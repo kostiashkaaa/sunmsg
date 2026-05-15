@@ -869,7 +869,11 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     let replyHtml = '';
     if (msg.replyToId) {
         const qName = escapeHtml(msg.replyToSender || '\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435');
-        const qText = renderMessagePreviewHtml(msg.replyToText || '', { maxLen: 120, emptyText: '\u2026' });
+        const qText = renderMessagePreviewHtml(msg.replyToText || '', {
+            maxLen: 120,
+            emptyText: '\u2026',
+            mediaTokenStyle: 'plain',
+        });
         const safeReplyToId = Number(msg.replyToId);
         const replyToAttr = Number.isFinite(safeReplyToId) && safeReplyToId > 0
             ? ` data-scroll-to-msg="${safeReplyToId}"`
