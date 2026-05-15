@@ -1,13 +1,16 @@
 // keyboard-shortcuts.js — Telegram-like global hotkeys
 //
 //   Ctrl/Cmd + F            — focus sidebar search input
+//   Ctrl/Cmd + Shift + F    — open in-chat message search
 //   Escape                  — close topmost overlay (modal / drawer / lightbox / picker)
 //   Ctrl/Cmd + ArrowUp      — switch to previous chat in sidebar
 //   Ctrl/Cmd + ArrowDown    — switch to next chat in sidebar
 //
-// Shortcuts are no-ops when focus is in an editable field, EXCEPT for
-// Escape (always processed) and chat-switch combos (require Ctrl/Cmd —
-// won't conflict with normal text input).
+//   Message actions (when a message is hovered / last interacted):
+//   R                       — reply to message
+//   E                       — edit own message
+//   F                       — forward message
+//   Delete / Backspace      — delete message
 
 import { waitForMotionEnd } from './motion.js';
 
@@ -23,7 +26,6 @@ function isEditableTarget(target) {
 function focusSidebarSearch() {
     const input = document.getElementById('searchInput');
     if (!input) return false;
-    // \u0424\u043E\u043A\u0443\u0441 \u043D\u0430 \u0432\u0438\u0434\u0438\u043C\u043E\u043C \u043F\u043E\u043B\u0435 \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442 search-overlay (\u0441\u043C. search-overlay.js).
     input.focus();
     if (typeof input.select === 'function') {
         try { input.select(); } catch (_) { /* noop */ }
@@ -31,9 +33,19 @@ function focusSidebarSearch() {
     return true;
 }
 
+function openInChatSearch() {
+    const searchBtn = document.getElementById('searchChatBtn');
+    if (!searchBtn) return false;
+    const headerSearchWrap = document.getElementById('headerSearchWrap');
+    if (headerSearchWrap?.classList.contains('active')) {
+        document.getElementById('headerSearchInput')?.focus();
+        return true;
+    }
+    searchBtn.click();
+    return true;
+}
+
 function closeTopmostOverlay() {
-    // Order: lightbox → context menus / pickers → drawer → modal.
-    // \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u043C true \u0435\u0441\u043B\u0438 \u0447\u0442\u043E-\u0442\u043E \u0437\u0430\u043A\u0440\u044B\u043B\u0438 — \u0442\u043E\u0433\u0434\u0430 \u043D\u0435 \u043F\u0440\u043E\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0435\u043C \u0434\u0430\u043B\u044C\u0448\u0435.
     const lightbox = document.getElementById('lightbox');
     const settingsOverlay = document.getElementById('settingsOverlay');
     if (settingsOverlay?.classList.contains('active')) {
@@ -90,7 +102,6 @@ function closeTopmostOverlay() {
 }
 
 function switchChat(direction) {
-    // direction: -1 (prev) / +1 (next)
     const list = document.getElementById('contactsList');
     if (!list) return false;
     const items = Array.from(
@@ -112,10 +123,41 @@ function switchChat(direction) {
     return true;
 }
 
+function dispatchMessageShortcut(action, msgId) {
+    if (!msgId) return false;
+    document.dispatchEvent(new CustomEvent('sun:message-shortcut', {
+        bubbles: false,
+        detail: { action, msgId },
+    }));
+    return true;
+}
+
+function resolveHoveredMessageId() {
+    // Try element under pointer first (stored by mouseover listener)
+    const msgEl = document.querySelector('.message:hover')
+        || document.querySelector('.message[data-kb-focus]');
+    if (!msgEl) return null;
+    const rawId = msgEl.getAttribute('data-msg-id');
+    const id = Number(rawId);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 export function initKeyboardShortcuts() {
     if (typeof document === 'undefined') return;
     if (document.documentElement.dataset.keyboardShortcutsBound === '1') return;
     document.documentElement.dataset.keyboardShortcutsBound = '1';
+
+    // Track last hovered message for keyboard shortcuts
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.addEventListener('mouseover', (e) => {
+            const msgEl = e.target.closest('.message');
+            chatMessages.querySelectorAll('.message[data-kb-focus]').forEach(m => {
+                m.removeAttribute('data-kb-focus');
+            });
+            if (msgEl) msgEl.setAttribute('data-kb-focus', '1');
+        }, { passive: true });
+    }
 
     document.addEventListener('keydown', (event) => {
         const { key, ctrlKey, metaKey, altKey, shiftKey, target } = event;
@@ -129,37 +171,76 @@ export function initKeyboardShortcuts() {
             return;
         }
 
-        // \u0414\u0430\u043B\u044C\u0448\u0435 — \u0442\u043E\u043B\u044C\u043A\u043E \u043C\u043E\u0434\u0438\u0444\u0438\u0446\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0435 \u043A\u043E\u043C\u0431\u0438\u043D\u0430\u0446\u0438\u0438, \u0447\u0442\u043E\u0431\u044B \u043D\u0435 \u043C\u0435\u0448\u0430\u0442\u044C
-        // \u043E\u0431\u044B\u0447\u043D\u043E\u043C\u0443 \u0432\u0432\u043E\u0434\u0443 \u0432 textarea \u043A\u043E\u043C\u043F\u043E\u0437\u0435\u0440\u0430.
-        if (!mod || altKey || shiftKey) return;
+        // Ctrl/Cmd+Shift+F — in-chat search
+        if (mod && shiftKey && (key === 'f' || key === 'F' || key === 'а' || key === 'А')) {
+            event.preventDefault();
+            openInChatSearch();
+            return;
+        }
 
-        if (key === 'f' || key === 'F' || key === '\u0430' || key === '\u0410') {
-            // Ctrl+F: \u0442\u043E\u043B\u044C\u043A\u043E \u0435\u0441\u043B\u0438 \u043D\u0435 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u0443\u0435\u043C \u043A\u043E\u0434 \u0432 \u043A\u0430\u043A\u043E\u043C-\u0442\u043E \u043F\u043E\u043B\u0435 \u043A\u043E\u0434\u0430
-            if (isEditableTarget(target)) {
-                // \u0432 textarea — \u043F\u0443\u0441\u0442\u044C \u0440\u0430\u0431\u043E\u0442\u0430\u0435\u0442 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u043F\u043E\u0438\u0441\u043A \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430
+        // Ctrl/Cmd shortcuts (no shift)
+        if (mod && !altKey && !shiftKey) {
+            if (key === 'f' || key === 'F' || key === 'а' || key === 'А') {
+                if (isEditableTarget(target)) return;
+                if (focusSidebarSearch()) event.preventDefault();
                 return;
             }
-            if (focusSidebarSearch()) {
-                event.preventDefault();
+            if (key === 'ArrowUp') {
+                if (switchChat(-1)) event.preventDefault();
+                return;
+            }
+            if (key === 'ArrowDown') {
+                if (switchChat(+1)) event.preventDefault();
+                return;
             }
             return;
         }
 
-        if (key === 'ArrowUp') {
-            if (switchChat(-1)) event.preventDefault();
+        // Bare key shortcuts — only outside editable fields
+        if (mod || altKey || isEditableTarget(target)) return;
+
+        // Any overlay open? Don't steal keys
+        const hasOpenOverlay = Boolean(
+            document.querySelector(
+                '#messageContextMenu.is-open, .emoji-picker.is-open, '
+                + '.reaction-picker.active, dialog[open], .partner-profile-drawer.is-open'
+            )
+        );
+        if (hasOpenOverlay) return;
+
+        // Must have an active chat
+        const chatArea = document.getElementById('chatArea');
+        if (!chatArea || chatArea.hidden || chatArea.classList.contains('hidden')) return;
+
+        if (key === 'r' || key === 'R' || key === 'к' || key === 'К') {
+            const msgId = resolveHoveredMessageId();
+            if (msgId && dispatchMessageShortcut('reply', msgId)) event.preventDefault();
             return;
         }
-        if (key === 'ArrowDown') {
-            if (switchChat(+1)) event.preventDefault();
+        if (key === 'e' || key === 'E' || key === 'у' || key === 'У') {
+            const msgId = resolveHoveredMessageId();
+            if (msgId && dispatchMessageShortcut('edit', msgId)) event.preventDefault();
+            return;
+        }
+        if (key === 'f' || key === 'F' || key === 'а' || key === 'А') {
+            const msgId = resolveHoveredMessageId();
+            if (msgId && dispatchMessageShortcut('forward', msgId)) event.preventDefault();
+            return;
+        }
+        if (key === 'Delete' || key === 'Backspace') {
+            const msgId = resolveHoveredMessageId();
+            if (msgId && dispatchMessageShortcut('delete', msgId)) event.preventDefault();
             return;
         }
     }, { capture: false });
 }
 
-// \u042D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u0443\u0435\u043C helper'\u044B \u0434\u043B\u044F \u0442\u0435\u0441\u0442\u043E\u0432
+// Export helpers for tests
 export const __test__ = {
     isEditableTarget,
     closeTopmostOverlay,
     switchChat,
     focusSidebarSearch,
+    openInChatSearch,
+    resolveHoveredMessageId,
 };

@@ -114,8 +114,10 @@
 
             <div class="header-search-wrap" id="headerSearchWrap">
                 <svg class="sun-icon header-search-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
-                <input type="text" id="headerSearchInput" placeholder="Поиск сообщений в этом чате...">
-                <button class="btn-icon ripple-target" id="headerSearchCalendarBtn" title="Календарь"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-calendar"></use></svg></button>
+                <input type="text" id="headerSearchInput" placeholder="Поиск сообщений в этом чате..." autocomplete="off" spellcheck="false">
+                <span class="header-search-counter" id="headerSearchCounter" hidden></span>
+                <button class="btn-icon ripple-target" id="headerSearchPrevBtn" title="Предыдущее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-up"></use></svg></button>
+                <button class="btn-icon ripple-target" id="headerSearchNextBtn" title="Следующее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg></button>
                 <button class="btn-icon ripple-target" id="closeSearchBtn"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg></button>
             </div>
 

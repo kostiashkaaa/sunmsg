@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 
 from app.routes.chat_group_common import (
     MAX_GROUP_DESCRIPTION_LENGTH,
+    MAX_GROUP_MEMBERS,
     MAX_GROUP_TITLE_LENGTH,
     new_group_chat_id,
     normalize_group_description,
@@ -74,6 +75,12 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
         requested_member_ids = [uid for uid in requested_member_ids if uid != creator_id]
         if not requested_member_ids:
             return jsonify({'success': False, 'error': 'At least one member is required.'}), 400
+        # +1 for the creator themselves
+        if len(requested_member_ids) + 1 > MAX_GROUP_MEMBERS:
+            return jsonify({
+                'success': False,
+                'error': f'Group cannot have more than {MAX_GROUP_MEMBERS:,} members.',
+            }), 400
 
         conn = get_db_connection_func()
         try:
@@ -237,6 +244,17 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
                 int(row['id']): str(row['public_key'] or '').strip()
                 for row in rows
             }
+
+            current_count_row = conn.execute(
+                'SELECT COUNT(*) AS cnt FROM chat_members WHERE chat_id = ?',
+                (chat_id,),
+            ).fetchone()
+            current_count = int(current_count_row['cnt'] or 0) if current_count_row else 0
+            if current_count + len(resolved_ids) > MAX_GROUP_MEMBERS:
+                return jsonify({
+                    'success': False,
+                    'error': f'Adding these members would exceed the group limit of {MAX_GROUP_MEMBERS:,} members.',
+                }), 400
 
             for candidate_user_id in resolved_ids:
                 restriction = moderation_service.active_group_restriction(

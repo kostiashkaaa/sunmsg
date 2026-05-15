@@ -9204,6 +9204,30 @@
             padding: 0 1px;
         }
 
+        .message.search-active-match mark.search-highlight {
+            background: #f5a623;
+            box-shadow: 0 0 0 2px #f5a62380;
+        }
+
+        .header-search-counter {
+            flex: 0 0 auto;
+            font-size: 13px;
+            color: var(--text-secondary, #888);
+            white-space: nowrap;
+            padding: 0 4px;
+            user-select: none;
+        }
+
+        [data-theme="dark"] mark.search-highlight {
+            background: #7a6000;
+            color: #ffe066;
+        }
+
+        [data-theme="dark"] .message.search-active-match mark.search-highlight {
+            background: #b07a00;
+            box-shadow: 0 0 0 2px #b07a0060;
+        }
+
 
 
         /* ?????????????? TIMESTAMP TOOLTIP ?????????????? */

@@ -11,6 +11,7 @@ export function initMessageContextMenu({
     selectItemEl,
     reportItemEl,
     deleteItemEl,
+    deleteForAllItemEl,
     isChatBlocked,
     resolveMessageElement,
     getPartnerDisplayName,
@@ -22,8 +23,10 @@ export function initMessageContextMenu({
     onFavorite,
     onForward,
     onDelete,
+    onDeleteForAll,
     onSelect,
     onReport,
+    isCurrentUserGroupModerator = () => false,
 } = {}) {
     let currentMessageId = null;
     let menuTransitionSeq = 0;
@@ -153,11 +156,16 @@ export function initMessageContextMenu({
             ? Boolean(messageEl.classList.contains('self'))
             : Boolean(isSelf);
         const canEdit = options?.canEdit !== false;
+        // canDeleteForAll: explicit option takes priority, otherwise use moderator check
+        const canDeleteForAll = Object.prototype.hasOwnProperty.call(options || {}, 'canDeleteForAll')
+            ? Boolean(options.canDeleteForAll)
+            : Boolean(isCurrentUserGroupModerator());
         viewportBoundsLock = null;
         viewportBoundsLock = getViewportBounds();
         if (replyItemEl) replyItemEl.hidden = blocked;
         if (editItemEl) editItemEl.hidden = blocked || !isOwnMessage || !canEdit;
         if (deleteItemEl) deleteItemEl.hidden = blocked;
+        if (deleteForAllItemEl) deleteForAllItemEl.hidden = blocked || !canDeleteForAll;
         if (pinItemEl) pinItemEl.hidden = blocked;
         if (favoriteItemEl) favoriteItemEl.hidden = blocked;
         if (forwardItemEl) forwardItemEl.hidden = blocked;
@@ -267,6 +275,13 @@ export function initMessageContextMenu({
         if (msgId) onDelete?.(msgId);
     });
 
+    deleteForAllItemEl?.addEventListener('click', () => {
+        if (isChatBlocked()) return;
+        const msgId = currentMessageId;
+        hideContextMenu();
+        if (msgId) onDeleteForAll?.(msgId);
+    });
+
     pinItemEl?.addEventListener('click', () => {
         if (isChatBlocked()) return;
         const msgId = currentMessageId;
@@ -307,6 +322,9 @@ export function initMessageContextMenu({
         hideContextMenu,
         getCurrentMessageId() {
             return currentMessageId;
+        },
+        setDeleteForAllVisible(visible) {
+            if (deleteForAllItemEl) deleteForAllItemEl.hidden = !visible;
         },
     };
 }

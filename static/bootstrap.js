@@ -1222,4 +1222,44 @@
     window.currentUsername = bootstrap.user.currentUsername;
     window.currentUserId = bootstrap.user.currentUserId;
     window.currentAvatarUrl = bootstrap.user.currentAvatarUrl;
+
+    // Auto-theme: follow OS prefers-color-scheme when the user has not
+    // explicitly chosen a theme (no darkMode key stored in localStorage).
+    (function initAutoTheme() {
+        if (!window.matchMedia) return;
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+        function hasExplicitTheme() {
+            try {
+                return localStorage.getItem(DARK_MODE_STORAGE_KEY) !== null;
+            } catch (_) {
+                return true;
+            }
+        }
+
+        function applyOsTheme(prefersDark) {
+            if (hasExplicitTheme()) return;
+            const themeKey = prefersDark ? 'dark' : 'light';
+            // Patch the live document theme without touching localStorage
+            document.documentElement.dataset.theme = themeKey;
+            document.documentElement.dataset.bsTheme = themeKey;
+            // Notify the rest of the app so appearance modules can react
+            window.dispatchEvent(new CustomEvent('sun-auto-theme-changed', {
+                detail: { theme: themeKey, source: 'os' },
+                bubbles: false,
+            }));
+        }
+
+        // Apply on load only if there is no explicit user choice
+        applyOsTheme(mq.matches);
+
+        // Keep in sync if the OS theme changes during the session
+        const handler = (e) => applyOsTheme(e.matches);
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', handler);
+        } else if (typeof mq.addListener === 'function') {
+            // Legacy Safari
+            mq.addListener(handler);
+        }
+    }());
 })();

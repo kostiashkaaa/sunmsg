@@ -111,6 +111,7 @@ self.addEventListener('push', (event) => {
     const icon = String(payload.icon || '/static/icons/icon-192x192.png');
     const badge = String(payload.badge || '/static/icons/icon-192x192.png');
     const tag = String(payload.tag || 'sun-message');
+    const chatId = payload.chat_id ? String(payload.chat_id) : null;
 
     event.waitUntil(
         self.registration.showNotification(title, {
@@ -118,14 +119,17 @@ self.addEventListener('push', (event) => {
             icon,
             badge,
             tag,
-            data: { url },
+            data: { url, chat_id: chatId },
         })
     );
 });
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const destination = String(event.notification?.data?.url || '/chat');
+    const notifData = event.notification?.data || {};
+    const destination = String(notifData.url || '/chat');
+    const chatId = notifData.chat_id ? String(notifData.chat_id) : null;
+
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
             const origin = self.location.origin;
@@ -139,10 +143,22 @@ self.addEventListener('notificationclick', (event) => {
                 destinationUrl = null;
             }
 
+            function focusAndOpenChat(client) {
+                const focusPromise = client.focus ? client.focus() : Promise.resolve(client);
+                if (!chatId) return focusPromise;
+                return focusPromise.then((focusedClient) => {
+                    const target = focusedClient || client;
+                    if (target && typeof target.postMessage === 'function') {
+                        target.postMessage({ action: 'open_chat', chat_id: chatId });
+                    }
+                    return target;
+                });
+            }
+
             for (const client of clients) {
                 if (!('focus' in client)) continue;
                 if (client.url === normalizedDestination) {
-                    return client.focus();
+                    return focusAndOpenChat(client);
                 }
                 if (destinationUrl) {
                     try {
@@ -153,10 +169,10 @@ self.addEventListener('notificationclick', (event) => {
                         if (sameChatShell) {
                             if ('navigate' in client) {
                                 return client.navigate(normalizedDestination).then((navigatedClient) => {
-                                    return (navigatedClient || client).focus();
+                                    return focusAndOpenChat(navigatedClient || client);
                                 });
                             }
-                            return client.focus();
+                            return focusAndOpenChat(client);
                         }
                     } catch (_error) {}
                 }
