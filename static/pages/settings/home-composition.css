@@ -80,7 +80,7 @@
     }
 
     body.settings-detail-open .settings-content {
-        width: min(720px, 100%);
+        width: min(680px, 100%);
         margin: 0 auto;
         padding: 0 clamp(18px, 4.8vw, 36px) 28px;
         border-left: 0;
@@ -378,7 +378,7 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        min-height: clamp(56px, calc((100dvh - 130px) / 9), 78px);
+        min-height: clamp(52px, calc((100dvh - 130px) / 9), 66px);
         margin: 0;
         padding: 11px 36px 11px 18px;       /* right padding reserves chevron */
         border: 0;
@@ -458,6 +458,11 @@
 
     body.settings-home-open .settings-nav-group .nav-item:active {
         transform: none;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--sx-accent, var(--accent)) 68%, transparent);
+        outline-offset: -2px;
     }
 
     body.settings-home-open .settings-nav-group .nav-item.active {
@@ -636,7 +641,7 @@
         }
 
         body.settings-home-open .settings-nav-group .nav-item {
-            min-height: clamp(52px, calc((100dvh - 130px) / 9), 78px);
+            min-height: clamp(48px, calc((100dvh - 130px) / 9), 64px);
             padding: 10px 14px;
             font-size: 14.5px;
         }
