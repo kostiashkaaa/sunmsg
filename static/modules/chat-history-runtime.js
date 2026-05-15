@@ -243,6 +243,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 mentionedUsernames: normalizedMentionedUsernames,
                 expires_at: msg.expires_at ? Number(msg.expires_at) : null,
                 reactions: ctx.normalizeMessageReactions(msg.reactions),
+                album_id: String(msg.album_id || '').trim() || null,
             };
         };
 

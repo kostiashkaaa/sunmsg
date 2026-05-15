@@ -8226,6 +8226,84 @@
             justify-content: center;
         }
 
+        /* ── Gallery preview (multi-media) ── */
+        .caption-slide-main {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .caption-slide-media {
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 10px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .caption-thumb-strip {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            overflow-x: auto;
+            padding: 2px 0 4px;
+            scrollbar-width: none;
+        }
+
+        .caption-thumb-strip::-webkit-scrollbar { display: none; }
+
+        .caption-thumb {
+            position: relative;
+            flex: 0 0 56px;
+            height: 56px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.15s;
+            background: var(--surface-2);
+        }
+
+        .caption-thumb.is-active {
+            border-color: var(--accent);
+        }
+
+        .caption-thumb img,
+        .caption-thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .caption-thumb-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            line-height: 1;
+            padding: 0;
+            opacity: 0;
+            transition: opacity 0.12s;
+        }
+
+        .caption-thumb:hover .caption-thumb-remove,
+        .caption-thumb:focus-within .caption-thumb-remove {
+            opacity: 1;
+        }
+
 
         .caption-modal-preview img {
             max-width: 100%;
