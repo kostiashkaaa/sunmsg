@@ -1304,7 +1304,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     html[data-motion-level="lite"] .settings-overlay,
     html[data-motion-level="lite"] .settings-overlay-backdrop,
     html[data-motion-level="lite"] .settings-overlay-panel,
-    html[data-motion-level="lite"] .settings-overlay-shell,
     html[data-motion-level="lite"] .settings-overlay-frame {
         animation: none !important;
         transition: none !important;
@@ -1370,6 +1369,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 .settings-overlay-panel {
     position: relative;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
     width: clamp(360px, 34vw, 38vw);
     max-width: 100%;
     min-width: 360px;
@@ -1377,7 +1378,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     height: 100dvh;
     margin-left: auto;
     overflow: hidden;
-    overscroll-behavior: contain;
     background: var(--bg);
     box-shadow: var(--profile-sheet-shadow);
     transform: translate3d(40px, 0, 0) scale(0.986);
@@ -1398,77 +1398,16 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     transform: translate3d(24px, 0, 0) scale(0.992);
     opacity: 0;
 }
-.settings-overlay-shell,
 .settings-overlay-frame {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-}
-.settings-overlay-shell {
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 28px;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 96%, transparent 4%) 0%, color-mix(in srgb, var(--surface) 94%, transparent 6%) 100%);
-    opacity: 0;
-    visibility: hidden;
-    transform: none;
-    transition: opacity var(--dur-quick) var(--ease-quick), visibility var(--dur-quick) var(--ease-quick);
-}
-.settings-overlay[data-loading="true"] .settings-overlay-shell {
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-}
-.settings-overlay-shell-head {
-    display: flex;
-    align-items: stretch;
-    justify-content: space-between;
-    gap: 12px;
-}
-.settings-overlay-shell-grid {
-    display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 18px;
     flex: 1;
     min-height: 0;
-}
-.settings-overlay-shell-nav,
-.settings-overlay-shell-content {
-    border-radius: 22px;
-    border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
-    background: color-mix(in srgb, var(--paper) 88%, transparent 12%);
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.settings-overlay-shell-nav .sun-skeleton-line:nth-child(1) { width: 48%; }
-.settings-overlay-shell-nav .sun-skeleton-line:nth-child(2) { width: 80%; }
-.settings-overlay-shell-nav .sun-skeleton-line:nth-child(3) { width: 70%; }
-.settings-overlay-shell-nav .sun-skeleton-line:nth-child(4) { width: 64%; }
-.settings-overlay-shell-content .sun-skeleton-line:nth-child(1) { width: 34%; height: 15px; }
-.settings-overlay-shell-content .sun-skeleton-line:nth-child(2) { width: 86%; }
-.settings-overlay-shell-content .sun-skeleton-line:nth-child(3) { width: 92%; }
-.settings-overlay-shell-content .sun-skeleton-line:nth-child(4) { width: 74%; }
-.settings-overlay-shell-content .sun-skeleton-block {
-    min-height: 240px;
-    margin-top: 10px;
-}
-.settings-overlay-frame {
-    z-index: 1;
-    border: 0;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
     background: var(--bg);
-    opacity: 0;
-    transform: none;
-    transition: opacity var(--dur-quick) var(--ease-quick);
-    will-change: transform, opacity;
-}
-.settings-overlay.active[data-loading="false"] .settings-overlay-frame {
-    opacity: 1;
-    transform: none;
 }
 
 @media (max-width: 960px) {
@@ -3267,139 +3206,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 }
 
 
-        .settings-overlay {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: stretch;
-            justify-content: flex-end;
-            z-index: 4800;
-            opacity: 0;
-            visibility: hidden;
-            transition:
-                opacity var(--m-dur-medium, var(--motion-dur-base)) var(--m-decel, var(--motion-ease-exit)),
-                visibility 0s linear var(--m-dur-medium, var(--motion-dur-base));
-        }
-
-
-        .settings-overlay-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(20,16,8,0.28);
-            backdrop-filter: blur(4px);
-            opacity: 0;
-            transition: opacity var(--m-dur-medium, var(--motion-dur-base)) var(--m-decel, var(--motion-ease-exit));
-        }
-
-
-        .settings-overlay-panel {
-            position: relative;
-            margin-left: auto;
-            width: clamp(360px, 34vw, 38vw);
-            min-width: 360px;
-            height: 100vh;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            /* Solid panel background: the embedded settings iframe paints
-               with a transparent background until it finishes loading, so a
-               transparent panel here leaves the page body showing through
-               (the checkerboard gap around/behind the frame). */
-            background: var(--bg);
-            border-left: 1px solid var(--rule);
-            box-shadow: var(--profile-sheet-shadow);
-            transform: translateX(108%) scale(0.972);
-            opacity: 0;
-            transition:
-                transform var(--m-dur-slow, var(--motion-dur-slow)) var(--m-decel, var(--motion-ease-enter)),
-                opacity var(--m-dur-medium, var(--motion-dur-base)) var(--m-decel, var(--motion-ease-exit));
-            overflow: hidden;
-        }
-
-
-        .settings-overlay-frame {
-            flex: 1;
-            width: 100%;
-            border: 0;
-            /* Inherit the panel's solid background so the frame area never
-               shows the page body through before the iframe document
-               renders its own background. */
-            background: var(--bg);
-        }
-
-
-        .settings-overlay-shell {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-            padding: 26px;
-            background:
-                linear-gradient(180deg, color-mix(in srgb, var(--paper) 96%, transparent 4%) 0%, color-mix(in srgb, var(--surface) 94%, transparent 6%) 100%);
-            opacity: 1;
-            transition: opacity var(--motion-dur-fast) var(--motion-ease-exit), visibility var(--motion-dur-fast) var(--motion-ease-exit);
-            pointer-events: none;
-        }
-
-
-        .settings-overlay-shell-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-
-        .settings-overlay-shell-grid {
-            display: grid;
-            grid-template-columns: 180px 1fr;
-            gap: 18px;
-            min-height: 0;
-            flex: 1;
-        }
-
-
-        .settings-overlay-shell-nav,
-        .settings-overlay-shell-content {
-            border-radius: 22px;
-            border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
-            background: color-mix(in srgb, var(--paper) 88%, transparent 12%);
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-
-        .settings-overlay-shell-nav .sun-skeleton-line:nth-child(1) { width: 52%; }
-
-
-        .settings-overlay-shell-nav .sun-skeleton-line:nth-child(2) { width: 82%; }
-
-
-        .settings-overlay-shell-nav .sun-skeleton-line:nth-child(3) { width: 74%; }
-
-
-        .settings-overlay-shell-nav .sun-skeleton-line:nth-child(4) { width: 68%; }
-
-
-        .settings-overlay-shell-content .sun-skeleton-line:nth-child(1) { width: 36%; height: 14px; }
-
-
-        .settings-overlay-shell-content .sun-skeleton-line:nth-child(2) { width: 88%; }
-
-
-        .settings-overlay-shell-content .sun-skeleton-line:nth-child(3) { width: 94%; }
-
-
-        .settings-overlay-shell-content .sun-skeleton-line:nth-child(4) { width: 78%; }
-
-
-        .settings-overlay-shell-content .sun-skeleton-block {
-            min-height: 220px;
-            margin-top: 10px;
-        }
 
 
 

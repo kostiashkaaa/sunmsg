@@ -19,6 +19,25 @@ html, body {
             overflow: hidden;
             overscroll-behavior-x: none;
         }
+        /* When embedded in chat overlay, let the parent .settings-overlay-frame handle scrolling */
+        .settings-overlay-frame .settings-scene {
+            overflow: visible;
+            min-height: unset;
+        }
+        .settings-overlay-frame .settings-layout {
+            min-height: unset;
+            box-shadow: none;
+            width: 100%;
+        }
+        .settings-overlay-frame .settings-panel-body {
+            flex: none;
+            min-height: unset;
+        }
+        .settings-overlay-frame .settings-content {
+            overflow-y: visible;
+            overflow-x: visible;
+            min-height: unset;
+        }
         .settings-scene-behind {
             position: absolute;
             inset: 0;
@@ -100,7 +119,9 @@ html, body {
             transition: opacity var(--dur-medium) var(--ease-quick), transform var(--dur-medium) var(--ease-spring);
         }
         body.settings-ready .settings-panel-head,
-        body.settings-ready .settings-panel-body {
+        body.settings-ready .settings-panel-body,
+        .settings-ready .settings-panel-head,
+        .settings-ready .settings-panel-body {
             opacity: 1;
             transform: translateY(0);
         }

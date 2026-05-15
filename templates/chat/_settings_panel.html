@@ -1,0 +1,1195 @@
+<div class="settings-scene" id="settingsPanelScene" data-embed-mode="true">
+<div class="settings-layout">
+
+    <header class="settings-panel-head">
+        <button type="button" class="settings-panel-close" id="settingsPanelCloseBtn" aria-label="Закрыть">
+            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
+        </button>
+        <div class="settings-panel-head-copy">
+            <div class="settings-panel-title" id="settingsPanelTitle">Настройки</div>
+        </div>
+        <div class="settings-panel-tools" id="settingsPanelTools">
+            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderEditBtn" aria-label="Редактировать профиль">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-pencil"></use></svg>
+            </button>
+            <button type="button" class="settings-panel-tool-btn" id="settingsHeaderMoreBtn" aria-label="Дополнительные действия" aria-haspopup="menu" aria-expanded="false" aria-controls="settingsHeaderMenu">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
+            </button>
+            <div class="settings-panel-menu settings-hidden" id="settingsHeaderMenu" role="menu" aria-hidden="true">
+                <form method="post" action="{{ url_for('auth.logout') }}" class="settings-header-logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="settings-panel-menu-item danger" id="settingsHeaderLogoutBtn" role="menuitem" data-logout-trigger>
+                        <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg>
+                        <span>Выйти</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <span class="settings-panel-esc settings-hidden" id="settingsPanelEscHint">Esc · закрыть</span>
+    </header>
+
+    <div class="settings-panel-body">
+
+    <nav class="settings-nav" id="settingsNav" aria-label="Разделы настроек">
+        <section class="settings-nav-profile" id="settingsNavProfile" aria-label="Профиль">
+            <div class="settings-nav-avatar-wrap">
+                <div class="avatar-preview settings-nav-avatar" id="settingsNavAvatarPreview">?</div>
+            </div>
+            <div class="settings-nav-profile-main">
+                <div class="settings-nav-profile-name" id="settingsNavProfileName">{{ current_display_name }}</div>
+                <div class="settings-nav-profile-status" id="settingsNavProfileStatus">в сети</div>
+            </div>
+            <button type="button" class="settings-nav-profile-action" id="settingsNavEditProfileBtn" aria-label="Редактировать профиль">
+                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-camera"></use></svg>
+            </button>
+            <div class="settings-nav-profile-rows">
+                <div class="settings-nav-profile-row">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-person-circle"></use></svg>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value" id="settingsNavNameValue">{{ current_display_name }}</div>
+                        <div class="settings-nav-profile-row-label">Отображаемое имя</div>
+                    </div>
+                </div>
+                <div class="settings-nav-profile-row">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username }}</div>
+                        <div class="settings-nav-profile-row-label">Юзернейм</div>
+                    </div>
+                </div>
+                <div class="settings-nav-profile-row">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-info-circle"></use></svg>
+                    <div class="settings-nav-profile-row-copy">
+                        <div class="settings-nav-profile-row-value settings-nav-profile-row-value--bio" id="settingsNavBioValue">—</div>
+                        <div class="settings-nav-profile-row-label">Био</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <button
+            type="button"
+            class="settings-nav-toggle"
+            id="settingsNavToggle"
+            aria-expanded="false"
+            aria-controls="settingsNavList"
+        >
+            <span class="settings-nav-toggle-kicker">Раздел</span>
+            <span class="settings-nav-toggle-label" id="settingsNavToggleLabel">Разделы</span>
+            <svg class="sun-icon settings-nav-toggle-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg>
+        </button>
+        <div class="settings-nav-list" id="settingsNavList">
+            <section class="settings-nav-group" aria-label="Уведомления и данные">
+                <div class="settings-nav-group-label">Уведомления и данные</div>
+                <a href="#notifications" class="nav-item" data-section="notifications" data-nav-key="notifications" data-meta="Push для браузера" id="navMetaNotifications">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-bell"></use></svg>
+                    <span>Уведомления</span>
+                </a>
+                <a href="#data-memory" class="nav-item" data-section="data-memory" data-nav-key="data-memory" data-meta="—" id="navMetaDataMemory">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-file"></use></svg>
+                    <span>Данные и память</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Приватность">
+                <div class="settings-nav-group-label">Приватность</div>
+                <a href="#privacy" class="nav-item" data-section="privacy" data-nav-key="privacy" data-meta="—" id="navMetaPrivacy">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-lock"></use></svg>
+                    <span>Конфиденциальность</span>
+                </a>
+                <a href="#keys" class="nav-item" data-section="keys" data-nav-key="keys" data-meta="2FA · выкл" id="navMetaSecurity">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-lock"></use></svg>
+                    <span>Безопасность</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Интерфейс">
+                <div class="settings-nav-group-label">Интерфейс</div>
+                <a href="#chat-style" class="nav-item" data-section="chat-style" data-nav-key="chat-style" data-meta="Тема" id="navMetaAppearance">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-moon-stars"></use></svg>
+                    <span>Внешний вид</span>
+                </a>
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="language" data-scroll-target="appearanceLanguageRow" data-meta="Русский" id="navMetaLanguage">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-translate"></use></svg>
+                    <span>Язык</span>
+                </a>
+                <a href="#appearance" class="nav-item" data-section="appearance" data-nav-key="chat-behavior" data-scroll-target="appearanceBehaviorCard" data-meta="Enter — отправить" id="navMetaBehavior">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
+                    <span>Поведение чата</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Устройства">
+                <div class="settings-nav-group-label">Устройства</div>
+                <a href="#account" class="nav-item" data-section="account" data-nav-key="account" data-meta="—" id="navMetaDevices">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
+                    <span>Устройства</span>
+                </a>
+            </section>
+
+            <section class="settings-nav-group" aria-label="Помощь">
+                <div class="settings-nav-group-label">Помощь</div>
+                <a href="#support" class="nav-item" data-section="support" data-nav-key="support">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chat-dots"></use></svg>
+                    <span>Поддержка</span>
+                </a>
+            </section>
+
+        </div>
+    </nav>
+
+    <main class="settings-content">
+
+        <div id="settingsAlert" class="settings-hidden"></div>
+
+        <section id="section-profile" class="settings-profile-section">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-person-circle"></i>
+                    <h3>Изменить профиль</h3>
+                </div>
+                <p class="settings-body-copy">Эти данные видят другие пользователи в вашем профиле и в поиске.</p>
+                <div class="settings-avatar-row">
+                    <div class="settings-avatar-edit-wrap">
+                        <div class="avatar-preview" id="avatarPreview">?</div>
+                        <label for="avatarFileInput" id="avatarUploadLabel" class="settings-avatar-edit-btn" aria-label="Изменить фото" title="Изменить фото">
+                            <i class="bi bi-camera" aria-hidden="true"></i>
+                        </label>
+                    </div>
+                    <div class="settings-avatar-meta">
+                        <div class="settings-avatar-name" id="previewName">{{ current_display_name }}</div>
+                        <div class="settings-avatar-username">@{{ current_username }}</div>
+                        <div class="settings-avatar-actions">
+                            <input type="file" id="avatarFileInput" accept="image/*" hidden>
+                            <p id="avatarUploadStatus" class="settings-avatar-upload-status settings-hidden"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-inline-fields">
+                    <label class="settings-field">
+                        <span class="settings-field-label">Отображаемое имя</span>
+                        <input type="text" class="settings-input settings-field-input" id="displayName" value="{{ current_display_name }}" placeholder="Ваше имя" maxlength="50">
+                        <span class="settings-field-hint">Показывается в чатах и в карточке профиля.</span>
+                    </label>
+                    <label class="settings-field">
+                        <span class="settings-field-label">Юзернейм</span>
+                        <input type="text" class="settings-input settings-field-input" id="username" value="{{ current_username }}" placeholder="имя_пользователя" maxlength="50" pattern="[a-z0-9_]+">
+                        <span class="settings-field-hint">Используется в поиске и персональной ссылке.</span>
+                    </label>
+                </div>
+
+                <div class="settings-inline-fields">
+                    <label class="settings-field settings-field--full">
+                        <span class="settings-field-label">Статус</span>
+                        <input type="text" class="settings-input settings-field-input" id="statusTextInput" maxlength="100" placeholder="Что у вас нового?">
+                        <span class="settings-field-hint">Отображается под именем в профиле. <span id="statusTextCounter" class="settings-bio-counter">0/100</span></span>
+                    </label>
+                </div>
+                <div class="settings-inline-fields">
+                    <label class="settings-field settings-field--full">
+                        <span class="settings-field-label">Био</span>
+                        <textarea class="settings-input settings-field-input settings-bio-input" id="bioInput" rows="2" maxlength="280" placeholder="Несколько слов о себе (до 280 символов)"></textarea>
+                        <span class="settings-field-hint">Короткое описание, видимое в профиле. <span id="bioCounter" class="settings-bio-counter">0/280</span></span>
+                    </label>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="section-privacy" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-eye"></i>
+                    <h3>Видимость профиля</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Показывать профиль в поиске</div>
+                        <div class="settings-row-desc">Люди смогут находить вас по имени пользователя.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="isPublicSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Скрывать онлайн-статус</div>
+                        <div class="settings-row-desc">Собеседники не увидят, когда вы в сети.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="hideOnlineStatusSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Фото профиля</div>
+                        <div class="settings-row-desc">Кто может видеть вашу аватарку.</div>
+                    </div>
+                    <select id="avatarVisibilitySelect" class="settings-select settings-select-control">
+                        <option value="all">Всем</option>
+                        <option value="contacts">Только контактам</option>
+                        <option value="nobody">Никому</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-person-check"></i>
+                    <h3>Доступ и запросы</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автоотклонение новых запросов</div>
+                        <div class="settings-row-desc">Все новые запросы на чат отклоняются сразу.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="autoDeclineSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Тихие запросы</div>
+                        <div class="settings-row-desc">Запросы приходят без всплывающих уведомлений.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="muteDialogRequestsSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Приглашения в группы</div>
+                        <div class="settings-row-desc">Кто может добавить вас в группу напрямую.</div>
+                    </div>
+                    <select id="groupInvitePrivacySelect" class="settings-select settings-select-control">
+                        <option value="all">Все</option>
+                        <option value="contacts">Контакты</option>
+                        <option value="nobody">Никто</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-check"></i>
+                    <h3>Документы и правила</h3>
+                </div>
+                <p class="settings-body-copy settings-trust-intro">
+                    Короткие ответы о приватности и условиях использования.
+                </p>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Политика конфиденциальности</div>
+                        <div class="settings-row-desc">Что мы храним, что не видим, и как управлять данными</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.privacy_policy') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Пользовательское соглашение</div>
+                        <div class="settings-row-desc">Правила использования сервиса, ответственность и ограничения</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.terms_of_service') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">FAQ по анонимности и безопасности</div>
+                        <div class="settings-row-desc">Быстрые ответы по защите аккаунта и приватности</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.security_faq') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">О проекте</div>
+                        <div class="settings-row-desc">Как устроены безопасность и хранение данных.</div>
+                    </div>
+                    <a class="btn-settings secondary" href="{{ url_for('auth.about_project') }}" target="_blank" rel="noopener noreferrer">
+                        Открыть
+                    </a>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="section-notifications" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-bell"></i>
+                    <h3>Уведомления</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Сообщения, звонки и упоминания</div>
+                        <div class="settings-row-desc">Все уведомления управляются через режим push для этого браузера.</div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Разрешение браузера</div>
+                        <div class="settings-row-desc" id="pushPermissionState">Проверка...</div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Состояние push</div>
+                        <div class="settings-row-desc" id="pushSubscriptionState">Проверка...</div>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Управление</div>
+                        <div class="settings-row-desc">Настройки применяются только к текущему устройству и браузеру.</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings primary" id="enablePushBtn">Включить уведомления</button>
+                        <button type="button" class="btn-settings secondary" id="disablePushBtn">Отключить на этом устройстве</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-data-memory" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-hdd-network"></i>
+                    <h3>Медиа и автозагрузка</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автозагрузка медиа</div>
+                        <div class="settings-row-desc">Если включено, файлы загружаются автоматически при получении.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryAutoDownloadSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Фото</div>
+                        <div class="settings-row-desc">Автозагрузка фотографий.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryPhotosSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Видео</div>
+                        <div class="settings-row-desc">Автозагрузка видеофайлов.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="dataMemoryVideosSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row settings-row-borderless data-memory-range-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Файлы</div>
+                        <div class="settings-row-desc">Лимит автозагрузки: до <span id="dataMemoryFilesLimitValue">3.0 MB</span></div>
+                    </div>
+                    <input type="range" id="dataMemoryFilesLimitMb" min="0.1" max="50" step="0.1" value="3" class="settings-range">
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-database"></i>
+                    <h3>Использование хранилища</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Кэшированные файлы</div>
+                        <div class="settings-row-desc" id="dataMemoryCacheTotal">0 B</div>
+                    </div>
+                    <button type="button" class="btn-settings secondary" id="dataMemoryClearCachedFilesBtn">Очистить файлы</button>
+                </div>
+                <div class="settings-list-stat">
+                    <div class="settings-list-stat-row">
+                        <span>Фотографии</span>
+                        <strong id="dataMemoryCachePhotos">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row">
+                        <span>Видео</span>
+                        <strong id="dataMemoryCacheVideos">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row" id="dataMemoryStickersEmojiRow">
+                        <span>Стикеры и эмодзи</span>
+                        <strong id="dataMemoryCacheStickers">0 B</strong>
+                    </div>
+                    <div class="settings-list-stat-row">
+                        <span>Другое</span>
+                        <strong id="dataMemoryCacheOther">0 B</strong>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Кэшированные фрагменты видеопотока</div>
+                        <div class="settings-row-desc" id="dataMemoryStreamFragments">0 B</div>
+                    </div>
+                    <button type="button" class="btn-settings secondary" id="dataMemoryClearStreamBtn">Очистить фрагменты</button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-sliders"></i>
+                    <h3>Политика очистки</h3>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автоудаление кэша</div>
+                        <div class="settings-row-desc" id="dataMemoryRetentionValue">7 дней</div>
+                    </div>
+                    <select id="dataMemoryRetentionSelect" class="settings-select settings-select-control">
+                        <option value="0">Никогда</option>
+                        <option value="1">1 день</option>
+                        <option value="3">3 дня</option>
+                        <option value="7" selected>7 дней</option>
+                        <option value="30">30 дней</option>
+                        <option value="90">90 дней</option>
+                    </select>
+                </div>
+                <div class="settings-row settings-row-borderless data-memory-range-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Максимальный размер кэша</div>
+                        <div class="settings-row-desc" id="dataMemoryMaxCacheValue">Авто</div>
+                    </div>
+                    <input type="range" id="dataMemoryMaxCacheMb" min="0" max="1024" step="32" value="0" class="settings-range">
+                </div>
+                <div class="settings-row settings-row-actions settings-row-borderless">
+                    <button type="button" class="btn-settings secondary" id="dataMemoryRefreshBtn">Обновить данные</button>
+                    <button type="button" class="btn-settings danger-btn" id="dataMemoryClearAllBtn">Очистить весь кэш</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-keys" class="settings-hidden">
+            <div class="settings-card settings-e2e-status-card settings-hidden" id="e2eStatusCard">
+                <div class="settings-e2e-status-row">
+                    <div class="settings-e2e-status-icon"><i class="bi bi-shield-slash"></i></div>
+                    <div>
+                        <div class="settings-e2e-status-title">История заблокирована</div>
+                        <div class="settings-e2e-status-copy">
+                            Вы вошли через приложение-аутентификатор, поэтому сообщения не могут быть расшифрованы.
+                            Введите ваши 24 слова ниже, чтобы активировать доступ.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card" id="mnemonicUnlockCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-unlock"></i>
+                    <h3>Активировать историю (24 слова)</h3>
+                </div>
+                <p class="settings-copy-muted-sm">
+                    Введите ваши секретные 24 слова, чтобы восстановить доступ к зашифрованным сообщениям на этом устройстве.
+                </p>
+                <div class="mnemonic-grid" id="mnemonicInputGrid"></div>
+                <div class="settings-actions-end">
+                    <button class="btn-settings primary" id="activateDecryptionBtn">
+                        <i class="bi bi-key-fill"></i> Активировать доступ
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card" id="totpSettingsCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-lock"></i>
+                    <h3>Двухфакторная аутентификация (TOTP)</h3>
+                </div>
+                <div class="totp-settings-body">
+                    <div class="settings-row settings-row-borderless totp-status-row">
+                        <div class="settings-row-info">
+                            <div class="settings-row-label">Состояние</div>
+                            <div class="settings-row-desc" id="totpStatusText">Проверка...</div>
+                            <div class="settings-row-desc totp-enabled-at settings-hidden" id="totpEnabledAtText"></div>
+                        </div>
+                        <div class="settings-action-cluster totp-actions">
+                            <button type="button" class="btn-settings primary" id="totpEnableBtn">Включить</button>
+                            <button type="button" class="btn-settings secondary settings-hidden" id="totpRegenerateBtn">Перевыпустить</button>
+                            <button type="button" class="btn-settings danger-btn settings-hidden" id="totpDisableBtn">Выключить</button>
+                        </div>
+                    </div>
+                    <div class="totp-setup-panel settings-hidden" id="totpSetupPanel">
+                        <div class="totp-setup-grid">
+                            <div class="totp-qr-box" id="totpSettingsQrContainer"></div>
+                            <div class="totp-setup-copy">
+                                <div class="settings-row-label">Секретный ключ</div>
+                                <div class="totp-secret-box" id="totpSettingsSecret"></div>
+                                <div class="settings-row-desc">Отсканируйте QR в приложении-аутентификаторе или введите ключ вручную.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="totp-verify-panel settings-hidden" id="totpVerifyPanel">
+                        <label for="totpVerifyCode" class="settings-row-label">Код подтверждения</label>
+                        <div class="totp-verify-controls">
+                            <input type="text" id="totpVerifyCode" class="settings-input totp-verify-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+                            <button type="button" class="btn-settings primary" id="totpVerifyBtn">Подтвердить</button>
+                        </div>
+                        <div class="settings-row-desc">Введите 6-значный код из приложения-аутентификатора, чтобы завершить подключение.</div>
+                    </div>
+                    <div class="totp-backup-codes-panel settings-hidden" id="totpBackupCodesPanel">
+                        <div class="settings-row settings-row-borderless">
+                            <div class="settings-row-info">
+                                <div class="settings-row-label">Резервные коды</div>
+                                <div class="settings-row-desc" id="totpBackupCodesRemaining"></div>
+                            </div>
+                            <div class="settings-action-cluster">
+                                <button type="button" class="btn-settings secondary" id="totpShowBackupCodesBtn">
+                                    <i class="bi bi-key"></i> Обновить коды
+                                </button>
+                            </div>
+                        </div>
+                        <div class="totp-backup-codes-list settings-hidden" id="totpBackupCodesList"></div>
+                        <div class="totp-regenerate-backup-panel settings-hidden" id="totpRegenerateBackupPanel">
+                            <label for="totpRegenerateBackupCode" class="settings-row-label">Подтвердите действие кодом из аутентификатора</label>
+                            <div class="totp-verify-controls">
+                                <input type="text" id="totpRegenerateBackupCode" class="settings-input totp-verify-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+                                <button type="button" class="btn-settings primary" id="totpRegenerateBackupConfirmBtn">Обновить</button>
+                            </div>
+                            <div class="settings-row-desc">Генерируется новый набор из 10 кодов, старые станут недействительными.</div>
+                        </div>
+                    </div>
+                    <div class="totp-new-backup-codes-panel settings-hidden" id="totpNewBackupCodesPanel">
+                        <div class="settings-row-label"><i class="bi bi-exclamation-triangle" style="color:#f59e0b;margin-right:5px"></i>Сохраните резервные коды</div>
+                        <div class="settings-row-desc">Каждый код используется один раз вместо TOTP при входе. Запишите или сохраните в надёжном месте.</div>
+                        <div class="totp-backup-codes-list" id="totpNewBackupCodesList"></div>
+                        <div class="totp-verify-controls">
+                            <button type="button" class="btn-settings secondary" id="totpCopyBackupCodesBtn"><i class="bi bi-clipboard"></i> Скопировать</button>
+                            <button type="button" class="btn-settings primary" id="totpBackupCodesDoneBtn">Сохранил</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-lock"></i>
+                    <h3>Публичный ключ (E2E)</h3>
+                </div>
+                <p class="settings-copy-muted-sm settings-copy-margin-bottom">
+                    Это ваш публичный ключ. Делитесь им с теми, кто хочет написать вам напрямую через публичный ключ.
+                </p>
+                <textarea class="key-textarea" rows="7" readonly id="publicKeyTextarea">{{ current_public_key }}</textarea>
+                <div class="copy-row">
+                    <button class="btn-settings secondary settings-icon-action" id="copyPublicKeyBtn" type="button" aria-label="Скопировать ключ" title="Скопировать ключ">
+                        <i class="bi bi-clipboard" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-qr-code"></i>
+                    <h3>QR-код для добавления контакта</h3>
+                </div>
+                <div class="settings-qr-stack">
+                    <p class="settings-copy-muted-sm settings-copy-center settings-copy-no-margin">
+                        Покажите этот QR-код — собеседник отсканирует и добавит вас в контакты автоматически.
+                    </p>
+                    <div id="qrCodeContainer" class="settings-qr-box"></div>
+                    <div class="settings-qr-actions">
+                        <button class="btn-settings secondary settings-icon-action" id="downloadQrBtn" type="button" aria-label="Скачать PNG" title="Скачать PNG">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn-settings secondary settings-icon-action" id="copyQrPublicKeyBtn" type="button" aria-label="Скопировать ключ" title="Скопировать ключ">
+                            <i class="bi bi-share" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <p class="settings-copy-muted-xs settings-copy-center settings-copy-no-margin">
+                        <span>Ваш @</span><span data-no-i18n="1">{{ current_username }}</span><span> · QR содержит полный публичный ключ</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="settings-card" id="securitySummaryCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-shield-check"></i>
+                    <h3>Сводка безопасности</h3>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label" id="settingsSecuritySummaryScore">Защита: базовая</div>
+                        <div class="settings-row-desc" id="settingsSecuritySummaryDetails"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-appearance" class="settings-hidden">
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-translate"></i>
+                    <h3>Язык интерфейса</h3>
+                </div>
+                <p class="settings-body-copy">Выберите язык приложения. Изменение полностью применится после повторного входа.</p>
+                <div class="settings-row settings-row-borderless" id="appearanceLanguageRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Язык интерфейса</div>
+                        <div class="settings-row-desc">Текущий язык для меню, кнопок и системных сообщений.</div>
+                    </div>
+                    <select id="languageSelect" class="settings-select settings-select-control">
+                        <option value="ru">Русский</option>
+                        <option value="en">Английский</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-card" id="appearanceBehaviorCard">
+                <div class="settings-card-header">
+                    <i class="bi bi-keyboard"></i>
+                    <h3>Поведение чата</h3>
+                </div>
+                <div class="settings-preference-group">
+                    <div class="settings-row-label">Отправка сообщений</div>
+                    <div class="settings-preference-list" role="radiogroup" aria-label="Режим отправки сообщений">
+                        <label class="settings-preference-option" for="sendShortcutEnterOption">
+                            <input type="radio" name="sendShortcutMode" id="sendShortcutEnterOption" value="enter">
+                            <span class="settings-preference-indicator" aria-hidden="true"></span>
+                            <span class="settings-preference-copy">
+                                <span class="settings-preference-title">Отправка по Enter</span>
+                                <span class="settings-row-desc">Новая строка: Shift + Enter</span>
+                            </span>
+                        </label>
+                        <label class="settings-preference-option" for="sendShortcutCtrlEnterOption">
+                            <input type="radio" name="sendShortcutMode" id="sendShortcutCtrlEnterOption" value="ctrl_enter">
+                            <span class="settings-preference-indicator" aria-hidden="true"></span>
+                            <span class="settings-preference-copy">
+                                <span class="settings-preference-title">Отправка по Ctrl + Enter</span>
+                                <span class="settings-row-desc">Новая строка: Enter</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-preference-group settings-preference-group--tight">
+                    <div class="settings-row-label">Формат времени</div>
+                    <div class="settings-preference-list" role="radiogroup" aria-label="Формат отображения времени">
+                        <label class="settings-preference-option" for="timeFormat12hOption">
+                            <input type="radio" name="timeFormatMode" id="timeFormat12hOption" value="12h">
+                            <span class="settings-preference-indicator" aria-hidden="true"></span>
+                            <span class="settings-preference-copy">
+                                <span class="settings-preference-title">12-часовой</span>
+                                <span class="settings-row-desc" id="timeFormat12hSample">08:40 PM</span>
+                            </span>
+                        </label>
+                        <label class="settings-preference-option" for="timeFormat24hOption">
+                            <input type="radio" name="timeFormatMode" id="timeFormat24hOption" value="24h">
+                            <span class="settings-preference-indicator" aria-hidden="true"></span>
+                            <span class="settings-preference-copy">
+                                <span class="settings-preference-title">24-часовой</span>
+                                <span class="settings-row-desc" id="timeFormat24hSample">20:40</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-divider-top settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Анимация</div>
+                        <div class="settings-row-desc">Включает или отключает анимации в интерфейсе.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="animationsEnabledSwitch" checked>
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Погода в верхнем лейбле</div>
+                        <div class="settings-row-desc">Показывает погоду в верхней строке слева.</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="sidebarWeatherEnabledSwitch">
+                        <div class="toggle-track"></div>
+                        <div class="toggle-knob"></div>
+                    </label>
+                </div>
+                <div class="settings-row" id="sidebarWeatherSourceRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Источник погоды</div>
+                        <div class="settings-row-desc">Авто по геолокации или вручную по городу</div>
+                    </div>
+                    <select id="sidebarWeatherSourceSelect" class="settings-select settings-select-control">
+                        <option value="auto">Автоматически (геолокация)</option>
+                        <option value="city">Город вручную</option>
+                    </select>
+                </div>
+                <div class="settings-row" id="sidebarWeatherCityRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Город</div>
+                        <div class="settings-row-desc">Используется только в ручном режиме</div>
+                    </div>
+                    <div class="settings-city-autocomplete" id="sidebarWeatherCityAutocomplete">
+                        <input type="text" id="sidebarWeatherCityInput" class="settings-input settings-field-input" placeholder="Начните вводить город" maxlength="80" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-expanded="false" aria-controls="sidebarWeatherCitySuggestions">
+                        <div id="sidebarWeatherCitySuggestions" class="settings-city-suggestions" role="listbox" hidden></div>
+                    </div>
+                </div>
+                <div class="settings-row" id="sidebarWeatherRotateRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Интервал смены</div>
+                        <div class="settings-row-desc">Как часто переключать следующий элемент в цикле</div>
+                    </div>
+                    <select id="sidebarWeatherRotateSelect" class="settings-select settings-select-control">
+                        <option value="30">30 секунд</option>
+                        <option value="60">1 минута</option>
+                    </select>
+                </div>
+                <div class="settings-row settings-row-borderless" id="sidebarWeatherMetricsRow">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Показатели в ротации</div>
+                        <div class="settings-row-desc">Выберите, какие значения показывать в верхнем лейбле</div>
+                    </div>
+                    <div class="settings-weather-metrics-grid" role="group" aria-label="Показатели погоды для верхнего лейбла">
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricTemperature">
+                            <input type="checkbox" id="sidebarWeatherMetricTemperature" name="sidebarWeatherMetricOption" value="temperature">
+                            <span>Температура</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricFeelsLike">
+                            <input type="checkbox" id="sidebarWeatherMetricFeelsLike" name="sidebarWeatherMetricOption" value="feels_like">
+                            <span>Ощущается как</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricHumidity">
+                            <input type="checkbox" id="sidebarWeatherMetricHumidity" name="sidebarWeatherMetricOption" value="humidity">
+                            <span>Влажность</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricWind">
+                            <input type="checkbox" id="sidebarWeatherMetricWind" name="sidebarWeatherMetricOption" value="wind">
+                            <span>Ветер</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricPrecip">
+                            <input type="checkbox" id="sidebarWeatherMetricPrecip" name="sidebarWeatherMetricOption" value="precip">
+                            <span>Вероятность дождя</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricUv">
+                            <input type="checkbox" id="sidebarWeatherMetricUv" name="sidebarWeatherMetricOption" value="uv">
+                            <span>UV индекс</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricAqi">
+                            <input type="checkbox" id="sidebarWeatherMetricAqi" name="sidebarWeatherMetricOption" value="aqi">
+                            <span>Качество воздуха (AQI)</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricPressure">
+                            <input type="checkbox" id="sidebarWeatherMetricPressure" name="sidebarWeatherMetricOption" value="pressure">
+                            <span>Давление</span>
+                        </label>
+                        <label class="settings-weather-metric-option" for="sidebarWeatherMetricSunCycle">
+                            <input type="checkbox" id="sidebarWeatherMetricSunCycle" name="sidebarWeatherMetricOption" value="sun_cycle">
+                            <span>Рассвет / закат</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-download"></i>
+                    <h3>Экспорт настроек</h3>
+                </div>
+                <div class="settings-row settings-row-borderless">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Экспорт и импорт JSON</div>
+                        <div class="settings-row-desc">Перенос ваших персональных настроек между устройствами.</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings secondary" id="settingsExportBtn">Экспорт в JSON</button>
+                        <label for="settingsImportInput" class="btn-settings secondary">Импорт из JSON</label>
+                        <input type="file" id="settingsImportInput" accept="application/json,.json" hidden>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-chat-style" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-moon-stars"></i>
+                    <h3>Тема и цвет интерфейса</h3>
+                </div>
+                <p class="settings-body-copy">Выберите базовую тему и акцент. Изменения применяются сразу.</p>
+
+                <div class="theme-preview-row" id="themePresetRow">
+                    <button type="button" class="theme-preview theme-preview--light-classic" data-theme-preset="light-classic" aria-label="Светлая классика">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Светлая классика</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--light-sky" data-theme-preset="light-sky" aria-label="Светлая прохлада">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Светлая прохлада</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--light-mist" data-theme-preset="light-mist" aria-label="Серая дымка">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Серая дымка</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-classic" data-theme-preset="dark-classic" aria-label="Тёмная классика">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Тёмная классика</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-forest" data-theme-preset="dark-forest" aria-label="Тёмный лес">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Тёмный лес</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-midnight" data-theme-preset="dark-midnight" aria-label="Тёмная синь">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Тёмная синь</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--dark-graphite" data-theme-preset="dark-graphite" aria-label="Тёмный графит">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Тёмный графит</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--custom-light" data-theme-preset="custom-light" aria-label="Кастомная светлая">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Кастомная светлая</div>
+                    </button>
+                    <button type="button" class="theme-preview theme-preview--custom-dark" data-theme-preset="custom-dark" aria-label="Кастомная тёмная">
+                        <div class="theme-preview-inner"><div class="theme-preview-sidebar"></div><div class="theme-preview-chat"></div></div>
+                        <div class="theme-preview-label">Кастомная тёмная</div>
+                    </button>
+                </div>
+
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Цвет интерфейса</div>
+                        <div class="settings-row-desc" id="interfaceAccentScope">Сейчас настраивается: светлая тема</div>
+                    </div>
+                    <div class="interface-accent-controls">
+                        <input type="color" id="interfaceAccentColor" class="chat-style-color-input" value="#c58a22">
+                        <button type="button" class="btn-settings secondary interface-accent-btn" id="interfaceAccentResetThemeBtn">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Сбросить цвет темы
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-row settings-row-actions settings-row-borderless">
+                    <button type="button" class="btn-settings danger-btn interface-accent-btn" id="interfaceAccentResetAllBtn">
+                        <i class="bi bi-trash3" aria-hidden="true"></i> Сбросить все цвета
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-chat-square-text"></i>
+                    <h3>Фон и масштаб чата</h3>
+                </div>
+                <p class="settings-body-copy">Настройте фон, цвета сообщений и размер текста в переписке.</p>
+
+                <div class="chat-style-block">
+                    <div class="chat-style-mode-row" id="chatStyleModeRow">
+                        <button type="button" class="chat-style-mode-btn" data-mode="default">Стандартный</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="preset">Готовые темы</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="color">Цвет</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="gradient">Градиент</button>
+                        <button type="button" class="chat-style-mode-btn" data-mode="custom">Своя картинка</button>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="preset" id="chatPresetPanel">
+                        <div class="chat-style-subtitle">Готовые пресеты</div>
+                        <div id="chatPresetGroups"></div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="color" id="chatColorPanel">
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatColorPicker">Цвет фона</label>
+                            <input type="color" id="chatColorPicker" class="chat-style-color-input" value="#e9edf3">
+                        </div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="gradient" id="chatGradientPanel">
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatGradientColorA">Начало</label>
+                            <input type="color" id="chatGradientColorA" class="chat-style-color-input" value="#f5f7fb">
+                        </div>
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatGradientColorB">Конец</label>
+                            <input type="color" id="chatGradientColorB" class="chat-style-color-input" value="#e4ebf3">
+                        </div>
+                    </div>
+
+                    <div class="chat-style-panel" data-panel="custom" id="chatCustomPanel">
+                        <div class="chat-style-upload-row">
+                            <label for="chatCustomImageInput" class="btn-settings secondary settings-cursor-pointer">
+                                <i class="bi bi-upload"></i> Загрузить картинку
+                            </label>
+                            <input type="file" id="chatCustomImageInput" accept="image/*" hidden>
+                            <span id="chatCustomImageMeta" class="chat-style-meta">Файл не выбран</span>
+                        </div>
+                        <div class="chat-style-slider-grid">
+                            <label class="chat-style-slider">
+                                <span>Затемнение</span>
+                                <input type="range" id="chatCustomDarken" min="0" max="70" value="8">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Размытие</span>
+                                <input type="range" id="chatCustomBlur" min="0" max="18" value="0">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Прозрачность фона</span>
+                                <input type="range" id="chatCustomOpacity" min="20" max="100" value="100">
+                            </label>
+                            <label class="chat-style-slider">
+                                <span>Масштаб</span>
+                                <input type="range" id="chatCustomScale" min="30" max="240" value="100">
+                            </label>
+                        </div>
+                        <div class="chat-style-inline">
+                            <label class="chat-style-label" for="chatCustomPosition">Позиционирование</label>
+                            <select id="chatCustomPosition" class="settings-input chat-style-select settings-select-control">
+                                <option value="center center">Центр</option>
+                                <option value="top center">Сверху</option>
+                                <option value="bottom center">Снизу</option>
+                                <option value="center left">Слева</option>
+                                <option value="center right">Справа</option>
+                            </select>
+                        </div>
+                        <label class="chat-style-check">
+                            <input type="checkbox" id="chatCustomRepeat">
+                            <span>Повторять изображение</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Прозрачность пузырей</div>
+                        <div class="settings-row-desc">Помогает сохранить читаемость текста на любом фоне.</div>
+                    </div>
+                    <input type="range" id="chatBubbleOpacity" min="35" max="100" value="90">
+                </div>
+
+                <div class="settings-row settings-row-chat-bubble-colors">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Цвета сообщений</div>
+                        <div class="settings-row-desc">Можно оставить по теме или задать вручную.</div>
+                    </div>
+                    <div class="chat-bubble-color-controls">
+                        <div class="chat-bubble-color-grid">
+                            <label class="chat-bubble-color-field">
+                                <span>Входящий фон</span>
+                                <input type="color" id="chatBubbleInBg" class="chat-style-color-input" value="#fffaf1">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Входящий текст</span>
+                                <input type="color" id="chatBubbleInText" class="chat-style-color-input" value="#17130d">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Исходящий фон</span>
+                                <input type="color" id="chatBubbleOutBg" class="chat-style-color-input" value="#2b2417">
+                            </label>
+                            <label class="chat-bubble-color-field">
+                                <span>Исходящий текст</span>
+                                <input type="color" id="chatBubbleOutText" class="chat-style-color-input" value="#fff4dc">
+                            </label>
+                        </div>
+                        <div class="chat-bubble-color-actions">
+                            <span id="chatBubbleModeBadge" class="chat-style-meta">Цвета по теме</span>
+                            <button type="button" class="btn-settings secondary chat-bubble-theme-btn" id="chatBubbleUseThemeBtn">Цвета темы</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Масштаб сообщений</div>
+                        <div class="settings-row-desc">Размер пузырей и текста в переписке</div>
+                    </div>
+                    <div class="chat-scale-controls">
+                        <div class="chat-scale-presets" id="chatMessageScalePresets">
+                            <button type="button" class="chat-scale-chip" data-scale="0.9">90%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1">100%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1.15">115%</button>
+                            <button type="button" class="chat-scale-chip" data-scale="1.3">130%</button>
+                        </div>
+                        <div class="chat-scale-slider-row">
+                            <input type="range" id="chatMessageScaleRange" min="0.9" max="1.3" step="0.01" value="1">
+                            <span class="chat-scale-value" id="chatMessageScaleValue">100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row settings-row-info-only">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Предпросмотр</div>
+                        <div class="settings-row-desc">Изменения видны сразу, без перезагрузки.</div>
+                    </div>
+                </div>
+                <div class="chat-preview-wrap">
+                    <div id="chatAppearancePreview" class="chat-appearance-preview" data-chat-contrast="normal">
+                        <div class="chat-appearance-preview__msg other"><div class="bubble">Пример входящего сообщения</div></div>
+                        <div class="chat-appearance-preview__msg self"><div class="bubble">Пример исходящего сообщения</div></div>
+                    </div>
+                </div>
+
+                <div class="settings-row settings-row-divider-top">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Действия</div>
+                        <div class="settings-row-desc">Можно убрать фон или вернуть оформление по умолчанию.</div>
+                    </div>
+                    <div class="settings-action-cluster">
+                        <button type="button" class="btn-settings secondary" id="chatClearBackgroundBtn">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Убрать текущий фон
+                        </button>
+                        <button type="button" class="btn-settings danger-btn" id="chatResetAppearanceBtn">
+                            <i class="bi bi-trash3" aria-hidden="true"></i> Сбросить оформление
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-account" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-laptop"></i>
+                    <h3>Активные сессии</h3>
+                </div>
+                <p class="settings-body-copy">Здесь показаны устройства, где ваш аккаунт сейчас авторизован.</p>
+                <div class="session-device-list" id="sessionDevicesList">
+                    <div class="session-device-empty">Загружаем активные сессии…</div>
+                </div>
+                <div class="settings-save-row settings-save-row-spaced">
+                    <button class="btn-settings secondary" id="signOutOtherSessionsBtn" type="button">
+                        <i class="bi bi-box-arrow-right"></i> Завершить все другие сессии
+                    </button>
+                </div>
+            </div>
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-exclamation-octagon"></i>
+                    <h3 class="settings-danger-title">Опасная зона</h3>
+                </div>
+                <div class="settings-danger-panel">
+                    <p class="settings-danger-heading">Удаление вашего аккаунта</p>
+                    <p class="settings-body-copy settings-danger-copy">
+                        Это действие необратимо. Все ваши сообщения, контакты, аватары и ключи будут удалены с сервера без возможности восстановления.
+                    </p>
+                    <button class="btn-settings danger-btn settings-danger-action" id="deleteAccountBtn">
+                        <i class="bi bi-trash3"></i> Удалить аккаунт навсегда
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-support" class="settings-hidden">
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <i class="bi bi-life-preserver"></i>
+                    <h3>Поддержка и обратная связь</h3>
+                </div>
+                <p class="settings-body-copy">
+                    Отправьте баг-репорт или вопрос. Обращение попадет в модераторскую панель без доступа к переписке.
+                </p>
+                <form id="settingsSupportForm" class="settings-inline-fields">
+                    <label class="settings-field">
+                        <span class="settings-field-label">Категория</span>
+                        <select id="settingsSupportCategory" class="settings-input settings-field-input">
+                            <option value="bug">ошибка</option>
+                            <option value="performance">производительность</option>
+                            <option value="feature">функция</option>
+                            <option value="security">безопасность</option>
+                            <option value="other">другое</option>
+                        </select>
+                    </label>
+                    <label class="settings-field">
+                        <span class="settings-field-label">Контакт (необязательно)</span>
+                        <input type="text" class="settings-input settings-field-input" id="settingsSupportContact" maxlength="120" placeholder="@username, email или другой контакт">
+                    </label>
+                    <label class="settings-field settings-field--full">
+                        <span class="settings-field-label">Тема</span>
+                        <input type="text" class="settings-input settings-field-input" id="settingsSupportSubject" maxlength="160" placeholder="Кратко о проблеме">
+                    </label>
+                    <label class="settings-field settings-field--full">
+                        <span class="settings-field-label">Описание</span>
+                        <textarea class="settings-input settings-field-input" id="settingsSupportBody" rows="5" maxlength="8000" placeholder="Шаги, ожидаемый результат, фактический результат"></textarea>
+                    </label>
+                </form>
+                <div class="settings-save-row settings-save-row-spaced">
+                    <button type="button" class="btn-settings secondary" id="settingsSupportOpenPageBtn">
+                        <i class="bi bi-box-arrow-up-right"></i> Открыть полную форму
+                    </button>
+                    <button type="button" class="btn-settings" id="settingsSupportSubmitBtn">
+                        <i class="bi bi-send"></i> Отправить в поддержку
+                    </button>
+                </div>
+                <p id="settingsSupportStatus" class="settings-body-copy settings-support-status"></p>
+            </div>
+        </section>
+
+    </main>
+    <button type="button" class="settings-floating-save" id="settingsFloatingSaveBtn" aria-label="Сохранить изменения" title="Сохранить изменения" hidden>
+        <span class="settings-floating-save-spinner" aria-hidden="true"></span>
+        <span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span>
+    </button>
+</div>
+</div>
+</div>
+
+<div class="avatar-editor" id="avatarEditor" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="avatarEditorTitle">
+    <div class="avatar-editor-stage">
+        <div class="avatar-editor-viewport" id="avatarEditorViewport">
+            <canvas class="avatar-editor-canvas" id="avatarEditorCanvas"></canvas>
+            <div class="avatar-editor-crop-frame" aria-hidden="true">
+                <span class="avatar-editor-crop-handle is-top-left"></span>
+                <span class="avatar-editor-crop-handle is-top-right"></span>
+                <span class="avatar-editor-crop-handle is-bottom-left"></span>
+                <span class="avatar-editor-crop-handle is-bottom-right"></span>
+            </div>
+        </div>
+        <div class="avatar-editor-zoom">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorRotateLeft" aria-label="Повернуть влево">
+                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            </button>
+            <input type="range" id="avatarEditorZoom" min="1" max="4" step="0.01" value="1" aria-label="Масштаб фото">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorRotateRight" aria-label="Повернуть вправо">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    <aside class="avatar-editor-panel">
+        <header class="avatar-editor-header">
+            <button type="button" class="avatar-editor-icon-btn" id="avatarEditorClose" aria-label="Закрыть">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <div class="avatar-editor-title" id="avatarEditorTitle">Изменить фото</div>
+            <button type="button" class="avatar-editor-done" id="avatarEditorDone">Готово</button>
+        </header>
+
+        <div class="avatar-editor-tabs" aria-label="Инструменты">
+            <button type="button" class="avatar-editor-tab is-active" aria-label="Обрезка">
+                <i class="bi bi-crop" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="avatar-editor-tab" id="avatarEditorReset" aria-label="Сбросить">
+                <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <section class="avatar-editor-section">
+            <div class="avatar-editor-section-title">Соотношение сторон</div>
+            <div class="avatar-editor-ratio is-selected">
+                <i class="bi bi-square" aria-hidden="true"></i>
+                <span>Квадрат</span>
+            </div>
+        </section>
+    </aside>
+</div>

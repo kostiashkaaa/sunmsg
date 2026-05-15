@@ -55,22 +55,24 @@ export function initSettingsPage() {
         return lang === 'en' ? 'en-US' : 'ru-RU';
     };
 
-    const isEmbedMode = String(bootstrapUser.embedMode ?? pageRoot.dataset.embedMode) === 'true';
+    const isEmbedMode = true;
     const currentUsername = String(bootstrapUser.currentUsername || pageRoot.dataset.currentUsername || '');
-    initSettingsPresence({ isEmbedded: isEmbedMode });
+    initSettingsPresence({ isEmbedded: true });
+
+    const dispatch = (type, detail = {}) => {
+        document.dispatchEvent(new CustomEvent(type, { detail, bubbles: false }));
+    };
 
     const closeEmbeddedSettings = () => {
-        if (!isEmbedMode || window.parent === window) return;
-        window.parent.postMessage({ type: 'sun-settings-close' }, window.location.origin);
+        dispatch('sun-settings-close');
     };
 
     const notifyParent = (type, detail = {}) => {
-        if (!isEmbedMode || window.parent === window) return;
-        window.parent.postMessage({ type, detail }, window.location.origin);
+        dispatch(type, detail);
     };
 
     const notifyLanguageUpdate = (language, persisted = false) => {
-        notifyParent('sun-settings-language-updated', {
+        dispatch('sun-settings-language-updated', {
             language: language === 'en' ? 'en' : 'ru',
             persisted: !!persisted,
         });
@@ -81,33 +83,27 @@ export function initSettingsPage() {
         try {
             window.localStorage.setItem(MUTE_DIALOG_REQUESTS_STORAGE_KEY, muted ? '1' : '0');
         } catch (_) {}
-        notifyParent('sun-settings-mute-dialog-requests-updated', { muted: !!muted });
+        dispatch('sun-settings-mute-dialog-requests-updated', { muted: !!muted });
     };
 
     const navigateOut = (url) => {
-        const nextUrl = withAppRoot(url);
-        if (isEmbedMode && window.top) {
-            window.top.location.href = nextUrl;
-            return;
-        }
-        window.location.href = nextUrl;
+        window.location.href = withAppRoot(url);
     };
 
     const reloadSettingsSurface = () => {
-        if (isEmbedMode && window.parent !== window) {
-            notifyParent('sun-settings-redecrypt');
-            return;
-        }
-        window.location.reload();
+        dispatch('sun-settings-redecrypt');
     };
 
     let settingsReadyMarked = false;
     const markSettingsReady = () => {
         if (settingsReadyMarked) return;
         settingsReadyMarked = true;
-        document.body.classList.remove('settings-loading');
-        document.body.classList.add('settings-ready');
-        notifyParent('sun-settings-ready');
+        const panelScene = document.getElementById('settingsPanelScene');
+        if (panelScene) {
+            panelScene.classList.remove('settings-loading');
+            panelScene.classList.add('settings-ready');
+        }
+        dispatch('sun-settings-ready');
     };
     window.setTimeout(markSettingsReady, 2200);
 
