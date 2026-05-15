@@ -8,8 +8,8 @@
     <div class="my-qr-modal__content">
         <div id="myQrCodeContainer" class="my-qr-modal__code"></div>
         <div class="my-qr-modal__identity">
-            <div class="my-qr-modal__display-name">{{ current_display_name }}</div>
-            <div class="my-qr-modal__username">@{{ current_username }}</div>
+            <div class="my-qr-modal__display-name">{{ current_display_name|e }}</div>
+            <div class="my-qr-modal__username">@{{ current_username|e }}</div>
         </div>
         <div class="my-qr-modal__hint">
             Покажите QR собеседнику или сохраните его как изображение.

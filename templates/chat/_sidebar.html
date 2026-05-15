@@ -61,8 +61,8 @@
                 <div class="contact-item ripple-target"
                      data-chat-id="{{ contact.chatId }}"
                      data-contact-id="{{ contact.userId or '' }}"
-                     data-contact-username="{{ contact.username or '' }}"
-                     data-public-key="{{ contact.public_key or '' }}"
+                     data-contact-username="{{ (contact.username or '')|e }}"
+                     data-public-key="{{ (contact.public_key or '')|e }}"
                      data-is-group="{{ '1' if contact.is_group else '0' }}"
                      data-members-count="{{ contact.members_count or 0 }}"
                      data-last-message-time="{{ preview_time }}"
@@ -75,15 +75,15 @@
                      data-message-count="{{ contact.message_count or 0 }}"
                      data-pinned="{{ '1' if contact.is_pinned else '0' }}"
                      data-has-draft="{{ '1' if has_draft else '0' }}"
-                     data-draft-text="{{ draft_text }}"
+                     data-draft-text="{{ draft_text|e }}"
                      data-draft-updated-at="{{ contact.draft_updated_at or '' }}"
-                     data-raw-last-message="{{ contact.last_message or '' }}"
+                     data-raw-last-message="{{ (contact.last_message or '')|e }}"
                      data-last-sender-id="{{ contact.last_sender_id or '' }}"
                      {% if contact.is_pinned and contact.pin_order is not none %}data-pin-order="{{ contact.pin_order }}"{% endif %}
                      draggable="{{ 'true' if contact.is_pinned else 'false' }}">
                     <div class="contact-avatar{% if contact.avatar_url %} avatar-loading{% endif %}">
                         {% if contact.avatar_url %}
-                        <img class="contact-avatar__img" src="{{ contact.avatar_url }}" alt="{{ display_name or ('Avatar' if ui_lang == 'en' else 'Аватар') }}" loading="lazy" decoding="async" fetchpriority="low">
+                        <img class="contact-avatar__img" src="{{ contact.avatar_url|e }}" alt="{{ (display_name or ('Avatar' if ui_lang == 'en' else 'Аватар'))|e }}" loading="lazy" decoding="async" fetchpriority="low">
                         <span class="contact-avatar-loading" aria-hidden="true">
                             <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
                             <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
@@ -139,7 +139,7 @@
                     <button type="button" class="sidebar-bottom-identity" id="sidebarProfileShortcut" title="Профиль и приватность">
                         <div class="sidebar-bottom-avatar" id="avatarCircle">
                             {% if current_avatar_url %}
-                                <img src="{{ current_avatar_url }}" loading="eager" decoding="async" class="sidebar-bottom-avatar-image" alt="Ваш аватар">
+                                <img src="{{ current_avatar_url|e }}" loading="eager" decoding="async" class="sidebar-bottom-avatar-image" alt="Ваш аватар">
                             {% else %}
                                 {{ current_display_name[:1]|upper if current_display_name else '?' }}
                             {% endif %}
