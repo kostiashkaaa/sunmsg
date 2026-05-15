@@ -42,7 +42,7 @@ export function initMessageActionHandlers({
     barEditButtonEl?.addEventListener('click', () => {
         const state = getSelectedMessageState();
         if (isChatBlocked()) return;
-        if (!state.messageId || state.isFile || state.canEdit === false) return;
+        if (!state.messageId || !state.canEdit) return;
         runMessageActionMotion(resolveMessageElement(state.messageId), 'edit');
         startEditMessage(state.messageId, state.messageText);
         closeMessageActionsBar();
