@@ -271,6 +271,39 @@ def _stabilize_settings_visual_state(page: Page) -> None:
             if (status) {
                 status.textContent = '\u0431\u044b\u043b(\u0430) \u0432 \u0441\u0435\u0442\u0438 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0432 00:00';
             }
+            const resetScroll = () => {
+                const targets = [
+                    document.getElementById('settingsOverlayFrame'),
+                    document.querySelector('.settings-content'),
+                    document.scrollingElement,
+                ];
+                targets.forEach((target) => {
+                    if (!target) return;
+                    target.scrollTop = 0;
+                    target.scrollLeft = 0;
+                });
+                window.scrollTo(0, 0);
+            };
+            resetScroll();
+            return new Promise((resolve) => {
+                requestAnimationFrame(() => {
+                    resetScroll();
+                    requestAnimationFrame(() => {
+                        resetScroll();
+                        resolve();
+                    });
+                });
+            });
+        }""",
+    )
+    page.wait_for_function(
+        """() => {
+            const frame = document.getElementById('settingsOverlayFrame');
+            const content = document.querySelector('.settings-content');
+            const pageScroll = Math.abs(window.scrollY || 0) < 1;
+            const frameAtTop = !frame || (frame.scrollTop === 0 && frame.scrollLeft === 0);
+            const contentAtTop = !content || (content.scrollTop === 0 && content.scrollLeft === 0);
+            return pageScroll && frameAtTop && contentAtTop;
         }""",
     )
 
