@@ -6,7 +6,7 @@
     overflow-y: auto;
 }
 
-/* Settings card shared styles via CSS only (settings.html has own inline structure) */
+/* Settings card shared styles via CSS only (embedded settings panel has own structure) */
 .settings-card {
     background: var(--surface);
     border: 1px solid var(--border);

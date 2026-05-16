@@ -134,7 +134,7 @@ def _run_perf_probe(
     )
 
 
-def test_ui_perf_smoke_auth_chat_settings(perf_server):
+def test_ui_perf_smoke_auth_chat(perf_server):
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
             headless=_HEADLESS,
@@ -157,14 +157,6 @@ def test_ui_perf_smoke_auth_chat_settings(perf_server):
                 ready_selector='#contactsList',
                 max_interactive_ms=3200.0,
                 max_requests=190,
-            )
-            _run_perf_probe(
-                browser,
-                base_url=perf_server['base_url'],
-                path='/__perf_test__/login?next=/settings',
-                ready_selector='body.settings-ready',
-                max_interactive_ms=2600.0,
-                max_requests=80,
             )
         finally:
             browser.close()

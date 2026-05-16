@@ -6,7 +6,6 @@ from flask import (
     jsonify,
     make_response,
     redirect,
-    render_template,
     request,
     session,
     url_for,
@@ -15,7 +14,6 @@ from flask import (
 from app.database import get_db_connection
 from app.db_backend import DatabaseError, IntegrityError
 from app.extensions import limiter, socketio
-from app.forms import SettingsForm
 from app.routes.socket_emit import build_route_socket_emitter
 from app.routes.auth_helpers_settings import (
     AVATAR_FOLDER,
@@ -29,7 +27,6 @@ from app.routes.auth_helpers_settings import (
 from app.services.blocking import list_visible_contact_public_keys
 from app.services.chat_members import CHAT_TYPE_GROUP, get_chat_type
 from app.services.client_preferences import client_preferences_from_db, client_preferences_to_json
-from app.services.chat_page_state import build_socketio_client_config
 from app.services.locale import language_from_user_row
 from app.services.presence import is_effectively_online
 from app.services.refresh_tokens import clear_refresh_cookie
@@ -65,81 +62,7 @@ def settings():
         flash('Пожалуйста, войдите в систему.', 'danger')
         return redirect(url_for('auth.index'))
 
-    embed_mode = False
-
-    if request.method == 'GET':
-        return redirect(url_for('chat.chat_page'))
-
-    user_public_key_pem = session['public_key_pem']
-    form = SettingsForm()
-
-    conn = get_db_connection()
-    try:
-        user = conn.execute(
-            '''
-            SELECT id, username, display_name, public_key, is_public,
-                   auto_decline_requests, hide_online_status, avatar_url, avatar_visibility, group_invite_privacy, bio, language,
-                   client_preferences
-            FROM users
-            WHERE public_key = ?
-            ''',
-            (user_public_key_pem,),
-        ).fetchone()
-
-        if not user:
-            flash('Пользователь не найден.', 'danger')
-            return redirect(url_for('auth.index'))
-
-        if form.validate_on_submit():
-            username = form.username.data.strip()
-            display_name = form.display_name.data.strip()
-            is_public = bool(form.is_public.data)
-            auto_decline_requests = bool(form.auto_decline_requests.data)
-            hide_online_status = bool(form.hide_online_status.data)
-            reset_keys = bool(form.reset_keys.data)
-
-            try:
-                conn.execute('''
-                    UPDATE users
-                    SET username = ?, display_name = ?, is_public = ?,
-                        auto_decline_requests = ?, hide_online_status = ?,
-                        avatar_visibility = COALESCE(?, avatar_visibility),
-                        language = COALESCE(?, language)
-                    WHERE public_key = ?
-                ''', (username, display_name, is_public, auto_decline_requests,
-                      hide_online_status, None, None, user_public_key_pem))
-
-                conn.commit()
-                if reset_keys:
-                    flash('Внимание: сброс ключей больше не выполняется на сервере. Сгенерируйте новые на клиенте.', 'warning')
-                else:
-                    flash('Настройки успешно сохранены.', 'success')
-            except DatabaseError as e:
-                flash(f'Ошибка при сохранении настроек: {e}', 'danger')
-
-            return redirect(url_for('auth.settings'))
-
-        form.username.data = user['username']
-        form.display_name.data = user['display_name']
-        form.is_public.data = bool(user['is_public'])
-        form.auto_decline_requests.data = bool(user['auto_decline_requests'])
-        form.hide_online_status.data = bool(user['hide_online_status'])
-    finally:
-        conn.close()
-
-    return render_template(
-        'settings.html',
-        form=form,
-        current_username=user['username'],
-        current_display_name=user['display_name'],
-        public_key_pem=user['public_key'],
-        embed_mode=embed_mode,
-        socketio_client_config=build_socketio_client_config(current_app.config),
-        ui_language=language_from_user_row(user),
-        client_preferences=client_preferences_from_db(
-            user['client_preferences'] if 'client_preferences' in user.keys() else None
-        ),
-    )
+    return redirect(url_for('chat.chat_page'))
 
 @auth_bp.route('/api/get_settings', methods=['GET'])
 @limiter.limit("60 per minute")
@@ -207,7 +130,7 @@ def get_settings():
 @auth_bp.route('/api/save_settings', methods=['POST'])
 @limiter.limit("20 per minute")
 def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and persistence fan-out
-    """JSON-based settings save (used by settings.html)"""
+    """JSON-based settings save used by the embedded chat settings panel."""
     if 'public_key_pem' not in session or 'user_id' not in session:
         return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
 

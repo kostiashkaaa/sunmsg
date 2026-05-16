@@ -103,7 +103,9 @@
     <button type="button" class="settings-overlay-backdrop" id="settingsOverlayBackdrop" aria-label="Закрыть настройки"></button>
     <section class="settings-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settingsOverlayTitle">
         <div class="settings-overlay-frame" id="settingsOverlayFrame">
-            {% include 'chat/_settings_panel.html' %}
+            {% with settings_panel_embed=true %}
+                {% include 'settings/_panel.html' %}
+            {% endwith %}
         </div>
     </section>
 </div>

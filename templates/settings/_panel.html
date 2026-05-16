@@ -1,66 +1,9 @@
-<!DOCTYPE html>
-<html lang="{{ ui_language|default('ru') }}">
-<head>
-    <link rel="manifest" href="{{ asset_url('manifest.json') }}">
-    <link rel="apple-touch-icon" href="{{ asset_url('icons/icon-192x192.png') }}">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta charset="UTF-8">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>sun</title>
-    {% include '_client_preferences_early_boot.html' %}
-    <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
-    <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
-    <script id="sun-bootstrap-data" type="application/json" nonce="{{ csp_nonce }}">{{ {
-        'page': 'settings',
-        'user': {
-            'currentUserId': session['user_id'],
-            'currentUsername': current_username,
-            'currentDisplayName': current_display_name,
-            'uiLanguage': ui_language|default('ru'),
-            'embedMode': embed_mode,
-            'clientPreferences': client_preferences|default({}),
-        },
-        'socketio': socketio_client_config,
-        'app': {
-            'root': request.script_root or '',
-        },
-        'assets': {
-            'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),
-        },
-    } | tojson }}</script>
-    <script src="{{ asset_url('bootstrap.js') }}"></script>
-    <script src="{{ asset_url('interface-theme.js') }}"></script>
-    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
-    <script src="{{ asset_url('chat-appearance.js') }}"></script>
-    <script src="{{ asset_url('crypto.js') }}"></script>
-    <script src="{{ asset_url('mnemonic.js') }}"></script>
-    <script type="module" src="{{ asset_url('modules/auth-fetch.js') }}"></script>
-    <script src="{{ asset_url('modules/device-key.js') }}"></script>
-    <script src="{{ asset_url('modules/private-key-session-bridge.js') }}"></script>
-    <script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
-    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
-
-    <link rel="stylesheet" href="{{ asset_url('pages/settings.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('pages/settings-redesign.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('pages/settings-polish.css') }}">
-</head>
-<body
-    class="settings-loading {% if embed_mode %}settings-embed-mode{% endif %}"
-    data-embed-mode="{{ 'true' if embed_mode else 'false' }}"
-    data-current-user-id="{{ session['user_id'] }}"
-    data-current-username="{{ current_username|e }}"
-    data-ui-language="{{ ui_language|default('ru') }}"
->
-{% include 'chat/_svg_icons_sprite.html' %}
-
-<div class="settings-scene">
+<div class="settings-scene"{% if settings_panel_embed|default(false) %} id="settingsPanelScene" data-embed-mode="true"{% endif %}>
+{% if not settings_panel_embed|default(false) %}
 <div class="settings-scene-behind" aria-hidden="true"></div>
+{% endif %}
 <div class="settings-layout">
+{% if not settings_panel_embed|default(false) %}
     <div class="settings-page-loader" id="settingsPageLoader" aria-hidden="true">
         <div class="settings-page-loader-head">
             <div class="sun-skeleton-line settings-skeleton-line--hero"></div>
@@ -82,6 +25,7 @@
             </div>
         </div>
     </div>
+{% endif %}
 
     <header class="settings-panel-head">
         <button type="button" class="settings-panel-close" id="settingsPanelCloseBtn" aria-label="Закрыть">
@@ -1536,28 +1480,3 @@
         </section>
     </aside>
 </div>
-
-
-
-<dialog id="confirmActionModal" data-animated-dialog role="alertdialog"
-        aria-labelledby="confirmActionTitle" data-variant="danger">
-    <div class="confirm-dialog-body">
-        <div class="confirm-dialog-icon-wrap">
-            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-warning"></use></svg>
-        </div>
-        <h5 class="confirm-dialog-title" id="confirmActionTitle" data-confirm-title>Подтвердите действие</h5>
-        <p class="confirm-dialog-message" data-confirm-message></p>
-        <div class="confirm-dialog-actions">
-            <button type="button" class="dialog-surface-btn confirm-action-btn confirm-action-btn--cancel" data-confirm-cancel>Отмена</button>
-            <button type="button" class="dialog-danger-btn confirm-action-btn confirm-action-btn--ok" data-confirm-ok>Подтвердить</button>
-        </div>
-    </div>
-</dialog>
-
-<script src="{{ asset_url('qrcode-loader.js') }}"></script>
-{% if not embed_mode %}
-<script src="{{ asset_url('vendor/js/socket.io.min.js') }}"></script>
-{% endif %}
-<script type="module" src="{{ asset_url('pages/settings.js') }}"></script>
-</body>
-</html>
