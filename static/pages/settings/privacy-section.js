@@ -192,6 +192,7 @@ export function initPrivacySection({
     const bioCounterEl = document.getElementById('bioCounter');
     const statusTextInputEl = document.getElementById('statusTextInput');
     const statusTextCounterEl = document.getElementById('statusTextCounter');
+    const hideOnlineStatusSwitchEl = document.getElementById('hideOnlineStatusSwitch');
     const sendShortcutEnterEl = document.getElementById('sendShortcutEnterOption');
     const sendShortcutCtrlEnterEl = document.getElementById('sendShortcutCtrlEnterOption');
     const timeFormat12hEl = document.getElementById('timeFormat12hOption');
@@ -219,6 +220,9 @@ export function initPrivacySection({
     let sidebarWeatherPreferencesSaveTimerId = 0;
     let sidebarWeatherPreferencesSaveSeq = 0;
     let lastSavedSidebarWeatherPreferencesKey = '';
+    let privacyPreferencesSaveTimerId = 0;
+    let privacyPreferencesSaveSeq = 0;
+    let lastSavedPrivacyPreferencesKey = '';
     const CLIENT_PREFERENCES_FIELD_IDS = new Set([
         'languageSelect',
         'lastSeenVisibilitySelect',
@@ -359,6 +363,9 @@ export function initPrivacySection({
         if (!selectEl) return 'all';
         const normalized = normalizePrivacyChoice(value);
         selectEl.value = normalized;
+        if (key === 'last_seen_visibility') {
+            if (hideOnlineStatusSwitchEl) hideOnlineStatusSwitchEl.checked = normalized === 'nobody';
+        }
         if (emit) {
             selectEl.dispatchEvent(new Event('input', { bubbles: true }));
             selectEl.dispatchEvent(new Event('change', { bubbles: true }));
@@ -417,7 +424,7 @@ export function initPrivacySection({
 
     function syncLanguageOptions() {
         const normalized = normalizeLanguage(languageSelectEl?.value || document.documentElement.lang || 'ru');
-        languageOptionEls.forEach((inputEl) => {
+    languageOptionEls.forEach((inputEl) => {
             inputEl.checked = inputEl.value === normalized;
         });
     }
@@ -629,6 +636,48 @@ export function initPrivacySection({
         });
     }
 
+    function getPrivacyPreferencesFromControls() {
+        const lastSeenVisibility = getPrivacySelection('last_seen_visibility');
+        return {
+            is_public: !!document.getElementById('isPublicSwitch')?.checked,
+            auto_decline_requests: !!document.getElementById('autoDeclineSwitch')?.checked,
+            mute_dialog_requests: !!document.getElementById('muteDialogRequestsSwitch')?.checked,
+            hide_online_status: lastSeenVisibility === 'nobody',
+            last_seen_visibility: lastSeenVisibility,
+            avatar_visibility: getPrivacySelection('avatar_visibility'),
+            bio_visibility: getPrivacySelection('bio_visibility'),
+            forward_link_privacy: getPrivacySelection('forward_link_privacy'),
+            group_invite_privacy: getPrivacySelection('group_invite_privacy'),
+            voice_message_privacy: getPrivacySelection('voice_message_privacy'),
+            message_privacy: getPrivacySelection('message_privacy'),
+        };
+    }
+
+    function getPrivacyPreferencesKey(privacyPrefs = getPrivacyPreferencesFromControls()) {
+        return JSON.stringify({
+            is_public: privacyPrefs.is_public === true,
+            auto_decline_requests: privacyPrefs.auto_decline_requests === true,
+            mute_dialog_requests: privacyPrefs.mute_dialog_requests === true,
+            hide_online_status: privacyPrefs.hide_online_status === true,
+            last_seen_visibility: normalizePrivacyChoice(privacyPrefs.last_seen_visibility),
+            avatar_visibility: normalizePrivacyChoice(privacyPrefs.avatar_visibility),
+            bio_visibility: normalizePrivacyChoice(privacyPrefs.bio_visibility),
+            forward_link_privacy: normalizePrivacyChoice(privacyPrefs.forward_link_privacy),
+            group_invite_privacy: normalizePrivacyChoice(privacyPrefs.group_invite_privacy),
+            voice_message_privacy: normalizePrivacyChoice(privacyPrefs.voice_message_privacy),
+            message_privacy: normalizePrivacyChoice(privacyPrefs.message_privacy),
+        });
+    }
+
+    function patchBaselinePrivacyPreferences(privacyPrefs) {
+        const baseline = state.getBaseline();
+        if (!baseline || typeof baseline !== 'object') return;
+        state.setBaseline({
+            ...baseline,
+            ...privacyPrefs,
+        });
+    }
+
     function applySidebarWeatherPreferencesToControls(rawPreferences) {
         const source = normalizeSidebarWeatherSource(rawPreferences?.sidebarWeatherSource);
         const enabled = rawPreferences?.sidebarWeatherEnabled === true;
@@ -767,6 +816,24 @@ export function initPrivacySection({
         }
     }
 
+    async function persistPrivacyPreferences(seq) {
+        if (!state.isLoaded() || !state.getBaseline()) return;
+        const privacyPrefs = getPrivacyPreferencesFromControls();
+        const privacyPrefsKey = getPrivacyPreferencesKey(privacyPrefs);
+        if (privacyPrefsKey === lastSavedPrivacyPreferencesKey) return;
+
+        try {
+            const payload = await api.saveSettings(privacyPrefs);
+            if (seq !== privacyPreferencesSaveSeq || !payload.success) return;
+            lastSavedPrivacyPreferencesKey = privacyPrefsKey;
+            patchBaselinePrivacyPreferences(privacyPrefs);
+            persistMuteDialogRequestsPreference(Boolean(privacyPrefs.mute_dialog_requests));
+            state.syncDirtyState();
+        } catch (_) {
+            state.syncDirtyState();
+        }
+    }
+
     function scheduleSidebarWeatherPreferencesSave() {
         syncClientPreferencesLocal(true);
         if (typeof notifyWeatherLabelUpdate === 'function') {
@@ -782,26 +849,25 @@ export function initPrivacySection({
         }, 700);
     }
 
+    function schedulePrivacyPreferencesSave() {
+        window.clearTimeout(privacyPreferencesSaveTimerId);
+        const seq = ++privacyPreferencesSaveSeq;
+        privacyPreferencesSaveTimerId = window.setTimeout(() => {
+            void persistPrivacyPreferences(seq);
+        }, 500);
+    }
+
     function getCommonPayload() {
         const bioEl = document.getElementById('bioInput');
         const weatherPrefs = getSidebarWeatherPreferencesFromControls();
+        const privacyPrefs = getPrivacyPreferencesFromControls();
         return {
             username: document.getElementById('username').value.trim(),
             display_name: document.getElementById('displayName').value.trim(),
             language: (document.getElementById('languageSelect') || {}).value || 'ru',
             bio: bioEl ? bioEl.value.trim().slice(0, 280) : '',
             status_text: String(statusTextInputEl?.value || '').trim().slice(0, 100),
-            is_public: !!document.getElementById('isPublicSwitch')?.checked,
-            auto_decline_requests: !!document.getElementById('autoDeclineSwitch')?.checked,
-            mute_dialog_requests: !!document.getElementById('muteDialogRequestsSwitch')?.checked,
-            hide_online_status: getPrivacySelection('last_seen_visibility') === 'nobody',
-            last_seen_visibility: getPrivacySelection('last_seen_visibility'),
-            avatar_visibility: (document.getElementById('avatarVisibilitySelect') || {}).value || 'all',
-            bio_visibility: getPrivacySelection('bio_visibility'),
-            forward_link_privacy: getPrivacySelection('forward_link_privacy'),
-            group_invite_privacy: (document.getElementById('groupInvitePrivacySelect') || {}).value || 'all',
-            voice_message_privacy: getPrivacySelection('voice_message_privacy'),
-            message_privacy: getPrivacySelection('message_privacy'),
+            ...privacyPrefs,
             send_shortcut: getSendShortcutSelection(),
             time_format: getTimeFormatSelection(),
             sidebar_weather_enabled: weatherPrefs.sidebarWeatherEnabled,
@@ -821,7 +887,6 @@ export function initPrivacySection({
         const languageEl = document.getElementById('languageSelect');
         const bioEl = document.getElementById('bioInput');
         const isPublicEl = document.getElementById('isPublicSwitch');
-        const hideOnlineEl = document.getElementById('hideOnlineStatusSwitch');
         const autoDeclineEl = document.getElementById('autoDeclineSwitch');
         const muteRequestsEl = document.getElementById('muteDialogRequestsSwitch');
         const avatarVisibilityEl = document.getElementById('avatarVisibilitySelect');
@@ -836,7 +901,7 @@ export function initPrivacySection({
             if (statusTextCounterEl) statusTextCounterEl.textContent = `${statusTextInputEl.value.length}/100`;
         }
         if (isPublicEl) isPublicEl.checked = !!payload.is_public;
-        if (hideOnlineEl) hideOnlineEl.checked = !!payload.hide_online_status;
+        if (hideOnlineStatusSwitchEl) hideOnlineStatusSwitchEl.checked = !!payload.hide_online_status;
         setPrivacySelection(
             'last_seen_visibility',
             payload.last_seen_visibility || (payload.hide_online_status ? 'nobody' : 'all'),
@@ -872,6 +937,7 @@ export function initPrivacySection({
         persistedClientPreferences = { ...rawClientPreferences };
         applySidebarWeatherPreferencesToControls(weatherClientPreferences);
         lastSavedSidebarWeatherPreferencesKey = getSidebarWeatherPreferencesKey();
+        lastSavedPrivacyPreferencesKey = getPrivacyPreferencesKey();
         const nextSendShortcut = setSendShortcutSelection(
             rawClientPreferences.sendShortcut || readStorageValue(SEND_SHORTCUT_STORAGE_KEY, SEND_SHORTCUT_ENTER)
         );
@@ -929,6 +995,8 @@ export function initPrivacySection({
             }
             sidebarWeatherPreferencesSaveSeq += 1;
             window.clearTimeout(sidebarWeatherPreferencesSaveTimerId);
+            privacyPreferencesSaveSeq += 1;
+            window.clearTimeout(privacyPreferencesSaveTimerId);
             const payload = await api.saveSettings(requestPayload);
             if (!payload.success) {
                 showAlert(`${tr('\u041E\u0448\u0438\u0431\u043A\u0430:')} ${payload.error || ''}`.trim(), 'danger');
@@ -936,6 +1004,7 @@ export function initPrivacySection({
             }
             persistedClientPreferences = { ...(requestPayload.client_preferences || {}) };
             lastSavedSidebarWeatherPreferencesKey = getSidebarWeatherPreferencesKey();
+            lastSavedPrivacyPreferencesKey = getPrivacyPreferencesKey();
             const nextBaseline = getCommonPayload();
             state.setBaseline(nextBaseline);
             persistMuteDialogRequestsPreference(Boolean(nextBaseline.mute_dialog_requests));
@@ -1035,7 +1104,7 @@ export function initPrivacySection({
             syncLanguageOptions();
         });
     }
-    languageOptionEls.forEach((inputEl) => {
+        languageOptionEls.forEach((inputEl) => {
         inputEl.addEventListener('change', () => {
             if (!inputEl.checked || !languageSelectEl) return;
             languageSelectEl.value = normalizeLanguage(inputEl.value);
@@ -1045,6 +1114,31 @@ export function initPrivacySection({
     });
     languageSelectEl?.addEventListener('change', () => {
         scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
+    });
+
+    hideOnlineStatusSwitchEl?.addEventListener('change', () => {
+        setPrivacySelection('last_seen_visibility', hideOnlineStatusSwitchEl.checked ? 'nobody' : 'all', {
+            emit: true,
+        });
+        syncPrivacyOverview();
+    });
+
+    [
+        document.getElementById('isPublicSwitch'),
+        hideOnlineStatusSwitchEl,
+        document.getElementById('autoDeclineSwitch'),
+        document.getElementById('muteDialogRequestsSwitch'),
+        document.getElementById('lastSeenVisibilitySelect'),
+        document.getElementById('avatarVisibilitySelect'),
+        document.getElementById('bioVisibilitySelect'),
+        document.getElementById('forwardLinkPrivacySelect'),
+        document.getElementById('groupInvitePrivacySelect'),
+        document.getElementById('voiceMessagePrivacySelect'),
+        document.getElementById('messagePrivacySelect'),
+    ].forEach((field) => {
+        if (!field) return;
+        field.addEventListener('input', schedulePrivacyPreferencesSave);
+        field.addEventListener('change', schedulePrivacyPreferencesSave);
     });
 
     Array.from(
