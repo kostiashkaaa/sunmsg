@@ -1,6 +1,7 @@
 import { initAvatarEditor } from './avatar-editor.js';
 import { createAvatarUploadController } from './avatar-upload.js';
 import { createProfilePreviewController } from './profile-preview.js';
+import { initAvatarLightbox } from './avatar-lightbox.js';
 
 export function initProfileSection({
     api,
@@ -75,6 +76,9 @@ export function initProfileSection({
         setAvatarUploadStatus: upload.setAvatarUploadStatus,
         uploadAvatarBlob: upload.uploadAvatarBlob,
     });
+
+    // Клик по фото профиля открывает полноэкранный предпросмотр (как в Telegram).
+    initAvatarLightbox([avatarPreviewEl, settingsNavAvatarPreviewEl]);
 
     return {
         setAvatarPreviewImage: preview.setAvatarPreviewImage,
