@@ -36,43 +36,42 @@ def handle_favorite_message_event(  # noqa: PLR0913 - dependency-injected socket
         return
 
     conn = get_db_connection_func()
-    partner, block_state = chat_partner_state_func(conn, uid, chat_id)
-    if not partner:
-        conn.close()
-        return
-    if block_state and block_state['is_blocked']:
-        conn.close()
-        emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
-        emit_blocked_error_func('Favorites are unavailable because the user is blocked.', block_state)
-        return
+    try:
+        partner, block_state = chat_partner_state_func(conn, uid, chat_id)
+        if not partner:
+            return
+        if block_state and block_state['is_blocked']:
+            emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
+            emit_blocked_error_func('Favorites are unavailable because the user is blocked.', block_state)
+            return
 
-    msg = conn.execute(
-        '''
-        SELECT m.message, m.created_at, u.public_key AS sender_pub
-        FROM messages m
-        JOIN users u ON m.sender_id = u.id
-        WHERE m.id = ? AND m.chat_id = ?
-        ''',
-        (message_id, chat_id),
-    ).fetchone()
-    if not msg:
-        conn.close()
-        return
+        msg = conn.execute(
+            '''
+            SELECT m.message, m.created_at, u.public_key AS sender_pub
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.id = ? AND m.chat_id = ?
+            ''',
+            (message_id, chat_id),
+        ).fetchone()
+        if not msg:
+            return
 
-    conn.execute(
-        '''
-        INSERT INTO favorite_messages (user_id, chat_id, message_id, message_content, sender_pub)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, message_id) DO UPDATE SET
-            chat_id = excluded.chat_id,
-            message_content = excluded.message_content,
-            sender_pub = excluded.sender_pub,
-            favorited_at = CURRENT_TIMESTAMP
-        ''',
-        (uid, chat_id, message_id, msg['message'], msg['sender_pub']),
-    )
-    conn.commit()
-    conn.close()
+        conn.execute(
+            '''
+            INSERT INTO favorite_messages (user_id, chat_id, message_id, message_content, sender_pub)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, message_id) DO UPDATE SET
+                chat_id = excluded.chat_id,
+                message_content = excluded.message_content,
+                sender_pub = excluded.sender_pub,
+                favorited_at = CURRENT_TIMESTAMP
+            ''',
+            (uid, chat_id, message_id, msg['message'], msg['sender_pub']),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     payload = {
         'chat_id': chat_id,
@@ -123,25 +122,25 @@ def handle_unfavorite_message_event(  # noqa: PLR0913 - dependency-injected sock
         return
 
     conn = get_db_connection_func()
-    partner, block_state = chat_partner_state_func(conn, uid, chat_id)
-    if not partner:
-        conn.close()
-        return
-    if block_state and block_state['is_blocked']:
-        conn.close()
-        emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
-        emit_blocked_error_func('Favorites are unavailable because the user is blocked.', block_state)
-        return
+    try:
+        partner, block_state = chat_partner_state_func(conn, uid, chat_id)
+        if not partner:
+            return
+        if block_state and block_state['is_blocked']:
+            emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
+            emit_blocked_error_func('Favorites are unavailable because the user is blocked.', block_state)
+            return
 
-    conn.execute(
-        '''
-        DELETE FROM favorite_messages
-        WHERE user_id = ? AND chat_id = ? AND message_id = ?
-        ''',
-        (uid, chat_id, message_id),
-    )
-    conn.commit()
-    conn.close()
+        conn.execute(
+            '''
+            DELETE FROM favorite_messages
+            WHERE user_id = ? AND chat_id = ? AND message_id = ?
+            ''',
+            (uid, chat_id, message_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     if sender_pub:
         emit_func('message_unfavorited', {'chat_id': chat_id, 'message_id': message_id}, room=sender_pub)
