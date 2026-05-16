@@ -57,7 +57,13 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         const topBelow = alignRect.bottom + triggerGap;
         const opensAbove = topAbove >= minTop || topBelow > maxTop;
         const left = Math.min(Math.max(alignRect.right - menuWidth, minLeft), maxLeft);
-        const top = Math.min(Math.max(opensAbove ? topAbove : topBelow, minTop), maxTop);
+        const preferredTop = opensAbove ? topAbove : topBelow;
+        const anchorToComposerDuringKeyboard = opensAbove
+            && document.documentElement.classList.contains('mobile-keyboard-active')
+            && Boolean(document.activeElement?.closest?.('#messageForm, #composerRow'));
+        const top = anchorToComposerDuringKeyboard
+            ? Math.max(preferredTop, minTop)
+            : Math.min(Math.max(preferredTop, minTop), maxTop);
 
         attachMenu.style.setProperty('--attach-menu-left', `${left}px`);
         attachMenu.style.setProperty('--attach-menu-top', `${top}px`);
