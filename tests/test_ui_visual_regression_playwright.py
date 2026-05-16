@@ -265,6 +265,15 @@ def _wait_settings_ready(page: Page) -> None:
 
 
 def _stabilize_settings_visual_state(page: Page) -> None:
+    page.wait_for_function(
+        """() => {
+            const content = document.querySelector('.settings-content');
+            const transitioning = content?.classList.contains('is-transitioning') === true;
+            const movingSection = document.querySelector('.settings-section.section-entering, .settings-section.section-leaving');
+            return !transitioning && !movingSection;
+        }""",
+        timeout=90_000,
+    )
     page.evaluate(
         """() => {
             const status = document.getElementById('settingsNavProfileStatus');
@@ -275,6 +284,7 @@ def _stabilize_settings_visual_state(page: Page) -> None:
                 const targets = [
                     document.getElementById('settingsOverlayFrame'),
                     document.querySelector('.settings-content'),
+                    document.querySelector('.settings-panel-body'),
                     document.scrollingElement,
                 ];
                 targets.forEach((target) => {
@@ -300,10 +310,12 @@ def _stabilize_settings_visual_state(page: Page) -> None:
         """() => {
             const frame = document.getElementById('settingsOverlayFrame');
             const content = document.querySelector('.settings-content');
+            const panelBody = document.querySelector('.settings-panel-body');
             const pageScroll = Math.abs(window.scrollY || 0) < 1;
             const frameAtTop = !frame || (frame.scrollTop === 0 && frame.scrollLeft === 0);
             const contentAtTop = !content || (content.scrollTop === 0 && content.scrollLeft === 0);
-            return pageScroll && frameAtTop && contentAtTop;
+            const panelBodyAtTop = !panelBody || (panelBody.scrollTop === 0 && panelBody.scrollLeft === 0);
+            return pageScroll && frameAtTop && contentAtTop && panelBodyAtTop;
         }""",
     )
 
