@@ -3551,10 +3551,6 @@ export const initChatPage = async () => {
         },
     });
 
-    socket.on('chat_auto_delete_updated', (payload) => {
-        disappearingMessagesController?.onChatAutoDeleteUpdated(payload);
-    });
-
     socket.on('messages_expired', (payload) => {
         const expiredIds = Array.isArray(payload?.message_ids) ? payload.message_ids : [];
         if (!expiredIds.length || !chatMessages) return;

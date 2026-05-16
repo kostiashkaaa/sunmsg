@@ -386,7 +386,7 @@ def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded
         _clear_login_challenge_state()
         _clear_pending_totp()
         _clear_pending_passkey_login()
-        logger.warning('login_challenge invalid key material for username=%s', username)
+        logger.warning('login_challenge invalid key material')
         return jsonify({'success': False, 'error': 'Неверные данные для входа.'}), 401
     except Exception:
         _clear_login_challenge_state()

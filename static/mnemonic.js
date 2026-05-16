@@ -166,7 +166,7 @@
             );
             return new TextDecoder().decode(decrypted);
         } catch (e) {
-            console.error("Vault decryption failed", e);
+            console.error("Vault decryption failed:", e?.name || 'unknown');
             if (e.message.includes("\u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u0430\u044F \u0441\u0443\u043C\u043C\u0430")) throw e;
             if (e.message.includes("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043C\u0438\u043D\u0438\u043C\u0443\u043C 12 \u0441\u043B\u043E\u0432")) throw e;
             if (e.message.includes("\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0441\u043B\u043E\u0432")) throw e;

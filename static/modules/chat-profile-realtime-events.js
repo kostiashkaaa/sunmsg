@@ -1,4 +1,4 @@
-import { applyFallbackAvatarTint, buildAvatarInitials } from './utils.js';
+import { applyFallbackAvatarTint, buildAvatarInitials, escapeHtml } from './utils.js';
 
 function applyRealtimeProfileEnterAnimation(element) {
     if (!element || !element.classList) return;
@@ -28,8 +28,8 @@ function renderAvatarContent(element, {
     if (avatarUrl) {
         const cleanUrl = String(avatarUrl).trim();
         const sep = cleanUrl.includes('?') ? '&' : '?';
-        const freshUrl = `${cleanUrl}${sep}t=${Date.now()}`;
-        const alt = includeAlt ? ` alt="${label}"` : '';
+        const freshUrl = escapeHtml(`${cleanUrl}${sep}t=${Date.now()}`);
+        const alt = includeAlt ? ` alt="${escapeHtml(label)}"` : '';
         element.removeAttribute('data-avatar-tint');
         element.innerHTML = `<img src="${freshUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"${alt}>`;
         return;
