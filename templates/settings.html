@@ -135,7 +135,7 @@
                 <div class="settings-nav-profile-row">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username|e }}</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username|replace('@', '')|e }}</div>
                         <div class="settings-nav-profile-row-label">Юзернейм</div>
                     </div>
                 </div>
@@ -251,7 +251,7 @@
                     </div>
                     <div class="settings-avatar-meta">
                         <div class="settings-avatar-name" id="previewName">{{ current_display_name|e }}</div>
-                        <div class="settings-avatar-username">@{{ current_username|e }}</div>
+                        <div class="settings-avatar-username">@{{ current_username|replace('@', '')|e }}</div>
                         <div class="settings-avatar-actions">
                             <input type="file" id="avatarFileInput" accept="image/*" hidden>
                             <p id="avatarUploadStatus" class="settings-avatar-upload-status settings-hidden"></p>
