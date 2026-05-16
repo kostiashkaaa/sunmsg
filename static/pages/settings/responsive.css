@@ -184,6 +184,9 @@
             .settings-row input[type="range"] {
                 width: 100%;
             }
+            #sendShortcutPreferenceGroup {
+                display: none;
+            }
             .settings-save-row .btn-settings:not(.settings-icon-action),
             .copy-row .btn-settings:not(.settings-icon-action),
             .settings-danger-panel .btn-settings:not(.settings-icon-action) {
