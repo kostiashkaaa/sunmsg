@@ -137,11 +137,12 @@ export function registerMessageStatusSocketHandlers({
             failPendingMessage?.(clientId);
         }
 
-        const messageText = normalizeErrorText(data).toLowerCase();
+        const messageText = normalizeErrorText(data);
+        const normalizedMessageText = messageText.toLowerCase();
         if (
-            messageText === 'message not found.'
-            || messageText === 'invalid reaction payload.'
-            || messageText === 'failed to update reaction.'
+            normalizedMessageText === 'message not found.'
+            || normalizedMessageText === 'invalid reaction payload.'
+            || normalizedMessageText === 'failed to update reaction.'
         ) {
             return;
         }

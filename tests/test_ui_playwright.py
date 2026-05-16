@@ -304,6 +304,29 @@ def _open_group_profile(page: 'Page') -> None:
     page.locator('#profileGroupSection').wait_for(state='visible', timeout=10_000)
 
 
+def _confirm_action_dialog(page: 'Page') -> None:
+    ok_button = page.locator('#confirmActionModal [data-confirm-ok]')
+    ok_button.wait_for(state='visible', timeout=10_000)
+    ok_button.click()
+
+
+def _wait_chat_realtime_ready(page: 'Page', public_key: str, *, timeout_seconds: float = 20.0) -> None:
+    from app.services.presence import count_connected
+
+    page.wait_for_function(
+        """() => performance.getEntriesByType('resource')
+            .some((entry) => String(entry.name || '').includes('/static/modules/chat-system-events.js'))""",
+        timeout=int(timeout_seconds * 1000),
+    )
+    deadline = time.monotonic() + timeout_seconds
+    normalized_public_key = str(public_key or '').strip()
+    while time.monotonic() < deadline:
+        if count_connected(normalized_public_key) > 0:
+            return
+        time.sleep(0.05)
+    pytest.fail(f'Socket.IO connection was not registered for public key {normalized_public_key!r}')
+
+
 # ---------------------------------------------------------------------------
 # Тест 1: Страница / (redirect) или /login доступна
 # ---------------------------------------------------------------------------
@@ -535,6 +558,7 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
         member_page.goto('/chat', wait_until='domcontentloaded', timeout=30_000)
         owner_page.locator('#contactsList').wait_for(state='visible', timeout=20_000)
         member_page.locator('#contactsList').wait_for(state='visible', timeout=20_000)
+        _wait_chat_realtime_ready(member_page, str(users['member']['public_key']))
 
         nav_before = member_page.evaluate('performance.getEntriesByType("navigation").length')
 
@@ -571,6 +595,7 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
         remove_btn = owner_page.locator(f'[data-group-remove-target="{int(users["spare"]["id"])}"]').first
         remove_btn.wait_for(state='visible', timeout=10_000)
         remove_btn.click()
+        _confirm_action_dialog(owner_page)
         owner_page.locator(f'[data-group-remove-target="{int(users["spare"]["id"])}"]').first.wait_for(
             state='detached',
             timeout=15_000,
@@ -581,6 +606,7 @@ def test_group_moderation_realtime_smoke(browser_instance: 'Browser', _flask_ser
         ).first
         sanction_btn.wait_for(state='visible', timeout=10_000)
         sanction_btn.click()
+        _confirm_action_dialog(owner_page)
 
         _open_contact_by_name(member_page, group_name)
         _wait_chat_title_contains(member_page, group_name)

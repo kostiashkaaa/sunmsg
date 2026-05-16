@@ -826,14 +826,13 @@ def test_socket_helpers_cover_payload_parsing_csrf_and_rate_limit(monkeypatch, t
 
     emitted.clear()
     socket_events._emit_delivered_events(delivered_rows)
-    assert emitted == [
-        {
-            'name': 'messages_delivered',
-            'payload': {'chat_id': 'chat-a', 'message_ids': [1, 2]},
-            'args': (),
-            'kwargs': {'room': 'pk-1'},
-        }
-    ]
+    assert len(emitted) == 1
+    assert emitted[0]['name'] == 'messages_delivered'
+    assert emitted[0]['payload']['chat_id'] == 'chat-a'
+    assert emitted[0]['payload']['message_ids'] == [1, 2]
+    assert emitted[0]['payload']['envelope']['event_type'] == 'messages_delivered'
+    assert emitted[0]['args'] == ()
+    assert emitted[0]['kwargs'] == {'room': 'pk-1'}
 
     assert socket_events._socket_rate_ok(99) is True
     with _connect(db_path) as conn:

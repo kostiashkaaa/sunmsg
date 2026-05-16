@@ -714,7 +714,9 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
     scheduler = scheduler_runtime.create_scheduler()
     assert {job.id for job in scheduler.get_jobs()} == {
         'cleanup_dialog_keys',
+        'cleanup_disappearing_messages',
         'cleanup_refresh_tokens',
+        'cleanup_soft_deleted_messages',
     }
 
     class FakeScheduler:

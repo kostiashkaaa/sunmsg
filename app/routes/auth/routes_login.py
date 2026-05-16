@@ -40,7 +40,6 @@ from app.routes.auth_utils import (
 )
 from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
-    SESSION_TOKEN_TTL_SECONDS,
     clear_refresh_cookie,
     issue_refresh_token,
     revoke_refresh_token,
@@ -174,12 +173,10 @@ def _login_success_response(user_id: int, *, remember: bool):
     payload = {'success': True}
     session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    # Always issue a token so the device appears in the sessions list.
-    # Non-persistent logins get a 24-hour token; persistent logins get 30 days.
-    ttl = None if remember else SESSION_TOKEN_TTL_SECONDS
-    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl)
-    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, raw, secure=secure)
+    if remember:
+        raw, _exp = issue_refresh_token(user_id, ttl_seconds=None)
+        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+        set_refresh_cookie(response, raw, secure=secure)
     return response
 
 
@@ -406,7 +403,7 @@ def login_totp():
     backup_code = str(data.get('backup_code') or '').strip()
 
     if not pending:
-        return jsonify({'success': False, 'error': 'Сначала подтвердите вход паролем.'}), 401
+        return jsonify({'success': False, 'error': 'Сначала подтвердите вход 24 словами.'}), 401
     if not totp_code and not backup_code:
         return jsonify({'success': False, 'error': 'Введите 6-значный код или резервный код.'}), 400
 

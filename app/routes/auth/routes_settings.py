@@ -62,7 +62,7 @@ def settings():
         flash('Пожалуйста, войдите в систему.', 'danger')
         return redirect(url_for('auth.index'))
 
-    return redirect(url_for('chat.chat_page'))
+    return redirect(url_for('chat.chat_index'))
 
 @auth_bp.route('/api/get_settings', methods=['GET'])
 @limiter.limit("60 per minute")
