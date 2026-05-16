@@ -421,5 +421,6 @@ export function initChatShellSettingsOverlay(options = {}) {
         openAnimatedDialog,
         closeAnimatedDialog,
         attachAnimatedDialog,
+        notifySettingsPrivateKeyStatus: () => {},
     };
 }

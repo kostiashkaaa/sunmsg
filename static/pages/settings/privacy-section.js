@@ -969,8 +969,9 @@ export function initPrivacySection({
         usernameEl?.dispatchEvent(new Event('input', { bubbles: true }));
         bioEl?.dispatchEvent(new Event('input', { bubbles: true }));
         persistMuteDialogRequestsPreference(!!payload.mute_dialog_requests);
-        if (languageEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
-            i18nApi.setLanguage(languageEl.value, { persist: true, apply: true });
+        const checkedLanguageEl = languageOptionEls.find((el) => el.checked);
+        if (checkedLanguageEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
+            i18nApi.setLanguage(checkedLanguageEl.value, { persist: true, apply: true });
         }
         applySettingsNavProfileStatus(payload);
         if (typeof notifyWeatherLabelUpdate === 'function') {
@@ -1269,7 +1270,6 @@ export function initPrivacySection({
             notifyLanguageUpdate(s.language, true);
         })
         .catch((err) => {
-            console.error('[settings] getSettings failed:', err);
             state.setLoaded(false);
             state.setBaseline(null);
             setServerSettingsControlsEnabled(false);
