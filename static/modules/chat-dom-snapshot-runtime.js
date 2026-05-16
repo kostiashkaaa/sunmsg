@@ -95,6 +95,7 @@ export function createChatDomSnapshotRuntime({
                 return;
             }
             activeMessages.scrollTop = targetTop;
+            registerMediaElementsForLazyHydration?.(activeMessages);
             requestFrame(() => {
                 const nextMessages = getChatMessages?.();
                 if (
@@ -105,6 +106,7 @@ export function createChatDomSnapshotRuntime({
                 ) {
                     nextMessages.scrollTop = targetTop;
                 }
+                registerMediaElementsForLazyHydration?.(getChatMessages?.());
                 setSuppressChatScrollHandling?.(false);
             });
         });
