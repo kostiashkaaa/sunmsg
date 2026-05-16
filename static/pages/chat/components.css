@@ -5094,8 +5094,7 @@
             min-height: 140px;
             max-height: 420px;
             aspect-ratio: var(--media-aspect-ratio, 1);
-            background:
-                linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 72%, transparent) 0%, color-mix(in srgb, var(--accent-soft) 26%, transparent) 100%);
+            background: var(--surface-2);
             overflow: hidden;
         }
 
@@ -5350,7 +5349,7 @@
         .message-album-grid {
             display: grid;
             grid-template-columns: repeat(var(--album-cols, 2), 1fr);
-            grid-template-rows: repeat(var(--album-rows, 1), var(--album-cell-height, 140px));
+            grid-auto-rows: var(--album-cell-height, 160px);
             gap: 2px;
             width: 100%;
             background: var(--surface-2);
@@ -5363,7 +5362,7 @@
             overflow: hidden;
             background: var(--surface-2);
             cursor: pointer;
-            min-height: 80px;
+            min-height: 100px;
         }
 
         .album-cell-img,
@@ -11722,6 +11721,20 @@
         width: min(88vw, 380px);
         min-width: 196px;
         max-width: min(88vw, 380px);
+    }
+
+    .message .bubble.bubble--album {
+        width: min(88vw, 380px);
+        min-width: 196px;
+        max-width: min(88vw, 380px);
+    }
+
+    .message-album-grid {
+        grid-auto-rows: var(--album-cell-height, min(44vw, 160px));
+    }
+
+    .album-cell {
+        min-height: 80px;
     }
 
     .reaction-pill {

@@ -141,11 +141,11 @@ function buildAlbumGridHtml(items) {
         ].join(' ');
 
         const mediaEl = isVideo
-            ? `<video class="album-cell-video file-msg-video-preview" data-src="${escapeAttr(src)}" preload="none" playsinline muted></video>
+            ? `<video class="album-cell-video" data-src="${escapeAttr(src)}" preload="none" playsinline muted></video>
                <div class="video-preview-gradient" aria-hidden="true"></div>
                <button class="video-preview-play" type="button" tabindex="-1" aria-hidden="true"><i class="bi bi-play-fill"></i></button>
                ${duration ? `<span class="video-duration video-preview-duration">${escapeAttr(duration)}</span>` : ''}`
-            : `<img class="album-cell-img file-msg-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="">`;
+            : `<img class="album-cell-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="">`;
 
         gridHtml += `
             <div class="album-cell file-msg-media-trigger" style="${style}" ${triggerAttrs}>
@@ -260,16 +260,36 @@ function processAlbumGroup(group) {
         bubble.insertAdjacentHTML('beforeend', gridHtml + captionHtml);
     }
 
-    // Wire load events via addEventListener (inline onload/onloadeddata violates CSP)
+    // Set cell height based on bubble width so cells are square-ish
+    requestAnimationFrame(() => {
+        const grid = bubble.querySelector('.message-album-grid');
+        if (!grid) return;
+        const bubbleWidth = bubble.getBoundingClientRect().width || bubble.offsetWidth;
+        if (bubbleWidth > 0) {
+            const cols = Number(grid.style.getPropertyValue('--album-cols') || 2) || 2;
+            const cellSize = Math.round((bubbleWidth - (cols - 1) * 2) / cols);
+            grid.style.setProperty('--album-cell-height', `${cellSize}px`);
+        }
+    });
+
+    // Wire load/error events for album cells (hydration wires them too, but cover the sync-complete case)
     bubble.querySelectorAll('.album-cell-img').forEach((img) => {
+        const cell = img.closest('.album-cell');
+        const markLoaded = () => { img.classList.add('is-loaded'); cell?.classList.add('is-loaded'); };
+        const markError = () => { cell?.classList.add('is-loaded'); };
         if (img.complete && img.naturalWidth > 0) {
-            img.classList.add('is-loaded');
+            markLoaded();
+        } else if (img.complete) {
+            markError();
         } else {
-            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+            img.addEventListener('load', markLoaded, { once: true });
+            img.addEventListener('error', markError, { once: true });
         }
     });
     bubble.querySelectorAll('.album-cell-video').forEach((vid) => {
-        vid.addEventListener('loadeddata', () => vid.classList.add('is-loaded'), { once: true });
+        const cell = vid.closest('.album-cell');
+        const markLoaded = () => { vid.classList.add('is-loaded'); cell?.classList.add('is-loaded'); };
+        vid.addEventListener('loadeddata', markLoaded, { once: true });
     });
 
     // Mark processed
