@@ -137,7 +137,7 @@ def visual_server():
 
     from werkzeug.serving import make_server
 
-    server = make_server('127.0.0.1', 0, app)
+    server = make_server('127.0.0.1', 0, app, threaded=True)
     server_port = int(server.socket.getsockname()[1])
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
