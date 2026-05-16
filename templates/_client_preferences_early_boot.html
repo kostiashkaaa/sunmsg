@@ -10,6 +10,8 @@
     const SIDEBAR_WIDTH_STORAGE_KEY = 'sidebarWidth';
     const SIDEBAR_WIDTH_MIN = 132;
     const SIDEBAR_WIDTH_MAX = 700;
+    const AUTO_DARK_START_HOUR = 20;
+    const AUTO_DARK_END_HOUR = 7;
     const LEGACY_DEFAULT_PRESET_BY_MODE = {
         light: 'light-classic',
         dark: 'dark-classic',
@@ -697,6 +699,11 @@
         return null;
     }
 
+    function resolveLocalTimeDarkMode() {
+        const hour = new Date().getHours();
+        return hour >= AUTO_DARK_START_HOUR || hour < AUTO_DARK_END_HOUR;
+    }
+
     // style.css defines theme variables on `body.dark-mode` / `:root`.
     // A rule that targets `body` directly overrides any value inherited
     // from <html>, so applying preset vars only to documentElement leaves
@@ -754,7 +761,7 @@
             ? storedDarkMode
             : (typeof boot.darkMode === 'boolean'
             ? boot.darkMode
-            : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : null));
+            : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : resolveLocalTimeDarkMode()));
         if (darkMode !== null) {
             root.classList.toggle('dark-mode', darkMode);
         }
@@ -805,6 +812,9 @@
                 const modeHint = resolveLegacyThemeModeHint();
                 if (modeHint === 'dark') root.classList.add('dark-mode');
                 if (modeHint === 'light') root.classList.remove('dark-mode');
+                if (modeHint !== 'dark' && modeHint !== 'light') {
+                    root.classList.toggle('dark-mode', resolveLocalTimeDarkMode());
+                }
             }
             const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
             applyLegacyInterfacePreset(root, themeKey);

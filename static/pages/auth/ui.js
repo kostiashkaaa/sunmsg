@@ -191,10 +191,18 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (saved === 'true') {
             document.documentElement.classList.add('dark-mode');
             document.body.classList.add('dark-mode');
-            const icon = document.getElementById('themeIcon');
-            if (icon) icon.className = 'bi bi-sun';
-        } else {
+        } else if (saved === 'false') {
             document.documentElement.classList.remove('dark-mode');
+            document.body.classList.remove('dark-mode');
+        } else {
+            document.body.classList.toggle(
+                'dark-mode',
+                document.documentElement.classList.contains('dark-mode'),
+            );
+        }
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            icon.className = document.body.classList.contains('dark-mode') ? 'bi bi-sun' : 'bi bi-moon-stars';
         }
         if (interfaceThemeApi) {
             interfaceThemeApi.applyCurrentTheme();
