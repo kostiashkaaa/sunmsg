@@ -216,6 +216,9 @@ export function initPrivacySection({
     let latestPresencePayload = null;
     let sidebarWeatherCitySuggestionsTimerId = 0;
     let sidebarWeatherCitySuggestionsRequestSeq = 0;
+    let sidebarWeatherPreferencesSaveTimerId = 0;
+    let sidebarWeatherPreferencesSaveSeq = 0;
+    let lastSavedSidebarWeatherPreferencesKey = '';
     const CLIENT_PREFERENCES_FIELD_IDS = new Set([
         'languageSelect',
         'lastSeenVisibilitySelect',
@@ -601,6 +604,31 @@ export function initPrivacySection({
         };
     }
 
+    function getSidebarWeatherPreferencesKey(weatherPrefs = getSidebarWeatherPreferencesFromControls()) {
+        return JSON.stringify({
+            sidebarWeatherEnabled: weatherPrefs.sidebarWeatherEnabled === true,
+            sidebarWeatherSource: normalizeSidebarWeatherSource(weatherPrefs.sidebarWeatherSource),
+            sidebarWeatherCity: normalizeSidebarWeatherCity(weatherPrefs.sidebarWeatherCity),
+            sidebarWeatherRotateSeconds: normalizeSidebarWeatherRotateSeconds(weatherPrefs.sidebarWeatherRotateSeconds),
+            sidebarWeatherMetrics: normalizeSidebarWeatherMetrics(weatherPrefs.sidebarWeatherMetrics, {
+                fallbackToDefault: false,
+            }),
+        });
+    }
+
+    function patchBaselineSidebarWeatherPreferences(weatherPrefs) {
+        const baseline = state.getBaseline();
+        if (!baseline || typeof baseline !== 'object') return;
+        state.setBaseline({
+            ...baseline,
+            sidebar_weather_enabled: weatherPrefs.sidebarWeatherEnabled,
+            sidebar_weather_source: weatherPrefs.sidebarWeatherSource,
+            sidebar_weather_city: weatherPrefs.sidebarWeatherCity,
+            sidebar_weather_rotate_seconds: weatherPrefs.sidebarWeatherRotateSeconds,
+            sidebar_weather_metrics: weatherPrefs.sidebarWeatherMetrics.join(','),
+        });
+    }
+
     function applySidebarWeatherPreferencesToControls(rawPreferences) {
         const source = normalizeSidebarWeatherSource(rawPreferences?.sidebarWeatherSource);
         const enabled = rawPreferences?.sidebarWeatherEnabled === true;
@@ -714,6 +742,46 @@ export function initPrivacySection({
         };
     }
 
+    async function persistSidebarWeatherPreferences(seq) {
+        if (!state.isLoaded() || !state.getBaseline()) return;
+        const weatherPrefs = getSidebarWeatherPreferencesFromControls();
+        const weatherPrefsKey = getSidebarWeatherPreferencesKey(weatherPrefs);
+        if (weatherPrefsKey === lastSavedSidebarWeatherPreferencesKey) return;
+        const clientPreferences = collectClientPreferencesForSave();
+
+        try {
+            const payload = await api.saveSettings({ client_preferences: clientPreferences });
+            if (seq !== sidebarWeatherPreferencesSaveSeq || !payload.success) return;
+            persistedClientPreferences = { ...clientPreferences };
+            lastSavedSidebarWeatherPreferencesKey = weatherPrefsKey;
+            patchBaselineSidebarWeatherPreferences(weatherPrefs);
+            if (typeof notifyWeatherLabelUpdate === 'function') {
+                notifyWeatherLabelUpdate({
+                    clientPreferences,
+                    persisted: true,
+                });
+            }
+            state.syncDirtyState();
+        } catch (_) {
+            state.syncDirtyState();
+        }
+    }
+
+    function scheduleSidebarWeatherPreferencesSave() {
+        syncClientPreferencesLocal(true);
+        if (typeof notifyWeatherLabelUpdate === 'function') {
+            notifyWeatherLabelUpdate({
+                clientPreferences: collectClientPreferencesForSave(),
+                persisted: false,
+            });
+        }
+        window.clearTimeout(sidebarWeatherPreferencesSaveTimerId);
+        const seq = ++sidebarWeatherPreferencesSaveSeq;
+        sidebarWeatherPreferencesSaveTimerId = window.setTimeout(() => {
+            void persistSidebarWeatherPreferences(seq);
+        }, 700);
+    }
+
     function getCommonPayload() {
         const bioEl = document.getElementById('bioInput');
         const weatherPrefs = getSidebarWeatherPreferencesFromControls();
@@ -803,6 +871,7 @@ export function initPrivacySection({
             : rawClientPreferences;
         persistedClientPreferences = { ...rawClientPreferences };
         applySidebarWeatherPreferencesToControls(weatherClientPreferences);
+        lastSavedSidebarWeatherPreferencesKey = getSidebarWeatherPreferencesKey();
         const nextSendShortcut = setSendShortcutSelection(
             rawClientPreferences.sendShortcut || readStorageValue(SEND_SHORTCUT_STORAGE_KEY, SEND_SHORTCUT_ENTER)
         );
@@ -858,12 +927,15 @@ export function initPrivacySection({
             if (!Object.prototype.hasOwnProperty.call(requestPayload, 'client_preferences')) {
                 requestPayload.client_preferences = collectClientPreferencesForSave();
             }
+            sidebarWeatherPreferencesSaveSeq += 1;
+            window.clearTimeout(sidebarWeatherPreferencesSaveTimerId);
             const payload = await api.saveSettings(requestPayload);
             if (!payload.success) {
                 showAlert(`${tr('\u041E\u0448\u0438\u0431\u043A\u0430:')} ${payload.error || ''}`.trim(), 'danger');
                 return;
             }
             persistedClientPreferences = { ...(requestPayload.client_preferences || {}) };
+            lastSavedSidebarWeatherPreferencesKey = getSidebarWeatherPreferencesKey();
             const nextBaseline = getCommonPayload();
             state.setBaseline(nextBaseline);
             persistMuteDialogRequestsPreference(Boolean(nextBaseline.mute_dialog_requests));
@@ -1020,6 +1092,18 @@ export function initPrivacySection({
 
     sidebarWeatherCityInputEl?.addEventListener('input', () => {
         scheduleSidebarWeatherCitySuggestionsUpdate();
+    });
+
+    [
+        sidebarWeatherEnabledSwitchEl,
+        sidebarWeatherSourceSelectEl,
+        sidebarWeatherCityInputEl,
+        sidebarWeatherRotateSelectEl,
+        ...sidebarWeatherMetricInputEls,
+    ].forEach((field) => {
+        if (!field) return;
+        field.addEventListener('input', scheduleSidebarWeatherPreferencesSave);
+        field.addEventListener('change', scheduleSidebarWeatherPreferencesSave);
     });
 
     sidebarWeatherCityInputEl?.addEventListener('focus', () => {
