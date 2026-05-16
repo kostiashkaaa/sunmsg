@@ -268,6 +268,10 @@ export function initSettingsPage() {
         showAlert,
         navigateOut,
         uiLocale,
+        doLogout: async () => {
+            try { await api.logout(); } catch (_) {}
+            navigateOut('/');
+        },
     });
 
     initTotpSection({ api, tr, showAlert, uiLocale });

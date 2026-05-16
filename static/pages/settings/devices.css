@@ -1,56 +1,190 @@
 /* Split from static/pages/settings.css */
 
+/* ── Devices list ──────────────────────────────────────────────────── */
+
 .session-device-list {
-            display: flex;
-            flex-direction: column;
-        }
-        .session-device-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--rule-soft);
-        }
-        .session-device-item:last-child {
-            border-bottom: none;
-        }
-        .session-device-main {
-            min-width: 0;
-        }
-        .session-device-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .session-device-meta {
-            margin-top: 3px;
-            font-size: 12px;
-            color: var(--sub-text);
-            line-height: 1.5;
-        }
-        .session-device-pill {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: var(--surface-2);
-            border: 1px solid var(--rule);
-            font-family: var(--font-mono);
-            font-size: 9px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--ink-mute);
-        }
-        .session-device-empty {
-            padding: 18px 20px;
-            font-size: 13px;
-            color: var(--sub-text);
-        }
+    display: flex;
+    flex-direction: column;
+}
+
+.session-devices-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sub-text);
+    padding: 12px 0 6px;
+    opacity: 0.7;
+}
+
+.session-device-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    transition: background var(--dur-quick, 100ms) ease;
+}
+
+.session-device-item:last-child {
+    border-bottom: none;
+    padding-bottom: 4px;
+}
+
+.session-device-item--current {
+    /* subtle highlight for current device row */
+}
+
+/* Avatar circle with device icon */
+.session-device-avatar {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--rule));
+    display: grid;
+    place-items: center;
+}
+
+.session-device-item--current .session-device-avatar {
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.session-device-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--accent);
+    stroke-width: 1.6;
+}
+
+/* Main text block */
+.session-device-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.session-device-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    line-height: 1.3;
+}
+
+.session-device-pills {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.session-device-meta {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--sub-text);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.session-device-ip {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+/* Pills */
+.session-device-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    font-family: var(--font-mono, monospace);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    white-space: nowrap;
+}
+
+.session-device-pill--current {
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--accent);
+}
+
+/* Action column */
+.session-device-action {
+    flex-shrink: 0;
+}
+
+.session-revoke-btn {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    background: var(--surface-2);
+    color: var(--sub-text);
+    cursor: pointer;
+    transition: background var(--dur-quick, 100ms) ease,
+                border-color var(--dur-quick, 100ms) ease,
+                color var(--dur-quick, 100ms) ease;
+    white-space: nowrap;
+}
+
+.session-revoke-btn:hover {
+    background: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+    border-color: color-mix(in srgb, #ef4444 35%, transparent);
+    color: #ef4444;
+}
+
+.session-revoke-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.session-revoke-btn--current {
+    color: var(--sub-text);
+}
+
+/* Empty state */
+.session-device-empty {
+    padding: 20px 0 8px;
+    font-size: 13px;
+    color: var(--sub-text);
+    text-align: center;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .session-device-avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .session-device-icon {
+        width: 19px;
+        height: 19px;
+    }
+
+    .session-device-name {
+        font-size: 13px;
+    }
+
+    .session-revoke-btn {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+}
 
 .totp-setup-panel {
     border: 1px solid color-mix(in srgb, var(--rule) 50%, transparent);
