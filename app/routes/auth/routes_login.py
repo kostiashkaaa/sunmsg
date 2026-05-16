@@ -277,8 +277,10 @@ def get_challenge():
     _clear_pending_passkey_login()
 
     conn = get_db_connection()
-    user = conn.execute('SELECT login_vault FROM users WHERE username = ?', (username,)).fetchone()
-    conn.close()
+    try:
+        user = conn.execute('SELECT login_vault FROM users WHERE username = ?', (username,)).fetchone()
+    finally:
+        conn.close()
 
     challenge = secrets.token_hex(32)
     session['challenge'] = challenge
@@ -327,11 +329,13 @@ def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded
         return jsonify({'success': False, 'error': 'Authentication request expired. Get a new challenge.'}), 400
 
     conn = get_db_connection()
-    user = conn.execute(
-        'SELECT id, public_key, totp_secret, language FROM users WHERE username = ?',
-        (username,),
-    ).fetchone()
-    conn.close()
+    try:
+        user = conn.execute(
+            'SELECT id, public_key, totp_secret, language FROM users WHERE username = ?',
+            (username,),
+        ).fetchone()
+    finally:
+        conn.close()
 
     if not user:
         _clear_login_challenge_state()
@@ -406,6 +410,8 @@ def login_totp():
         return jsonify({'success': False, 'error': 'Сначала подтвердите вход 24 словами.'}), 401
     if not totp_code and not backup_code:
         return jsonify({'success': False, 'error': 'Введите 6-значный код или резервный код.'}), 400
+    if totp_code and backup_code:
+        return jsonify({'success': False, 'error': 'Укажите только один код — обычный или резервный.'}), 400
 
     conn = get_db_connection()
     try:
