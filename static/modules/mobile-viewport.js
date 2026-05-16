@@ -15,7 +15,6 @@ export function createVisualViewportCssSyncer({
     leftOffsetVar = '--vv-left-offset',
     keyboardInsetVar = '--vv-keyboard-inset',
     composerBottomInsetVar = '--mobile-composer-bottom-inset',
-    layoutKeyboardInsetVar = '--mobile-keyboard-layout-inset',
 } = {}) {
     let stableMobileViewportHeight = 0;
     let stableMobileViewportOrientation = '';
@@ -36,7 +35,6 @@ export function createVisualViewportCssSyncer({
             root.style.setProperty(leftOffsetVar, '0px');
             root.style.setProperty(keyboardInsetVar, '0px');
             root.style.setProperty(composerBottomInsetVar, '0px');
-            root.style.setProperty(layoutKeyboardInsetVar, '0px');
             root.classList.remove('mobile-keyboard-active');
             return;
         }
@@ -98,7 +96,6 @@ export function createVisualViewportCssSyncer({
         root.style.setProperty(keyboardInsetVar, `${keyboardInset}px`);
         // composerBottomInset = keyboard height (already includes safe-area via env() in CSS)
         root.style.setProperty(composerBottomInsetVar, `${keyboardInset}px`);
-        root.style.setProperty(layoutKeyboardInsetVar, '0px');
         root.classList.toggle('mobile-keyboard-active', hasKeyboardViewport);
     };
 }

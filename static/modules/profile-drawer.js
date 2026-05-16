@@ -233,6 +233,9 @@ export function initProfileDrawer({
 
     function open() {
         if (!drawer) return;
+        document.getElementById('messageContextMenu')?.dispatchEvent(
+            new CustomEvent('sun:context-menu-hide', { detail: { immediate: true } })
+        );
         if (
             (phase === 'open' || phase === 'opening')
             && drawer.classList.contains('active')

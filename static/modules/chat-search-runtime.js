@@ -62,6 +62,23 @@ export function createChatSearchRuntime({
         chatsSearchHint.style.display = visible ? '' : 'none';
     }
 
+    function renderContactAvatarFromItem(item, className, fallbackName) {
+        const sourceAvatarEl = item?.querySelector?.('.contact-avatar');
+        const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
+        const avatarTintAttr = avatarTint
+            ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
+            : '';
+        const imgEl = sourceAvatarEl?.querySelector?.('img.contact-avatar__img');
+        const imgSrc = String(imgEl?.getAttribute('src') || '').trim();
+        if (imgSrc) {
+            const imgAlt = String(imgEl?.getAttribute('alt') || fallbackName || 'Avatar').trim();
+            return `<div class="${className}"${avatarTintAttr}><img class="contact-avatar__img" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(imgAlt)}" loading="lazy" decoding="async"></div>`;
+        }
+        const initials = String(sourceAvatarEl?.textContent || '').replace(/\s+/g, ' ').trim()
+            || String(fallbackName || '?').slice(0, 2).toUpperCase();
+        return `<div class="${className}"${avatarTintAttr}>${escapeHtml(initials)}</div>`;
+    }
+
     // --- \u041d\u0435\u0434\u0430\u0432\u043d\u0438\u0435 \u043f\u043e\u0438\u0441\u043a\u0438 ---
     const recentSection = documentRef.getElementById('paletteRecentSearchSection');
     const recentResultsEl = documentRef.getElementById('paletteRecentSearchResults');
@@ -154,18 +171,14 @@ export function createChatSearchRuntime({
 
         paletteFrequentSection.style.display = '';
         paletteFrequentChats.innerHTML = frequentItems.map((item) => {
-            const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarHtml = sourceAvatarEl?.innerHTML || '?';
-            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
-            const avatarTintAttr = avatarTint
-                ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
-                : '';
             const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
-            const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442'));
+            const rawName = String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442');
+            const name = escapeHtml(rawName);
             const isActive = activeChatId && chatId === escapeHtml(activeChatId) ? ' is-active-chat' : '';
+            const avatarHtml = renderContactAvatarFromItem(item, 'contact-avatar search-frequent-chat-btn-avatar', rawName);
             return `
                 <button type="button" class="search-frequent-chat-btn${isActive}" data-chat-id="${chatId}">
-                    <div class="contact-avatar search-frequent-chat-btn-avatar"${avatarTintAttr}>${avatarHtml}</div>
+                    ${avatarHtml}
                     <span class="search-frequent-chat-btn-name">${name}</span>
                 </button>
             `;
@@ -218,19 +231,15 @@ export function createChatSearchRuntime({
         setChatsSearchHintVisible(false);
         paletteLocalSection.style.display = '';
         paletteLocalResults.innerHTML = matches.map((item) => {
-            const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarHtml = sourceAvatarEl?.innerHTML || '?';
-            const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
-            const avatarTintAttr = avatarTint
-                ? ` data-avatar-tint="${escapeHtml(avatarTint)}"`
-                : '';
-            const name = escapeHtml(String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442'));
+            const rawName = String(item.querySelector('.contact-name')?.textContent || '\u0427\u0430\u0442');
+            const name = escapeHtml(rawName);
             const sub = escapeHtml(String(item.querySelector('.contact-last-msg')?.textContent || ''));
             const chatId = escapeHtml(String(item.getAttribute('data-chat-id') || ''));
+            const avatarHtml = renderContactAvatarFromItem(item, 'contact-avatar command-palette-result-avatar', rawName);
             return `
                 <div class="command-palette-result">
                     <div class="command-palette-result-meta">
-                        <div class="contact-avatar command-palette-result-avatar"${avatarTintAttr}>${avatarHtml}</div>
+                        ${avatarHtml}
                         <div class="command-palette-result-copy">
                             <strong>${name}</strong>
                             <span>${sub}</span>

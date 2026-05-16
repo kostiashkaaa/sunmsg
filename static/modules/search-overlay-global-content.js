@@ -119,6 +119,31 @@ function pickInitials(value) {
         .toUpperCase();
 }
 
+function readContactAvatarSnapshot(item, chatName) {
+    const avatarEl = item?.querySelector?.('.contact-avatar');
+    const imgEl = avatarEl?.querySelector?.('img.contact-avatar__img');
+    const avatarImgSrc = String(imgEl?.getAttribute('src') || '').trim();
+    const avatarAlt = String(imgEl?.getAttribute('alt') || chatName || 'Avatar').trim();
+    const avatarTint = String(avatarEl?.getAttribute('data-avatar-tint') || '').trim();
+    const initials = String(avatarEl?.textContent || '').replace(/\s+/g, ' ').trim() || pickInitials(chatName);
+    return {
+        avatarImgSrc,
+        avatarAlt,
+        avatarTint,
+        initials,
+    };
+}
+
+function renderChatAvatarHtml(snapshot, chatName) {
+    const tintAttr = snapshot?.avatarTint
+        ? ` data-avatar-tint="${escapeHtml(snapshot.avatarTint)}"`
+        : '';
+    if (snapshot?.avatarImgSrc) {
+        return `<div class="contact-avatar search-global-row-avatar"${tintAttr}><img class="contact-avatar__img" src="${escapeHtml(snapshot.avatarImgSrc)}" alt="${escapeHtml(snapshot.avatarAlt || chatName || 'Avatar')}" loading="lazy" decoding="async"></div>`;
+    }
+    return `<div class="contact-avatar search-global-row-avatar"${tintAttr}>${escapeHtml(snapshot?.initials || pickInitials(chatName))}</div>`;
+}
+
 function createEmptyCollections() {
     return {
         media: [],
@@ -169,11 +194,9 @@ export function initSearchOverlayGlobalContent({
             const chatId = String(item.getAttribute('data-chat-id') || '').trim();
             if (!chatId) return;
             const chatName = String(item.querySelector('.contact-name')?.textContent || '').trim();
-            const avatarEl = item.querySelector('.contact-avatar');
-            const avatarHtml = avatarEl?.innerHTML || '';
             next.set(chatId, {
                 chatName,
-                avatarHtml,
+                avatar: readContactAvatarSnapshot(item, chatName),
             });
         });
 
@@ -185,17 +208,17 @@ export function initSearchOverlayGlobalContent({
         const cached = chatLookup.get(chatId);
         const chatName = String(cached?.chatName || meta?.chatTitle || '').trim() || tr('Чат');
 
-        if (cached?.avatarHtml) {
+        if (cached?.avatar) {
             return {
                 chatName,
-                avatarHtml: `<div class="contact-avatar search-global-row-avatar">${cached.avatarHtml}</div>`,
+                avatarHtml: renderChatAvatarHtml(cached.avatar, chatName),
             };
         }
 
         const initials = pickInitials(chatName);
         return {
             chatName,
-            avatarHtml: `<div class="contact-avatar search-global-row-avatar">${escapeHtml(initials)}</div>`,
+            avatarHtml: renderChatAvatarHtml({ initials }, chatName),
         };
     }
 

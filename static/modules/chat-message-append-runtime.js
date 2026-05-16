@@ -16,6 +16,7 @@ export function createChatMessageAppendRuntime({
     isMobileViewport,
     isSelectionMode,
     isChatNearBottom,
+    chatBottomThresholdPx = 96,
     requestAutoScrollToBottom,
     registerMediaElementsForLazyHydration,
     schedulePostRenderUiRefresh,
@@ -60,6 +61,14 @@ export function createChatMessageAppendRuntime({
     function appendMessage(msg, options = {}) {
         const currentChatId = getCurrentChatId?.();
         if (!currentChatId) return null;
+        const chatMessages = getChatMessages?.();
+        const beforeAppendScroll = chatMessages
+            ? {
+                scrollHeight: chatMessages.scrollHeight,
+                scrollTop: chatMessages.scrollTop,
+                clientHeight: chatMessages.clientHeight,
+            }
+            : null;
         const inserted = upsertChatMessage?.(currentChatId, msg, { append: options.append !== false });
         const renderOptions = options.renderOptions || {};
 
@@ -68,7 +77,6 @@ export function createChatMessageAppendRuntime({
             && !renderOptions.preserveHeightDelta
             && !Number.isFinite(renderOptions.scrollTop);
 
-        const chatMessages = getChatMessages?.();
         if (canFastAppend && chatMessages) {
             const state = getChatState?.(currentChatId);
             const lastIdx = state.messages.length - 1;
@@ -97,7 +105,9 @@ export function createChatMessageAppendRuntime({
                     syncReusedMessageNodeState?.(previousTailNode, previousTailMessage, previousTailLayout);
                 }
 
-                const wasNearBottom = isChatNearBottom?.();
+                const wasNearBottom = beforeAppendScroll
+                    ? beforeAppendScroll.scrollHeight - (beforeAppendScroll.scrollTop + beforeAppendScroll.clientHeight) <= chatBottomThresholdPx
+                    : isChatNearBottom?.();
                 const bottomSpacer = chatMessages.querySelector('.chat-virtual-spacer:last-child');
                 const groupLayout = messageGroup?.(state.messages, lastIdx);
                 const node = messageItem?.(inserted, groupLayout);

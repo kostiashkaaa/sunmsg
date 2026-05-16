@@ -31,9 +31,18 @@
                 padding: 12px;
             }
             .app-boot-shell {
-                padding: 14px;
+                padding: 18px 16px;
                 gap: 12px;
                 border-radius: 24px;
+            }
+            .app-boot-head {
+                grid-template-columns: 46px minmax(0, 1fr);
+                gap: 12px;
+            }
+            .app-boot-mark {
+                width: 46px;
+                height: 46px;
+                border-radius: 16px;
             }
             .app-boot-chat,
             .app-boot-sidebar {
@@ -46,7 +55,7 @@
                 font-size: 9px;
             }
             .app-boot-title {
-                font-size: 2rem;
+                font-size: 1.7rem;
             }
             .app-boot-desc,
             .app-boot-brand-copy p {
@@ -70,7 +79,7 @@
                 flex-direction: column;
             }
             .app-boot-bubble {
-                max-width: 88%;
+                max-width: 86%;
                 padding: 14px;
             }
             .app-boot-composer-shell {
@@ -87,40 +96,10 @@
 
 
 
-        @media (max-width: 920px) {
+        @media (min-width: 641px) and (max-width: 920px) {
             .app-boot-shell {
                 width: min(440px, 100%);
                 padding: 20px;
-            }
-        }
-
-
-
-        @media (max-width: 640px) {
-            .app-boot-overlay {
-                padding: 12px;
-            }
-            .app-boot-shell {
-                padding: 18px 16px;
-                border-radius: 24px;
-            }
-            .app-boot-head {
-                grid-template-columns: 46px minmax(0, 1fr);
-                gap: 12px;
-            }
-            .app-boot-mark {
-                width: 46px;
-                height: 46px;
-                border-radius: 16px;
-            }
-            .app-boot-title {
-                font-size: 1.7rem;
-            }
-            .app-boot-desc {
-                font-size: 13px;
-            }
-            .app-boot-bubble {
-                max-width: 86%;
             }
         }
 
@@ -345,7 +324,7 @@
             .profile-drawer {
                 position: fixed;
                 inset: 0;
-                z-index: 1200;
+                z-index: var(--z-profile-mobile, 1200);
             }
             .profile-sheet--sun {
                 --profile-sheet-closed-shift: calc(100% + 26px);
@@ -734,7 +713,7 @@
                 width: 100%;
                 min-width: 0;
                 max-width: 100%;
-                z-index: 50;
+                z-index: var(--z-mobile-sidebar, 50);
                 padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
             }
             #sidebarScrollArea {
@@ -757,7 +736,7 @@
                 max-height: 100%;
                 min-height: 0;
                 display: none;
-                z-index: 60;
+                z-index: var(--z-mobile-chat, 60);
                 transform: translateX(100%);
                 opacity: 0;
                 touch-action: pan-y;
@@ -765,7 +744,6 @@
             .chat-messages {
                 min-height: 0;
                 overscroll-behavior: contain;
-                -webkit-overflow-scrolling: touch;
                 touch-action: pan-y;
                 /* Account for fixed composer + keyboard height */
                 padding-bottom: calc(
@@ -1012,19 +990,19 @@
                 width: min(280px, calc(100vw - 20px));
             }
 
-            /* Input area — always fixed, no bottom animation */
+            /* Input area: fixed to the visual viewport on mobile. */
             .chat-input-area {
                 --composer-min-height: 38px;
                 --composer-max-height: 88px;
                 --composer-action-size: 44px;
-                position: fixed !important;
+                position: fixed;
                 left: 0;
                 right: 0;
                 bottom: var(--mobile-bottom-dock-height, 0px);
                 padding-left: max(8px, env(safe-area-inset-left, 0px));
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
-                z-index: 1004;
+                z-index: var(--z-composer-mobile, 1004);
                 transition:
                     bottom var(--emoji-sheet-motion-duration) var(--m-decel),
                     opacity var(--m-dur-fast) var(--m-decel),
@@ -1255,12 +1233,17 @@
                 --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, min(460px, 55dvh));
             }
 
+            .chat-area.emoji-keyboard-handoff {
+                --mobile-emoji-sheet-height: 0px;
+                --mobile-bottom-dock-height: 0px;
+            }
+
             /* When emoji sheet is open: composer follows the bottom dock as one animated surface. */
             .chat-area.emoji-sheet-open .chat-input-area {
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
-                z-index: 1010;
+                z-index: var(--z-emoji-sheet, 1010);
                 transition:
                     bottom var(--emoji-sheet-motion-duration) var(--m-decel),
                     opacity var(--m-dur-fast) var(--m-decel),
@@ -1769,6 +1752,7 @@
 
     .message .bubble.bubble--text,
     .message .bubble:has(> .message-text) {
+        --text-meta-reserve: 0px !important;
         min-width: 0 !important;
         width: fit-content;
         max-width: 100%;

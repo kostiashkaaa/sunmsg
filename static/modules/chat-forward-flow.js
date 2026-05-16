@@ -2,7 +2,7 @@
 // шифрование под получателя, отправка. Вынесено из chat.js без изменения
 // поведения — все внешние зависимости приходят через deps.
 
-import { applyEmojiGraphics, escapeHtml, generateRequestId } from './utils.js';
+import { applyEmojiGraphics, buildAvatarInitials, escapeHtml, generateRequestId } from './utils.js';
 
 const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file', 'voice']);
 
@@ -49,6 +49,18 @@ export function createChatForwardFlow(deps = {}) {
     const forwardSourceMessageIds = new Set();
     const forwardComposerDraftByChatId = new Map();
 
+    function renderForwardAvatarContent(sourceAvatarEl, displayName) {
+        const imgEl = sourceAvatarEl?.querySelector?.('img.contact-avatar__img');
+        const imgSrc = String(imgEl?.getAttribute('src') || '').trim();
+        if (imgSrc) {
+            const imgAlt = String(imgEl?.getAttribute('alt') || displayName || 'Avatar').trim();
+            return `<img class="contact-avatar__img" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(imgAlt)}" loading="lazy" decoding="async">`;
+        }
+        const initials = String(sourceAvatarEl?.textContent || '').replace(/\s+/g, ' ').trim()
+            || buildAvatarInitials(displayName);
+        return escapeHtml(initials);
+    }
+
     function resolveForwardContactRows() {
         if (!contactsList) return [];
         const rows = [];
@@ -72,9 +84,7 @@ export function createChatForwardFlow(deps = {}) {
             const isOnline = Boolean(item.querySelector('.contact-avatar .status-dot.online'));
             const lastSeenRaw = String(item.getAttribute('data-last-seen') || '').trim();
             const sourceAvatarEl = item.querySelector('.contact-avatar');
-            const avatarClone = sourceAvatarEl?.cloneNode(true);
-            avatarClone?.querySelector('.status-dot')?.remove();
-            const avatarHtml = String(avatarClone?.innerHTML || '').trim() || '?';
+            const avatarHtml = renderForwardAvatarContent(sourceAvatarEl, displayName);
             const avatarTint = String(sourceAvatarEl?.getAttribute('data-avatar-tint') || '').trim();
             const statusText = isSaved
                 ? 'сохранённые сообщения'

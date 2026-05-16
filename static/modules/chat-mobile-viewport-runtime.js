@@ -63,7 +63,6 @@ export function createChatMobileViewportRuntime({
         leftOffsetVar: '--vv-left-offset',
         keyboardInsetVar: '--vv-keyboard-inset',
         composerBottomInsetVar: '--mobile-composer-bottom-inset',
-        layoutKeyboardInsetVar: '--mobile-keyboard-layout-inset',
     });
 
     function resizeComposerInput() {
@@ -79,15 +78,17 @@ export function createChatMobileViewportRuntime({
     }
 
     function openChat() {
+        backBtnMobile?.setAttribute('aria-hidden', 'false');
         mobileThreadShell.openChat();
     }
 
     function isMobileViewport() {
-        return windowRef.innerWidth <= 768;
+        return windowRef.matchMedia('(max-width: 768px)').matches;
     }
 
     function closeMobileChatView({ leaveRoom = true, animated = true } = {}) {
         mobileThreadShell.closeMobileChatView({ leaveRoom, animated });
+        backBtnMobile?.setAttribute('aria-hidden', 'true');
     }
 
     function isComposerFocusBlocked() {
@@ -142,7 +143,7 @@ export function createChatMobileViewportRuntime({
                 if (active && active !== documentRef.body && active !== messageInput && !active.closest('#messageForm, #composerRow')) {
                     return;
                 }
-                if (windowRef.matchMedia('(pointer: coarse)').matches && Date.now() - Number(getLastMobileKeyboardDismissAt?.() || 0) < 900) {
+                if (windowRef.matchMedia('(pointer: coarse)').matches && Date.now() - Number(getLastMobileKeyboardDismissAt?.() || 0) < 450) {
                     return;
                 }
             } else if (isComposerFocusBlocked()) {
@@ -268,8 +269,10 @@ export function createChatMobileViewportRuntime({
         });
         documentRef.addEventListener('focusout', (event) => {
             if (event.target?.closest?.('#messageForm, #composerRow')) {
-                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 0);
-                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 220);
+                // First sync catches the initial keyboard-dismiss frame.
+                // Second sync covers the full iOS keyboard dismiss animation.
+                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 80);
+                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 350);
             }
         });
         syncViewportAndInsets({ immediate: true });

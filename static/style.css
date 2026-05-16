@@ -172,6 +172,29 @@
     --chat-bubble-in-text: var(--bubble-in-text);
     --chat-bubble-out-bg: var(--bubble-out);
     --chat-bubble-out-text: var(--bubble-out-text);
+
+    /*
+     * Z-index scale. Component-local values may stay local; cross-surface
+     * overlays should use these tokens.
+     */
+    --z-sidebar: 100;
+    --z-sidebar-drawer: 120;
+    --z-mobile-sidebar: 50;
+    --z-mobile-chat: 60;
+    --z-side-resizer: 1000;
+    --z-composer-mobile: 1004;
+    --z-emoji-sheet: 1010;
+    --z-profile-mobile: 1200;
+    --z-settings: 1400;
+    --z-modal-overlay: 1600;
+    --z-context-menu: 5000;
+    --z-reaction-picker: 5100;
+    --z-reaction-popup: 5120;
+    --z-boot-overlay: 6200;
+    --z-media-overlay: 9000;
+    --z-date-picker: 9200;
+    --z-portal-menu: 9600;
+    --z-toast: 9800;
 }
 
 /* normalized: removed mojibake comment */
@@ -473,7 +496,7 @@ a:hover { color: var(--accent-hover); }
     right: auto;
     transform: translateX(-50%);
     bottom: auto;
-    z-index: 9999;
+    z-index: var(--z-toast, 9800);
     width: min(460px, calc(100vw - 28px));
     display: flex;
     flex-direction: column;
