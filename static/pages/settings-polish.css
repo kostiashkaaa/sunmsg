@@ -1,7 +1,7 @@
 /* ============================================================================
-   settings-telegram.css — финальный полирующий слой настроек.
+   settings-polish.css — финальный полирующий слой настроек.
    Загружается ПОСЛЕ settings.css и settings-redesign.css, поэтому имеет
-   приоритет и приводит всю композицию к ровному Telegram-Web-стилю:
+   приоритет и приводит всю композицию к ровному стилю SUN messenger:
      • строки и карточки фиксированной геометрии — ничего не «дышит»;
      • переход home ↔ detail без скачка ширины layout;
      • контент по центру с фоновыми «полями» — нет пустот на десктопе;
@@ -12,27 +12,27 @@
 
 .settings-scene {
     /* единая шкала геометрии — её используют строки, карточки, отступы */
-    --tg-row-min:        56px;   /* фикс. минимальная высота строки  */
-    --tg-pad-x:          22px;   /* горизонтальный внутренний отступ  */
-    --tg-card-gap:       12px;   /* зазор между карточками            */
-    --tg-radius:         12px;
-    --tg-radius-lg:      18px;
-    --tg-content-max:    760px;  /* макс. ширина читаемой колонки     */
-    --tg-panel-max:      820px;  /* макс. ширина всей панели          */
-    --tg-ease:           cubic-bezier(0.25, 0.1, 0.25, 1);
-    --tg-ease-spring:    cubic-bezier(0.34, 1.2, 0.64, 1);
-    --tg-dur:            0.22s;
+    --settings-ui-row-min:        56px;   /* фикс. минимальная высота строки  */
+    --settings-ui-pad-x:          22px;   /* горизонтальный внутренний отступ  */
+    --settings-ui-card-gap:       12px;   /* зазор между карточками            */
+    --settings-ui-radius:         12px;
+    --settings-ui-radius-lg:      18px;
+    --settings-ui-content-max:    760px;  /* макс. ширина читаемой колонки     */
+    --settings-ui-panel-max:      820px;  /* макс. ширина всей панели          */
+    --sun-ease:           cubic-bezier(0.25, 0.1, 0.25, 1);
+    --sun-ease-spring:    cubic-bezier(0.34, 1.2, 0.64, 1);
+    --sun-dur:            0.22s;
 }
 
 /* ── Layout: ровная панель, без скачка ширины при home ↔ detail ──────────── */
 .settings-scene .settings-layout,
 body.settings-home-open .settings-layout,
 body.settings-detail-open .settings-layout {
-    width: min(var(--tg-panel-max), 100%) !important;
+    width: min(var(--settings-ui-panel-max), 100%) !important;
     margin-left: auto !important;
     margin-right: auto !important;
     /* меняем не геометрию, а только обстановку — без layout-«прыжка» */
-    transition: box-shadow var(--tg-dur) var(--tg-ease) !important;
+    transition: box-shadow var(--sun-dur) var(--sun-ease) !important;
 }
 
 /* Внутри overlay-iframe панель занимает весь фрейм */
@@ -59,8 +59,8 @@ body.settings-detail-open .settings-layout {
     height: 38px !important;
     border-radius: 50% !important;
     flex-shrink: 0 !important;
-    transition: background-color var(--tg-dur) var(--tg-ease),
-                transform 0.12s var(--tg-ease) !important;
+    transition: background-color var(--sun-dur) var(--sun-ease),
+                transform 0.12s var(--sun-ease) !important;
 }
 .settings-scene .settings-panel-close:active,
 .settings-scene .settings-panel-tool-btn:active {
@@ -75,7 +75,7 @@ body.settings-detail-open .settings-layout {
 }
 .settings-scene .settings-content {
     width: 100% !important;
-    max-width: var(--tg-content-max) !important;
+    max-width: var(--settings-ui-content-max) !important;
     margin: 0 auto !important;
     padding: 6px clamp(14px, 4vw, 28px) calc(28px + env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
@@ -90,12 +90,12 @@ body.settings-detail-open .settings-layout {
 body.settings-detail-open .settings-card {
     background: var(--sx-bg-elev, var(--paper)) !important;
     border: 0 !important;
-    border-radius: var(--tg-radius-lg) !important;
+    border-radius: var(--settings-ui-radius-lg) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
-    margin: var(--tg-card-gap) 0 0 !important;
+    margin: var(--settings-ui-card-gap) 0 0 !important;
     padding: 6px 0 !important;
     overflow: hidden !important;
-    transition: box-shadow var(--tg-dur) var(--tg-ease) !important;
+    transition: box-shadow var(--sun-dur) var(--sun-ease) !important;
 }
 .settings-scene .settings-card:first-child {
     margin-top: 12px !important;
@@ -110,7 +110,7 @@ body.settings-detail-open .settings-card {
     align-items: center !important;
     gap: 10px !important;
     min-height: 44px !important;
-    padding: 8px var(--tg-pad-x) 6px !important;
+    padding: 8px var(--settings-ui-pad-x) 6px !important;
     margin: 0 !important;
 }
 .settings-scene .settings-card-header::after {
@@ -138,7 +138,7 @@ body.settings-detail-open .settings-card {
 .settings-scene .settings-body-copy,
 .settings-scene .settings-trust-intro,
 .settings-scene .settings-copy-muted-sm {
-    padding: 0 var(--tg-pad-x) 10px !important;
+    padding: 0 var(--settings-ui-pad-x) 10px !important;
     margin: 0 !important;
     font-size: 13.5px !important;
     line-height: 1.5 !important;
@@ -151,11 +151,11 @@ body.settings-detail-open .settings-row {
     display: flex !important;
     align-items: center !important;
     gap: 14px !important;
-    min-height: var(--tg-row-min) !important;
-    padding: 8px var(--tg-pad-x) !important;
+    min-height: var(--settings-ui-row-min) !important;
+    padding: 8px var(--settings-ui-pad-x) !important;
     border: 0 !important;
     box-sizing: border-box !important;
-    transition: background-color 0.14s var(--tg-ease) !important;
+    transition: background-color 0.14s var(--sun-ease) !important;
 }
 /* Разделители — единым «волоском» только между строками */
 .settings-scene .settings-card .settings-row + .settings-row,
@@ -223,7 +223,7 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 14px !important;
-    padding: 8px var(--tg-pad-x) !important;
+    padding: 8px var(--settings-ui-pad-x) !important;
     margin: 0 !important;
 }
 .settings-scene .settings-inline-fields:has(.settings-field--full),
@@ -245,7 +245,7 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     resize: vertical !important;
 }
 
-/* ── Аватар-блок профиля: крупный, идеально по центру — как в Telegram ───── */
+/* ── Аватар-блок профиля: крупный, идеально по центру — как в мессенджере ───── */
 .settings-scene .settings-avatar-row {
     display: flex !important;
     flex-direction: column !important;
@@ -253,7 +253,7 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     justify-content: flex-start !important;
     gap: 12px !important;
     margin: 0 !important;
-    padding: 18px var(--tg-pad-x) 10px !important;
+    padding: 18px var(--settings-ui-pad-x) 10px !important;
     text-align: center !important;
 }
 /* Контейнер аватара — строго квадратный, центрируется как блок */
@@ -346,7 +346,7 @@ body.settings-detail-open .settings-profile-section .settings-avatar-row {
     justify-content: flex-start !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 18px var(--tg-pad-x) 12px !important;
+    padding: 18px var(--settings-ui-pad-x) 12px !important;
     text-align: center !important;
 }
 /* Контейнер аватара — блок по центру родителя */
@@ -378,7 +378,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 8px !important;
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 .settings-scene .mnemonic-word-wrap {
     display: flex !important;
@@ -390,7 +390,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
     background: var(--sx-bg-soft, var(--paper-alt)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 60%, transparent) inset !important;
     box-sizing: border-box !important;
-    transition: box-shadow 0.14s var(--tg-ease) !important;
+    transition: box-shadow 0.14s var(--sun-ease) !important;
 }
 .settings-scene .mnemonic-word-wrap:focus-within {
     box-shadow: 0 0 0 1px var(--sx-accent, var(--accent)) inset,
@@ -419,7 +419,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 .settings-scene .settings-actions-end {
     display: flex !important;
     justify-content: flex-end !important;
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 
 /* ── Карточка восстановления 24 слов: свёрнуто / развёрнуто ──────────────── */
@@ -436,7 +436,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 .settings-scene .mnemonic-card-unlocked.mnemonic-card-reunlock #mnemonicUnlockBody   { display: block !important; }
 
 .settings-scene #mnemonicUnlockBody {
-    animation: tg-section-in var(--tg-dur) var(--tg-ease) both;
+    animation: settings-section-in var(--sun-dur) var(--sun-ease) both;
 }
 .settings-scene .mnemonic-unlocked-note .settings-row-label i,
 .settings-scene .mnemonic-unlocked-note .settings-row-label .sun-icon {
@@ -467,9 +467,9 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
     opacity: 1 !important;
 }
 .settings-scene .settings-section.section-entering {
-    animation: tg-section-in var(--tg-dur) var(--tg-ease) both !important;
+    animation: settings-section-in var(--sun-dur) var(--sun-ease) both !important;
 }
-/* Уходящую секцию накладываем абсолютом поверх (crossfade, как в Telegram).
+/* Уходящую секцию накладываем абсолютом поверх (crossfade, как в мессенджере).
    Контейнер во время перехода держит max-высоту (minHeight ставит JS),
    поэтому скачка не происходит. */
 .settings-scene .settings-section.section-leaving {
@@ -477,17 +477,17 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
     inset: 6px clamp(14px, 4vw, 28px) auto !important;
     pointer-events: none !important;
     z-index: 0 !important;
-    animation: tg-section-out 0.16s var(--tg-ease) both !important;
+    animation: settings-section-out 0.16s var(--sun-ease) both !important;
 }
 /* Плавный возврат высоты контейнера после перехода — без резкого «щелчка». */
 .settings-scene .settings-content {
-    transition: min-height var(--tg-dur) var(--tg-ease) !important;
+    transition: min-height var(--sun-dur) var(--sun-ease) !important;
 }
-@keyframes tg-section-in {
+@keyframes settings-section-in {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes tg-section-out {
+@keyframes settings-section-out {
     from { opacity: 1; transform: translateY(0); }
     to   { opacity: 0; transform: translateY(-6px); }
 }
@@ -500,26 +500,31 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 }
 .settings-scene .settings-content::-webkit-scrollbar-track { background: transparent; }
 
-/* ── HOME-вид: крупная профиль-карточка как в Telegram ───────────────────── */
+/* ── HOME-вид: крупная профиль-карточка как в мессенджере ───────────────────── */
 body.settings-home-open .settings-nav-profile {
     display: grid !important;
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: 1fr !important;
     grid-template-areas:
-        "avatar  action"
-        "info    info"
-        "rows    rows" !important;
+        "avatar"
+        "info"
+        "rows" !important;
+    position: relative !important;
     justify-items: center !important;
     align-items: center !important;
     margin: 14px 0 0 !important;
     padding: 22px 18px 16px !important;
-    border-radius: var(--tg-radius-lg) !important;
+    border-radius: var(--settings-ui-radius-lg) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
     text-align: center !important;
+    transition: padding var(--sun-dur) var(--sun-ease), box-shadow var(--sun-dur) var(--sun-ease) !important;
+}
+body.settings-home-open .settings-nav-profile.is-pull-expanded {
+    padding-top: calc(22px + var(--settings-profile-pull-pad, 0px)) !important;
 }
 body.settings-home-open .settings-nav-avatar-wrap {
     grid-area: avatar !important;
-    width: 96px !important;
-    height: 96px !important;
+    width: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    height: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
     justify-self: center !important;
     align-self: center !important;
     display: flex !important;
@@ -530,8 +535,8 @@ body.settings-home-open .settings-nav-avatar {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 96px !important;
-    height: 96px !important;
+    width: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    height: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
     font-size: 36px !important;
     line-height: 1 !important;
     border-radius: 50% !important;
@@ -560,9 +565,9 @@ body.settings-home-open .settings-nav-profile-status {
     font-size: 13.5px !important;
 }
 body.settings-home-open .settings-nav-profile-action {
-    grid-area: action !important;
-    align-self: start !important;
-    justify-self: end !important;
+    position: absolute !important;
+    top: 18px !important;
+    right: 18px !important;
     width: 38px !important;
     height: 38px !important;
 }
@@ -572,8 +577,8 @@ body.settings-home-open .settings-nav-profile-rows {
     margin-top: 12px !important;
 }
 body.settings-home-open .settings-nav-list {
-    margin-top: var(--tg-card-gap) !important;
-    border-radius: var(--tg-radius-lg) !important;
+    margin-top: var(--settings-ui-card-gap) !important;
+    border-radius: var(--settings-ui-radius-lg) !important;
     background: var(--sx-bg-elev, var(--paper)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
     overflow: hidden !important;
@@ -600,7 +605,7 @@ body.settings-home-open .settings-panel-body {
 }
 body.settings-home-open .settings-nav {
     width: 100% !important;
-    max-width: var(--tg-content-max) !important;
+    max-width: var(--settings-ui-content-max) !important;
     margin: 0 auto !important;
     padding: 0 clamp(14px, 4vw, 28px) calc(20px + env(safe-area-inset-bottom, 0px)) !important;
 }
@@ -613,7 +618,7 @@ body.settings-home-open .settings-nav {
     display: flex !important;
     flex-direction: column !important;
     gap: 0 !important;
-    padding: 2px var(--tg-pad-x) 6px !important;
+    padding: 2px var(--settings-ui-pad-x) 6px !important;
 }
 .settings-scene .settings-privacy-item {
     display: grid !important;
@@ -664,7 +669,7 @@ body.settings-home-open .settings-nav {
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 .settings-scene .settings-privacy-back {
     width: 38px !important;
@@ -682,17 +687,17 @@ body.settings-home-open .settings-nav {
     background: var(--sx-bg-soft, var(--paper-alt)) !important;
 }
 .settings-scene .settings-privacy-question {
-    padding: 0 var(--tg-pad-x) 10px !important;
+    padding: 0 var(--settings-ui-pad-x) 10px !important;
     font-size: 14px !important;
     color: var(--sx-ink-2, var(--sub-text)) !important;
 }
 .settings-scene .settings-privacy-options {
-    padding: 0 var(--tg-pad-x) !important;
+    padding: 0 var(--settings-ui-pad-x) !important;
 }
 
 /* Группы radio-опций (поведение чата, опции приватности) — единые отступы */
 .settings-scene .settings-preference-group {
-    padding: 8px var(--tg-pad-x) 4px !important;
+    padding: 8px var(--settings-ui-pad-x) 4px !important;
 }
 .settings-scene .settings-preference-group > .settings-row-label {
     margin-bottom: 6px !important;
@@ -725,7 +730,7 @@ body.settings-home-open .settings-nav {
     display: grid !important;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
     gap: 12px !important;
-    padding: 6px var(--tg-pad-x) 12px !important;
+    padding: 6px var(--settings-ui-pad-x) 12px !important;
 }
 .settings-scene .theme-preview {
     display: flex !important;
@@ -757,7 +762,7 @@ body.settings-home-open .settings-nav {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 .settings-scene .chat-style-mode-btn {
     border-radius: 999px !important;
@@ -766,8 +771,8 @@ body.settings-home-open .settings-nav {
 }
 .settings-scene .chat-style-panel,
 .settings-scene .chat-style-block {
-    padding-left: var(--tg-pad-x) !important;
-    padding-right: var(--tg-pad-x) !important;
+    padding-left: var(--settings-ui-pad-x) !important;
+    padding-right: var(--settings-ui-pad-x) !important;
 }
 .settings-scene .chat-style-block { padding-bottom: 10px !important; }
 
@@ -791,11 +796,11 @@ body.settings-home-open .settings-nav {
     flex-direction: column !important;
     align-items: center !important;
     gap: 12px !important;
-    padding: 4px var(--tg-pad-x) 12px !important;
+    padding: 4px var(--settings-ui-pad-x) 12px !important;
 }
 .settings-scene .key-textarea {
-    width: calc(100% - 2 * var(--tg-pad-x)) !important;
-    margin: 0 var(--tg-pad-x) !important;
+    width: calc(100% - 2 * var(--settings-ui-pad-x)) !important;
+    margin: 0 var(--settings-ui-pad-x) !important;
     box-sizing: border-box !important;
 }
 .settings-scene .copy-row,
@@ -803,12 +808,12 @@ body.settings-home-open .settings-nav {
     display: flex !important;
     justify-content: center !important;
     gap: 8px !important;
-    padding: 0 var(--tg-pad-x) 8px !important;
+    padding: 0 var(--settings-ui-pad-x) 8px !important;
 }
 
 /* Опасная зона — панель с отступами внутри карточки */
 .settings-scene .settings-danger-panel {
-    margin: 4px var(--tg-pad-x) 12px !important;
+    margin: 4px var(--settings-ui-pad-x) 12px !important;
     padding: 16px !important;
     border-radius: 14px !important;
 }
@@ -826,7 +831,7 @@ body.settings-home-open .settings-nav {
 
 /* Список статистики хранилища — выровненные строки */
 .settings-scene .settings-list-stat {
-    padding: 2px var(--tg-pad-x) 8px !important;
+    padding: 2px var(--settings-ui-pad-x) 8px !important;
 }
 .settings-scene .settings-list-stat-row {
     display: flex !important;
@@ -859,7 +864,7 @@ body.settings-home-open .settings-nav {
 
 /* Список устройств / сессий */
 .settings-scene .session-device-list {
-    padding: 2px var(--tg-pad-x) 8px !important;
+    padding: 2px var(--settings-ui-pad-x) 8px !important;
 }
 
 /* Цвета пузырей сообщений — резиновая сетка */
@@ -879,14 +884,14 @@ body.settings-home-open .settings-nav {
     display: grid !important;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
     gap: 16px !important;
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 .settings-scene .totp-settings-body { padding: 0 !important; }
 .settings-scene .totp-verify-panel,
 .settings-scene .totp-backup-codes-panel,
 .settings-scene .totp-new-backup-codes-panel,
 .settings-scene .totp-setup-panel {
-    padding: 4px var(--tg-pad-x) 10px !important;
+    padding: 4px var(--settings-ui-pad-x) 10px !important;
 }
 .settings-scene .totp-verify-controls {
     display: flex !important;
@@ -918,7 +923,7 @@ body.settings-home-open .settings-nav {
         padding-right: 12px !important;
     }
     .settings-scene {
-        --tg-pad-x: 16px;
+        --settings-ui-pad-x: 16px;
     }
     .settings-scene .settings-inline-fields {
         grid-template-columns: 1fr !important;
@@ -957,8 +962,8 @@ body.settings-home-open .settings-nav {
     }
     body.settings-home-open .settings-nav-avatar-wrap,
     body.settings-home-open .settings-nav-avatar {
-        width: 88px !important;
-        height: 88px !important;
+        width: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+        height: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
     }
     /* строки-действия с кнопками в столбик на узком экране */
     .settings-scene .settings-action-cluster {
@@ -1004,9 +1009,9 @@ body.settings-home-open .settings-nav {
     text-decoration: none !important;
     cursor: pointer !important;
     box-sizing: border-box !important;
-    transition: background-color 0.14s var(--tg-ease),
-                opacity 0.14s var(--tg-ease),
-                transform 0.08s var(--tg-ease) !important;
+    transition: background-color 0.14s var(--sun-ease),
+                opacity 0.14s var(--sun-ease),
+                transform 0.08s var(--sun-ease) !important;
 }
 .settings-scene .btn-settings:active { transform: scale(0.97) !important; }
 .settings-scene .btn-settings:disabled,
@@ -1094,7 +1099,7 @@ body.settings-home-open .settings-nav {
 }
 /* Отдельный ряд сохранения — с отступом сверху, кнопки слева */
 .settings-scene .settings-save-row {
-    padding: 8px var(--tg-pad-x) 12px !important;
+    padding: 8px var(--settings-ui-pad-x) 12px !important;
     margin: 0 !important;
 }
 .settings-scene .settings-save-row-spaced {
@@ -1150,7 +1155,7 @@ body.settings-home-open .settings-nav {
     opacity: 1 !important;
 }
 
-/* Верхняя плашка с информацией — как в Telegram */
+/* Верхняя плашка с информацией — как в мессенджере */
 .avatar-lightbox-topbar {
     flex: 0 0 auto !important;
     display: flex !important;
@@ -1217,7 +1222,7 @@ body.settings-home-open .settings-nav {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6) !important;
     transform: scale(0.94) !important;
     opacity: 0 !important;
-    transition: transform 0.24s var(--tg-ease-spring, ease),
+    transition: transform 0.24s var(--sun-ease-spring, ease),
                 opacity 0.18s ease !important;
     user-select: none !important;
 }

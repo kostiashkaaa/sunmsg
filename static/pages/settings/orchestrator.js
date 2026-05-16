@@ -25,6 +25,7 @@ import { initNotificationsSection } from './notifications-section.js';
 import { initSettingsTransferSection } from './settings-transfer-section.js';
 import { initDataMemorySection } from './data-memory-section.js';
 import { initSecuritySummarySection } from './security-summary-section.js';
+import { initProfilePullExpand } from './profile-pull-expand.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -58,6 +59,7 @@ export function initSettingsPage() {
     const isEmbedMode = true;
     const currentUsername = String(bootstrapUser.currentUsername || pageRoot.dataset.currentUsername || '');
     initSettingsPresence({ isEmbedded: true });
+    initProfilePullExpand();
 
     const dispatch = (type, detail = {}) => {
         document.dispatchEvent(new CustomEvent(type, { detail, bubbles: false }));

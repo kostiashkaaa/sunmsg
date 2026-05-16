@@ -47,7 +47,7 @@
     <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
     <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
     <link rel="stylesheet" href="{{ asset_url('pages/settings-redesign.css') }}">
-    <link rel="stylesheet" href="{{ asset_url('pages/settings-telegram.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('pages/settings-polish.css') }}">
 </head>
 <body
     class="settings-loading {% if embed_mode %}settings-embed-mode{% endif %}"
@@ -135,7 +135,7 @@
                 <div class="settings-nav-profile-row">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username|replace('@', '')|e }}</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">{{ current_username|replace('@', '')|e }}</div>
                         <div class="settings-nav-profile-row-label">Юзернейм</div>
                     </div>
                 </div>
