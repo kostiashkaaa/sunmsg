@@ -28,6 +28,8 @@ export function registerMessageStatusSocketHandlers({
     isGroupChatById = () => false,
     failPendingMessage = () => {},
     showToast = () => {},
+    clearPendingReactionOp = null,
+    applyChatBlockState = null,
 } = {}) {
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
     const normalizeErrorText = (value) => {
@@ -111,6 +113,23 @@ export function registerMessageStatusSocketHandlers({
     socket.on('messages_deleted', handleDeleteEvent);
 
     socket.on('error', (data) => {
+        const requestId = String(data?.request_id || '').trim();
+        if (requestId && typeof clearPendingReactionOp === 'function') {
+            clearPendingReactionOp(requestId);
+            return;
+        }
+
+        if (data?.code === 'FORBIDDEN_BLOCKED' && typeof applyChatBlockState === 'function') {
+            applyChatBlockState(
+                {
+                    blocked_by_me: Boolean(data?.blocked_by_me),
+                    blocked_me: Boolean(data?.blocked_me),
+                },
+                { syncChatRoom: true },
+            );
+            return;
+        }
+
         const clientId = normalizePendingClientId(data);
         const code = String(data?.code || '').trim();
         if (clientId && code !== 'duplicate_request') {
@@ -118,9 +137,17 @@ export function registerMessageStatusSocketHandlers({
             failPendingMessage?.(clientId);
         }
 
-        const message = normalizeErrorText(data);
-        if (message) {
-            showToast?.(message, 'warning');
+        const messageText = normalizeErrorText(data).toLowerCase();
+        if (
+            messageText === 'message not found.'
+            || messageText === 'invalid reaction payload.'
+            || messageText === 'failed to update reaction.'
+        ) {
+            return;
+        }
+
+        if (messageText) {
+            showToast?.(messageText, 'warning');
         }
     });
 

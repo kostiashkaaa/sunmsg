@@ -3408,6 +3408,8 @@ export const initChatPage = async () => {
             markAllTicksRead,
             failPendingMessage,
             showToast,
+            clearPendingReactionOp,
+            applyChatBlockState,
             isGroupChatById: (chatId) => {
                 const normalizedChatId = String(chatId || '').trim();
                 if (!normalizedChatId) return false;

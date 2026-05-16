@@ -211,31 +211,6 @@ export function registerSystemSocketHandlers({
         updateDialogRequestsBadge();
     });
 
-    socket.on('error', (data) => {
-        const requestId = String(data?.request_id || '').trim();
-        if (requestId) {
-            clearPendingReactionOp(requestId);
-            return;
-        }
-        if (data?.code === 'FORBIDDEN_BLOCKED') {
-            applyChatBlockState(
-                {
-                    blocked_by_me: Boolean(data?.blocked_by_me),
-                    blocked_me: Boolean(data?.blocked_me),
-                },
-                { syncChatRoom: true },
-            );
-            return;
-        }
-        const messageText = String(data?.message || '').trim().toLowerCase();
-        if (
-            messageText === 'message not found.'
-            || messageText === 'invalid reaction payload.'
-            || messageText === 'failed to update reaction.'
-        ) {
-            return;
-        }
-    });
 
     socket.on('dialog_request_updated', (data) => {
         const btn = findDialogRequestActionButtonBySenderKey(
