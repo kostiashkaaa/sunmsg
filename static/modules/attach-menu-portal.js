@@ -34,6 +34,21 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         attachMenu.querySelector('[data-attach-mode="file"] .attach-menu-item__text')?.replaceChildren(labels.file);
     }
 
+    function readRootPixelVar(name) {
+        const root = document.documentElement;
+        if (!root) return 0;
+        const value = window.getComputedStyle(root).getPropertyValue(name);
+        const parsed = Number.parseFloat(String(value || '').trim());
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function isMobileKeyboardOpen() {
+        const root = document.documentElement;
+        return Boolean(root?.classList.contains('mobile-keyboard-active'))
+            || readRootPixelVar('--vv-keyboard-inset') > 24
+            || readRootPixelVar('--mobile-composer-bottom-inset') > 24;
+    }
+
     function position() {
         attachMenu.classList.add('attach-menu--portal');
         const vv = window.visualViewport;
@@ -48,19 +63,22 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
 
         const triggerRect = trigger.getBoundingClientRect();
         const alignRect = alignElement.getBoundingClientRect();
+        const inputAreaRect = document.getElementById('chatInputArea')?.getBoundingClientRect?.();
+        const keyboardOpen = isMobileKeyboardOpen();
+        const anchorRect = keyboardOpen && inputAreaRect && inputAreaRect.height > 0
+            ? inputAreaRect
+            : alignRect;
         const menuHeight = Math.max(attachMenu.offsetHeight || 0, attachMenu.scrollHeight || 0, 96);
         const minLeft = viewport.left + viewportGap;
         const maxLeft = Math.max(minLeft, viewport.left + viewport.width - menuWidth - viewportGap);
         const minTop = viewport.top + viewportGap;
         const maxTop = Math.max(minTop, viewport.top + viewport.height - menuHeight - viewportGap);
-        const topAbove = alignRect.top - menuHeight - triggerGap;
-        const topBelow = alignRect.bottom + triggerGap;
+        const topAbove = anchorRect.top - menuHeight - triggerGap;
+        const topBelow = anchorRect.bottom + triggerGap;
         const opensAbove = topAbove >= minTop || topBelow > maxTop;
         const left = Math.min(Math.max(alignRect.right - menuWidth, minLeft), maxLeft);
         const preferredTop = opensAbove ? topAbove : topBelow;
-        const anchorToComposerDuringKeyboard = opensAbove
-            && document.documentElement.classList.contains('mobile-keyboard-active')
-            && Boolean(document.activeElement?.closest?.('#messageForm, #composerRow'));
+        const anchorToComposerDuringKeyboard = opensAbove && keyboardOpen;
         const top = anchorToComposerDuringKeyboard
             ? Math.max(preferredTop, minTop)
             : Math.min(Math.max(preferredTop, minTop), maxTop);
