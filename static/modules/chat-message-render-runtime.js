@@ -328,6 +328,11 @@ export function createChatMessageRenderRuntime({
         disconnectLazyMediaHydrationObserver?.();
         registerMediaElementsForLazyHydration?.(chatMessages);
         measureRenderedMessageHeights(state);
+        // Re-hydrate after scroll is restored (positions change after scrollTop is set)
+        requestAnimationFrameFn(() => {
+            const el = getChatMessages?.();
+            if (el) registerMediaElementsForLazyHydration?.(el);
+        });
 
         if (hasScrollAnchor) {
             const resolveAnchorEl = () => (
