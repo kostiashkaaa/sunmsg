@@ -10,6 +10,7 @@ export function initMnemonicSection({
     const mnemonicGrid = document.getElementById('mnemonicInputGrid');
     const mnemonicUnlockCard = document.getElementById('mnemonicUnlockCard');
     const e2eStatusCard = document.getElementById('e2eStatusCard');
+    const iconSvg = (name) => `<svg class="sun-icon" aria-hidden="true"><use href="#sun-i-${name}"></use></svg>`;
 
     const syncMnemonicUnlockUi = () => {
         if (!mnemonicUnlockCard || !e2eStatusCard) return;
@@ -77,7 +78,7 @@ export function initMnemonicSection({
 
         const mnemonicPhrase = wordsArr.join(' ');
         this.disabled = true;
-        this.innerHTML = `<i class="bi bi-hourglass-split"></i> ${tr('Расшифровка...')}`;
+        this.innerHTML = `${iconSvg('hourglass')} ${tr('Расшифровка...')}`;
 
         try {
             const data = await api.getChallenge(document.getElementById('username').value);
@@ -112,7 +113,7 @@ export function initMnemonicSection({
             showAlert(String(err?.message || 'Ошибка восстановления ключа'), 'danger');
         } finally {
             this.disabled = false;
-            this.innerHTML = `<i class="bi bi-key-fill"></i> ${tr('Активировать доступ')}`;
+            this.innerHTML = `${iconSvg('key')} ${tr('Активировать доступ')}`;
         }
     });
 
