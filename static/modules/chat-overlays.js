@@ -82,6 +82,20 @@ export function initContactContextMenu({
         }
     }
 
+    function getVisibleContextMenuItems() {
+        return [pinButtonEl, unpinButtonEl, toggleMuteButtonEl, deleteButtonEl]
+            .filter((item) => item && !item.hidden && item.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function focusContextMenuItem(index = 0) {
+        const items = getVisibleContextMenuItems();
+        if (!items.length) return;
+        const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+        window.requestAnimationFrame(() => {
+            items[safeIndex]?.focus?.({ preventScroll: true });
+        });
+    }
+
     function showContactContextMenu(x, y, chatId, isPinned, contactItem = null) {
         if (!menuEl) return;
         const normalizedChatId = String(chatId || '').trim();
@@ -130,6 +144,7 @@ export function initContactContextMenu({
             if (!menuEl || openSeq !== menuTransitionSeq) return;
             menuEl.classList.add('is-open');
             menuEl.classList.remove('is-opening');
+            focusContextMenuItem(0);
         });
     }
 
@@ -256,6 +271,31 @@ export function initContactContextMenu({
         if (event.key === 'Escape') hideContactContextMenu();
     });
 
+    menuEl?.addEventListener('keydown', (event) => {
+        const items = getVisibleContextMenuItems();
+        if (!items.length) return;
+        const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusContextMenuItem((currentIndex + 1) % items.length);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusContextMenuItem((currentIndex - 1 + items.length) % items.length);
+            return;
+        }
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusContextMenuItem(0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusContextMenuItem(items.length - 1);
+        }
+    });
+
     pinButtonEl?.addEventListener('click', () => {
         const chatId = targetChatId;
         hideContactContextMenu();
@@ -365,11 +405,6 @@ export function initDeleteMessagesModal({
         const messageEls = pendingMessageIds
             .map((id) => resolveMessageElement(id))
             .filter(Boolean);
-
-        if (isSavedMessagesChat()) {
-            confirmDelete(pendingMessageIds, 'for_me');
-            return;
-        }
 
         updateDeleteMessageDialog({
             messageEls,

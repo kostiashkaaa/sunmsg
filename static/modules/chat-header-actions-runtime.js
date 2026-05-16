@@ -46,6 +46,7 @@ export function bindChatHeaderActionsRuntime({
     renderDisappearingTimerPicker,
 } = {}) {
     const exportChatBtn = documentRef.getElementById('exportChatBtn');
+    const headerMoreBtn = documentRef.getElementById('headerMoreBtn');
     let isExportingChatHistory = false;
 
     const setExportChatPending = (isPending) => {
@@ -95,9 +96,79 @@ export function bindChatHeaderActionsRuntime({
         getCsrfToken,
     });
 
-    documentRef.getElementById('headerMoreBtn')?.addEventListener('click', (event) => {
+    const headerDropdownOpen = () => Boolean(
+        headerDropdown
+        && (
+            headerDropdown.classList.contains('active')
+            || headerDropdown.classList.contains('is-opening')
+            || headerDropdown.classList.contains('is-closing')
+        )
+    );
+
+    const getHeaderDropdownItems = () => Array.from(headerDropdown?.querySelectorAll('[role="menuitem"]') || [])
+        .filter((item) => !item.hidden && item.getAttribute('aria-hidden') !== 'true');
+
+    const focusHeaderDropdownItem = (index) => {
+        const items = getHeaderDropdownItems();
+        if (!items.length) return;
+        const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+        items[safeIndex]?.focus?.({ preventScroll: true });
+    };
+
+    headerMoreBtn?.addEventListener('click', (event) => {
         event.stopPropagation();
-        toggleHeaderDropdown?.();
+        toggleHeaderDropdown?.({ focusFirst: event.detail === 0 });
+    });
+
+    headerMoreBtn?.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!headerDropdownOpen()) {
+            toggleHeaderDropdown?.({ focusFirst: true });
+            return;
+        }
+        focusHeaderDropdownItem(0);
+    });
+
+    headerDropdown?.addEventListener('keydown', (event) => {
+        const items = getHeaderDropdownItems();
+        if (!items.length) return;
+        const currentIndex = Math.max(0, items.indexOf(documentRef.activeElement));
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeHeaderDropdown?.({ returnFocus: true });
+            if (disappearingTimerPickerContainer) {
+                disappearingTimerPickerContainer.classList.remove('is-open');
+                disappearingTimerPickerContainer.innerHTML = '';
+            }
+            return;
+        }
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusHeaderDropdownItem((currentIndex + 1) % items.length);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusHeaderDropdownItem((currentIndex - 1 + items.length) % items.length);
+            return;
+        }
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusHeaderDropdownItem(0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusHeaderDropdownItem(items.length - 1);
+            return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            documentRef.activeElement?.click?.();
+        }
     });
 
     documentRef.getElementById('searchChatMenuBtn')?.addEventListener('click', (event) => {
@@ -165,6 +236,15 @@ export function bindChatHeaderActionsRuntime({
         }
         if (profileMoreMenu && !event.target.closest('.profile-topbar-more')) {
             closeProfileMoreMenu?.();
+        }
+    });
+    documentRef.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || !headerDropdownOpen()) return;
+        event.preventDefault();
+        closeHeaderDropdown?.({ returnFocus: true });
+        if (disappearingTimerPickerContainer) {
+            disappearingTimerPickerContainer.classList.remove('is-open');
+            disappearingTimerPickerContainer.innerHTML = '';
         }
     });
 

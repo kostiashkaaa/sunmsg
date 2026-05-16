@@ -759,6 +759,7 @@ export const initChatPage = async () => {
     groupInviteLinkController = createGroupInviteLinkController({
         withAppRoot,
         getCsrfToken,
+        confirmDialog: showConfirmDialog,
     });
 
     chatAnimationsController = createChatAnimationsController({
@@ -3821,6 +3822,7 @@ export const initChatPage = async () => {
         removeGroupMember,
         applyGroupMemberSanction,
         submitGroupSanctionAppeal,
+        confirmDialog: showConfirmDialog,
         onGroupMemberClick: (targetUserId) => {
             if (messageSelectionController.isSelectionMode()) return;
             openUserProfileById(targetUserId);

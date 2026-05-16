@@ -3460,7 +3460,8 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        .context-menu-item:hover {
+        .context-menu-item:hover,
+        .context-menu-item:focus-visible {
             background: color-mix(in srgb, var(--contact-hover) 68%, transparent);
             color: var(--text);
             transform: none;
@@ -3470,7 +3471,8 @@ body.dark-mode #messageForwardModal .forward-target-status {
         .context-menu-item.danger { color: color-mix(in srgb, var(--danger) 90%, #ffffff 10%); }
 
 
-        .context-menu-item.danger:hover {
+        .context-menu-item.danger:hover,
+        .context-menu-item.danger:focus-visible {
             background: color-mix(in srgb, var(--danger) 22%, transparent);
             color: color-mix(in srgb, var(--danger) 70%, #ffffff 30%);
         }

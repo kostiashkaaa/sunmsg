@@ -179,6 +179,53 @@ export function createGroupModerationApi({
     };
 }
 
+const GROUP_ROLE_CONFIRM_LABELS = {
+    owner: '\u0432\u043B\u0430\u0434\u0435\u043B\u0435\u0446',
+    admin: '\u0430\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0430\u0442\u043E\u0440',
+    moderator: '\u043C\u043E\u0434\u0435\u0440\u0430\u0442\u043E\u0440',
+    member: '\u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A',
+};
+
+const GROUP_SANCTION_CONFIRM_LABELS = {
+    mute_temp: '\u043C\u0443\u0442',
+    ban_temp: '\u0431\u0430\u043D',
+    ban_perma: '\u0431\u0430\u043D',
+};
+
+function resolveMemberNameFromAction(button) {
+    return String(
+        button?.closest?.('.group-edit-member-row')?.querySelector?.('.group-edit-member-name')?.textContent
+        || ''
+    ).replace(/\s+/g, ' ').trim();
+}
+
+function formatMemberSuffix(name) {
+    return name ? `: ${name}` : '';
+}
+
+function requestGroupActionConfirm(confirmDialog, options) {
+    if (typeof confirmDialog === 'function') {
+        return confirmDialog(options);
+    }
+    const fallbackConfirm = globalThis?.window?.confirm || globalThis?.confirm;
+    if (typeof fallbackConfirm !== 'function') return Promise.resolve(false);
+    return Promise.resolve(Boolean(fallbackConfirm(options?.message || options?.title || '')));
+}
+
+async function runMemberButtonAction(button, action) {
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await action();
+    } finally {
+        if (button.isConnected) {
+            button.disabled = false;
+            button.setAttribute('aria-busy', 'false');
+        }
+    }
+}
+
 export function bindGroupModerationUiHandlers({
     groupEditMembersList,
     profileGroupMembers,
@@ -187,6 +234,7 @@ export function bindGroupModerationUiHandlers({
     applyGroupMemberSanction,
     submitGroupSanctionAppeal,
     onGroupMemberClick,
+    confirmDialog,
 } = {}) {
     groupEditMembersList?.addEventListener('click', (event) => {
         const roleBtn = event.target.closest('[data-group-role-target][data-group-role-next]');
@@ -195,7 +243,17 @@ export function bindGroupModerationUiHandlers({
             const nextRole = normalizeRoleValue(roleBtn.getAttribute('data-group-role-next') || '');
             if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
             if (!GROUP_ROLES.includes(nextRole)) return;
-            void updateGroupMemberRole(targetUserId, nextRole);
+            const memberName = resolveMemberNameFromAction(roleBtn);
+            void requestGroupActionConfirm(confirmDialog, {
+                title: '\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u043E\u043B\u044C \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430?',
+                message: `\u0420\u043E\u043B\u044C ${GROUP_ROLE_CONFIRM_LABELS[nextRole] || nextRole} \u0431\u0443\u0434\u0435\u0442 \u043D\u0430\u0437\u043D\u0430\u0447\u0435\u043D\u0430 \u0441\u0440\u0430\u0437\u0443${formatMemberSuffix(memberName)}.`,
+                confirmText: '\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C',
+                variant: nextRole === 'owner' ? 'danger' : 'warning',
+                icon: nextRole === 'owner' ? 'warning' : 'info',
+            }).then((confirmed) => {
+                if (!confirmed) return;
+                void runMemberButtonAction(roleBtn, () => updateGroupMemberRole(targetUserId, nextRole));
+            });
             return;
         }
 
@@ -203,7 +261,17 @@ export function bindGroupModerationUiHandlers({
         if (removeBtn) {
             const targetUserId = Number.parseInt(removeBtn.getAttribute('data-group-remove-target') || '', 10);
             if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
-            void removeGroupMember(targetUserId);
+            const memberName = resolveMemberNameFromAction(removeBtn);
+            void requestGroupActionConfirm(confirmDialog, {
+                title: '\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430?',
+                message: `\u0423\u0447\u0430\u0441\u0442\u043D\u0438\u043A \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0451\u043D \u0438\u0437 \u0433\u0440\u0443\u043F\u043F\u044B${formatMemberSuffix(memberName)}.`,
+                confirmText: '\u0423\u0434\u0430\u043B\u0438\u0442\u044C',
+                variant: 'danger',
+                icon: 'trash',
+            }).then((confirmed) => {
+                if (!confirmed) return;
+                void runMemberButtonAction(removeBtn, () => removeGroupMember(targetUserId));
+            });
             return;
         }
 
@@ -217,7 +285,22 @@ export function bindGroupModerationUiHandlers({
         );
         if (!Number.isFinite(targetUserId) || targetUserId <= 0) return;
         if (!GROUP_SANCTIONS.includes(actionType)) return;
-        void applyGroupMemberSanction(targetUserId, actionType, Number.isFinite(durationSeconds) ? durationSeconds : 0);
+        const memberName = resolveMemberNameFromAction(sanctionBtn);
+        const label = GROUP_SANCTION_CONFIRM_LABELS[actionType] || actionType;
+        void requestGroupActionConfirm(confirmDialog, {
+            title: '\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435?',
+            message: `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 "${label}" \u0432\u0441\u0442\u0443\u043F\u0438\u0442 \u0432 \u0441\u0438\u043B\u0443 \u0441\u0440\u0430\u0437\u0443${formatMemberSuffix(memberName)}.`,
+            confirmText: '\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C',
+            variant: actionType.includes('ban') ? 'danger' : 'warning',
+            icon: 'warning',
+        }).then((confirmed) => {
+            if (!confirmed) return;
+            void runMemberButtonAction(sanctionBtn, () => applyGroupMemberSanction(
+                targetUserId,
+                actionType,
+                Number.isFinite(durationSeconds) ? durationSeconds : 0,
+            ));
+        });
     });
 
     profileGroupMembers?.addEventListener('click', (event) => {

@@ -45,17 +45,50 @@ export function createChatLazyUiRuntime({
         return true;
     }
 
-    function closeHeaderDropdown() {
-        return closeFloatingPanel(headerDropdown, 'active', 120);
+    function getHeaderMoreButton() {
+        return headerDropdown?.ownerDocument?.getElementById('headerMoreBtn') || null;
     }
 
-    function toggleHeaderDropdown() {
+    function setHeaderDropdownExpanded(isExpanded) {
+        getHeaderMoreButton()?.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+
+    function getHeaderDropdownItems() {
+        return Array.from(headerDropdown?.querySelectorAll('[role="menuitem"]') || [])
+            .filter((item) => !item.hidden && item.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function focusHeaderDropdownItem(index = 0) {
+        const items = getHeaderDropdownItems();
+        if (!items.length) return;
+        const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+        windowRef.requestAnimationFrame(() => {
+            items[safeIndex]?.focus?.({ preventScroll: true });
+        });
+    }
+
+    function closeHeaderDropdown(options = {}) {
+        const { returnFocus = false } = options || {};
+        setHeaderDropdownExpanded(false);
+        const closePromise = closeFloatingPanel(headerDropdown, 'active', 120);
+        if (returnFocus) {
+            Promise.resolve(closePromise).finally(() => {
+                getHeaderMoreButton()?.focus?.({ preventScroll: true });
+            });
+        }
+        return closePromise;
+    }
+
+    function toggleHeaderDropdown(options = {}) {
+        const { focusFirst = false, returnFocus = false } = options || {};
         if (!headerDropdown) return;
         if (headerDropdown.classList.contains('active') || headerDropdown.classList.contains('is-opening')) {
-            closeHeaderDropdown();
+            closeHeaderDropdown({ returnFocus });
             return;
         }
         openFloatingPanel(headerDropdown, 'active');
+        setHeaderDropdownExpanded(true);
+        if (focusFirst) focusHeaderDropdownItem(0);
     }
 
     function ensureEmojiPicker() {
