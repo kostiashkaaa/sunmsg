@@ -66,13 +66,9 @@ body:not(.settings-embed-mode) .settings-scene {
 .settings-scene .settings-panel-head {
     background: var(--sx-bg-panel) !important;
     border-bottom: 1px solid var(--sx-line) !important;
-    padding: 14px 16px !important;
-    min-height: 56px;
 }
 .settings-scene .settings-panel-title {
     font-family: var(--sx-font);
-    font-size: 19px;
-    font-weight: 600;
     letter-spacing: -0.015em;
     color: var(--sx-ink);
 }
