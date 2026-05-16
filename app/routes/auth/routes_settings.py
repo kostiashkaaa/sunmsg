@@ -502,6 +502,7 @@ def delete_account():
         clear_refresh_cookie(response, secure=secure)
         return response
     except DatabaseError:
+        conn.rollback()
         logger.exception('delete_account error')
         return jsonify({'success': False, 'error': 'Ошибка при удалении аккаунта.'}), 500
     finally:

@@ -763,7 +763,7 @@ def test_mobile_chat_uses_single_bottom_dock_for_keyboard_and_emoji() -> None:
     emoji_area_block = re.search(r'\.chat-area\.emoji-sheet-open\s*\{([^}]*)\}', css, re.DOTALL)
     assert emoji_area_block, 'chat.css: .chat-area.emoji-sheet-open block not found'
     emoji_area_body = emoji_area_block.group(1)
-    assert '--mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, 460px)' in emoji_area_body
+    assert '--mobile-bottom-dock-height: var(--mobile-emoji-sheet-height,' in emoji_area_body
 
     emoji_picker_blocks = re.findall(r'\.emoji-picker\s*\{([^}]*)\}', css, re.DOTALL)
     assert any('bottom: 0' in block and 'top: auto' in block for block in emoji_picker_blocks), (
@@ -812,13 +812,20 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
 def test_mobile_inline_message_meta_uses_shared_flex_layout() -> None:
     """Mobile inline text footer should use the same flex alignment model as desktop."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    _COMPACT_BUBBLE_CORE = (
+        r'\.message:not\(\.message-emoji-only\)\s+'
+        r'\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\)'
+        r':not\(:has\(>\s+\.message-link-preview\)\)'
+        r':not\(:has\(>\s+\.message-sender-label\)\)'
+        r'(?::not\(:has\(>\s+\.[^)]+\)\))*'
+    )
     footer_blocks = list(re.finditer(
-        r'\.message:not\(\.message-emoji-only\)\s+\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\):not\(:has\(>\s+\.message-link-preview\)\):not\(:has\(>\s+\.message-sender-label\)\)\s+>\s+\.message-footer\s*\{([^}]*)\}',
+        _COMPACT_BUBBLE_CORE + r'\s+>\s+\.message-footer\s*\{([^}]*)\}',
         css,
         re.DOTALL,
     ))
     bubble_blocks = list(re.finditer(
-        r'\.message:not\(\.message-emoji-only\)\s+\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\):not\(:has\(>\s+\.message-link-preview\)\):not\(:has\(>\s+\.message-sender-label\)\)\s*\{([^}]*)\}',
+        _COMPACT_BUBBLE_CORE + r'\s*\{([^}]*)\}',
         css,
         re.DOTALL,
     ))

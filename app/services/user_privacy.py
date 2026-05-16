@@ -38,8 +38,13 @@ def is_privacy_allowed(conn, *, owner_id: int, viewer_id: int | None, policy) ->
     return is_contact(conn, owner_id=owner_id, viewer_id=viewer_id)
 
 
+_ALLOWED_PRIVACY_COLUMNS = frozenset({'voice_message_privacy', 'message_privacy'})
+
+
 def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_type: str) -> bool:
     column_name = 'voice_message_privacy' if str(message_type or '').strip().lower() == 'voice' else 'message_privacy'
+    if column_name not in _ALLOWED_PRIVACY_COLUMNS:
+        return True
     try:
         row = conn.execute(
             f'SELECT {column_name} FROM users WHERE id = ?',

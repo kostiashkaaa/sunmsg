@@ -39,9 +39,7 @@ from app.sockets.favorite_handlers import (
 )
 from app.sockets.reaction_handlers import handle_toggle_reaction_event
 from app.services.disappearing_messages import (
-    VALID_TIMERS,
     set_chat_auto_delete,
-    get_chat_auto_delete,
     normalize_auto_delete_seconds,
 )
 from app.services.chat_members import is_chat_member

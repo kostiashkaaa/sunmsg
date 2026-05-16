@@ -281,7 +281,7 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf) {
         return decoder.decode(plaintextBuffer);
 
     } catch (e) {
-        console.error("Decrypt error", e);
+        console.error("Decrypt error:", e?.name || 'unknown');
         return "⚠️ [\u041E\u0448\u0438\u0431\u043A\u0430 \u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F]";
     }
 }
