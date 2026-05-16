@@ -1207,6 +1207,30 @@ def test_failed_image_media_does_not_become_visible_loaded_image() -> None:
     )
 
 
+def test_hydrated_chat_images_bypass_native_lazy_loading() -> None:
+    """Custom media hydration must be the only lazy gate for chat images."""
+    hydration = (STATIC / 'modules' / 'media-hydration.js').read_text(encoding='utf-8')
+    force_helper_idx = hydration.find('function forceImageNetworkLoad(imageEl)')
+    loading_property_idx = hydration.find("imageEl.loading = 'eager'", force_helper_idx)
+    loading_attr_idx = hydration.find("imageEl.setAttribute('loading', 'eager')", force_helper_idx)
+    hydrate_image_idx = hydration.find('function hydrateImage(imageEl)')
+    force_call_idx = hydration.find('forceImageNetworkLoad(imageEl);', hydrate_image_idx)
+    src_guard_idx = hydration.find("if (String(imageEl.getAttribute('src') || '').trim()) return true;", hydrate_image_idx)
+
+    assert force_helper_idx >= 0, (
+        'media-hydration.js: hydrated images must disable native lazy loading before assigning src'
+    )
+    assert loading_property_idx > force_helper_idx and loading_attr_idx > force_helper_idx, (
+        'media-hydration.js: forceImageNetworkLoad must set both the property and attribute to eager'
+    )
+    assert hydrate_image_idx >= 0 and force_call_idx > hydrate_image_idx, (
+        'media-hydration.js: hydrateImage must call forceImageNetworkLoad'
+    )
+    assert force_call_idx < src_guard_idx, (
+        'media-hydration.js: eager loading must be applied even when src is already present'
+    )
+
+
 def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     """Chat mobile viewport runtime must sync visualViewport metrics to CSS vars."""
     runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')

@@ -41,6 +41,12 @@ export function createMediaHydrationController(options = {}) {
         element.setAttribute('src', resolvedSrc);
     }
 
+    function forceImageNetworkLoad(imageEl) {
+        if (!(imageEl instanceof HTMLImageElement)) return;
+        imageEl.loading = 'eager';
+        imageEl.setAttribute('loading', 'eager');
+    }
+
     function markAlbumCellLoaded(mediaEl) {
         const cell = mediaEl.closest('.album-cell');
         if (!cell) return;
@@ -71,6 +77,7 @@ export function createMediaHydrationController(options = {}) {
         if (!(imageEl instanceof HTMLImageElement)) return false;
         const dataSrc = String(imageEl.getAttribute('data-src') || '').trim();
         if (!dataSrc) return false;
+        forceImageNetworkLoad(imageEl);
         if (String(imageEl.getAttribute('src') || '').trim()) return true;
 
         if (imageEl.classList.contains('album-cell-img')) {
