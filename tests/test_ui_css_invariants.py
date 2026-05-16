@@ -523,13 +523,13 @@ def test_icon_button_press_keeps_glyph_centered() -> None:
     assert 'target.appendChild(ripple)' in js
     assert 'insertBefore(ripple' not in js
 
-    ripple_host = re.search(r'\.tg-ripple-host\s*\{([^}]*)\}', css, re.DOTALL)
-    ripple_circle = re.search(r'\.tg-ripple-circle\s*\{([^}]*)\}', css, re.DOTALL)
+    ripple_host = re.search(r'\.sun-ripple-host\s*\{([^}]*)\}', css, re.DOTALL)
+    ripple_circle = re.search(r'\.sun-ripple-circle\s*\{([^}]*)\}', css, re.DOTALL)
     assert ripple_host and 'isolation: isolate' in ripple_host.group(1)
     assert ripple_circle and 'position: absolute' in ripple_circle.group(1)
     assert 'flex: 0 0 auto' in ripple_circle.group(1)
-    assert '.tg-ripple-host > .tg-ripple-circle' in css
-    assert '.tg-ripple-host > :not(.tg-ripple-circle)' in css
+    assert '.sun-ripple-host > .sun-ripple-circle' in css
+    assert '.sun-ripple-host > :not(.sun-ripple-circle)' in css
 
     press_block = re.search(
         r'\.btn-icon:hover,[^{]*?#messageForm\s+\.btn-icon:active,[^{]*?'

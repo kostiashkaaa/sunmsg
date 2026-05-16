@@ -741,7 +741,7 @@
     }
 }
 
-/* Telegram-style vertical settings navigation */
+/* messenger-style vertical settings navigation */
 @media (min-width: 1025px) {
     .settings-panel-body {
         flex-direction: column;

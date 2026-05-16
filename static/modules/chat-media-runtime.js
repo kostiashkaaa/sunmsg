@@ -1001,7 +1001,7 @@ export function initChatMediaRuntime(deps = {}) {
             }
             const next = findAdjacentVoiceAudio(audioEl, 1);
             if (next) {
-                // Авто-переход на следующее голосовое (Telegram-style).
+                // Авто-переход на следующее голосовое (messenger-style).
                 const nextToggle = next.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
                 if (nextToggle) {
                     const messageEl = resolveAudioMessageElement(next);

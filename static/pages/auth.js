@@ -2,7 +2,7 @@ import { getCsrfToken, setCsrfToken } from '../modules/csrf.js';
 import { withAppRoot } from '../modules/app-url.js';
 import { stagePrivateKeyForRedirect } from '../modules/private-key-session.js';
 import { stageKeyForLogin } from '../modules/key-login-stage.js';
-import { initMotionRuntime, initTelegramRipple } from '../modules/motion.js';
+import { initMotionRuntime, initSunRipple } from '../modules/motion.js';
 
 import {
     hasWebCryptoSupport,
@@ -17,7 +17,7 @@ import { initLoginFlow } from './auth/login-flow.js';
 import { initRegisterFlow } from './auth/register-flow.js';
 
 initMotionRuntime();
-initTelegramRipple(document);
+initSunRipple(document);
 
 const ui = initAuthUi({ withAppRoot, getCsrfToken });
 

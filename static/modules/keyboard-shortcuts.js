@@ -1,4 +1,4 @@
-// keyboard-shortcuts.js — Telegram-like global hotkeys
+// keyboard-shortcuts.js — messenger-like global hotkeys
 //
 //   Ctrl/Cmd + F            — focus sidebar search input
 //   Ctrl/Cmd + Shift + F    — open in-chat message search

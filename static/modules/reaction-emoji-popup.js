@@ -189,7 +189,7 @@ export function initReactionEmojiPopup({
     function ensurePopupElement() {
         if (popupEl) return;
         popupEl = document.createElement('div');
-        popupEl.className = 'reaction-emoji-popup telegram-popup';
+        popupEl.className = 'reaction-emoji-popup sun-popup';
         popupEl.setAttribute('aria-hidden', 'true');
         popupEl.innerHTML = `
             <div class="reaction-emoji-popup__search-wrap">

@@ -2163,7 +2163,7 @@
             --chat-message-pad-x: calc(14px * var(--chat-message-scale));
             --chat-bubble-pad-y: calc(5px * var(--chat-message-scale));
             --chat-bubble-pad-x: calc(8px * var(--chat-message-scale));
-            --chat-bubble-radius: var(--tg-compact-bubble-radius, 12px);
+            --chat-bubble-radius: var(--sun-compact-bubble-radius, 12px);
             --chat-bubble-line-height: 1.3;
             --chat-bubble-shadow-base: var(--shadow-1);
             --chat-bubble-shadow-incoming: var(--shadow-md);
@@ -8455,7 +8455,7 @@
 
 
 
-        /* === Только медиа: статус поверх (как в Telegram) === */
+        /* === Только медиа: статус поверх (как в мессенджере) === */
         .bubble--image:not(.bubble--image-has-caption) .msg-meta,
         .bubble--image:not(.bubble--image-has-caption) .message-meta,
         .bubble--video:not(.bubble--video-has-caption) .msg-meta,
@@ -10576,7 +10576,7 @@
             white-space: nowrap; border: 0;
         }
 
-/* Telegram-like interaction compatibility layer */
+/* messenger-like interaction compatibility layer */
 .ripple-target {
     position: relative;
     overflow: hidden;
@@ -10614,13 +10614,13 @@
     animation: slideInChat var(--dur-medium) var(--ease-quick) both;
 }
 
-.telegram-popup {
+.sun-popup {
     transform-origin: var(--m-origin-x, 50%) var(--m-origin-y, 0%);
 }
 
-.telegram-popup.active,
-.telegram-popup.is-open,
-.telegram-popup.is-opening {
+.sun-popup.active,
+.sun-popup.is-open,
+.sun-popup.is-opening {
     will-change: transform, opacity;
 }
 
@@ -10797,7 +10797,7 @@
     }
 }
 
-/* Flat Telegram-like profile sidebar */
+/* Flat messenger-like profile sidebar */
 #partnerProfileDrawer {
     --profile-panel-x-pad: 12px;
     --profile-panel-y-gap: 4px;
@@ -11262,16 +11262,16 @@
     }
 }
 
-/* Telegram-like compact message composition (layout + reactions + footer) */
+/* messenger-like compact message composition (layout + reactions + footer) */
 :root {
-    --tg-compact-bubble-radius: 12px;
-    --tg-compact-bubble-tail-radius: 6px;
-    --tg-reaction-overlap: 4px;
-    --tg-reaction-inline-inset: 0px;
+    --sun-compact-bubble-radius: 12px;
+    --sun-compact-bubble-tail-radius: 6px;
+    --sun-reaction-overlap: 4px;
+    --sun-reaction-inline-inset: 0px;
     --chat-reaction-asset-size: 20px;
     --chat-bubble-pad-y: calc(5px * var(--chat-message-scale));
     --chat-bubble-pad-x: calc(8px * var(--chat-message-scale));
-    --chat-bubble-radius: var(--tg-compact-bubble-radius);
+    --chat-bubble-radius: var(--sun-compact-bubble-radius);
     --chat-bubble-line-height: 1.3;
     --chat-bubble-shadow-base: 0 1px 2px color-mix(in srgb, #000 14%, transparent);
     --chat-bubble-shadow-incoming: 0 1px 2px color-mix(in srgb, #000 18%, transparent);
@@ -11306,29 +11306,29 @@
 }
 
 .message.other.group-start .bubble {
-    border-bottom-left-radius: var(--tg-compact-bubble-tail-radius);
+    border-bottom-left-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message.other.group-middle .bubble {
-    border-top-left-radius: var(--tg-compact-bubble-tail-radius);
-    border-bottom-left-radius: var(--tg-compact-bubble-tail-radius);
+    border-top-left-radius: var(--sun-compact-bubble-tail-radius);
+    border-bottom-left-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message.other.group-end .bubble {
-    border-top-left-radius: var(--tg-compact-bubble-tail-radius);
+    border-top-left-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message.self.group-start .bubble {
-    border-bottom-right-radius: var(--tg-compact-bubble-tail-radius);
+    border-bottom-right-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message.self.group-middle .bubble {
-    border-top-right-radius: var(--tg-compact-bubble-tail-radius);
-    border-bottom-right-radius: var(--tg-compact-bubble-tail-radius);
+    border-top-right-radius: var(--sun-compact-bubble-tail-radius);
+    border-bottom-right-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message.self.group-end .bubble {
-    border-top-right-radius: var(--tg-compact-bubble-tail-radius);
+    border-top-right-radius: var(--sun-compact-bubble-tail-radius);
 }
 
 .message .bubble.bubble--text,
@@ -11474,7 +11474,7 @@
 }
 
 .message.message-reactions-outside .message-stack > .message-reactions {
-    margin-top: calc(var(--tg-reaction-overlap) * var(--chat-message-scale));
+    margin-top: calc(var(--sun-reaction-overlap) * var(--chat-message-scale));
     padding: 0;
     position: static;
     max-width: 100%;
@@ -11483,13 +11483,13 @@
 .message.other.message-reactions-outside .message-stack > .message-reactions {
     align-self: flex-start;
     justify-content: flex-start;
-    margin-left: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+    margin-left: calc(var(--sun-reaction-inline-inset) * var(--chat-message-scale));
 }
 
 .message.self.message-reactions-outside .message-stack > .message-reactions {
     align-self: flex-end;
     justify-content: flex-end;
-    margin-right: calc(var(--tg-reaction-inline-inset) * var(--chat-message-scale));
+    margin-right: calc(var(--sun-reaction-inline-inset) * var(--chat-message-scale));
 }
 
 .reaction-pill {

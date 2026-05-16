@@ -1,4 +1,4 @@
-/* Settings redesign — Telegram-style side-panel with sand palette.
+/* Settings redesign — messenger-style side-panel with sand palette.
    Scoped to .settings-scene to override existing settings.css without
    touching the original cascade. Loaded AFTER pages/settings.css.
 
