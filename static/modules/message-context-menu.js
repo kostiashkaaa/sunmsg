@@ -145,6 +145,30 @@ export function initMessageContextMenu({
         });
     }
 
+    function getVisibleContextMenuItems() {
+        return [
+            replyItemEl,
+            pinItemEl,
+            favoriteItemEl,
+            copyItemEl,
+            forwardItemEl,
+            editItemEl,
+            selectItemEl,
+            reportItemEl,
+            deleteItemEl,
+            deleteForAllItemEl,
+        ].filter((item) => item && !item.hidden && item.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function focusContextMenuItem(index = 0) {
+        const items = getVisibleContextMenuItems();
+        if (!items.length) return;
+        const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+        window.requestAnimationFrame(() => {
+            items[safeIndex]?.focus?.({ preventScroll: true });
+        });
+    }
+
     function showContextMenu(x, y, msgId, isSelf, options = {}) {
         currentMessageId = msgId;
         if (!menuEl) return;
@@ -180,6 +204,7 @@ export function initMessageContextMenu({
             if (!menuEl || openSeq !== menuTransitionSeq) return;
             menuEl.classList.add('is-open');
             menuEl.classList.remove('is-opening');
+            focusContextMenuItem(0);
         });
     }
 
@@ -218,6 +243,30 @@ export function initMessageContextMenu({
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') hideContextMenu();
+    });
+    menuEl?.addEventListener('keydown', (event) => {
+        const items = getVisibleContextMenuItems();
+        if (!items.length) return;
+        const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusContextMenuItem((currentIndex + 1) % items.length);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusContextMenuItem((currentIndex - 1 + items.length) % items.length);
+            return;
+        }
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusContextMenuItem(0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusContextMenuItem(items.length - 1);
+        }
     });
     window.addEventListener('resize', scheduleReposition, { passive: true });
     window.addEventListener('scroll', scheduleReposition, { passive: true });

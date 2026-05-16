@@ -42,6 +42,7 @@ function buildModalContent({ isGroup = false } = {}) {
         <div class="delete-chat-modal-card">
             <h5 class="delete-chat-modal-title">${title}</h5>
             <p class="delete-chat-modal-text">${text}</p>
+            <p class="delete-chat-modal-error" id="deleteChatModalError" role="alert" hidden></p>
             <div class="delete-chat-actions">
                 <button type="button" id="delForMe" class="delete-chat-action delete-chat-action--surface">
                     <i class="bi bi-trash3"></i>
@@ -56,15 +57,17 @@ function buildModalContent({ isGroup = false } = {}) {
     `;
 }
 
-function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = false } = {}) {
+async function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = false } = {}) {
     const endpoint = isGroup ? '/api/chats/group/leave' : '/delete_chat';
     const payload = isGroup ? { chat_id: chatId } : { chat_id: chatId, mode };
 
-    return fetch(withAppRoot(endpoint), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify(payload),
-    }).then((r) => r.json()).then((response) => {
+    try {
+        const rawResponse = await fetch(withAppRoot(endpoint), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify(payload),
+        });
+        const response = await rawResponse.json().catch(() => ({}));
         if (response.success) {
             onDeleted?.();
             onReload?.();
@@ -79,15 +82,18 @@ function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = fal
             } else {
                 showToast(mode === 'for_both' ? '\u0427\u0430\u0442 \u0443\u0434\u0430\u043B\u0435\u043D \u0443 \u043E\u0431\u043E\u0438\u0445' : '\u0427\u0430\u0442 \u0443\u0434\u0430\u043B\u0435\u043D', 'success');
             }
-            return;
+            return { success: true };
         }
         const message = isGroup
             ? localizeLeaveGroupError(response.error)
             : getErrorMessage(response.error);
         showToast(`\u041E\u0448\u0438\u0431\u043A\u0430: ${message}`, 'danger');
-    }).catch(() => {
-        showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430', 'danger');
-    });
+        return { success: false, message };
+    } catch (_) {
+        const message = '\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430';
+        showToast(message, 'danger');
+        return { success: false, message };
+    }
 }
 
 export function showDeleteChatDialog(chatId, { onDeleted, onReload, isGroup = false } = {}) {
@@ -109,17 +115,23 @@ export function showDeleteChatDialog(chatId, { onDeleted, onReload, isGroup = fa
     document.body.appendChild(modal);
     activateFocusTrap(modal);
     openAnimatedOverlay(modal);
-    document.getElementById('delForMe')?.focus();
+    const delForMeBtn = document.getElementById('delForMe');
+    const delForBothBtn = document.getElementById('delForBoth');
+    const delCancelBtn = document.getElementById('delCancel');
+    const errorEl = document.getElementById('deleteChatModalError');
+    delForMeBtn?.focus();
 
     let isClosing = false;
     let isDeleting = false;
     const onEsc = (event) => {
+        if (isDeleting) return;
         if (event.key === 'Escape') close();
     };
     document.addEventListener('keydown', onEsc);
 
-    const close = () => {
+    const close = ({ force = false } = {}) => {
         if (isClosing) return;
+        if (isDeleting && !force) return;
         isClosing = true;
         deactivateFocusTrap(modal);
         closeAnimatedOverlay(modal).finally(() => {
@@ -128,31 +140,62 @@ export function showDeleteChatDialog(chatId, { onDeleted, onReload, isGroup = fa
         });
     };
 
-    document.getElementById('delCancel')?.addEventListener('click', close);
+    delCancelBtn?.addEventListener('click', () => close());
     modal.addEventListener('click', (event) => {
+        if (isDeleting) return;
         if (event.target === modal) close();
     });
 
-    const setDeletePending = () => {
+    const setDeletePending = (activeButton) => {
         isDeleting = true;
         modal.setAttribute('aria-busy', 'true');
+        modal.classList.add('is-pending');
+        if (errorEl) {
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+        }
         modal.querySelectorAll('.delete-chat-action').forEach((button) => {
             button.disabled = true;
+            button.classList.toggle('is-pending', button === activeButton);
+            button.setAttribute('aria-busy', button === activeButton ? 'true' : 'false');
         });
     };
 
-    const runDelete = (mode, options = {}) => {
-        if (isDeleting) return;
-        setDeletePending();
-        close();
-        void performDeleteRequest(chatId, mode, { onDeleted, onReload, ...options });
+    const clearDeletePending = () => {
+        isDeleting = false;
+        modal.setAttribute('aria-busy', 'false');
+        modal.classList.remove('is-pending');
+        modal.querySelectorAll('.delete-chat-action').forEach((button) => {
+            button.disabled = false;
+            button.classList.remove('is-pending');
+            button.setAttribute('aria-busy', 'false');
+        });
+        delForMeBtn?.focus();
     };
 
-    document.getElementById('delForMe')?.addEventListener('click', () => {
-        runDelete('for_me', { isGroup });
+    const showInlineError = (message) => {
+        if (!errorEl) return;
+        errorEl.textContent = message || '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435.';
+        errorEl.hidden = false;
+    };
+
+    const runDelete = async (mode, options = {}, activeButton = null) => {
+        if (isDeleting) return;
+        setDeletePending(activeButton);
+        const result = await performDeleteRequest(chatId, mode, { onDeleted, onReload, ...options });
+        if (result?.success) {
+            close({ force: true });
+            return;
+        }
+        showInlineError(result?.message);
+        clearDeletePending();
+    };
+
+    delForMeBtn?.addEventListener('click', () => {
+        runDelete('for_me', { isGroup }, delForMeBtn);
     });
 
-    document.getElementById('delForBoth')?.addEventListener('click', () => {
-        runDelete('for_both', { isGroup: false });
+    delForBothBtn?.addEventListener('click', () => {
+        runDelete('for_both', { isGroup: false }, delForBothBtn);
     });
 }

@@ -258,6 +258,21 @@
             color: var(--sub-text);
         }
 
+        .delete-chat-modal-error {
+            margin: -6px 0 16px;
+            padding: 9px 11px;
+            border-radius: 10px;
+            border: 1px solid color-mix(in srgb, var(--danger) 38%, transparent);
+            background: color-mix(in srgb, var(--danger) 12%, transparent);
+            color: color-mix(in srgb, var(--danger) 88%, var(--text) 12%);
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+
+        .delete-chat-modal-error[hidden] {
+            display: none !important;
+        }
+
 
         .delete-chat-actions {
             display: flex;
@@ -284,6 +299,21 @@
             cursor: wait;
             opacity: 0.62;
             transform: none;
+        }
+
+        .delete-chat-action.is-pending::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            margin-left: auto;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 999px;
+            animation: delete-chat-action-spin 0.8s linear infinite;
+        }
+
+        @keyframes delete-chat-action-spin {
+            to { transform: rotate(360deg); }
         }
 
 
@@ -4014,6 +4044,12 @@
             cursor: wait;
             opacity: 0.62;
             pointer-events: none;
+        }
+
+        .header-dropdown .dropdown-item:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--accent) 74%, transparent);
+            outline-offset: -2px;
+            background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
         }
 
 
@@ -9951,17 +9987,24 @@
 
 
         .context-menu-item {
+            width: 100%;
             display: grid;
             grid-template-columns: 18px minmax(0, 1fr);
             align-items: center;
             gap: 10px;
             min-height: 34px;
             padding: 7px 10px;
+            border: 0;
+            background: transparent;
+            appearance: none;
+            -webkit-appearance: none;
             font-size: 14px;
             font-weight: 500;
+            font-family: var(--font);
             color: var(--text);
             cursor: pointer;
             border-radius: 8px;
+            text-align: left;
             transition:
                 background-color var(--dur-quick) var(--ease-quick),
                 color var(--dur-quick) var(--ease-quick);
