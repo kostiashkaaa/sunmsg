@@ -190,7 +190,7 @@ def send_request_route():
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
 
     user_id = session['user_id']
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     conn = get_db_connection()
     result = process_send_request_route(
@@ -213,7 +213,7 @@ def send_request_by_username_route():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     username = canonical_username(data.get('username'))
     if not username or not USERNAME_PATTERN.fullmatch(username):
         return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
@@ -275,7 +275,7 @@ def accept_request():
     if 'user_id' not in session:
         return jsonify({'success': False}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     user_id = session['user_id']
 
     conn = get_db_connection()
@@ -294,7 +294,7 @@ def decline_request():
     if 'user_id' not in session:
         return jsonify({'success': False}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     user_id = session['user_id']
 
     conn = get_db_connection()
