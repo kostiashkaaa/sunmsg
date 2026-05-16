@@ -117,13 +117,15 @@ body.settings-detail-open .settings-card {
     display: none !important;   /* убираем «висящий» разделитель — он создавал неровность */
 }
 .settings-scene .settings-card-header i,
-.settings-scene .settings-card-header > svg {
-    width: 26px !important;
-    height: 26px !important;
-    flex: 0 0 26px !important;
+.settings-scene .settings-card-header > svg.sun-icon {
+    width: 28px !important;
+    height: 28px !important;
+    flex: 0 0 28px !important;
     border-radius: 50% !important;
-    padding: 5px !important;
+    padding: 6px !important;
     box-sizing: border-box !important;
+    background: var(--sx-accent-tint, color-mix(in srgb, var(--accent) 16%, transparent)) !important;
+    color: var(--sx-accent-2, var(--accent)) !important;
 }
 .settings-scene .settings-card-header h3 {
     font-size: 14px !important;
@@ -296,6 +298,10 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     z-index: 2 !important;
 }
 .settings-scene .settings-avatar-edit-btn i { font-size: 17px !important; }
+.settings-scene .settings-avatar-edit-btn .sun-icon {
+    width: 17px !important;
+    height: 17px !important;
+}
 /* Когда в аватаре есть фото — курсор-указатель (открывается просмотр) */
 .settings-scene .avatar-preview:has(img) {
     cursor: pointer !important;
@@ -432,9 +438,25 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 .settings-scene #mnemonicUnlockBody {
     animation: tg-section-in var(--tg-dur) var(--tg-ease) both;
 }
-.settings-scene .mnemonic-unlocked-note .settings-row-label i {
+.settings-scene .mnemonic-unlocked-note .settings-row-label i,
+.settings-scene .mnemonic-unlocked-note .settings-row-label .sun-icon {
     color: var(--sx-good, #5fa052) !important;
+    width: 16px !important;
+    height: 16px !important;
     margin-right: 5px;
+    vertical-align: -2px;
+}
+/* Иконка-предупреждение внутри строки-метки — отступ от текста */
+.settings-scene .settings-row-label > .sun-icon {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 6px !important;
+    vertical-align: -2px !important;
+}
+.settings-scene .settings-card-header-warning .sun-icon,
+.settings-scene .settings-warning-icon {
+    background: color-mix(in srgb, var(--sx-danger, #c95a3a) 16%, transparent) !important;
+    color: var(--sx-danger, #c95a3a) !important;
 }
 
 /* ── Анимация входа секций — плавная, без скачка высоты ──────────────────── */
@@ -996,6 +1018,20 @@ body.settings-home-open .settings-nav {
 .settings-scene .btn-settings .bi {
     font-size: 15px !important;
     line-height: 1 !important;
+}
+.settings-scene .btn-settings .sun-icon {
+    width: 16px !important;
+    height: 16px !important;
+    flex: 0 0 auto !important;
+}
+.settings-scene .btn-settings.settings-icon-action .sun-icon {
+    width: 18px !important;
+    height: 18px !important;
+}
+.settings-scene .settings-alert .sun-icon {
+    width: 16px !important;
+    height: 16px !important;
+    margin-top: 1px !important;
 }
 
 /* Основная кнопка (primary или btn-settings без модификатора) */

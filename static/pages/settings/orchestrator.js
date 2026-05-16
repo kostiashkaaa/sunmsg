@@ -197,11 +197,15 @@ export function initSettingsPage() {
         const el = document.getElementById('settingsAlert');
         if (!el) return;
         const safeType = type === 'success' || type === 'warning' || type === 'danger' ? type : 'danger';
-        const icon = safeType === 'success' ? 'check-circle' : safeType === 'warning' ? 'exclamation-triangle' : 'x-circle';
+        const icon = safeType === 'success' ? 'check-square' : safeType === 'warning' ? 'warning' : 'x-circle';
         const alert = document.createElement('div');
         alert.className = `settings-alert ${safeType}`;
-        const iconEl = document.createElement('i');
-        iconEl.className = `bi bi-${icon}`;
+        const iconEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        iconEl.setAttribute('class', 'sun-icon');
+        iconEl.setAttribute('aria-hidden', 'true');
+        const useEl = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        useEl.setAttribute('href', `#sun-i-${icon}`);
+        iconEl.appendChild(useEl);
         const textEl = document.createElement('span');
         textEl.textContent = tr(msg);
         alert.appendChild(iconEl);
