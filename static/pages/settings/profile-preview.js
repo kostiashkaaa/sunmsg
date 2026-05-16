@@ -29,8 +29,18 @@ export function createProfilePreviewController({
         });
     }
 
+    function clearAvatarToInitials() {
+        avatarTargets.forEach((target) => {
+            target.replaceChildren();
+            target.removeAttribute('data-avatar-tint');
+        });
+    }
+
     function setAvatarPreviewImage(avatarUrl) {
-        if (!avatarUrl) return;
+        if (!avatarUrl) {
+            clearAvatarToInitials();
+            return;
+        }
         setAvatarImageForTargets(avatarUrl);
     }
 

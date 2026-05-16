@@ -40,10 +40,10 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
 
     async function requestSuccess(path, options, fallbackError) {
         const { response, payload } = await request(path, options);
-        if (!response.ok || !payload || payload.success === false) {
+        if (!response.ok || payload?.success === false) {
             throw new Error(String(payload?.error || fallbackError));
         }
-        return payload;
+        return payload || {};
     }
 
     return {

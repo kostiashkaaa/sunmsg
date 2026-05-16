@@ -72,30 +72,36 @@ def get_settings():
 
     user_public_key_pem = session['public_key_pem']
     conn = get_db_connection()
-    user = conn.execute(
-        '''
-        SELECT id, username, display_name, public_key, is_public,
-               auto_decline_requests, mute_dialog_requests, hide_online_status, is_online, last_seen,
-               avatar_url, avatar_visibility,
-               last_seen_visibility, bio_visibility, forward_link_privacy,
-               group_invite_privacy, voice_message_privacy, message_privacy,
-               bio, status_text, language, client_preferences
-        FROM users
-        WHERE public_key = ?
-        ''',
-        (user_public_key_pem,),
-    ).fetchone()
-    conn.close()
+    try:
+        user = conn.execute(
+            '''
+            SELECT id, username, display_name, public_key, is_public,
+                   auto_decline_requests, mute_dialog_requests, hide_online_status, is_online, last_seen,
+                   avatar_url, avatar_visibility,
+                   last_seen_visibility, bio_visibility, forward_link_privacy,
+                   group_invite_privacy, voice_message_privacy, message_privacy,
+                   bio, status_text, language, client_preferences
+            FROM users
+            WHERE public_key = ?
+            ''',
+            (user_public_key_pem,),
+        ).fetchone()
+    finally:
+        conn.close()
 
     if not user:
         return jsonify({'error': 'Пользователь не найден.'}), 404
 
-    effective_online = is_effectively_online(
-        user['public_key'],
-        persisted=bool(user['is_online']) if 'is_online' in user.keys() else False,
-    )
+    try:
+        effective_online = is_effectively_online(
+            user['public_key'],
+            persisted=bool(user['is_online']) if 'is_online' in user.keys() else False,
+        )
+    except Exception:
+        effective_online = False
 
     return jsonify({
+        'success':              True,
         'username':             user['username'],
         'display_name':         user['display_name'],
         'is_public':            bool(user['is_public']),
