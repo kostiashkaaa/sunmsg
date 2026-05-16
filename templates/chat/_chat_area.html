@@ -58,7 +58,7 @@
                     <span class="pinned-bar__label">Закреплённое сообщение</span>
                     <span class="pinned-bar__text" id="pinnedBarText"></span>
                 </div>
-                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unpinBtn" title="Открепить">
+                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unpinBtn" title="Открепить" aria-label="Открепить сообщение">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
                 </button>
             </div>
@@ -69,43 +69,43 @@
                     <span class="pinned-bar__label">Избранное сообщение</span>
                     <span class="pinned-bar__text" id="favoriteBarText"></span>
                 </div>
-                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unfavoriteBtn" title="Убрать из избранного">
+                <button type="button" class="btn-icon ripple-target pinned-bar__close" id="unfavoriteBtn" title="Убрать из избранного" aria-label="Убрать из избранного">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
                 </button>
             </div>
 
             <div class="header-actions-group header-actions-group--hidden" id="chatHeaderActions">
-                <button class="btn-icon ripple-target" id="searchChatBtn" title="Поиск сообщений">
+                <button class="btn-icon ripple-target" id="searchChatBtn" title="Поиск сообщений" aria-label="Поиск сообщений">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
                 </button>
                 <div class="header-more-actions">
-                    <button class="btn-icon ripple-target" id="headerMoreBtn" title="Дополнительно">
+                    <button class="btn-icon ripple-target" id="headerMoreBtn" title="Дополнительно" aria-label="Дополнительные действия" aria-haspopup="menu" aria-expanded="false">
                         <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
                     </button>
-                    <div class="header-dropdown sun-popup" id="headerDropdown">
-                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="searchChatMenuBtn">
+                    <div class="header-dropdown sun-popup" id="headerDropdown" role="menu">
+                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="searchChatMenuBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg> Поиск сообщений
                         </div>
-                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="selectMessagesMenuBtn">
+                        <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="selectMessagesMenuBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-check-square"></use></svg> Выбрать сообщения
                         </div>
-                        <div class="dropdown-item ripple-target" id="muteChatBtn" role="button" tabindex="0" aria-pressed="false">
+                        <div class="dropdown-item ripple-target" id="muteChatBtn" role="menuitem" tabindex="-1" aria-pressed="false">
                             <i class="bi bi-bell"></i> <span id="muteChatBtnLabel">Отключить уведомления</span>
                         </div>
-                        <div class="dropdown-item ripple-target" id="exportChatBtn">
+                        <div class="dropdown-item ripple-target" id="exportChatBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-download"></use></svg> Экспортировать историю
                         </div>
-                        <div class="dropdown-item ripple-target" id="blockChatBtn" role="button" tabindex="0">
+                        <div class="dropdown-item ripple-target" id="blockChatBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-slash-circle"></use></svg> <span id="blockChatBtnLabel">Заблокировать пользователя</span>
                         </div>
-                        <div class="dropdown-item ripple-target" id="reportUserMenuBtn">
+                        <div class="dropdown-item ripple-target" id="reportUserMenuBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-flag"></use></svg> Пожаловаться на пользователя
                         </div>
-                        <div class="dropdown-item ripple-target" id="disappearingMsgMenuBtn">
+                        <div class="dropdown-item ripple-target" id="disappearingMsgMenuBtn" role="menuitem" tabindex="-1">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-clock"></use></svg> <span id="disappearingMsgMenuLabel">Исчезающие сообщения</span>
                         </div>
                         <div id="disappearingTimerPickerContainer"></div>
-                        <div class="dropdown-item ripple-target danger" id="deleteChatBtn">
+                        <div class="dropdown-item ripple-target danger" id="deleteChatBtn" role="menuitem" tabindex="-1">
                             <i class="bi bi-trash3"></i> Удалить чат
                         </div>
                     </div>
@@ -116,26 +116,26 @@
                 <svg class="sun-icon header-search-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
                 <input type="text" id="headerSearchInput" placeholder="Поиск сообщений в этом чате..." autocomplete="off" spellcheck="false">
                 <span class="header-search-counter" id="headerSearchCounter" hidden></span>
-                <button class="btn-icon ripple-target" id="headerSearchPrevBtn" title="Предыдущее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-up"></use></svg></button>
-                <button class="btn-icon ripple-target" id="headerSearchNextBtn" title="Следующее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg></button>
-                <button class="btn-icon ripple-target" id="closeSearchBtn"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg></button>
+                <button class="btn-icon ripple-target" id="headerSearchPrevBtn" title="Предыдущее совпадение" aria-label="Предыдущее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-up"></use></svg></button>
+                <button class="btn-icon ripple-target" id="headerSearchNextBtn" title="Следующее совпадение" aria-label="Следующее совпадение" hidden><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-chevron-down"></use></svg></button>
+                <button class="btn-icon ripple-target" id="closeSearchBtn" title="Закрыть поиск" aria-label="Закрыть поиск"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg></button>
             </div>
 
             <div class="header-selection-wrap" id="headerSelectionWrap">
                 <div class="selection-count-group">
-                    <button class="btn-icon ripple-target" id="cancelSelectionBtn" title="Отменить выбор">
+                    <button class="btn-icon ripple-target" id="cancelSelectionBtn" title="Отменить выбор" aria-label="Отменить выбор">
                         <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
                     </button>
                     <span>Выбрано: <span id="selectedCount">0</span></span>
                 </div>
                 <div class="selection-actions">
-                    <button class="btn-icon ripple-target" id="bulkDeleteBtn" title="Удалить выбранные">
+                    <button class="btn-icon ripple-target" id="bulkDeleteBtn" title="Удалить выбранные" aria-label="Удалить выбранные сообщения">
                         <svg class="sun-icon text-danger" aria-hidden="true"><use href="#sun-i-trash"></use></svg>
                     </button>
-                    <button class="btn-icon ripple-target" id="bulkForwardBtn" title="Переслать выбранные">
-                        <i class="bi bi-forward-fill"></i>
+                    <button class="btn-icon ripple-target" id="bulkForwardBtn" title="Переслать выбранные" aria-label="Переслать выбранные сообщения">
+                        <i class="bi bi-forward-fill" aria-hidden="true"></i>
                     </button>
-                    <button class="btn-icon ripple-target" id="bulkCopyBtn" title="Копировать текст">
+                    <button class="btn-icon ripple-target" id="bulkCopyBtn" title="Копировать текст" aria-label="Копировать текст выбранных сообщений">
                         <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-copy"></use></svg>
                     </button>
                 </div>
@@ -264,7 +264,7 @@
                         <label class="group-create-modal__label" for="groupEditDescriptionInput">Описание</label>
                         <textarea id="groupEditDescriptionInput" class="group-create-modal__input group-create-modal__textarea" maxlength="600" rows="3" placeholder="Описание группы"></textarea>
 
-                        <button type="button" class="group-edit-nav-item" id="groupEditOpenPermissionsBtn" aria-haspopup="true">
+                        <button type="button" class="group-edit-nav-item" id="groupEditOpenPermissionsBtn" aria-haspopup="dialog">
                             <span class="group-edit-nav-item__copy">
                                 <span class="group-edit-nav-item__title">Разрешения</span>
                                 <span class="group-edit-nav-item__meta" id="groupEditPermissionsSummary">Загрузка...</span>
@@ -544,7 +544,7 @@
                             <strong>Редактирование сообщения</strong>
                             <span>Подтвердите изменения или отмените редактирование</span>
                         </div>
-                        <button type="button" class="btn-icon ripple-target" id="cancelEditBtn" title="Отменить редактирование">
+                        <button type="button" class="btn-icon ripple-target" id="cancelEditBtn" title="Отменить редактирование" aria-label="Отменить редактирование">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
                         </button>
                     </div>
@@ -577,10 +577,10 @@
                         </button>
                     </div>
                 </form>
-                <button type="button" class="voice-record-control" id="voiceRecordCancelBtn" title="Отменить запись" aria-label="Отменить запись" aria-hidden="true">
-                    <i class="bi bi-trash-fill"></i>
+                <button type="button" class="voice-record-control" id="voiceRecordCancelBtn" title="Отменить запись" aria-label="Отменить запись" aria-hidden="true" tabindex="-1">
+                    <i class="bi bi-trash-fill" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="jump-to-new-btn" id="jumpToNewMessagesBtn" aria-hidden="true" tabindex="-1">
+                <button type="button" class="jump-to-new-btn" id="jumpToNewMessagesBtn" aria-hidden="true" tabindex="-1" aria-label="К новым сообщениям">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-down-circle"></use></svg>
                     <span>К новым сообщениям</span>
                     <span class="jump-to-new-count jump-to-new-count--hidden" id="jumpToNewMessagesCount">0</span>

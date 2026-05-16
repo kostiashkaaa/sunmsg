@@ -1374,8 +1374,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     width: clamp(360px, 34vw, 38vw);
     max-width: 100%;
     min-width: 360px;
-    height: 100vh;
-    height: 100dvh;
+    height: var(--app-vh, 100dvh);
     margin-left: auto;
     overflow: hidden;
     background: var(--bg);
@@ -2237,7 +2236,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             --chat-num-outside-weight: 600;
             --chat-num-outside-letter-spacing: 0.018em;
             --app-vh: 100dvh;
-            --app-vw: 100vw;
+            --app-vw: 100%;
             --vv-keyboard-inset: 0px;
             --vv-top-offset: 0px;
             --vv-left-offset: 0px;
@@ -2250,7 +2249,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         html,
         body {
             overflow: hidden;
-            overflow-x: hidden;
             overflow-x: clip;
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
@@ -3663,7 +3661,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             flex-direction: column;
             justify-content: flex-start;
             overflow-y: auto;
-            overflow-x: hidden;
             overflow-x: clip;
             overflow-anchor: none;
             padding: 8px 22px 0 22px;
@@ -3757,7 +3754,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             display: flex;
             flex-direction: column;
             gap: 10px;
-            overflow-x: hidden;
             overflow-x: clip;
             z-index: 12;
         }
