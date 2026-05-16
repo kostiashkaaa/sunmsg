@@ -3974,6 +3974,10 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn {
         border-radius: 14px;
     }
 
+    body.auth-page-body--sunrise-v3 #registerStep2Block {
+        height: auto;
+    }
+
     body.auth-page-body--sunrise-v3 .auth-login-intro-title,
     body.auth-page-body--sunrise-v3 .auth-login-other-title,
     body.auth-page-body--sunrise-v3 .auth-key-box-header--intro .auth-key-box-title,
