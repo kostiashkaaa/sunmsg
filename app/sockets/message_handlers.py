@@ -88,16 +88,7 @@ def _emit_send_error(emit_func, message: str, *, request_id: str | None = None, 
     emit_func('error', _send_error_payload(message, request_id=request_id, **extra))
 
 
-# The messages table schema is fixed once migrations have run, so the column
-# probe is cached process-wide after the first successful resolution to avoid
-# an extra round-trip on every message send. A failed probe is not cached.
-_MESSAGE_TABLE_COLUMNS_CACHE: set[str] | None = None
-
-
 def _resolve_message_table_columns(conn) -> set[str]:
-    global _MESSAGE_TABLE_COLUMNS_CACHE
-    if _MESSAGE_TABLE_COLUMNS_CACHE is not None:
-        return _MESSAGE_TABLE_COLUMNS_CACHE
     try:
         probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
     except Exception:
@@ -113,7 +104,6 @@ def _resolve_message_table_columns(conn) -> set[str]:
                 name = None
         if name:
             column_names.add(str(name).strip())
-    _MESSAGE_TABLE_COLUMNS_CACHE = column_names
     return column_names
 
 
