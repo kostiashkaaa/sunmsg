@@ -605,6 +605,10 @@ export function createChatHistoryRuntime(ctx = {}) {
                     state.initialized = true;
                     state.savedScrollTop = 0;
                     state.hasSavedScrollTop = false;
+                    if (!state.lastRenderRange && state.messages.length === 0 && decodedMessages.length === 0) {
+                        ctx.renderChatMessages(chatId, { force: true, scrollToBottom: true });
+                        ctx.setKeepChatPinnedToBottom(true);
+                    }
                 }
 
                 if (ctx.isChatIdbReady() && response.messages.length) {

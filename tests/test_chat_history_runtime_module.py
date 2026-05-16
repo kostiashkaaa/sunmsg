@@ -73,3 +73,117 @@ if (decoded[0].sender !== 'self' || decoded[0].message !== 'self plaintext') {{
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_empty_history_initializes_render_range_before_first_message():
+    module_path = ROOT / 'static' / 'modules' / 'chat-history-runtime.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  "import {{ withAppRoot }} from './app-url.js';",
+  "const withAppRoot = (value) => value;",
+);
+source = source.replace(
+  "import {{ normalizeMentionUserIds }} from './chat-mentions.js';",
+  "const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ createChatHistoryRuntime }} = await import(moduleUrl);
+
+const state = {{
+  initialized: false,
+  isLoadingInitial: false,
+  historyRequestToken: 0,
+  messages: [],
+  hasMoreBefore: true,
+  savedScrollTop: 0,
+  hasSavedScrollTop: false,
+  lastRenderRange: null,
+  renderedKeys: new Set(),
+  blockState: {{}},
+}};
+const renderCalls = [];
+const keepPinnedCalls = [];
+
+const runtime = createChatHistoryRuntime({{
+  chatHistoryPageSize: 50,
+  chatHistoryMaxPageSize: 100,
+  chatDecryptConcurrency: 2,
+  chatDecryptWorkerTimeoutMs: 100,
+  fetchImpl: async () => ({{
+    ok: true,
+    json: async () => ({{
+      success: true,
+      messages: [],
+      has_more_before: false,
+      pins: [],
+      favorites: [],
+      block_state: {{}},
+    }}),
+  }}),
+  getChatState: () => state,
+  getCurrentChatId: () => 'chat-empty',
+  getPrivateKeyPem: () => 'private-key',
+  getCurrentUserPublicKey: () => 'pk-current',
+  getCurrentUserId: () => '1',
+  getCurrentPartnerData: () => ({{ display_name: 'Partner' }}),
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (_privateKey, payload) => payload,
+  normalizeMessageReactions: (value) => value || [],
+  enrichDecodedMessagesVisualMeta: async (messages) => messages,
+  ensureChatIdbReady: async () => false,
+  isChatIdbReady: () => false,
+  createHistoryAbortController: () => ({{ signal: undefined }}),
+  releaseHistoryAbortController: () => {{}},
+  historyInitialAbortControllers: new Map(),
+  applyChatBlockState: () => {{}},
+  resetOpenChatUnreadCounter: () => {{}},
+  setChatStageLoading: () => {{}},
+  setHistoryLoading: () => {{}},
+  hidePinnedBar: () => {{}},
+  hideFavoriteBar: () => {{}},
+  setChatPinnedMessages: () => {{}},
+  setChatFavoriteMessages: () => {{}},
+  normalizePinnedMessages: () => [],
+  normalizeFavoriteMessages: () => [],
+  normalizeBlockState: (value) => value,
+  resolveSavedChatScrollTop: () => NaN,
+  getMessageKey: (msg) => `id:${{msg.id}}`,
+  setChatMessages: () => {{
+    throw new Error('Empty unchanged history should not reset messages');
+  }},
+  renderChatMessages: (chatId, options) => {{
+    renderCalls.push({{ chatId, options }});
+    state.lastRenderRange = {{ start: 0, end: 0 }};
+  }},
+  renderChatMessagesStable: async () => {{
+    throw new Error('Empty unchanged history should use plain render');
+  }},
+  setKeepChatPinnedToBottom: (value) => keepPinnedCalls.push(value),
+  resolveContactItemByChatId: () => null,
+  isAbortError: () => false,
+  showToast: (message) => {{
+    throw new Error(`Unexpected toast: ${{message}}`);
+  }},
+}});
+
+await runtime.fetchChatHistory('chat-empty');
+
+if (renderCalls.length !== 1) {{
+  throw new Error(`Expected one empty render, got ${{JSON.stringify(renderCalls)}}`);
+}}
+if (renderCalls[0].chatId !== 'chat-empty' || renderCalls[0].options.scrollToBottom !== true || renderCalls[0].options.force !== true) {{
+  throw new Error(`Unexpected render call: ${{JSON.stringify(renderCalls[0])}}`);
+}}
+if (keepPinnedCalls.length !== 1 || keepPinnedCalls[0] !== true) {{
+  throw new Error(`Expected bottom pin after empty render: ${{JSON.stringify(keepPinnedCalls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
