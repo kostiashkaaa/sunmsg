@@ -1256,16 +1256,20 @@ export function initPrivacySection({
 
     api.getSettings()
         .then((s) => {
-            applySettingsFromPayload(s);
-            applyAvatarFromSettings(String(s.avatar_url || '').trim());
-
+            try {
+                applySettingsFromPayload(s);
+                applyAvatarFromSettings(String(s.avatar_url || '').trim());
+            } catch (applyErr) {
+                console.error('[settings] applySettingsFromPayload failed:', applyErr);
+            }
             state.setLoaded(true);
             setServerSettingsControlsEnabled(true);
             state.setBaseline(getCommonPayload());
             state.syncDirtyState();
             notifyLanguageUpdate(s.language, true);
         })
-        .catch(() => {
+        .catch((err) => {
+            console.error('[settings] getSettings failed:', err);
             state.setLoaded(false);
             state.setBaseline(null);
             setServerSettingsControlsEnabled(false);
