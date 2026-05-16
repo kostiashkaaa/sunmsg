@@ -71,6 +71,9 @@ export function initTotpSection({
 
     function renderTotpState(enabled, enabledAtRaw = '', setupPending = false) {
         const isEnabled = !!enabled;
+        if (totpNewBackupCodesPanel) totpNewBackupCodesPanel.style.display = 'none';
+        if (totpRegenerateBackupPanel) totpRegenerateBackupPanel.style.display = 'none';
+        if (totpBackupCodesList) totpBackupCodesList.style.display = 'none';
         if (!isEnabled && setupPending) {
             totpStatusTextEl.textContent = tr('ожидает подтверждения');
         } else {
