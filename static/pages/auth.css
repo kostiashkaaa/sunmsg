@@ -3035,6 +3035,19 @@ body.auth-page-body--sunrise-v3 {
     color: var(--sun-ink);
 }
 
+html.dark-mode body.auth-page-body--sunrise-v3,
+body.auth-page-body--sunrise-v3.dark-mode {
+    --sun-paper: #14110e;
+    --sun-card: #1d1914;
+    --sun-rule: #43382c;
+    --sun-ink: #f2eadc;
+    --sun-ink-soft: #b8a998;
+    --sun-accent: #d99a52;
+    --sun-accent-soft: #4a3320;
+    --sun-success: #65b586;
+    color-scheme: dark;
+}
+
 body.auth-page-body--sunrise-v3 .auth-orb,
 body.auth-page-body--sunrise-v3 .auth-corner-eyebrow,
 body.auth-page-body--sunrise-v3 .auth-brand,
@@ -3101,6 +3114,12 @@ body.auth-page-body--sunrise-v3 .auth-hero-panel {
         linear-gradient(180deg, #f5e5cf 0%, #e8c595 42%, #d89e62 74%, #c77e44 100%);
 }
 
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-panel,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-panel {
+    background:
+        linear-gradient(180deg, #2b2118 0%, #241b14 42%, #1a1511 74%, #12100d 100%);
+}
+
 body.auth-page-body--sunrise-v3 .auth-hero-panel::before {
     content: '';
     position: absolute;
@@ -3110,6 +3129,14 @@ body.auth-page-body--sunrise-v3 .auth-hero-panel::before {
         repeating-radial-gradient(circle at 78% 98%, rgba(250, 232, 196, 0.36) 0 1px, transparent 1px 95px);
     pointer-events: none;
     opacity: 0.96;
+}
+
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-panel::before,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-panel::before {
+    background:
+        radial-gradient(circle at 78% 98%, rgba(217, 154, 82, 0.28) 0 15%, rgba(86, 58, 34, 0.72) 15% 25%, transparent 25%),
+        repeating-radial-gradient(circle at 78% 98%, rgba(242, 234, 220, 0.12) 0 1px, transparent 1px 95px);
+    opacity: 0.78;
 }
 
 body.auth-page-body--sunrise-v3 .auth-hero-panel > * {
@@ -3133,6 +3160,13 @@ body.auth-page-body--sunrise-v3 .auth-hero-brand-mark {
     text-transform: uppercase;
     letter-spacing: 0.22em;
     color: rgba(31, 16, 9, 0.96);
+}
+
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-brand-mark,
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-eyebrow,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-brand-mark,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-eyebrow {
+    color: rgba(242, 234, 220, 0.78);
 }
 
 body.auth-page-body--sunrise-v3 .auth-hero-brand-dot {
@@ -3167,11 +3201,23 @@ body.auth-page-body--sunrise-v3 .auth-brand-headline {
     color: rgba(31, 16, 9, 0.98);
 }
 
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-brand-headline,
+body.auth-page-body--sunrise-v3.dark-mode .auth-brand-headline {
+    color: rgba(242, 234, 220, 0.96);
+}
+
 body.auth-page-body--sunrise-v3 .auth-brand-headline-em {
     display: inline-block;
     margin-top: 4px;
     font-style: italic;
     color: rgba(31, 16, 9, 0.66);
+}
+
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-brand-headline-em,
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-quote,
+body.auth-page-body--sunrise-v3.dark-mode .auth-brand-headline-em,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-quote {
+    color: rgba(242, 234, 220, 0.72);
 }
 
 body.auth-page-body--sunrise-v3 .auth-brand-headline-em,
@@ -3205,6 +3251,12 @@ body.auth-page-body--sunrise-v3 .auth-hero-hint {
     color: rgba(255, 242, 214, 0.9);
     text-shadow: 0 2px 10px rgba(43, 19, 6, 0.38);
     white-space: nowrap;
+}
+
+html.dark-mode body.auth-page-body--sunrise-v3 .auth-hero-hint,
+body.auth-page-body--sunrise-v3.dark-mode .auth-hero-hint {
+    color: rgba(242, 234, 220, 0.78);
+    text-shadow: none;
 }
 
 body.auth-page-body--sunrise-v3 .auth-hero-hint-dot {
@@ -3570,6 +3622,7 @@ body.auth-page-body--sunrise-v3 #reg_username_hint {
 
 body.auth-page-body--sunrise-v3 #registerStep2Block {
     gap: 8px;
+    padding-bottom: 16px;
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-private-key-group {
@@ -3584,6 +3637,11 @@ body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap {
     border-radius: 10px;
     background: color-mix(in srgb, var(--sun-rule) 20%, #fff);
     overflow: hidden;
+}
+
+html.dark-mode body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap,
+body.auth-page-body--sunrise-v3.dark-mode #registerStep2Block .auth-register-words-wrap {
+    background: color-mix(in srgb, var(--sun-rule) 54%, var(--sun-card));
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-grid {

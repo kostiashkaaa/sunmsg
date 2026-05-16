@@ -378,7 +378,10 @@
         } catch (_error) {
             // Ignore storage access errors.
         }
-        return document.body && document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        return document.documentElement.classList.contains('dark-mode')
+            || (document.body && document.body.classList.contains('dark-mode'))
+            ? 'dark'
+            : 'light';
     }
 
     function normalizePresetId(value, expectedMode) {

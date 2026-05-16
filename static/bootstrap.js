@@ -15,6 +15,8 @@
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const MESSAGE_SCALE_MIN = 0.9;
     const MESSAGE_SCALE_MAX = 1.3;
+    const AUTO_DARK_START_HOUR = 20;
+    const AUTO_DARK_END_HOUR = 7;
     const PERFORMANCE_MODES = new Set(['auto', 'full', 'lite']);
     const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
     const SEND_SHORTCUT_MODES = new Set(['enter', 'ctrl_enter']);
@@ -639,7 +641,8 @@
                 // Ignore storage read errors.
             }
         }
-        return 'light';
+        const hour = new Date().getHours();
+        return hour >= AUTO_DARK_START_HOUR || hour < AUTO_DARK_END_HOUR ? 'dark' : 'light';
     }
 
     function resolveInterfacePreset(themeKey, store) {
@@ -1234,12 +1237,9 @@
     window.currentUserId = bootstrap.user.currentUserId;
     window.currentAvatarUrl = bootstrap.user.currentAvatarUrl;
 
-    // Auto-theme: follow OS prefers-color-scheme when the user has not
-    // explicitly chosen a theme (no darkMode key stored in localStorage).
+    // Auto-theme: follow the user's local clock when there is no explicit
+    // theme choice (no darkMode key stored in localStorage).
     (function initAutoTheme() {
-        if (!window.matchMedia) return;
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
-
         function hasExplicitTheme() {
             try {
                 return localStorage.getItem(DARK_MODE_STORAGE_KEY) !== null;
@@ -1248,29 +1248,30 @@
             }
         }
 
-        function applyOsTheme(prefersDark) {
+        function resolveLocalTimeTheme() {
+            const hour = new Date().getHours();
+            return hour >= AUTO_DARK_START_HOUR || hour < AUTO_DARK_END_HOUR ? 'dark' : 'light';
+        }
+
+        function applyAutoTheme() {
             if (hasExplicitTheme()) return;
-            const themeKey = prefersDark ? 'dark' : 'light';
-            // Patch the live document theme without touching localStorage
+            const themeKey = resolveLocalTimeTheme();
+            const isDark = themeKey === 'dark';
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            if (document.body) {
+                document.body.classList.toggle('dark-mode', isDark);
+            }
             document.documentElement.dataset.theme = themeKey;
             document.documentElement.dataset.bsTheme = themeKey;
-            // Notify the rest of the app so appearance modules can react
+            if (window.InterfaceTheme && typeof window.InterfaceTheme.applyCurrentTheme === 'function') {
+                window.InterfaceTheme.applyCurrentTheme();
+            }
             window.dispatchEvent(new CustomEvent('sun-auto-theme-changed', {
-                detail: { theme: themeKey, source: 'os' },
+                detail: { theme: themeKey, source: 'local-time' },
                 bubbles: false,
             }));
         }
 
-        // Apply on load only if there is no explicit user choice
-        applyOsTheme(mq.matches);
-
-        // Keep in sync if the OS theme changes during the session
-        const handler = (e) => applyOsTheme(e.matches);
-        if (typeof mq.addEventListener === 'function') {
-            mq.addEventListener('change', handler);
-        } else if (typeof mq.addListener === 'function') {
-            // Legacy Safari
-            mq.addListener(handler);
-        }
+        applyAutoTheme();
     }());
 })();
