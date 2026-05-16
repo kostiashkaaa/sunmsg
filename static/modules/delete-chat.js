@@ -60,7 +60,7 @@ function performDeleteRequest(chatId, mode, { onDeleted, onReload, isGroup = fal
     const endpoint = isGroup ? '/api/chats/group/leave' : '/delete_chat';
     const payload = isGroup ? { chat_id: chatId } : { chat_id: chatId, mode };
 
-    fetch(withAppRoot(endpoint), {
+    return fetch(withAppRoot(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
         body: JSON.stringify(payload),
@@ -112,6 +112,7 @@ export function showDeleteChatDialog(chatId, { onDeleted, onReload, isGroup = fa
     document.getElementById('delForMe')?.focus();
 
     let isClosing = false;
+    let isDeleting = false;
     const onEsc = (event) => {
         if (event.key === 'Escape') close();
     };
@@ -132,13 +133,26 @@ export function showDeleteChatDialog(chatId, { onDeleted, onReload, isGroup = fa
         if (event.target === modal) close();
     });
 
-    document.getElementById('delForMe')?.addEventListener('click', () => {
+    const setDeletePending = () => {
+        isDeleting = true;
+        modal.setAttribute('aria-busy', 'true');
+        modal.querySelectorAll('.delete-chat-action').forEach((button) => {
+            button.disabled = true;
+        });
+    };
+
+    const runDelete = (mode, options = {}) => {
+        if (isDeleting) return;
+        setDeletePending();
         close();
-        performDeleteRequest(chatId, 'for_me', { onDeleted, onReload, isGroup });
+        void performDeleteRequest(chatId, mode, { onDeleted, onReload, ...options });
+    };
+
+    document.getElementById('delForMe')?.addEventListener('click', () => {
+        runDelete('for_me', { isGroup });
     });
 
     document.getElementById('delForBoth')?.addEventListener('click', () => {
-        close();
-        performDeleteRequest(chatId, 'for_both', { onDeleted, onReload, isGroup: false });
+        runDelete('for_both', { isGroup: false });
     });
 }

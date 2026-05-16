@@ -749,11 +749,13 @@
                 padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-bottom-dock-height, 0px)
+                    + var(--mobile-keyboard-layout-inset, 0px)
                     + env(safe-area-inset-bottom)
                 ) !important;
                 scroll-padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-bottom-dock-height, 0px)
+                    + var(--mobile-keyboard-layout-inset, 0px)
                     + env(safe-area-inset-bottom)
                     + 12px
                 ) !important;

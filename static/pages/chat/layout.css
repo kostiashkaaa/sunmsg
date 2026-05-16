@@ -2224,6 +2224,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             --vv-top-offset: 0px;
             --vv-left-offset: 0px;
             --mobile-composer-bottom-inset: 0px;
+            --mobile-keyboard-layout-inset: 0px;
         }
 
 

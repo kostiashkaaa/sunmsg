@@ -45,6 +45,16 @@ export function bindChatHeaderActionsRuntime({
     disappearingTimerPickerContainer,
     renderDisappearingTimerPicker,
 } = {}) {
+    const exportChatBtn = documentRef.getElementById('exportChatBtn');
+    let isExportingChatHistory = false;
+
+    const setExportChatPending = (isPending) => {
+        if (!exportChatBtn) return;
+        exportChatBtn.classList.toggle('is-busy', isPending);
+        exportChatBtn.setAttribute('aria-busy', isPending ? 'true' : 'false');
+        exportChatBtn.setAttribute('aria-disabled', isPending ? 'true' : 'false');
+    };
+
     deleteChatBtn?.addEventListener('click', (event) => {
         event.stopPropagation();
         closeHeaderDropdown?.();
@@ -113,7 +123,10 @@ export function bindChatHeaderActionsRuntime({
         }
     });
 
-    documentRef.getElementById('exportChatBtn')?.addEventListener('click', async () => {
+    exportChatBtn?.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isExportingChatHistory) return;
         closeHeaderDropdown?.();
         await exportChatHistory();
     });
@@ -198,35 +211,44 @@ export function bindChatHeaderActionsRuntime({
 
     async function exportChatHistory() {
         const currentChatId = getCurrentChatId?.();
-        if (!currentChatId) return;
-        const state = getChatState?.(currentChatId);
-        while (state.hasMoreBefore && !state.isLoadingOlder) {
-            const loaded = await loadOlderMessages?.(currentChatId);
-            if (!loaded) break;
+        if (!currentChatId || isExportingChatHistory) return;
+        isExportingChatHistory = true;
+        setExportChatPending(true);
+        try {
+            const state = getChatState?.(currentChatId);
+            while (state.hasMoreBefore && !state.isLoadingOlder) {
+                const loaded = await loadOlderMessages?.(currentChatId);
+                if (!loaded) break;
+            }
+            const partnerName = chatHeader?.querySelector('#chatTitle')?.textContent
+                || documentRef.getElementById('chatTitle')?.textContent
+                || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A';
+            const myName = getCurrentDisplayName?.() || getCurrentUsername?.() || '\u0412\u044B';
+            const lines = [
+                `\u0427\u0430\u0442 \u0441 ${partnerName}`,
+                `\u042D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043E: ${new Date().toLocaleString('ru')}`,
+                '-'.repeat(40),
+            ];
+            state.messages.forEach((msg) => {
+                const sender = msg.sender === 'self' ? myName : partnerName;
+                const time = formatTime?.(msg.created_at) || '';
+                const content = typeof msg.message === 'string' ? msg.message : '[\u0444\u0430\u0439\u043B]';
+                lines.push(`[${time}] ${sender}: ${content}`);
+            });
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = documentRef.createElement('a');
+            link.href = url;
+            link.download = `chat_${partnerName}_${new Date().toISOString().slice(0, 10)}.txt`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast?.('\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u044D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0430', 'success');
+        } catch (error) {
+            showToast?.('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u044D\u043A\u0441\u043F\u043E\u0440\u0442\u0435 \u0438\u0441\u0442\u043E\u0440\u0438\u0438', 'danger');
+        } finally {
+            isExportingChatHistory = false;
+            setExportChatPending(false);
         }
-        const partnerName = chatHeader?.querySelector('#chatTitle')?.textContent
-            || documentRef.getElementById('chatTitle')?.textContent
-            || '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A';
-        const myName = getCurrentDisplayName?.() || getCurrentUsername?.() || '\u0412\u044B';
-        const lines = [
-            `\u0427\u0430\u0442 \u0441 ${partnerName}`,
-            `\u042D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u043E: ${new Date().toLocaleString('ru')}`,
-            '-'.repeat(40),
-        ];
-        state.messages.forEach((msg) => {
-            const sender = msg.sender === 'self' ? myName : partnerName;
-            const time = formatTime?.(msg.created_at) || '';
-            const content = typeof msg.message === 'string' ? msg.message : '[\u0444\u0430\u0439\u043B]';
-            lines.push(`[${time}] ${sender}: ${content}`);
-        });
-        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = documentRef.createElement('a');
-        link.href = url;
-        link.download = `chat_${partnerName}_${new Date().toISOString().slice(0, 10)}.txt`;
-        link.click();
-        URL.revokeObjectURL(url);
-        showToast?.('\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u044D\u043A\u0441\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0430', 'success');
     }
 
     return {
