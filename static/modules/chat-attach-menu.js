@@ -21,6 +21,8 @@ export function createChatAttachMenuController(deps = {}) {
     const FILE_ATTACH_ACCEPT_ALL = String(fileAttachInput?.getAttribute('accept') || '*/*');
 
     const attachMenuController = initAttachMenuPortal({ attachMenu, trigger: attachBtn });
+    let suppressNextAttachClick = false;
+    let suppressNextAttachClickTimer = 0;
 
     function resolveAttachMode(value) {
         return value === ATTACH_MODE_MEDIA ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
@@ -70,6 +72,32 @@ export function createChatAttachMenuController(deps = {}) {
         setAttachMenuOpen(true);
     }
 
+    function toggleAttachMenu() {
+        if (isAttachMenuOpen()) {
+            closeAttachMenu();
+            return;
+        }
+        openAttachMenu();
+    }
+
+    function isMobileComposerPointer(event) {
+        if (event?.pointerType && event.pointerType !== 'mouse') return true;
+        return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+    }
+
+    function isMessageInputActive() {
+        return document.activeElement === document.getElementById('messageInput');
+    }
+
+    function suppressSyntheticAttachClick() {
+        suppressNextAttachClick = true;
+        if (suppressNextAttachClickTimer) window.clearTimeout(suppressNextAttachClickTimer);
+        suppressNextAttachClickTimer = window.setTimeout(() => {
+            suppressNextAttachClick = false;
+            suppressNextAttachClickTimer = 0;
+        }, 700);
+    }
+
     function triggerAttachPicker(mode) {
         if (!fileAttachInput) return;
         applyAttachInputMode(mode);
@@ -78,14 +106,26 @@ export function createChatAttachMenuController(deps = {}) {
     }
 
     // Wiring
+    attachBtn?.addEventListener('pointerdown', (event) => {
+        if (!isMobileComposerPointer(event) || !isMessageInputActive()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppressSyntheticAttachClick();
+        toggleAttachMenu();
+    });
+
     attachBtn?.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (isAttachMenuOpen()) {
-            closeAttachMenu();
+        if (suppressNextAttachClick) {
+            suppressNextAttachClick = false;
+            if (suppressNextAttachClickTimer) {
+                window.clearTimeout(suppressNextAttachClickTimer);
+                suppressNextAttachClickTimer = 0;
+            }
             return;
         }
-        openAttachMenu();
+        toggleAttachMenu();
     });
 
     attachMenuItems.forEach((item) => {
