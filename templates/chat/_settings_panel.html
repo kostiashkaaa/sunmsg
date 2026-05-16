@@ -53,7 +53,7 @@
                 <div class="settings-nav-profile-row">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-at"></use></svg>
                     <div class="settings-nav-profile-row-copy">
-                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username }}</div>
+                        <div class="settings-nav-profile-row-value" id="settingsNavUsernameValue">@{{ current_username|replace('@', '') }}</div>
                         <div class="settings-nav-profile-row-label">Юзернейм</div>
                     </div>
                 </div>
@@ -169,7 +169,7 @@
                     </div>
                     <div class="settings-avatar-meta">
                         <div class="settings-avatar-name" id="previewName">{{ current_display_name }}</div>
-                        <div class="settings-avatar-username">@{{ current_username }}</div>
+                        <div class="settings-avatar-username">@{{ current_username|replace('@', '') }}</div>
                         <div class="settings-avatar-actions">
                             <input type="file" id="avatarFileInput" accept="image/*" hidden>
                             <p id="avatarUploadStatus" class="settings-avatar-upload-status settings-hidden"></p>
@@ -303,7 +303,7 @@
                 <div id="privacyDetailPanel" class="settings-privacy-detail settings-hidden" aria-live="polite">
                     <div class="settings-privacy-detail-head">
                         <button type="button" class="settings-privacy-back" id="privacyDetailBackBtn" aria-label="Назад">
-                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-arrow-left"></use></svg>
                         </button>
                         <h3 id="privacyDetailTitle">Конфиденциальность</h3>
                     </div>

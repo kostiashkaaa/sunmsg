@@ -296,9 +296,9 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     z-index: 2 !important;
 }
 .settings-scene .settings-avatar-edit-btn i { font-size: 17px !important; }
-/* Когда в аватаре есть фото — курсор-указатель (открывается предпросмотр) */
+/* Когда в аватаре есть фото — курсор-указатель (открывается просмотр) */
 .settings-scene .avatar-preview:has(img) {
-    cursor: zoom-in !important;
+    cursor: pointer !important;
 }
 .settings-scene .settings-avatar-meta {
     display: flex !important;
@@ -318,28 +318,49 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     justify-content: center !important;
 }
 
-/* Профиль в detail-виде: переопределяем grid из home-composition,
-   чтобы аватар был крупным и по центру над полями (не сбоку и мелкий). */
-body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+/* Профиль в detail-виде: home-composition делает карточку 2-колоночным
+   grid (аватар слева, поля справа) — из-за этого аватар «уезжает влево».
+   Полностью отменяем grid: вертикальная колонка, аватар строго по центру. */
+body.settings-detail-open .settings-profile-section > .settings-card:first-child,
+body.settings-detail-open .settings-profile-section .settings-card:first-child {
     display: block !important;
+    grid-template-columns: none !important;
+    column-gap: 0 !important;
+}
+body.settings-detail-open .settings-profile-section .settings-card-header,
+body.settings-detail-open .settings-profile-section .settings-body-copy {
+    grid-column: auto !important;
 }
 body.settings-detail-open .settings-profile-section .settings-avatar-row {
     grid-column: auto !important;
     grid-row: auto !important;
+    display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
     margin: 0 !important;
-    padding: 18px var(--tg-pad-x) 10px !important;
+    padding: 18px var(--tg-pad-x) 12px !important;
+    text-align: center !important;
 }
+/* Контейнер аватара — блок по центру родителя */
 body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
     width: 120px !important;
     height: 120px !important;
+    flex: 0 0 auto !important;
+    margin: 0 auto !important;
+    align-self: center !important;
+}
+body.settings-detail-open .settings-profile-section .settings-avatar-meta {
+    align-self: center !important;
+    align-items: center !important;
+    text-align: center !important;
 }
 body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
     width: 40px !important;
     height: 40px !important;
-    right: 4px !important;
-    bottom: 4px !important;
+    right: 2px !important;
+    bottom: 2px !important;
 }
 body.settings-detail-open .settings-profile-section .settings-inline-fields,
 body.settings-detail-open .settings-profile-section .settings-save-row {
@@ -494,7 +515,7 @@ body.settings-home-open .settings-nav-avatar {
     border-radius: 50% !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
-    cursor: zoom-in !important;
+    cursor: pointer !important;
 }
 body.settings-home-open .settings-nav-avatar img {
     width: 100% !important;
@@ -560,6 +581,121 @@ body.settings-home-open .settings-nav {
     max-width: var(--tg-content-max) !important;
     margin: 0 auto !important;
     padding: 0 clamp(14px, 4vw, 28px) calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* ── Вкладка «Конфиденциальность»: ровные строки с SVG-иконками ──────────── */
+.settings-scene .settings-privacy-card {
+    padding-bottom: 4px !important;
+}
+.settings-scene .settings-privacy-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding: 2px var(--tg-pad-x) 6px !important;
+}
+.settings-scene .settings-privacy-item {
+    display: grid !important;
+    grid-template-columns: 24px minmax(0, 1fr) 18px !important;
+    align-items: center !important;
+    gap: 14px !important;
+    width: 100% !important;
+    min-height: 56px !important;
+    padding: 10px 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    cursor: pointer !important;
+}
+.settings-scene .settings-privacy-item + .settings-privacy-item {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 50%, transparent) !important;
+}
+/* Иконка раздела — слева, единый размер */
+.settings-scene .settings-privacy-item > .sun-icon {
+    width: 21px !important;
+    height: 21px !important;
+    color: var(--sx-ink-2, var(--sub-text)) !important;
+}
+/* Шеврон справа */
+.settings-scene .settings-privacy-item > .settings-privacy-chevron {
+    width: 16px !important;
+    height: 16px !important;
+    color: var(--sx-ink-3, var(--text-muted)) !important;
+}
+.settings-scene .settings-privacy-item:hover {
+    color: var(--sx-accent, var(--accent)) !important;
+}
+.settings-scene .settings-privacy-item:hover > .sun-icon:first-child {
+    color: var(--sx-accent, var(--accent)) !important;
+}
+.settings-scene .settings-privacy-item-copy {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+.settings-scene .settings-privacy-item-copy .settings-row-label {
+    box-shadow: none !important;
+    line-height: 1.3 !important;
+}
+/* Детальная панель приватности — кнопка «назад» и заголовок */
+.settings-scene .settings-privacy-detail-head {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 4px var(--tg-pad-x) 10px !important;
+}
+.settings-scene .settings-privacy-back {
+    width: 38px !important;
+    height: 38px !important;
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    cursor: pointer !important;
+}
+.settings-scene .settings-privacy-back:hover {
+    background: var(--sx-bg-soft, var(--paper-alt)) !important;
+}
+.settings-scene .settings-privacy-question {
+    padding: 0 var(--tg-pad-x) 10px !important;
+    font-size: 14px !important;
+    color: var(--sx-ink-2, var(--sub-text)) !important;
+}
+.settings-scene .settings-privacy-options {
+    padding: 0 var(--tg-pad-x) !important;
+}
+
+/* Группы radio-опций (поведение чата, опции приватности) — единые отступы */
+.settings-scene .settings-preference-group {
+    padding: 8px var(--tg-pad-x) 4px !important;
+}
+.settings-scene .settings-preference-group > .settings-row-label {
+    margin-bottom: 6px !important;
+    font-size: 13px !important;
+    color: var(--sx-ink-2, var(--sub-text)) !important;
+}
+.settings-scene .settings-preference-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+.settings-scene .settings-preference-option {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 48px !important;
+    padding: 8px 10px !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+}
+.settings-scene .settings-preference-option:hover {
+    background: color-mix(in srgb, var(--sx-bg-soft, var(--paper-alt)) 55%, transparent) !important;
+}
+.settings-scene .settings-privacy-options .settings-preference-option {
+    min-height: 46px !important;
 }
 
 /* ── Вкладка «Внешний вид»: превью тем — адаптивная резиновая сетка ──────── */
@@ -959,55 +1095,99 @@ body.settings-home-open .settings-nav {
     font-size: 14px !important;
 }
 
-/* ── Предпросмотр аватара (лайтбокс) — как в Telegram ────────────────────── */
+/* ── Просмотр фото профиля — в стиле просмотрщика фото чата ──────────────── */
 .avatar-lightbox {
     position: fixed !important;
     inset: 0 !important;
     z-index: 12100 !important;
     display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 40px !important;
-    background: rgba(0, 0, 0, 0.82) !important;
+    flex-direction: column !important;
+    background: rgba(0, 0, 0, 0.92) !important;
     opacity: 0 !important;
-    transition: opacity 0.2s var(--tg-ease, ease) !important;
-    cursor: zoom-out !important;
+    transition: opacity 0.2s ease !important;
+    /* без cursor:zoom-out — обычный курсор, ничего не «залипает» */
 }
-.avatar-lightbox[hidden] { display: none !important; }
-.avatar-lightbox.is-open { opacity: 1 !important; }
-.avatar-lightbox-img {
-    max-width: min(440px, 86vw) !important;
-    max-height: 86vh !important;
-    width: auto !important;
-    height: auto !important;
-    border-radius: 50% !important;
-    object-fit: cover !important;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5) !important;
-    transform: scale(0.92) !important;
-    transition: transform 0.24s var(--tg-ease-spring, ease) !important;
+.avatar-lightbox[hidden] {
+    display: none !important;
 }
-.avatar-lightbox.is-open .avatar-lightbox-img {
-    transform: scale(1) !important;
+.avatar-lightbox.is-open {
+    opacity: 1 !important;
+}
+
+/* Верхняя плашка с информацией — как в Telegram */
+.avatar-lightbox-topbar {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding: 14px 18px !important;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px)) !important;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent) !important;
+}
+.avatar-lightbox-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+.avatar-lightbox-title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+}
+.avatar-lightbox-sub {
+    font-size: 12.5px !important;
+    color: rgba(255, 255, 255, 0.62) !important;
 }
 .avatar-lightbox-close {
-    position: absolute !important;
-    top: 18px !important;
-    right: 18px !important;
-    width: 44px !important;
-    height: 44px !important;
+    flex: 0 0 auto !important;
+    width: 40px !important;
+    height: 40px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     border: 0 !important;
     border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.14) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
     color: #fff !important;
-    font-size: 18px !important;
     cursor: pointer !important;
     transition: background-color 0.14s ease !important;
 }
 .avatar-lightbox-close:hover {
-    background: rgba(255, 255, 255, 0.26) !important;
+    background: rgba(255, 255, 255, 0.24) !important;
+}
+.avatar-lightbox-close .sun-icon {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+/* Сцена с фото — фото в ОРИГИНАЛЬНОЙ форме (квадрат), не круглым */
+.avatar-lightbox-stage {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 0 !important;
+    padding: 24px !important;
+}
+.avatar-lightbox-img {
+    max-width: min(520px, 92vw) !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 12px !important;          /* лёгкое скругление, не круг */
+    object-fit: contain !important;          /* показываем фото целиком */
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6) !important;
+    transform: scale(0.94) !important;
+    opacity: 0 !important;
+    transition: transform 0.24s var(--tg-ease-spring, ease),
+                opacity 0.18s ease !important;
+    user-select: none !important;
+}
+.avatar-lightbox.is-open .avatar-lightbox-img {
+    transform: scale(1) !important;
+    opacity: 1 !important;
 }
 
 /* ── Снижение анимаций по системной настройке ───────────────────────────── */
