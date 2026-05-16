@@ -22,6 +22,19 @@ def create_web_app(config_name=None, overrides=None):
 
 def run_web_server(config_name=None, overrides=None):
     app = create_web_app(config_name, overrides=overrides)
+    # Guard against a production deploy that forgot to set APP_ENV: if the
+    # environment looks production-like (FORCE_HTTPS on) but the resolved
+    # config is not production, ALLOW_UNSAFE_WERKZEUG is likely still True.
+    if (
+        app.config['ENV_NAME'] != 'production'
+        and bool(app.config.get('FORCE_HTTPS'))
+    ):
+        logging.getLogger(__name__).warning(
+            'FORCE_HTTPS is enabled but the active config is %s, not production. '
+            'The embedded Werkzeug server may run in unsafe mode — set '
+            'APP_ENV=production for production deployments.',
+            app.config['ENV_NAME'],
+        )
     if (
         app.config['ENV_NAME'] == 'production'
         and not bool(app.config.get('ALLOW_EMBEDDED_WEB_SERVER'))

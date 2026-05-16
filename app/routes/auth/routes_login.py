@@ -323,10 +323,10 @@ def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded
         challenge_issued_at = int(session.get('challenge_issued_at'))
     except (TypeError, ValueError):
         _clear_login_challenge_state()
-        return jsonify({'success': False, 'error': 'Invalid authentication request.'}), 400
+        return jsonify({'success': False, 'error': 'Неверный запрос аутентификации.'}), 400
     if int(time.time()) - challenge_issued_at > _LOGIN_CHALLENGE_TTL_SECONDS:
         _clear_login_challenge_state()
-        return jsonify({'success': False, 'error': 'Authentication request expired. Get a new challenge.'}), 400
+        return jsonify({'success': False, 'error': 'Запрос аутентификации устарел. Получите новый challenge.'}), 400
 
     conn = get_db_connection()
     try:
