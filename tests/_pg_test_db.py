@@ -188,6 +188,10 @@ class _PgTestCursor:
         return self._cursor.rowcount
 
     @property
+    def description(self):
+        return self._cursor.description
+
+    @property
     def lastrowid(self):
         return self._lastrowid
 

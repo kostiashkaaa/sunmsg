@@ -201,7 +201,6 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             WHEN LOWER(display_name) LIKE ? ESCAPE '\\' THEN 2
             ELSE 3
           END,
-          LOWER(username),
           id ASC
         LIMIT ? OFFSET ?
         ''',

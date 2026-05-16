@@ -32,16 +32,10 @@ def send_dialog_request_workflow(
     normalize_block_state_func,
     build_block_state_func,
 ):
-    try:
-        contact = conn.execute(
-            'SELECT auto_decline_requests, message_privacy FROM users WHERE id = ?',
-            (receiver_user_id,),
-        ).fetchone()
-    except Exception:
-        contact = conn.execute(
-            'SELECT auto_decline_requests FROM users WHERE id = ?',
-            (receiver_user_id,),
-        ).fetchone()
+    contact = conn.execute(
+        'SELECT * FROM users WHERE id = ?',
+        (receiver_user_id,),
+    ).fetchone()
     if not contact:
         return {'status': 'receiver_missing'}
 

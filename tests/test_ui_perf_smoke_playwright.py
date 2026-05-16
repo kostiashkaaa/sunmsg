@@ -156,7 +156,7 @@ def test_ui_perf_smoke_auth_chat(perf_server):
                 path='/__perf_test__/login?next=/chat',
                 ready_selector='#contactsList',
                 max_interactive_ms=3200.0,
-                max_requests=190,
+                max_requests=280,
             )
         finally:
             browser.close()

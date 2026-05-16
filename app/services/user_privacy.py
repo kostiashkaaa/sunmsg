@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.db.schema import table_columns
+
 PRIVACY_ALL = 'all'
 PRIVACY_CONTACTS = 'contacts'
 PRIVACY_NOBODY = 'nobody'
@@ -41,9 +43,22 @@ def is_privacy_allowed(conn, *, owner_id: int, viewer_id: int | None, policy) ->
 _ALLOWED_PRIVACY_COLUMNS = frozenset({'voice_message_privacy', 'message_privacy'})
 
 
+def _users_table_has_column(conn, column_name: str) -> bool:
+    try:
+        return column_name in table_columns(conn, 'users')
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+
+
 def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_type: str) -> bool:
     column_name = 'voice_message_privacy' if str(message_type or '').strip().lower() == 'voice' else 'message_privacy'
     if column_name not in _ALLOWED_PRIVACY_COLUMNS:
+        return True
+    if not _users_table_has_column(conn, column_name):
         return True
     try:
         row = conn.execute(
@@ -51,6 +66,10 @@ def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_t
             (receiver_id,),
         ).fetchone()
     except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return True
     if not row:
         return False
@@ -63,12 +82,18 @@ def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_t
 
 
 def can_link_forward_author(conn, *, author_user_id: int, actor_user_id: int) -> bool:
+    if not _users_table_has_column(conn, 'forward_link_privacy'):
+        return True
     try:
         row = conn.execute(
             'SELECT forward_link_privacy FROM users WHERE id = ?',
             (author_user_id,),
         ).fetchone()
     except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return True
     if not row:
         return False

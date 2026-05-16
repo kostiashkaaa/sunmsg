@@ -23,6 +23,7 @@ def _query_undelivered_rows_without_receipts(conn, receiver_id: int, chat_id: st
             FROM messages m
             JOIN users u ON u.id = m.sender_id
             WHERE m.receiver_id = ? AND m.is_delivered = 0 AND m.chat_id = ?
+            ORDER BY m.id ASC
             ''',
             (receiver_id, chat_id),
         ).fetchall()
@@ -32,6 +33,7 @@ def _query_undelivered_rows_without_receipts(conn, receiver_id: int, chat_id: st
         FROM messages m
         JOIN users u ON u.id = m.sender_id
         WHERE m.receiver_id = ? AND m.is_delivered = 0
+        ORDER BY m.id ASC
         ''',
         (receiver_id,),
     ).fetchall()
@@ -62,6 +64,7 @@ def _query_undelivered_rows_with_receipts(conn, receiver_id: int, chat_id: str |
               AND mr.is_delivered = 0
               AND mr.deleted_for_user = 0
               AND m.chat_id = ?
+            ORDER BY m.id ASC
             ''',
             (receiver_id, chat_id),
         ).fetchall()
@@ -74,6 +77,7 @@ def _query_undelivered_rows_with_receipts(conn, receiver_id: int, chat_id: str |
         WHERE mr.user_id = ?
           AND mr.is_delivered = 0
           AND mr.deleted_for_user = 0
+        ORDER BY m.id ASC
         ''',
         (receiver_id,),
     ).fetchall()

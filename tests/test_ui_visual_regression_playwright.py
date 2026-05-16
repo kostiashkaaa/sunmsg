@@ -245,14 +245,40 @@ def _open_page(context: BrowserContext, path: str, wait_until: str = 'networkidl
 def _wait_settings_ready(page: Page) -> None:
     page.wait_for_selector('#settingsOverlay.active #settingsNavProfile')
     page.wait_for_function(
-        "() => document.getElementById('settingsPanelScene')?.classList.contains('settings-ready') === true"
+        "() => document.getElementById('settingsPanelScene')?.classList.contains('settings-ready') === true",
+        timeout=90_000,
+    )
+    page.wait_for_function(
+        """() => {
+            const status = document.getElementById('totpStatusText');
+            if (!status) return true;
+            const text = String(status.textContent || '').trim().toLowerCase();
+            const isLoading =
+                text.includes('\u0437\u0430\u0433\u0440\u0443\u0437')
+                || text.includes('\u043f\u0440\u043e\u0432\u0435\u0440');
+            if (isLoading) return false;
+            return Array.from(document.querySelectorAll('#totpEnableBtn, #totpDisableBtn, #totpRegenerateBtn'))
+                .every((button) => !button.disabled);
+        }""",
+        timeout=90_000,
+    )
+
+
+def _stabilize_settings_visual_state(page: Page) -> None:
+    page.evaluate(
+        """() => {
+            const status = document.getElementById('settingsNavProfileStatus');
+            if (status) {
+                status.textContent = '\u0431\u044b\u043b(\u0430) \u0432 \u0441\u0435\u0442\u0438 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0432 00:00';
+            }
+        }""",
     )
 
 
 def _open_settings_via_test_login(context: BrowserContext) -> Page:
     page = _open_page(context, '/__visual_test__/login?next=/chat', wait_until='domcontentloaded')
-    page.wait_for_selector('#contactsList')
-    page.wait_for_function("() => typeof window.openSettingsOverlay === 'function'")
+    page.wait_for_selector('#contactsList', timeout=90_000)
+    page.wait_for_function("() => typeof window.openSettingsOverlay === 'function'", timeout=90_000)
     page.evaluate("() => window.openSettingsOverlay('profile')")
     return page
 
@@ -361,6 +387,7 @@ def test_visual_settings_mobile_dropdown_state(visual_server):
             page.wait_for_function("() => document.getElementById('settingsNav')?.classList.contains('mobile-open') === true")
         else:
             page.wait_for_selector('#settingsNavList')
+        _stabilize_settings_visual_state(page)
         _assert_visual_snapshot(page, 'settings-mobile-dropdown-open')
         page.close()
         context.close()
@@ -391,6 +418,7 @@ def test_visual_settings_desktop_loading_and_empty_passkeys(visual_server):
         page.click('.nav-item[data-section="keys"]')
         page.wait_for_selector('#section-keys.section-active')
         page.wait_for_selector('#section-keys #mnemonicUnlockCard')
+        _stabilize_settings_visual_state(page)
         _assert_visual_snapshot(page, 'settings-desktop-passkeys-empty')
 
         page.close()

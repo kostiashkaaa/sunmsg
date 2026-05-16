@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import time
 
+from app.db.schema import table_columns
+
 logger = logging.getLogger(__name__)
 
 VALID_TIMERS = {0, 30, 300, 3600, 86400, 604800, 2592000}
@@ -35,6 +37,8 @@ def set_chat_auto_delete(conn, chat_id: str, seconds: int) -> None:
 
 
 def get_chat_auto_delete(conn, chat_id: str) -> int:
+    if 'auto_delete_seconds' not in table_columns(conn, 'chats'):
+        return 0
     row = conn.execute(
         'SELECT auto_delete_seconds FROM chats WHERE chat_id = ?',
         (chat_id,),

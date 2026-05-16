@@ -93,16 +93,33 @@ def _resolve_message_table_columns(conn) -> set[str]:
         probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
     except Exception:
         return set()
+    description = getattr(probe_cursor, 'description', None) or ()
+    column_names = set()
+    for column in description:
+        name = getattr(column, 'name', None)
+        if name is None:
+            try:
+                name = column[0]
+            except (IndexError, TypeError):
+                name = None
+        if name:
+            column_names.add(str(name).strip())
+    return column_names
+
+
+def _resolve_message_table_capabilities(conn) -> dict[str, bool]:
+    message_columns = _resolve_message_table_columns(conn)
     return {
-        str(column[0]).strip()
-        for column in (probe_cursor.description or [])
-        if column and column[0]
+        'supports_forward_metadata': (
+            'forward_from_name' in message_columns
+            and 'forward_from_user_id' in message_columns
+        ),
+        'supports_album_metadata': 'album_id' in message_columns,
     }
 
 
 def _supports_forward_metadata(conn) -> bool:
-    message_columns = _resolve_message_table_columns(conn)
-    return 'forward_from_name' in message_columns and 'forward_from_user_id' in message_columns
+    return _resolve_message_table_capabilities(conn)['supports_forward_metadata']
 
 
 def _sync_direct_contact_chat(conn, *, sender_id: int, receiver_id: int, chat_id: str) -> None:
@@ -609,6 +626,7 @@ def _insert_message_row(
 ):
     send_context = context or {}
     supports_forward_metadata = bool(send_context.get('supports_forward_metadata'))
+    supports_album_metadata = bool(send_context.get('supports_album_metadata'))
     chat_type = str(send_context.get('chat_type') or '')
     chat_id = str(send_context.get('chat_id') or '')
     sender_id = int(send_context.get('sender_id') or 0)
@@ -621,7 +639,7 @@ def _insert_message_row(
     album_id = send_context.get('album_id') or None
     receiver_is_connected = bool(send_context.get('receiver_is_connected'))
 
-    if supports_forward_metadata:
+    if supports_forward_metadata and supports_album_metadata:
         if chat_type == 'group':
             return conn.execute(
                 '''
@@ -682,22 +700,98 @@ def _insert_message_row(
             ),
         )
 
-    if chat_type == 'group':
+    if supports_forward_metadata:
+        if chat_type == 'group':
+            return conn.execute(
+                '''
+                INSERT INTO messages (
+                    chat_id,
+                    sender_id,
+                    receiver_id,
+                    message,
+                    message_type,
+                    reply_to_id,
+                    forward_from_name,
+                    forward_from_user_id,
+                    is_delivered
+                )
+                VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 1)
+                RETURNING id, created_at
+                ''',
+                (
+                    chat_id,
+                    sender_id,
+                    message,
+                    message_type,
+                    reply_to_id,
+                    forward_from_name,
+                    forward_from_user_id,
+                ),
+            )
+        return conn.execute(
+            '''
+            INSERT INTO messages (
+                chat_id,
+                sender_id,
+                receiver_id,
+                message,
+                message_type,
+                reply_to_id,
+                forward_from_name,
+                forward_from_user_id,
+                is_delivered
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id, created_at
+            ''',
+            (
+                chat_id,
+                sender_id,
+                receiver_id,
+                message,
+                message_type,
+                reply_to_id,
+                forward_from_name,
+                forward_from_user_id,
+                int(receiver_is_connected),
+            ),
+        )
+
+    if supports_album_metadata:
+        if chat_type == 'group':
+            return conn.execute(
+                '''
+                INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
+                VALUES (?, ?, NULL, ?, ?, ?, ?, 1)
+                RETURNING id, created_at
+                ''',
+                (chat_id, sender_id, message, message_type, reply_to_id, album_id),
+            )
         return conn.execute(
             '''
             INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
-            VALUES (?, ?, NULL, ?, ?, ?, ?, 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id, created_at
             ''',
-            (chat_id, sender_id, message, message_type, reply_to_id, album_id),
+            (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, int(receiver_is_connected)),
+        )
+
+    if chat_type == 'group':
+        return conn.execute(
+            '''
+            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
+            VALUES (?, ?, NULL, ?, ?, ?, 1)
+            RETURNING id, created_at
+            ''',
+            (chat_id, sender_id, message, message_type, reply_to_id),
         )
     return conn.execute(
         '''
-        INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         RETURNING id, created_at
         ''',
-        (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, int(receiver_is_connected)),
+        (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, int(receiver_is_connected)),
     )
 
 
@@ -771,7 +865,7 @@ def _resolve_reply_preview_for_send(
     if callable(looks_like_ciphertext_func) and looks_like_ciphertext_func(raw):
         return reply_to_id, raw, rm['public_key']
     logger.warning('reply_to_id=%s has non-ciphertext content; dropping reply preview', reply_to_id)
-    return None, None, None
+    return None, None, rm['public_key']
 
 
 def _resolve_sender_identity_for_send(
@@ -899,7 +993,9 @@ def _persist_send_flow(conn, *, context: dict | None = None):
 
     try:
         ensure_chat_exists_func(conn, chat_id)
-        supports_forward_metadata = _supports_forward_metadata(conn)
+        message_table_capabilities = _resolve_message_table_capabilities(conn)
+        supports_forward_metadata = message_table_capabilities['supports_forward_metadata']
+        supports_album_metadata = message_table_capabilities['supports_album_metadata']
         if chat_type != 'group':
             _sync_direct_contact_chat(
                 conn,
@@ -913,6 +1009,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
             conn,
             context={
                 'supports_forward_metadata': supports_forward_metadata,
+                'supports_album_metadata': supports_album_metadata,
                 'chat_type': chat_type,
                 'chat_id': chat_id,
                 'sender_id': sender_id,
@@ -988,7 +1085,7 @@ def _persist_send_flow(conn, *, context: dict | None = None):
         'sender_username': sender_username,
         'sender_avatar_url': sender_avatar_url,
         'expires_at': expires_at,
-        'album_id': album_id,
+        'album_id': album_id if supports_album_metadata else None,
     }
 
 
