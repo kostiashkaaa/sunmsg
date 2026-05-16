@@ -2652,12 +2652,14 @@ button > i[class*=" bi-"],
     animation-delay: var(--motion-delay-none) !important;
 }
 
+/* Dev-only panel: element is created dynamically only when ?motionDebug=1 or
+   localStorage.sun_motion_debug=1 — never rendered in normal production use. */
 .motion-debug-panel {
     position: fixed;
     right: 12px;
     bottom: 12px;
     width: min(420px, calc(100vw - 24px));
-    max-height: min(50vh, 420px);
+    max-height: min(50dvh, 420px);
     overflow: auto;
     z-index: 100000;
     margin: 0;

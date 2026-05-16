@@ -155,6 +155,7 @@ export function initSearchOverlay() {
         overlay.classList.remove(CLOSING_CLASS);
         overlay.classList.add(OPENING_CLASS);
         overlay.setAttribute('aria-hidden', 'false');
+        visibleInput.setAttribute('aria-expanded', 'true');
         sidebar.classList.add(SIDEBAR_DIMMED_CLASS);
         if (clearBtn) clearBtn.hidden = false;
         setTab('chats');
@@ -175,6 +176,7 @@ export function initSearchOverlay() {
             overlay.hidden = true;
             overlay.setAttribute('hidden', '');
             overlay.setAttribute('aria-hidden', 'true');
+            visibleInput.setAttribute('aria-expanded', 'false');
             if (!keepValue) resetValue();
             return;
         }
@@ -183,6 +185,7 @@ export function initSearchOverlay() {
         overlay.classList.remove(OPEN_CLASS, OPENING_CLASS);
         overlay.classList.add(CLOSING_CLASS);
         overlay.setAttribute('aria-hidden', 'true');
+        visibleInput.setAttribute('aria-expanded', 'false');
         clearAutoSwitch();
         waitForMotionEnd(overlay, 320).then(() => {
             if (closeSeq !== transitionSeq || isOpen) return;

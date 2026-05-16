@@ -19,7 +19,22 @@ export function updateBlockButtons({
         const iconClass = byMe ? 'bi bi-unlock' : 'bi bi-slash-circle';
         const title = byMe ? 'Разблокировать пользователя' : 'Заблокировать пользователя';
         blockChatBtn.setAttribute('data-mode', byMe ? 'unblock' : 'block');
-        blockChatBtn.innerHTML = `<i class="${iconClass}"></i> <span id="blockChatBtnLabel">${title}</span>`;
+
+        let iconEl = blockChatBtn.querySelector('i');
+        let labelEl = blockChatBtn.querySelector('#blockChatBtnLabel');
+        if (!iconEl || !labelEl) {
+            blockChatBtn.textContent = '';
+            iconEl = document.createElement('i');
+            iconEl.setAttribute('aria-hidden', 'true');
+            const sep = document.createTextNode(' ');
+            labelEl = document.createElement('span');
+            labelEl.id = 'blockChatBtnLabel';
+            blockChatBtn.appendChild(iconEl);
+            blockChatBtn.appendChild(sep);
+            blockChatBtn.appendChild(labelEl);
+        }
+        iconEl.className = iconClass;
+        labelEl.textContent = title;
     }
 
     if (chatUnblockBtn) {
