@@ -62,5 +62,13 @@ jobs:
       - name: Pytest
         run: pytest -q
 
+      - name: Upload visual regression artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-artifacts
+          path: tests/.visual_artifacts/
+          if-no-files-found: ignore
+
       - name: Dependency audit (production requirements)
         run: python manage.py pip-audit --requirements requirements-production.txt
