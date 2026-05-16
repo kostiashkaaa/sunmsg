@@ -1649,65 +1649,65 @@ def handle_edit_message_event(  # noqa: PLR0913 - dependency-injected socket han
     request_id = _normalize_socket_request_id(data, normalize_request_id_func)
 
     conn = get_db_connection_func()
-    if not _is_edit_chat_access_allowed(
-        conn,
-        context={
-            'uid': uid,
-            'chat_id': chat_id,
-            'chat_partner_state_func': chat_partner_state_func,
-            'emit_blocked_error_func': emit_blocked_error_func,
-            'emit_func': emit_func,
-        },
-    ):
+    try:
+        if not _is_edit_chat_access_allowed(
+            conn,
+            context={
+                'uid': uid,
+                'chat_id': chat_id,
+                'chat_partner_state_func': chat_partner_state_func,
+                'emit_blocked_error_func': emit_blocked_error_func,
+                'emit_func': emit_func,
+            },
+        ):
+            return
+
+        chat_type = get_chat_type(conn, chat_id)
+        msg = conn.execute(
+            '''
+            SELECT m.sender_id, m.chat_id, m.created_at, m.edit_count, u.public_key AS receiver_public_key
+            FROM messages m
+            LEFT JOIN users u ON m.receiver_id = u.id
+            WHERE m.id = ?
+            ''',
+            (msg_id,),
+        ).fetchone()
+
+        target = _validate_edit_target(
+            msg,
+            context={
+                'chat_id': chat_id,
+                'uid': uid,
+                'positive_int_func': positive_int_func,
+                'parse_db_utc_timestamp_func': parse_db_utc_timestamp_func,
+                'utc_now_func': utc_now_func,
+                'message_edit_window_seconds': message_edit_window_seconds,
+                'max_message_edits': max_message_edits,
+                'emit_func': emit_func,
+            },
+        )
+        if not target:
+            return
+        current_user_id = target['current_user_id']
+        receiver_public_key = target['receiver_public_key']
+
+        update_applied = _apply_edit_message_update(
+            conn,
+            context={
+                'reserve_socket_request_func': reserve_socket_request_func,
+                'mark_socket_request_completed_func': mark_socket_request_completed_func,
+                'release_socket_request_func': release_socket_request_func,
+                'emit_func': emit_func,
+                'current_user_id': current_user_id,
+                'request_id': request_id,
+                'new_content': new_content,
+                'message_type': message_type,
+                'msg_id': msg_id,
+                'chat_id': chat_id,
+            },
+        )
+    finally:
         conn.close()
-        return
-
-    chat_type = get_chat_type(conn, chat_id)
-    msg = conn.execute(
-        '''
-        SELECT m.sender_id, m.chat_id, m.created_at, m.edit_count, u.public_key AS receiver_public_key
-        FROM messages m
-        LEFT JOIN users u ON m.receiver_id = u.id
-        WHERE m.id = ?
-        ''',
-        (msg_id,),
-    ).fetchone()
-
-    target = _validate_edit_target(
-        msg,
-        context={
-            'chat_id': chat_id,
-            'uid': uid,
-            'positive_int_func': positive_int_func,
-            'parse_db_utc_timestamp_func': parse_db_utc_timestamp_func,
-            'utc_now_func': utc_now_func,
-            'message_edit_window_seconds': message_edit_window_seconds,
-            'max_message_edits': max_message_edits,
-            'emit_func': emit_func,
-        },
-    )
-    if not target:
-        conn.close()
-        return
-    current_user_id = target['current_user_id']
-    receiver_public_key = target['receiver_public_key']
-
-    update_applied = _apply_edit_message_update(
-        conn,
-        context={
-            'reserve_socket_request_func': reserve_socket_request_func,
-            'mark_socket_request_completed_func': mark_socket_request_completed_func,
-            'release_socket_request_func': release_socket_request_func,
-            'emit_func': emit_func,
-            'current_user_id': current_user_id,
-            'request_id': request_id,
-            'new_content': new_content,
-            'message_type': message_type,
-            'msg_id': msg_id,
-            'chat_id': chat_id,
-        },
-    )
-    conn.close()
     if not update_applied:
         return
 
@@ -1922,133 +1922,137 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
     message_type = send_payload['message_type']
 
     conn = get_db_connection_func()
-    if not _passes_send_moderation_checks(
-        conn,
-        context={
-            'moderation_user_restriction_func': moderation_user_restriction_func,
-            'moderation_public_link_check_func': moderation_public_link_check_func,
-            'sender_id': sender_id,
-            'message': message,
-            'emit_func': emit_func,
-            'request_id': request_id,
-        },
-    ):
-        conn.close()
-        return
+    # _persist_send_flow closes conn in its own finally; the surrounding
+    # finally closes it on every earlier exit path (including unexpected
+    # exceptions). _PooledConnection.close() is idempotent, so closing again
+    # after _persist_send_flow already released the connection is harmless.
+    try:
+        if not _passes_send_moderation_checks(
+            conn,
+            context={
+                'moderation_user_restriction_func': moderation_user_restriction_func,
+                'moderation_public_link_check_func': moderation_public_link_check_func,
+                'sender_id': sender_id,
+                'message': message,
+                'emit_func': emit_func,
+                'request_id': request_id,
+            },
+        ):
+            return
 
-    delivery_context = _resolve_send_delivery_context(
-        conn,
-        context={
-            'sender_id': sender_id,
-            'chat_id': chat_id,
-            'message_type': message_type,
-            'group_restriction_lookup_func': group_restriction_lookup_func,
-            'utc_now_text_func': utc_now_text_func,
-            'count_connected_func': count_connected_func,
-            'build_block_state_func': build_block_state_func,
-            'normalize_block_state_func': normalize_block_state_func,
-            'emit_blocked_error_func': emit_blocked_error_func,
-            'emit_func': emit_func,
-            'request_id': request_id,
-        },
-    )
-    if not delivery_context:
-        conn.close()
-        return
-    (
-        chat_type,
-        receiver_id,
-        receiver_pub,
-        receiver_is_connected,
-    ) = (
-        delivery_context['chat_type'],
-        delivery_context['receiver_id'],
-        delivery_context['receiver_pub'],
-        delivery_context['receiver_is_connected'],
-    )
-    runtime_state = _initialize_send_runtime_state(
-        conn,
-        context={
-            'data': data,
-            'positive_int_func': positive_int_func,
-            'chat_type': chat_type,
-            'chat_id': chat_id,
-            'sender_id': sender_id,
-            'message': message,
-            'message_type': message_type,
-            'session_store': session_store,
-        },
-    )
-    (
-        reply_to_id,
-        forward_from_name,
-        forward_from_user_id,
-        album_id,
-        group_member_public_keys,
-        mentioned_members,
-        mentioned_user_ids,
-        mentioned_usernames,
-        group_chat_display_name,
-        sender_display_name,
-        sender_username,
-        sender_avatar_url,
-    ) = (
-        runtime_state['reply_to_id'],
-        runtime_state['forward_from_name'],
-        runtime_state['forward_from_user_id'],
-        runtime_state.get('album_id'),
-        runtime_state['group_member_public_keys'],
-        runtime_state['mentioned_members'],
-        runtime_state['mentioned_user_ids'],
-        runtime_state['mentioned_usernames'],
-        runtime_state['group_chat_display_name'],
-        runtime_state['sender_display_name'],
-        runtime_state['sender_username'],
-        runtime_state['sender_avatar_url'],
-    )
-    reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
-        reserve_socket_request_func=reserve_socket_request_func,
-        mark_socket_request_completed_func=mark_socket_request_completed_func,
-        release_socket_request_func=release_socket_request_func,
-    )
-    allowed, reservation = _reserve_socket_request_or_emit_duplicate(
-        reserve_fn=reserve_fn,
-        emit_func=emit_func,
-        user_id=sender_id,
-        event_name='send_message',
-        request_id=request_id,
-    )
-    if not allowed:
-        conn.close()
-        return
+        delivery_context = _resolve_send_delivery_context(
+            conn,
+            context={
+                'sender_id': sender_id,
+                'chat_id': chat_id,
+                'message_type': message_type,
+                'group_restriction_lookup_func': group_restriction_lookup_func,
+                'utc_now_text_func': utc_now_text_func,
+                'count_connected_func': count_connected_func,
+                'build_block_state_func': build_block_state_func,
+                'normalize_block_state_func': normalize_block_state_func,
+                'emit_blocked_error_func': emit_blocked_error_func,
+                'emit_func': emit_func,
+                'request_id': request_id,
+            },
+        )
+        if not delivery_context:
+            return
+        (
+            chat_type,
+            receiver_id,
+            receiver_pub,
+            receiver_is_connected,
+        ) = (
+            delivery_context['chat_type'],
+            delivery_context['receiver_id'],
+            delivery_context['receiver_pub'],
+            delivery_context['receiver_is_connected'],
+        )
+        runtime_state = _initialize_send_runtime_state(
+            conn,
+            context={
+                'data': data,
+                'positive_int_func': positive_int_func,
+                'chat_type': chat_type,
+                'chat_id': chat_id,
+                'sender_id': sender_id,
+                'message': message,
+                'message_type': message_type,
+                'session_store': session_store,
+            },
+        )
+        (
+            reply_to_id,
+            forward_from_name,
+            forward_from_user_id,
+            album_id,
+            group_member_public_keys,
+            mentioned_members,
+            mentioned_user_ids,
+            mentioned_usernames,
+            group_chat_display_name,
+            sender_display_name,
+            sender_username,
+            sender_avatar_url,
+        ) = (
+            runtime_state['reply_to_id'],
+            runtime_state['forward_from_name'],
+            runtime_state['forward_from_user_id'],
+            runtime_state.get('album_id'),
+            runtime_state['group_member_public_keys'],
+            runtime_state['mentioned_members'],
+            runtime_state['mentioned_user_ids'],
+            runtime_state['mentioned_usernames'],
+            runtime_state['group_chat_display_name'],
+            runtime_state['sender_display_name'],
+            runtime_state['sender_username'],
+            runtime_state['sender_avatar_url'],
+        )
+        reserve_fn, complete_fn, release_fn = _resolve_socket_request_handlers(
+            reserve_socket_request_func=reserve_socket_request_func,
+            mark_socket_request_completed_func=mark_socket_request_completed_func,
+            release_socket_request_func=release_socket_request_func,
+        )
+        allowed, reservation = _reserve_socket_request_or_emit_duplicate(
+            reserve_fn=reserve_fn,
+            emit_func=emit_func,
+            user_id=sender_id,
+            event_name='send_message',
+            request_id=request_id,
+        )
+        if not allowed:
+            return
 
-    persisted = _persist_send_flow(
-        conn,
-        context={
-            'error_cls': error_cls,
-            'release_fn': release_fn,
-            'complete_fn': complete_fn,
-            'reservation': reservation,
-            'logger': logger,
-            'emit_func': emit_func,
-            'ensure_chat_exists_func': ensure_chat_exists_func,
-            'chat_id': chat_id,
-            'chat_type': chat_type,
-            'sender_id': sender_id,
-            'receiver_id': receiver_id,
-            'message': message,
-            'message_type': message_type,
-            'reply_to_id': reply_to_id,
-            'forward_from_name': forward_from_name,
-            'forward_from_user_id': forward_from_user_id,
-            'album_id': album_id,
-            'receiver_is_connected': receiver_is_connected,
-            'looks_like_ciphertext_func': looks_like_ciphertext_func,
-            'sender_display_name': sender_display_name,
-            'sender_username': sender_username,
-            'request_id': request_id,
-        },
-    )
+        persisted = _persist_send_flow(
+            conn,
+            context={
+                'error_cls': error_cls,
+                'release_fn': release_fn,
+                'complete_fn': complete_fn,
+                'reservation': reservation,
+                'logger': logger,
+                'emit_func': emit_func,
+                'ensure_chat_exists_func': ensure_chat_exists_func,
+                'chat_id': chat_id,
+                'chat_type': chat_type,
+                'sender_id': sender_id,
+                'receiver_id': receiver_id,
+                'message': message,
+                'message_type': message_type,
+                'reply_to_id': reply_to_id,
+                'forward_from_name': forward_from_name,
+                'forward_from_user_id': forward_from_user_id,
+                'album_id': album_id,
+                'receiver_is_connected': receiver_is_connected,
+                'looks_like_ciphertext_func': looks_like_ciphertext_func,
+                'sender_display_name': sender_display_name,
+                'sender_username': sender_username,
+                'request_id': request_id,
+            },
+        )
+    finally:
+        conn.close()
     if not persisted:
         return
     (

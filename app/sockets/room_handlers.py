@@ -35,8 +35,10 @@ def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler con
         emit_func('error', {'message': 'Too many messages. Please wait a little.'})
         return
     conn = get_db_connection_func()
-    partner, block_state = chat_partner_state_func(conn, user_id, chat_id)
-    conn.close()
+    try:
+        partner, block_state = chat_partner_state_func(conn, user_id, chat_id)
+    finally:
+        conn.close()
 
     if partner and block_state and not block_state['is_blocked']:
         join_room_func(chat_id)

@@ -203,7 +203,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (avatarCircle) {
             if (avatarSrc) {
-                avatarCircle.innerHTML = `<img src="${avatarSrc}" alt="${tr('Ваш аватар')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                avatarCircle.replaceChildren();
+                const avatarImg = document.createElement('img');
+                avatarImg.src = avatarSrc;
+                avatarImg.alt = tr('Ваш аватар');
+                avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                avatarCircle.appendChild(avatarImg);
             } else {
                 avatarCircle.textContent = buildInitials(nextDisplayName || nextUsername || '?');
             }
