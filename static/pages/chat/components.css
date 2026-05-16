@@ -211,7 +211,7 @@
             position: fixed;
             inset: 0;
             padding: 20px;
-            z-index: 5000;
+            z-index: var(--z-context-menu, 5000);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -2674,7 +2674,7 @@
         .chat-date-picker-overlay {
             position: fixed;
             inset: 0;
-            z-index: 9200;
+            z-index: var(--z-date-picker, 9200);
             display: none;
             align-items: center;
             justify-content: center;
@@ -3235,7 +3235,8 @@
         }
 
 
-        #chatUnblockBtn {
+        #chatUnblockBtn,
+        .btn-unblock {
             border: none;
             border-radius: 999px;
             padding: 6px 11px;
@@ -3247,6 +3248,33 @@
             align-items: center;
             gap: 6px;
             cursor: pointer;
+        }
+
+        .sidebar-theme-toggle {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--sub-text);
+            background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+            box-shadow: var(--shadow-1);
+            cursor: pointer;
+            transition:
+                color var(--dur-quick) var(--ease-quick),
+                background-color var(--dur-quick) var(--ease-quick),
+                opacity var(--dur-quick) var(--ease-quick);
+        }
+
+        .sidebar-theme-toggle:hover {
+            color: var(--text);
+            background: color-mix(in srgb, var(--contact-hover) 82%, transparent);
+        }
+
+        .sidebar-theme-toggle[hidden] {
+            display: none !important;
         }
 
 
@@ -3340,7 +3368,7 @@
             width: var(--attach-menu-width, min(216px, calc(100vw - 24px)));
             min-width: min(190px, calc(100vw - 24px));
             max-width: calc(100vw - 24px);
-            z-index: 9600;
+            z-index: var(--z-portal-menu, 9600);
             transform-origin: var(--attach-menu-origin, bottom right);
         }
 
@@ -3945,7 +3973,7 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             box-shadow: none;
-            z-index: 1600;
+            z-index: var(--z-modal-overlay, 1600);
             min-width: 230px;
             display: none;
             overflow: hidden;
@@ -4032,7 +4060,7 @@
             background: color-mix(in srgb, var(--surface) 94%, #0f172a 6%);
             box-shadow: var(--shadow-md);
             padding: 12px;
-            z-index: 1200;
+            z-index: var(--z-profile-mobile, 1200);
             display: none;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -6363,7 +6391,7 @@
             background: rgba(8, 11, 17, 0.94);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
-            z-index: 9000;
+            z-index: var(--z-media-overlay, 9000);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -7022,7 +7050,7 @@
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.75);
-            z-index: 9000;
+            z-index: var(--z-media-overlay, 9000);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -7964,7 +7992,7 @@
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.72);
-            z-index: 8500;
+            z-index: var(--z-media-overlay, 9000);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -9889,7 +9917,7 @@
             border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
             border-radius: 10px;
             box-shadow: 0 7px 16px rgba(0, 0, 0, 0.2);
-            z-index: 5000;
+            z-index: var(--z-context-menu, 5000);
             min-width: 220px;
             max-width: min(280px, calc(100vw - 24px));
             padding: 4px;
@@ -10049,7 +10077,7 @@
     background: color-mix(in srgb, var(--surface) 93%, #060a12 7%);
     border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
-    z-index: 5100;
+    z-index: var(--z-reaction-picker, 5100);
     transform-origin: center bottom;
     overflow: visible;
 }
@@ -10183,7 +10211,7 @@
     border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
     border-radius: 12px;
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
-    z-index: 5120;
+    z-index: var(--z-reaction-popup, 5120);
     display: none;
     flex-direction: column;
     overflow: hidden;
@@ -11333,14 +11361,14 @@
 
 .message .bubble.bubble--text,
 .message .bubble:has(> .message-text) {
-    --text-meta-reserve: 0px !important;
-    min-width: 0 !important;
+    --text-meta-reserve: 0px;
+    min-width: 0;
     width: fit-content;
 }
 
 .message .bubble > .message-text,
 .message .bubble.bubble--text > .message-text {
-    padding-right: 0 !important;
+    padding-right: 0;
     min-height: 0;
 }
 

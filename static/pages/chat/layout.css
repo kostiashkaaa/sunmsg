@@ -45,8 +45,8 @@
 }
 
 .msg-edited { font-style: italic; font-size: 9.5px; margin-right: 2px; white-space: nowrap; }
-.msg-tick { font-size: 13px; margin-left: 2px; }
-.msg-tick.read { color: var(--read-tick-color, #4ade80); }
+/* .msg-tick base styles are defined in the canonical block below (~line 280). */
+/* Dead micro-declaration removed: was fully overridden by the canonical .msg-tick block. */
 .msg-menu-trigger {
     display: inline-flex;
     align-items: stretch;
@@ -361,7 +361,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     flex-direction: column;
     position: relative;
     transition: none;
-    z-index: 100;
+    z-index: var(--z-sidebar, 100);
 }
 
 /* normalized: removed mojibake comment */
@@ -372,7 +372,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     width: 8px;
     height: 100%;
     cursor: col-resize;
-    z-index: 1000;
+    z-index: var(--z-side-resizer, 1000);
     background: transparent;
     transition: background-color var(--dur-quick) var(--ease-quick);
 }
@@ -397,7 +397,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 .profile-drawer {
     position: absolute;
     inset: 0;
-    z-index: 120;
+    z-index: var(--z-sidebar-drawer, 120);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--dur-quick) var(--ease-quick);
@@ -954,7 +954,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 /* normalized: removed mojibake comment */
 .message-context-menu {
     position: fixed;
-    z-index: 5000; /* Super high */
+    z-index: var(--z-context-menu, 5000);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -1005,35 +1005,20 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     text-align: left;
 }
 
-/* Redundant block removed */
-
-.header-partner-clickable {
-    padding: 0;
-    border-radius: 0;
-    background: transparent;
-    width: 100%;
-    cursor: pointer;
-    transition: none;
-}
-.header-partner-clickable:hover {
-    background: transparent;
-}
-.header-partner-clickable:focus,
-.header-partner-clickable:focus-visible {
-    outline: none;
-    box-shadow: none;
-}
-.header-partner-clickable .chat-partner-name {
-    font-size: 15px;
-    font-weight: 600;
-}
 #chatOnlineStatus {
-    font-size: 12px !important;
+    font-size: var(--chat-online-status-font-size, 12px);
 }
 
-/* Hide chat toast notifications globally in the chat UI. */
 #toastContainer {
-    display: none !important;
+    position: fixed;
+    bottom: calc(var(--floating-composer-reserve, 72px) + env(safe-area-inset-bottom) + 8px);
+    right: 16px;
+    z-index: var(--z-toast, 9800);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(360px, calc(100vw - 32px));
 }
 
 /* Duplicate removed */
@@ -1078,8 +1063,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     .auth-card     { padding: 24px 20px; }
     .auth-key-box  { padding: 20px; }
 
-    /* Messages */
-    .chat-messages { height: auto !important; }
+    /* Messages: height:auto removed — flex:1 + min-height:0 in responsive.css handles this correctly. */
     /* Legacy width limiter for old `.message .text` removed:
        chat width logic lives in pages/chat/components.css + responsive.css. */
 
@@ -1333,7 +1317,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 .settings-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1400;
+    z-index: var(--z-settings, 1400);
     display: flex;
     justify-content: flex-end;
     overflow: hidden;
@@ -1401,9 +1385,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     flex: 1;
     min-height: 0;
     width: 100%;
-    overflow-y: scroll;
+    overflow-y: auto; /* was: scroll — auto avoids permanent scrollbar gutter */
     overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     touch-action: pan-y;
     background: var(--bg);
@@ -2241,7 +2224,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             --vv-top-offset: 0px;
             --vv-left-offset: 0px;
             --mobile-composer-bottom-inset: 0px;
-            --mobile-keyboard-layout-inset: 0px;
         }
 
 
@@ -2272,7 +2254,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         .app-boot-overlay {
             position: fixed;
             inset: 0;
-            z-index: 6200;
+            z-index: var(--z-boot-overlay, 6200);
             display: grid;
             place-items: center;
             padding: 28px;
@@ -3661,12 +3643,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             flex-direction: column;
             justify-content: flex-start;
             overflow-y: auto;
-            overflow-x: clip;
+            overflow-x: hidden;
             overflow-anchor: none;
             padding: 8px 22px 0 22px;
             padding-bottom: calc(
                 var(--floating-composer-reserve, 72px)
-                + var(--mobile-keyboard-layout-inset, 0px)
                 + env(safe-area-inset-bottom)
             );
             --selection-row-bleed-left: 26px;
@@ -3684,7 +3665,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             scroll-padding-top: 10px;
             scroll-padding-bottom: calc(
                 var(--floating-composer-reserve, 72px)
-                + var(--mobile-keyboard-layout-inset, 0px)
                 + env(safe-area-inset-bottom)
                 + 12px
             );
@@ -3745,7 +3725,6 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             right: 0;
             bottom: calc(
                 var(--floating-composer-gap)
-                + var(--mobile-keyboard-layout-inset, 0px)
                 + env(safe-area-inset-bottom)
             );
             padding: 0 22px 10px 22px;
@@ -3786,7 +3765,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         .profile-drawer {
             position: absolute;
             inset: 0;
-            z-index: 28;
+            z-index: var(--z-sidebar-drawer, 120);
             pointer-events: none;
         }
 
