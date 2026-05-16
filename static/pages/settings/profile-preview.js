@@ -46,9 +46,8 @@ export function createProfilePreviewController({
             target.textContent = name || '-';
         });
         if (previewUsernameEl) {
-            // убираем любые ведущие «@», чтобы не получить «@@username»
             const username = String(usernameEl?.value || '').trim().replace(/^@+/, '');
-            previewUsernameEl.textContent = username ? `@${username}` : '@-';
+            previewUsernameEl.textContent = username || '-';
         }
     }
 
