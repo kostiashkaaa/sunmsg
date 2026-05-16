@@ -170,7 +170,7 @@ export function initPrivacySection({
     applyAvatarFromSettings,
     downloadSettingsQr,
 }) {
-    const languageSelectEl = document.getElementById('languageSelect');
+
     const languageOptionEls = Array.from(
         typeof document.querySelectorAll === 'function'
             ? document.querySelectorAll('[data-language-option]')
@@ -224,7 +224,6 @@ export function initPrivacySection({
     let privacyPreferencesSaveSeq = 0;
     let lastSavedPrivacyPreferencesKey = '';
     const CLIENT_PREFERENCES_FIELD_IDS = new Set([
-        'languageSelect',
         'lastSeenVisibilitySelect',
         'bioVisibilitySelect',
         'forwardLinkPrivacySelect',
@@ -422,16 +421,20 @@ export function initPrivacySection({
         });
     }
 
+    function getSelectedLanguage() {
+        const checked = languageOptionEls.find((el) => el.checked);
+        return normalizeLanguage(checked?.value || document.documentElement.lang || 'ru');
+    }
+
     function syncLanguageOptions() {
-        const normalized = normalizeLanguage(languageSelectEl?.value || document.documentElement.lang || 'ru');
-    languageOptionEls.forEach((inputEl) => {
+        const normalized = getSelectedLanguage();
+        languageOptionEls.forEach((inputEl) => {
             inputEl.checked = inputEl.value === normalized;
         });
     }
 
     function resolveWeatherCitySuggestionsLanguage() {
-        const language = String(languageSelectEl?.value || '').trim().toLowerCase();
-        return language === 'en' ? 'en' : 'ru';
+        return getSelectedLanguage() === 'en' ? 'en' : 'ru';
     }
 
     function setSidebarWeatherCitySuggestionsExpanded(expanded) {
@@ -778,7 +781,7 @@ export function initPrivacySection({
 
         return {
             darkMode,
-            language: normalizeLanguage(languageSelectEl?.value || document.documentElement.lang || 'ru'),
+            language: getSelectedLanguage(),
             updatedAt: new Date().toISOString(),
             messageScale,
             performanceMode,
@@ -864,7 +867,7 @@ export function initPrivacySection({
         return {
             username: document.getElementById('username').value.trim(),
             display_name: document.getElementById('displayName').value.trim(),
-            language: (document.getElementById('languageSelect') || {}).value || 'ru',
+            language: getSelectedLanguage(),
             bio: bioEl ? bioEl.value.trim().slice(0, 280) : '',
             status_text: String(statusTextInputEl?.value || '').trim().slice(0, 100),
             ...privacyPrefs,
@@ -884,7 +887,7 @@ export function initPrivacySection({
 
         const usernameEl = document.getElementById('username');
         const displayNameEl = document.getElementById('displayName');
-        const languageEl = document.getElementById('languageSelect');
+
         const bioEl = document.getElementById('bioInput');
         const isPublicEl = document.getElementById('isPublicSwitch');
         const autoDeclineEl = document.getElementById('autoDeclineSwitch');
@@ -894,7 +897,8 @@ export function initPrivacySection({
 
         if (usernameEl && typeof payload.username === 'string') usernameEl.value = payload.username.trim();
         if (displayNameEl && typeof payload.display_name === 'string') displayNameEl.value = payload.display_name.trim();
-        if (languageEl) languageEl.value = payload.language === 'en' ? 'en' : 'ru';
+        const incomingLang = normalizeLanguage(payload.language || 'ru');
+        languageOptionEls.forEach((el) => { el.checked = el.value === incomingLang; });
         if (bioEl) bioEl.value = String(payload.bio || '').slice(0, 280);
         if (statusTextInputEl) {
             statusTextInputEl.value = String(payload.status_text || '').slice(0, 100);
@@ -1038,7 +1042,6 @@ export function initPrivacySection({
     [
         document.getElementById('displayName'),
         document.getElementById('username'),
-        document.getElementById('languageSelect'),
         document.getElementById('bioInput'),
         document.getElementById('statusTextInput'),
         document.getElementById('isPublicSwitch'),
@@ -1093,27 +1096,19 @@ export function initPrivacySection({
         });
     }
 
-    if (languageSelectEl && i18nApi && typeof i18nApi.setLanguage === 'function') {
-        languageSelectEl.addEventListener('change', () => {
-            const nextLanguage = languageSelectEl.value === 'en' ? 'en' : 'ru';
-            i18nApi.setLanguage(nextLanguage, { persist: false, apply: true });
+    languageOptionEls.forEach((inputEl) => {
+        inputEl.addEventListener('change', () => {
+            if (!inputEl.checked) return;
+            const nextLanguage = normalizeLanguage(inputEl.value);
+            if (i18nApi && typeof i18nApi.setLanguage === 'function') {
+                i18nApi.setLanguage(nextLanguage, { persist: false, apply: true });
+            }
             notifyLanguageUpdate(nextLanguage, false);
             syncTimeFormatSamples();
             if (latestPresencePayload) applySettingsNavProfileStatus(latestPresencePayload);
             syncClientPreferencesLocal(true);
-            syncLanguageOptions();
+            scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
         });
-    }
-        languageOptionEls.forEach((inputEl) => {
-        inputEl.addEventListener('change', () => {
-            if (!inputEl.checked || !languageSelectEl) return;
-            languageSelectEl.value = normalizeLanguage(inputEl.value);
-            languageSelectEl.dispatchEvent(new Event('input', { bubbles: true }));
-            languageSelectEl.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-    });
-    languageSelectEl?.addEventListener('change', () => {
-        scheduleSidebarWeatherCitySuggestionsUpdate({ immediate: true });
     });
 
     hideOnlineStatusSwitchEl?.addEventListener('change', () => {

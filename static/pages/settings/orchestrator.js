@@ -142,7 +142,7 @@ export function initSettingsPage() {
     const serverSettingFieldEls = [
         document.getElementById('displayName'),
         document.getElementById('username'),
-        document.getElementById('languageSelect'),
+        ...Array.from(document.querySelectorAll('[data-language-option]')),
         document.getElementById('bioInput'),
         document.getElementById('isPublicSwitch'),
         document.getElementById('hideOnlineStatusSwitch'),
