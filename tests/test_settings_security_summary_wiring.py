@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_settings_security_summary_is_wired():
-    template_src = (ROOT / 'templates' / 'settings.html').read_text(encoding='utf-8')
+    template_src = (ROOT / 'templates' / 'settings' / '_panel.html').read_text(encoding='utf-8')
     module_src = (
         ROOT / 'static' / 'pages' / 'settings' / 'security-summary-section.js'
     ).read_text(encoding='utf-8')

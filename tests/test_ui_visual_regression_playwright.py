@@ -128,7 +128,7 @@ def visual_server():
 
     @app.route('/__visual_test__/login', methods=['GET'])
     def _visual_test_login_bootstrap():
-        target = str(request.args.get('next') or '/settings')
+        target = str(request.args.get('next') or '/chat')
         session.clear()
         session['user_id'] = 4242
         session['public_key_pem'] = 'pk-visual-4242'
@@ -243,11 +243,18 @@ def _open_page(context: BrowserContext, path: str, wait_until: str = 'networkidl
 
 
 def _wait_settings_ready(page: Page) -> None:
-    page.wait_for_selector('body.settings-ready')
+    page.wait_for_selector('#settingsOverlay.active #settingsNavProfile')
+    page.wait_for_function(
+        "() => document.getElementById('settingsPanelScene')?.classList.contains('settings-ready') === true"
+    )
 
 
 def _open_settings_via_test_login(context: BrowserContext) -> Page:
-    return _open_page(context, '/__visual_test__/login?next=/settings', wait_until='domcontentloaded')
+    page = _open_page(context, '/__visual_test__/login?next=/chat', wait_until='domcontentloaded')
+    page.wait_for_selector('#contactsList')
+    page.wait_for_function("() => typeof window.openSettingsOverlay === 'function'")
+    page.evaluate("() => window.openSettingsOverlay('profile')")
+    return page
 
 
 def _stub_qr_login_api(context: BrowserContext) -> None:

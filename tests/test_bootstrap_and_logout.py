@@ -115,7 +115,7 @@ def test_chat_page_uses_safe_socketio_client_config(monkeypatch, tmp_path):
     assert 'window.SUN_SOCKETIO_CONFIG' not in html
 
 
-def test_auth_and_settings_pages_embed_bootstrap_payload(monkeypatch, tmp_path):
+def test_auth_page_and_embedded_chat_settings_bootstrap(monkeypatch, tmp_path):
     db_path = tmp_path / 'bootstrap-pages.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
 
@@ -144,21 +144,25 @@ def test_auth_and_settings_pages_embed_bootstrap_payload(monkeypatch, tmp_path):
         sess['user_id'] = 1
         sess['public_key_pem'] = 'pk-1'
 
-    settings_response = client.get('/settings')
-    settings_html = settings_response.get_data(as_text=True)
-    settings_bootstrap = _extract_bootstrap_payload(settings_html)
-    assert settings_response.status_code == 200
-    assert settings_bootstrap['page'] == 'settings'
-    assert settings_bootstrap['user']['currentUsername'] == 'alice'
-    assert settings_bootstrap['user']['embedMode'] is False
-    assert settings_bootstrap['socketio']['transports'] == ['polling', 'websocket']
-    assert settings_bootstrap['socketio']['upgrade'] is False
-    assert isinstance(settings_bootstrap['user']['clientPreferences'], dict)
-    assert settings_bootstrap['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
-    assert 'window.SUN_QRCODE_SRC' not in settings_html
-    assert 'pages/settings-qr.js' not in settings_html
-    assert '/static/vendor/js/socket.io.min.js' in settings_html
-    assert 'pages/settings.js' in settings_html
+    legacy_settings_response = client.get('/settings')
+    assert legacy_settings_response.status_code == 302
+    assert legacy_settings_response.headers['Location'].endswith('/chat')
+
+    chat_response = client.get('/chat')
+    chat_html = chat_response.get_data(as_text=True)
+    chat_bootstrap = _extract_bootstrap_payload(chat_html)
+    assert chat_response.status_code == 200
+    assert chat_bootstrap['page'] == 'chat'
+    assert chat_bootstrap['user']['currentUsername'] == 'alice'
+    assert chat_bootstrap['socketio']['transports'] == ['polling', 'websocket']
+    assert chat_bootstrap['socketio']['upgrade'] is False
+    assert isinstance(chat_bootstrap['user']['clientPreferences'], dict)
+    assert chat_bootstrap['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
+    assert 'window.SUN_QRCODE_SRC' not in chat_html
+    assert 'id="settingsOverlay"' in chat_html
+    assert 'id="settingsNavProfile"' in chat_html
+    assert 'id="avatarPreview"' in chat_html
+    assert 'pages/settings-polish.css' in chat_html
 
 
 def test_bootstrap_runtime_populates_legacy_globals_from_single_payload():
@@ -409,8 +413,8 @@ def test_settings_closes_connection_on_missing_user(monkeypatch, tmp_path):
     response = client.get('/settings')
 
     assert response.status_code == 302
-    assert tracked_connections
-    assert tracked_connections[0].closed is True
+    assert response.headers['Location'].endswith('/chat')
+    assert tracked_connections == []
 
 
 def test_error_pages_render_html_and_keep_json_for_api(monkeypatch, tmp_path):

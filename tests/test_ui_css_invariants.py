@@ -1063,8 +1063,8 @@ def test_theme_toggle_syncs_chat_and_settings_surfaces() -> None:
     assert 'applyDark(next)' in click_handler_body
     assert 'window.ChatAppearance.applyCurrentTheme()' in click_handler_body
 
-    settings = (STATIC / 'pages' / 'settings.js').read_text(encoding='utf-8')
-    assert "localStorage.setItem('darkMode', dark)" in settings
+    settings = (STATIC / 'pages' / 'settings' / 'theme-section.js').read_text(encoding='utf-8')
+    assert "localStorage.setItem('darkMode', dark ? 'true' : 'false')" in settings
     assert "document.documentElement.classList.toggle('dark-mode', dark)" in settings
     assert "document.body.classList.toggle('dark-mode', dark)" in settings
     assert "notifyParent('sun-settings-theme-updated', { dark })" in settings
