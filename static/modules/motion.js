@@ -436,10 +436,10 @@ const RIPPLE_SKIP_SELECTOR = [
     '[contenteditable="true"]',
 ].join(',');
 
-export function initTelegramRipple(root = document) {
+export function initSunRipple(root = document) {
     const doc = root?.nodeType === 9 ? root : document;
-    if (doc.__sunTelegramRippleBound) return () => {};
-    doc.__sunTelegramRippleBound = true;
+    if (doc.__sunRippleBound) return () => {};
+    doc.__sunRippleBound = true;
 
     const onPointerDown = (event) => {
         if (event.button !== 0 || prefersReducedMotion()) return;
@@ -454,14 +454,14 @@ export function initTelegramRipple(root = document) {
 
         const diameter = Math.ceil(Math.max(rect.width, rect.height) * 2.1);
         const ripple = doc.createElement('span');
-        ripple.className = 'tg-ripple-circle ripple';
+        ripple.className = 'sun-ripple-circle ripple';
         ripple.setAttribute('aria-hidden', 'true');
         ripple.style.width = `${diameter}px`;
         ripple.style.height = `${diameter}px`;
         ripple.style.left = `${event.clientX - rect.left - diameter / 2}px`;
         ripple.style.top = `${event.clientY - rect.top - diameter / 2}px`;
 
-        target.classList.add('tg-ripple-host');
+        target.classList.add('sun-ripple-host');
         target.appendChild(ripple);
 
         let finished = false;
@@ -482,6 +482,6 @@ export function initTelegramRipple(root = document) {
     doc.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
     return () => {
         doc.removeEventListener('pointerdown', onPointerDown, { capture: true });
-        doc.__sunTelegramRippleBound = false;
+        doc.__sunRippleBound = false;
     };
 }

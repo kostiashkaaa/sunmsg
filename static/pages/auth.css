@@ -1265,7 +1265,7 @@
     transition: background-color var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
 
-.auth-theme-toggle-btn.tg-ripple-host {
+.auth-theme-toggle-btn.sun-ripple-host {
     position: fixed;
 }
 

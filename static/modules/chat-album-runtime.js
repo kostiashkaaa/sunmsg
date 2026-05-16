@@ -6,7 +6,7 @@
  * into a single .message-album-grid inside the first message's bubble,
  * hiding the remaining individual message nodes.
  *
- * Telegram-style album layout:
+ * messenger-style album layout:
  *   1 photo  → full-width single bubble (normal)
  *   2 photos → side by side
  *   3 photos → 1 wide on top, 2 below

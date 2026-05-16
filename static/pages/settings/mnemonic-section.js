@@ -16,7 +16,7 @@ export function initMnemonicSection({
         if (!mnemonicUnlockCard || !e2eStatusCard) return;
         const unlocked = hasRuntimePrivateKey({ isEmbedMode });
         // Карточку восстановления 24 слов держим доступной ВСЕГДА —
-        // как в Telegram, восстановить доступ можно в любой момент.
+        // как в мессенджере, восстановить доступ можно в любой момент.
         // Когда ключ уже активен, карточка просто сворачивается.
         mnemonicUnlockCard.style.display = '';
         mnemonicUnlockCard.classList.toggle('mnemonic-card-unlocked', unlocked);

@@ -1,5 +1,5 @@
 /* ============================================================
-   MOTION LAYER v2 - Telegram Web style motion
+   MOTION LAYER v2 - SUN messenger motion
    Принципы:
    • только transform + opacity (compositor-only)
    - Standard easing: cubic-bezier(.4, 0, .2, 1)
@@ -108,31 +108,31 @@
     --m-press-scale: 0.96;
     --m-press-scale-soft: 0.985;
 
-    --tg-ease-standard: var(--motion-ease-standard);
-    --tg-ease-pop: var(--motion-ease-pop);
-    --tg-ease-tabs: var(--motion-ease-enter);
-    --tg-dur-drawer: var(--motion-duration-medium);
-    --tg-dur-drawer-exit: var(--motion-duration-medium);
-    --tg-dur-pop: var(--motion-duration-fast);
-    --tg-dur-composer-fast: var(--motion-duration-fast);
-    --tg-dur-icon-swap: var(--motion-duration-icon-swap);
-    --tg-dur-press: var(--motion-duration-instant);
-    --tg-dur-tabs: var(--motion-duration-fast);
-    --tg-dur-fade: var(--motion-duration-fast);
-    --tg-dur-crossfade: var(--motion-duration-crossfade);
-    --tg-dur-scrollbar: var(--motion-duration-instant);
-    --tg-dur-ripple: var(--motion-duration-ripple);
+    --sun-ease-standard: var(--motion-ease-standard);
+    --sun-ease-pop: var(--motion-ease-pop);
+    --sun-ease-tabs: var(--motion-ease-enter);
+    --sun-dur-drawer: var(--motion-duration-medium);
+    --sun-dur-drawer-exit: var(--motion-duration-medium);
+    --sun-dur-pop: var(--motion-duration-fast);
+    --sun-dur-composer-fast: var(--motion-duration-fast);
+    --sun-dur-icon-swap: var(--motion-duration-icon-swap);
+    --sun-dur-press: var(--motion-duration-instant);
+    --sun-dur-tabs: var(--motion-duration-fast);
+    --sun-dur-fade: var(--motion-duration-fast);
+    --sun-dur-crossfade: var(--motion-duration-crossfade);
+    --sun-dur-scrollbar: var(--motion-duration-instant);
+    --sun-dur-ripple: var(--motion-duration-ripple);
 
-    --tg3-dur-instant: var(--motion-duration-instant);
-    --tg3-dur-exit: var(--motion-duration-base);
-    --tg3-dur-panel: var(--motion-duration-medium);
-    --tg3-dur-surface: var(--motion-duration-base);
-    --tg3-dur-content: var(--motion-duration-medium);
+    --sun3-dur-instant: var(--motion-duration-instant);
+    --sun3-dur-exit: var(--motion-duration-base);
+    --sun3-dur-panel: var(--motion-duration-medium);
+    --sun3-dur-surface: var(--motion-duration-base);
+    --sun3-dur-content: var(--motion-duration-medium);
 
-    --tg3-ease-enter: var(--motion-ease-enter);
-    --tg3-ease-exit: var(--motion-ease-exit);
-    --tg3-ease-surface: var(--motion-ease-surface);
-    --tg3-ease-pop: var(--motion-ease-pop);
+    --sun3-ease-enter: var(--motion-ease-enter);
+    --sun3-ease-exit: var(--motion-ease-exit);
+    --sun3-ease-surface: var(--motion-ease-surface);
+    --sun3-ease-pop: var(--motion-ease-pop);
 }
 
 html[data-motion-level="balanced"] {
@@ -695,7 +695,7 @@ button.btn:focus-visible,
     .voice-btn,
     .profile-action,
     /* .reaction-pill исключён — он не одиночная кнопка действия,
-       а компактный badge-индикатор (как в Telegram, ~22-24px). */
+       а компактный badge-индикатор (как в мессенджере, ~22-24px). */
     .message-action,
     .sidebar-tab {
         min-width: 44px;
@@ -1031,7 +1031,7 @@ select {
     }
 }
 
-/* Telegram Web motion aliases are mapped in the unified :root motion contract. */
+/* Legacy motion aliases are mapped in the unified :root motion contract. */
 
 @keyframes grow-icon {
     0% {
@@ -1057,15 +1057,15 @@ select {
 
 #messageInput {
     transition:
-        height 0s var(--tg-ease-tabs),
-        background-color var(--tg-dur-fade) var(--tg-ease-tabs),
-        border-color var(--tg-dur-fade) var(--tg-ease-tabs),
-        box-shadow var(--tg-dur-fade) var(--tg-ease-tabs),
-        color var(--tg-dur-fade) var(--tg-ease-tabs);
+        height 0s var(--sun-ease-tabs),
+        background-color var(--sun-dur-fade) var(--sun-ease-tabs),
+        border-color var(--sun-dur-fade) var(--sun-ease-tabs),
+        box-shadow var(--sun-dur-fade) var(--sun-ease-tabs),
+        color var(--sun-dur-fade) var(--sun-ease-tabs);
 }
 
 #messageInput::placeholder {
-    transition: opacity var(--tg-dur-composer-fast) var(--tg-ease-tabs) var(--motion-delay-xxs);
+    transition: opacity var(--sun-dur-composer-fast) var(--sun-ease-tabs) var(--motion-delay-xxs);
 }
 
 #messageInput:not(:placeholder-shown)::placeholder {
@@ -1077,7 +1077,7 @@ select {
 }
 
 #voiceRecordBtn > .composer-action-icon--entering {
-    animation: grow-icon var(--tg-dur-icon-swap) var(--tg-ease-tabs) both;
+    animation: grow-icon var(--sun-dur-icon-swap) var(--sun-ease-tabs) both;
 }
 
 #voiceRecordBtn > .composer-action-icon--leaving {
@@ -1090,15 +1090,15 @@ select {
     height: 1em;
     margin: auto;
     pointer-events: none;
-    animation: hide-icon var(--tg-dur-icon-swap) var(--tg-ease-tabs) both;
+    animation: hide-icon var(--sun-dur-icon-swap) var(--sun-ease-tabs) both;
 }
 
 .context-menu-item,
 .message-context-menu .menu-item {
     transition:
-        background-color var(--tg-dur-press) var(--tg-ease-standard),
-        color var(--tg-dur-press) var(--tg-ease-standard),
-        transform var(--tg-dur-press) var(--tg-ease-standard);
+        background-color var(--sun-dur-press) var(--sun-ease-standard),
+        color var(--sun-dur-press) var(--sun-ease-standard),
+        transform var(--sun-dur-press) var(--sun-ease-standard);
 }
 
 .context-menu-item:active,
@@ -1111,7 +1111,7 @@ select {
 .profile-drawer.profile-content-revealing .profile-media-section,
 .profile-drawer.is-profile-opening .profile-loading-head,
 .profile-drawer.is-profile-opening .profile-loading-card {
-    animation: tg-slide-fade-in var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+    animation: sun-slide-fade-in var(--sun-dur-crossfade) var(--sun-ease-tabs) both;
     filter: none;
 }
 
@@ -1131,8 +1131,8 @@ select {
 
 .profile-media-tab {
     transition:
-        color var(--tg-dur-press) var(--tg-ease-tabs),
-        transform var(--tg-dur-tabs) var(--tg-ease-tabs);
+        color var(--sun-dur-press) var(--sun-ease-tabs),
+        transform var(--sun-dur-tabs) var(--sun-ease-tabs);
 }
 
 .profile-media-tab::after {
@@ -1141,8 +1141,8 @@ select {
     transform: scaleX(0.36);
     transform-origin: center;
     transition:
-        opacity var(--tg-dur-tabs) var(--tg-ease-tabs),
-        transform var(--tg-dur-tabs) var(--tg-ease-tabs);
+        opacity var(--sun-dur-tabs) var(--sun-ease-tabs),
+        transform var(--sun-dur-tabs) var(--sun-ease-tabs);
 }
 
 .profile-media-tab.active::after {
@@ -1151,7 +1151,7 @@ select {
 }
 
 .profile-media-content.is-tab-switching > * {
-    animation: profileMediaTabContentIn var(--tg-dur-tabs) var(--tg-ease-tabs) both !important;
+    animation: profileMediaTabContentIn var(--sun-dur-tabs) var(--sun-ease-tabs) both !important;
 }
 
 .profile-media-content.is-tab-switching.is-tab-switch-backward > * {
@@ -1162,24 +1162,24 @@ select {
 .profile-media-content.is-tab-switching .profile-file-row,
 .profile-media-content.is-tab-switching .profile-audio-row,
 .profile-media-content.is-tab-switching .profile-link-row {
-    animation: tg-media-fade-in var(--tg-dur-fade) var(--tg-ease-tabs) both !important;
+    animation: sun-media-fade-in var(--sun-dur-fade) var(--sun-ease-tabs) both !important;
     animation-delay: var(--motion-delay-none) !important;
 }
 
 .reaction-picker__item {
     transition:
-        transform var(--tg-dur-press) var(--tg-ease-standard),
-        background-color var(--tg-dur-press) var(--tg-ease-standard),
-        border-color var(--tg-dur-press) var(--tg-ease-standard),
-        box-shadow var(--tg-dur-press) var(--tg-ease-standard);
+        transform var(--sun-dur-press) var(--sun-ease-standard),
+        background-color var(--sun-dur-press) var(--sun-ease-standard),
+        border-color var(--sun-dur-press) var(--sun-ease-standard),
+        box-shadow var(--sun-dur-press) var(--sun-ease-standard);
 }
 
 .bubble-hover-reaction {
     opacity: 0;
     transform: scale(0.8);
     transition:
-        opacity var(--tg-dur-pop) var(--tg-ease-pop),
-        transform var(--tg-dur-pop) var(--tg-ease-pop);
+        opacity var(--sun-dur-pop) var(--sun-ease-pop),
+        transform var(--sun-dur-pop) var(--sun-ease-pop);
     will-change: opacity, transform;
 }
 
@@ -1196,10 +1196,10 @@ select {
 .reaction-picker__item,
 .reaction-pill {
     transition:
-        transform var(--tg-dur-pop) var(--tg-ease-pop),
-        background-color var(--tg-dur-press) var(--tg-ease-tabs),
-        border-color var(--tg-dur-press) var(--tg-ease-tabs),
-        box-shadow var(--tg-dur-pop) var(--tg-ease-tabs);
+        transform var(--sun-dur-pop) var(--sun-ease-pop),
+        background-color var(--sun-dur-press) var(--sun-ease-tabs),
+        border-color var(--sun-dur-press) var(--sun-ease-tabs),
+        box-shadow var(--sun-dur-pop) var(--sun-ease-tabs);
 }
 
 .reaction-picker__item:hover {
@@ -1208,19 +1208,19 @@ select {
 
 .reaction-pill.reaction-pill--pulse,
 .message-reactions.is-updated {
-    animation: tg-pop-pulse var(--tg-dur-pop) var(--tg-ease-pop) both !important;
+    animation: sun-pop-pulse var(--sun-dur-pop) var(--sun-ease-pop) both !important;
 }
 
 .transition.slide-fade .transition-item.active.from {
     animation:
-        tg-fade-out-opacity var(--tg-dur-crossfade) var(--tg-ease-tabs) both,
-        tg-slide-fade-out-move var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+        sun-fade-out-opacity var(--sun-dur-crossfade) var(--sun-ease-tabs) both,
+        sun-slide-fade-out-move var(--sun-dur-crossfade) var(--sun-ease-tabs) both;
 }
 
 .transition.slide-fade .transition-item.active.to {
     animation:
-        tg-fade-in-opacity var(--tg-dur-crossfade) var(--tg-ease-tabs) both,
-        tg-slide-fade-in-move var(--tg-dur-crossfade) var(--tg-ease-tabs) both;
+        sun-fade-in-opacity var(--sun-dur-crossfade) var(--sun-ease-tabs) both,
+        sun-slide-fade-in-move var(--sun-dur-crossfade) var(--sun-ease-tabs) both;
 }
 
 .profile-scroll::-webkit-scrollbar-thumb,
@@ -1229,16 +1229,16 @@ select {
 .contacts-scroll::-webkit-scrollbar-thumb,
 #sidebarScrollArea::-webkit-scrollbar-thumb,
 .reaction-picker::-webkit-scrollbar-thumb {
-    transition: background-color var(--tg-dur-scrollbar) var(--tg-ease-tabs);
+    transition: background-color var(--sun-dur-scrollbar) var(--sun-ease-tabs);
 }
 
-.tg-ripple-host {
+.sun-ripple-host {
     position: relative;
     overflow: hidden;
     isolation: isolate;
 }
 
-.tg-ripple-circle {
+.sun-ripple-circle {
     position: absolute;
     display: block;
     flex: 0 0 auto;
@@ -1250,27 +1250,27 @@ select {
     opacity: 0.34;
     transform: scale(0);
     transform-origin: center;
-    animation: tg-ripple-effect var(--tg-dur-ripple) var(--tg-ease-tabs) both;
+    animation: sun-ripple-effect var(--sun-dur-ripple) var(--sun-ease-tabs) both;
     transition:
-        opacity var(--tg-dur-crossfade) var(--tg-ease-tabs),
-        background-color var(--tg-dur-crossfade) var(--tg-ease-tabs);
+        opacity var(--sun-dur-crossfade) var(--sun-ease-tabs),
+        background-color var(--sun-dur-crossfade) var(--sun-ease-tabs);
 }
 
-.tg-ripple-host > .tg-ripple-circle {
+.sun-ripple-host > .sun-ripple-circle {
     position: absolute !important;
 }
 
-.tg-ripple-host > :not(.tg-ripple-circle) {
+.sun-ripple-host > :not(.sun-ripple-circle) {
     position: relative;
     z-index: 1;
 }
 
 /* Keep request counter pinned while ripple host class is toggled on tap. */
-.tg-ripple-host > .sidebar-requests-shortcut__count {
+.sun-ripple-host > .sidebar-requests-shortcut__count {
     position: absolute;
 }
 
-.tg-ripple-circle.is-hiding {
+.sun-ripple-circle.is-hiding {
     opacity: 0;
 }
 
@@ -1348,43 +1348,43 @@ button > i[class*=" bi-"],
     to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-@keyframes tg-slide-fade-in {
+@keyframes sun-slide-fade-in {
     from { opacity: 0; transform: translate3d(24px, 0, 0); }
     to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-@keyframes tg-media-fade-in {
+@keyframes sun-media-fade-in {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes tg-pop-pulse {
+@keyframes sun-pop-pulse {
     0% { transform: scale(1); }
     48% { transform: scale(1.14); }
     100% { transform: scale(1); }
 }
 
-@keyframes tg-fade-in-opacity {
+@keyframes sun-fade-in-opacity {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
-@keyframes tg-fade-out-opacity {
+@keyframes sun-fade-out-opacity {
     from { opacity: 1; }
     to { opacity: 0; }
 }
 
-@keyframes tg-slide-fade-in-move {
+@keyframes sun-slide-fade-in-move {
     from { transform: translate3d(24px, 0, 0); }
     to { transform: translate3d(0, 0, 0); }
 }
 
-@keyframes tg-slide-fade-out-move {
+@keyframes sun-slide-fade-out-move {
     from { transform: translate3d(0, 0, 0); }
     to { transform: translate3d(-24px, 0, 0); }
 }
 
-@keyframes tg-ripple-effect {
+@keyframes sun-ripple-effect {
     0% {
         opacity: 0.34;
         transform: scale(0);
@@ -1400,11 +1400,11 @@ button > i[class*=" bi-"],
 }
 
 @media (prefers-reduced-motion: reduce) {
-    html[data-motion-level="lite"] .tg-ripple-circle {
+    html[data-motion-level="lite"] .sun-ripple-circle {
         display: none !important;
     }
 
-    html[data-motion-level="lite"] .profile-sheet--tg,
+    html[data-motion-level="lite"] .profile-sheet--sun,
     html[data-motion-level="lite"] .search-overlay,
     html[data-motion-level="lite"] .search-overlay__tabs,
     html[data-motion-level="lite"] .search-overlay__body,
@@ -1433,39 +1433,39 @@ button > i[class*=" bi-"],
 
 /* ===== MERGED FROM motion-v3.css (single-source motion) ===== */
 /* ============================================================
-   MOTION LAYER v3 — Telegram Web parity, incremental.
+   MOTION LAYER v3 — SUN messenger motion parity, incremental.
    This file owns new motion behavior. Legacy rules stay in
    motion.css until their scenarios are migrated here.
    ============================================================ */
 
 /* Migration-only layer for chat motion behavior.
-   Token source of truth: static/motion.css (:root --m-* and --tg3-* aliases).
+   Token source of truth: static/motion.css (:root --m-* and --sun3-* aliases).
    Removal target for this file: 2026-09-30 after full migration into unified motion layer. */
 
-@keyframes tg3-chat-header-in {
+@keyframes sun3-chat-header-in {
     from { opacity: 0; transform: translate3d(42px, 0, 0); }
     55%  { opacity: 1; }
     to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-@keyframes tg3-chat-messages-in {
+@keyframes sun3-chat-messages-in {
     from { opacity: 0; transform: translate3d(46px, 0, 0) scale(0.996); }
     42%  { opacity: 1; }
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes tg3-chat-composer-in {
+@keyframes sun3-chat-composer-in {
     from { opacity: 0; transform: translate3d(34px, 4px, 0) scale(0.996); }
     48%  { opacity: 1; }
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes tg3-chat-row-in {
+@keyframes sun3-chat-row-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.998); }
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes tg3-search-row-in {
+@keyframes sun3-search-row-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
     to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
@@ -1476,8 +1476,8 @@ button > i[class*=" bi-"],
     transform: translate3d(0, calc(-1 * var(--motion-depth-shift-overlay-y)), 0) scale(var(--motion-depth-scale-enter));
     transform-origin: top center;
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
-        transform var(--tg3-dur-surface) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter),
+        transform var(--sun3-dur-surface) var(--sun3-ease-surface);
 }
 
 .search-overlay.is-opening {
@@ -1495,8 +1495,8 @@ button > i[class*=" bi-"],
     pointer-events: none;
     transform: translate3d(0, calc(-1 * var(--motion-depth-shift-overlay-y-exit)), 0) scale(var(--motion-depth-scale-exit));
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .search-overlay__tabs,
@@ -1504,8 +1504,8 @@ button > i[class*=" bi-"],
     opacity: 0;
     transform: translate3d(0, -10px, 0);
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter) var(--motion-delay-lg),
-        transform var(--tg3-dur-surface) var(--tg3-ease-surface) var(--motion-delay-lg);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter) var(--motion-delay-lg),
+        transform var(--sun3-dur-surface) var(--sun3-ease-surface) var(--motion-delay-lg);
 }
 
 .search-overlay__body {
@@ -1523,19 +1523,19 @@ button > i[class*=" bi-"],
     opacity: 0;
     transform: translate3d(0, -6px, 0);
     transition-delay: var(--motion-delay-none);
-    transition-duration: var(--tg3-dur-exit);
-    transition-timing-function: var(--tg3-ease-exit);
+    transition-duration: var(--sun3-dur-exit);
+    transition-timing-function: var(--sun3-ease-exit);
 }
 
 .search-overlay.is-open .search-overlay__panel:not([hidden]) > * {
-    animation: tg3-search-row-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+    animation: sun3-search-row-in var(--sun3-dur-panel) var(--sun3-ease-enter) both;
     animation-delay: var(--motion-item-delay, var(--motion-delay-xl));
 }
 
 .search-overlay__tab {
     position: relative;
     border-bottom-color: transparent !important;
-    transition: color var(--tg3-dur-instant) var(--tg3-ease-surface);
+    transition: color var(--sun3-dur-instant) var(--sun3-ease-surface);
 }
 
 .search-overlay__tab::after {
@@ -1551,8 +1551,8 @@ button > i[class*=" bi-"],
     transform: scaleX(0.36);
     transform-origin: center;
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-surface),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-surface),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
 }
 
 .search-overlay__tab.is-active::after {
@@ -1566,8 +1566,8 @@ button > i[class*=" bi-"],
 .key-restore-overlay,
 .chat-date-picker-overlay {
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
-        visibility 0s linear var(--tg3-dur-panel);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter),
+        visibility 0s linear var(--sun3-dur-panel);
 }
 
 .settings-overlay.is-opening,
@@ -1600,13 +1600,13 @@ button > i[class*=" bi-"],
     visibility: visible;
     pointer-events: none;
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        visibility 0s linear var(--tg3-dur-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        visibility 0s linear var(--sun3-dur-exit);
 }
 
 .settings-overlay-backdrop,
 .chat-date-picker-overlay__backdrop {
-    transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+    transition: opacity var(--sun3-dur-panel) var(--sun3-ease-enter);
 }
 
 .settings-overlay.active .settings-overlay-backdrop,
@@ -1619,16 +1619,16 @@ button > i[class*=" bi-"],
 .chat-date-picker-overlay.is-closing .chat-date-picker-overlay__backdrop {
     opacity: 0;
     transition-delay: var(--motion-choreo-overlay-backdrop-exit);
-    transition-duration: var(--tg3-dur-exit);
-    transition-timing-function: var(--tg3-ease-exit);
+    transition-duration: var(--sun3-dur-exit);
+    transition-timing-function: var(--sun3-ease-exit);
 }
 
 .settings-overlay-panel {
     opacity: 0;
     transform: translate3d(32px, 0, 0) scale(var(--motion-depth-scale-enter));
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
-        transform var(--tg3-dur-surface) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter),
+        transform var(--sun3-dur-surface) var(--sun3-ease-surface);
 }
 
 .settings-overlay.active .settings-overlay-panel {
@@ -1642,8 +1642,8 @@ button > i[class*=" bi-"],
     transform: translate3d(20px, 0, 0) scale(var(--motion-depth-scale-exit));
     transition-delay: var(--motion-choreo-overlay-panel-exit);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .delete-chat-modal-card,
@@ -1653,8 +1653,8 @@ button > i[class*=" bi-"],
     opacity: 0;
     transform: translate3d(0, var(--motion-depth-shift-overlay-y), 0) scale(var(--motion-depth-scale-enter));
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
 }
 
 .delete-chat-modal-overlay.is-open .delete-chat-modal-card,
@@ -1673,8 +1673,8 @@ button > i[class*=" bi-"],
     opacity: 0;
     transform: translate3d(0, var(--motion-depth-shift-overlay-y-exit), 0) scale(var(--motion-depth-scale-exit));
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .search-overlay.is-open,
@@ -1701,8 +1701,8 @@ button > i[class*=" bi-"],
     transform: translate3d(0, 10px, 0) scale(0.985);
     transform-origin: bottom center;
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
 }
@@ -1721,18 +1721,18 @@ button > i[class*=" bi-"],
     pointer-events: none;
     transform: translate3d(0, 6px, 0) scale(0.99);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .reply-bar {
     transform: translate3d(0, 8px, 0);
     transition:
-        max-height var(--tg3-dur-panel) var(--tg3-ease-surface),
-        padding-top var(--tg3-dur-panel) var(--tg3-ease-surface),
-        padding-bottom var(--tg3-dur-panel) var(--tg3-ease-surface),
-        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        max-height var(--sun3-dur-panel) var(--sun3-ease-surface),
+        padding-top var(--sun3-dur-panel) var(--sun3-ease-surface),
+        padding-bottom var(--sun3-dur-panel) var(--sun3-ease-surface),
+        opacity var(--sun3-dur-exit) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
 }
@@ -1755,8 +1755,8 @@ button > i[class*=" bi-"],
     pointer-events: none;
     transform: translate3d(0, 6px, 0);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .pinned-bar {
@@ -1764,11 +1764,11 @@ button > i[class*=" bi-"],
     transform: translate3d(0, -10px, 0) scale(0.985);
     transform-origin: top center;
     transition:
-        background-color var(--tg3-dur-instant) var(--tg3-ease-surface),
-        border-color var(--tg3-dur-instant) var(--tg3-ease-surface),
-        box-shadow var(--tg3-dur-instant) var(--tg3-ease-surface),
-        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        background-color var(--sun3-dur-instant) var(--sun3-ease-surface),
+        border-color var(--sun3-dur-instant) var(--sun3-ease-surface),
+        box-shadow var(--sun3-dur-instant) var(--sun3-ease-surface),
+        opacity var(--sun3-dur-exit) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
 }
@@ -1785,8 +1785,8 @@ button > i[class*=" bi-"],
     pointer-events: none;
     transform: translate3d(0, -6px, 0) scale(0.99);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
 
 .message-actions-bar.is-visible,
@@ -1827,31 +1827,31 @@ button > i[class*=" bi-"],
 }
 
 .message-action-motion .message-stack {
-    animation: messageActionFeedback 420ms var(--tg3-ease-surface) both;
+    animation: messageActionFeedback 420ms var(--sun3-ease-surface) both;
 }
 
 .message-selection-motion--selected .message-stack {
-    animation: messageSelectionPick 280ms var(--tg3-ease-pop) both;
+    animation: messageSelectionPick 280ms var(--sun3-ease-pop) both;
 }
 
 .message-selection-motion--cleared .message-stack {
-    animation: messageSelectionClear 240ms var(--tg3-ease-surface) both;
+    animation: messageSelectionClear 240ms var(--sun3-ease-surface) both;
 }
 
 .chat-messages.selecting .message .message-row-track::before {
-    animation: messageSelectionMarkerIn 180ms var(--tg3-ease-surface) both;
+    animation: messageSelectionMarkerIn 180ms var(--sun3-ease-surface) both;
 }
 
 .chat-messages.selecting .message.selected::before {
-    animation: messageSelectionWashIn 220ms var(--tg3-ease-enter) both;
+    animation: messageSelectionWashIn 220ms var(--sun3-ease-enter) both;
 }
 
 .chat-messages.selecting .message.selected .message-row-track::before {
-    animation: messageSelectionCheckIn 240ms var(--tg3-ease-pop) both;
+    animation: messageSelectionCheckIn 240ms var(--sun3-ease-pop) both;
 }
 
 .message-state-motion--edit-target .message-stack {
-    animation: messageEditTargetFeedback 520ms var(--tg3-ease-surface) both;
+    animation: messageEditTargetFeedback 520ms var(--sun3-ease-surface) both;
 }
 
 .message-state-motion--edit-applied .message-stack,
@@ -1859,13 +1859,13 @@ button > i[class*=" bi-"],
 .message-state-motion--favorite .message-stack,
 .message-state-motion--unpin .message-stack,
 .message-state-motion--unfavorite .message-stack {
-    animation: messageStateFeedback 520ms var(--tg3-ease-surface) both;
+    animation: messageStateFeedback 520ms var(--sun3-ease-surface) both;
 }
 
 .message-state-motion--pin .msg-pin,
 .message-state-motion--favorite .msg-favorite,
 .message-state-motion--edit-applied .msg-edited {
-    animation: messageMetaPop 320ms var(--tg3-ease-pop) both;
+    animation: messageMetaPop 320ms var(--sun3-ease-pop) both;
     will-change: transform, opacity;
 }
 
@@ -1997,8 +1997,8 @@ button > i[class*=" bi-"],
 
 #lightbox {
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
-        visibility 0s linear var(--tg3-dur-panel);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter),
+        visibility 0s linear var(--sun3-dur-panel);
 }
 
 #lightbox.active {
@@ -2013,13 +2013,13 @@ button > i[class*=" bi-"],
     visibility: visible;
     pointer-events: none;
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-        visibility 0s linear var(--tg3-dur-exit);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+        visibility 0s linear var(--sun3-dur-exit);
 }
 
 .lightbox-main {
     transform: scale(0.985);
-    transition: transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+    transition: transform var(--sun3-dur-panel) var(--sun3-ease-surface);
 }
 
 #lightbox.active .lightbox-main {
@@ -2028,8 +2028,8 @@ button > i[class*=" bi-"],
 
 #lightbox.is-closing .lightbox-main {
     transform: scale(0.988);
-    transition-duration: var(--tg3-dur-exit);
-    transition-timing-function: var(--tg3-ease-exit);
+    transition-duration: var(--sun3-dur-exit);
+    transition-timing-function: var(--sun3-ease-exit);
 }
 
 .lightbox-topbar,
@@ -2038,8 +2038,8 @@ button > i[class*=" bi-"],
     opacity: 0;
     transform: translate3d(0, -8px, 0);
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter) var(--motion-delay-md),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface) var(--motion-delay-md);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter) var(--motion-delay-md),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface) var(--motion-delay-md);
 }
 
 .lightbox-counter {
@@ -2063,8 +2063,8 @@ button > i[class*=" bi-"],
 #lightbox.is-closing .lightbox-counter {
     opacity: 0;
     transition-delay: var(--motion-delay-none);
-    transition-duration: var(--tg3-dur-exit);
-    transition-timing-function: var(--tg3-ease-exit);
+    transition-duration: var(--sun3-dur-exit);
+    transition-timing-function: var(--sun3-ease-exit);
 }
 
 #lightbox.is-closing .lightbox-topbar,
@@ -2089,7 +2089,7 @@ button > i[class*=" bi-"],
 #lightboxImg,
 .lightbox-video-wrap {
     opacity: 1;
-    transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+    transition: opacity var(--sun3-dur-panel) var(--sun3-ease-enter);
 }
 
 #lightbox:not(.active) #lightboxImg,
@@ -2100,8 +2100,8 @@ button > i[class*=" bi-"],
 .lightbox-caption {
     transform: translate3d(-50%, 8px, 0) scale(0.99);
     transition:
-        opacity var(--tg3-dur-panel) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-panel) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
 }
 
 .lightbox-caption.is-visible:not(:empty) {
@@ -2113,8 +2113,8 @@ button > i[class*=" bi-"],
 .lightbox-zoom-panel {
     transform: translate3d(-50%, 8px, 0) scale(0.985);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-enter),
-        transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-enter),
+        transform var(--sun3-dur-panel) var(--sun3-ease-surface);
 }
 
 .lightbox-zoom-panel.is-visible {
@@ -2125,8 +2125,8 @@ button > i[class*=" bi-"],
 
 .lightbox-video-controls {
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-        transform var(--tg3-dur-exit) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+        transform var(--sun3-dur-exit) var(--sun3-ease-surface);
 }
 
 .lightbox-video-wrap.is-idle .lightbox-video-controls {
@@ -2138,8 +2138,8 @@ button > i[class*=" bi-"],
 .lightbox-video-center-play {
     transform: translate3d(-50%, -50%, 0) scale(1);
     transition:
-        opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-        transform var(--tg3-dur-exit) var(--tg3-ease-surface);
+        opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+        transform var(--sun3-dur-exit) var(--sun3-ease-surface);
 }
 
 .lightbox-video-center-play.is-hidden {
@@ -2162,17 +2162,17 @@ button > i[class*=" bi-"],
 
 @media (min-width: 769px) {
     .chat-area {
-        --tg3-profile-width: min(100%, var(--chat-profile-drawer-width, 392px));
-        --tg3-profile-push-max: var(--tg3-profile-width);
-        --tg3-profile-drag-x: clamp(0px, var(--profile-drag-x, 0px), var(--tg3-profile-push-max));
-        --tg3-profile-push: 0px;
-        --tg3-profile-chat-x: 0px;
+        --sun3-profile-width: min(100%, var(--chat-profile-drawer-width, 392px));
+        --sun3-profile-push-max: var(--sun3-profile-width);
+        --sun3-profile-drag-x: clamp(0px, var(--profile-drag-x, 0px), var(--sun3-profile-push-max));
+        --sun3-profile-push: 0px;
+        --sun3-profile-chat-x: 0px;
     }
 
     .chat-area.is-profile-drawer-open,
     .chat-area.is-profile-drawer-closing {
-        --tg3-profile-push: calc(var(--tg3-profile-push-max) - var(--tg3-profile-drag-x));
-        --tg3-profile-chat-x: 0px;
+        --sun3-profile-push: calc(var(--sun3-profile-push-max) - var(--sun3-profile-drag-x));
+        --sun3-profile-chat-x: 0px;
     }
 
     /* Geometry lock for desktop chat switch:
@@ -2183,13 +2183,13 @@ button > i[class*=" bi-"],
 
     .chat-area .chat-messages {
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+            transform var(--sun3-dur-panel) var(--sun3-ease-surface);
     }
 
     .chat-header .chat-title,
     #chatTitle {
-        transition: opacity var(--tg3-dur-exit) var(--tg3-ease-surface);
+        transition: opacity var(--sun3-dur-exit) var(--sun3-ease-surface);
     }
 
     .chat-area.is-switching .chat-title,
@@ -2202,8 +2202,8 @@ button > i[class*=" bi-"],
     .chat-area.is-switching .chat-input-area {
         opacity: 0;
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-exit),
-            transform var(--tg3-dur-exit) var(--tg3-ease-exit);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
+            transform var(--sun3-dur-exit) var(--sun3-ease-exit);
         will-change: opacity, transform;
     }
 
@@ -2221,23 +2221,23 @@ button > i[class*=" bi-"],
 
     .chat-area.is-switching::before {
         opacity: 0.55;
-        transition: opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+        transition: opacity var(--sun3-dur-exit) var(--sun3-ease-exit);
     }
 
     .chat-area.chat-surface-enter .chat-header {
-        animation: tg3-chat-header-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+        animation: sun3-chat-header-in var(--sun3-dur-panel) var(--sun3-ease-enter) both;
     }
 
     .chat-area.chat-surface-enter .chat-messages {
-        animation: tg3-chat-messages-in var(--tg3-dur-content) var(--tg3-ease-enter) var(--motion-delay-xs) both;
+        animation: sun3-chat-messages-in var(--sun3-dur-content) var(--sun3-ease-enter) var(--motion-delay-xs) both;
     }
 
     .chat-area.chat-surface-enter .chat-input-area {
-        animation: tg3-chat-composer-in var(--tg3-dur-surface) var(--tg3-ease-enter) var(--motion-delay-sm) both;
+        animation: sun3-chat-composer-in var(--sun3-dur-surface) var(--sun3-ease-enter) var(--motion-delay-sm) both;
     }
 
     .chat-area.chat-history-reveal .chat-header {
-        animation: tg3-chat-header-in var(--tg3-dur-surface) var(--tg3-ease-enter) both;
+        animation: sun3-chat-header-in var(--sun3-dur-surface) var(--sun3-ease-enter) both;
     }
 
     .chat-area.chat-history-reveal .chat-messages {
@@ -2245,7 +2245,7 @@ button > i[class*=" bi-"],
     }
 
     .chat-area.chat-history-reveal .chat-input-area {
-        animation: tg3-chat-composer-in var(--tg3-dur-surface) var(--tg3-ease-enter) calc(var(--motion-delay-sm) + var(--motion-delay-nudge)) both;
+        animation: sun3-chat-composer-in var(--sun3-dur-surface) var(--sun3-ease-enter) calc(var(--motion-delay-sm) + var(--motion-delay-nudge)) both;
     }
 
     .chat-area.chat-history-reveal .chat-header,
@@ -2260,7 +2260,7 @@ button > i[class*=" bi-"],
     }
 
     .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(-n+8) {
-        animation: tg3-chat-row-in var(--tg3-dur-panel) var(--tg3-ease-enter) both;
+        animation: sun3-chat-row-in var(--sun3-dur-panel) var(--sun3-ease-enter) both;
     }
 
     .chat-area.chat-history-reveal .chat-messages .message:nth-last-child(1)  { animation-delay: var(--motion-delay-7xl); }
@@ -2291,7 +2291,7 @@ button > i[class*=" bi-"],
         -webkit-backdrop-filter: none;
         pointer-events: none;
         cursor: default;
-        transition: opacity var(--tg3-dur-panel) var(--tg3-ease-enter);
+        transition: opacity var(--sun3-dur-panel) var(--sun3-ease-enter);
     }
 
     .profile-drawer {
@@ -2306,15 +2306,15 @@ button > i[class*=" bi-"],
         pointer-events: none;
     }
 
-    .profile-sheet--tg {
+    .profile-sheet--sun {
         --profile-sheet-closed-shift: calc(100% + 12px);
         transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
         opacity: 0.98;
         pointer-events: none;
         touch-action: pan-y;
         transition:
-            transform var(--tg3-dur-panel) var(--tg3-ease-enter),
-            opacity var(--tg3-dur-exit) var(--tg3-ease-enter);
+            transform var(--sun3-dur-panel) var(--sun3-ease-enter),
+            opacity var(--sun3-dur-exit) var(--sun3-ease-enter);
         will-change: auto;
     }
 
@@ -2324,31 +2324,31 @@ button > i[class*=" bi-"],
         -webkit-backdrop-filter: none;
     }
 
-    .profile-drawer.active .profile-sheet--tg {
+    .profile-drawer.active .profile-sheet--sun {
         transform: translate3d(var(--profile-drag-x, 0px), 0, 0);
         opacity: 1;
         pointer-events: auto;
     }
 
-    .profile-drawer.is-opening .profile-sheet--tg {
+    .profile-drawer.is-opening .profile-sheet--sun {
         pointer-events: auto;
     }
 
-    .profile-drawer.is-opening .profile-sheet--tg,
-    .profile-drawer.is-profile-opening .profile-sheet--tg,
-    .profile-drawer.is-closing .profile-sheet--tg {
+    .profile-drawer.is-opening .profile-sheet--sun,
+    .profile-drawer.is-profile-opening .profile-sheet--sun,
+    .profile-drawer.is-closing .profile-sheet--sun {
         will-change: transform, opacity;
     }
 
-    .profile-drawer.is-closing .profile-sheet--tg {
+    .profile-drawer.is-closing .profile-sheet--sun {
         transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
         opacity: 0.98;
         transition:
-            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
-            opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+            transform var(--sun3-dur-exit) var(--sun3-ease-exit),
+            opacity var(--sun3-dur-exit) var(--sun3-ease-exit);
     }
 
-    .profile-sheet--tg.is-dragging {
+    .profile-sheet--sun.is-dragging {
         transition: none !important;
     }
 
@@ -2358,58 +2358,58 @@ button > i[class*=" bi-"],
     .chat-area .e2e-pill-wrap {
         translate: 0 0;
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
-            translate var(--tg3-dur-panel) var(--tg3-ease-surface);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+            transform var(--sun3-dur-panel) var(--sun3-ease-surface),
+            translate var(--sun3-dur-panel) var(--sun3-ease-surface);
     }
 
     .chat-area .chat-input-area {
         translate: none;
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
-            translate var(--tg3-dur-panel) var(--tg3-ease-surface);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+            transform var(--sun3-dur-panel) var(--sun3-ease-surface),
+            translate var(--sun3-dur-panel) var(--sun3-ease-surface);
     }
 
     .chat-area .jump-to-new-btn {
         translate: 0 0;
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-            transform var(--tg3-dur-exit) var(--tg3-ease-surface),
-            translate var(--tg3-dur-exit) var(--tg3-ease-surface);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+            transform var(--sun3-dur-exit) var(--sun3-ease-surface),
+            translate var(--sun3-dur-exit) var(--sun3-ease-surface);
     }
 
     .chat-area .chat-stage-loader {
         translate: 0 0;
         transition:
-            opacity var(--tg3-dur-content) var(--tg3-ease-enter),
-            transform var(--tg3-dur-content) var(--tg3-ease-surface),
-            translate var(--tg3-dur-content) var(--tg3-ease-surface),
-            visibility 0s linear var(--tg3-dur-content);
+            opacity var(--sun3-dur-content) var(--sun3-ease-enter),
+            transform var(--sun3-dur-content) var(--sun3-ease-surface),
+            translate var(--sun3-dur-content) var(--sun3-ease-surface),
+            visibility 0s linear var(--sun3-dur-content);
     }
 
     .chat-area .history-loading {
         translate: 0 0;
         transition:
-            opacity var(--tg3-dur-exit) var(--tg3-ease-surface),
-            transform var(--tg3-dur-panel) var(--tg3-ease-surface),
-            translate var(--tg3-dur-panel) var(--tg3-ease-surface),
-            visibility var(--tg3-dur-exit) var(--tg3-ease-surface);
+            opacity var(--sun3-dur-exit) var(--sun3-ease-surface),
+            transform var(--sun3-dur-panel) var(--sun3-ease-surface),
+            translate var(--sun3-dur-panel) var(--sun3-ease-surface),
+            visibility var(--sun3-dur-exit) var(--sun3-ease-surface);
     }
 
     .chat-area.is-profile-drawer-closing .chat-header,
     .chat-area.is-profile-drawer-closing .chat-messages,
     .chat-area.is-profile-drawer-closing .chat-empty-placeholder,
     .chat-area.is-profile-drawer-closing .e2e-pill-wrap {
-        transition-duration: var(--tg3-dur-exit);
-        transition-timing-function: var(--tg3-ease-exit);
+        transition-duration: var(--sun3-dur-exit);
+        transition-timing-function: var(--sun3-ease-exit);
     }
 
     .chat-area.is-profile-drawer-closing .chat-input-area,
     .chat-area.is-profile-drawer-closing .jump-to-new-btn,
     .chat-area.is-profile-drawer-closing .chat-stage-loader {
-        transition-duration: var(--tg3-dur-exit);
-        transition-timing-function: var(--tg3-ease-exit);
+        transition-duration: var(--sun3-dur-exit);
+        transition-timing-function: var(--sun3-ease-exit);
     }
 
     .chat-area.is-profile-drawer-open .chat-messages,
@@ -2424,7 +2424,7 @@ button > i[class*=" bi-"],
     .chat-area.is-profile-drawer-closing .chat-input-area,
     .chat-area.is-profile-drawer-closing .chat-stage-loader,
     .chat-area.is-profile-drawer-closing .history-loading {
-        translate: var(--tg3-profile-chat-x) 0;
+        translate: var(--sun3-profile-chat-x) 0;
     }
 
     .chat-area.is-profile-drawer-open .chat-header,
@@ -2459,8 +2459,8 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, -8px, 0) scale(0.965);
         transition:
-            opacity var(--motion-duration-fast) var(--tg3-ease-enter),
-            transform var(--motion-duration-fast) var(--tg3-ease-surface),
+            opacity var(--motion-duration-fast) var(--sun3-ease-enter),
+            transform var(--motion-duration-fast) var(--sun3-ease-surface),
             visibility 0s linear var(--motion-duration-fast);
         will-change: auto;
         -webkit-backface-visibility: hidden;
@@ -2475,8 +2475,8 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, 8px, 0) scale(0.965);
         transition:
-            opacity var(--motion-duration-fast) var(--tg3-ease-enter),
-            transform var(--motion-duration-fast) var(--tg3-ease-surface),
+            opacity var(--motion-duration-fast) var(--sun3-ease-enter),
+            transform var(--motion-duration-fast) var(--sun3-ease-surface),
             visibility 0s linear var(--motion-duration-fast);
         will-change: auto;
         -webkit-backface-visibility: hidden;
@@ -2590,8 +2590,8 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, -6px, 0) scale(0.972);
         transition:
-            opacity var(--motion-duration-fast) var(--tg3-ease-exit),
-            transform var(--motion-duration-fast) var(--tg3-ease-exit),
+            opacity var(--motion-duration-fast) var(--sun3-ease-exit),
+            transform var(--motion-duration-fast) var(--sun3-ease-exit),
             visibility 0s linear var(--motion-duration-fast);
     }
 
@@ -2604,8 +2604,8 @@ button > i[class*=" bi-"],
         pointer-events: none;
         transform: translate3d(0, 6px, 0) scale(0.972);
         transition:
-            opacity var(--motion-duration-fast) var(--tg3-ease-exit),
-            transform var(--motion-duration-fast) var(--tg3-ease-exit),
+            opacity var(--motion-duration-fast) var(--sun3-ease-exit),
+            transform var(--motion-duration-fast) var(--sun3-ease-exit),
             visibility 0s linear var(--motion-duration-fast);
     }
 
@@ -2673,21 +2673,21 @@ button > i[class*=" bi-"],
 }
 
 @media (max-width: 768px) {
-    .profile-sheet--tg {
+    .profile-sheet--sun {
         transition:
-            transform var(--tg3-dur-panel) var(--tg3-ease-enter),
-            opacity var(--tg3-dur-exit) var(--tg3-ease-enter);
+            transform var(--sun3-dur-panel) var(--sun3-ease-enter),
+            opacity var(--sun3-dur-exit) var(--sun3-ease-enter);
     }
 
-    .profile-drawer.is-closing .profile-sheet--tg {
+    .profile-drawer.is-closing .profile-sheet--sun {
         transition:
-            transform var(--tg3-dur-exit) var(--tg3-ease-exit),
-            opacity var(--tg3-dur-exit) var(--tg3-ease-exit);
+            transform var(--sun3-dur-exit) var(--sun3-ease-exit),
+            opacity var(--sun3-dur-exit) var(--sun3-ease-exit);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    html[data-motion-level="lite"] .profile-sheet--tg,
+    html[data-motion-level="lite"] .profile-sheet--sun,
     html[data-motion-level="lite"] .profile-drawer-backdrop,
     html[data-motion-level="lite"] .chat-area .chat-header,
     html[data-motion-level="lite"] .chat-area .chat-messages,
@@ -2752,7 +2752,7 @@ button > i[class*=" bi-"],
     }
 }
 
-/* Telegram-like reaction motion: quick and lightweight, without heavy scaling. */
+/* messenger-like reaction motion: quick and lightweight, without heavy scaling. */
 .reaction-picker {
     transform: translate3d(0, 4px, 0) scale(0.992);
 }

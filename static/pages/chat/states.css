@@ -1867,19 +1867,19 @@
         }
 
 
-        .profile-drawer.active .profile-sheet--tg {
+        .profile-drawer.active .profile-sheet--sun {
             transform: translate3d(var(--profile-drag-x, 0px), 0, 0);
             opacity: 1;
         }
 
 
-        .profile-drawer.is-closing .profile-sheet--tg {
+        .profile-drawer.is-closing .profile-sheet--sun {
             transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
             opacity: 0;
         }
 
 
-        .profile-sheet--tg.is-dragging {
+        .profile-sheet--sun.is-dragging {
             transition: none;
         }
 
@@ -1890,7 +1890,7 @@
         }
 
         .profile-sheet,
-        .profile-sheet--tg {
+        .profile-sheet--sun {
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
         }
@@ -2408,7 +2408,7 @@
     border-top: 1px solid var(--group-create-border);
 }
 
-/* Forward modal: compact Telegram-like list */
+/* Forward modal: compact messenger-like list */
 #messageForwardModal {
     width: min(430px, calc(100vw - 20px));
     max-height: min(86dvh, 760px);

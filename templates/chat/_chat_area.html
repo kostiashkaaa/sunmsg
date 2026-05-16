@@ -82,7 +82,7 @@
                     <button class="btn-icon ripple-target" id="headerMoreBtn" title="Дополнительно">
                         <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
                     </button>
-                    <div class="header-dropdown telegram-popup" id="headerDropdown">
+                    <div class="header-dropdown sun-popup" id="headerDropdown">
                         <div class="dropdown-item ripple-target dropdown-item-mobile-only" id="searchChatMenuBtn">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg> Поиск сообщений
                         </div>
@@ -170,10 +170,10 @@
             </div>
         </div>
 
-        <div id="partnerProfileDrawer" class="profile-drawer profile-drawer--tg" aria-hidden="true" hidden inert>
+        <div id="partnerProfileDrawer" class="profile-drawer profile-drawer--sun" aria-hidden="true" hidden inert>
             <button type="button" class="profile-drawer-backdrop" data-profile-close aria-label="Закрыть профиль"></button>
 
-            <section class="profile-sheet profile-sheet--tg" role="dialog" aria-modal="true" aria-labelledby="profileDisplayName">
+            <section class="profile-sheet profile-sheet--sun" role="dialog" aria-modal="true" aria-labelledby="profileDisplayName">
                 <div class="profile-loading-mask" id="profileLoadingMask" aria-hidden="true">
                     <div class="profile-loading-head">
                         <div class="profile-loading-avatar sun-skeleton-block"></div>
@@ -202,7 +202,7 @@
                         </button><button type="button" class="btn-icon ripple-target profile-topbar-btn" id="profileMoreBtn" aria-label="Ещё" title="Ещё" aria-haspopup="menu" aria-expanded="false">
                             <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-more-vertical"></use></svg>
                         </button>
-                        <div class="profile-more-menu telegram-popup" id="profileMoreMenu" role="menu" aria-hidden="true">
+                        <div class="profile-more-menu sun-popup" id="profileMoreMenu" role="menu" aria-hidden="true">
                             <button type="button" class="profile-more-item ripple-target" data-profile-action="share" role="menuitem">
                                 <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-share"></use></svg>
                                 <span>Поделиться контактом</span>
@@ -562,7 +562,7 @@
                         <button type="button" class="btn-icon ripple-target btn-attach" id="attachBtn" title="Прикрепить" aria-label="Прикрепить" aria-haspopup="menu" aria-expanded="false">
                             <i class="bi bi-paperclip"></i>
                         </button>
-                        <div id="attachMenu" class="attach-menu telegram-popup" aria-hidden="true" role="menu">
+                        <div id="attachMenu" class="attach-menu sun-popup" aria-hidden="true" role="menu">
                             <button type="button" class="attach-menu-item ripple-target" data-attach-mode="media" role="menuitem">
                                 <span class="attach-menu-item__icon"><svg class="sun-icon" aria-hidden="true"><use href="#sun-i-image"></use></svg></span>
                                 <span class="attach-menu-item__text">Фото или видео</span>

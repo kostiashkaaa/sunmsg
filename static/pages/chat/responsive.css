@@ -347,7 +347,7 @@
                 inset: 0;
                 z-index: 1200;
             }
-            .profile-sheet--tg {
+            .profile-sheet--sun {
                 --profile-sheet-closed-shift: calc(100% + 26px);
                 top: 0;
                 right: 0;
@@ -363,10 +363,10 @@
                 transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
                 transition: transform var(--m-dur-medium) var(--m-spring), opacity var(--m-dur-fast) var(--m-decel);
             }
-            .profile-drawer.active .profile-sheet--tg {
+            .profile-drawer.active .profile-sheet--sun {
                 transform: translate3d(var(--profile-drag-x, 0px), 0, 0);
             }
-            .profile-drawer.is-closing .profile-sheet--tg {
+            .profile-drawer.is-closing .profile-sheet--sun {
                 transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
             }
             .profile-topbar {
@@ -383,12 +383,12 @@
                 padding-left: calc(16px + env(safe-area-inset-left, 0px));
             }
             @supports not (height: 100dvh) {
-                .profile-sheet--tg {
+                .profile-sheet--sun {
                     height: 100vh;
                 }
             }
             @media (orientation: landscape) {
-                .profile-sheet--tg {
+                .profile-sheet--sun {
                     height: 100dvh;
                 }
                 .profile-scroll {
@@ -401,7 +401,7 @@
 
 
         @media (max-width: 480px) {
-            .profile-sheet--tg {
+            .profile-sheet--sun {
                 width: 100vw;
             }
             .profile-scroll {
@@ -641,7 +641,7 @@
             html[data-motion-level="lite"] .settings-overlay-backdrop,
             html[data-motion-level="lite"] .settings-overlay-panel,
             html[data-motion-level="lite"] .profile-drawer-backdrop,
-            html[data-motion-level="lite"] .profile-sheet--tg,
+            html[data-motion-level="lite"] .profile-sheet--sun,
             html[data-motion-level="lite"] .profile-media-content,
             html[data-motion-level="lite"] .profile-media-content > *,
             html[data-motion-level="lite"] .delete-chat-modal-overlay,
@@ -1759,7 +1759,7 @@
 
 }
 
-/* Keep compact Telegram-like message composition on mobile (overrides legacy rules above) */
+/* Keep compact messenger-like message composition on mobile (overrides legacy rules above) */
 @media (max-width: 768px) {
     .message-stack {
         width: fit-content;
@@ -1811,7 +1811,7 @@
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
-        margin: calc(var(--tg-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0 !important;
+        margin: calc(var(--sun-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0 !important;
         max-width: 100%;
         padding: 0;
     }
@@ -1819,13 +1819,13 @@
     .message.other.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-start !important;
         justify-content: flex-start !important;
-        margin-left: calc(var(--tg-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
+        margin-left: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
     }
 
     .message.self.message-reactions-outside .message-stack > .message-reactions {
         align-self: flex-end !important;
         justify-content: flex-end !important;
-        margin-right: calc(var(--tg-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
+        margin-right: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
     }
 
     .reaction-pill {

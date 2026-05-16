@@ -164,7 +164,7 @@ import { initAttachMenuPortal } from './modules/attach-menu-portal.js';
 import {
     applyListPerfGuard,
     initMotionRuntime,
-    initTelegramRipple,
+    initSunRipple,
     waitForMotionEnd,
 } from './modules/motion.js';
 import {
@@ -224,7 +224,7 @@ export const initChatPage = async () => {
         bootstrapSocketConfig,
     } = await initChatBootstrap({
         restoreWrappedPrivateKey,
-        initTelegramRipple,
+        initSunRipple,
     });
     // \u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A Socket.IO (same-origin, with reconnection support).
     // Threading + Werkzeug is more reliable with polling-first transport config.

@@ -1,4 +1,4 @@
-/* Telegram-like desktop composition for settings home view. */
+/* messenger-like desktop composition for settings home view. */
 
 @media (min-width: 0px) {
     .settings-scene {
@@ -189,7 +189,7 @@
         min-height: 92px;
     }
 
-    /* ── HOME view (Telegram-style compact profile + icon-chip list) ── */
+    /* ── HOME view (messenger-style compact profile + icon-chip list) ── */
     body.settings-home-open .settings-nav {
         display: flex;
         flex-direction: column;

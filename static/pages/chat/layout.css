@@ -408,7 +408,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     pointer-events: auto;
 }
 
-.profile-drawer--tg {
+.profile-drawer--sun {
     opacity: 1;
     transition: none;
 }
@@ -1419,27 +1419,27 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 /* Profile drawer */
 /* Pane uses no top padding; close button absolutely positioned over the banner. */
-.profile-pane-main:has(.profile-header--tg) {
+.profile-pane-main:has(.profile-header--sun) {
     padding-top: 0;
     padding-left: 0;
     padding-right: 0;
 }
-.profile-pane-main:has(.profile-header--tg) > :not(.profile-header--tg) {
+.profile-pane-main:has(.profile-header--sun) > :not(.profile-header--sun) {
     margin-left: 20px;
     margin-right: 20px;
 }
-.profile-drawer:has(.profile-header--tg) .profile-close-btn {
+.profile-drawer:has(.profile-header--sun) .profile-close-btn {
     color: #fff;
     background: rgba(0, 0, 0, 0.28);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: 5;
 }
-.profile-drawer:has(.profile-header--tg) .profile-close-btn:hover {
+.profile-drawer:has(.profile-header--sun) .profile-close-btn:hover {
     background: rgba(0, 0, 0, 0.42);
 }
 
-.profile-header--tg {
+.profile-header--sun {
     position: relative;
     padding: 0;
     margin: 0;
@@ -1465,10 +1465,10 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     gap: 18px;
     padding: 64px 22px 24px;
 }
-.profile-avatar-wrap--tg {
+.profile-avatar-wrap--sun {
     flex: 0 0 auto;
 }
-.profile-header--tg .profile-avatar-large {
+.profile-header--sun .profile-avatar-large {
     width: 84px;
     height: 84px;
     font-size: 32px;
@@ -1478,14 +1478,14 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28),
                 0 0 0 3px rgba(255, 255, 255, 0.08);
 }
-.profile-header--tg .profile-online-dot {
+.profile-header--sun .profile-online-dot {
     width: 16px;
     height: 16px;
     right: 2px;
     bottom: 2px;
     border-width: 2px;
 }
-.profile-main-info--tg {
+.profile-main-info--sun {
     text-align: left;
     align-items: flex-start;
     margin-top: 0;
@@ -1493,7 +1493,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     flex: 1 1 auto;
     min-width: 0;
 }
-.profile-main-info--tg h2 {
+.profile-main-info--sun h2 {
     font-family: var(--font-sans, inherit);
     font-size: 22px;
     font-weight: 600;
@@ -1504,7 +1504,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     margin: 0 0 6px;
     text-shadow: var(--text-shadow-1);
 }
-.profile-main-info--tg #profileLastSeen {
+.profile-main-info--sun #profileLastSeen {
     text-align: left;
     font-family: var(--font-sans, inherit);
     font-size: 13px;
@@ -1513,11 +1513,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     margin-top: 0;
 }
 
-.profile-meta-card--tg {
+.profile-meta-card--sun {
     margin-top: 16px;
     border-radius: 14px;
 }
-.profile-meta-card--tg .profile-meta-row {
+.profile-meta-card--sun .profile-meta-row {
     padding: 14px 16px;
     min-height: 52px;
 }
@@ -1583,7 +1583,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 }
 
 /* Side pane spacing alignment with main pane */
-.profile-pane-main:has(.profile-header--tg) + .profile-pane-side {
+.profile-pane-main:has(.profile-header--sun) + .profile-pane-side {
     margin-top: 0;
 }
 
@@ -1591,7 +1591,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
    Profile drawer structure
    -------------------------------------------------------------------- */
 
-.profile-sheet--tg {
+.profile-sheet--sun {
     display: flex;
     flex-direction: column;
     padding: 0;
@@ -3808,7 +3808,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         }
 
 
-        .profile-sheet--tg {
+        .profile-sheet--sun {
             --profile-sheet-closed-shift: calc(100% + 28px);
             position: absolute;
             top: 0;
@@ -3935,7 +3935,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         html.perf-lite .sidebar-bottom-user,
         html.perf-lite .chat-header,
         html.perf-lite .chat-input-area,
-        html.perf-lite .profile-sheet--tg,
+        html.perf-lite .profile-sheet--sun,
         html.perf-lite .reaction-picker {
             box-shadow: none !important;
             filter: none !important;
