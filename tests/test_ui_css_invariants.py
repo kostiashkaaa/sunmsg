@@ -1231,6 +1231,30 @@ def test_hydrated_chat_images_bypass_native_lazy_loading() -> None:
     )
 
 
+def test_portrait_chat_media_keeps_ratio_aware_bubble_width() -> None:
+    """Tall mobile photos must not be cropped by square/wide media bubbles."""
+    rendering = (STATIC / 'modules' / 'message-rendering.js').read_text(encoding='utf-8')
+    media_runtime = (STATIC / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+    mutations = (STATIC / 'modules' / 'chat-message-mutations.js').read_text(encoding='utf-8')
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+
+    assert 'Math.max(0.46, Math.min(1.91, ratio))' in rendering, (
+        'message-rendering.js: initial media aspect ratio must allow phone-portrait photos'
+    )
+    assert 'Math.max(0.46, Math.min(1.91, naturalWidth / naturalHeight))' in media_runtime, (
+        'chat-media-runtime.js: loaded image dimensions must preserve phone-portrait aspect ratio'
+    )
+    assert 'Math.max(0.46, Math.min(1.91, aspectRatio))' in mutations, (
+        'chat-message-mutations.js: pending upload commit must preserve phone-portrait aspect ratio'
+    )
+    assert 'width: min(420px, calc(420px * var(--media-aspect-ratio, 1)), 76vw);' in css, (
+        'chat.css: final desktop media bubble rule must stay ratio-aware'
+    )
+    assert 'width: min(88vw, 380px, calc(420px * var(--media-aspect-ratio, 1)));' in css, (
+        'chat.css: final mobile media bubble rule must stay ratio-aware'
+    )
+
+
 def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     """Chat mobile viewport runtime must sync visualViewport metrics to CSS vars."""
     runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')

@@ -82,7 +82,7 @@ export function createChatMessageMutations({
                     aspectRatio = ratioWidth / ratioHeight;
                 }
                 if (Number.isFinite(aspectRatio) && aspectRatio > 0) {
-                    const safeAspectRatio = String(Math.max(0.75, Math.min(1.91, aspectRatio)));
+                    const safeAspectRatio = String(Math.max(0.46, Math.min(1.91, aspectRatio)));
                     mediaWrap.style.setProperty('--media-aspect-ratio', safeAspectRatio);
                     bubbleEl?.style.setProperty('--media-aspect-ratio', safeAspectRatio);
                 }

@@ -11630,7 +11630,7 @@
 
 .message .bubble.bubble--image,
 .message .bubble.bubble--video {
-    width: clamp(220px, 44vw, 420px);
+    width: min(420px, calc(420px * var(--media-aspect-ratio, 1)), 76vw);
     min-width: 180px;
     max-width: min(76vw, 420px);
 }
@@ -11718,7 +11718,7 @@
 
     .message .bubble.bubble--image,
     .message .bubble.bubble--video {
-        width: min(88vw, 380px);
+        width: min(88vw, 380px, calc(420px * var(--media-aspect-ratio, 1)));
         min-width: 196px;
         max-width: min(88vw, 380px);
     }
