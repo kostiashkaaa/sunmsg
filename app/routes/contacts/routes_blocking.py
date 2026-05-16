@@ -51,7 +51,7 @@ def block_user():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     user_id = session['user_id']
 
     conn = get_db_connection()
@@ -90,7 +90,7 @@ def unblock_user():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     user_id = session['user_id']
 
     conn = get_db_connection()
