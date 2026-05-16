@@ -280,6 +280,12 @@
             text-align: left;
         }
 
+        .delete-chat-action:disabled {
+            cursor: wait;
+            opacity: 0.62;
+            transform: none;
+        }
+
 
         .delete-chat-action i {
             font-size: 1.05rem;
@@ -1096,6 +1102,7 @@
 
         /* ?????????????? SIDEBAR ?????????????? */
         .sidebar {
+            --sidebar-bottom-user-reserve: 104px;
             width: var(--sidebar-width, 332px);
             min-width: var(--sidebar-width, 332px);
             max-width: var(--sidebar-width, 332px);
@@ -1493,8 +1500,9 @@
         }
 
         #sidebarScrollArea {
-            padding: 4px 10px 12px;
+            padding: 4px 10px calc(var(--sidebar-bottom-user-reserve, 104px) + 12px);
             scroll-behavior: smooth;
+            scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 12px);
             overscroll-behavior-y: contain;
             scrollbar-gutter: stable;
         }
@@ -3999,6 +4007,13 @@
             cursor: pointer;
             transition: background var(--dur-quick);
             color: var(--text);
+        }
+
+        .header-dropdown .dropdown-item[aria-disabled="true"],
+        .header-dropdown .dropdown-item.is-busy {
+            cursor: wait;
+            opacity: 0.62;
+            pointer-events: none;
         }
 
 
