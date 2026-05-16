@@ -88,7 +88,16 @@ def _emit_send_error(emit_func, message: str, *, request_id: str | None = None, 
     emit_func('error', _send_error_payload(message, request_id=request_id, **extra))
 
 
+# The messages table schema is fixed once migrations have run, so the column
+# probe is cached process-wide after the first successful resolution to avoid
+# an extra round-trip on every message send. A failed probe is not cached.
+_MESSAGE_TABLE_COLUMNS_CACHE: set[str] | None = None
+
+
 def _resolve_message_table_columns(conn) -> set[str]:
+    global _MESSAGE_TABLE_COLUMNS_CACHE
+    if _MESSAGE_TABLE_COLUMNS_CACHE is not None:
+        return _MESSAGE_TABLE_COLUMNS_CACHE
     try:
         probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
     except Exception:
@@ -104,6 +113,7 @@ def _resolve_message_table_columns(conn) -> set[str]:
                 name = None
         if name:
             column_names.add(str(name).strip())
+    _MESSAGE_TABLE_COLUMNS_CACHE = column_names
     return column_names
 
 
@@ -639,160 +649,37 @@ def _insert_message_row(
     album_id = send_context.get('album_id') or None
     receiver_is_connected = bool(send_context.get('receiver_is_connected'))
 
-    if supports_forward_metadata and supports_album_metadata:
-        if chat_type == 'group':
-            return conn.execute(
-                '''
-                INSERT INTO messages (
-                    chat_id,
-                    sender_id,
-                    receiver_id,
-                    message,
-                    message_type,
-                    reply_to_id,
-                    forward_from_name,
-                    forward_from_user_id,
-                    album_id,
-                    is_delivered
-                )
-                VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 1)
-                RETURNING id, created_at
-                ''',
-                (
-                    chat_id,
-                    sender_id,
-                    message,
-                    message_type,
-                    reply_to_id,
-                    forward_from_name,
-                    forward_from_user_id,
-                    album_id,
-                ),
-            )
-        return conn.execute(
-            '''
-            INSERT INTO messages (
-                chat_id,
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                reply_to_id,
-                forward_from_name,
-                forward_from_user_id,
-                album_id,
-                is_delivered
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id, created_at
-            ''',
-            (
-                chat_id,
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                reply_to_id,
-                forward_from_name,
-                forward_from_user_id,
-                album_id,
-                int(receiver_is_connected),
-            ),
-        )
-
+    # Build the INSERT dynamically: the base columns are always present, while
+    # forward/album columns are appended only when the schema supports them.
+    # Group messages have no receiver and are immediately delivered; direct
+    # messages carry the receiver id and the live-delivery flag. All column
+    # names are code-defined literals, so this is not an injection surface.
+    is_group = chat_type == 'group'
+    columns = ['chat_id', 'sender_id', 'receiver_id', 'message', 'message_type', 'reply_to_id']
+    values: list = [
+        chat_id,
+        sender_id,
+        None if is_group else receiver_id,
+        message,
+        message_type,
+        reply_to_id,
+    ]
     if supports_forward_metadata:
-        if chat_type == 'group':
-            return conn.execute(
-                '''
-                INSERT INTO messages (
-                    chat_id,
-                    sender_id,
-                    receiver_id,
-                    message,
-                    message_type,
-                    reply_to_id,
-                    forward_from_name,
-                    forward_from_user_id,
-                    is_delivered
-                )
-                VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 1)
-                RETURNING id, created_at
-                ''',
-                (
-                    chat_id,
-                    sender_id,
-                    message,
-                    message_type,
-                    reply_to_id,
-                    forward_from_name,
-                    forward_from_user_id,
-                ),
-            )
-        return conn.execute(
-            '''
-            INSERT INTO messages (
-                chat_id,
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                reply_to_id,
-                forward_from_name,
-                forward_from_user_id,
-                is_delivered
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id, created_at
-            ''',
-            (
-                chat_id,
-                sender_id,
-                receiver_id,
-                message,
-                message_type,
-                reply_to_id,
-                forward_from_name,
-                forward_from_user_id,
-                int(receiver_is_connected),
-            ),
-        )
-
+        columns += ['forward_from_name', 'forward_from_user_id']
+        values += [forward_from_name, forward_from_user_id]
     if supports_album_metadata:
-        if chat_type == 'group':
-            return conn.execute(
-                '''
-                INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
-                VALUES (?, ?, NULL, ?, ?, ?, ?, 1)
-                RETURNING id, created_at
-                ''',
-                (chat_id, sender_id, message, message_type, reply_to_id, album_id),
-            )
-        return conn.execute(
-            '''
-            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, is_delivered)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id, created_at
-            ''',
-            (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, album_id, int(receiver_is_connected)),
-        )
+        columns.append('album_id')
+        values.append(album_id)
+    columns.append('is_delivered')
+    values.append(1 if is_group else int(receiver_is_connected))
 
-    if chat_type == 'group':
-        return conn.execute(
-            '''
-            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
-            VALUES (?, ?, NULL, ?, ?, ?, 1)
-            RETURNING id, created_at
-            ''',
-            (chat_id, sender_id, message, message_type, reply_to_id),
-        )
-    return conn.execute(
-        '''
-        INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, is_delivered)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        RETURNING id, created_at
-        ''',
-        (chat_id, sender_id, receiver_id, message, message_type, reply_to_id, int(receiver_is_connected)),
+    placeholders = ', '.join(['?'] * len(values))
+    sql = (
+        f"INSERT INTO messages ({', '.join(columns)}) "
+        f"VALUES ({placeholders}) "
+        f"RETURNING id, created_at"
     )
+    return conn.execute(sql, tuple(values))
 
 
 def _apply_group_message_receipts(

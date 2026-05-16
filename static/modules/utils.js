@@ -379,11 +379,12 @@ export function sanitizeFileUri(rawUri, { imageOnlyData = false } = {}) {
 
 export function formatTime(timestamp) {
     if (!timestamp) return '';
-    let dateStr = timestamp;
+    let dateStr = String(timestamp);
     if (!dateStr.includes('T')) {
         dateStr = dateStr.replace(' ', 'T') + 'Z';
     }
     const d = new Date(dateStr);
+    if (isNaN(d)) return '';
     return d.toLocaleTimeString(activeLocale(), buildTimeFormatOptions());
 }
 
@@ -400,11 +401,12 @@ export function formatMediaDuration(seconds) {
 
 export function formatFullTimestamp(timestamp) {
     if (!timestamp) return '';
-    let dateStr = timestamp;
+    let dateStr = String(timestamp);
     if (!dateStr.includes('T')) {
         dateStr = dateStr.replace(' ', 'T') + 'Z';
     }
     const d = new Date(dateStr);
+    if (isNaN(d)) return '';
     const pad = n => String(n).padStart(2, '0');
     const timePart = d.toLocaleTimeString(activeLocale(), buildTimeFormatOptions({ includeSeconds: true }));
     return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${timePart}`;
@@ -412,7 +414,7 @@ export function formatFullTimestamp(timestamp) {
 
 export function formatSidebarTime(timestamp) {
     if (!timestamp) return '';
-    let dateStr = timestamp;
+    let dateStr = String(timestamp);
     if (!dateStr.includes('T')) dateStr = dateStr.replace(' ', 'T') + 'Z';
     const d = new Date(dateStr);
     if (isNaN(d)) return '';
