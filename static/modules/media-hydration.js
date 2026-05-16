@@ -6,6 +6,13 @@ export function createMediaHydrationController(options = {}) {
     const albumVideoSelector = '.album-cell-video[data-src]';
     let lazyHydrationObserver = null;
 
+    // iOS WebKit (Safari + Chrome/Firefox on iOS) has broken IntersectionObserver
+    // with a custom root element — use viewport (null) as root instead.
+    const isIOS = typeof navigator !== 'undefined' && (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+
     function resolveMediaKindByElement(element) {
         if (element?.classList?.contains('album-cell-img')) return 'image';
         if (element?.classList?.contains('album-cell-video')) return 'video';
@@ -36,9 +43,7 @@ export function createMediaHydrationController(options = {}) {
     function markAlbumCellLoaded(mediaEl) {
         const cell = mediaEl.closest('.album-cell');
         if (!cell) return;
-        if (!cell.classList.contains('is-loaded')) {
-            cell.classList.add('is-loaded');
-        }
+        cell.classList.add('is-loaded');
         mediaEl.classList.add('is-loaded');
     }
 
@@ -91,12 +96,8 @@ export function createMediaHydrationController(options = {}) {
         }
 
         resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
-            .then((resolvedSrc) => {
-                assignHydratedSource(mediaEl, resolvedSrc);
-            })
-            .catch(() => {
-                assignHydratedSource(mediaEl, dataSrc);
-            });
+            .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc); })
+            .catch(() => { assignHydratedSource(mediaEl, dataSrc); });
         return true;
     }
 
@@ -107,27 +108,23 @@ export function createMediaHydrationController(options = {}) {
         const currentSrc = String(imageEl.getAttribute('src') || '').trim();
         if (currentSrc) return true;
 
-        const isAlbumImg = imageEl.classList.contains('album-cell-img');
-        if (isAlbumImg) {
+        if (imageEl.classList.contains('album-cell-img')) {
             wireAlbumCellLoadEvent(imageEl);
         }
 
         resolveHydratedSource(dataSrc, resolveMediaKindByElement(imageEl))
-            .then((resolvedSrc) => {
-                assignHydratedSource(imageEl, resolvedSrc);
-            })
-            .catch(() => {
-                assignHydratedSource(imageEl, dataSrc);
-            });
+            .then((resolvedSrc) => { assignHydratedSource(imageEl, resolvedSrc); })
+            .catch(() => { assignHydratedSource(imageEl, dataSrc); });
         return true;
     }
 
     function getLazyHydrationObserver() {
         if (lazyHydrationObserver) return lazyHydrationObserver;
-        if (typeof IntersectionObserver !== 'function' || !rootElement) return null;
+        if (typeof IntersectionObserver !== 'function') return null;
 
-        const allImageSelectors = `${imageSelector}, ${albumImgSelector}`;
-        const allVideoSelectors = `${videoSelector}, ${albumVideoSelector}`;
+        // On iOS use viewport as root — custom root is unreliable in WebKit
+        const observerRoot = isIOS ? null : rootElement;
+        if (!observerRoot && !isIOS) return null;
 
         lazyHydrationObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach((entry) => {
@@ -137,17 +134,17 @@ export function createMediaHydrationController(options = {}) {
                     return;
                 }
                 if (!entry.isIntersecting && entry.intersectionRatio <= 0) return;
-                if (target.matches(allImageSelectors)) {
+                if (target.matches(`${imageSelector}, ${albumImgSelector}`)) {
                     ensureImageElementHydrated(target);
-                } else if (target.matches(allVideoSelectors)) {
+                } else if (target.matches(`${videoSelector}, ${albumVideoSelector}`)) {
                     ensureMediaElementHydrated(target);
                 }
                 observer.unobserve(target);
             });
         }, {
-            root: rootElement,
-            rootMargin: '300px 0px',
-            threshold: 0.01,
+            root: observerRoot,
+            rootMargin: isIOS ? '500px 0px' : '300px 0px',
+            threshold: 0,
         });
         return lazyHydrationObserver;
     }
