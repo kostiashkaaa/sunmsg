@@ -145,7 +145,7 @@ function resolveMediaAspectRatio(filePayload, fallbackRatio = 4 / 3) {
         ratio = fallbackRatio;
     }
 
-    return Math.max(0.75, Math.min(1.91, ratio)).toFixed(4);
+    return Math.max(0.46, Math.min(1.91, ratio)).toFixed(4);
 }
 
 function buildMediaStatusOverlay(filePayload) {
