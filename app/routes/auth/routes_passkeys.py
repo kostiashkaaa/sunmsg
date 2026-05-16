@@ -16,7 +16,7 @@ from app.services.locale import (
     language_from_user_row,
     normalize_language,
 )
-from app.services.refresh_tokens import issue_refresh_token, set_refresh_cookie
+from app.services.refresh_tokens import SESSION_TOKEN_TTL_SECONDS, issue_refresh_token, set_refresh_cookie
 from app.services.session_state import resolve_guest_ui_language
 from app.routes.auth_utils import wants_remember
 from .context import (
@@ -103,10 +103,10 @@ def _login_success_response(user_id: int, *, remember: bool):
     payload = {'success': True}
     session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    if remember:
-        raw, _exp = issue_refresh_token(user_id)
-        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-        set_refresh_cookie(response, raw, secure=secure)
+    ttl = None if remember else SESSION_TOKEN_TTL_SECONDS
+    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl)
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(response, raw, secure=secure)
     return response
 
 

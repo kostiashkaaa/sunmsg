@@ -5,7 +5,11 @@ from flask import current_app, jsonify, make_response, request, session
 from app.database import get_db_connection
 from app.extensions import limiter
 from app.routes.auth_helpers_sessions import current_refresh_family_id
-from app.services.refresh_tokens import REFRESH_COOKIE_NAME, clear_refresh_cookie
+from app.services.refresh_tokens import (
+    REFRESH_COOKIE_NAME,
+    SESSION_TOKEN_TTL_SECONDS,
+    clear_refresh_cookie,
+)
 from .context import auth_bp
 
 @auth_bp.route('/api/session_devices', methods=['GET'])
@@ -31,19 +35,22 @@ def api_session_devices():
     finally:
         conn.close()
 
-    devices = [
-        {
+    devices = []
+    for row in rows:
+        created = int(row['created_at'] or 0)
+        expires = int(row['expires_at'] or 0)
+        # A token is persistent (30-day) when its TTL at issuance was > 24 h.
+        persistent = (expires - created) > SESSION_TOKEN_TTL_SECONDS
+        devices.append({
             'family_id': str(row['family_id']),
-            'created_at': int(row['created_at'] or 0),
-            'last_used_at': int(row['last_used_at'] or row['created_at'] or 0),
-            'expires_at': int(row['expires_at'] or 0),
+            'created_at': created,
+            'last_used_at': int(row['last_used_at'] or created),
+            'expires_at': expires,
             'user_agent': str(row['user_agent'] or '').strip(),
             'ip': str(row['ip'] or '').strip(),
             'is_current': bool(current_family_id and str(row['family_id']) == current_family_id),
-            'persistent': True,
-        }
-        for row in rows
-    ]
+            'persistent': persistent,
+        })
 
     has_current_device = any(bool(device.get('is_current')) for device in devices)
     if not has_current_device:
