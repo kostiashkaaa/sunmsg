@@ -40,6 +40,7 @@ from app.routes.auth_utils import (
 )
 from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
+    SESSION_TOKEN_TTL_SECONDS,
     clear_refresh_cookie,
     issue_refresh_token,
     revoke_refresh_token,
@@ -173,10 +174,12 @@ def _login_success_response(user_id: int, *, remember: bool):
     payload = {'success': True}
     session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    if remember:
-        raw, _exp = issue_refresh_token(user_id)
-        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-        set_refresh_cookie(response, raw, secure=secure)
+    # Always issue a token so the device appears in the sessions list.
+    # Non-persistent logins get a 24-hour token; persistent logins get 30 days.
+    ttl = None if remember else SESSION_TOKEN_TTL_SECONDS
+    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl)
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(response, raw, secure=secure)
     return response
 
 

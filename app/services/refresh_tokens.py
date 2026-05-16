@@ -21,6 +21,7 @@ from app.database import get_db_connection
 logger = logging.getLogger(__name__)
 
 REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
+SESSION_TOKEN_TTL_SECONDS = 24 * 60 * 60       # 24 hours — for non-persistent logins
 REFRESH_COOKIE_NAME = 'refresh_token'
 REFRESH_COOKIE_PATH = '/'
 
@@ -47,11 +48,16 @@ def _client_meta() -> tuple[str, str]:
     return ua, ip
 
 
-def issue_refresh_token(user_id: int, *, family_id: Optional[str] = None) -> tuple[str, int]:
+def issue_refresh_token(
+    user_id: int,
+    *,
+    family_id: Optional[str] = None,
+    ttl_seconds: Optional[int] = None,
+) -> tuple[str, int]:
     """Insert a new refresh token row. Returns (raw_token, expires_at_ts)."""
     raw = secrets.token_urlsafe(48)
     now = int(time.time())
-    exp = now + REFRESH_TOKEN_TTL_SECONDS
+    exp = now + (ttl_seconds if ttl_seconds is not None else REFRESH_TOKEN_TTL_SECONDS)
     fam = family_id or secrets.token_hex(16)
     ua, ip = _client_meta()
     conn = get_db_connection()
