@@ -2754,13 +2754,9 @@
             animation-duration: var(--dur-quick);
         }
 
-        .chat-area.chat-history-reveal .chat-messages .message {
-            animation: chatHistoryMessageReveal var(--dur-medium) var(--ease-quick) both;
+        .message.message-block-load-animate .message-stack > .bubble {
+            animation: messageBlockLoadIn var(--dur-medium) var(--ease-quick) both;
             will-change: transform, opacity;
-        }
-
-        .chat-area.chat-history-reveal .chat-messages.motion-list-guard .message {
-            animation-duration: var(--dur-quick);
         }
 
 
@@ -3085,7 +3081,7 @@
             to   { opacity: 1; transform: translate3d(0, 0, 0); }
         }
 
-        @keyframes chatHistoryMessageReveal {
+        @keyframes messageBlockLoadIn {
             from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
             to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
@@ -12433,7 +12429,7 @@
         transition-duration: 0.01ms !important;
     }
 
-    .chat-area.chat-history-reveal .chat-messages .message {
+    .message.message-block-load-animate .message-stack > .bubble {
         animation: none !important;
         opacity: 1;
         transform: none;
