@@ -2754,6 +2754,15 @@
             animation-duration: var(--dur-quick);
         }
 
+        .chat-area.chat-history-reveal .chat-messages .message {
+            animation: chatHistoryMessageReveal var(--dur-medium) var(--ease-quick) both;
+            will-change: transform, opacity;
+        }
+
+        .chat-area.chat-history-reveal .chat-messages.motion-list-guard .message {
+            animation-duration: var(--dur-quick);
+        }
+
 
         .history-loading {
             position: absolute;
@@ -3074,6 +3083,11 @@
         @keyframes msgInSelf {
             from { opacity: 0; transform: translate3d(0, 8px, 0); }
             to   { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+
+        @keyframes chatHistoryMessageReveal {
+            from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
+            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
 
 
@@ -12417,6 +12431,13 @@
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+
+    .chat-area.chat-history-reveal .chat-messages .message {
+        animation: none !important;
+        opacity: 1;
+        transform: none;
+        will-change: auto;
     }
 }
 

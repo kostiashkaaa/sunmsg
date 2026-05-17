@@ -14,7 +14,6 @@ export function createChatAnimationsController(deps = {}) {
 
     let chatSurfaceEnterRafId = 0;
     let chatSurfaceEnterTimerId = 0;
-    let chatHistoryRevealRafId = 0;
     let chatHistoryRevealTimerId = 0;
     let chatAnimateEnterTimerId = 0;
     let desktopMobileRevealTimerId = 0;
@@ -48,14 +47,6 @@ export function createChatAnimationsController(deps = {}) {
     function triggerChatHistoryRevealAnimation() {
         if (!chatArea) return;
         if (prefersReducedMotionSetting?.()) return;
-        if (isMobileViewport?.()) {
-            chatArea.classList.remove('chat-history-reveal', 'is-switching');
-            return;
-        }
-        if (chatHistoryRevealRafId) {
-            cancelAnimationFrame(chatHistoryRevealRafId);
-            chatHistoryRevealRafId = 0;
-        }
         if (chatHistoryRevealTimerId) {
             clearTimeout(chatHistoryRevealTimerId);
             chatHistoryRevealTimerId = 0;
@@ -68,15 +59,13 @@ export function createChatAnimationsController(deps = {}) {
             });
         }
         chatArea.classList.remove('chat-history-reveal');
-        chatHistoryRevealRafId = requestAnimationFrame(() => {
-            chatHistoryRevealRafId = 0;
-            chatArea.classList.remove('is-switching');
-            chatArea.classList.add('chat-history-reveal');
-            chatHistoryRevealTimerId = window.setTimeout(() => {
-                chatArea.classList.remove('chat-history-reveal');
-                chatHistoryRevealTimerId = 0;
-            }, 640);
-        });
+        void chatArea.offsetWidth;
+        chatArea.classList.remove('is-switching');
+        chatArea.classList.add('chat-history-reveal');
+        chatHistoryRevealTimerId = window.setTimeout(() => {
+            chatArea.classList.remove('chat-history-reveal');
+            chatHistoryRevealTimerId = 0;
+        }, 640);
     }
 
     function triggerChatAnimateEnter() {
@@ -151,10 +140,6 @@ export function createChatAnimationsController(deps = {}) {
         if (chatSurfaceEnterTimerId) {
             window.clearTimeout(chatSurfaceEnterTimerId);
             chatSurfaceEnterTimerId = 0;
-        }
-        if (chatHistoryRevealRafId) {
-            cancelAnimationFrame(chatHistoryRevealRafId);
-            chatHistoryRevealRafId = 0;
         }
         if (chatHistoryRevealTimerId) {
             window.clearTimeout(chatHistoryRevealTimerId);
