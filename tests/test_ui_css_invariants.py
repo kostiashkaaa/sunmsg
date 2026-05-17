@@ -1086,6 +1086,40 @@ def test_chat_theme_boot_does_not_override_early_boot_without_explicit_theme() -
     assert "document.documentElement.classList.remove('dark-mode');\n        } else" not in theme_boot
 
 
+def test_theme_runtime_readers_preserve_early_boot_dark_mode() -> None:
+    """Runtime settings readers must not treat missing darkMode storage as light."""
+    theme_state = (STATIC / 'modules' / 'theme-state.js').read_text(encoding='utf-8')
+    assert "if (storedDark === 'true') return true;" in theme_state
+    assert "if (storedDark === 'false') return false;" in theme_state
+    assert "document.documentElement?.classList?.contains('dark-mode')" in theme_state
+
+    for relative_path in (
+        ('pages', 'chat-shell', 'theme-sync.js'),
+        ('pages', 'settings', 'theme-section.js'),
+        ('pages', 'settings', 'settings-transfer-section.js'),
+        ('pages', 'settings', 'privacy-section.js'),
+    ):
+        source = (STATIC.joinpath(*relative_path)).read_text(encoding='utf-8')
+        assert "readAppliedDarkMode" in source, f"{'/'.join(relative_path)} must use DOM-aware dark mode"
+        assert "localStorage.getItem('darkMode') === 'true'" not in source
+
+    chat_shell = (STATIC / 'pages' / 'chat-shell.js').read_text(encoding='utf-8')
+    assert 'function readAppliedDarkMode()' in chat_shell
+    assert "isDark: readAppliedDarkMode" in chat_shell
+
+    search = (ROOT / 'templates' / 'search.html').read_text(encoding='utf-8')
+    assert "{% include '_client_preferences_early_boot.html' %}" in search
+    assert "document.documentElement.classList.contains('dark-mode')" in search
+
+
+def test_early_boot_ignores_stale_boot_css_vars_when_theme_mode_changed() -> None:
+    """A stale boot snapshot must not apply light vars after darkMode changed."""
+    early_boot = (ROOT / 'templates' / '_client_preferences_early_boot.html').read_text(encoding='utf-8')
+    assert "const bootDarkMode = typeof boot.darkMode === 'boolean' ? boot.darkMode : null;" in early_boot
+    assert "const rawCssVars = asObject(boot.cssVars);" in early_boot
+    assert "const cssVars = bootDarkMode === null || bootDarkMode === darkMode ? rawCssVars : {};" in early_boot
+
+
 def test_interface_theme_runtime_updates_all_accent_variants() -> None:
     """Preset/accent changes must update every semantic accent token used by CSS."""
     interface_theme = (STATIC / 'interface-theme.js').read_text(encoding='utf-8')

@@ -757,16 +757,18 @@
         applyStoredSidebarWidth(root);
 
         const storedDarkMode = readStoredDarkModeFlag();
+        const bootDarkMode = typeof boot.darkMode === 'boolean' ? boot.darkMode : null;
         const darkMode = storedDarkMode !== null
             ? storedDarkMode
-            : (typeof boot.darkMode === 'boolean'
-            ? boot.darkMode
+            : (bootDarkMode !== null
+            ? bootDarkMode
             : (typeof preferences.darkMode === 'boolean' ? preferences.darkMode : resolveLocalTimeDarkMode()));
         if (darkMode !== null) {
             root.classList.toggle('dark-mode', darkMode);
         }
 
-        const cssVars = asObject(boot.cssVars);
+        const rawCssVars = asObject(boot.cssVars);
+        const cssVars = bootDarkMode === null || bootDarkMode === darkMode ? rawCssVars : {};
         const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
         if (Object.keys(cssVars).length > 0) {
             applyCssVars(root, cssVars);

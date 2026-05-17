@@ -1,3 +1,5 @@
+import { readAppliedDarkMode } from '../../modules/theme-state.js';
+
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
 const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
@@ -774,7 +776,7 @@ export function initPrivacySection({
         const base = persistedClientPreferences && typeof persistedClientPreferences === 'object'
             ? persistedClientPreferences
             : {};
-        const darkMode = readStorageValue('darkMode', base.darkMode ? 'true' : 'false') === 'true';
+        const darkMode = readAppliedDarkMode();
         const messageScale = clampMessageScale(readStorageValue(MESSAGE_SCALE_STORAGE_KEY, base.messageScale || '1'));
         const performanceMode = normalizePerformanceMode(readStorageValue('sun_performance_mode', base.performanceMode || 'auto'));
         const motionLevel = normalizeMotionLevel(readStorageValue('sun_motion_level', base.motionLevel || 'auto'));

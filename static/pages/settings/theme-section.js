@@ -1,4 +1,5 @@
 import { prepareWallpaperDataUrl } from './wallpaper-image.js';
+import { readAppliedDarkMode } from '../../modules/theme-state.js';
 
 export function initThemeSection({
     tr,
@@ -14,7 +15,7 @@ export function initThemeSection({
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const themePresetEls = Array.from(document.querySelectorAll('.theme-preview[data-theme-preset]'));
 
-    const isDark = () => localStorage.getItem('darkMode') === 'true';
+    const isDark = () => readAppliedDarkMode();
     const activeThemeKey = () => (isDark() ? 'dark' : 'light');
     let refreshChatAppearanceUi = null;
     let refreshInterfaceThemeUi = null;
