@@ -649,11 +649,14 @@ function renderCategoryButtons(emojiCategories, activeCategory, localeCode) {
 function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     if (!emojiPicker || !emojiBtn) return;
 
+    // position:fixed uses layout-viewport coordinates (same as getBoundingClientRect).
+    // vv.offsetLeft/Top are the visual-viewport scroll offsets inside the layout viewport
+    // and must NOT be added to fixed-position coordinates.
     const vv = window.visualViewport;
-    const viewportWidth = Math.round(vv?.width || window.innerWidth);
-    const viewportHeight = Math.round(vv?.height || window.innerHeight);
-    const viewportOffsetLeft = vv?.offsetLeft || 0;
-    const viewportOffsetTop = vv?.offsetTop || 0;
+    const layoutW = Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
+    const layoutH = Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+    // When the keyboard is open, vv.height is the usable area above it.
+    const usableH = vv ? Math.min(Math.round(vv.height || layoutH), layoutH) : layoutH;
     const margin = 10;
     const isMobile = isMobileEmojiViewport();
     if (isMobile) {
@@ -664,15 +667,13 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
 
     if (isMobile) {
         const preserveSize = Boolean(options.preserveSize);
-        const visualViewportHeight = Math.round(vv?.height || 0);
         const layoutViewportHeight = Math.max(
-            viewportHeight,
-            Math.round(window.innerHeight || 0),
+            layoutH,
             Math.round(document.documentElement.clientHeight || 0),
             readRootPixelVar('--app-vh'),
         );
-        const mobileViewportHeight = visualViewportHeight > 0 ? visualViewportHeight : layoutViewportHeight;
-        const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop);
+        const mobileViewportHeight = usableH > 0 ? usableH : layoutViewportHeight;
+        const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, 0);
         const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
         const hasPreferredMobileSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0;
         const sheetViewportHeight = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight;
@@ -693,21 +694,18 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
             : (Number.isFinite(currentSheetHeight) && currentSheetHeight > 0 ? currentSheetHeight : defaultSheetHeight);
         const minSheetHeight = hasPreferredMobileSheetHeight ? 0 : MOBILE_EMOJI_MIN_HEIGHT;
         const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(minSheetHeight, targetSheetHeight)));
-        const sheetWidth = Math.max(0, viewportWidth);
-        const left = Math.round(viewportOffsetLeft);
-        const sheetBottom = hasPreferredMobileSheetHeight
-            ? Math.max(viewportOffsetTop + mobileViewportHeight, layoutViewportHeight)
-            : viewportOffsetTop + mobileViewportHeight;
+        const sheetWidth = layoutW;
+        // Sheet sits at the bottom of the usable (above-keyboard) area.
+        const sheetBottom = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight;
         const top = Math.round(sheetBottom - sheetHeight);
-        const layoutSheetHeight = sheetHeight;
 
-        emojiPicker.style.setProperty('--emoji-left', `${left}px`);
+        emojiPicker.style.setProperty('--emoji-left', '0px');
         emojiPicker.style.setProperty('--emoji-top', `${top}px`);
         emojiPicker.style.setProperty('--emoji-width', `${sheetWidth}px`);
         emojiPicker.style.setProperty('--emoji-height', `${sheetHeight}px`);
         emojiPicker.style.transformOrigin = 'bottom center';
         emojiPicker.dataset.side = 'mobile-sheet';
-        setMobileEmojiSheetState(emojiPicker, true, layoutSheetHeight);
+        setMobileEmojiSheetState(emojiPicker, true, sheetHeight);
         return;
     }
 
@@ -722,26 +720,26 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
             356,
             Math.min(
                 430,
-                Math.min(viewportWidth - 24, Math.round(Math.max(360, formRect.width - 14))),
+                Math.min(layoutW - 24, Math.round(Math.max(360, formRect.width - 14))),
             ),
         );
     const targetHeight = preserveSize && measuredHeight > 0
         ? measuredHeight
-        : Math.max(334, Math.min(486, viewportHeight - 18));
+        : Math.max(334, Math.min(486, usableH - 18));
 
     emojiPicker.style.setProperty('--emoji-width', `${targetWidth}px`);
     emojiPicker.style.setProperty('--emoji-height', `${targetHeight}px`);
 
     const pickerLayoutWidth = Math.round(emojiPicker.offsetWidth || targetWidth);
     const pickerLayoutHeight = Math.round(emojiPicker.offsetHeight || targetHeight);
-    const pickerWidth = Math.min(pickerLayoutWidth, viewportWidth - margin * 2);
-    const pickerHeight = Math.min(pickerLayoutHeight, viewportHeight - margin * 2);
+    const pickerWidth = Math.min(pickerLayoutWidth, layoutW - margin * 2);
+    const pickerHeight = Math.min(pickerLayoutHeight, usableH - margin * 2);
 
     let left = formRect.left;
     let top = formRect.top - pickerHeight - anchorGap;
     let side = 'top';
 
-    if (top < viewportOffsetTop + margin) {
+    if (top < margin) {
         top = formRect.bottom + anchorGap;
         side = 'bottom';
     }
@@ -749,8 +747,8 @@ function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
         left = formRect.right - pickerWidth;
     }
 
-    left = Math.max(viewportOffsetLeft + margin, Math.min(left, viewportOffsetLeft + viewportWidth - pickerWidth - margin));
-    top = Math.max(viewportOffsetTop + margin, Math.min(top, viewportOffsetTop + viewportHeight - pickerHeight - margin));
+    left = Math.max(margin, Math.min(left, layoutW - pickerWidth - margin));
+    top = Math.max(margin, Math.min(top, usableH - pickerHeight - margin));
 
     emojiPicker.style.setProperty('--emoji-left', `${Math.round(left)}px`);
     emojiPicker.style.setProperty('--emoji-top', `${Math.round(top)}px`);
