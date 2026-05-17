@@ -194,13 +194,15 @@
         }
 
 
-        .sidebar-brand-dot.is-active {
+        .sidebar-brand-dot.is-active,
+        .sidebar-brand-dot.sidebar-brand-dot--settings-active {
             box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-glow) 56%, transparent);
             filter: saturate(1.06);
         }
 
 
-        .sidebar-brand-dot.is-active::after {
+        .sidebar-brand-dot.is-active::after,
+        .sidebar-brand-dot.sidebar-brand-dot--settings-active::after {
             opacity: 1;
             transform: scale(1);
         }
@@ -315,13 +317,6 @@
             visibility: visible;
         }
 
-        .settings-overlay.settings-overlay--brand-glow {
-            display: flex;
-            opacity: 1;
-            visibility: visible;
-        }
-
-
         .settings-overlay.is-opening {
             display: flex;
             opacity: 1;
@@ -339,8 +334,7 @@
 
 
         .settings-overlay.active .settings-overlay-backdrop,
-        .settings-overlay.is-opening .settings-overlay-backdrop,
-        .settings-overlay.settings-overlay--brand-glow .settings-overlay-backdrop {
+        .settings-overlay.is-opening .settings-overlay-backdrop {
             opacity: 1;
         }
 
