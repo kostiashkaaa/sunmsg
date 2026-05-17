@@ -11,6 +11,9 @@ let callDurationStartedAt = 0;
 let callTopbarResizeHandler = null;
 let callTopbarViewportHandler = null;
 let callMobileTopbarResizeHandler = null;
+let callInfoVisibilityTimer = 0;
+
+const CALL_INFO_AUTO_HIDE_MS = 3200;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
@@ -32,9 +35,9 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     banner.setAttribute('role', 'alertdialog');
     banner.setAttribute('aria-label', 'Входящий звонок');
     banner.innerHTML = `
-        <span class="call-ib__chrome call-ib__chrome--left" aria-hidden="true">
+        <button class="call-ib__chrome call-ib__chrome--left" type="button" data-call-fullscreen aria-label="Полноэкранный режим">
             <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
-        </span>
+        </button>
         <button class="call-ib__chrome call-ib__chrome--right" type="button" data-call-reject aria-label="Отклонить">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
@@ -99,6 +102,9 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
         removeIncomingCallBanner();
         onAccept(callId, callType);
     });
+    banner.querySelector('[data-call-fullscreen]')?.addEventListener('click', () => {
+        _toggleElementFullscreen(banner);
+    });
 
     document.body.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('call-ib--visible'));
@@ -106,7 +112,10 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
 
 export function removeIncomingCallBanner() {
     const el = document.getElementById('call-incoming-banner');
-    if (el) el.remove();
+    if (el) {
+        _exitFullscreenForElement(el);
+        el.remove();
+    }
 }
 
 // ── Active call overlay ──────────────────────────────────────────────────────
@@ -172,6 +181,9 @@ export function showActiveCallOverlay({
                         <path d="M5 9h14M5 15h14"/>
                     </svg>
                 </span>
+                <button class="call-card__fullscreen" id="call-fullscreen-btn" type="button" aria-label="Полноэкранный режим">
+                    <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
+                </button>
                 <div class="call-overlay__verify" id="call-verification-code" hidden></div>
                 <div class="call-quality" id="call-quality" data-quality-level="unknown" hidden>
                     <span class="call-quality__dot" aria-hidden="true"></span>
@@ -272,8 +284,15 @@ export function showActiveCallOverlay({
     });
 
     _syncLocalVideo(overlay, activeLocalStream, isVideo);
+    _bindCallInfoVisibility(overlay);
     if (!isMobile) {
         _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__drag'));
+        overlay.querySelector('#call-fullscreen-btn')?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            _toggleCallOverlayFullscreen(overlay);
+        });
+    } else {
+        overlay.querySelector('#call-fullscreen-btn')?.remove();
     }
 
     overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
@@ -317,6 +336,10 @@ export function showActiveCallOverlay({
     const microphoneSelect = overlay.querySelector('#call-select-microphone');
     const cameraSelect = overlay.querySelector('#call-select-camera');
     const speakerSelect = overlay.querySelector('#call-select-speaker');
+    if (isMobile) {
+        devicesBtn?.remove();
+        devicePanel?.remove();
+    }
     const refreshDevicePanel = async () => {
         if (!devicePanel) return;
         _setDevicePanelBusy(devicePanel, true);
@@ -427,6 +450,8 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
     _setSpeakerMode(false);
     _setCallTopbarActive(false);
     _setCallMobileTopbarReserve(false);
+    _clearCallInfoVisibilityTimer();
+    _exitFullscreenForElement(_currentOverlay());
     stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
@@ -462,6 +487,7 @@ export function setCallStatusText(text) {
     _currentOverlay()?.querySelectorAll('[data-call-status]').forEach((el) => {
         el.textContent = text;
     });
+    _showCallInfoTemporarily();
 }
 
 export function setCallVerificationCode(code) {
@@ -481,6 +507,7 @@ export function setCallVerificationCode(code) {
         ` stroke-width="2.2" stroke-linecap="round" aria-hidden="true">` +
         `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>` +
         `</svg></button>`;
+    _showCallInfoTemporarily();
 }
 
 export function setCallQualityIndicator(stats = {}) {
@@ -501,6 +528,7 @@ export function setCallQualityIndicator(stats = {}) {
     el.querySelector('.call-quality__text').textContent = label;
     el.title = details || label;
     el.setAttribute('aria-label', details ? `${label}: ${details}` : label);
+    _showCallInfoTemporarily();
 }
 
 export function setRemoteAudioMuted(muted) {
@@ -526,6 +554,7 @@ export function setRemoteAudioMuted(muted) {
             (stage || overlay).appendChild(badge);
         }
         badge.hidden = false;
+        _showCallInfoTemporarily();
     } else if (badge) {
         badge.hidden = true;
     }
@@ -587,6 +616,84 @@ function _currentOverlay() {
     const overlays = document.querySelectorAll('#call-active-overlay');
     return overlays[overlays.length - 1] || null;
 }
+
+function _clearCallInfoVisibilityTimer() {
+    if (!callInfoVisibilityTimer) return;
+    window.clearTimeout(callInfoVisibilityTimer);
+    callInfoVisibilityTimer = 0;
+}
+
+function _showCallInfoTemporarily(overlay = _currentOverlay()) {
+    if (!overlay) return;
+    overlay.classList.remove('call-overlay--info-hidden');
+    _clearCallInfoVisibilityTimer();
+    callInfoVisibilityTimer = window.setTimeout(() => {
+        if (overlay.isConnected) {
+            overlay.classList.add('call-overlay--info-hidden');
+        }
+        callInfoVisibilityTimer = 0;
+    }, CALL_INFO_AUTO_HIDE_MS);
+}
+
+function _bindCallInfoVisibility(overlay) {
+    if (!overlay) return;
+    const reveal = () => _showCallInfoTemporarily(overlay);
+    overlay.addEventListener('pointerdown', reveal, { passive: true });
+    overlay.addEventListener('pointermove', reveal, { passive: true });
+    overlay.addEventListener('focusin', reveal);
+    _showCallInfoTemporarily(overlay);
+}
+
+function _toggleElementFullscreen(element) {
+    if (!element) return;
+    if (_currentFullscreenElement()) {
+        _exitFullscreenForElement(_currentFullscreenElement());
+        return;
+    }
+    const request = element.requestFullscreen || element.webkitRequestFullscreen;
+    const requestPromise = request?.call(element);
+    requestPromise?.catch?.(() => {});
+}
+
+function _currentFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function _exitFullscreenForElement(element) {
+    if (!element || _currentFullscreenElement() !== element) return;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    const exitPromise = exit?.call(document);
+    exitPromise?.catch?.(() => {});
+}
+
+function _toggleCallOverlayFullscreen(overlay) {
+    if (!overlay) return;
+    const fullscreenElement = _currentFullscreenElement();
+    const isFullscreen = overlay.classList.contains('call-overlay--fullscreen');
+    if (isFullscreen) {
+        overlay.classList.remove('call-overlay--fullscreen');
+        _exitFullscreenForElement(overlay);
+        return;
+    }
+    overlay.classList.add('call-overlay--fullscreen');
+    if (fullscreenElement && fullscreenElement !== overlay) {
+        _exitFullscreenForElement(fullscreenElement);
+    }
+    const request = overlay.requestFullscreen || overlay.webkitRequestFullscreen;
+    const requestPromise = request?.call(overlay);
+    requestPromise?.catch?.(() => {});
+}
+
+document.addEventListener('fullscreenchange', () => {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    overlay.classList.toggle('call-overlay--fullscreen', _currentFullscreenElement() === overlay);
+});
+document.addEventListener('webkitfullscreenchange', () => {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    overlay.classList.toggle('call-overlay--fullscreen', _currentFullscreenElement() === overlay);
+});
 
 function _updateCallDuration() {
     const overlay = _currentOverlay();

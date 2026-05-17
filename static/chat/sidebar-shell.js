@@ -2,6 +2,9 @@ export function createSidebarShell(options = {}) {
     const contactsList = options.contactsList || null;
     const withAppRoot = options.withAppRoot || ((value) => value);
     const contactUsernamePattern = options.contactUsernamePattern || /^[a-z0-9_]{1,50}$/;
+    const isMobileViewport = typeof options.isMobileViewport === 'function'
+        ? options.isMobileViewport
+        : () => false;
 
     let activeContactItem = null;
 
@@ -92,16 +95,28 @@ export function createSidebarShell(options = {}) {
         return buildChatListUrl();
     }
 
-    function replaceBrowserUrl(nextUrl) {
-        if (!window.history?.replaceState) return;
+    function writeBrowserUrl(nextUrl, { push = false } = {}) {
         const normalizedUrl = String(nextUrl || '').trim() || buildChatListUrl();
         const currentUrl = `${window.location.pathname}${window.location.search}`;
         if (currentUrl === normalizedUrl) return;
-        window.history.replaceState({}, '', normalizedUrl);
+        if (push && window.history?.pushState) {
+            window.history.pushState({}, '', normalizedUrl);
+            return;
+        }
+        if (window.history?.replaceState) {
+            window.history.replaceState({}, '', normalizedUrl);
+        }
+    }
+
+    function replaceBrowserUrl(nextUrl) {
+        writeBrowserUrl(nextUrl, { push: false });
     }
 
     function syncBrowserUrlForActiveChat(contactItem = null) {
-        replaceBrowserUrl(contactItem ? buildChatUrlForContactItem(contactItem) : buildChatListUrl());
+        writeBrowserUrl(
+            contactItem ? buildChatUrlForContactItem(contactItem) : buildChatListUrl(),
+            { push: Boolean(contactItem && isMobileViewport()) },
+        );
     }
 
     return {

@@ -234,6 +234,12 @@ export function createChatMobileViewportRuntime({
         });
     }
 
+    function handleMobileHistoryPop() {
+        if (!isMobileViewport()) return;
+        if (!chatArea?.classList.contains('mobile-open')) return;
+        closeChatUI?.();
+    }
+
     function bindViewportEvents() {
         if (viewportEventsBound) return;
         viewportEventsBound = true;
@@ -249,6 +255,7 @@ export function createChatMobileViewportRuntime({
             }
             closeMobileChatView({ leaveRoom: true, animated: true });
         });
+        windowRef.addEventListener('popstate', handleMobileHistoryPop);
 
         if (typeof resizeObserverCtor !== 'undefined' && chatInputArea) {
             chatInputResizeObserver = new resizeObserverCtor(() => {

@@ -839,6 +839,7 @@ export const initChatPage = async () => {
         contactsList,
         withAppRoot,
         contactUsernamePattern: CONTACT_USERNAME_PATTERN,
+        isMobileViewport: () => browserEnv.isMobileWidth(),
     });
     const getActiveContactItem = (...args) => sidebarShell.getActiveContactItem(...args);
     const setActiveContactItem = (...args) => sidebarShell.setActiveContactItem(...args);
