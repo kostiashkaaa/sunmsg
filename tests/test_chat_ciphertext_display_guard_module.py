@@ -33,9 +33,13 @@ const source = await readFile({str(module_path)!r}, 'utf8');
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const utils = await import(moduleUrl);
 const encrypted = '{{"encrypted_message":"cipher","encrypted_key_receiver":"receiver","encrypted_key_sender":"sender","iv":"iv"}}';
+const encryptedV2Group = '{{"v":2,"encrypted_keys":["cipher-key"],"iv":"iv"}}';
 
 if (!utils.isEncryptedMessagePayload(encrypted)) {{
   throw new Error('encrypted payload was not detected');
+}}
+if (!utils.isEncryptedMessagePayload(encryptedV2Group)) {{
+  throw new Error('v2 encrypted payload was not detected');
 }}
 
 const displayText = utils.resolveMessageDisplayText(encrypted);
@@ -49,6 +53,10 @@ if (!displayText.includes('\\u0417\\u0430\\u0448\\u0438\\u0444\\u0440')) {{
 const previewHtml = utils.renderMessagePreviewHtml(encrypted, {{ isSelf: true, maxLen: 120 }});
 if (previewHtml.includes('encrypted_message') || previewHtml.includes('encrypted_key_receiver')) {{
   throw new Error(`ciphertext leaked into preview: ${{previewHtml}}`);
+}}
+const groupPreviewHtml = utils.renderMessagePreviewHtml(encryptedV2Group, {{ isSelf: false, maxLen: 120 }});
+if (groupPreviewHtml.includes('encrypted_keys') || groupPreviewHtml.includes('cipher-key')) {{
+  throw new Error(`v2 ciphertext leaked into preview: ${{groupPreviewHtml}}`);
 }}
 
 const plain = 'plain message';

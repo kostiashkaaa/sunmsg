@@ -42,12 +42,12 @@ let _ringInterval = null;
 let _ringAudioEl = null;
 
 function playIncomingRingtonePulse() {
-    playChord([740, 932], 0.24, 'sine', 0.18, 0);
-    playChord([740, 932], 0.24, 'sine', 0.16, 0.34);
+    playChord([660, 880], 0.22, 'sine', 0.16, 0);
+    playChord([660, 880], 0.22, 'sine', 0.14, 0.32);
 }
 
 function playOutgoingRingbackPulse() {
-    playChord([425, 475], 1.15, 'sine', 0.16, 0);
+    playChord([420, 470], 1.35, 'sine', 0.14, 0);
 }
 
 export function startRingtone(mode = 'incoming') {
@@ -55,7 +55,7 @@ export function startRingtone(mode = 'incoming') {
     const isOutgoing = mode === 'outgoing';
     const pulse = isOutgoing ? playOutgoingRingbackPulse : playIncomingRingtonePulse;
     pulse();
-    _ringInterval = setInterval(pulse, isOutgoing ? 3200 : 1900);
+    _ringInterval = setInterval(pulse, isOutgoing ? 4200 : 1900);
 }
 
 export function stopRingtone() {
@@ -65,8 +65,8 @@ export function stopRingtone() {
 
 // Connected sound — ascending two-tone
 export function playConnectedSound() {
-    playChord([523.25, 659.25], 0.11, 'sine', 0.12, 0);
-    playChord([659.25, 783.99], 0.13, 'sine', 0.11, 0.13);
+    playChord([523.25, 659.25], 0.09, 'sine', 0.09, 0);
+    playChord([659.25, 783.99], 0.11, 'sine', 0.08, 0.1);
 }
 
 // End-call sound — descending

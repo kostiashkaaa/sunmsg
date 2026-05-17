@@ -9,9 +9,30 @@ export function createChatEncryptionRuntime({
     getPrivateKeyPem,
 } = {}) {
     function isEncryptedPayload(value) {
-        return typeof value === 'string'
-            && value.trim().startsWith('{')
-            && value.includes('encrypted_message');
+        if (typeof value !== 'string') return false;
+        const normalized = value.trim();
+        if (!normalized.startsWith('{') || !normalized.includes('encrypted')) return false;
+        if (normalized.includes('encrypted_message')) return true;
+        try {
+            const payload = JSON.parse(normalized);
+            if (!payload || typeof payload !== 'object') return false;
+            return Boolean(
+                payload.encrypted_message
+                || payload.encryptedMessage
+                || (
+                    payload.v
+                    && payload.iv
+                    && (
+                        payload.encrypted_key
+                        || payload.encrypted_key_receiver
+                        || payload.encrypted_key_sender
+                        || Array.isArray(payload.encrypted_keys)
+                    )
+                )
+            );
+        } catch (_) {
+            return false;
+        }
     }
 
     async function encryptForCurrentChat(plainText) {
