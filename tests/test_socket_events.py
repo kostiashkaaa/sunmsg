@@ -175,6 +175,59 @@ def _seed_dialog(db_path: Path):
     return chat_id
 
 
+def test_call_lifecycle_and_webrtc_signal_reach_peer_user_room(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-signalling.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    bob_http, bob_csrf = _prepare_http_client(app, 2, 'pk-2')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+    bob_socket = _socket_client(app, bob_http, bob_csrf)
+
+    try:
+        assert alice_socket.is_connected()
+        assert bob_socket.is_connected()
+        alice_socket.get_received()
+        bob_socket.get_received()
+
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+
+        initiated = _wait_for_event_payloads(alice_socket, 'call_initiated')
+        incoming = _wait_for_event_payloads(bob_socket, 'call_incoming')
+        assert len(initiated) == 1
+        assert len(incoming) == 1
+        call_id = initiated[0]['call_id']
+        assert incoming[0]['call_id'] == call_id
+
+        bob_socket.emit('call_accept', {'call_id': call_id, 'csrf_token': bob_csrf})
+        accepted = _wait_for_event_payloads(alice_socket, 'call_accepted')
+        assert any(payload['call_id'] == call_id and payload['user_id'] == 2 for payload in accepted)
+
+        offer_sdp = {'type': 'offer', 'sdp': 'v=0\r\n'}
+        alice_socket.emit(
+            'call_offer',
+            {'call_id': call_id, 'sdp': offer_sdp, 'csrf_token': alice_csrf},
+        )
+        relayed_offers = _wait_for_event_payloads(bob_socket, 'call_offer')
+        assert any(
+            payload['call_id'] == call_id
+            and payload['from_user_id'] == 1
+            and payload['sdp'] == offer_sdp
+            for payload in relayed_offers
+        )
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+        if bob_socket.is_connected():
+            bob_socket.disconnect()
+
+
 def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch, tmp_path):
     db_path = tmp_path / 'socket-realtime-flow.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

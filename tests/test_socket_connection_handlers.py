@@ -176,7 +176,7 @@ def test_handle_connect_event_success_joins_and_emits_delivered(tmp_path):
         connection_refused_error_cls=ConnectionRefusedError,
     )
 
-    assert joined == ['pk-1']
+    assert joined == ['pk-1', 'user_1']
     assert added == [('pk-1', 'sid-1')]
     assert delivered == [[{'message_id': 42}]]
 
@@ -249,7 +249,7 @@ def test_handle_disconnect_event_updates_offline_and_emits_status(tmp_path):
     with _connect(db_path) as conn:
         row = conn.execute('SELECT is_online, last_seen FROM users WHERE id = 1').fetchone()
 
-    assert left_rooms == ['pk-1']
+    assert left_rooms == ['pk-1', 'user_1']
     assert int(row['is_online']) == 0
     assert row['last_seen'] == '2026-03-03 03:03:03'
     assert emitted_status == [
