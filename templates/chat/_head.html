@@ -26,6 +26,10 @@
             'clientPreferences': client_preferences|default({}),
         },
         'socketio': socketio_client_config,
+        'session': {
+            'autoLogoutSeconds': session.get('session_auto_logout_seconds') or 2592000,
+            'expiresAt': session.get('session_expires_at') or 0,
+        },
         'app': {
             'root': request.script_root or '',
             'webPush': web_push_bootstrap_payload|default({'enabled': false, 'publicKey': ''}),

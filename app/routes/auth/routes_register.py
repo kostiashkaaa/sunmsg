@@ -24,7 +24,11 @@ from app.routes.auth_helpers_register import (
 from app.services.crypto import add_pem_headers, normalize_public_key
 from app.services.locale import detect_auth_language, normalize_language
 from app.services.refresh_tokens import issue_refresh_token, set_refresh_cookie
-from app.services.session_policy import SESSION_AUTO_LOGOUT_DEFAULT_SECONDS, apply_session_auto_logout
+from app.services.session_policy import (
+    SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,
+    apply_session_auto_logout,
+    session_auto_logout_payload,
+)
 from .context import (
     auth_bp,
 )
@@ -152,7 +156,7 @@ def register_client():  # noqa: C901, PLR0915 - registration orchestration with 
     ):
         session.pop(key, None)
 
-    response = make_response(jsonify({'success': True}))
+    response = make_response(jsonify({'success': True, **session_auto_logout_payload(session)}))
     raw, _exp = issue_refresh_token(
         created_user_id,
         ttl_seconds=SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,

@@ -46,7 +46,11 @@ from app.services.refresh_tokens import (
     rotate_refresh_token,
     set_refresh_cookie,
 )
-from app.services.session_policy import apply_session_auto_logout, session_auto_logout_seconds_from_row
+from app.services.session_policy import (
+    apply_session_auto_logout,
+    session_auto_logout_payload,
+    session_auto_logout_seconds_from_row,
+)
 from .context import (
     auth_bp,
 )
@@ -184,10 +188,10 @@ def _session_auto_logout_seconds_for_user(user_id: int) -> int:
 
 
 def _login_success_response(user_id: int):
-    payload = {'success': True}
-    response = make_response(jsonify(payload))
     ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
     apply_session_auto_logout(session, ttl_seconds)
+    payload = {'success': True, **session_auto_logout_payload(session)}
+    response = make_response(jsonify(payload))
     raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
     secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
     set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
@@ -511,6 +515,7 @@ def api_refresh():
     response = make_response(jsonify({
         'success': True,
         'csrf_token': generate_csrf(),
+        **session_auto_logout_payload(session),
     }))
     secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
     set_refresh_cookie(

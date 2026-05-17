@@ -1,13 +1,20 @@
 export async function stageKeyForLogin({
     privateKeyPem = '',
     rememberDevice = false,
+    persistent = false,
+    sessionAutoLogoutSeconds = 0,
+    sessionExpiresAt = 0,
     stagePrivateKeyForRedirect,
     tr = (value) => String(value ?? ''),
 } = {}) {
     let staged = false;
     try {
+        const shouldPersist = persistent === true || rememberDevice === true;
         staged = await stagePrivateKeyForRedirect(privateKeyPem, {
-            rememberDevice: !!rememberDevice,
+            persistent: shouldPersist,
+            rememberDevice: shouldPersist,
+            sessionAutoLogoutSeconds,
+            sessionExpiresAt,
             notify: false,
         });
     } catch (_) {

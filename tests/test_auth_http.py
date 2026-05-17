@@ -446,7 +446,9 @@ def test_register_client_success_keeps_totp_optional_and_allows_direct_login(mon
     register_payload = register_response.get_json()
 
     assert register_response.status_code == 200
-    assert register_payload == {'success': True}
+    assert register_payload['success'] is True
+    assert register_payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert register_payload['session_expires_at'] > int(time.time())
 
     with _connect(db_path) as conn:
         user = conn.execute(
@@ -483,6 +485,8 @@ def test_register_client_success_keeps_totp_optional_and_allows_direct_login(mon
     assert login_response.status_code == 200
     assert login_payload['success'] is True
     assert login_payload.get('requires_totp') is not True
+    assert login_payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert login_payload['session_expires_at'] > int(time.time())
 
     with client.session_transaction() as sess:
         assert sess['user_id'] == int(user['id'])
@@ -519,7 +523,10 @@ def test_register_login_refresh_logout_full_session_cycle(monkeypatch, tmp_path)
         },
     )
     assert register_res.status_code == 200
-    assert register_res.get_json() == {'success': True}
+    register_payload = register_res.get_json()
+    assert register_payload['success'] is True
+    assert register_payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert register_payload['session_expires_at'] > int(time.time())
 
     challenge_res = client.post('/api/get_challenge', json={'username': 'alice'})
     challenge_payload = challenge_res.get_json()
@@ -533,7 +540,10 @@ def test_register_login_refresh_logout_full_session_cycle(monkeypatch, tmp_path)
         json={'signature': login_signature},
     )
     assert login_res.status_code == 200
-    assert login_res.get_json()['success'] is True
+    login_payload = login_res.get_json()
+    assert login_payload['success'] is True
+    assert login_payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert login_payload['session_expires_at'] > int(time.time())
     assert any(REFRESH_COOKIE_NAME in cookie for cookie in login_res.headers.getlist('Set-Cookie'))
 
     with client.session_transaction() as sess:
@@ -546,6 +556,8 @@ def test_register_login_refresh_logout_full_session_cycle(monkeypatch, tmp_path)
     assert refresh_res.status_code == 200
     assert refresh_payload['success'] is True
     assert refresh_payload['csrf_token']
+    assert refresh_payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert refresh_payload['session_expires_at'] > int(time.time())
     assert any(REFRESH_COOKIE_NAME in cookie for cookie in refresh_res.headers.getlist('Set-Cookie'))
 
     with client.session_transaction() as sess:

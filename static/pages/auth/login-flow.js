@@ -92,11 +92,19 @@ export function initLoginFlow({
         );
     }
 
-    async function completeTotpStep({ fallbackUsername = '' } = {}) {
+    function buildKeyPersistenceOptions(sessionData = {}) {
+        return {
+            persistent: true,
+            sessionAutoLogoutSeconds: sessionData?.session_auto_logout_seconds,
+            sessionExpiresAt: sessionData?.session_expires_at,
+        };
+    }
+
+    async function completeTotpStep({ fallbackUsername = '', sessionData = {} } = {}) {
         if (pendingLoginPrivateKeyPem) {
             const keyStageResult = await stageKeyForLogin({
                 privateKeyPem: pendingLoginPrivateKeyPem,
-                rememberDevice: false,
+                ...buildKeyPersistenceOptions(sessionData),
                 stagePrivateKeyForRedirect,
                 tr,
             });
@@ -219,7 +227,7 @@ export function initLoginFlow({
 
         const keyStageResult = await stageKeyForLogin({
             privateKeyPem,
-            rememberDevice: false,
+            ...buildKeyPersistenceOptions(loginData),
             stagePrivateKeyForRedirect,
             tr,
         });
@@ -309,7 +317,7 @@ export function initLoginFlow({
                 if (!data.success) {
                     throw new Error(tr(data.error || 'Неверный код'));
                 }
-                await completeTotpStep({ fallbackUsername: username });
+                await completeTotpStep({ fallbackUsername: username, sessionData: data });
                 return;
             }
 

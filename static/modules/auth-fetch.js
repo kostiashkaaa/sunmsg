@@ -28,6 +28,9 @@ export async function refreshSession() {
             if (typeof data.csrf_token === 'string' && data.csrf_token) {
                 setCsrfToken(data.csrf_token);
             }
+            try {
+                window.sunPrivateKeySession?.touchPersistentKeyFromSession?.(data);
+            } catch (_) {}
             return true;
         } catch (_) {
             return false;

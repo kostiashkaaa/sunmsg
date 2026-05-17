@@ -10,6 +10,7 @@
     const KEY_ID = 'device-aes-gcm-v1';
     const LS_WRAPPED_PERSISTENT = 'e2e_private_key_wrapped';
     const SS_WRAPPED_SESSION = 'e2e_private_key_wrapped_session';
+    const DEFAULT_PERSISTENT_TTL_SECONDS = 30 * 24 * 60 * 60;
 
     function openDb() {
         return new Promise((resolve, reject) => {
@@ -85,6 +86,24 @@
         }
     }
 
+    function nowSeconds() {
+        return Math.floor(Date.now() / 1000);
+    }
+
+    function positiveInteger(value) {
+        const parsed = Number(value || 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+        return Math.floor(parsed);
+    }
+
+    function resolvePersistentMetadata(options = {}) {
+        const ttlSeconds = positiveInteger(options.ttlSeconds ?? options.sessionAutoLogoutSeconds)
+            || DEFAULT_PERSISTENT_TTL_SECONDS;
+        const expiresAt = positiveInteger(options.expiresAt ?? options.sessionExpiresAt)
+            || (nowSeconds() + ttlSeconds);
+        return { ttlSeconds, expiresAt };
+    }
+
     function removePersistentWrappedPayload() {
         try { localStorage.removeItem(LS_WRAPPED_PERSISTENT); } catch (_) {}
     }
@@ -95,19 +114,61 @@
         try { session.removeItem(SS_WRAPPED_SESSION); } catch (_) {}
     }
 
-    function readWrappedPayload(preferSession = true) {
+    function parseWrappedPayload(raw, source) {
+        if (!raw) return null;
+        let payload = null;
+        try {
+            payload = JSON.parse(raw);
+        } catch (_) {
+            if (source === 'persistent') removePersistentWrappedPayload();
+            else removeSessionWrappedPayload();
+            return null;
+        }
+        if (!payload || payload.v !== 1 || !payload.iv || !payload.data) {
+            if (source === 'persistent') removePersistentWrappedPayload();
+            else removeSessionWrappedPayload();
+            return null;
+        }
+        if (source === 'persistent') {
+            const expiresAt = positiveInteger(payload.expiresAt);
+            if (!expiresAt || expiresAt <= nowSeconds()) {
+                removePersistentWrappedPayload();
+                return null;
+            }
+        }
+        return { raw, payload, source };
+    }
+
+    function readPersistentWrappedPayload() {
+        try {
+            return parseWrappedPayload(localStorage.getItem(LS_WRAPPED_PERSISTENT), 'persistent');
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function readSessionWrappedPayload() {
         const session = getSessionStorage();
-        const sessionPayload = session ? session.getItem(SS_WRAPPED_SESSION) : null;
-        const persistentPayload = localStorage.getItem(LS_WRAPPED_PERSISTENT);
+        if (!session) return null;
+        try {
+            return parseWrappedPayload(session.getItem(SS_WRAPPED_SESSION), 'session');
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function readWrappedPayload(preferSession = true) {
+        const sessionPayload = readSessionWrappedPayload();
+        const persistentPayload = readPersistentWrappedPayload();
 
         if (preferSession && sessionPayload) {
-            return { payload: sessionPayload, source: 'session' };
+            return sessionPayload;
         }
         if (persistentPayload) {
-            return { payload: persistentPayload, source: 'persistent' };
+            return persistentPayload;
         }
         if (sessionPayload) {
-            return { payload: sessionPayload, source: 'session' };
+            return sessionPayload;
         }
         return null;
     }
@@ -126,12 +187,11 @@
     }
 
     function hasPersistentWrappedKey() {
-        return !!localStorage.getItem(LS_WRAPPED_PERSISTENT);
+        return !!readPersistentWrappedPayload();
     }
 
     function hasSessionWrappedKey() {
-        const session = getSessionStorage();
-        return !!session && !!session.getItem(SS_WRAPPED_SESSION);
+        return !!readSessionWrappedPayload();
     }
 
     async function wrapPrivateKey(pem, options = {}) {
@@ -143,7 +203,19 @@
             const iv = window.crypto.getRandomValues(new Uint8Array(12));
             const enc = new TextEncoder().encode(pem);
             const ct = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-            const payload = JSON.stringify({ v: 1, iv: b64encode(iv.buffer), data: b64encode(ct) });
+            const payloadObj = {
+                v: 1,
+                iv: b64encode(iv.buffer),
+                data: b64encode(ct),
+                persistent,
+                createdAt: nowSeconds(),
+            };
+            if (persistent) {
+                const metadata = resolvePersistentMetadata(options);
+                payloadObj.ttlSeconds = metadata.ttlSeconds;
+                payloadObj.expiresAt = metadata.expiresAt;
+            }
+            const payload = JSON.stringify(payloadObj);
             writeWrappedPayload(payload, persistent);
             return true;
         } catch (_) {
@@ -158,8 +230,7 @@
         if (!wrapped) return '';
 
         try {
-            const payload = JSON.parse(wrapped.payload);
-            if (!payload || payload.v !== 1 || !payload.iv || !payload.data) return '';
+            const payload = wrapped.payload;
             const key = await getOrCreateDeviceKey();
             const iv = b64decode(payload.iv);
             const ct = b64decode(payload.data);
@@ -167,6 +238,8 @@
             const pem = new TextDecoder().decode(pt);
             if (wrapped.source === 'session' && consumeSession) {
                 removeSessionWrappedPayload();
+            } else if (wrapped.source === 'persistent') {
+                touchPersistentWrappedKey({ ttlSeconds: payload.ttlSeconds });
             }
             return pem;
         } catch (_) {
@@ -181,6 +254,34 @@
 
     function hasWrappedKey() {
         return hasSessionWrappedKey() || hasPersistentWrappedKey();
+    }
+
+    function touchPersistentWrappedKey(options = {}) {
+        const wrapped = readPersistentWrappedPayload();
+        if (!wrapped) return false;
+
+        const explicitExpiresAt = positiveInteger(options.expiresAt ?? options.sessionExpiresAt);
+        if (explicitExpiresAt && explicitExpiresAt <= nowSeconds()) {
+            removePersistentWrappedPayload();
+            return false;
+        }
+
+        const metadata = resolvePersistentMetadata({
+            ttlSeconds: options.ttlSeconds ?? options.sessionAutoLogoutSeconds ?? wrapped.payload.ttlSeconds,
+            expiresAt: explicitExpiresAt,
+        });
+        const nextPayload = {
+            ...wrapped.payload,
+            ttlSeconds: metadata.ttlSeconds,
+            expiresAt: metadata.expiresAt,
+            touchedAt: nowSeconds(),
+        };
+        try {
+            localStorage.setItem(LS_WRAPPED_PERSISTENT, JSON.stringify(nextPayload));
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 
     async function clearWrappedPersistent() {
@@ -200,14 +301,13 @@
         } catch (_) {}
     }
 
-    removePersistentWrappedPayload();
-
     window.deviceKey = {
         wrapPrivateKey,
         unwrapPrivateKey,
         hasWrappedKey,
         hasPersistentWrappedKey,
         hasSessionWrappedKey,
+        touchPersistentWrappedKey,
         clearWrappedPersistent,
         clearWrappedSession,
         clear,

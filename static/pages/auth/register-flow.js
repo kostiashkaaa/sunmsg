@@ -63,6 +63,8 @@ export function initRegisterFlow({
             avatarUrl: '',
         },
         privateKeyPem: '',
+        sessionAutoLogoutSeconds: 0,
+        sessionExpiresAt: 0,
     };
 
     function normalizeWord(value) {
@@ -89,7 +91,9 @@ export function initRegisterFlow({
         }
         try {
             const staged = await stagePrivateKeyForRedirect(pem, {
-                rememberDevice: false,
+                persistent: true,
+                sessionAutoLogoutSeconds: flowState.sessionAutoLogoutSeconds,
+                sessionExpiresAt: flowState.sessionExpiresAt,
                 notify: true,
             });
             return Boolean(staged);
@@ -475,6 +479,8 @@ export function initRegisterFlow({
                 avatarUrl: '',
             };
             flowState.privateKeyPem = privKeyPem;
+            flowState.sessionAutoLogoutSeconds = Number(data.session_auto_logout_seconds || 0) || 0;
+            flowState.sessionExpiresAt = Number(data.session_expires_at || 0) || 0;
 
             setMnemonicToGrid(mnemonic);
             const loginUsernameInput = document.getElementById('login_username');

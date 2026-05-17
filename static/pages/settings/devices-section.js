@@ -100,6 +100,9 @@ export function initDevicesSection({
             const label = selectedOption?.textContent || tr('1 месяц');
             sessionAutoLogoutSummaryEl.textContent = tr('Неактивные устройства будут отключены через:') + ` ${label}`;
         }
+        try {
+            window.sunPrivateKeySession?.touchPersistentKeyFromSession?.(data);
+        } catch (_) {}
     }
 
     async function loadSessionDevices() {
