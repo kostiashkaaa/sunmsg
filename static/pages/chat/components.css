@@ -11858,12 +11858,12 @@
 }
 
 .message {
-    margin-bottom: max(2px, calc(var(--chat-message-gap) - 1px));
+    margin-bottom: var(--chat-message-gap);
 }
 
 .message.group-end,
 .message.group-single {
-    margin-bottom: calc(var(--chat-message-group-gap) + 1px);
+    margin-bottom: var(--chat-message-gap);
 }
 
 .message-row-track {
