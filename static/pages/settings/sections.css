@@ -1044,10 +1044,29 @@
 }
 
 .settings-spotify-logo {
-    width: 22px;
-    height: 22px;
-    color: #1db954;
+    width: 28px;
+    height: 28px;
     flex: 0 0 auto;
+}
+
+.settings-spotify-logo circle,
+.settings-spotify-btn-logo circle,
+.settings-spotify-connected-logo circle {
+    fill: #1db954;
+}
+
+.settings-spotify-logo path,
+.settings-spotify-btn-logo path,
+.settings-spotify-connected-logo path {
+    fill: none;
+    stroke: #06210f;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.settings-spotify-logo path {
+    stroke-width: 1.55;
 }
 
 .settings-spotify-connect-btn {
@@ -1061,6 +1080,21 @@
 
 .settings-spotify-connect-btn:hover {
     background: #1ed760;
+}
+
+.settings-spotify-btn-logo {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+}
+
+.settings-spotify-connect-btn .settings-spotify-btn-logo circle {
+    fill: #06140a;
+}
+
+.settings-spotify-connect-btn .settings-spotify-btn-logo path {
+    stroke: #1db954;
+    stroke-width: 1.8;
 }
 
 .settings-spotify-connected-state {
@@ -1083,6 +1117,11 @@
     border-radius: 50%;
     background: color-mix(in srgb, #1db954 14%, transparent);
     flex: 0 0 auto;
+}
+
+.settings-spotify-connected-logo {
+    width: 30px;
+    height: 30px;
 }
 
 .settings-spotify-connected-label {
