@@ -103,11 +103,6 @@ export function registerMessageStatusSocketHandlers({
         const nodes = resolveDeletedMessageNodes(deletedIds);
         if (!nodes.length) return false;
         nodes.forEach((node) => {
-            const rect = node.getBoundingClientRect?.();
-            const height = Number(rect?.height);
-            if (Number.isFinite(height) && height > 0 && node.style?.setProperty) {
-                node.style.setProperty('--message-removal-height', `${Math.ceil(height)}px`);
-            }
             node.classList.add('message--removing');
         });
         return true;

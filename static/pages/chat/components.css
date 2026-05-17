@@ -2611,8 +2611,6 @@
         }
 
         .message.message--removing {
-            --message-removal-height: 120px;
-            max-height: var(--message-removal-height);
             overflow: hidden;
             pointer-events: none;
             animation: messageRemovalCollapse 220ms var(--ease-quick) forwards;
@@ -2634,25 +2632,21 @@
             0% {
                 opacity: 1;
                 transform: translateY(0) scale(1);
-                filter: none;
             }
             100% {
                 opacity: 0;
                 transform: translateY(-6px) scale(0.96);
-                filter: blur(1px);
             }
         }
 
         @keyframes messageRemovalCollapse {
             0% {
                 opacity: 1;
-                max-height: var(--message-removal-height);
-                margin-bottom: var(--chat-message-gap);
+                transform: translateY(0) scale(1);
             }
             100% {
                 opacity: 0;
-                max-height: 0;
-                margin-bottom: 0;
+                transform: translateY(-6px) scale(0.98);
             }
         }
 
