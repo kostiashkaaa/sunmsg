@@ -75,17 +75,32 @@
             </div>
 
             <div class="header-actions-group header-actions-group--hidden" id="chatHeaderActions">
-                <button class="btn-icon ripple-target call-header-btn call-header-btn--hidden" id="callAudioBtn" title="Голосовой звонок" aria-label="Голосовой звонок">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.63 19.79 19.79 0 01.09 2 2 2 0 012.09 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-                    </svg>
-                </button>
-                <button class="btn-icon ripple-target call-header-btn call-header-btn--hidden" id="callVideoBtn" title="Видеозвонок" aria-label="Видеозвонок">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <polygon points="23 7 16 12 23 17 23 7"/>
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                    </svg>
-                </button>
+                <div class="call-header-btn-wrap call-header-btn--hidden" id="callBtnWrap">
+                    <button class="btn-icon ripple-target call-header-btn-trigger" id="callBtn" title="Позвонить" aria-label="Позвонить" aria-haspopup="true" aria-expanded="false" aria-controls="callDropdown">
+                        <svg width="21" height="21" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+                            <path d="M4.5 2.5C4.5 2.5 2.5 2.5 2.5 4.5C2.5 12.78 9.22 19.5 17.5 19.5C19.5 19.5 19.5 17.5 19.5 17.5L19.5 14.5C19.5 14.5 19.5 13 18 13C17.19 13 16.08 12.66 15.26 12.37C14.67 12.16 14 12.31 13.59 12.72L12.18 14.13C10.06 12.88 8.12 10.94 6.87 8.82L8.28 7.41C8.69 7 8.84 6.33 8.63 5.74C8.34 4.92 8 3.81 8 3C8 1.5 6.5 1.5 6.5 1.5L4.5 1.5Z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="call-type-dropdown" id="callDropdown" role="menu" aria-hidden="true">
+                        <button class="call-type-option" id="callAudioBtn" role="menuitem">
+                            <span class="call-type-icon call-type-icon--audio">
+                                <svg width="15" height="15" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+                                    <path d="M4.5 2.5C4.5 2.5 2.5 2.5 2.5 4.5C2.5 12.78 9.22 19.5 17.5 19.5C19.5 19.5 19.5 17.5 19.5 17.5L19.5 14.5C19.5 14.5 19.5 13 18 13C17.19 13 16.08 12.66 15.26 12.37C14.67 12.16 14 12.31 13.59 12.72L12.18 14.13C10.06 12.88 8.12 10.94 6.87 8.82L8.28 7.41C8.69 7 8.84 6.33 8.63 5.74C8.34 4.92 8 3.81 8 3C8 1.5 6.5 1.5 6.5 1.5L4.5 1.5Z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            Голосовой звонок
+                        </button>
+                        <button class="call-type-option" id="callVideoBtn" role="menuitem">
+                            <span class="call-type-icon call-type-icon--video">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor"/>
+                                    <rect x="1" y="5" width="14" height="14" rx="2.5" fill="currentColor" opacity="0.9"/>
+                                </svg>
+                            </span>
+                            Видеозвонок
+                        </button>
+                    </div>
+                </div>
                 <button class="btn-icon ripple-target" id="searchChatBtn" title="Поиск сообщений" aria-label="Поиск сообщений">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-search"></use></svg>
                 </button>
