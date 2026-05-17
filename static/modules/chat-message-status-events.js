@@ -26,6 +26,7 @@ export function registerMessageStatusSocketHandlers({
     markAllTicksRead,
     onMessagesMarkedRead,
     isGroupChatById = () => false,
+    isChatNearBottom = () => false,
     failPendingMessage = () => {},
     showToast = () => {},
     clearPendingReactionOp = null,
@@ -113,7 +114,8 @@ export function registerMessageStatusSocketHandlers({
         if (!ids.length) return;
         const isCurrentChat = String(data?.chat_id || '') === String(getCurrentChatId() || '');
         const deletedIds = new Set(ids);
-        const renderAnchor = isCurrentChat ? resolveDeleteRenderAnchor(deletedIds) : null;
+        const wasNearBottom = isCurrentChat && Boolean(isChatNearBottom());
+        const renderAnchor = isCurrentChat && !wasNearBottom ? resolveDeleteRenderAnchor(deletedIds) : null;
         const previousScrollTop = currentChatMessagesEl?.scrollTop;
         const previousScrollHeight = currentChatMessagesEl?.scrollHeight;
         const finishDelete = () => {
@@ -122,11 +124,15 @@ export function registerMessageStatusSocketHandlers({
                 dismissTabAlertsForChat(data.chat_id, ids.length);
             }
             if (isCurrentChat) {
-                rerenderCurrentChat(renderAnchor || {
-                    preserveHeightDelta: true,
-                    previousScrollTop,
-                    previousScrollHeight,
-                });
+                rerenderCurrentChat(
+                    wasNearBottom
+                        ? { scrollToBottom: true }
+                        : (renderAnchor || {
+                            preserveHeightDelta: true,
+                            previousScrollTop,
+                            previousScrollHeight,
+                        })
+                );
             }
             loadContacts();
         };
