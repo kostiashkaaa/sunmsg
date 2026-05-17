@@ -11,9 +11,8 @@ function isCoarsePointer() {
  *
  * Keyboard state syncer.
  *
- * Layout must stay native: `.app` keeps `100dvh`, and the browser/viewport
- * handles keyboard resizing. `visualViewport` is used only to expose the
- * informational `mobile-keyboard-active` class for overlay logic.
+ * Layout stays native: `.app` keeps `100dvh`. `visualViewport` only exposes
+ * keyboard state and the overlay inset used by the composer itself.
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
@@ -30,16 +29,18 @@ export function createVisualViewportCssSyncer(_options = {}) {
         if (root.style.getPropertyValue('--app-vw') !== '100%') {
             root.style.setProperty('--app-vw', '100%');
         }
-        if (root.style.getPropertyValue('--vv-keyboard-inset') !== '0px') {
-            root.style.setProperty('--vv-keyboard-inset', '0px');
-        }
-
-        // Detection only; this value must not drive layout height on iOS.
         let keyboardActive = false;
+        let keyboardInset = 0;
         if (vv && isTouchViewport) {
             const vvHeight = roundedPx(vv.height);
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
+            const vvTop = roundedPx(vv.offsetTop);
             keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
+            keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0;
+        }
+        const nextKeyboardInset = `${keyboardInset}px`;
+        if (root.style.getPropertyValue('--vv-keyboard-inset') !== nextKeyboardInset) {
+            root.style.setProperty('--vv-keyboard-inset', nextKeyboardInset);
         }
 
         if (keyboardActive !== lastKeyboardActive) {
