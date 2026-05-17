@@ -8,13 +8,13 @@
 }
 
 .call-header-btn-trigger {
-    color: var(--color-accent, #f59e0b);
+    color: var(--color-icon, rgba(255,255,255,.65));
     transition: color 0.15s, background 0.15s;
 }
 
 .call-header-btn-trigger:hover {
-    background: color-mix(in srgb, var(--color-accent, #f59e0b) 12%, transparent);
-    color: var(--color-accent, #f59e0b);
+    background: var(--color-surface-3, rgba(255,255,255,.07));
+    color: var(--color-text-primary, #e2e8f0);
 }
 
 .call-type-dropdown {
