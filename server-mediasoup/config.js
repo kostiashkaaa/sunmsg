@@ -2,12 +2,25 @@
 
 const os = require('os');
 
+const _DEFAULT_API_SECRET = 'change_me_in_production';
+const _apiSecret = process.env.MEDIASOUP_API_SECRET || _DEFAULT_API_SECRET;
+
+// Fail fast: never run in production with the placeholder API secret — it would
+// let anyone who knows the default forge authenticated requests to the SFU.
+if (process.env.NODE_ENV === 'production' && _apiSecret === _DEFAULT_API_SECRET) {
+  console.error(
+    'FATAL: MEDIASOUP_API_SECRET is unset or still the default placeholder. '
+    + 'Set a strong secret in .env.mediasoup before starting in production.',
+  );
+  process.exit(1);
+}
+
 module.exports = {
   // HTTP API port (internal — not exposed to internet)
   apiPort: parseInt(process.env.MEDIASOUP_API_PORT || '3000', 10),
 
   // Secret shared with Flask for request authentication
-  apiSecret: process.env.MEDIASOUP_API_SECRET || 'change_me_in_production',
+  apiSecret: _apiSecret,
 
   security: {
     // mediasoup terminates WebRTC transport encryption. Require callers to

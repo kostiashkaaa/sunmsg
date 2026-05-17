@@ -138,6 +138,10 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
+        # Expire any stale ringing calls first, so a call the caller never
+        # cancelled does not make them look busy to themselves.
+        mark_missed_calls(conn)
+
         if get_user_active_call(conn, user_id):
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
             return
