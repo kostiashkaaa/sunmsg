@@ -305,7 +305,7 @@ export const initChatPage = async () => {
         || document.body?.dataset?.currentUserId
         || ''
     ).trim();
-    const callsFeatureEnabled = Boolean(bootstrapData?.app?.callsEnabled);
+    let callsFeatureEnabled = Boolean(bootstrapData?.app?.callsEnabled);
     const LAST_ACTIVE_CHAT_STORAGE_KEY = 'sun_last_active_chat_id';
     const CONTACT_USERNAME_PATTERN = /^[a-z0-9_]{1,50}$/;
     const initialUrlSearchParams = new URLSearchParams(browserEnv.getLocationSearch());
@@ -4153,6 +4153,8 @@ export const initChatPage = async () => {
     };
 
     let _currentCallChatId = null;
+    let _currentCallChatIsDirect = false;
+    let _callFeatureAccessRequest = null;
 
     // Resolve chat id: prefer tracked value, fall back to active contact DOM attr
     const _resolveCallChatId = () =>
@@ -4181,11 +4183,41 @@ export const initChatPage = async () => {
         };
     };
 
-    const _startHeaderCall = (callType = 'audio') => {
-        if (!callsFeatureEnabled) {
-            _hideCallButtons();
-            showToast('Звонки доступны только тестовой группе', 'info');
+    const _syncCallButtonState = () => {
+        if (callsFeatureEnabled && _currentCallChatIsDirect && _currentCallChatId) {
+            _showCallButtons();
             return;
+        }
+        _hideCallButtons();
+    };
+
+    const _refreshCallFeatureAccess = async () => {
+        if (_callFeatureAccessRequest) return _callFeatureAccessRequest;
+        _callFeatureAccessRequest = browserEnv.getFetch()('/call/feature-access', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        })
+            .then(async (response) => {
+                if (!response.ok) return;
+                const payload = await response.json();
+                callsFeatureEnabled = Boolean(payload?.calls_enabled);
+                _syncCallButtonState();
+            })
+            .catch(() => {})
+            .finally(() => {
+                _callFeatureAccessRequest = null;
+            });
+        return _callFeatureAccessRequest;
+    };
+
+    const _startHeaderCall = async (callType = 'audio') => {
+        if (!callsFeatureEnabled) {
+            await _refreshCallFeatureAccess();
+            if (!callsFeatureEnabled) {
+                _hideCallButtons();
+                showToast('Звонки доступны только тестовой группе', 'info');
+                return;
+            }
         }
         const chatId = _resolveCallChatId();
         if (chatId) callManager.startCall(chatId, callType, _resolvePartnerInfo());
@@ -4197,50 +4229,60 @@ export const initChatPage = async () => {
 
     // Show button immediately if a direct chat is already open on init
     const _initCallButtonState = () => {
-        if (!callsFeatureEnabled) {
-            _hideCallButtons();
+        const activeItem = document.querySelector('.contact-item.active');
+        if (!activeItem) {
+            _syncCallButtonState();
             return;
         }
-        const activeItem = document.querySelector('.contact-item.active');
-        if (!activeItem) return;
         const isGroup = activeItem.getAttribute('data-is-group') === '1';
         const isSaved = activeItem.getAttribute('data-saved-messages') === '1';
-        if (!isGroup && !isSaved) {
-            _currentCallChatId = activeItem.getAttribute('data-chat-id');
-            _showCallButtons();
-        }
+        _currentCallChatIsDirect = !isGroup && !isSaved;
+        _currentCallChatId = _currentCallChatIsDirect ? activeItem.getAttribute('data-chat-id') : null;
+        _syncCallButtonState();
     };
     // Run after DOM is ready (callManager init happens at end of script)
-    setTimeout(_initCallButtonState, 0);
+    setTimeout(() => {
+        _initCallButtonState();
+        void _refreshCallFeatureAccess();
+    }, 0);
 
     document.addEventListener('sun:chat:opened', (e) => {
         const { chatType, chatId } = e.detail || {};
-        if (chatType === 'direct' && callsFeatureEnabled) {
+        if (chatType === 'direct') {
             _currentCallChatId = chatId || null;
-            _showCallButtons();
+            _currentCallChatIsDirect = Boolean(chatId);
         } else {
             _currentCallChatId = null;
-            _hideCallButtons();
+            _currentCallChatIsDirect = false;
         }
+        _syncCallButtonState();
+        void _refreshCallFeatureAccess();
     });
     document.addEventListener('sun:chat:closed', () => {
         _currentCallChatId = null;
-        _hideCallButtons();
+        _currentCallChatIsDirect = false;
+        _syncCallButtonState();
+    });
+    window.addEventListener('focus', () => {
+        void _refreshCallFeatureAccess();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void _refreshCallFeatureAccess();
     });
 
     _callAudioBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         _closeHeaderCallMenu();
-        _startHeaderCall('audio');
+        void _startHeaderCall('audio');
     });
     _callVideoBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         _closeHeaderCallMenu();
-        _startHeaderCall('video');
+        void _startHeaderCall('video');
     });
     _callBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        _startHeaderCall('audio');
+        void _startHeaderCall('audio');
     });
     // ─────────────────────────────────────────────────────────────────────────
 
