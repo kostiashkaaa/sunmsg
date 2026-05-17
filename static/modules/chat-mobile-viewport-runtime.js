@@ -275,6 +275,26 @@ export function createChatMobileViewportRuntime({
                 setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 350);
             }
         });
+
+        // Opening a chat reveals the composer; on a fresh page load the initial
+        // bindViewportEvents() sync ran while .chat-area was still hidden, so
+        // --input-height was measured as 0 and the message list collapsed under
+        // the composer. Re-sync once the chat is open and again after the
+        // mobile reveal animation settles so the composer is measured for real.
+        documentRef.addEventListener('sun:chat:opened', () => {
+            syncViewportAndInsets({ immediate: true });
+            requestAnimationFrameFn(() => syncViewportAndInsets({ immediate: true }));
+            setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 420);
+        });
+
+        // The emoji sheet changes the composer height via a CSS class toggle.
+        // Recompute the insets explicitly rather than waiting for a viewport
+        // event that may not arrive when the sheet opens without a keyboard.
+        documentRef.addEventListener('sun:emoji-sheet-toggled', () => {
+            updateChatMessagesBottomInset({ immediate: true });
+            requestAnimationFrameFn(() => updateChatMessagesBottomInset({ immediate: true }));
+        });
+
         syncViewportAndInsets({ immediate: true });
     }
 

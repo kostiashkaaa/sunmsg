@@ -2756,14 +2756,12 @@
 
         .message.message-block-load-animate .message-stack > .bubble {
             opacity: 0;
-            transform: translate3d(0, 10px, 0) scale(0.985);
-            transition: opacity 240ms var(--ease-quick), transform 240ms var(--ease-quick);
-            will-change: transform, opacity;
+            transition: opacity 240ms var(--ease-quick);
+            will-change: opacity;
         }
 
         .message.message-block-load-animate.message-block-load-visible .message-stack > .bubble {
             opacity: 1;
-            transform: translate3d(0, 0, 0) scale(1);
         }
 
 
@@ -10005,8 +10003,8 @@
         }
 
         @keyframes reactionRowReveal {
-            0% { opacity: 0.6; transform: translateY(2px); }
-            100% { opacity: 1; transform: translateY(0); }
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
         }
 
 
@@ -12374,20 +12372,17 @@
     animation: reactionRowReveal var(--dur-medium) var(--ease-spring) both;
 }
 
-/* Плавное изменение высоты footer при переключении
-   inside/outside реакций — через max-height анимацию          */
+/* Footer opacity can fade; height changes must apply atomically. */
 .message .bubble > .message-footer {
     transition:
-        opacity var(--dur-quick) var(--ease-quick),
-        max-height var(--dur-medium) var(--ease-spring);
+        opacity var(--dur-quick) var(--ease-quick);
 }
 
-/* bubble--text-has-reactions: плавный переход в grid-layout   */
+/* Text-bubble relayout must not animate padding. */
 .message .bubble.bubble--text {
     transition:
         background var(--dur-quick) var(--ease-quick),
-        border-color var(--dur-quick) var(--ease-quick),
-        padding var(--dur-medium) var(--ease-spring);
+        border-color var(--dur-quick) var(--ease-quick);
 }
 
 /* Новый pill появляется с масштабом, а не скачком             */

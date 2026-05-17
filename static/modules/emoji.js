@@ -167,6 +167,13 @@ function setMobileEmojiSheetState(emojiPicker, isOpen) {
     if (isOpen && shouldPinChatToBottom) {
         pinMobileEmojiChatToBottom(chatArea);
     }
+    // Toggling the sheet class changes the composer height. Notify the viewport
+    // runtime so it recomputes the message-list insets explicitly instead of
+    // relying on a visualViewport resize event that may never fire (e.g. when
+    // the sheet opens without a keyboard hand-off).
+    document.dispatchEvent(new CustomEvent('sun:emoji-sheet-toggled', {
+        detail: { open: Boolean(isOpen) },
+    }));
 }
 
 function clearMobileEmojiSheetState(emojiPicker) {

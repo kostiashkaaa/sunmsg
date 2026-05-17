@@ -1573,7 +1573,7 @@
         padding-left: max(6px, env(safe-area-inset-left, 0px));
         padding-right: max(8px, env(safe-area-inset-right, 0px));
         scrollbar-gutter: auto;
-        --selection-row-bleed-left: 10px;
+        --selection-row-bleed-left: 24px;
         --selection-row-bleed-right: 10px;
     }
 
@@ -1584,15 +1584,8 @@
     .message.self .message-row-track {
         padding-right: var(--chat-mobile-outgoing-edge-offset, 12px);
     }
-    .chat-messages.selecting .message .message-row-track {
-        transform: translateX(10px);
-    }
     .chat-messages.selecting .message .message-row-track::before {
         left: calc(-1 * (var(--selection-marker-size, 18px) - 6px));
-    }
-
-    .chat-messages.selecting {
-        --selection-row-bleed-left: 24px;
     }
 
     .message .bubble.bubble--text {

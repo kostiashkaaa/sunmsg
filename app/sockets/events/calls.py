@@ -1,4 +1,4 @@
-from flask import request, session
+from flask import session
 
 from app.database import get_db_connection
 from app.extensions import socketio
