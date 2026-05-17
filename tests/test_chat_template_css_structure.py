@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / 'templates' / 'chat.html'
+AUTH_TEMPLATE = ROOT / 'templates' / 'index.html'
 STATIC = ROOT / 'static'
 CHAT_CSS = STATIC / 'pages' / 'chat.css'
 
@@ -41,6 +42,13 @@ def test_chat_template_partials_exist() -> None:
     for partial in CHAT_PARTIALS:
         path = ROOT / 'templates' / partial
         assert path.exists(), f'Missing chat partial: {path}'
+
+
+def test_auth_remember_device_control_is_in_primary_login_flow() -> None:
+    src = AUTH_TEMPLATE.read_text(encoding='utf-8')
+
+    assert src.count('id="rememberDeviceCheckbox"') == 1
+    assert src.index('id="rememberDeviceCheckbox"') < src.index('id="loginOtherMethodsDetails"')
 
 
 def test_chat_template_keeps_inline_styles_to_minimum() -> None:
