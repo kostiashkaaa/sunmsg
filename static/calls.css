@@ -184,6 +184,7 @@
     object-fit: cover;
     z-index: 0;
 }
+.call-overlay__remote-audio { display: none; }
 
 .call-overlay__top {
     position: relative;
