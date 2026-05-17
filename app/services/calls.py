@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -7,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 _CALL_STATUSES = {'ringing', 'active', 'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 _CALL_TYPES = {'audio', 'video'}
 _CALL_RING_TIMEOUT_SECONDS = 60
+_CALL_LOG_FINAL_STATUSES = {'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 
 
 def generate_call_id() -> str:
@@ -207,6 +209,9 @@ def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
             ''',
             (call_id,),
         )
+        call = get_call_session(conn, call_id)
+        if call:
+            _create_call_log_message_for_call(conn, call, commit=False)
     if call_ids:
         conn.commit()
     return call_ids
@@ -228,3 +233,140 @@ def get_call_history(conn, chat_id: str, *, limit: int = 50, offset: int = 0) ->
         (chat_id, limit, offset),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def create_call_log_message(conn, call_id: str) -> dict | None:
+    """Persist a chat-visible call card for a finished call and return its socket payload."""
+    call = get_call_session(conn, call_id)
+    if not call:
+        return None
+    return _create_call_log_message_for_call(conn, call, commit=True)
+
+
+def _create_call_log_message_for_call(conn, call: dict, *, commit: bool) -> dict | None:
+    call_id = str(call.get('call_id') or '').strip()
+    chat_id = str(call.get('chat_id') or '').strip()
+    status = str(call.get('status') or '').strip()
+    if not call_id or not chat_id or status not in _CALL_LOG_FINAL_STATUSES:
+        return None
+
+    if _call_log_message_exists(conn, call_id):
+        return None
+
+    initiator_id = int(call.get('initiator_id') or 0)
+    if initiator_id <= 0:
+        return None
+
+    message_text = json.dumps(
+        {
+            '__suncall': True,
+            'version': 1,
+            'call_id': call_id,
+            'call_type': str(call.get('call_type') or 'audio'),
+            'status': status,
+            'initiator_id': initiator_id,
+            'duration_sec': _safe_int(call.get('duration_sec')),
+            'started_at': _safe_text(call.get('started_at')),
+            'ended_at': _safe_text(call.get('ended_at')),
+        },
+        ensure_ascii=False,
+        separators=(',', ':'),
+    )
+    receiver_id = _resolve_direct_call_receiver_id(conn, chat_id, initiator_id)
+    row = conn.execute(
+        '''
+        INSERT INTO messages (
+            chat_id, sender_id, receiver_id, message, message_type,
+            is_delivered, created_at
+        )
+        VALUES (?, ?, ?, ?, 'call', 1, CURRENT_TIMESTAMP)
+        RETURNING id, created_at
+        ''',
+        (chat_id, initiator_id, receiver_id, message_text),
+    ).fetchone()
+    if commit:
+        conn.commit()
+    if row is None:
+        return None
+
+    sender = _get_call_sender_identity(conn, initiator_id)
+    return {
+        'id': row['id'],
+        'chat_id': chat_id,
+        'sender_user_id': initiator_id,
+        'sender_public_key': sender['public_key'],
+        'sender_display_name': sender['display_name'],
+        'sender_username': sender['username'],
+        'sender_avatar_url': sender['avatar_url'],
+        'message': message_text,
+        'message_type': 'call',
+        'is_read': False,
+        'is_delivered': True,
+        'voice_listened_by_partner': False,
+        'created_at': _safe_text(row['created_at']),
+        'reactions': [],
+    }
+
+
+def _call_log_message_exists(conn, call_id: str) -> bool:
+    needle = f'%"call_id":"{call_id}"%'
+    row = conn.execute(
+        '''
+        SELECT 1 FROM messages
+        WHERE message_type = 'call' AND message LIKE ?
+        LIMIT 1
+        ''',
+        (needle,),
+    ).fetchone()
+    return row is not None
+
+
+def _resolve_direct_call_receiver_id(conn, chat_id: str, initiator_id: int) -> int | None:
+    row = conn.execute(
+        '''
+        SELECT contact_id FROM contacts
+        WHERE chat_id = ? AND user_id = ?
+        LIMIT 1
+        ''',
+        (chat_id, initiator_id),
+    ).fetchone()
+    if row is None:
+        return None
+    receiver_id = int(row['contact_id'] or 0)
+    return receiver_id if receiver_id > 0 else None
+
+
+def _get_call_sender_identity(conn, user_id: int) -> dict:
+    row = conn.execute(
+        '''
+        SELECT public_key, display_name, username, avatar_url
+        FROM users
+        WHERE id = ?
+        ''',
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return {
+            'public_key': '',
+            'display_name': '',
+            'username': '',
+            'avatar_url': '',
+        }
+    return {
+        'public_key': _safe_text(row['public_key']),
+        'display_name': _safe_text(row['display_name']),
+        'username': _safe_text(row['username']),
+        'avatar_url': _safe_text(row['avatar_url']),
+    }
+
+
+def _safe_text(value) -> str:
+    return str(value or '')
+
+
+def _safe_int(value) -> int:
+    try:
+        parsed = int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, parsed)

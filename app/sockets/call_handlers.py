@@ -5,6 +5,7 @@ import logging
 from app.services.calls import (
     accept_call,
     cancel_call,
+    create_call_log_message,
     create_call_session,
     end_call,
     generate_call_id,
@@ -65,6 +66,22 @@ def _refresh_stale_ringing_call(conn, call: dict | None) -> dict | None:
         return call
     mark_missed_calls(conn, call['chat_id'])
     return get_call_session(conn, call['call_id'])
+
+
+def _emit_call_log_message(conn, call_id: str, emit_func, recipient_user_ids) -> None:
+    payload = create_call_log_message(conn, call_id)
+    if not payload:
+        return
+    seen = set()
+    for raw_user_id in recipient_user_ids:
+        try:
+            user_id = int(raw_user_id)
+        except (TypeError, ValueError):
+            continue
+        if user_id <= 0 or user_id in seen:
+            continue
+        seen.add(user_id)
+        emit_func('receive_message', payload, to=f'user_{user_id}')
 
 
 # ── Lifecycle handlers ────────────────────────────────────────────────────────
@@ -220,6 +237,7 @@ def handle_call_reject(
             return
         if not reject_call(conn, call_id):
             return
+        _emit_call_log_message(conn, call_id, emit_func, (user_id, call['initiator_id']))
         emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id},
                   to=f'user_{call["initiator_id"]}')
         emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
@@ -252,6 +270,8 @@ def handle_call_cancel(
             return
         if not cancel_call(conn, call_id):
             return
+        recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
+        _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
         for pid in _chat_members(conn, call['chat_id'], user_id):
             emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
         emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id})
@@ -288,6 +308,8 @@ def handle_call_end(
             return
         updated  = get_call_session(conn, call_id)
         duration = updated['duration_sec'] if updated else None
+        recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
+        _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
 
         for pid in _chat_members(conn, call['chat_id'], user_id):
             emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id, 'duration_sec': duration},

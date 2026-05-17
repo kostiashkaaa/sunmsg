@@ -24,7 +24,7 @@ export class CallMedia {
     async acquireVideo() {
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+            video: this._videoConstraints(),
         });
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
@@ -52,6 +52,30 @@ export class CallMedia {
         this._videoEnabled = !this._videoEnabled;
         this._videoTrack.enabled = this._videoEnabled;
         return this._videoEnabled;
+    }
+
+    async enableVideo() {
+        if (this._videoTrack) {
+            this._videoEnabled = true;
+            this._videoTrack.enabled = true;
+            return this._videoTrack;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: this._videoConstraints(),
+        });
+        const newTrack = stream.getVideoTracks()[0] || null;
+        stream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
+        if (!newTrack) return null;
+
+        if (!this._localStream) {
+            this._localStream = new MediaStream();
+        }
+        this._localStream.addTrack(newTrack);
+        this._videoTrack = newTrack;
+        this._videoEnabled = true;
+        return newTrack;
     }
 
     async switchCamera() {
@@ -90,5 +114,9 @@ export class CallMedia {
         this._videoTrack = null;
         this._audioMuted = false;
         this._videoEnabled = false;
+    }
+
+    _videoConstraints() {
+        return { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
     }
 }

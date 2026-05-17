@@ -183,6 +183,17 @@ export class CallWebRTC {
         if (sender) sender.replaceTrack(newTrack);
     }
 
+    addVideoTrack(newTrack, stream = this._localStream) {
+        if (!this._pc || !newTrack) return;
+        const sender = this._pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+            sender.replaceTrack(newTrack);
+            return;
+        }
+        const targetStream = stream || this._localStream || new MediaStream([newTrack]);
+        this._pc.addTrack(newTrack, targetStream);
+    }
+
     async _updateVerificationCode() {
         const localFingerprint = _extractDtlsFingerprint(this._pc?.localDescription?.sdp);
         const remoteFingerprint = _extractDtlsFingerprint(this._pc?.remoteDescription?.sdp);

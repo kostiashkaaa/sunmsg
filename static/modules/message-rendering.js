@@ -8,6 +8,7 @@ import {
     renderMessagePreviewHtml,
     applyEmojiGraphics,
     parseSunFilePayload,
+    parseSunCallPayload,
     resolveMessageDisplayText,
 } from './utils.js';
 import { renderMessageLinkPreview } from './message-link-preview.js';
@@ -781,6 +782,41 @@ function buildFileBubble(filePayload) {
     };
 }
 
+function buildCallBubble(callPayload, { isSelf = false } = {}) {
+    const callType = String(callPayload?.call_type || 'audio');
+    const status = String(callPayload?.status || '').trim();
+    const duration = Number(callPayload?.duration_sec) || 0;
+    const isVideo = callType === 'video';
+    const title = isSelf
+        ? (isVideo ? 'Исходящий видеозвонок' : 'Исходящий звонок')
+        : (isVideo ? 'Входящий видеозвонок' : 'Входящий звонок');
+    const isCompleted = status === 'ended';
+    const detail = isCompleted
+        ? formatMediaDuration(duration)
+        : (status === 'cancelled' ? 'Отменён' : 'Пропущен');
+    const detailClass = isCompleted ? '' : ' call-message-card__detail--missed';
+    const directionIcon = isSelf
+        ? '<path d="M7 17L17 7M10 7h7v7" />'
+        : '<path d="M17 7L7 17M7 10v7h7" />';
+    const mediaIcon = isVideo
+        ? '<path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/><rect x="2" y="6" width="13" height="12" rx="2.5" fill="currentColor" stroke="none"/>'
+        : '<path d="M4.5 2.5s-2 0-2 2c0 8.28 6.72 15 15 15 2 0 2-2 2-2v-3s0-1.5-1.5-1.5c-.81 0-1.92-.34-2.74-.63-.59-.21-1.26-.06-1.67.35l-1.41 1.41c-2.12-1.25-4.06-3.19-5.31-5.31l1.41-1.41c.41-.41.56-1.08.35-1.67C8.34 4.92 8 3.81 8 3c0-1.5-1.5-1.5-1.5-1.5h-2z" fill="currentColor" stroke="none"/>';
+
+    return `
+        <div class="call-message-card">
+            <span class="call-message-card__icon" aria-hidden="true">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${mediaIcon}</svg>
+            </span>
+            <span class="call-message-card__body">
+                <span class="call-message-card__title">${escapeHtml(title)}</span>
+                <span class="call-message-card__detail${detailClass}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${directionIcon}</svg>
+                    ${escapeHtml(detail)}
+                </span>
+            </span>
+        </div>`;
+}
+
 // ?? Main element builder ??????????????????????????????????????????????????????
 
 export function buildMessageElement(msg, layout = {}, context = {}) {
@@ -898,7 +934,8 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         : '';
 
     // File or text bubble
-    const filePayload = parseSunFilePayload(rawMessageText);
+    const callPayload = msg.message_type === 'call' ? parseSunCallPayload(rawMessageText) : null;
+    const filePayload = callPayload ? null : parseSunFilePayload(rawMessageText);
 
     let bubbleClass = 'bubble';
     let bubbleContent;
@@ -908,7 +945,10 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     let audioListenedByPartner = false;
     let isVisualMediaPayload = false;
     let hasVisualMediaCaption = false;
-    if (filePayload) {
+    if (callPayload) {
+        bubbleClass += ' bubble--call';
+        bubbleContent = buildCallBubble(callPayload, { isSelf });
+    } else if (filePayload) {
         const result = buildFileBubble(filePayload);
         bubbleClass  = result.bubbleClass;
         bubbleContent = result.content;
@@ -1006,7 +1046,7 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         </div>`;
     applyCspSafeMessageStyles(messageDiv);
 
-    if (!filePayload) {
+    if (!filePayload && !callPayload) {
         const textEl = messageDiv.querySelector('.message-text');
         const messageText = displayMessageText;
         if (textEl) {
