@@ -25,6 +25,13 @@
 // well-behaved peer trickles a few dozen; an unbounded queue lets a malicious
 // participant exhaust memory by flooding call_ice_candidate.
 const MAX_PENDING_ICE_CANDIDATES = 100;
+const SEND_QUALITY_ORDER = { poor: 0, fair: 1, good: 2 };
+const SEND_QUALITY_UPGRADE_SAMPLES = 3;
+const SEND_QUALITY_PROFILES = Object.freeze({
+    good: { maxBitrate: 900_000, scaleResolutionDownBy: 1, maxFramerate: 24 },
+    fair: { maxBitrate: 450_000, scaleResolutionDownBy: 2, maxFramerate: 15 },
+    poor: { maxBitrate: 180_000, scaleResolutionDownBy: 4, maxFramerate: 10 },
+});
 
 export class CallWebRTC {
     /**
@@ -55,6 +62,10 @@ export class CallWebRTC {
         this._pendingIceCandidates = [];
         this._statsTimer = null;
         this._lastInboundStats = new Map();
+        this._sendQualityLevel = '';
+        this._pendingSendQualityLevel = '';
+        this._pendingSendQualitySamples = 0;
+        this._sendProfileUpdate = Promise.resolve();
     }
 
     // ── Setup ────────────────────────────────────────────────────────────────
@@ -210,7 +221,10 @@ export class CallWebRTC {
 
     async replaceVideoTrack(newTrack) {
         const sender = this._pc?.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) await sender.replaceTrack(newTrack);
+        if (sender) {
+            await sender.replaceTrack(newTrack);
+            this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
+        }
     }
 
     async replaceAudioTrack(newTrack) {
@@ -223,10 +237,12 @@ export class CallWebRTC {
         const sender = this._pc.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
             await sender.replaceTrack(newTrack);
+            this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
             return;
         }
         const targetStream = stream || this._localStream || new MediaStream([newTrack]);
         this._pc.addTrack(newTrack, targetStream);
+        this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
     }
 
     async _updateVerificationCode() {
@@ -260,6 +276,7 @@ export class CallWebRTC {
         let jitterMs = 0;
         let rttMs = 0;
         let hasInbound = false;
+        let remoteLossPercent = 0;
 
         stats.forEach((report) => {
             if (report.type === 'inbound-rtp' && !report.isRemote) {
@@ -277,8 +294,11 @@ export class CallWebRTC {
                 }
                 this._lastInboundStats.set(key, { lost, received });
                 jitterMs = Math.max(jitterMs, Number(report.jitter || 0) * 1000);
-            } else if (report.type === 'remote-inbound-rtp' && report.roundTripTime != null) {
-                rttMs = Math.max(rttMs, Number(report.roundTripTime || 0) * 1000);
+            } else if (report.type === 'remote-inbound-rtp') {
+                if (report.roundTripTime != null) {
+                    rttMs = Math.max(rttMs, Number(report.roundTripTime || 0) * 1000);
+                }
+                remoteLossPercent = Math.max(remoteLossPercent, _remoteLossPercent(report));
             } else if (
                 report.type === 'candidate-pair'
                 && (report.nominated || report.selected)
@@ -296,7 +316,77 @@ export class CallWebRTC {
             : packetLossPercent >= 2 || rttMs >= 250 || jitterMs >= 40
                 ? 'fair'
                 : 'good';
-        this._onQualityStats({ level, packetLossPercent, rttMs, jitterMs });
+        const sendLevel = _worseQualityLevel(level, _qualityLevel(remoteLossPercent, rttMs, 0));
+        this._queueAdaptiveSendProfile(sendLevel);
+        this._onQualityStats({ level, sendLevel, packetLossPercent, remoteLossPercent, rttMs, jitterMs });
+    }
+
+    _queueAdaptiveSendProfile(level) {
+        if (!(level in SEND_QUALITY_PROFILES)) return;
+        if (level === this._sendQualityLevel) {
+            this._pendingSendQualityLevel = '';
+            this._pendingSendQualitySamples = 0;
+            return;
+        }
+
+        const currentOrder = SEND_QUALITY_ORDER[this._sendQualityLevel] ?? SEND_QUALITY_ORDER.good;
+        const nextOrder = SEND_QUALITY_ORDER[level];
+        const isDowngrade = !this._sendQualityLevel || nextOrder < currentOrder;
+        if (!isDowngrade) {
+            if (this._pendingSendQualityLevel !== level) {
+                this._pendingSendQualityLevel = level;
+                this._pendingSendQualitySamples = 1;
+                return;
+            }
+            this._pendingSendQualitySamples += 1;
+            if (this._pendingSendQualitySamples < SEND_QUALITY_UPGRADE_SAMPLES) return;
+        }
+
+        this._pendingSendQualityLevel = '';
+        this._pendingSendQualitySamples = 0;
+        this._sendProfileUpdate = this._sendProfileUpdate
+            .catch(() => {})
+            .then(() => this._applyAdaptiveSendProfile(level));
+    }
+
+    async _applyAdaptiveSendProfile(level) {
+        const profile = SEND_QUALITY_PROFILES[level];
+        const sender = this._pc?.getSenders().find(s => s.track?.kind === 'video');
+        if (!profile || !sender?.track || typeof sender.setParameters !== 'function') {
+            this._sendQualityLevel = level;
+            return;
+        }
+
+        const params = sender.getParameters?.() || {};
+        const encodings = Array.isArray(params.encodings) && params.encodings.length > 0
+            ? params.encodings
+            : [{}];
+        const firstEncoding = encodings[0] || {};
+        if (
+            firstEncoding.maxBitrate === profile.maxBitrate
+            && firstEncoding.scaleResolutionDownBy === profile.scaleResolutionDownBy
+            && firstEncoding.maxFramerate === profile.maxFramerate
+        ) {
+            this._sendQualityLevel = level;
+            return;
+        }
+
+        params.encodings = [
+            {
+                ...firstEncoding,
+                maxBitrate: profile.maxBitrate,
+                scaleResolutionDownBy: profile.scaleResolutionDownBy,
+                maxFramerate: profile.maxFramerate,
+            },
+            ...encodings.slice(1),
+        ];
+
+        try {
+            await sender.setParameters(params);
+            this._sendQualityLevel = level;
+        } catch (err) {
+            console.warn('[CallWebRTC] adaptive send profile failed', err);
+        }
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────────
@@ -311,7 +401,35 @@ export class CallWebRTC {
         this._localStream = null;
         this._pendingIceCandidates = [];
         this._lastInboundStats.clear();
+        this._sendQualityLevel = '';
+        this._pendingSendQualityLevel = '';
+        this._pendingSendQualitySamples = 0;
+        this._sendProfileUpdate = Promise.resolve();
     }
+}
+
+function _remoteLossPercent(report) {
+    if (report.fractionLost != null) {
+        const fractionLost = Number(report.fractionLost);
+        if (Number.isFinite(fractionLost)) {
+            return Math.max(0, fractionLost <= 1 ? fractionLost * 100 : fractionLost);
+        }
+    }
+
+    const lost = Number(report.packetsLost || 0);
+    const received = Number(report.packetsReceived || 0);
+    const total = lost + received;
+    return total > 0 ? Math.max(0, lost / total * 100) : 0;
+}
+
+function _qualityLevel(packetLossPercent, rttMs, jitterMs) {
+    if (packetLossPercent >= 5 || rttMs >= 400 || jitterMs >= 80) return 'poor';
+    if (packetLossPercent >= 2 || rttMs >= 250 || jitterMs >= 40) return 'fair';
+    return 'good';
+}
+
+function _worseQualityLevel(left, right) {
+    return SEND_QUALITY_ORDER[left] <= SEND_QUALITY_ORDER[right] ? left : right;
 }
 
 function _extractDtlsFingerprint(sdp) {
