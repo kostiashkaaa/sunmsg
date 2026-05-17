@@ -448,9 +448,80 @@
     white-space: nowrap;
 }
 .call-overlay__verify {
-    pointer-events: none;
+    pointer-events: auto;
 }
 .call-overlay__verify[hidden] { display: none; }
+
+.call-verify__label,
+.call-verify__code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.call-verify__code {
+    margin-left: 2px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.call-verify__hint {
+    width: 22px;
+    height: 22px;
+    margin-left: 7px;
+    border: 1px solid rgba(255,255,255,.26);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: help;
+}
+
+.call-verify__hint svg {
+    width: 14px;
+    height: 14px;
+}
+
+.call-remote-muted {
+    position: absolute;
+    top: 14px;
+    left: 58px;
+    z-index: 4;
+    max-width: calc(100% - 72px);
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.40);
+    color: rgba(255,255,255,.90);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.15;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.call-remote-muted[hidden] {
+    display: none;
+}
+
+.call-remote-muted svg {
+    flex: 0 0 auto;
+}
+
+.call-remote-muted span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 .call-overlay__local-video {
     position: absolute;
@@ -726,7 +797,8 @@
     .call-overlay--minimized .call-topbar {
         left: 0;
         width: 100vw;
-        height: 52px;
+        height: calc(52px + env(safe-area-inset-top, 0px));
+        padding-top: env(safe-area-inset-top, 0px);
         display: grid;
         cursor: pointer;
         background: color-mix(in srgb, var(--call-surface-2) 94%, var(--call-role-accent) 20%);
@@ -746,6 +818,10 @@
     }
     .call-overlay--minimized .call-card {
         display: none;
+    }
+    html.call-minimized-active .chat-area.mobile-open,
+    html.call-minimized-active .sidebar {
+        padding-top: var(--call-mobile-topbar-offset, 52px);
     }
     .call-topbar__state {
         gap: 8px;

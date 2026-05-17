@@ -10,6 +10,7 @@ let callDurationTimer = 0;
 let callDurationStartedAt = 0;
 let callTopbarResizeHandler = null;
 let callTopbarViewportHandler = null;
+let callMobileTopbarResizeHandler = null;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
@@ -313,16 +314,19 @@ export function showActiveCallOverlay({
     overlay.querySelector('#call-minimize-btn')?.addEventListener('click', (event) => {
         event.stopPropagation();
         overlay.classList.add('call-overlay--minimized');
+        _setCallMobileTopbarReserve(true, overlay);
     });
     overlay.querySelector('#call-topbar')?.addEventListener('click', (event) => {
         if (event.target.closest('.call-topbar__end')) return;
         overlay.classList.remove('call-overlay--minimized');
+        _setCallMobileTopbarReserve(false, overlay);
     });
 }
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
     _setSpeakerMode(false);
     _setCallTopbarActive(false);
+    _setCallMobileTopbarReserve(false);
     stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
@@ -555,6 +559,46 @@ function _setCallTopbarActive(active, overlay = _currentOverlay()) {
         callTopbarViewportHandler = syncOffset;
         window.visualViewport?.addEventListener?.('resize', callTopbarViewportHandler);
         window.visualViewport?.addEventListener?.('scroll', callTopbarViewportHandler);
+    }
+}
+
+function _setCallMobileTopbarReserve(active, overlay = _currentOverlay()) {
+    const root = document.documentElement;
+    if (!root) return;
+
+    const clearReserve = () => {
+        root.classList.remove('call-minimized-active');
+        root.style.removeProperty('--call-mobile-topbar-offset');
+        if (callMobileTopbarResizeHandler) {
+            window.removeEventListener('resize', callMobileTopbarResizeHandler);
+            window.visualViewport?.removeEventListener?.('resize', callMobileTopbarResizeHandler);
+            callMobileTopbarResizeHandler = null;
+        }
+    };
+
+    if (!active || !_isMobileCallUi()) {
+        clearReserve();
+        return;
+    }
+
+    const syncOffset = () => {
+        if (!overlay?.isConnected || !overlay.classList.contains('call-overlay--minimized') || !_isMobileCallUi()) {
+            clearReserve();
+            return;
+        }
+        const topbar = overlay.querySelector('#call-topbar');
+        const height = Math.ceil(topbar?.getBoundingClientRect?.().height || 52);
+        root.style.setProperty('--call-mobile-topbar-offset', `${height}px`);
+        root.classList.add('call-minimized-active');
+    };
+
+    syncOffset();
+    requestAnimationFrame(syncOffset);
+
+    if (!callMobileTopbarResizeHandler) {
+        callMobileTopbarResizeHandler = syncOffset;
+        window.addEventListener('resize', callMobileTopbarResizeHandler);
+        window.visualViewport?.addEventListener?.('resize', callMobileTopbarResizeHandler);
     }
 }
 
