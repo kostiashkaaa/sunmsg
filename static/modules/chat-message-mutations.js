@@ -1,5 +1,6 @@
 import { runMessageStateMotion } from './message-action-motion.js';
 import { isLikelyVoiceAudioPayload } from './message-rendering.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 export function createChatMessageMutations({
     documentRef,
@@ -28,6 +29,11 @@ export function createChatMessageMutations({
     const win = windowRef || window;
 
     function updateMessageContent(msgDiv, plainText, isRedecrypt = false) {
+        if (!msgDiv) return;
+        return withStableChatScroll(msgDiv, () => updateMessageContentUnstable(msgDiv, plainText, isRedecrypt));
+    }
+
+    function updateMessageContentUnstable(msgDiv, plainText, isRedecrypt = false) {
         if (!msgDiv) return;
 
         let filePayload = null;
