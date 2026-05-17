@@ -23,8 +23,6 @@ export function createChatAttachMenuController(deps = {}) {
     const attachMenuController = initAttachMenuPortal({ attachMenu, trigger: attachBtn });
     let suppressNextAttachClick = false;
     let suppressNextAttachClickTimer = 0;
-    let suppressNextMenuItemClick = false;
-    let suppressNextMenuItemClickTimer = 0;
     let restoreComposerFocusAfterPicker = false;
 
     function resolveAttachMode(value) {
@@ -105,23 +103,6 @@ export function createChatAttachMenuController(deps = {}) {
         }, 700);
     }
 
-    function suppressSyntheticMenuItemClick() {
-        suppressNextMenuItemClick = true;
-        if (suppressNextMenuItemClickTimer) window.clearTimeout(suppressNextMenuItemClickTimer);
-        suppressNextMenuItemClickTimer = window.setTimeout(() => {
-            suppressNextMenuItemClick = false;
-            suppressNextMenuItemClickTimer = 0;
-        }, 700);
-    }
-
-    function clearMenuItemClickSuppression() {
-        suppressNextMenuItemClick = false;
-        if (suppressNextMenuItemClickTimer) {
-            window.clearTimeout(suppressNextMenuItemClickTimer);
-            suppressNextMenuItemClickTimer = 0;
-        }
-    }
-
     function restoreComposerFocusIfNeeded() {
         if (!restoreComposerFocusAfterPicker) return;
         restoreComposerFocusAfterPicker = false;
@@ -141,8 +122,12 @@ export function createChatAttachMenuController(deps = {}) {
         if (!fileAttachInput) return;
         restoreComposerFocusAfterPicker = isMessageInputActive();
         applyAttachInputMode(mode);
-        closeAttachMenu();
+        // Open the native file dialog FIRST, while we are still inside the
+        // trusted click gesture, then close the menu. Closing first is also
+        // fine (it only toggles classes) but opening first is the safest order
+        // for the iOS user-gesture requirement.
         fileAttachInput.click();
+        closeAttachMenu();
     }
 
     // Wiring
@@ -171,27 +156,19 @@ export function createChatAttachMenuController(deps = {}) {
     });
 
     attachMenuItems.forEach((item) => {
-        // On touch devices act on pointerdown and preventDefault: this stops
-        // iOS from dismissing the keyboard (which would shift the layout and
-        // make the follow-up click land outside the moved menu item — the
-        // "buttons don't work" bug). It no longer depends on the input being
-        // focused, so the items work whether or not the keyboard is open.
+        // IMPORTANT: the file dialog (fileAttachInput.click()) must be opened
+        // from inside a trusted CLICK handler. Calling it from pointerdown —
+        // especially after preventDefault — breaks the user-gesture chain on
+        // iOS Safari and the dialog silently never appears ("buttons don't
+        // work"). So the actual trigger lives only in the click handler.
+        // pointerdown just stops propagation so the document-level
+        // close-on-pointerdown listener does not close the menu first.
         item.addEventListener('pointerdown', (event) => {
-            if (!isMobileComposerPointer(event)) return;
-            event.preventDefault();
             event.stopPropagation();
-            suppressSyntheticMenuItemClick();
-            const mode = item.getAttribute('data-attach-mode') || ATTACH_MODE_FILE;
-            triggerAttachPicker(mode);
         });
 
         item.addEventListener('click', (event) => {
-            event.preventDefault();
             event.stopPropagation();
-            if (suppressNextMenuItemClick) {
-                clearMenuItemClickSuppression();
-                return;
-            }
             const mode = item.getAttribute('data-attach-mode') || ATTACH_MODE_FILE;
             triggerAttachPicker(mode);
         });

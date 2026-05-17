@@ -800,14 +800,19 @@ export function initEmojiPicker(messageInput) {
         // pushing the composer underneath it. Instant collapse makes the flex
         // column correct before the keyboard animates in.
         if (keyboardComing) {
+            const chatArea = resolveEmojiChatArea(emojiPicker);
             emojiPicker.classList.add('is-closing-instant');
+            // Explicit class on .chat-area kills the composer transform
+            // transition without relying on :has() support.
+            chatArea?.classList.add('emoji-sheet-instant');
             clearMobileEmojiSheetState(emojiPicker);
             if (focusInput) focusComposerInput();
-            // Drop the helper class on the next frame once layout has settled.
+            // Drop the helper classes on the next frame once layout has settled.
             window.requestAnimationFrame(() => {
                 window.requestAnimationFrame(() => {
                     if (closeSeq !== emojiCloseSeq) return;
                     emojiPicker.classList.remove('is-closing-instant');
+                    chatArea?.classList.remove('emoji-sheet-instant');
                 });
             });
             return;
@@ -937,6 +942,25 @@ export function initEmojiPicker(messageInput) {
         event.preventDefault();
         await onCategoryClick(categoryButton);
     });
+
+    // Immediate tactile feedback: pop the emoji the moment the finger lands,
+    // before the (slightly later) click that actually inserts it.
+    const playEmojiTapFeedback = (itemButton) => {
+        if (!itemButton) return;
+        itemButton.classList.remove('emoji-item--tapped');
+        // Force reflow so the animation restarts on rapid repeated taps.
+        void itemButton.offsetWidth;
+        itemButton.classList.add('emoji-item--tapped');
+        window.setTimeout(() => {
+            itemButton.classList.remove('emoji-item--tapped');
+        }, 300);
+    };
+
+    emojiList.addEventListener('pointerdown', (event) => {
+        const itemButton = event.target.closest('.emoji-item');
+        if (!itemButton || !emojiList.contains(itemButton)) return;
+        playEmojiTapFeedback(itemButton);
+    }, { passive: true });
 
     emojiList.addEventListener('click', (event) => {
         const itemButton = event.target.closest('.emoji-item');

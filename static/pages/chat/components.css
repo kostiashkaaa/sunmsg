@@ -3540,12 +3540,14 @@
             transform: none;
             align-self: center;
             margin-bottom: 0;
+            -webkit-tap-highlight-color: transparent;
+            /* Fast in (press feels instant), gentle out (no abrupt flash). */
             transition:
-                color var(--dur-quick) var(--ease-quick),
-                background var(--dur-quick) var(--ease-quick),
-                border-color var(--dur-quick) var(--ease-quick),
-                transform var(--dur-quick) var(--ease-quick),
-                box-shadow var(--dur-quick) var(--ease-quick);
+                color 90ms var(--ease-quick),
+                background 90ms var(--ease-quick),
+                border-color 120ms var(--ease-quick),
+                transform 120ms var(--ease-spring),
+                box-shadow 120ms var(--ease-quick);
         }
 
 
