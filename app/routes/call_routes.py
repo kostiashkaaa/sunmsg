@@ -78,3 +78,19 @@ def ice_config():
         'turn_configured': bool(turn_secret and turn_urls),
         'turn_urls_count': len(turn_urls),
     })
+
+
+@call_bp.route('/feature-access', methods=['GET'])
+@limiter.limit('60 per minute')
+def feature_access():
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthenticated'}), 401
+
+    user_id = int(session['user_id'])
+    conn = get_db_connection()
+    try:
+        calls_enabled = can_user_use_calls(conn, user_id=user_id)
+    finally:
+        conn.close()
+
+    return jsonify({'calls_enabled': calls_enabled})
