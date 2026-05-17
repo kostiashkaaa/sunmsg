@@ -25,6 +25,8 @@ const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
 const EMOJI_CLOSE_ANIMATION_MS = 240;
 const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;
 const MOBILE_EMOJI_TAP_CANCEL_PX = 10;
+const MOBILE_KEYBOARD_HANDOFF_DELTA_PX = 24;
+const MOBILE_KEYBOARD_HANDOFF_MAX_MS = 900;
 const CATEGORY_SCROLL_SYNC_OFFSET = 24;
 
 const EMOJI_INLINE_KEYWORDS = {
@@ -802,19 +804,45 @@ export function initEmojiPicker(messageInput) {
         // column correct before the keyboard animates in.
         if (keyboardComing) {
             const chatArea = resolveEmojiChatArea(emojiPicker);
+            const visualViewport = window.visualViewport;
+            const startViewportHeight = Number(visualViewport?.height || window.innerHeight || 0);
+            let handoffTimer = 0;
             emojiPicker.classList.add('is-closing-instant');
-            // Explicit class on .chat-area kills the composer transform
-            // transition without relying on :has() support.
-            chatArea?.classList.add('emoji-sheet-instant');
+            chatArea?.classList.add('emoji-sheet-keyboard-handoff');
+            document.documentElement.classList.add('mobile-emoji-keyboard-handoff');
             clearMobileEmojiSheetState(emojiPicker);
             if (focusInput) focusComposerInput();
-            // Drop the helper classes on the next frame once layout has settled.
+
+            const releaseKeyboardHandoff = () => {
+                if (closeSeq !== emojiCloseSeq) return;
+                if (handoffTimer) {
+                    window.clearTimeout(handoffTimer);
+                    handoffTimer = 0;
+                }
+                visualViewport?.removeEventListener('resize', maybeReleaseKeyboardHandoff);
+                visualViewport?.removeEventListener('scroll', maybeReleaseKeyboardHandoff);
+                emojiPicker.classList.remove('is-closing-instant');
+                chatArea?.classList.remove('emoji-sheet-keyboard-handoff');
+                document.documentElement.classList.remove('mobile-emoji-keyboard-handoff');
+            };
+
+            function maybeReleaseKeyboardHandoff() {
+                if (closeSeq !== emojiCloseSeq) return;
+                const currentViewportHeight = Number(visualViewport?.height || window.innerHeight || 0);
+                if (
+                    !startViewportHeight
+                    || currentViewportHeight <= startViewportHeight - MOBILE_KEYBOARD_HANDOFF_DELTA_PX
+                    || document.activeElement !== messageInput
+                ) {
+                    releaseKeyboardHandoff();
+                }
+            }
+
+            visualViewport?.addEventListener('resize', maybeReleaseKeyboardHandoff, { passive: true });
+            visualViewport?.addEventListener('scroll', maybeReleaseKeyboardHandoff, { passive: true });
+            handoffTimer = window.setTimeout(releaseKeyboardHandoff, MOBILE_KEYBOARD_HANDOFF_MAX_MS);
             window.requestAnimationFrame(() => {
-                window.requestAnimationFrame(() => {
-                    if (closeSeq !== emojiCloseSeq) return;
-                    emojiPicker.classList.remove('is-closing-instant');
-                    chatArea?.classList.remove('emoji-sheet-instant');
-                });
+                window.requestAnimationFrame(maybeReleaseKeyboardHandoff);
             });
             return;
         }
@@ -838,6 +866,8 @@ export function initEmojiPicker(messageInput) {
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
         emojiPicker.classList.remove('is-closing');
+        resolveEmojiChatArea(emojiPicker)?.classList.remove('emoji-sheet-keyboard-handoff');
+        document.documentElement.classList.remove('mobile-emoji-keyboard-handoff');
         emojiPicker.classList.add('active');
         emojiPicker.setAttribute('aria-hidden', 'false');
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
@@ -944,12 +974,13 @@ export function initEmojiPicker(messageInput) {
         await onCategoryClick(categoryButton);
     });
 
-    const selectEmojiItem = (itemButton) => {
+    const selectEmojiItem = (itemButton, options = {}) => {
         const emoji = String(itemButton?.dataset?.emoji || '').trim();
         if (!isAllowedPickerEmoji(emoji)) return false;
 
         const selection = getStoredSelection();
-        const shouldFocusAfterInsert = !(isMobileEmojiViewport() && emojiPicker.classList.contains('active'));
+        const shouldFocusAfterInsert = options.focusAfter
+            ?? !(isMobileEmojiViewport() && emojiPicker.classList.contains('active'));
         const nextSelection = insertAtCursor(messageInput, emoji, {
             selectionStart: selection.start,
             selectionEnd: selection.end,
@@ -983,6 +1014,17 @@ export function initEmojiPicker(messageInput) {
         }, 300);
     };
 
+    const playComposerInsertFeedback = () => {
+        if (!isMobileEmojiViewport()) return;
+        const feedbackTarget = messageInput.closest('.composer-input-visual-wrap') || messageInput;
+        feedbackTarget.classList.remove('composer-emoji-insert-feedback');
+        void feedbackTarget.offsetWidth;
+        feedbackTarget.classList.add('composer-emoji-insert-feedback');
+        window.setTimeout(() => {
+            feedbackTarget.classList.remove('composer-emoji-insert-feedback');
+        }, 180);
+    };
+
     let pendingEmojiPointer = null;
     let suppressNextEmojiClick = false;
     let suppressNextEmojiClickTimer = 0;
@@ -1001,6 +1043,18 @@ export function initEmojiPicker(messageInput) {
         }, 500);
     };
 
+    const restorePendingEmojiSelection = (pending) => {
+        if (!pending?.selected || messageInput.value !== pending.valueAfter) return;
+        messageInput.value = pending.valueBefore;
+        setStoredSelection(pending.selectionBefore.start, pending.selectionBefore.end);
+        try {
+            messageInput.setSelectionRange(pending.selectionBefore.start, pending.selectionBefore.end);
+        } catch (_) {
+            // Some mobile browsers reject selection changes during touch scroll.
+        }
+        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
     emojiList.addEventListener('pointerdown', (event) => {
         const itemButton = event.target.closest('.emoji-item');
         if (!itemButton || !emojiList.contains(itemButton)) return;
@@ -1012,7 +1066,22 @@ export function initEmojiPicker(messageInput) {
             startX: event.clientX,
             startY: event.clientY,
             moved: false,
+            selected: false,
+            selectFrame: 0,
+            valueBefore: messageInput.value,
+            valueAfter: '',
+            selectionBefore: getStoredSelection(),
         };
+        pendingEmojiPointer.selectFrame = window.requestAnimationFrame(() => {
+            const pending = pendingEmojiPointer;
+            if (!pending || pending.pointerId !== event.pointerId || pending.moved || pending.selected) return;
+            pending.selected = selectEmojiItem(itemButton, { focusAfter: false });
+            if (pending.selected) {
+                pending.valueAfter = messageInput.value;
+                playComposerInsertFeedback();
+                suppressNextClickAfterPointerSelect();
+            }
+        });
     }, { passive: true });
 
     emojiList.addEventListener('pointermove', (event) => {
@@ -1021,9 +1090,22 @@ export function initEmojiPicker(messageInput) {
         const dx = event.clientX - pending.startX;
         const dy = event.clientY - pending.startY;
         pending.moved = pending.moved || (dx * dx + dy * dy) > (MOBILE_EMOJI_TAP_CANCEL_PX * MOBILE_EMOJI_TAP_CANCEL_PX);
+        if (pending.moved) {
+            if (pending.selectFrame) {
+                window.cancelAnimationFrame(pending.selectFrame);
+                pending.selectFrame = 0;
+            }
+            restorePendingEmojiSelection(pending);
+        }
     }, { passive: true });
 
     emojiList.addEventListener('pointercancel', (event) => {
+        if (pendingEmojiPointer?.pointerId === event.pointerId) {
+            if (pendingEmojiPointer.selectFrame) {
+                window.cancelAnimationFrame(pendingEmojiPointer.selectFrame);
+            }
+            restorePendingEmojiSelection(pendingEmojiPointer);
+        }
         clearPendingEmojiPointer(event.pointerId);
     }, { passive: true });
 
@@ -1036,7 +1118,11 @@ export function initEmojiPicker(messageInput) {
 
         event.preventDefault();
         event.stopPropagation();
-        if (selectEmojiItem(itemButton)) {
+        if (pending.selectFrame) {
+            window.cancelAnimationFrame(pending.selectFrame);
+        }
+        if (!pending.selected && selectEmojiItem(itemButton, { focusAfter: false })) {
+            playComposerInsertFeedback();
             suppressNextClickAfterPointerSelect();
         }
     });

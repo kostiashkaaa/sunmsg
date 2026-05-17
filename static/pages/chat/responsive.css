@@ -670,8 +670,8 @@
                    itself shrink with the browser-resized viewport. */
                 bottom: auto;
                 width: 100%;
-                height: 100dvh;
-                max-height: 100dvh;
+                height: var(--app-vh, 100dvh);
+                max-height: var(--app-vh, 100dvh);
                 min-height: 0;
                 touch-action: pan-y;
             }
@@ -1336,9 +1336,9 @@
             /* When the keyboard is taking over, the composer must snap back
                instantly (in sync with the instant sheet collapse) so it is not
                left mid-animation under the keyboard. */
-            .chat-area.emoji-sheet-instant .chat-input-area {
+            .chat-area.emoji-sheet-keyboard-handoff .chat-input-area {
                 transition: none !important;
-                transform: none !important;
+                transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0) !important;
             }
 
             .emoji-picker-topbar {
@@ -1480,6 +1480,15 @@
                 0%   { transform: scale(0.86); }
                 45%  { transform: scale(1.18); }
                 100% { transform: scale(1); }
+            }
+
+            .composer-input-visual-wrap.composer-emoji-insert-feedback .composer-input-visual {
+                animation: composerEmojiInsertPop 180ms var(--m-spring);
+            }
+            @keyframes composerEmojiInsertPop {
+                0%   { transform: translate3d(0, 1px, 0) scale(0.992); }
+                55%  { transform: translate3d(0, 0, 0) scale(1.012); }
+                100% { transform: translate3d(0, 0, 0) scale(1); }
             }
 
             @media (max-width: 360px) {
