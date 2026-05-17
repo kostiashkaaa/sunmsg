@@ -27,6 +27,10 @@ export function initSettingsNavShell({
     const settingsHeaderMoreBtnEl = document.getElementById('settingsHeaderMoreBtn');
     const settingsHeaderMenuEl = document.getElementById('settingsHeaderMenu');
     const settingsSearchInputEl = document.getElementById('settingsSearchInput');
+    const settingsPanelBodyEl = document.querySelector('.settings-panel-body');
+    const settingsOverlayFrameEl = document.getElementById('settingsOverlayFrame');
+    const settingsSceneEl = document.getElementById('settingsPanelScene') || document.querySelector('.settings-scene');
+    const settingsLayoutEl = document.querySelector('.settings-layout');
     const compactNavMedia = window.matchMedia('(max-width: 768px)');
 
     let mobileNavOpen = false;
@@ -79,6 +83,19 @@ export function initSettingsNavShell({
         settingsHeaderMoreBtnEl.setAttribute('aria-expanded', headerMenuOpen ? 'true' : 'false');
     }
 
+    function resetDetailOuterScroll() {
+        [
+            settingsOverlayFrameEl,
+            settingsSceneEl,
+            settingsLayoutEl,
+            settingsPanelBodyEl,
+        ].forEach((el) => {
+            if (el instanceof HTMLElement) {
+                el.scrollTop = 0;
+            }
+        });
+    }
+
     function setDetailView(nextState) {
         detailViewOpen = !!nextState;
         document.body.classList.toggle('settings-detail-open', detailViewOpen);
@@ -88,6 +105,7 @@ export function initSettingsNavShell({
         panelToolsEl?.classList.toggle('settings-hidden', detailViewOpen);
         if (detailViewOpen) {
             setHeaderMenuOpen(false);
+            resetDetailOuterScroll();
         }
     }
 
