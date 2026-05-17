@@ -20,6 +20,29 @@ export function initReactionPickerController({
     let quickContainerEl = null;
     let expandToggleEl = null;
 
+    function isCoarsePointerViewport() {
+        try {
+            return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isVisualKeyboardViewport() {
+        const vv = window.visualViewport;
+        if (!vv) return false;
+        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+        const visualH = Number(vv.height || 0);
+        return layoutH > 0 && visualH > 0 && visualH < layoutH * 0.85;
+    }
+
+    function isMobileKeyboardActive() {
+        return Boolean(
+            document.documentElement?.classList?.contains('mobile-keyboard-active')
+            || (isCoarsePointerViewport() && isVisualKeyboardViewport())
+        );
+    }
+
     function createPickerItem(emoji) {
         const normalized = String(emoji || '').trim();
         if (!REACTION_PICKER_EMOJIS.includes(normalized)) return null;
@@ -145,6 +168,36 @@ export function initReactionPickerController({
         if (!Number.isFinite(value)) return min;
         if (!Number.isFinite(max) || max < min) return min;
         return Math.min(max, Math.max(min, value));
+    }
+
+    function fitContextMenuForReactionPicker(bounds, pickerHeight, gap, margin) {
+        if (!contextMenuEl) return null;
+        let menuRect = contextMenuEl.getBoundingClientRect();
+        const availableHeight = Math.max(0, bounds.bottom - bounds.top - margin * 2);
+        const needsReserve = menuRect.height + pickerHeight + gap > availableHeight;
+
+        if (needsReserve) {
+            const nextMenuMaxHeight = Math.max(72, availableHeight - pickerHeight - gap);
+            const currentMaxHeight = Number.parseFloat(contextMenuEl.style.maxHeight || '');
+            const clampedMaxHeight = Number.isFinite(currentMaxHeight)
+                ? Math.min(currentMaxHeight, nextMenuMaxHeight)
+                : nextMenuMaxHeight;
+            contextMenuEl.style.maxHeight = `${Math.round(clampedMaxHeight)}px`;
+            contextMenuEl.style.overflowY = 'auto';
+            menuRect = contextMenuEl.getBoundingClientRect();
+        }
+
+        const stackHeight = menuRect.height + pickerHeight + gap;
+        const menuTop = clamp(
+            menuRect.top,
+            bounds.top + margin,
+            bounds.bottom - stackHeight - margin,
+        );
+        if (Math.abs(menuTop - menuRect.top) > 0.5) {
+            contextMenuEl.style.top = `${Math.round(menuTop)}px`;
+            menuRect = contextMenuEl.getBoundingClientRect();
+        }
+        return menuRect;
     }
 
     function getPickerAnchorRect() {
@@ -303,12 +356,20 @@ export function initReactionPickerController({
 
         if (isContextMenuMode) {
             const gap = 4;
-            const menuRect = contextMenuEl.getBoundingClientRect();
+            let menuRect = contextMenuEl.getBoundingClientRect();
             let left = menuRect.left + (menuRect.width / 2) - (pickerRect.width / 2);
-            const topAbove = menuRect.top - pickerRect.height - gap;
-            const topBelow = menuRect.bottom + gap;
-            const canPlaceAbove = topAbove >= bounds.top + margin;
-            const canPlaceBelow = (topBelow + pickerRect.height) <= (bounds.bottom - margin);
+            let topAbove = menuRect.top - pickerRect.height - gap;
+            let topBelow = menuRect.bottom + gap;
+            let canPlaceAbove = topAbove >= bounds.top + margin;
+            let canPlaceBelow = (topBelow + pickerRect.height) <= (bounds.bottom - margin);
+            if (!canPlaceAbove && !canPlaceBelow) {
+                menuRect = fitContextMenuForReactionPicker(bounds, pickerRect.height, gap, margin) || menuRect;
+                left = menuRect.left + (menuRect.width / 2) - (pickerRect.width / 2);
+                topAbove = menuRect.top - pickerRect.height - gap;
+                topBelow = menuRect.bottom + gap;
+                canPlaceAbove = topAbove >= bounds.top + margin;
+                canPlaceBelow = (topBelow + pickerRect.height) <= (bounds.bottom - margin);
+            }
             let top = topAbove;
             if (!canPlaceAbove && canPlaceBelow) {
                 top = topBelow;
@@ -343,7 +404,9 @@ export function initReactionPickerController({
         activeMessageId = numericMessageId;
         activeAnchorEl = anchorEl;
         viewportBoundsLock = null;
-        viewportBoundsLock = getViewportBounds();
+        if (!isMobileKeyboardActive()) {
+            viewportBoundsLock = getViewportBounds();
+        }
         const openSeq = ++pickerTransitionSeq;
         clearScheduledPosition();
         reactionEmojiPopup.close();

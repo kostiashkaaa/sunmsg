@@ -403,6 +403,13 @@ export function initMessageTouchContext(options = {}) {
         resetMessageSwipeState(gesture.messageEl);
         activeMessageTouchGesture = null;
 
+        if (gesture.longPressTriggered) {
+            if (event && typeof event.preventDefault === 'function') {
+                try { event.preventDefault(); } catch (_) {}
+            }
+            return;
+        }
+
         if (canReply) {
             suppressMessageTapUntil = Date.now() + 220;
             beginSwipeReplyFromGesture(gesture);
