@@ -41,6 +41,7 @@ USER_PRIVACY_CHOICES_MIGRATION = (25, 'add_user_privacy_choices')
 SPOTIFY_INTEGRATION_MIGRATION = (26, 'create_spotify_tables')
 USER_SESSION_AUTO_LOGOUT_MIGRATION = (27, 'add_user_session_auto_logout_seconds')
 CALLS_SCHEMA_MIGRATION = (28, 'create_call_sessions_and_participants_tables')
+CALL_FEATURE_ACCESS_MIGRATION = (29, 'create_call_feature_access_tables')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -695,6 +696,44 @@ def _run_calls_schema_migration(conn, cursor) -> None:
     logger.info('Migration: created call_sessions and call_participants tables')
 
 
+def _run_call_feature_access_migration(conn, cursor) -> None:
+    if migration_applied(cursor, CALL_FEATURE_ACCESS_MIGRATION[0]):
+        return
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS call_feature_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    cursor.execute(
+        '''
+        INSERT INTO call_feature_settings (key, value)
+        VALUES ('allowlist_enabled', '1')
+        ON CONFLICT(key) DO NOTHING
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS call_feature_allowlist (
+            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            granted_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+            note TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_feature_allowlist_created ON call_feature_allowlist(created_at DESC)'
+    )
+    _record_migration(cursor, CALL_FEATURE_ACCESS_MIGRATION)
+    conn.commit()
+    logger.info('Migration: created call feature access tables')
+
+
 def run_migrations() -> None:
     global _chat_pins_schema_checked
 
@@ -725,6 +764,7 @@ def run_migrations() -> None:
         _run_group_owner_role_backfill_migration(conn, cursor)
         _run_new_feature_schema_migrations(conn, cursor)
         _run_calls_schema_migration(conn, cursor)
+        _run_call_feature_access_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

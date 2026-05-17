@@ -1,5 +1,7 @@
 from flask import current_app, flash, redirect, render_template, session, url_for
 
+from app.services.call_feature_access import can_user_use_calls
+
 
 def _normalize_requested_username(
     raw_username: str,
@@ -55,6 +57,17 @@ def _fetch_session_username(*, get_db_connection_func, user_id: int):
     return user_row['username'] if user_row else None
 
 
+def _fetch_calls_feature_enabled(*, get_db_connection_func, user_id: int) -> bool:
+    conn = get_db_connection_func()
+    try:
+        return can_user_use_calls(conn, user_id=int(user_id))
+    except Exception:
+        current_app.logger.exception('Failed to resolve calls feature access for user_id=%s', user_id)
+        return False
+    finally:
+        conn.close()
+
+
 def _render_chat_page(  # noqa: PLR0913
     *,
     logger,
@@ -99,12 +112,17 @@ def _render_chat_page(  # noqa: PLR0913
         return redirect(url_for('auth.index'))
 
     session['ui_language'] = page_context['ui_language']
+    calls_feature_enabled = _fetch_calls_feature_enabled(
+        get_db_connection_func=get_db_connection_func,
+        user_id=user_id,
+    )
     return render_template(
         'chat.html',
         **page_context,
         initial_chat_contact_username=normalized_initial_chat_contact_username,
         socketio_client_config=build_socketio_client_config_func(current_app.config),
         web_push_bootstrap_payload=web_push_bootstrap_payload_func(current_app.config),
+        calls_feature_enabled=calls_feature_enabled,
     )
 
 

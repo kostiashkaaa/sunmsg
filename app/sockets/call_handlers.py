@@ -15,6 +15,7 @@ from app.services.calls import (
     mark_missed_calls,
     reject_call,
 )
+from app.services.call_feature_access import can_user_use_calls, can_users_use_calls
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'not_member', 'request_id': request_id})
             return
 
+        participant_ids = [int(user_id), *_chat_members(conn, chat_id, user_id)]
+        if not can_users_use_calls(conn, participant_ids):
+            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
+            return
+
         mark_missed_calls(conn)
 
         existing = get_active_call_in_chat(conn, chat_id)
@@ -145,7 +151,9 @@ def handle_call_initiate(
             'request_id': request_id,
         })
 
-        for pid in _chat_members(conn, chat_id, user_id):
+        for pid in participant_ids:
+            if int(pid) == int(user_id):
+                continue
             emit_func('call_incoming', {
                 'call_id': call_id, 'chat_id': chat_id,
                 'call_type': call_type, 'initiator': initiator_info,
@@ -187,6 +195,10 @@ def handle_call_accept(
 
         if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
             emit_func('call_error', {'error': 'not_member', 'call_id': call_id, 'request_id': request_id})
+            return
+
+        if not can_user_use_calls(conn, user_id=int(user_id)):
+            emit_func('call_error', {'error': 'calls_feature_disabled', 'call_id': call_id, 'request_id': request_id})
             return
 
         mark_missed_calls(conn)

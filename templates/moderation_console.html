@@ -83,6 +83,51 @@
             font-size: 20px;
             font-weight: 700;
         }
+        .feature-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .feature-card__head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .feature-card__title {
+            margin: 0 0 4px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+        .feature-card__desc {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .feature-card__list {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .feature-card__row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #fbfcfe;
+        }
+        .feature-card__empty {
+            color: var(--muted);
+            font-size: 13px;
+            padding: 4px 0;
+        }
         .filters {
             margin-bottom: 12px;
             display: flex;
@@ -237,6 +282,54 @@
             <div class="label">Активны за 24 часа</div>
             <div class="value" data-live-metric="active_last_24h">{{ metrics.user_stats.active_last_24h if metrics.user_stats else 0 }}</div>
         </article>
+    </section>
+
+    <section class="feature-card" aria-labelledby="callFeatureTitle">
+        <div class="feature-card__head">
+            <div>
+                <h2 class="feature-card__title" id="callFeatureTitle">Тестовый доступ к звонкам</h2>
+                <p class="feature-card__desc">
+                    {% if call_feature.allowlist_enabled %}
+                        Кнопка звонка скрыта для всех, кроме пользователей в списке ниже.
+                    {% else %}
+                        Звонки открыты для всех пользователей.
+                    {% endif %}
+                </p>
+            </div>
+            <form class="inline-form" method="post" action="/moderation/console/calls/settings">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="allowlist_enabled" value="{{ 0 if call_feature.allowlist_enabled else 1 }}">
+                <button type="submit">{{ 'Открыть всем' if call_feature.allowlist_enabled else 'Включить список' }}</button>
+            </form>
+        </div>
+        <form class="inline-form" method="post" action="/moderation/console/calls/allowlist">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="identifier" value="" maxlength="80" placeholder="ID или username">
+            <input name="note" value="" maxlength="512" placeholder="заметка">
+            <button type="submit">Выдать доступ</button>
+        </form>
+        <div class="feature-card__list">
+            {% if call_feature.allowed_users %}
+                {% for allowed_user in call_feature.allowed_users %}
+                    <div class="feature-card__row">
+                        <div>
+                            <strong>#{{ allowed_user.user_id }} @{{ allowed_user.username }}</strong>
+                            <div class="muted">{{ allowed_user.display_name or 'без имени' }}</div>
+                            {% if allowed_user.note %}
+                                <div class="muted">заметка: {{ allowed_user.note }}</div>
+                            {% endif %}
+                            <div class="muted">выдал: {{ allowed_user.granted_by_username or allowed_user.granted_by_user_id or '—' }} · {{ allowed_user.created_at }}</div>
+                        </div>
+                        <form class="inline-form" method="post" action="/moderation/console/calls/allowlist/{{ allowed_user.user_id }}/delete">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Убрать</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="feature-card__empty">Список доступа пуст.</div>
+            {% endif %}
+        </div>
     </section>
 
     <form class="filters" method="get" action="/moderation/console">
