@@ -4131,21 +4131,35 @@ export const initChatPage = async () => {
         iceConfigUrl: '/call/ice-config',
     });
 
+    const _callBtnWrap  = document.getElementById('callBtnWrap');
+    const _callBtn      = document.getElementById('callBtn');
+    const _callDropdown = document.getElementById('callDropdown');
     const _callAudioBtn = document.getElementById('callAudioBtn');
     const _callVideoBtn = document.getElementById('callVideoBtn');
 
-    const _showCallButtons = () => {
-        _callAudioBtn?.classList.remove('call-header-btn--hidden');
-        _callVideoBtn?.classList.remove('call-header-btn--hidden');
-    };
+    const _showCallButtons = () => _callBtnWrap?.classList.remove('call-header-btn--hidden');
     const _hideCallButtons = () => {
-        _callAudioBtn?.classList.add('call-header-btn--hidden');
-        _callVideoBtn?.classList.add('call-header-btn--hidden');
+        _callBtnWrap?.classList.add('call-header-btn--hidden');
+        _callDropdown?.classList.remove('open');
+        if (_callBtn) _callBtn.setAttribute('aria-expanded', 'false');
     };
+
+    // Toggle dropdown
+    _callBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = _callDropdown?.classList.contains('open');
+        _callDropdown?.classList.toggle('open', !isOpen);
+        _callBtn.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', () => {
+        _callDropdown?.classList.remove('open');
+        _callBtn?.setAttribute('aria-expanded', 'false');
+    });
 
     let _currentCallChatId = null;
 
-    // Show call buttons only when a direct (non-saved) chat is open
     document.addEventListener('sun:chat:opened', (e) => {
         const { chatType, chatId } = e.detail || {};
         if (chatType === 'direct') {
@@ -4161,10 +4175,14 @@ export const initChatPage = async () => {
         _hideCallButtons();
     });
 
-    _callAudioBtn?.addEventListener('click', () => {
+    _callAudioBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _callDropdown?.classList.remove('open');
         if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'audio');
     });
-    _callVideoBtn?.addEventListener('click', () => {
+    _callVideoBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _callDropdown?.classList.remove('open');
         if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'video');
     });
     // ─────────────────────────────────────────────────────────────────────────
