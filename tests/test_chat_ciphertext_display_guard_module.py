@@ -55,6 +55,16 @@ const plain = 'plain message';
 if (utils.resolveMessageDisplayText(plain) !== plain) {{
   throw new Error('plain text should not be changed');
 }}
+
+const callPayload = '{{"__suncall":true,"version":1,"call_type":"audio","status":"ended","duration_sec":65}}';
+const callDisplayText = utils.resolveMessageDisplayText(callPayload);
+if (callDisplayText.includes('__suncall') || callDisplayText.includes('duration_sec')) {{
+  throw new Error(`call payload leaked into display text: ${{callDisplayText}}`);
+}}
+const callPreviewHtml = utils.renderMessagePreviewHtml(callPayload, {{ isSelf: false, maxLen: 120 }});
+if (callPreviewHtml.includes('__suncall') || callPreviewHtml.includes('duration_sec')) {{
+  throw new Error(`call payload leaked into preview: ${{callPreviewHtml}}`);
+}}
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr or result.stdout

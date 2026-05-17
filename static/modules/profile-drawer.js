@@ -1018,11 +1018,11 @@ export async function handleProfileAction(action, {
     if (action === 'send-request') {
         const targetUserId = Number(profile?.user_id || profile?.userId || 0);
         if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
-            showToast?.('Не удалось определить пользователя для запроса.', 'warning');
+            console.warn('[ProfileDrawer] invalid request target user id');
             return;
         }
         if (!profile?.can_send_request) {
-            showToast?.('Запрос недоступен для этого профиля.', 'warning');
+            console.warn('[ProfileDrawer] request is unavailable for this profile');
             return;
         }
         const sent = await sendContactRequest?.({

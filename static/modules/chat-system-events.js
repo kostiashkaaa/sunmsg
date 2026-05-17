@@ -154,14 +154,6 @@ export function registerSystemSocketHandlers({
     });
 
     socket.on('new_dialog_request', (data) => {
-        const senderDisplayName = String(data?.sender_display_name || data?.sender_username || '').trim() || '?';
-        if (!isDialogRequestsMuted()) {
-            showToast(
-                `${tr('\u041D\u043E\u0432\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u043D\u0430 \u0434\u0438\u0430\u043B\u043E\u0433 \u043E\u0442')} ${senderDisplayName}`,
-                'warning',
-                { scopeKey: 'dialog-request' },
-            );
-        }
         if (!dialogRequestsList || !dialogRequestsSection) return;
 
         const existingButton = findDialogRequestActionButtonBySenderKey(
@@ -183,14 +175,6 @@ export function registerSystemSocketHandlers({
     });
 
     socket.on('new_group_invite_request', (data) => {
-        const senderDisplayName = String(data?.sender_display_name || data?.sender_username || '').trim() || '?';
-        const groupName = String(data?.chat_name || '').trim();
-        if (!isDialogRequestsMuted()) {
-            const summary = groupName
-                ? `${tr('\u041D\u043E\u0432\u043E\u0435 \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443')} ${groupName}`
-                : tr('\u041D\u043E\u0432\u043E\u0435 \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443');
-            showToast(`${summary} (${senderDisplayName})`, 'warning', { scopeKey: 'dialog-request' });
-        }
         if (!dialogRequestsList || !dialogRequestsSection) return;
 
         const existingButton = findDialogRequestActionButtonByRequestId(
@@ -239,7 +223,6 @@ export function registerSystemSocketHandlers({
             sortContactsList();
             Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));
         });
-        showToast(tr('\u0421\u043E\u0437\u0434\u0430\u043D \u043D\u043E\u0432\u044B\u0439 \u0447\u0430\u0442'), 'success');
     });
 
     socket.on('group_chat_created', (data) => {

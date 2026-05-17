@@ -200,8 +200,7 @@ export function buildContactItemHtml(contact, currentChatId) {
     const messageCount = Math.max(0, Number(contact?.message_count ?? contact?.messageCount) || 0);
     const draftTextRaw = String(contact?.draft_text || '');
     const hasDraft = Boolean(contact?.has_draft) && Boolean(draftTextRaw.trim());
-    const draftIsEncrypted = draftTextRaw.trim().startsWith('{') && draftTextRaw.includes('encrypted_message');
-    const draftText = hasDraft && !draftIsEncrypted ? draftTextRaw : '';
+    const draftText = hasDraft ? draftTextRaw : '';
     const shouldRenderDraftPreview = hasDraft && !isActive;
     const lastMessageText = shouldRenderDraftPreview ? draftText : (contact?.last_message || '');
     const previewIsSelf = shouldRenderDraftPreview || isSavedMessages ? false : isSelf;

@@ -155,7 +155,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                 }
                 onListUpdated?.();
             })
-            .catch(() => showToast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0437\u0430\u043f\u0440\u043e\u0441\u044b.', 'danger'));
+            .catch((err) => console.warn('[DialogRequests] load failed', err));
     }
 
     function handleDialogRequest({ senderPublicKey, action, requestKind, requestId }) {
@@ -169,13 +169,12 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             body: JSON.stringify(payload),
         }).then(r => r.json()).then(function(response) {
             if (response.success) {
-                showToast(action === 'accept' ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043f\u0440\u0438\u043d\u044f\u0442' : '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043a\u043b\u043e\u043d\u0451\u043d', 'success');
                 loadDialogRequests();
                 if (action === 'accept') onAccepted?.(response);
             } else {
-                showToast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + getErrorMessage(response.error), 'danger');
+                console.warn('[DialogRequests] action failed', getErrorMessage(response.error));
             }
-        }).catch(() => showToast('\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u0438 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0435 \u0437\u0430\u043f\u0440\u043e\u0441\u0430', 'danger'));
+        }).catch((err) => console.warn('[DialogRequests] action request failed', err));
     }
 
     if (dialogRequestsList) {
@@ -187,7 +186,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             const key = btn.getAttribute('data-key');
             const action = btn.classList.contains('accept') ? 'accept' : 'decline';
             if (requestKind === 'group_invite' && (!requestIdRaw || !Number.isFinite(Number(requestIdRaw)))) {
-                showToast('\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 \u0437\u0430\u043f\u0440\u043e\u0441 \u043d\u0430 \u0432\u0441\u0442\u0443\u043f\u043b\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443.', 'danger');
+                console.warn('[DialogRequests] invalid group invite request id');
                 return;
             }
             btn.disabled = true;
@@ -213,15 +212,14 @@ export function sendDialogRequest(userId, displayName) {
             body: JSON.stringify({ contact_user_id: userId }),
         }).then(r => r.json()).then(function(data) {
             if (data.success) {
-                showToast('\u0417\u0430\u043F\u0440\u043E\u0441 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D.', 'success');
                 const button = document.querySelector(`.send-request-btn[data-user-id="${userId}"]`);
                 if (button) {
                     button.disabled = true;
                     button.innerHTML = `${STANDARD_SINGLE_CHECK_UI_HTML} \u041E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E`;
                 }
             } else {
-                showToast('\u041E\u0448\u0438\u0431\u043A\u0430: ' + getErrorMessage(data.error), 'danger');
+                console.warn('[DialogRequests] send failed', getErrorMessage(data.error));
             }
-        }).catch(() => showToast('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0435 \u0437\u0430\u043F\u0440\u043E\u0441\u0430.', 'danger'));
+        }).catch((err) => console.warn('[DialogRequests] send request failed', err));
     }
 }

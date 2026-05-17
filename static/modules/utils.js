@@ -312,6 +312,10 @@ export function getEncryptedMessagePlaceholder() {
 }
 
 export function resolveMessageDisplayText(messageText) {
+    const callPayload = parseSunCallPayload(messageText);
+    if (callPayload) {
+        return formatSunCallPreviewText(callPayload);
+    }
     if (isEncryptedMessagePayload(messageText)) {
         return getEncryptedMessagePlaceholder();
     }
@@ -456,6 +460,29 @@ export function parseSunCallPayload(messageText) {
     return null;
 }
 
+export function formatSunCallPreviewText(callPayload, { includeDirection = false, isSelf = false } = {}) {
+    const isVideo = String(callPayload?.call_type || '').trim() === 'video';
+    const status = String(callPayload?.status || '').trim();
+    const duration = Number(callPayload?.duration_sec) || 0;
+    const baseLabel = isVideo ? tr('Видеозвонок') : tr('Звонок');
+    const direction = includeDirection
+        ? `${isSelf ? tr('Исходящий') : tr('Входящий')} `
+        : '';
+    let statusText = '';
+    if (status === 'ended') {
+        statusText = duration > 0 ? formatMediaDuration(duration) : tr('Завершён');
+    } else if (status === 'cancelled') {
+        statusText = tr('Отменён');
+    } else if (status === 'rejected') {
+        statusText = tr('Отклонён');
+    } else if (status === 'failed') {
+        statusText = tr('Сбой соединения');
+    } else {
+        statusText = tr('Пропущен');
+    }
+    return `${direction}${baseLabel} · ${statusText}`;
+}
+
 function looksLikeImageSource(src) {
     if (typeof src !== 'string' || !src) return false;
     return src.startsWith('data:image/')
@@ -577,14 +604,7 @@ export function renderMessagePreviewHtml(messageText, options = {}) {
     }
 
     if (callPayload) {
-        const callLabel = callPayload.call_type === 'video'
-            ? tr('\u0412\u0438\u0434\u0435\u043E\u0437\u0432\u043E\u043D\u043E\u043A')
-            : tr('\u0417\u0432\u043E\u043D\u043E\u043A');
-        const status = String(callPayload.status || '').trim();
-        const statusText = status === 'ended'
-            ? formatMediaDuration(Number(callPayload.duration_sec) || 0)
-            : (status === 'cancelled' ? tr('\u041E\u0442\u043C\u0435\u043D\u0451\u043D') : tr('\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D'));
-        const text = clipPreviewText(`${selfPrefix}${callLabel} · ${statusText}`, maxLen);
+        const text = clipPreviewText(`${selfPrefix}${formatSunCallPreviewText(callPayload)}`, maxLen);
         return escapeHtml(text || emptyText);
     }
 

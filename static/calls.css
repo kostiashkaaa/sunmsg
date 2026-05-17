@@ -15,37 +15,76 @@
 /* ── Incoming call banner ─────────────────────────────────────────────────── */
 .call-ib {
     position: fixed;
-    top: 16px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%) translateY(-140%);
+    transform: translate(-50%, -50%) scale(.96);
     z-index: 9999;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px 10px 10px;
-    background: var(--color-surface-2, #1e1e2e);
-    border: 1px solid var(--color-border, rgba(255,255,255,.1));
-    border-radius: 18px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.5);
-    min-width: 300px;
-    max-width: 400px;
-    transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    gap: 20px;
+    width: min(560px, calc(100vw - 32px));
+    height: min(760px, calc(100dvh - 48px));
+    min-height: 520px;
+    padding: 64px 42px 26px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #c76d67 0%, #d95d54 100%);
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 14px;
+    box-shadow: 0 28px 90px rgba(0,0,0,.54);
+    opacity: 0;
+    transition: transform .24s ease, opacity .24s ease;
 }
-.call-ib--visible { transform: translateX(-50%) translateY(0); }
+.call-ib--visible {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
 
-.call-ib__left {
+.call-ib__chrome {
+    position: absolute;
+    top: 18px;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    color: #fff;
+    background: rgba(0,0,0,.12);
+    cursor: pointer;
+}
+.call-ib__chrome:hover { background: rgba(0,0,0,.20); }
+.call-ib__chrome--left {
+    left: 18px;
+    cursor: default;
+    pointer-events: none;
+}
+.call-ib__chrome--right { right: 18px; }
+
+.call-ib__body {
     min-width: 0;
+    width: 100%;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    color: #fff;
 }
 .call-ib__avatar {
-    width: 46px;
-    height: 46px;
+    width: 144px;
+    height: 144px;
     border-radius: 50%;
     overflow: hidden;
-    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: clamp(42px, 10vh, 120px);
+    box-shadow: 0 18px 44px rgba(0,0,0,.20);
 }
 .call-ib__avatar-img {
     width: 100%;
@@ -58,44 +97,79 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-accent, #f59e0b);
+    background: rgba(255,255,255,.18);
     color: #fff;
     font-weight: 700;
-    font-size: 19px;
+    font-size: 58px;
 }
-.call-ib__info { min-width: 0; }
 .call-ib__name {
-    font-weight: 600;
-    font-size: 15px;
+    max-width: 100%;
+    font-weight: 800;
+    font-size: clamp(24px, 4vw, 34px);
     color: #fff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .call-ib__type {
-    font-size: 12px;
-    color: rgba(255,255,255,.5);
-    margin-top: 2px;
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255,255,255,.88);
 }
-.call-ib__actions { display: flex; gap: 8px; flex-shrink: 0; }
+.call-ib__actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(12px, 3vw, 28px);
+    flex-shrink: 0;
+    width: 100%;
+}
 
 .call-ib__btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    min-width: 66px;
     border: none;
     cursor: pointer;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     transition: transform .15s, filter .15s;
     color: #fff;
+    background: transparent;
+    padding: 0;
 }
 .call-ib__btn:active { transform: scale(.88); }
-.call-ib__btn--accept { background: #22c55e; }
-.call-ib__btn--accept:hover { filter: brightness(1.1); }
-.call-ib__btn--reject { background: #ef4444; }
-.call-ib__btn--reject:hover { filter: brightness(1.1); }
+.call-ib__btn[disabled] {
+    cursor: default;
+    opacity: .82;
+}
+.call-ib__btn-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.17);
+    backdrop-filter: blur(8px);
+}
+.call-ib__btn--accept .call-ib__btn-icon { background: #28c76f; }
+.call-ib__btn--reject .call-ib__btn-icon { background: #ff4d4d; }
+.call-ib__btn--accept:hover .call-ib__btn-icon,
+.call-ib__btn--reject:hover .call-ib__btn-icon {
+    filter: brightness(1.08);
+}
+.call-ib__btn-label {
+    max-width: 82px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255,255,255,.94);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+}
 
 /* ── Active call overlay (Telegram style) ─────────────────────────────────── */
 .call-overlay {
@@ -235,6 +309,15 @@
     font-size: 14px;
     font-weight: 700;
     color: rgba(255,255,255,.72);
+}
+.call-card__duration {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    color: rgba(255,255,255,.9);
+    font-size: 13px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
 }
 .call-card__drag {
     position: absolute;
@@ -433,13 +516,30 @@
 /* ── Mobile ───────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
     .call-ib {
-        left: 12px;
-        right: 12px;
-        transform: translateY(-140%);
-        min-width: unset;
-        max-width: unset;
+        width: calc(100vw - 20px);
+        height: min(720px, calc(100dvh - 20px));
+        min-height: 460px;
+        padding: 56px 20px 22px;
+        border-radius: 12px;
     }
-    .call-ib--visible { transform: translateY(0); }
+    .call-ib__avatar {
+        width: 118px;
+        height: 118px;
+    }
+    .call-ib__actions {
+        gap: 10px;
+    }
+    .call-ib__btn {
+        min-width: 58px;
+    }
+    .call-ib__btn-icon {
+        width: 48px;
+        height: 48px;
+    }
+    .call-ib__btn-label {
+        max-width: 64px;
+        font-size: 11px;
+    }
     .call-topbar {
         height: 40px;
         padding: 0 10px;
