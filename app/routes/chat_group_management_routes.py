@@ -15,6 +15,7 @@ from app.routes.chat_group_common import (
     normalize_member_ids,
 )
 from app.routes.chat_group_events import emit_group_event, emit_group_snapshot
+from app.routes.trust_limits import trust_ramped_limit
 from app.services import moderation as moderation_service
 from app.services.chat_members import (
     CHAT_TYPE_GROUP,
@@ -53,8 +54,27 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
     get_project_root_func=None,
     get_max_avatar_size_func=None,
 ):
+    group_create_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='20 per hour',
+        limited_config_key='TRUST_RAMP_GROUP_CREATE_LIMIT',
+        limited_default_rule='5 per hour',
+    )
+    group_mutation_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='40 per hour',
+        limited_config_key='TRUST_RAMP_GROUP_MUTATION_LIMIT',
+        limited_default_rule='10 per hour',
+    )
+    group_avatar_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='20 per hour',
+        limited_config_key='TRUST_RAMP_AVATAR_UPLOAD_LIMIT',
+        limited_default_rule='3 per hour',
+    )
+
     @chat_bp.route('/api/chats/group/create', methods=['POST'])
-    @limiter.limit('20 per hour')
+    @limiter.limit(group_create_rate_limit)
     def create_group_chat():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
@@ -186,7 +206,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             conn.close()
 
     @chat_bp.route('/api/chats/group/add_members', methods=['POST'])
-    @limiter.limit('40 per hour')
+    @limiter.limit(group_mutation_rate_limit)
     def add_group_members():  # noqa: C901,PLR0915
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
@@ -337,7 +357,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             conn.close()
 
     @chat_bp.route('/api/chats/group/update', methods=['POST'])
-    @limiter.limit('40 per hour')
+    @limiter.limit(group_mutation_rate_limit)
     def update_group_chat():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
@@ -430,7 +450,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             conn.close()
 
     @chat_bp.route('/api/chats/group/update_permissions', methods=['POST'])
-    @limiter.limit('40 per hour')
+    @limiter.limit(group_mutation_rate_limit)
     def update_group_permissions():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
@@ -533,7 +553,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             conn.close()
 
     @chat_bp.route('/api/chats/group/upload_avatar', methods=['POST'])
-    @limiter.limit('20 per hour')
+    @limiter.limit(group_avatar_rate_limit)
     def upload_group_avatar():  # noqa: C901
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401

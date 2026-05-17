@@ -57,6 +57,22 @@ def _can_group_action(conn, actor_user_id: int, chat_id: str, action: str) -> bo
     return bool(decision.allowed)
 
 
+def _maybe_apply_automated_spam_mute(conn, *, sender_id: int, trigger: str, force: bool = False):
+    cfg = current_app.config
+    if not bool(cfg.get('ABUSE_AUTO_MUTE_ENABLED', True)):
+        return None
+    return moderation_service.maybe_apply_automated_spam_mute(
+        conn,
+        user_id=int(sender_id),
+        trigger=str(trigger or 'pre_send'),
+        force=bool(force),
+        window_seconds=int(cfg.get('ABUSE_AUTO_MUTE_WINDOW_SECONDS', 3600) or 3600),
+        reports_threshold=int(cfg.get('ABUSE_AUTO_MUTE_REPORTS_THRESHOLD', 3) or 3),
+        blocks_threshold=int(cfg.get('ABUSE_AUTO_MUTE_BLOCKS_THRESHOLD', 5) or 5),
+        ttl_seconds=int(cfg.get('ABUSE_AUTO_MUTE_TTL_SECONDS', 3600) or 3600),
+    )
+
+
 def _can_group_action_with_message(conn, actor_user_id: int, chat_id: str, action: str):
     decision = authorize_group_action(
         conn,
@@ -172,6 +188,8 @@ def handle_send_message(data):
             ),
         ),
         group_restriction_lookup_func=moderation_service.active_group_restriction,
+        socket_send_context_rate_check_func=ctx._socket_send_context_rate_check,
+        moderation_auto_mute_func=_maybe_apply_automated_spam_mute,
         normalize_request_id_func=ctx._normalize_request_id,
     )
 

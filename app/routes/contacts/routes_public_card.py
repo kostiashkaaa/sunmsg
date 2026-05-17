@@ -17,6 +17,7 @@ from app.routes.public_user_card_handlers import (
     process_public_user_card,
     resolve_public_user_card_context,
 )
+from app.routes.trust_limits import trust_ramped_limit
 from app.services.blocking import build_block_state, normalize_block_state
 from app.services.locale import detect_auth_language, normalize_language
 from app.services.user import get_safe_avatar_url
@@ -27,6 +28,12 @@ _emit_socket_event = build_route_socket_emitter(
     raw_emit_func=socketio.emit,
     get_db_connection_func=get_db_connection,
     logger=None,
+)
+_public_start_rate_limit = trust_ramped_limit(
+    get_db_connection_func=get_db_connection,
+    standard_rule='20 per minute',
+    limited_config_key='TRUST_RAMP_PUBLIC_START_LIMIT',
+    limited_default_rule='5 per minute',
 )
 
 
@@ -120,7 +127,7 @@ def public_user_card(username):
 
 
 @contacts_bp.route('/u/<username>/start', methods=['POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(_public_start_rate_limit)
 def start_dialog_from_public_card(username):
     target_username = canonical_username(username)
     if not USERNAME_PATTERN.fullmatch(target_username):

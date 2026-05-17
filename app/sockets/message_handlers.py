@@ -89,6 +89,16 @@ def _emit_send_error(emit_func, message: str, *, request_id: str | None = None, 
     emit_func('error', _send_error_payload(message, request_id=request_id, **extra))
 
 
+def _emit_moderation_restriction_error(emit_func, restriction: dict, *, request_id: str | None = None) -> None:
+    _emit_send_error(
+        emit_func,
+        'Messaging is temporarily restricted by moderation.',
+        request_id=request_id,
+        code='moderation_restriction',
+        restriction=restriction,
+    )
+
+
 def _non_empty_string(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
@@ -474,13 +484,7 @@ def _passes_send_moderation_checks(conn, *, context: dict | None = None) -> bool
     if callable(moderation_user_restriction_func):
         restriction = moderation_user_restriction_func(conn, user_id=sender_id)
         if restriction:
-            _emit_send_error(
-                emit_func,
-                'Messaging is temporarily restricted by moderation.',
-                request_id=request_id,
-                code='moderation_restriction',
-                restriction=restriction,
-            )
+            _emit_moderation_restriction_error(emit_func, restriction, request_id=request_id)
             return False
 
     if callable(moderation_public_link_check_func):
@@ -1850,6 +1854,8 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
     moderation_user_restriction_func=None,
     moderation_public_link_check_func=None,
     group_restriction_lookup_func=None,
+    socket_send_context_rate_check_func=None,
+    moderation_auto_mute_func=None,
     normalize_request_id_func=None,
     reserve_socket_request_func=None,
     mark_socket_request_completed_func=None,
@@ -1903,6 +1909,17 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
         ):
             return
 
+        if callable(moderation_auto_mute_func):
+            restriction = moderation_auto_mute_func(
+                conn,
+                sender_id=sender_id,
+                trigger='pre_send',
+                force=False,
+            )
+            if restriction:
+                _emit_moderation_restriction_error(emit_func, restriction, request_id=request_id)
+                return
+
         delivery_context = _resolve_send_delivery_context(
             conn,
             context={
@@ -1932,6 +1949,35 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             delivery_context['receiver_pub'],
             delivery_context['receiver_is_connected'],
         )
+        if callable(socket_send_context_rate_check_func):
+            send_rate_result = socket_send_context_rate_check_func(
+                conn,
+                sender_id=sender_id,
+                chat_id=chat_id,
+                chat_type=chat_type,
+                receiver_id=receiver_id,
+                message_type=message_type,
+            ) or {}
+            if not bool(send_rate_result.get('allowed', True)):
+                reason = str(send_rate_result.get('reason') or 'context_rate_limit')
+                if bool(send_rate_result.get('auto_mute')) and callable(moderation_auto_mute_func):
+                    restriction = moderation_auto_mute_func(
+                        conn,
+                        sender_id=sender_id,
+                        trigger=reason,
+                        force=True,
+                    )
+                    if restriction:
+                        _emit_moderation_restriction_error(emit_func, restriction, request_id=request_id)
+                        return
+                _emit_send_error(
+                    emit_func,
+                    'Too many messages. Please wait a little.',
+                    request_id=request_id,
+                    code='send_rate_limit',
+                    reason=reason,
+                )
+                return
         if not _is_valid_e2ee_message_payload(message, chat_type=chat_type):
             _emit_e2ee_required_error(emit_func, request_id=request_id)
             return

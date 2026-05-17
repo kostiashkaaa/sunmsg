@@ -26,6 +26,7 @@ from app.routes.send_request_route_handlers import (
     process_send_request,
     process_send_request_route,
 )
+from app.routes.trust_limits import trust_ramped_limit
 from app.services.blocking import block_forbidden_response
 from app.services.blocking import build_block_state, normalize_block_state
 from app.services.crypto import generate_chat_id
@@ -69,6 +70,12 @@ _SEND_REQUEST_ERROR_RESPONSES = {
     'receiver_missing': (USER_NOT_FOUND_ERROR, 404),
     'auto_decline': (AUTO_DECLINE_REQUEST_ERROR, 403),
 }
+_send_request_rate_limit = trust_ramped_limit(
+    get_db_connection_func=get_db_connection,
+    standard_rule='15 per minute',
+    limited_config_key='TRUST_RAMP_CONTACT_REQUEST_LIMIT',
+    limited_default_rule='5 per minute',
+)
 
 
 def _build_send_request_cooldown_response(result: dict):
@@ -184,7 +191,7 @@ def _handle_direct_accept(conn, *, user_id, data):
 
 
 @contacts_bp.route('/send_request', methods=['POST'])
-@limiter.limit("15 per minute")
+@limiter.limit(_send_request_rate_limit)
 def send_request_route():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
@@ -208,7 +215,7 @@ def send_request_route():
 
 
 @contacts_bp.route('/send_request_by_username', methods=['POST'])
-@limiter.limit("15 per minute")
+@limiter.limit(_send_request_rate_limit)
 def send_request_by_username_route():
     if 'user_id' not in session:
         return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401

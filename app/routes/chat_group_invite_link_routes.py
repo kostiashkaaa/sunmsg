@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import jsonify, request, session
 
+from app.routes.trust_limits import trust_ramped_limit
 from app.services.chat_members import get_chat_type, is_chat_member, CHAT_TYPE_GROUP
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS
 from app.services.group_invite_links import (
@@ -22,6 +23,13 @@ def register_chat_group_invite_link_routes(
     socketio_emit_func,
     authorize_group_action_or_error_func,
 ):
+    group_mutation_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='20 per hour',
+        limited_config_key='TRUST_RAMP_GROUP_MUTATION_LIMIT',
+        limited_default_rule='10 per hour',
+    )
+
     @chat_bp.route('/api/chats/group/invite-link', methods=['GET'])
     @limiter.limit('60 per minute')
     def get_group_invite_link():
@@ -41,7 +49,7 @@ def register_chat_group_invite_link_routes(
         return jsonify({'success': True, 'link': link})
 
     @chat_bp.route('/api/chats/group/invite-link', methods=['POST'])
-    @limiter.limit('20 per hour')
+    @limiter.limit(group_mutation_rate_limit)
     def create_group_invite_link():
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401
@@ -93,7 +101,7 @@ def register_chat_group_invite_link_routes(
         return jsonify({'success': True, 'link': link})
 
     @chat_bp.route('/api/chats/group/invite-link/revoke', methods=['POST'])
-    @limiter.limit('20 per hour')
+    @limiter.limit(group_mutation_rate_limit)
     def revoke_group_invite_link():
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Authorization required.'}), 401

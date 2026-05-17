@@ -87,6 +87,36 @@ class BaseConfig:
     SOCKET_CONNECT_IP_LIMIT = 180
     SOCKET_CONNECT_IP_WINDOW_SECONDS = 60
     SOCKET_MAX_CONNECTIONS_PER_USER = 12
+    SOCKET_RATE_REDIS_URL = ''
+    SOCKET_RATE_GLOBAL_EVENT_LIMIT = 5000
+    SOCKET_RATE_GLOBAL_EVENT_WINDOW_SECONDS = 60
+    TRUST_RAMP_NEW_ACCOUNT_SECONDS = 24 * 60 * 60
+    TRUST_RAMP_SIGNAL_WINDOW_SECONDS = 24 * 60 * 60
+    TRUST_RAMP_MIN_CONFIRMED_CONTACTS = 3
+    TRUST_RAMP_MIN_INBOUND_REPLIERS = 2
+    TRUST_RAMP_CONTACT_REQUEST_LIMIT = '5 per minute'
+    TRUST_RAMP_PUBLIC_START_LIMIT = '5 per minute'
+    TRUST_RAMP_GROUP_CREATE_LIMIT = '5 per hour'
+    TRUST_RAMP_GROUP_MUTATION_LIMIT = '10 per hour'
+    TRUST_RAMP_AVATAR_UPLOAD_LIMIT = '3 per hour'
+    TRUST_RAMP_MEDIA_UPLOAD_LIMIT = '20 per hour'
+    SOCKET_SEND_BURST_LIMIT = 8
+    SOCKET_SEND_BURST_WINDOW_SECONDS = 10
+    SOCKET_SEND_NEW_ACCOUNT_BURST_LIMIT = 3
+    SOCKET_SEND_CHAT_SENDER_LIMIT = 20
+    SOCKET_SEND_CHAT_SENDER_WINDOW_SECONDS = 60
+    SOCKET_SEND_NEW_ACCOUNT_CHAT_SENDER_LIMIT = 8
+    SOCKET_SEND_UNKNOWN_RECIPIENT_LIMIT = 3
+    SOCKET_SEND_UNKNOWN_RECIPIENT_WINDOW_SECONDS = 24 * 60 * 60
+    SOCKET_SEND_MEDIA_LIMIT = 30
+    SOCKET_SEND_MEDIA_WINDOW_SECONDS = 60 * 60
+    SOCKET_SEND_NEW_ACCOUNT_MEDIA_LIMIT = 6
+    ABUSE_AUTO_MUTE_ENABLED = True
+    ABUSE_AUTO_MUTE_WINDOW_SECONDS = 60 * 60
+    ABUSE_AUTO_MUTE_TTL_SECONDS = 60 * 60
+    ABUSE_AUTO_MUTE_REPORTS_THRESHOLD = 3
+    ABUSE_AUTO_MUTE_BLOCKS_THRESHOLD = 5
+    ABUSE_AUTO_MUTE_SENDS_THRESHOLD = 120
     WEB_PUSH_ENABLED = False
     WEB_PUSH_VAPID_PUBLIC_KEY = ''
     WEB_PUSH_VAPID_PRIVATE_KEY = ''
@@ -254,6 +284,136 @@ class BaseConfig:
                     'SOCKET_MAX_CONNECTIONS_PER_USER',
                     cls.SOCKET_MAX_CONNECTIONS_PER_USER,
                 ),
+            ),
+            'SOCKET_RATE_REDIS_URL': str(
+                os.environ.get('SOCKET_RATE_REDIS_URL', cls.SOCKET_RATE_REDIS_URL)
+                or redis_url
+                or ''
+            ).strip(),
+            'SOCKET_RATE_GLOBAL_EVENT_LIMIT': max(
+                0,
+                _env_int(
+                    'SOCKET_RATE_GLOBAL_EVENT_LIMIT',
+                    cls.SOCKET_RATE_GLOBAL_EVENT_LIMIT,
+                ),
+            ),
+            'SOCKET_RATE_GLOBAL_EVENT_WINDOW_SECONDS': max(
+                1,
+                _env_int(
+                    'SOCKET_RATE_GLOBAL_EVENT_WINDOW_SECONDS',
+                    cls.SOCKET_RATE_GLOBAL_EVENT_WINDOW_SECONDS,
+                ),
+            ),
+            'TRUST_RAMP_NEW_ACCOUNT_SECONDS': max(
+                0,
+                _env_int('TRUST_RAMP_NEW_ACCOUNT_SECONDS', cls.TRUST_RAMP_NEW_ACCOUNT_SECONDS),
+            ),
+            'TRUST_RAMP_SIGNAL_WINDOW_SECONDS': max(
+                60,
+                _env_int('TRUST_RAMP_SIGNAL_WINDOW_SECONDS', cls.TRUST_RAMP_SIGNAL_WINDOW_SECONDS),
+            ),
+            'TRUST_RAMP_MIN_CONFIRMED_CONTACTS': max(
+                0,
+                _env_int('TRUST_RAMP_MIN_CONFIRMED_CONTACTS', cls.TRUST_RAMP_MIN_CONFIRMED_CONTACTS),
+            ),
+            'TRUST_RAMP_MIN_INBOUND_REPLIERS': max(
+                0,
+                _env_int('TRUST_RAMP_MIN_INBOUND_REPLIERS', cls.TRUST_RAMP_MIN_INBOUND_REPLIERS),
+            ),
+            'TRUST_RAMP_CONTACT_REQUEST_LIMIT': str(
+                os.environ.get('TRUST_RAMP_CONTACT_REQUEST_LIMIT', cls.TRUST_RAMP_CONTACT_REQUEST_LIMIT)
+                or cls.TRUST_RAMP_CONTACT_REQUEST_LIMIT
+            ).strip(),
+            'TRUST_RAMP_PUBLIC_START_LIMIT': str(
+                os.environ.get('TRUST_RAMP_PUBLIC_START_LIMIT', cls.TRUST_RAMP_PUBLIC_START_LIMIT)
+                or cls.TRUST_RAMP_PUBLIC_START_LIMIT
+            ).strip(),
+            'TRUST_RAMP_GROUP_CREATE_LIMIT': str(
+                os.environ.get('TRUST_RAMP_GROUP_CREATE_LIMIT', cls.TRUST_RAMP_GROUP_CREATE_LIMIT)
+                or cls.TRUST_RAMP_GROUP_CREATE_LIMIT
+            ).strip(),
+            'TRUST_RAMP_GROUP_MUTATION_LIMIT': str(
+                os.environ.get('TRUST_RAMP_GROUP_MUTATION_LIMIT', cls.TRUST_RAMP_GROUP_MUTATION_LIMIT)
+                or cls.TRUST_RAMP_GROUP_MUTATION_LIMIT
+            ).strip(),
+            'TRUST_RAMP_AVATAR_UPLOAD_LIMIT': str(
+                os.environ.get('TRUST_RAMP_AVATAR_UPLOAD_LIMIT', cls.TRUST_RAMP_AVATAR_UPLOAD_LIMIT)
+                or cls.TRUST_RAMP_AVATAR_UPLOAD_LIMIT
+            ).strip(),
+            'TRUST_RAMP_MEDIA_UPLOAD_LIMIT': str(
+                os.environ.get('TRUST_RAMP_MEDIA_UPLOAD_LIMIT', cls.TRUST_RAMP_MEDIA_UPLOAD_LIMIT)
+                or cls.TRUST_RAMP_MEDIA_UPLOAD_LIMIT
+            ).strip(),
+            'SOCKET_SEND_BURST_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_BURST_LIMIT', cls.SOCKET_SEND_BURST_LIMIT),
+            ),
+            'SOCKET_SEND_BURST_WINDOW_SECONDS': max(
+                1,
+                _env_int('SOCKET_SEND_BURST_WINDOW_SECONDS', cls.SOCKET_SEND_BURST_WINDOW_SECONDS),
+            ),
+            'SOCKET_SEND_NEW_ACCOUNT_BURST_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_NEW_ACCOUNT_BURST_LIMIT', cls.SOCKET_SEND_NEW_ACCOUNT_BURST_LIMIT),
+            ),
+            'SOCKET_SEND_CHAT_SENDER_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_CHAT_SENDER_LIMIT', cls.SOCKET_SEND_CHAT_SENDER_LIMIT),
+            ),
+            'SOCKET_SEND_CHAT_SENDER_WINDOW_SECONDS': max(
+                1,
+                _env_int('SOCKET_SEND_CHAT_SENDER_WINDOW_SECONDS', cls.SOCKET_SEND_CHAT_SENDER_WINDOW_SECONDS),
+            ),
+            'SOCKET_SEND_NEW_ACCOUNT_CHAT_SENDER_LIMIT': max(
+                0,
+                _env_int(
+                    'SOCKET_SEND_NEW_ACCOUNT_CHAT_SENDER_LIMIT',
+                    cls.SOCKET_SEND_NEW_ACCOUNT_CHAT_SENDER_LIMIT,
+                ),
+            ),
+            'SOCKET_SEND_UNKNOWN_RECIPIENT_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_UNKNOWN_RECIPIENT_LIMIT', cls.SOCKET_SEND_UNKNOWN_RECIPIENT_LIMIT),
+            ),
+            'SOCKET_SEND_UNKNOWN_RECIPIENT_WINDOW_SECONDS': max(
+                60,
+                _env_int(
+                    'SOCKET_SEND_UNKNOWN_RECIPIENT_WINDOW_SECONDS',
+                    cls.SOCKET_SEND_UNKNOWN_RECIPIENT_WINDOW_SECONDS,
+                ),
+            ),
+            'SOCKET_SEND_MEDIA_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_MEDIA_LIMIT', cls.SOCKET_SEND_MEDIA_LIMIT),
+            ),
+            'SOCKET_SEND_MEDIA_WINDOW_SECONDS': max(
+                60,
+                _env_int('SOCKET_SEND_MEDIA_WINDOW_SECONDS', cls.SOCKET_SEND_MEDIA_WINDOW_SECONDS),
+            ),
+            'SOCKET_SEND_NEW_ACCOUNT_MEDIA_LIMIT': max(
+                0,
+                _env_int('SOCKET_SEND_NEW_ACCOUNT_MEDIA_LIMIT', cls.SOCKET_SEND_NEW_ACCOUNT_MEDIA_LIMIT),
+            ),
+            'ABUSE_AUTO_MUTE_ENABLED': _env_bool('ABUSE_AUTO_MUTE_ENABLED', cls.ABUSE_AUTO_MUTE_ENABLED),
+            'ABUSE_AUTO_MUTE_WINDOW_SECONDS': max(
+                60,
+                _env_int('ABUSE_AUTO_MUTE_WINDOW_SECONDS', cls.ABUSE_AUTO_MUTE_WINDOW_SECONDS),
+            ),
+            'ABUSE_AUTO_MUTE_TTL_SECONDS': max(
+                60,
+                _env_int('ABUSE_AUTO_MUTE_TTL_SECONDS', cls.ABUSE_AUTO_MUTE_TTL_SECONDS),
+            ),
+            'ABUSE_AUTO_MUTE_REPORTS_THRESHOLD': max(
+                1,
+                _env_int('ABUSE_AUTO_MUTE_REPORTS_THRESHOLD', cls.ABUSE_AUTO_MUTE_REPORTS_THRESHOLD),
+            ),
+            'ABUSE_AUTO_MUTE_BLOCKS_THRESHOLD': max(
+                1,
+                _env_int('ABUSE_AUTO_MUTE_BLOCKS_THRESHOLD', cls.ABUSE_AUTO_MUTE_BLOCKS_THRESHOLD),
+            ),
+            'ABUSE_AUTO_MUTE_SENDS_THRESHOLD': max(
+                0,
+                _env_int('ABUSE_AUTO_MUTE_SENDS_THRESHOLD', cls.ABUSE_AUTO_MUTE_SENDS_THRESHOLD),
             ),
             'WEB_PUSH_ENABLED': _env_bool('WEB_PUSH_ENABLED', cls.WEB_PUSH_ENABLED),
             'WEB_PUSH_VAPID_PUBLIC_KEY': str(

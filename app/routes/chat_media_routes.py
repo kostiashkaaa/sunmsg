@@ -1,5 +1,6 @@
 from flask import current_app, jsonify, request, send_from_directory, session, url_for
 
+from app.routes.trust_limits import trust_ramped_limit
 from app.db_backend import DatabaseError
 from app.services.chat_media_service import (
     resolve_avatar_for_viewer,
@@ -118,8 +119,21 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
     get_dangerous_inline_mime_prefixes_func,
     get_project_root_func,
 ):
+    avatar_upload_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='10 per hour',
+        limited_config_key='TRUST_RAMP_AVATAR_UPLOAD_LIMIT',
+        limited_default_rule='3 per hour',
+    )
+    chat_media_upload_rate_limit = trust_ramped_limit(
+        get_db_connection_func=get_db_connection_func,
+        standard_rule='120 per hour',
+        limited_config_key='TRUST_RAMP_MEDIA_UPLOAD_LIMIT',
+        limited_default_rule='20 per hour',
+    )
+
     @chat_bp.route('/upload_avatar', methods=['POST'])
-    @limiter.limit("10 per hour")
+    @limiter.limit(avatar_upload_rate_limit)
     def upload_avatar():
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Необходимо войти.'}), 401
@@ -149,7 +163,7 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
             conn.close()
 
     @chat_bp.route('/upload_chat_media', methods=['POST'])
-    @limiter.limit("120 per hour")
+    @limiter.limit(chat_media_upload_rate_limit)
     def upload_chat_media():
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Необходимо войти в систему.'}), 401

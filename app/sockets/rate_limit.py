@@ -2,8 +2,58 @@ import time
 from collections import deque
 from collections.abc import Callable, Mapping, MutableMapping
 from logging import Logger
+from math import ceil
 from typing import Any
 
+_SOCKET_RATE_TOKEN_BUCKETS_LUA = '''
+local now_ms = tonumber(ARGV[1])
+local states = {}
+
+for i = 1, #KEYS do
+  local offset = 2 + ((i - 1) * 4)
+  local capacity = tonumber(ARGV[offset])
+  local window_ms = tonumber(ARGV[offset + 1])
+  local cost = tonumber(ARGV[offset + 2])
+  local ttl_seconds = tonumber(ARGV[offset + 3])
+
+  if capacity > 0 and window_ms > 0 and cost > 0 then
+    local values = redis.call('HMGET', KEYS[i], 'tokens', 'updated_at')
+    local tokens = tonumber(values[1])
+    local updated_at = tonumber(values[2])
+
+    if tokens == nil or updated_at == nil then
+      tokens = capacity
+      updated_at = now_ms
+    else
+      local elapsed_ms = now_ms - updated_at
+      if elapsed_ms < 0 then
+        elapsed_ms = 0
+      end
+      local refill = (elapsed_ms * capacity) / window_ms
+      tokens = math.min(capacity, tokens + refill)
+    end
+
+    if tokens < cost then
+      return 0
+    end
+
+    states[i] = {tokens - cost, ttl_seconds}
+  else
+    states[i] = false
+  end
+end
+
+for i = 1, #KEYS do
+  local state = states[i]
+  if state then
+    redis.call('HSET', KEYS[i], 'tokens', state[1], 'updated_at', now_ms)
+    redis.call('EXPIRE', KEYS[i], state[2])
+  end
+end
+
+return 1
+'''
+_SOCKET_RATE_REDIS_KEY_PREFIX = 'socket:rate:'
 _SOCKET_CONNECT_IP_RATE_LUA = '''
 local key = KEYS[1]
 local now_ms = tonumber(ARGV[1])
@@ -25,6 +75,29 @@ return 1
 _SOCKET_CONNECT_IP_REDIS_KEY_PREFIX = 'socket:connect:ip:'
 
 
+def _scaled_limit(limit: int, multiplier: float) -> int:
+    normalized_limit = int(limit)
+    if normalized_limit <= 0:
+        return normalized_limit
+    try:
+        normalized_multiplier = float(multiplier)
+    except (TypeError, ValueError):
+        normalized_multiplier = 1.0
+    if normalized_multiplier <= 0:
+        return 0
+    return max(1, int(ceil(float(normalized_limit) * normalized_multiplier)))
+
+
+def _normalize_bucket_key(key: str, *, key_prefix: str) -> str:
+    raw_key = str(key or '').strip()
+    if not raw_key:
+        raise ValueError('rate-limit bucket key is required')
+    prefix = str(key_prefix or '')
+    if prefix and raw_key.startswith(prefix):
+        return raw_key
+    return f'{prefix}{raw_key}'
+
+
 def resolve_socket_rate_config(
     event_name: str | None,
     *,
@@ -38,6 +111,128 @@ def resolve_socket_rate_config(
         return label, int(default_limit), int(default_window)
     limit, window = event_limits.get(label, (int(default_limit), int(default_window)))
     return label, int(limit), int(window)
+
+
+def redis_token_buckets_rate_ok(
+    redis_client,
+    buckets: list[Mapping[str, Any]],
+    *,
+    key_prefix: str = _SOCKET_RATE_REDIS_KEY_PREFIX,
+    now_ts: float | None = None,
+) -> bool:
+    normalized_buckets: list[dict[str, int | str]] = []
+    for bucket in buckets or []:
+        limit = int(bucket.get('limit', 0) or 0)
+        window_seconds = int(bucket.get('window_seconds', 0) or 0)
+        cost = int(bucket.get('cost', 1) or 1)
+        if limit <= 0 or window_seconds <= 0 or cost <= 0:
+            continue
+        normalized_buckets.append(
+            {
+                'key': _normalize_bucket_key(str(bucket.get('key') or ''), key_prefix=key_prefix),
+                'limit': limit,
+                'window_seconds': window_seconds,
+                'cost': cost,
+            }
+        )
+
+    if not normalized_buckets:
+        return True
+
+    now = float(now_ts if now_ts is not None else time.time())
+    now_ms = int(now * 1000)
+    keys = [str(bucket['key']) for bucket in normalized_buckets]
+    args: list[str] = [str(now_ms)]
+    for bucket in normalized_buckets:
+        window_seconds = int(bucket['window_seconds'])
+        ttl_seconds = max(int(window_seconds * 2), 120)
+        args.extend(
+            [
+                str(int(bucket['limit'])),
+                str(max(1, int(window_seconds * 1000))),
+                str(int(bucket['cost'])),
+                str(ttl_seconds),
+            ]
+        )
+
+    allowed = redis_client.eval(
+        _SOCKET_RATE_TOKEN_BUCKETS_LUA,
+        len(keys),
+        *keys,
+        *args,
+    )
+    return int(allowed or 0) == 1
+
+
+def redis_token_bucket_rate_ok(
+    redis_client,
+    key: str,
+    *,
+    limit: int,
+    window_seconds: int,
+    cost: int = 1,
+    key_prefix: str = _SOCKET_RATE_REDIS_KEY_PREFIX,
+    now_ts: float | None = None,
+) -> bool:
+    return redis_token_buckets_rate_ok(
+        redis_client,
+        [
+            {
+                'key': key,
+                'limit': limit,
+                'window_seconds': window_seconds,
+                'cost': cost,
+            }
+        ],
+        key_prefix=key_prefix,
+        now_ts=now_ts,
+    )
+
+
+def socket_rate_ok_redis(
+    user_id: int,
+    *,
+    event_name: str | None = None,
+    redis_client,
+    default_event_name: str,
+    default_limit: int,
+    default_window: int,
+    event_limits: Mapping[str, tuple[int, int]],
+    global_event_limit: int = 0,
+    global_event_window: int = 60,
+    key_prefix: str = _SOCKET_RATE_REDIS_KEY_PREFIX,
+    limit_multiplier: float = 1.0,
+    now_ts: float | None = None,
+) -> bool:
+    event_key, limit, window = resolve_socket_rate_config(
+        event_name,
+        default_event_name=default_event_name,
+        default_limit=default_limit,
+        default_window=default_window,
+        event_limits=event_limits,
+    )
+    scaled_limit = _scaled_limit(limit, limit_multiplier)
+    buckets = [
+        {
+            'key': f'user:{int(user_id)}:event:{event_key}',
+            'limit': scaled_limit,
+            'window_seconds': int(window),
+        }
+    ]
+    if int(global_event_limit or 0) > 0 and int(global_event_window or 0) > 0:
+        buckets.append(
+            {
+                'key': f'global:event:{event_key}',
+                'limit': int(global_event_limit),
+                'window_seconds': int(global_event_window),
+            }
+        )
+    return redis_token_buckets_rate_ok(
+        redis_client,
+        buckets,
+        key_prefix=key_prefix,
+        now_ts=now_ts,
+    )
 
 
 def is_legacy_socket_rate_schema_error(exc: Exception) -> bool:

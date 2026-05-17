@@ -158,7 +158,8 @@ def ensure_base_schema(conn) -> None:
             login_vault TEXT,
             language TEXT NOT NULL DEFAULT 'ru',
             client_preferences TEXT NOT NULL DEFAULT '{}',
-            session_auto_logout_seconds INTEGER NOT NULL DEFAULT 2592000
+            session_auto_logout_seconds INTEGER NOT NULL DEFAULT 2592000,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS chats (

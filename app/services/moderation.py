@@ -1605,6 +1605,137 @@ def active_user_restriction(conn, *, user_id: int) -> dict[str, Any] | None:
     }
 
 
+def maybe_apply_automated_spam_mute(
+    conn,
+    *,
+    user_id: int,
+    trigger: str,
+    force: bool = False,
+    window_seconds: int = 60 * 60,
+    reports_threshold: int = 3,
+    blocks_threshold: int = 5,
+    ttl_seconds: int = 60 * 60,
+) -> dict[str, Any] | None:
+    existing = active_user_restriction(conn, user_id=int(user_id))
+    if existing:
+        return existing
+
+    now = utc_now()
+    since_ts = to_db_timestamp(now - timedelta(seconds=max(60, int(window_seconds))))
+    reports_row = conn.execute(
+        '''
+        SELECT COUNT(DISTINCT reporter_user_id) AS cnt
+        FROM moderation_reports
+        WHERE target_type = 'user'
+          AND target_id = ?
+          AND created_at >= ?
+        ''',
+        (str(int(user_id)), since_ts),
+    ).fetchone()
+    blocks_row = conn.execute(
+        '''
+        SELECT COUNT(DISTINCT blocker_id) AS cnt
+        FROM block_list
+        WHERE blocked_id = ?
+          AND created_at >= ?
+        ''',
+        (int(user_id), since_ts),
+    ).fetchone()
+    report_count = int(reports_row['cnt'] or 0) if reports_row else 0
+    block_count = int(blocks_row['cnt'] or 0) if blocks_row else 0
+
+    reasons: list[str] = []
+    if force:
+        reasons.append(str(trigger or 'send_rate_spike'))
+    if report_count >= max(1, int(reports_threshold)):
+        reasons.append('unique_report_spike')
+    if block_count >= max(1, int(blocks_threshold)):
+        reasons.append('block_spike')
+    if not reasons:
+        return None
+
+    expires_at = to_db_timestamp(now + timedelta(seconds=max(60, int(ttl_seconds))))
+    details = {
+        'trigger': str(trigger or 'unknown'),
+        'reasons': reasons,
+        'reports': report_count,
+        'blocks': block_count,
+        'window_seconds': int(window_seconds),
+    }
+    case_row = conn.execute(
+        '''
+        INSERT INTO moderation_cases (
+            case_type,
+            subject_type,
+            subject_id,
+            state,
+            priority,
+            risk_score,
+            confidence,
+            decision_source,
+            decision_reason,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            'automated_spam_mute',
+            'user',
+            ?,
+            'closed',
+            1,
+            0.95,
+            0.85,
+            'system',
+            ?,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+        RETURNING id
+        ''',
+        (str(int(user_id)), json.dumps(details, ensure_ascii=True)),
+    ).fetchone()
+    if not case_row:
+        raise RuntimeError('automated_spam_case_create_failed')
+    case_id = int(case_row['id'])
+    sanction_row = conn.execute(
+        '''
+        INSERT INTO moderation_sanctions (
+            case_id,
+            subject_type,
+            subject_id,
+            action_type,
+            reason_code,
+            status,
+            created_by,
+            starts_at,
+            expires_at
+        )
+        VALUES (?, 'user', ?, 'mute_temp', 'automated_spam', 'active', 'system:abuse_protection', ?, ?)
+        RETURNING id
+        ''',
+        (case_id, str(int(user_id)), to_db_timestamp(now), expires_at),
+    ).fetchone()
+    if not sanction_row:
+        raise RuntimeError('automated_spam_sanction_create_failed')
+    sanction_id = int(sanction_row['id'])
+    add_audit_log(
+        conn,
+        actor_type='system',
+        actor_id='abuse_protection',
+        action='automated_spam_mute_applied',
+        entity_type='user',
+        entity_id=str(int(user_id)),
+        details_json=json.dumps({'case_id': case_id, 'sanction_id': sanction_id, **details}, ensure_ascii=True),
+    )
+    conn.commit()
+    return {
+        'sanction_id': sanction_id,
+        'action_type': 'mute_temp',
+        'reason_code': 'automated_spam',
+        'expires_at': expires_at,
+    }
+
+
 def active_group_restriction(conn, *, chat_id: str, user_id: int) -> dict[str, Any] | None:
     subject_id = make_group_member_subject_id(str(chat_id), int(user_id))
     row = conn.execute(

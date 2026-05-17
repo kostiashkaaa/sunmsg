@@ -29,6 +29,41 @@ def _grant_moderator_role(conn, *, user_id: int = 99):
     conn.commit()
 
 
+def test_maybe_apply_automated_spam_mute_from_block_spike(monkeypatch, tmp_path):
+    db_path = tmp_path / 'moderation-auto-spam-mute.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        _seed_users(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (3, 'pk-3', 'cara', 'Cara')
+            '''
+        )
+        conn.execute('INSERT INTO block_list (blocker_id, blocked_id) VALUES (1, 2)')
+        conn.execute('INSERT INTO block_list (blocker_id, blocked_id) VALUES (3, 2)')
+        conn.commit()
+
+        restriction = moderation_service.maybe_apply_automated_spam_mute(
+            conn,
+            user_id=2,
+            trigger='pre_send',
+            window_seconds=3600,
+            reports_threshold=3,
+            blocks_threshold=2,
+            ttl_seconds=3600,
+        )
+
+        assert restriction is not None
+        assert restriction['action_type'] == 'mute_temp'
+        assert restriction['reason_code'] == 'automated_spam'
+        active = moderation_service.active_user_restriction(conn, user_id=2)
+        assert active is not None
+        assert active['sanction_id'] == restriction['sanction_id']
+
+
 def _process_jobs(db_path, *, worker_id='test-worker'):
     with _connect(db_path) as conn:
         return moderation_service.process_next_report_job(

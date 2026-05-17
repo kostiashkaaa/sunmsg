@@ -43,6 +43,7 @@ USER_SESSION_AUTO_LOGOUT_MIGRATION = (27, 'add_user_session_auto_logout_seconds'
 CALLS_SCHEMA_MIGRATION = (28, 'create_call_sessions_and_participants_tables')
 CALL_FEATURE_ACCESS_MIGRATION = (29, 'create_call_feature_access_tables')
 MESSAGES_CALL_ID_MIGRATION = (30, 'add_call_id_to_messages')
+USER_CREATED_AT_MIGRATION = (31, 'add_created_at_to_users')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -362,9 +363,21 @@ def _run_users_schema_migrations(conn, cursor) -> None:
             'session_auto_logout_seconds',
             f'session_auto_logout_seconds INTEGER NOT NULL DEFAULT {SESSION_AUTO_LOGOUT_DEFAULT_SECONDS}',
         ),
+        ('created_at', 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'),
     )
     for column_name, ddl in user_columns:
         add_column_if_missing(conn, cursor, 'users', column_name, ddl)
+    if not migration_applied(cursor, USER_CREATED_AT_MIGRATION[0]):
+        cursor.execute(
+            '''
+            UPDATE users
+            SET created_at = CURRENT_TIMESTAMP
+            WHERE created_at IS NULL
+            '''
+        )
+        _record_migration(cursor, USER_CREATED_AT_MIGRATION)
+        conn.commit()
+        logger.info('Migration: added created_at to users')
 
 
 def _run_chats_schema_migrations(conn, cursor) -> None:

@@ -4,10 +4,13 @@ from pathlib import Path
 
 from app.sockets.rate_limit import (
     is_legacy_socket_rate_schema_error,
+    redis_token_bucket_rate_ok,
+    redis_token_buckets_rate_ok,
     resolve_socket_rate_config,
     socket_connect_ip_rate_ok,
     socket_connect_ip_rate_ok_redis,
     socket_rate_ok,
+    socket_rate_ok_redis,
     socket_signal_interval_ok,
 )
 from app.db_backend import DatabaseError
@@ -155,6 +158,49 @@ class _FakeRedisSlidingWindow:
         return 1
 
 
+class _FakeRedisTokenBuckets:
+    def __init__(self):
+        self._store: dict[str, dict[str, float]] = {}
+
+    def eval(self, _script, numkeys, *args):
+        keys = [str(value) for value in args[:numkeys]]
+        raw_args = list(args[numkeys:])
+        now_ms = int(raw_args[0])
+        states = []
+        for index, key in enumerate(keys):
+            offset = 1 + (index * 4)
+            capacity = float(raw_args[offset])
+            window_ms = float(raw_args[offset + 1])
+            cost = float(raw_args[offset + 2])
+            ttl_seconds = int(raw_args[offset + 3])
+            if capacity <= 0 or window_ms <= 0 or cost <= 0:
+                states.append(None)
+                continue
+
+            current = self._store.get(key)
+            if current is None:
+                tokens = capacity
+                updated_at = now_ms
+            else:
+                elapsed_ms = max(0, now_ms - int(current['updated_at']))
+                tokens = min(capacity, float(current['tokens']) + ((elapsed_ms * capacity) / window_ms))
+                updated_at = now_ms
+
+            if tokens < cost:
+                return 0
+            states.append({'key': key, 'tokens': tokens - cost, 'updated_at': updated_at, 'ttl': ttl_seconds})
+
+        for state in states:
+            if state is None:
+                continue
+            self._store[str(state['key'])] = {
+                'tokens': float(state['tokens']),
+                'updated_at': float(state['updated_at']),
+                'ttl': float(state['ttl']),
+            }
+        return 1
+
+
 def test_socket_connect_ip_rate_ok_redis_limits_and_resets_window():
     redis_client = _FakeRedisSlidingWindow()
 
@@ -191,6 +237,64 @@ def test_socket_connect_ip_rate_ok_redis_limits_and_resets_window():
         now_ts=161.0,
         unique_member='4',
     ) is True
+
+
+def test_redis_token_buckets_rate_ok_is_atomic_when_later_bucket_fails():
+    redis_client = _FakeRedisTokenBuckets()
+
+    assert redis_token_buckets_rate_ok(
+        redis_client,
+        [
+            {'key': 'a', 'limit': 2, 'window_seconds': 60},
+            {'key': 'b', 'limit': 1, 'window_seconds': 60},
+        ],
+        now_ts=100.0,
+    ) is True
+    assert redis_token_buckets_rate_ok(
+        redis_client,
+        [
+            {'key': 'a', 'limit': 2, 'window_seconds': 60},
+            {'key': 'b', 'limit': 1, 'window_seconds': 60},
+        ],
+        now_ts=100.0,
+    ) is False
+
+    assert redis_token_bucket_rate_ok(
+        redis_client,
+        'a',
+        limit=2,
+        window_seconds=60,
+        now_ts=100.0,
+    ) is True
+
+
+def test_socket_rate_ok_redis_applies_global_event_bucket():
+    redis_client = _FakeRedisTokenBuckets()
+
+    assert socket_rate_ok_redis(
+        1,
+        event_name='send_message',
+        redis_client=redis_client,
+        default_event_name='default',
+        default_limit=10,
+        default_window=60,
+        event_limits={'send_message': (10, 60)},
+        global_event_limit=1,
+        global_event_window=60,
+        now_ts=100.0,
+    ) is True
+    assert socket_rate_ok_redis(
+        2,
+        event_name='send_message',
+        redis_client=redis_client,
+        default_event_name='default',
+        default_limit=10,
+        default_window=60,
+        event_limits={'send_message': (10, 60)},
+        global_event_limit=1,
+        global_event_window=60,
+        now_ts=100.0,
+    ) is False
 
 
 def test_socket_rate_ok_event_scoped_limits(tmp_path):
