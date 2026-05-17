@@ -1,93 +1,16 @@
-const CACHE_NAME = 'sunmessenger-cache-v3';
-const urlsToCache = [
-    '/static/icons/icon-192x192.png',
-    '/static/icons/icon-512x512.png',
-];
-const STATIC_PREFIX = '/static/';
-const VERSION_QUERY_PARAM = 'v';
-const MAX_STATIC_CACHE_ENTRIES = 180;
-const MAX_CACHEABLE_RESPONSE_BYTES = 2 * 1024 * 1024;
-
-function shouldCacheStaticRequest(url) {
-    if (!(url instanceof URL)) {
-        return false;
-    }
-    if (url.origin !== self.location.origin) {
-        return false;
-    }
-    if (!url.pathname.startsWith(STATIC_PREFIX)) {
-        return false;
-    }
-    return url.searchParams.has(VERSION_QUERY_PARAM);
-}
-
-async function canPersistResponse(response) {
-    if (!response || !response.ok) {
-        return false;
-    }
-    if (response.type !== 'basic') {
-        return false;
-    }
-    const contentLength = Number(response.headers.get('content-length') || 0);
-    if (Number.isFinite(contentLength) && contentLength > MAX_CACHEABLE_RESPONSE_BYTES) {
-        return false;
-    }
-    return true;
-}
-
-async function pruneStaticCache(cache) {
-    const keys = await cache.keys();
-    const overflow = keys.length - MAX_STATIC_CACHE_ENTRIES;
-    if (overflow <= 0) {
-        return;
-    }
-    for (let index = 0; index < overflow; index += 1) {
-        await cache.delete(keys[index]);
-    }
-}
+const CACHE_PREFIX = 'sunmessenger-cache-';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(urlsToCache);
-        })
-    );
-});
-
-self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET') {
-        return;
-    }
-
-    const url = new URL(event.request.url);
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
-    event.respondWith(
-        fetch(event.request)
-            .then(async (response) => {
-                if (shouldCacheStaticRequest(url) && await canPersistResponse(response)) {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then(async (cache) => {
-                        cache.put(event.request, responseClone);
-                        await pruneStaticCache(cache);
-                    });
-                }
-                return response;
-            })
-            .catch(() => caches.match(event.request))
-    );
+    event.waitUntil(Promise.resolve());
 });
 
 self.addEventListener('activate', (event) => {
-    const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => Promise.all(
                 cacheNames.map((cacheName) => {
-                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                    if (cacheName.startsWith(CACHE_PREFIX)) {
                         return caches.delete(cacheName);
                     }
                     return null;
