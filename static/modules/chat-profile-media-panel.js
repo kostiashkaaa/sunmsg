@@ -1,4 +1,4 @@
-import { collectMediaFromMessages, renderMediaTabs } from './profile-media.js';
+import { collectMediaFromMessages, renderMediaTabs, resolveProfileMediaSource } from './profile-media.js';
 import { createProfileSharedContentIndex, mergeMediaCollections } from './chat-profile-shared-content.js';
 
 function createEmptyMediaCollections() {
@@ -61,14 +61,18 @@ export function createProfileMediaPanelController({
         }
     }
 
-    function openProfileMediaLightbox(kind, entry) {
-        const src = String(entry?.payload?.data || '').trim();
-        if (!src || !chatMessages || typeof openLightbox !== 'function') return;
+    async function openProfileMediaLightbox(kind, entry) {
+        const rawSrc = String(entry?.payload?.data || '').trim();
+        if (!rawSrc || !chatMessages || typeof openLightbox !== 'function') return;
+
+        const mediaKind = kind === 'video' ? 'video' : 'image';
+        const src = await resolveProfileMediaSource(rawSrc, mediaKind);
+        if (!src) return;
 
         const proxy = document.createElement('button');
         proxy.type = 'button';
         proxy.className = 'file-msg-media-trigger profile-lightbox-proxy';
-        proxy.setAttribute('data-media-kind', kind === 'video' ? 'video' : 'image');
+        proxy.setAttribute('data-media-kind', mediaKind);
         proxy.setAttribute('data-media-src', src);
         proxy.setAttribute('data-caption', String(entry?.payload?.caption || entry?.payload?.name || '').trim());
         proxy.style.display = 'none';
@@ -92,7 +96,7 @@ export function createProfileMediaPanelController({
         if (!entry) return;
 
         if (kind === 'photo' || kind === 'video') {
-            openProfileMediaLightbox(kind, entry);
+            openProfileMediaLightbox(kind, entry).catch(() => {});
             return;
         }
 

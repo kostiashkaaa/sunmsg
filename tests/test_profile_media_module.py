@@ -143,3 +143,12 @@ def test_profile_media_grid_no_longer_writes_payload_data_directly_to_src():
     assert 'hydrateProfileMediaElement(btn.querySelector' in source
     assert '<img src="${escapeHtml(url)}"' not in source
     assert '<video src="${escapeHtml(url)}"' not in source
+
+
+def test_profile_lightbox_proxy_uses_resolved_media_source():
+    source = (ROOT / 'static' / 'modules' / 'chat-profile-media-panel.js').read_text(encoding='utf-8')
+
+    assert 'resolveProfileMediaSource' in source
+    assert 'const src = await resolveProfileMediaSource(rawSrc, mediaKind);' in source
+    assert "proxy.setAttribute('data-media-src', src)" in source
+    assert "proxy.setAttribute('data-media-src', rawSrc)" not in source
