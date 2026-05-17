@@ -6,20 +6,27 @@ from app.services.calls import (
     accept_call,
     cancel_call,
     create_call_log_message,
-    create_call_session,
+    create_call_session_locked,
     end_call,
-    generate_call_id,
     get_active_call_in_chat,
     get_call_session,
     get_user_active_call,
+    get_user_live_calls,
     mark_missed_calls,
     reject_call,
+    terminate_call_on_disconnect,
 )
-from app.services.call_feature_access import can_user_use_calls, can_users_use_calls
+from app.services.call_feature_access import can_user_use_calls
 
 logger = logging.getLogger(__name__)
 
 _CALL_RING_TIMEOUT_SECONDS = 60
+
+# Upper bounds for relayed WebRTC signalling payloads. A well-formed SDP for a
+# 1:1 audio/video call is a few KB; ICE candidates are well under 1 KB. These
+# caps stop a malicious participant from flooding huge payloads (OOM / DoS).
+_MAX_SDP_BYTES = 64 * 1024
+_MAX_ICE_CANDIDATE_BYTES = 4 * 1024
 
 
 def _chat_members(conn, chat_id: str, user_id: int) -> list[int]:
@@ -116,24 +123,38 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'not_member', 'request_id': request_id})
             return
 
-        participant_ids = [int(user_id), *_chat_members(conn, chat_id, user_id)]
-        if not can_users_use_calls(conn, participant_ids):
-            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
+        # Reachable callees, excluding the caller. The Saved Messages chat
+        # stores a self-referential contact row, so _chat_members can echo the
+        # caller back — drop it. With no real callee the call would ring nobody
+        # for 60 s, so reject it up front.
+        callee_ids = [int(p) for p in _chat_members(conn, chat_id, user_id)
+                      if int(p) != int(user_id)]
+        if not callee_ids:
+            emit_func('call_error', {'error': 'no_recipients', 'request_id': request_id})
             return
 
-        mark_missed_calls(conn)
-
-        existing = get_active_call_in_chat(conn, chat_id)
-        if existing:
-            emit_func('call_error', {'error': 'call_already_active', 'call_id': existing['call_id'], 'request_id': request_id})
+        participant_ids = [int(user_id), *callee_ids]
+        if not can_user_use_calls(conn, user_id=int(user_id)):
+            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
         if get_user_active_call(conn, user_id):
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
             return
 
-        call_id = generate_call_id()
-        create_call_session(conn, call_id=call_id, chat_id=chat_id, initiator_id=user_id, call_type=call_type)
+        # Per-chat advisory lock makes the "no live call" check + INSERT atomic,
+        # so two concurrent call_initiate requests cannot both create a session.
+        call_id = create_call_session_locked(
+            conn, chat_id=chat_id, initiator_id=user_id, call_type=call_type,
+        )
+        if call_id is None:
+            existing = get_active_call_in_chat(conn, chat_id)
+            emit_func('call_error', {
+                'error': 'call_already_active',
+                'call_id': existing['call_id'] if existing else None,
+                'request_id': request_id,
+            })
+            return
 
         row = conn.execute(
             'SELECT display_name, username, avatar_url FROM users WHERE id = %s', (user_id,),
@@ -197,10 +218,6 @@ def handle_call_accept(
             emit_func('call_error', {'error': 'not_member', 'call_id': call_id, 'request_id': request_id})
             return
 
-        if not can_user_use_calls(conn, user_id=int(user_id)):
-            emit_func('call_error', {'error': 'calls_feature_disabled', 'call_id': call_id, 'request_id': request_id})
-            return
-
         mark_missed_calls(conn)
 
         if get_user_active_call(conn, user_id):
@@ -214,6 +231,10 @@ def handle_call_accept(
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id},
                   to=f'user_{call["initiator_id"]}')
+        # Also notify the callee's own room: other tabs/devices that showed the
+        # incoming banner must dismiss it now that the call was accepted here.
+        emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id},
+                  to=f'user_{user_id}')
 
         logger.info('Call accepted: call_id=%s user=%s', call_id, user_id)
     except Exception:
@@ -384,6 +405,43 @@ def handle_call_media_state(
 # The server relays SDP offer/answer and ICE candidates between the two peers.
 # It never decrypts media; SDP still requires trusting the signalling server.
 
+def _signal_payload_ok(event_name: str, data: dict) -> bool:
+    """Reject malformed or oversized WebRTC signalling payloads before relay.
+
+    Browsers tolerate junk SDP at setRemoteDescription, so the only real risk
+    from a malicious participant is payload size (OOM / DoS on broadcast).
+    We validate shape just enough to bound the size cheaply."""
+    if event_name in ('call_offer', 'call_answer'):
+        sdp = data.get('sdp')
+        if not isinstance(sdp, dict):
+            return False
+        sdp_type = sdp.get('type')
+        if sdp_type not in ('offer', 'answer', 'pranswer', 'rollback'):
+            return False
+        sdp_text = sdp.get('sdp')
+        if not isinstance(sdp_text, str):
+            return False
+        if len(sdp_text.encode('utf-8', 'ignore')) > _MAX_SDP_BYTES:
+            return False
+        return True
+    if event_name == 'call_ice_candidate':
+        candidate = data.get('candidate')
+        # An end-of-candidates signal is null/absent — permitted.
+        if candidate is None:
+            return True
+        if not isinstance(candidate, dict):
+            return False
+        cand_str = candidate.get('candidate')
+        if cand_str is not None and not isinstance(cand_str, str):
+            return False
+        try:
+            encoded = len(str(candidate).encode('utf-8', 'ignore'))
+        except Exception:  # noqa: BLE001
+            return False
+        return encoded <= _MAX_ICE_CANDIDATE_BYTES
+    return False
+
+
 def handle_call_webrtc_signal(
     data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
     socket_rate_ok_func, get_db_connection_func, emit_func,
@@ -399,6 +457,11 @@ def handle_call_webrtc_signal(
         return
 
     call_id = str(data.get('call_id') or '').strip()
+    if not call_id:
+        return
+    if not _signal_payload_ok(event_name, data):
+        logger.warning('Dropped malformed/oversized %s from user=%s', event_name, user_id)
+        return
 
     conn = get_db_connection_func(request_scoped=False)
     try:
@@ -419,5 +482,57 @@ def handle_call_webrtc_signal(
                 emit_func(event_name, payload, to=f'user_{pid}')
     except Exception:
         logger.exception('Error in handle_call_webrtc_signal event=%s', event_name)
+    finally:
+        conn.close()
+
+
+# ── Disconnect cleanup ────────────────────────────────────────────────────────
+
+def handle_call_disconnect_cleanup(
+    user_id, *, get_db_connection_func, emit_func, logger=logger,
+):
+    """End every live call the user is in because their last socket disconnected.
+
+    Called only when the user has no remaining connected tabs, so closing one
+    of several tabs does not kill an in-progress call. Without this an 'active'
+    call whose peer simply closed the browser would hang forever (the chat is
+    then permanently blocked by call_already_active)."""
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return
+    if user_id <= 0:
+        return
+
+    conn = get_db_connection_func(request_scoped=False)
+    try:
+        for call in get_user_live_calls(conn, user_id):
+            call_id = str(call.get('call_id') or '')
+            chat_id = str(call.get('chat_id') or '')
+            final_status = terminate_call_on_disconnect(conn, call, user_id)
+            if not final_status:
+                continue
+
+            other_ids = _chat_members(conn, chat_id, user_id)
+            _emit_call_log_message(conn, call_id, emit_func, [user_id, *other_ids])
+
+            if final_status == 'ended':
+                updated = get_call_session(conn, call_id)
+                duration = updated['duration_sec'] if updated else None
+                for pid in other_ids:
+                    emit_func('call_ended', {
+                        'call_id': call_id, 'ended_by': user_id, 'duration_sec': duration,
+                    }, to=f'user_{pid}')
+            elif final_status == 'cancelled':
+                for pid in other_ids:
+                    emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
+            elif final_status == 'rejected':
+                emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id},
+                          to=f'user_{call["initiator_id"]}')
+
+            logger.info('Call %s ended on disconnect: user=%s status=%s',
+                        call_id, user_id, final_status)
+    except Exception:
+        logger.exception('Error in handle_call_disconnect_cleanup user=%s', user_id)
     finally:
         conn.close()

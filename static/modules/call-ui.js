@@ -105,7 +105,9 @@ export function showActiveCallOverlay({
     const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
     const isVideo = callType === 'video';
     const isMobile = _isMobileCallUi();
+    const supportsSpeakerToggle = isMobile && _supportsAudioOutputSelection();
     const safeRole = callRole === 'caller' || callRole === 'callee' ? callRole : 'participant';
+    let activeLocalStream = localStream || null;
     const avatarHtml = partnerAvatar
         ? `<img src="${escapeHtml(partnerAvatar)}" class="call-card__avatar-img" alt="">`
         : `<span class="call-card__avatar-fallback">${initial}</span>`;
@@ -135,6 +137,11 @@ export function showActiveCallOverlay({
 
         <section class="call-card call-card--${safeRole}" id="call-card" role="dialog" aria-label="Звонок">
             <div class="call-card__stage">
+                <button class="call-card__minimize" id="call-minimize-btn" type="button" aria-label="Свернуть звонок">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
                 <video id="call-remote-video" class="call-overlay__remote-video" autoplay playsinline muted data-call-view-toggle title="Переключить вид"></video>
                 <video id="call-local-video" class="call-overlay__local-video${isVideo ? '' : ' call-overlay__local-video--hidden'}" autoplay playsinline muted data-call-view-toggle title="Переключить вид"></video>
                 <div class="call-card__audio-bg">
@@ -162,6 +169,16 @@ export function showActiveCallOverlay({
                             </svg>
                         </span>
                         <span class="call-ctrl__label">Камера</span>
+                    </button>
+                    <button class="call-ctrl call-ctrl--switch-camera" id="call-btn-switch-camera" aria-label="Сменить камеру">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 7h3l2-2h6l2 2h3v11H4z"/>
+                                <path d="M9 13a3 3 0 105.8-1"/>
+                                <path d="M15 10v3h3"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Сменить</span>
                     </button>
                     <button class="call-ctrl" id="call-btn-audio" aria-label="Микрофон">
                         <span class="call-ctrl__icon">
@@ -205,7 +222,7 @@ export function showActiveCallOverlay({
         _setCallTopbarActive(true, overlay);
     });
 
-    _syncLocalVideo(overlay, localStream, isVideo);
+    _syncLocalVideo(overlay, activeLocalStream, isVideo);
     if (!isMobile) {
         _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__drag'));
     }
@@ -213,6 +230,8 @@ export function showActiveCallOverlay({
     overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
         const muted = onToggleAudio();
         const btn = overlay.querySelector('#call-btn-audio');
+        btn.setAttribute('aria-pressed', String(muted));
+        btn.setAttribute('aria-label', muted ? 'Микрофон выключен' : 'Микрофон включён');
         btn.classList.toggle('call-ctrl--active', muted);
         btn.querySelector('.call-ctrl__label').textContent = muted ? 'Без звука' : 'Звук';
     });
@@ -220,12 +239,28 @@ export function showActiveCallOverlay({
     overlay.querySelector('#call-btn-video').addEventListener('click', async () => {
         const result = await onToggleVideo();
         const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
-        const stream = typeof result === 'object' ? result?.localStream : localStream;
+        const stream = typeof result === 'object' ? result?.localStream : activeLocalStream;
+        activeLocalStream = stream || activeLocalStream;
         const btn = overlay.querySelector('#call-btn-video');
+        btn.setAttribute('aria-pressed', String(!enabled));
+        btn.setAttribute('aria-label', enabled ? 'Камера включена' : 'Камера выключена');
         btn.classList.toggle('call-ctrl--active', !enabled);
         btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Камера' : 'Без камеры';
         if (!enabled) overlay.classList.remove('call-overlay--self-view-primary');
-        _syncLocalVideo(overlay, stream, enabled);
+        _syncLocalVideo(overlay, activeLocalStream, enabled);
+    });
+
+    overlay.querySelector('#call-btn-switch-camera').addEventListener('click', async () => {
+        const btn = overlay.querySelector('#call-btn-switch-camera');
+        btn.disabled = true;
+        try {
+            const result = await onSwitchCamera();
+            if (result?.localStream) activeLocalStream = result.localStream;
+            const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
+            _syncLocalVideo(overlay, activeLocalStream, enabled);
+        } finally {
+            btn.disabled = false;
+        }
     });
 
     const toggleViewSwap = (event) => {
@@ -234,20 +269,16 @@ export function showActiveCallOverlay({
         if (!overlay.classList.contains('call-overlay--has-local-video')) return;
         overlay.classList.toggle('call-overlay--self-view-primary');
     };
-    overlay.querySelectorAll('[data-call-view-toggle]').forEach((el) => {
-        el.addEventListener('click', toggleViewSwap);
-    });
+    overlay.querySelector('.call-card__stage')?.addEventListener('click', toggleViewSwap);
 
     const speakerBtn = overlay.querySelector('#call-btn-speaker');
-    if (isMobile && speakerBtn) {
+    if (supportsSpeakerToggle && speakerBtn) {
         speakerBtn.addEventListener('click', async () => {
             const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
             speakerBtn.disabled = true;
-            speakerBtn.setAttribute('aria-pressed', String(enabled));
-            speakerBtn.classList.toggle('call-ctrl--active-positive', enabled);
-            speakerBtn.querySelector('.call-ctrl__label').textContent = enabled ? 'Громко' : 'Динамик';
             try {
-                await _setSpeakerMode(enabled, overlay);
+                const applied = await _setSpeakerMode(enabled, overlay);
+                _syncSpeakerButton(speakerBtn, applied ? enabled : !enabled);
             } finally {
                 speakerBtn.disabled = false;
             }
@@ -258,6 +289,14 @@ export function showActiveCallOverlay({
 
     overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
     overlay.querySelector('.call-topbar__end').addEventListener('click', () => onEnd(callId));
+    overlay.querySelector('#call-minimize-btn')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        overlay.classList.add('call-overlay--minimized');
+    });
+    overlay.querySelector('#call-topbar')?.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        overlay.classList.remove('call-overlay--minimized');
+    });
 }
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
@@ -317,6 +356,34 @@ export function setCallVerificationCode(code) {
         ` stroke-width="2.2" stroke-linecap="round" aria-hidden="true">` +
         `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>` +
         `</svg></button>`;
+}
+
+export function setRemoteAudioMuted(muted) {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    overlay.classList.toggle('call-overlay--remote-muted', Boolean(muted));
+    let badge = overlay.querySelector('#call-remote-muted-badge');
+    if (muted) {
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'call-remote-muted-badge';
+            badge.className = 'call-remote-muted';
+            badge.setAttribute('role', 'status');
+            badge.innerHTML =
+                `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
+                ` stroke-width="2" stroke-linecap="round" aria-hidden="true">` +
+                `<path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>` +
+                `<path d="M19 10v2a7 7 0 01-14 0v-2"/>` +
+                `<line x1="12" y1="19" x2="12" y2="23"/>` +
+                `<line x1="3" y1="3" x2="21" y2="21"/></svg>` +
+                `<span>Микрофон выключен</span>`;
+            const stage = overlay.querySelector('.call-card__stage');
+            (stage || overlay).appendChild(badge);
+        }
+        badge.hidden = false;
+    } else if (badge) {
+        badge.hidden = true;
+    }
 }
 
 export function attachRemoteTrack(track) {
@@ -528,20 +595,38 @@ function _makeDraggable(card, handle) {
 }
 
 async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
-    overlay?.classList.toggle('call-overlay--speaker-on', enabled);
     const remoteAudio = overlay?.querySelector('#call-remote-audio');
+    if (!enabled) {
+        overlay?.classList.remove('call-overlay--speaker-on');
+        await _releaseScreenWakeLock();
+    }
+
     if (remoteAudio) {
         remoteAudio.muted = false;
         remoteAudio.volume = 1;
-        await _selectAudioOutput(remoteAudio, { speaker: enabled });
+        const selected = await _selectAudioOutput(remoteAudio, { speaker: enabled });
+        if (!selected) return false;
+        overlay?.classList.toggle('call-overlay--speaker-on', enabled);
         _playMedia(remoteAudio);
     }
 
-    if (!enabled) {
-        await _releaseScreenWakeLock();
-        return;
-    }
-    await _requestScreenWakeLock();
+    if (enabled) await _requestScreenWakeLock();
+    return true;
+}
+
+function _syncSpeakerButton(button, enabled) {
+    if (!button) return;
+    button.setAttribute('aria-pressed', String(enabled));
+    button.setAttribute('aria-label', enabled ? 'Громкий динамик включён' : 'Громкий динамик выключен');
+    button.classList.toggle('call-ctrl--active-positive', enabled);
+    button.querySelector('.call-ctrl__label').textContent = enabled ? 'Громко' : 'Динамик';
+}
+
+function _supportsAudioOutputSelection() {
+    return Boolean(
+        typeof HTMLMediaElement !== 'undefined'
+        && typeof HTMLMediaElement.prototype.setSinkId === 'function'
+    );
 }
 
 async function _selectAudioOutput(audioElement, { speaker }) {

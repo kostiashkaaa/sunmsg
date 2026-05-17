@@ -11,6 +11,8 @@ export class CallMedia {
         this._videoTrack = null;
         this._audioMuted = false;
         this._videoEnabled = false;
+        this._videoDeviceId = '';
+        this._videoFacingMode = 'user';
     }
 
     async acquireAudio() {
@@ -29,6 +31,7 @@ export class CallMedia {
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
         this._videoTrack = stream.getVideoTracks()[0] || null;
+        this._rememberVideoTrack(this._videoTrack);
         this._audioMuted = false;
         this._videoEnabled = true;
         return stream;
@@ -39,6 +42,7 @@ export class CallMedia {
     getLocalStream() { return this._localStream; }
     isAudioMuted() { return this._audioMuted; }
     isVideoEnabled() { return this._videoEnabled; }
+    getVideoFacingMode() { return this._videoFacingMode; }
 
     toggleAudio() {
         if (!this._audioTrack) return this._audioMuted;
@@ -74,35 +78,51 @@ export class CallMedia {
         }
         this._localStream.addTrack(newTrack);
         this._videoTrack = newTrack;
+        this._rememberVideoTrack(newTrack);
         this._videoEnabled = true;
         return newTrack;
     }
 
     async switchCamera() {
-        if (!this._videoTrack) return;
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === 'videoinput');
-        if (cameras.length < 2) return;
+        if (!this._videoTrack) return null;
 
-        const currentId = this._videoTrack.getSettings().deviceId;
-        const next = cameras.find(c => c.deviceId !== currentId) || cameras[0];
+        const currentSettings = this._videoTrack.getSettings?.() || {};
+        const currentId = currentSettings.deviceId || this._videoDeviceId;
+        const currentFacing = currentSettings.facingMode || this._videoFacingMode || 'user';
+        const nextFacing = currentFacing === 'environment' ? 'user' : 'environment';
 
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: next.deviceId } },
-        });
-        const newTrack = newStream.getVideoTracks()[0];
-        // Stop any extra tracks from the temporary stream (e.g. unexpected audio)
-        newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
-
-        this._videoTrack.stop();
-        this._videoTrack = newTrack;
-        if (this._localStream) {
-            const old = this._localStream.getVideoTracks();
-            old.forEach(t => this._localStream.removeTrack(t));
-            this._localStream.addTrack(newTrack);
+        let lastError = null;
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+            if (cameras.length > 1) {
+                const next = this._pickNextCamera(cameras, currentId, nextFacing);
+                if (next?.deviceId) {
+                    const track = await this._replaceVideoTrack({
+                        video: this._videoConstraints({ deviceId: next.deviceId }),
+                    });
+                    this._rememberVideoTrack(track, this._inferFacingMode(next, nextFacing));
+                    return track;
+                }
+            }
+        } catch (err) {
+            lastError = err;
         }
-        newTrack.enabled = this._videoEnabled;
-        return newTrack;
+
+        for (const exact of (nextFacing === 'environment' ? ['environment', 'user'] : ['user', 'environment'])) {
+            try {
+                const track = await this._replaceVideoTrack({
+                    video: this._videoConstraints({ facingMode: exact }),
+                });
+                this._rememberVideoTrack(track, exact);
+                return track;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+
+        if (lastError) throw lastError;
+        return null;
     }
 
     release() {
@@ -114,9 +134,60 @@ export class CallMedia {
         this._videoTrack = null;
         this._audioMuted = false;
         this._videoEnabled = false;
+        this._videoDeviceId = '';
+        this._videoFacingMode = 'user';
     }
 
-    _videoConstraints() {
-        return { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+    async _replaceVideoTrack(constraints) {
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const newTrack = newStream.getVideoTracks()[0] || null;
+        newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
+        if (!newTrack) throw new Error('No replacement video track');
+
+        const oldTrack = this._videoTrack;
+        this._videoTrack = newTrack;
+        if (this._localStream) {
+            this._localStream.getVideoTracks().forEach(t => this._localStream.removeTrack(t));
+            this._localStream.addTrack(newTrack);
+        }
+        oldTrack?.stop();
+        newTrack.enabled = this._videoEnabled;
+        return newTrack;
+    }
+
+    _pickNextCamera(cameras, currentId, nextFacing) {
+        const otherCameras = cameras.filter(camera => !currentId || camera.deviceId !== currentId);
+        const facingMatch = otherCameras.find(camera => this._inferFacingMode(camera, '') === nextFacing);
+        return facingMatch || otherCameras[0] || cameras[0] || null;
+    }
+
+    _inferFacingMode(device, fallback = '') {
+        const label = String(device?.label || '').toLowerCase();
+        if (/back|rear|environment|\u0437\u0430\u0434\u043d|\u043e\u0441\u043d\u043e\u0432\u043d/.test(label)) return 'environment';
+        if (/front|user|face|\u043f\u0435\u0440\u0435\u0434\u043d|\u0444\u0440\u043e\u043d\u0442/.test(label)) return 'user';
+        return fallback || this._videoFacingMode || 'user';
+    }
+
+    _rememberVideoTrack(track, fallbackFacingMode = '') {
+        if (!track) return;
+        const settings = track.getSettings?.() || {};
+        this._videoDeviceId = settings.deviceId || this._videoDeviceId || '';
+        this._videoFacingMode = settings.facingMode || fallbackFacingMode || this._videoFacingMode || 'user';
+    }
+
+    _videoConstraints({ deviceId = '', facingMode = '' } = {}) {
+        const constraints = {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+        };
+        if (deviceId) {
+            constraints.deviceId = { exact: deviceId };
+        } else if (facingMode) {
+            constraints.facingMode = { exact: facingMode };
+        } else {
+            constraints.facingMode = { ideal: this._videoFacingMode || 'user' };
+        }
+        return constraints;
     }
 }

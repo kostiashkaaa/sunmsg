@@ -9,7 +9,7 @@ from app.database import get_db_connection
 from app.services.refresh_tokens import cleanup_expired as cleanup_expired_refresh
 from app.services.disappearing_messages import cleanup_expired_messages as cleanup_disappearing
 from app.services.soft_delete_cleanup import cleanup_soft_deleted_messages
-from app.services.calls import mark_missed_calls
+from app.services.calls import _reap_stale_active_calls, mark_missed_calls
 
 logger = logging.getLogger(__name__)
 
@@ -151,14 +151,18 @@ def poll_spotify_now_playing():
 
 
 def cleanup_stale_ringing_calls():
-    """Mark ringing calls older than 60 s as missed so they don't block chats."""
+    """Mark stale ringing calls as missed and abandoned active calls as failed
+    so neither blocks future calls in the chat."""
     conn = get_db_connection()
     try:
         missed = mark_missed_calls(conn)
         if missed:
-            logger.info('Scheduler: marked %d stale call(s) as missed: %s', len(missed), missed)
+            logger.info('Scheduler: marked %d stale ringing call(s) as missed: %s', len(missed), missed)
+        reaped = _reap_stale_active_calls(conn)
+        if reaped:
+            logger.info('Scheduler: marked %d abandoned active call(s) as failed: %s', len(reaped), reaped)
     except Exception:
-        logger.exception('Stale ringing calls cleanup failed')
+        logger.exception('Stale calls cleanup failed')
     finally:
         conn.close()
 

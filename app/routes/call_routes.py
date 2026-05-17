@@ -12,7 +12,7 @@ import hmac
 import time
 from base64 import b64encode
 
-from flask import Blueprint, current_app, jsonify, session
+from flask import Blueprint, current_app, jsonify, request, session
 
 from app.database import get_db_connection
 from app.extensions import limiter
@@ -36,6 +36,38 @@ def _parse_turn_urls(raw_value: str) -> list[str]:
     return urls
 
 
+def _user_belongs_to_call_chat(conn, *, call_id: str, user_id: int) -> bool:
+    if not call_id:
+        return False
+    call = conn.execute(
+        '''
+        SELECT chat_id, initiator_id, status
+        FROM call_sessions
+        WHERE call_id = ?
+        LIMIT 1
+        ''',
+        (call_id,),
+    ).fetchone()
+    if call is None or call['status'] not in ('ringing', 'active'):
+        return False
+    if int(call['initiator_id']) == int(user_id):
+        return True
+
+    chat_id = str(call['chat_id'] or '')
+    row = conn.execute(
+        'SELECT 1 FROM contacts WHERE chat_id = ? AND user_id = ? LIMIT 1',
+        (chat_id, user_id),
+    ).fetchone()
+    if row:
+        return True
+
+    row = conn.execute(
+        'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ? LIMIT 1',
+        (chat_id, user_id),
+    ).fetchone()
+    return row is not None
+
+
 @call_bp.route('/ice-config', methods=['GET'])
 @limiter.limit('30 per minute')
 def ice_config():
@@ -43,9 +75,13 @@ def ice_config():
         return jsonify({'error': 'unauthenticated'}), 401
 
     user_id    = session['user_id']
+    call_id = str(request.args.get('call_id') or '').strip()
     conn = get_db_connection()
     try:
-        if not can_user_use_calls(conn, user_id=int(user_id)):
+        if (
+            not can_user_use_calls(conn, user_id=int(user_id))
+            and not _user_belongs_to_call_chat(conn, call_id=call_id, user_id=int(user_id))
+        ):
             return jsonify({'error': 'calls_feature_disabled'}), 403
     finally:
         conn.close()

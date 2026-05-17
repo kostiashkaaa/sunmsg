@@ -105,6 +105,7 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
     emit_chat_status_for_user_func,
     utc_now_text_func,
     logger,
+    terminate_calls_func=None,
 ):
     if 'public_key_pem' not in session_store or 'user_id' not in session_store:
         return
@@ -120,6 +121,14 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
     remove_connected_func(pub, request_sid)
     remove_active_func(pub, request_sid)
     still_active = count_active_func(pub) > 0
+
+    # When the user's very last tab/device closes, end any call they are still
+    # in — otherwise an 'active' call hangs forever and blocks the chat.
+    if terminate_calls_func is not None and int(count_connected_func(pub) or 0) <= 0:
+        try:
+            terminate_calls_func(uid)
+        except Exception:  # noqa: BLE001
+            logger.exception('Call cleanup on disconnect failed for user_id=%s', uid)
 
     if was_active and not still_active:
         now = utc_now_text_func()
