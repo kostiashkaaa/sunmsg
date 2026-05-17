@@ -30,6 +30,7 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
 
     pub = session_store['public_key_pem']
     uid = session_store['user_id']
+    user_room = f'user_{uid}'
     remote_ip = str(request_remote_addr or '').strip()
 
     if (
@@ -76,6 +77,7 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
                 raise connection_refused_error_cls('too many concurrent connections')
 
         join_room_func(pub)
+        join_room_func(user_room)
         total = add_connected_func(pub, request_sid)
         logger.info('User %s connected (sid: %s). Total connected tabs: %s', uid, request_sid, total)
 
@@ -109,8 +111,10 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
 
     pub = session_store['public_key_pem']
     uid = session_store['user_id']
+    user_room = f'user_{uid}'
 
     leave_room_func(pub)
+    leave_room_func(user_room)
 
     was_active = count_active_func(pub) > 0
     remove_connected_func(pub, request_sid)
