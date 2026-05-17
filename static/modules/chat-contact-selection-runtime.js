@@ -233,6 +233,10 @@ export function bindChatContactSelectionRuntime({
         if (isMobileViewport()) {
             openChat();
         }
+
+        documentRef.dispatchEvent(new CustomEvent('sun:chat:opened', {
+            detail: { chatId: nextChatId, chatType: isGroupChat || isSavedMessagesChat ? 'group' : 'direct' },
+        }));
     });
 
     if (!getHasAttemptedInitialChatRestore()) {
