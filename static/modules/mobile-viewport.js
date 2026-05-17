@@ -6,99 +6,58 @@ function isCoarsePointer() {
     return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
 }
 
-export function createVisualViewportCssSyncer({
-    appVhVar = '--app-vh',
-    appVwVar = '--app-vw',
-    layoutVhVar = '--layout-vh',
-    layoutVwVar = '--layout-vw',
-    topOffsetVar = '--vv-top-offset',
-    leftOffsetVar = '--vv-left-offset',
-    keyboardInsetVar = '--vv-keyboard-inset',
-    composerBottomInsetVar = '--mobile-composer-bottom-inset',
-    layoutKeyboardInsetVar = '--mobile-keyboard-layout-inset',
-} = {}) {
-    let stableMobileViewportHeight = 0;
-    let stableMobileViewportOrientation = '';
+/**
+ * Keyboard / viewport syncer.
+ *
+ * The chat layout now relies on the native browser behaviour
+ * `interactive-widget=resizes-content`: when the on-screen keyboard opens the
+ * browser itself shrinks the layout viewport (and therefore `100dvh`), so the
+ * `position:fixed` app shell and the `position:absolute` composer naturally
+ * sit above the keyboard with NO JavaScript driving their size.
+ *
+ * Because of that this syncer no longer writes `--app-vh`, `--app-vw`,
+ * viewport offsets or any keyboard-inset variable — doing so was exactly what
+ * caused the composer to jump while JS chased delayed `visualViewport` resize
+ * events.
+ *
+ * It now only:
+ *   1. keeps `--app-vh` / `--app-vw` pointing at `100dvh` / `100%` as a static
+ *      fallback for browsers without `dvh` support;
+ *   2. toggles the `mobile-keyboard-active` class, which the rest of the JS
+ *      still reads for focus / overlay logic (it does not affect layout).
+ */
+export function createVisualViewportCssSyncer(_options = {}) {
+    let lastKeyboardActive = null;
 
     return function syncVisualViewportCssVars() {
         const root = document.documentElement;
         if (!root) return;
 
+        // Static fallback values — layout itself is handled natively by the
+        // browser via 100dvh + interactive-widget=resizes-content.
+        if (root.style.getPropertyValue('--app-vh') !== '100dvh') {
+            root.style.setProperty('--app-vh', '100dvh');
+        }
+        if (root.style.getPropertyValue('--app-vw') !== '100%') {
+            root.style.setProperty('--app-vw', '100%');
+        }
+
         const vv = window.visualViewport;
-        if (!vv) {
-            const fallbackHeight = roundedPx(window.innerHeight);
-            const fallbackWidth = roundedPx(window.innerWidth);
-            root.style.setProperty(appVhVar, `${fallbackHeight}px`);
-            root.style.setProperty(appVwVar, `${fallbackWidth}px`);
-            root.style.setProperty(layoutVhVar, `${fallbackHeight}px`);
-            root.style.setProperty(layoutVwVar, `${fallbackWidth}px`);
-            root.style.setProperty(topOffsetVar, '0px');
-            root.style.setProperty(leftOffsetVar, '0px');
-            root.style.setProperty(keyboardInsetVar, '0px');
-            root.style.setProperty(composerBottomInsetVar, '0px');
-            root.style.setProperty(layoutKeyboardInsetVar, '0px');
-            root.classList.remove('mobile-keyboard-active');
-            return;
-        }
-
-        const vvWidth = roundedPx(vv.width);
-        const vvHeight = roundedPx(vv.height);
-        const vvLeft = roundedPx(vv.offsetLeft);
-        const vvTop = roundedPx(vv.offsetTop);
-        const active = document.activeElement;
-        const isComposerActive = Boolean(active?.closest?.('#messageForm, #composerRow'));
         const isTouchViewport = isCoarsePointer();
-        const isLandscape = Boolean(window.matchMedia?.('(orientation: landscape)')?.matches);
-        const orientationKey = isLandscape ? 'landscape' : 'portrait';
-        if (orientationKey !== stableMobileViewportOrientation) {
-            stableMobileViewportOrientation = orientationKey;
-            stableMobileViewportHeight = 0;
+
+        // Keyboard detection: compare the visual viewport height against the
+        // layout viewport. With resizes-content the two stay close, so we use a
+        // soft threshold purely to set the informational class — never layout.
+        let keyboardActive = false;
+        if (vv && isTouchViewport) {
+            const vvHeight = roundedPx(vv.height);
+            const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
+            keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
         }
 
-        const layoutViewportHeight = Math.max(
-            vvHeight,
-            roundedPx(window.innerHeight),
-            roundedPx(root.clientHeight)
-        );
-        const layoutViewportWidth = Math.max(
-            vvWidth,
-            roundedPx(window.innerWidth),
-            roundedPx(root.clientWidth)
-        );
-        if (!isTouchViewport) {
-            stableMobileViewportHeight = 0;
+        if (keyboardActive !== lastKeyboardActive) {
+            lastKeyboardActive = keyboardActive;
+            root.classList.toggle('mobile-keyboard-active', keyboardActive);
         }
-        if (isTouchViewport && layoutViewportHeight > stableMobileViewportHeight) {
-            stableMobileViewportHeight = layoutViewportHeight;
-        }
-
-        const viewportBaseHeight = stableMobileViewportHeight || layoutViewportHeight;
-        const visibleBottom = Math.max(0, vvTop + vvHeight);
-        const rawComposerBottomInset = Math.max(0, viewportBaseHeight - visibleBottom);
-        // Не привязываемся к isComposerActive — на iOS тап по play-кнопке
-        // временно снимает фокус с textarea, и если бы условие требовало
-        // composer-focus, мы бы «разжимали» chat-area пока клавиатура
-        // ещё открыта, и UI прыгал бы. Достаточно факта, что
-        // visualViewport реально меньше базового — значит клава поднята.
-        const hasKeyboardViewport = isTouchViewport
-            && viewportBaseHeight > 0
-            && (rawComposerBottomInset > 24 || vvHeight < viewportBaseHeight * 0.82);
-        const keyboardInset = hasKeyboardViewport ? rawComposerBottomInset : 0;
-        const appHeight = hasKeyboardViewport ? vvHeight : layoutViewportHeight;
-        const appTopOffset = hasKeyboardViewport ? vvTop : 0;
-        const appWidth = hasKeyboardViewport && vvWidth > 0 ? vvWidth : layoutViewportWidth;
-        const appLeftOffset = hasKeyboardViewport ? vvLeft : 0;
-
-        root.style.setProperty(appVhVar, `${appHeight}px`);
-        root.style.setProperty(appVwVar, `${appWidth}px`);
-        root.style.setProperty(layoutVhVar, `${layoutViewportHeight}px`);
-        root.style.setProperty(layoutVwVar, `${layoutViewportWidth}px`);
-        root.style.setProperty(topOffsetVar, `${appTopOffset}px`);
-        root.style.setProperty(leftOffsetVar, `${appLeftOffset}px`);
-        root.style.setProperty(keyboardInsetVar, `${keyboardInset}px`);
-        // composerBottomInset = keyboard height (already includes safe-area via env() in CSS)
-        root.style.setProperty(composerBottomInsetVar, `${keyboardInset}px`);
-        root.style.setProperty(layoutKeyboardInsetVar, '0px');
-        root.classList.toggle('mobile-keyboard-active', hasKeyboardViewport);
     };
 }

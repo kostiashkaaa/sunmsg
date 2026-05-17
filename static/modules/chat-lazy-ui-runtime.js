@@ -131,34 +131,9 @@ export function createChatLazyUiRuntime({
         windowRef.setTimeout(runWarmup, 120);
     }
 
-    function readRootPixelVar(name) {
-        const root = messageInput?.ownerDocument?.documentElement || windowRef.document?.documentElement;
-        if (!root) return 0;
-        const raw = windowRef.getComputedStyle(root).getPropertyValue(name).trim();
-        if (!raw.endsWith('px')) return 0;
-        const value = Number.parseFloat(raw);
-        return Number.isFinite(value) ? value : 0;
-    }
-
-    function readMobileKeyboardInset() {
-        const cssInset = readRootPixelVar('--mobile-composer-bottom-inset');
-        const vv = windowRef.visualViewport;
-        if (!vv) return cssInset;
-        const root = messageInput?.ownerDocument?.documentElement || windowRef.document?.documentElement;
-        const layoutViewportHeight = Math.max(
-            Math.round(windowRef.innerHeight || 0),
-            Math.round(root?.clientHeight || 0),
-            readRootPixelVar('--app-vh'),
-        );
-        const visibleBottom = Math.round((vv.offsetTop || 0) + (vv.height || 0));
-        return Math.max(cssInset, Math.max(0, layoutViewportHeight - visibleBottom));
-    }
-
-    function dispatchEmojiOpen(preferredMobileSheetHeight, { waitForKeyboard = false } = {}) {
+    function dispatchEmojiOpen() {
         const documentRef = messageInput?.ownerDocument || windowRef.document;
-        documentRef?.dispatchEvent(new windowRef.CustomEvent('sun-open-emoji-picker', {
-            detail: { preferredMobileSheetHeight, waitForKeyboard },
-        }));
+        documentRef?.dispatchEvent(new windowRef.CustomEvent('sun-open-emoji-picker'));
     }
 
     function ensureMessageSearch() {
@@ -236,11 +211,12 @@ export function createChatLazyUiRuntime({
         }
     }, { capture: true });
 
+    // Mobile: load the emoji module and open the picker on pointerdown so the
+    // emoji button never steals focus from the textarea (preventDefault). The
+    // emoji sheet has a fixed CSS height — no keyboard measuring needed.
     emojiBtn?.addEventListener('pointerdown', async (event) => {
         if (emojiPickerInitPromise) return;
-        if (!isMobileViewport() || messageInput?.ownerDocument?.activeElement !== messageInput) return;
-        const keyboardInset = readMobileKeyboardInset();
-        if (keyboardInset < 24) return;
+        if (!isMobileViewport()) return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -248,7 +224,7 @@ export function createChatLazyUiRuntime({
         handledEmojiPointerOpen = true;
         try {
             await ensureEmojiPicker();
-            dispatchEmojiOpen(keyboardInset, { waitForKeyboard: true });
+            dispatchEmojiOpen();
         } catch (error) {
             console.warn('Failed to initialize emoji picker', error);
         } finally {

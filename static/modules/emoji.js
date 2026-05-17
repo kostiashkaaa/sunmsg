@@ -22,17 +22,7 @@ const DISALLOWED_PICKER_EMOJIS = new Set([
 ]);
 
 const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
-const MOBILE_EMOJI_MIN_HEIGHT = 320;
-const MOBILE_EMOJI_COMPACT_MIN_HEIGHT = 260;
-const MOBILE_EMOJI_MAX_HEIGHT = 480;
-const MOBILE_EMOJI_HEIGHT_RATIO = 0.46;
-const MOBILE_EMOJI_MIN_HEADER_GAP = 8;
-const EMOJI_CLOSE_ANIMATION_MS = 190;
-const EMOJI_KEYBOARD_HANDOFF_MS = 720;
-// Keep in sync with keyboard viewport detection in mobile-viewport.js
-// so handoff ends as soon as the keyboard is actually visible.
-const EMOJI_KEYBOARD_INSET_MIN = 24;
-const MOBILE_OPEN_KEYBOARD_INSET_TTL_MS = 900;
+const EMOJI_CLOSE_ANIMATION_MS = 240;
 const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;
 const CATEGORY_SCROLL_SYNC_OFFSET = 24;
 
@@ -52,10 +42,6 @@ const EMOJI_INLINE_KEYWORDS = {
 };
 
 let emojiCloseSeq = 0;
-let emojiKeyboardHandoffTimer = null;
-let emojiKeyboardHandoffFrame = 0;
-let lastMobileKeyboardInsetPx = 0;
-let lastMobileKeyboardInsetAt = 0;
 
 function normalizeQuery(value) {
     return String(value || '').trim().toLowerCase();
@@ -133,44 +119,6 @@ function waitForMotionEnd(element, fallbackMs) {
     });
 }
 
-function readRootPixelVar(name) {
-    const raw = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    if (!raw.endsWith('px')) return 0;
-    const value = Number.parseFloat(raw);
-    return Number.isFinite(value) ? value : 0;
-}
-
-function readMobileKeyboardInset() {
-    const cssInset = readRootPixelVar('--mobile-composer-bottom-inset');
-    const vv = window.visualViewport;
-    if (!vv) return cssInset;
-
-    const layoutViewportHeight = Math.max(
-        Math.round(window.innerHeight || 0),
-        Math.round(document.documentElement.clientHeight || 0),
-        readRootPixelVar('--app-vh'),
-    );
-    const visibleBottom = Math.round((vv.offsetTop || 0) + (vv.height || 0));
-    const viewportInset = Math.max(0, layoutViewportHeight - visibleBottom);
-    return Math.max(cssInset, viewportInset);
-}
-
-function readCurrentMobileEmojiSheetHeight(emojiPicker) {
-    const cssHeight = readRootPixelVar('--mobile-emoji-sheet-height');
-    if (cssHeight > 0) return cssHeight;
-    const pickerHeight = Math.round(emojiPicker?.getBoundingClientRect?.().height || 0);
-    return pickerHeight > 0 ? pickerHeight : 0;
-}
-
-function captureMobileKeyboardInsetSnapshot() {
-    if (!isMobileEmojiViewport()) return 0;
-    const inset = readMobileKeyboardInset();
-    if (inset <= 0) return 0;
-    lastMobileKeyboardInsetPx = inset;
-    lastMobileKeyboardInsetAt = performance.now();
-    return inset;
-}
-
 function resolveEmojiChatArea(emojiPicker) {
     return emojiPicker?.closest('.chat-area') || document.getElementById('chatArea');
 }
@@ -199,7 +147,7 @@ function pinMobileEmojiChatToBottom(chatArea) {
     });
 }
 
-function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
+function setMobileEmojiSheetState(emojiPicker, isOpen) {
     const chatArea = resolveEmojiChatArea(emojiPicker);
     if (!chatArea) return;
 
@@ -209,97 +157,17 @@ function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
         && isMobileEmojiChatPinnedToBottom(chatArea),
     );
 
+    // The emoji sheet has a fixed CSS height (--mobile-emoji-sheet-height set in
+    // the stylesheet) — JS only toggles the open class. No height measuring.
     chatArea.classList.toggle('emoji-sheet-open', Boolean(isOpen));
     document.documentElement.classList.toggle('mobile-emoji-sheet-open', Boolean(isOpen));
-    if (isOpen && Number.isFinite(height)) {
-        chatArea.classList.remove('emoji-sheet-releasing');
-        chatArea.style.setProperty('--mobile-emoji-sheet-height', `${Math.round(height)}px`);
-        if (shouldPinChatToBottom) {
-            pinMobileEmojiChatToBottom(chatArea);
-        }
-    } else if (!isOpen) {
-        chatArea.classList.remove('emoji-keyboard-handoff');
-        // Suppress transitions while collapsing the dock so the input bar
-        // doesn't visibly jump downward during keyboard-handoff or close.
-        chatArea.classList.add('emoji-sheet-releasing');
-        chatArea.style.removeProperty('--mobile-emoji-sheet-height');
-        // Remove the releasing flag after the current paint to re-enable transitions.
-        window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-                chatArea.classList.remove('emoji-sheet-releasing');
-            });
-        });
+    if (isOpen && shouldPinChatToBottom) {
+        pinMobileEmojiChatToBottom(chatArea);
     }
 }
 
 function clearMobileEmojiSheetState(emojiPicker) {
     setMobileEmojiSheetState(emojiPicker, false);
-}
-
-function resetMobileEmojiShellScroll(emojiPicker) {
-    if (!isMobileEmojiViewport()) return;
-    const chatArea = resolveEmojiChatArea(emojiPicker);
-    if (!chatArea || chatArea.scrollTop === 0) return;
-    chatArea.scrollTop = 0;
-}
-
-function measureMobileEmojiTopReserve(emojiPicker, emojiBtn, viewportOffsetTop) {
-    const chatArea = resolveEmojiChatArea(emojiPicker);
-    const header = chatArea?.querySelector?.('.chat-header');
-    const headerRect = header?.getBoundingClientRect?.();
-    const headerReserve = headerRect
-        ? Math.max(0, Math.round(headerRect.bottom - viewportOffsetTop))
-        : 0;
-    const composerShell = emojiBtn.closest('.chat-input-area') || emojiBtn.closest('#messageForm');
-    const composerRect = composerShell?.getBoundingClientRect?.();
-    const composerHeight = composerRect ? Math.ceil(composerRect.height) : 0;
-    const chatStyles = chatArea ? window.getComputedStyle(chatArea) : null;
-    const floatingGap = Number.parseFloat(chatStyles?.getPropertyValue('--floating-composer-gap')) || 8;
-    return headerReserve + composerHeight + floatingGap + MOBILE_EMOJI_MIN_HEADER_GAP;
-}
-
-function stopEmojiKeyboardHandoff(emojiPicker, { clearLayout = false } = {}) {
-    window.clearTimeout(emojiKeyboardHandoffTimer);
-    emojiKeyboardHandoffTimer = null;
-    if (emojiKeyboardHandoffFrame) {
-        window.cancelAnimationFrame(emojiKeyboardHandoffFrame);
-        emojiKeyboardHandoffFrame = 0;
-    }
-    const chatArea = resolveEmojiChatArea(emojiPicker);
-    chatArea?.classList.remove('emoji-keyboard-handoff');
-    if (clearLayout) {
-        clearMobileEmojiSheetState(emojiPicker);
-    }
-}
-
-function startEmojiKeyboardHandoff(emojiPicker, { targetInset = null } = {}) {
-    const chatArea = resolveEmojiChatArea(emojiPicker);
-    if (!chatArea || !isMobileEmojiViewport()) return false;
-
-    stopEmojiKeyboardHandoff(emojiPicker);
-    chatArea.classList.add('emoji-keyboard-handoff');
-    const startedAt = performance.now();
-    const targetKeyboardInset = Math.max(
-        EMOJI_KEYBOARD_INSET_MIN,
-        Math.round(Number.isFinite(targetInset) && targetInset > 0 ? targetInset - 24 : EMOJI_KEYBOARD_INSET_MIN),
-    );
-
-    const finish = () => {
-        stopEmojiKeyboardHandoff(emojiPicker, { clearLayout: true });
-    };
-    const tick = () => {
-        const elapsed = performance.now() - startedAt;
-        const keyboardInset = readMobileKeyboardInset();
-        if (keyboardInset >= targetKeyboardInset || elapsed >= EMOJI_KEYBOARD_HANDOFF_MS) {
-            finish();
-            return;
-        }
-        emojiKeyboardHandoffFrame = window.requestAnimationFrame(tick);
-    };
-
-    emojiKeyboardHandoffTimer = window.setTimeout(finish, EMOJI_KEYBOARD_HANDOFF_MS);
-    emojiKeyboardHandoffFrame = window.requestAnimationFrame(tick);
-    return true;
 }
 
 function isAllowedPickerEmoji(value) {
@@ -649,67 +517,20 @@ function renderCategoryButtons(emojiCategories, activeCategory, localeCode) {
 function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     if (!emojiPicker || !emojiBtn) return;
 
-    // position:fixed uses layout-viewport coordinates (same as getBoundingClientRect).
-    // vv.offsetLeft/Top are the visual-viewport scroll offsets inside the layout viewport
-    // and must NOT be added to fixed-position coordinates.
-    const vv = window.visualViewport;
-    const layoutW = Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
-    const layoutH = Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
-    // When the keyboard is open, vv.height is the usable area above it.
-    const usableH = vv ? Math.min(Math.round(vv.height || layoutH), layoutH) : layoutH;
-    const margin = 10;
-    const isMobile = isMobileEmojiViewport();
-    if (isMobile) {
-        resetMobileEmojiShellScroll(emojiPicker);
-    }
-    const formRect = emojiBtn.closest('#messageForm')?.getBoundingClientRect() || emojiBtn.getBoundingClientRect();
-    const anchorGap = 10;
-
-    if (isMobile) {
-        const preserveSize = Boolean(options.preserveSize);
-        const layoutViewportHeight = Math.max(
-            layoutH,
-            Math.round(document.documentElement.clientHeight || 0),
-            readRootPixelVar('--app-vh'),
-        );
-        const mobileViewportHeight = usableH > 0 ? usableH : layoutViewportHeight;
-        const topReserve = measureMobileEmojiTopReserve(emojiPicker, emojiBtn, 0);
-        const preferredMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
-        const hasPreferredMobileSheetHeight = Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0;
-        const sheetViewportHeight = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight;
-        const maxSheetHeight = Math.min(
-            MOBILE_EMOJI_MAX_HEIGHT,
-            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, sheetViewportHeight - 80),
-            Math.max(MOBILE_EMOJI_COMPACT_MIN_HEIGHT, sheetViewportHeight - topReserve),
-        );
-        const defaultSheetHeight = Math.min(
-            maxSheetHeight,
-            Math.max(MOBILE_EMOJI_MIN_HEIGHT, mobileViewportHeight * MOBILE_EMOJI_HEIGHT_RATIO),
-        );
-        const currentSheetHeight = preserveSize
-            ? Number.parseFloat(String(emojiPicker.style.getPropertyValue('--emoji-height') || ''))
-            : NaN;
-        const targetSheetHeight = hasPreferredMobileSheetHeight
-            ? preferredMobileSheetHeight
-            : (Number.isFinite(currentSheetHeight) && currentSheetHeight > 0 ? currentSheetHeight : defaultSheetHeight);
-        const minSheetHeight = hasPreferredMobileSheetHeight ? 0 : MOBILE_EMOJI_MIN_HEIGHT;
-        const sheetHeight = Math.round(Math.min(maxSheetHeight, Math.max(minSheetHeight, targetSheetHeight)));
-        const sheetWidth = layoutW;
-        // Sheet sits at the bottom of the usable (above-keyboard) area.
-        const sheetBottom = hasPreferredMobileSheetHeight ? layoutViewportHeight : mobileViewportHeight;
-        const top = Math.round(sheetBottom - sheetHeight);
-
-        emojiPicker.style.setProperty('--emoji-left', '0px');
-        emojiPicker.style.setProperty('--emoji-top', `${top}px`);
-        emojiPicker.style.setProperty('--emoji-width', `${sheetWidth}px`);
-        emojiPicker.style.setProperty('--emoji-height', `${sheetHeight}px`);
-        emojiPicker.style.transformOrigin = 'bottom center';
+    // Mobile picker is a pure-CSS bottom sheet — no JS positioning needed.
+    if (isMobileEmojiViewport()) {
         emojiPicker.dataset.side = 'mobile-sheet';
-        setMobileEmojiSheetState(emojiPicker, true, sheetHeight);
         return;
     }
 
-    clearMobileEmojiSheetState(emojiPicker);
+    // Desktop: anchor the floating picker above the composer.
+    // position:fixed uses layout-viewport coordinates (same as getBoundingClientRect).
+    const layoutW = Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
+    const layoutH = Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+    const usableH = layoutH;
+    const margin = 10;
+    const formRect = emojiBtn.closest('#messageForm')?.getBoundingClientRect() || emojiBtn.getBoundingClientRect();
+    const anchorGap = 10;
 
     const preserveSize = Boolean(options.preserveSize);
     const measuredWidth = Math.round(emojiPicker.offsetWidth || 0);
@@ -954,14 +775,11 @@ export function initEmojiPicker(messageInput) {
 
     const closePicker = ({ focusInput = false } = {}) => {
         openRenderSeq += 1;
-        const wantsKeyboardHandoff = isMobileEmojiViewport()
-            && (focusInput || document.activeElement === messageInput);
-        const keyboardHandoffTargetInset = wantsKeyboardHandoff
-            ? readCurrentMobileEmojiSheetHeight(emojiPicker)
-            : 0;
+        const isMobile = isMobileEmojiViewport();
+
         if (!emojiPicker.classList.contains('active') && !emojiPicker.classList.contains('is-closing')) {
-            // Picker is already closed: never restart handoff here, just normalize layout.
-            stopEmojiKeyboardHandoff(emojiPicker, { clearLayout: true });
+            // Already closed — just normalize state.
+            clearMobileEmojiSheetState(emojiPicker);
             emojiPicker.setAttribute('aria-hidden', 'true');
             syncEmojiButtonMode(false);
             if (focusInput) focusComposerInput();
@@ -972,41 +790,26 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.remove('active');
         emojiPicker.classList.add('is-closing');
         emojiPicker.setAttribute('aria-hidden', 'true');
-        if (wantsKeyboardHandoff) {
-            startEmojiKeyboardHandoff(emojiPicker, { targetInset: keyboardHandoffTargetInset });
-        }
         syncEmojiButtonMode(false);
+
+        // On mobile: focusing the input opens the native keyboard. The browser
+        // resizes the layout viewport, so the composer naturally slides up with
+        // the keyboard — no manual handoff or height measuring needed.
         if (focusInput) focusComposerInput();
+
         waitForMotionEnd(emojiPicker, maxTransitionMs(emojiPicker, EMOJI_CLOSE_ANIMATION_MS)).then(() => {
             if (closeSeq !== emojiCloseSeq) return;
             emojiPicker.classList.remove('is-closing');
-            if (!wantsKeyboardHandoff) {
-                clearMobileEmojiSheetState(emojiPicker);
-            }
+            clearMobileEmojiSheetState(emojiPicker);
         });
     };
 
     const openPicker = async (options = {}) => {
         rememberSelection();
-        stopEmojiKeyboardHandoff(emojiPicker);
         emojiCloseSeq += 1;
         const renderSeq = ++openRenderSeq;
         const shouldOpenMobile = isMobileEmojiViewport();
-        const explicitMobileSheetHeight = Number.parseFloat(options.preferredMobileSheetHeight);
-        const hasExplicitMobileSheetHeight = Number.isFinite(explicitMobileSheetHeight) && explicitMobileSheetHeight > 0;
-        const keyboardInsetBeforeOpen = shouldOpenMobile
-            ? (hasExplicitMobileSheetHeight ? explicitMobileSheetHeight : readMobileKeyboardInset())
-            : 0;
-        const recentKeyboardInset = (
-            shouldOpenMobile
-            && lastMobileKeyboardInsetPx > 0
-            && (performance.now() - lastMobileKeyboardInsetAt) <= MOBILE_OPEN_KEYBOARD_INSET_TTL_MS
-        )
-            ? lastMobileKeyboardInsetPx
-            : 0;
-        const preferredMobileSheetHeight = keyboardInsetBeforeOpen > 0
-            ? keyboardInsetBeforeOpen
-            : recentKeyboardInset;
+
         searchQuery = '';
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
@@ -1014,20 +817,16 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.add('active');
         emojiPicker.setAttribute('aria-hidden', 'false');
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
-        positionEmojiPicker(emojiPicker, emojiBtn, {
-            preferredMobileSheetHeight: preferredMobileSheetHeight > 0 ? preferredMobileSheetHeight : null,
-        });
-        if (shouldOpenMobile && document.activeElement === messageInput) {
-            // Suppress layout transitions while the keyboard dismisses so the
-            // input bar doesn't jump before the emoji sheet slides into position.
-            const chatArea = resolveEmojiChatArea(emojiPicker);
-            chatArea?.classList.add('emoji-sheet-releasing');
-            messageInput.blur();
-            window.requestAnimationFrame(() => {
-                window.requestAnimationFrame(() => {
-                    chatArea?.classList.remove('emoji-sheet-releasing');
-                });
-            });
+
+        if (shouldOpenMobile) {
+            // Dismiss the keyboard first; the emoji sheet (fixed CSS height)
+            // takes its place. Mark the chat-area so CSS docks the composer.
+            if (document.activeElement === messageInput) {
+                messageInput.blur();
+            }
+            setMobileEmojiSheetState(emojiPicker, true);
+        } else {
+            positionEmojiPicker(emojiPicker, emojiBtn);
         }
         syncEmojiButtonMode(true);
 
@@ -1048,7 +847,9 @@ export function initEmojiPicker(messageInput) {
             if (renderSeq !== openRenderSeq) return;
             renderEmojiList({ forceCategoryScroll: true }).then(() => {
                 if (renderSeq !== openRenderSeq) return;
-                positionEmojiPicker(emojiPicker, emojiBtn, { preserveSize: true });
+                if (!isMobileEmojiViewport()) {
+                    positionEmojiPicker(emojiPicker, emojiBtn, { preserveSize: true });
+                }
             }).catch(() => {});
         });
     };
@@ -1073,35 +874,31 @@ export function initEmojiPicker(messageInput) {
         suppressCategorySyncUntil = performance.now() + 420;
     };
 
+    // On mobile we handle the toggle on pointerdown and preventDefault so the
+    // emoji button never steals focus from the textarea — this keeps the
+    // emoji-sheet <-> keyboard switch a single clean transition.
     emojiBtn.addEventListener('pointerdown', (event) => {
         if (!isMobileEmojiViewport()) return;
-        const keyboardInset = captureMobileKeyboardInsetSnapshot();
-        if (!emojiPicker.classList.contains('active')) {
-            if (document.activeElement === messageInput && keyboardInset >= EMOJI_KEYBOARD_INSET_MIN) {
-                event.preventDefault();
-                event.stopPropagation();
-                window.clearTimeout(keyboardSwitchPointerTimer);
-                handledKeyboardSwitchPointer = true;
-                openPicker({ preferredMobileSheetHeight: keyboardInset, waitForKeyboard: true }).catch(() => {});
-                keyboardSwitchPointerTimer = window.setTimeout(() => {
-                    handledKeyboardSwitchPointer = false;
-                }, 450);
-            }
-            return;
-        }
         event.preventDefault();
         event.stopPropagation();
         window.clearTimeout(keyboardSwitchPointerTimer);
         handledKeyboardSwitchPointer = true;
-        closePicker({ focusInput: true });
         keyboardSwitchPointerTimer = window.setTimeout(() => {
             handledKeyboardSwitchPointer = false;
         }, 450);
+        if (emojiPicker.classList.contains('active')) {
+            // Emoji sheet -> keyboard
+            closePicker({ focusInput: true });
+        } else {
+            // Keyboard / nothing -> emoji sheet
+            openPicker().catch(() => {});
+        }
     });
 
     emojiBtn.addEventListener('click', async (event) => {
         event.stopPropagation();
         if (handledKeyboardSwitchPointer) {
+            // Already handled on pointerdown (mobile path).
             event.preventDefault();
             window.clearTimeout(keyboardSwitchPointerTimer);
             handledKeyboardSwitchPointer = false;
@@ -1209,22 +1006,16 @@ export function initEmojiPicker(messageInput) {
         }
     });
 
-    document.addEventListener('sun-open-emoji-picker', (event) => {
-        const preferredMobileSheetHeight = Number.parseFloat(event?.detail?.preferredMobileSheetHeight);
-        openPicker({
-            preferredMobileSheetHeight: Number.isFinite(preferredMobileSheetHeight) && preferredMobileSheetHeight > 0
-                ? preferredMobileSheetHeight
-                : null,
-            waitForKeyboard: event?.detail?.waitForKeyboard === true,
-        }).catch(() => {});
+    document.addEventListener('sun-open-emoji-picker', () => {
+        openPicker().catch(() => {});
     });
 
     document.addEventListener('sun-close-emoji-picker', () => closePicker());
 
+    // Reposition is only meaningful for the desktop floating picker; the mobile
+    // sheet is pinned by CSS and must not be touched on viewport resize.
     window.addEventListener('resize', reposition, { passive: true });
     window.addEventListener('scroll', reposition, { passive: true });
-    window.visualViewport?.addEventListener('resize', reposition);
-    window.visualViewport?.addEventListener('scroll', reposition);
     window.addEventListener('sun-ui-language-changed', () => {
         defaultListNeedsRefresh = true;
         syncEmojiButtonMode();
