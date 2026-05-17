@@ -472,10 +472,15 @@
         </div>
 
         <div class="disappearing-pill-wrap disappearing-pill-wrap--hidden" id="disappearingPillWrap" hidden aria-hidden="true">
-            <span class="disappearing-pill" id="disappearingPill">
-                <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-clock"></use></svg>
-                <span id="disappearingPillText"></span>
-            </span>
+            <div class="disappearing-pill" id="disappearingPill" role="status" aria-live="polite">
+                <span class="disappearing-pill__icon" aria-hidden="true">
+                    <svg class="sun-icon"><use href="#sun-i-clock"></use></svg>
+                </span>
+                <span class="disappearing-pill__copy">
+                    <span class="disappearing-pill__title" id="disappearingPillTitle"></span>
+                    <span class="disappearing-pill__text" id="disappearingPillText"></span>
+                </span>
+            </div>
         </div>
 
         <div class="chat-messages chat-messages--hidden" id="chatMessages"></div>

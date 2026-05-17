@@ -35,7 +35,7 @@ export function formatTimerSummary(seconds) {
 export function formatTimerPillText(seconds) {
     const safeSeconds = Number(seconds) || 0;
     if (safeSeconds <= 0) return '';
-    return `${tr('Исчезающие сообщения')}: ${formatTimerLabel(safeSeconds)}`;
+    return `${tr('Новые сообщения будут удаляться через')} ${formatTimerLabel(safeSeconds)}.`;
 }
 
 export function formatExpiresAt(expiresAtUnix) {
@@ -144,16 +144,18 @@ export function createDisappearingMessagesController({
         }
 
         const pillWrap = documentRef?.getElementById?.('disappearingPillWrap');
+        const pillTitleEl = documentRef?.getElementById?.('disappearingPillTitle');
         const pillTextEl = documentRef?.getElementById?.('disappearingPillText');
         if (pillWrap) {
             pillWrap.hidden = !enabled;
             pillWrap.classList.toggle('disappearing-pill-wrap--hidden', !enabled);
             pillWrap.setAttribute('aria-hidden', enabled ? 'false' : 'true');
         }
+        if (pillTitleEl) {
+            pillTitleEl.textContent = enabled ? tr('Автоудаление сообщений включено') : '';
+        }
         if (pillTextEl) {
-            pillTextEl.textContent = enabled
-                ? `${pillText}. ${tr('Новые сообщения удаляются автоматически.')}`
-                : '';
+            pillTextEl.textContent = enabled ? pillText : '';
         }
 
         const profileContainer = documentRef?.getElementById?.('disappearingTimerContainer');
@@ -195,22 +197,12 @@ export function createDisappearingMessagesController({
     }
 
     function addExpiryBadgeToMessage(messageEl, expiresAtUnix) {
-        if (!messageEl || !expiresAtUnix || !documentRef?.createElement) return;
-        const existing = messageEl.querySelector('.expiry-badge');
-        if (existing) existing.remove();
-        const badge = documentRef.createElement('span');
-        badge.className = 'expiry-badge';
-        badge.title = 'Исчезающее сообщение';
-        badge.textContent = formatExpiresAt(expiresAtUnix);
-        badge.dataset.expiresAt = String(expiresAtUnix);
-        messageEl.appendChild(badge);
+        if (!messageEl || !expiresAtUnix) return;
+        messageEl.querySelectorAll?.('.expiry-badge').forEach((badge) => badge.remove());
     }
 
     function refreshExpiryBadges() {
-        (documentRef?.querySelectorAll?.('.expiry-badge[data-expires-at]') || []).forEach((badge) => {
-            const ts = Number(badge.dataset.expiresAt);
-            badge.textContent = formatExpiresAt(ts);
-        });
+        (documentRef?.querySelectorAll?.('.expiry-badge') || []).forEach((badge) => badge.remove());
     }
 
     const _interval = setInterval(refreshExpiryBadges, 10000);
