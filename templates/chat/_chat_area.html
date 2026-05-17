@@ -388,14 +388,6 @@
                     </div>
 
                     <section class="profile-info-card" aria-label="Данные пользователя">
-                        <div class="profile-info-line" id="profileUsernameLine" data-profile-action="copy-username" role="button" tabindex="0">
-                            <span class="profile-info-icon"><i class="bi bi-at"></i></span>
-                            <div class="profile-info-text">
-                                <div class="profile-info-value" id="profileMetaUsername">@username</div>
-                                <div class="profile-info-label">Имя пользователя</div>
-                            </div>
-                        </div>
-
                         <div class="profile-info-line profile-info-line--hidden" id="profileBioLine">
                             <span class="profile-info-icon"><i class="bi bi-info-circle"></i></span>
                             <div class="profile-info-text">
@@ -433,6 +425,7 @@
                         <div class="disappearing-timer-container" id="disappearingTimerContainer"></div>
 
                         <div class="template-hidden" aria-hidden="true">
+                            <span id="profileMetaUsername">@username</span>
                             <span id="profileMetaCreatedAt">—</span>
                             <span id="profileMetaUserId">—</span>
                         </div>
