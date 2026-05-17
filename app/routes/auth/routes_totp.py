@@ -17,6 +17,12 @@ from app.services.totp_backup_codes import (
     generate_backup_codes,
     store_backup_codes,
 )
+from app.services.totp_secret_store import (
+    decode_totp_secret,
+    encode_totp_secret,
+    has_totp_secret,
+    is_encoded_totp_secret,
+)
 from .context import auth_bp
 
 @auth_bp.route('/api/totp_status', methods=['GET'])
@@ -50,7 +56,7 @@ def api_totp_status():
 
     return jsonify({
         'success': True,
-        'enabled': bool(user['totp_secret']),
+        'enabled': has_totp_secret(user['totp_secret']),
         'totp_enabled_at': str(user['totp_enabled_at'] or ''),
         'setup_pending': setup_pending,
         'totp_secret': totp_secret,
@@ -102,7 +108,7 @@ def api_totp_manage():
     )
     return jsonify({
         'success': True,
-        'enabled': bool(user['totp_secret']),
+        'enabled': has_totp_secret(user['totp_secret']),
         'totp_enabled_at': str(user['totp_enabled_at'] or ''),
         'setup_pending': True,
         'totp_secret': totp_secret,
@@ -137,7 +143,7 @@ def api_totp_setup_verify():
             SET totp_secret = ?, totp_enabled_at = COALESCE(totp_enabled_at, CURRENT_TIMESTAMP)
             WHERE id = ?
             ''',
-            (pending_setup['secret'], int(session['user_id'])),
+            (encode_totp_secret(pending_setup['secret']), int(session['user_id'])),
         )
         store_backup_codes(conn, int(session['user_id']), raw_codes)
         conn.commit()
@@ -175,12 +181,21 @@ def api_totp_backup_codes_regenerate():
             'SELECT id, totp_secret FROM users WHERE id = ?',
             (session['user_id'],),
         ).fetchone()
-        if not user or not user['totp_secret']:
+        if not user or not has_totp_secret(user['totp_secret']):
             return jsonify({'success': False, 'error': 'TOTP не включён.'}), 400
 
-        totp = pyotp.TOTP(user['totp_secret'])
+        totp_secret = decode_totp_secret(user['totp_secret'])
+        if not totp_secret:
+            return jsonify({'success': False, 'error': 'TOTP is not available.'}), 400
+        totp = pyotp.TOTP(totp_secret)
         if not totp.verify(totp_code, valid_window=1):
             return jsonify({'success': False, 'error': 'Неверный код.'}), 401
+
+        if not is_encoded_totp_secret(user['totp_secret']):
+            conn.execute(
+                'UPDATE users SET totp_secret = ? WHERE id = ?',
+                (encode_totp_secret(totp_secret), int(user['id'])),
+            )
 
         raw_codes = generate_backup_codes()
         store_backup_codes(conn, int(user['id']), raw_codes)

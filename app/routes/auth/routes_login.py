@@ -51,6 +51,11 @@ from .context import (
 )
 from app.services.web_push import deactivate_user_push_subscriptions
 from app.services.totp_backup_codes import verify_and_consume_backup_code
+from app.services.totp_secret_store import (
+    decode_totp_secret,
+    encode_totp_secret,
+    is_encoded_totp_secret,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -429,9 +434,18 @@ def login_totp():
                 return jsonify({'success': False, 'error': 'Неверный или уже использованный резервный код.'}), 401
             conn.commit()
         else:
-            totp = pyotp.TOTP(user['totp_secret'])
+            totp_secret = decode_totp_secret(user['totp_secret'])
+            if not totp_secret:
+                return jsonify({'success': False, 'error': 'Invalid TOTP configuration.'}), 401
+            totp = pyotp.TOTP(totp_secret)
             if not totp.verify(totp_code, valid_window=1):
                 return jsonify({'success': False, 'error': 'Неверный код. Проверьте время на устройстве.'}), 401
+            if not is_encoded_totp_secret(user['totp_secret']):
+                conn.execute(
+                    'UPDATE users SET totp_secret = ? WHERE id = ?',
+                    (encode_totp_secret(totp_secret), int(user['id'])),
+                )
+                conn.commit()
     finally:
         conn.close()
 

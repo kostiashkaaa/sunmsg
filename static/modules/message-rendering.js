@@ -203,6 +203,24 @@ function bindMessageInteractiveHandlers(messageDiv) {
         });
     });
 
+    messageDiv.querySelectorAll('.file-msg-link[href*="sun_media_e2ee"]').forEach((linkEl) => {
+        linkEl.addEventListener('click', async (event) => {
+            const resolver = window.__sunMediaCacheResolveSource;
+            if (typeof resolver !== 'function') return;
+            event.preventDefault();
+            const href = String(linkEl.getAttribute('href') || '').trim();
+            const resolved = await resolver(href, { kind: 'file' });
+            if (!resolved) return;
+            const tempLink = document.createElement('a');
+            tempLink.href = resolved;
+            tempLink.download = linkEl.getAttribute('download') || linkEl.textContent?.trim() || 'file';
+            tempLink.rel = 'noopener';
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            tempLink.remove();
+        });
+    });
+
     messageDiv.querySelectorAll('.file-msg-img').forEach((imgEl) => {
         const onImageLoad = () => window._onMessageMediaLoaded?.(imgEl);
         const onImageError = () => window._onMessageMediaLoadError?.(imgEl);

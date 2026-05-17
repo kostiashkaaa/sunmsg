@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import ipaddress
+import http.client
 import re
 import socket
+import ssl
 import threading
 import time
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse, urlunparse
-from urllib.request import Request, urlopen
 
 from flask import Response, jsonify, request, session
 
@@ -26,6 +27,7 @@ _LINK_PREVIEW_CACHE_SCHEMA_VERSION = 7
 _LINK_PREVIEW_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 _LINK_PREVIEW_IMAGE_META_TIMEOUT_SECONDS = 3.0
 _LINK_PREVIEW_IMAGE_META_MAX_BYTES = 256 * 1024
+_LINK_PREVIEW_MAX_REDIRECTS = 4
 _LINK_PREVIEW_URL_PATTERN = re.compile(r"\bhttps?://[^\s<>\"'`]+|\bwww\.[^\s<>\"'`]+", re.IGNORECASE)
 _LINK_PREVIEW_BOT_USER_AGENT = (
     'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
@@ -221,14 +223,20 @@ def _fetch_remote_image_dimensions(image_url: str) -> tuple[int | None, int | No
         'User-Agent': 'SUNMessengerLinkPreview/1.0',
         'Accept': 'image/*,*/*;q=0.1',
     }
-    req = Request(safe_url, headers=request_headers, method='GET')
-    with urlopen(req, timeout=_LINK_PREVIEW_IMAGE_META_TIMEOUT_SECONDS) as response:
+    conn, response, _resolved_url = _open_public_preview_response(
+        safe_url,
+        headers=request_headers,
+        timeout=_LINK_PREVIEW_IMAGE_META_TIMEOUT_SECONDS,
+    )
+    try:
         content_type_header = str(response.headers.get('Content-Type') or '').strip().lower()
         mime_type = content_type_header.split(';', 1)[0].strip()
         if not mime_type.startswith('image/'):
             return None, None
         data = response.read(_LINK_PREVIEW_IMAGE_META_MAX_BYTES)
         return _extract_image_dimensions_from_bytes(data, mime_type)
+    finally:
+        conn.close()
 
 
 def _choose_preview_image_geometry(meta: dict, image_url: str) -> tuple[int | None, int | None]:
@@ -385,6 +393,35 @@ def _normalize_preview_url(raw_url: str) -> str:
     return urlunparse(cleaned)
 
 
+def _normalize_absolute_preview_url(raw_url: str) -> str:
+    try:
+        parsed = urlparse(str(raw_url or '').strip())
+    except Exception:
+        return ''
+
+    scheme = str(parsed.scheme or '').lower()
+    if scheme not in {'http', 'https'}:
+        return ''
+    if parsed.username or parsed.password:
+        return ''
+    hostname = str(parsed.hostname or '').strip().lower()
+    if not hostname:
+        return ''
+
+    return urlunparse(parsed._replace(fragment=''))
+
+
+def _is_public_preview_ip(ip_obj) -> bool:
+    return not (
+        ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
 def _is_allowed_preview_hostname(hostname: str) -> bool:
     raw_host = str(hostname or '').strip().rstrip('.').lower()
     if not raw_host:
@@ -398,49 +435,74 @@ def _is_allowed_preview_hostname(hostname: str) -> bool:
     try:
         ip_obj = ipaddress.ip_address(raw_host)
     except ValueError:
-        # Domain names are allowed. In some networks public domains can be
-        # resolved to private ranges by DNS filters/proxies.
+        # Domain names are checked by _is_allowed_preview_url against the
+        # concrete DNS records used for the outbound connection.
         return True
 
-    return not (
-        ip_obj.is_private
-        or ip_obj.is_loopback
-        or ip_obj.is_link_local
-        or ip_obj.is_multicast
-        or ip_obj.is_reserved
-        or ip_obj.is_unspecified
-    )
+    return _is_public_preview_ip(ip_obj)
 
 
-def _hostname_resolves_public_only(hostname: str) -> bool:
+def _resolve_public_preview_addresses(hostname: str, port: int):
     normalized_host = str(hostname or '').strip().rstrip('.')
     if not normalized_host:
-        return False
+        return []
     try:
-        records = socket.getaddrinfo(normalized_host, None)
+        records = socket.getaddrinfo(normalized_host, int(port), type=socket.SOCK_STREAM)
     except OSError:
-        return False
+        return []
     if not records:
-        return False
+        return []
 
+    public_records = []
+    seen = set()
     for record in records:
         address = str(record[4][0] or '').strip()
         if not address:
-            return False
+            return []
         try:
             ip_obj = ipaddress.ip_address(address)
         except ValueError:
-            return False
-        if (
-            ip_obj.is_private
-            or ip_obj.is_loopback
-            or ip_obj.is_link_local
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-            or ip_obj.is_unspecified
-        ):
-            return False
-    return True
+            return []
+        if not _is_public_preview_ip(ip_obj):
+            return []
+        record_key = (record[0], record[2], record[4])
+        if record_key in seen:
+            continue
+        seen.add(record_key)
+        public_records.append(record)
+    return public_records
+
+
+def _hostname_resolves_public_only(hostname: str, port: int = 443) -> bool:
+    return bool(_resolve_public_preview_addresses(hostname, port))
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, host: str, port: int, resolved_sockaddr, *, timeout: float):
+        super().__init__(host, port=port, timeout=timeout)
+        self._resolved_sockaddr = resolved_sockaddr
+
+    def connect(self):
+        self.sock = socket.create_connection(
+            self._resolved_sockaddr,
+            self.timeout,
+            self.source_address,
+        )
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host: str, port: int, resolved_sockaddr, *, timeout: float):
+        context = ssl.create_default_context()
+        super().__init__(host, port=port, timeout=timeout, context=context)
+        self._resolved_sockaddr = resolved_sockaddr
+
+    def connect(self):
+        raw_sock = socket.create_connection(
+            self._resolved_sockaddr,
+            self.timeout,
+            self.source_address,
+        )
+        self.sock = self._context.wrap_socket(raw_sock, server_hostname=self.host)
 
 
 def _is_allowed_preview_url(url: str) -> bool:
@@ -448,14 +510,88 @@ def _is_allowed_preview_url(url: str) -> bool:
     host = str(parsed.hostname or '').strip().lower()
     if not _is_allowed_preview_hostname(host):
         return False
+    port = int(parsed.port or (443 if str(parsed.scheme or '').lower() == 'https' else 80))
     try:
         ipaddress.ip_address(host)
     except ValueError:
-        # Domain names can be mapped to synthetic/local ranges by DNS filters
-        # (for example, Fake-IP proxy modes). They are allowed after hostname
-        # validation to avoid false "forbidden_host" rejections.
-        return True
-    return _hostname_resolves_public_only(host)
+        return _hostname_resolves_public_only(host, port)
+    return bool(_resolve_public_preview_addresses(host, port))
+
+
+def _preview_request_target(parsed) -> str:
+    path = str(parsed.path or '') or '/'
+    if parsed.params:
+        path = f'{path};{parsed.params}'
+    if parsed.query:
+        path = f'{path}?{parsed.query}'
+    return path
+
+
+def _redirect_target_url(current_url: str, location: str) -> str:
+    if not location:
+        return ''
+    return _normalize_absolute_preview_url(urljoin(current_url, location))
+
+
+def _open_public_preview_response(url: str, *, headers: dict, timeout: float):
+    current_url = _normalize_absolute_preview_url(url)
+    if not current_url:
+        raise URLError('invalid_url')
+
+    for _redirect_index in range(_LINK_PREVIEW_MAX_REDIRECTS + 1):
+        if not _is_allowed_preview_url(current_url):
+            raise URLError('forbidden_host')
+
+        parsed = urlparse(current_url)
+        hostname = str(parsed.hostname or '').strip().lower()
+        scheme = str(parsed.scheme or '').lower()
+        port = int(parsed.port or (443 if scheme == 'https' else 80))
+        records = _resolve_public_preview_addresses(hostname, port)
+        if not records:
+            raise URLError('forbidden_host')
+
+        last_error = None
+        redirected_url = ''
+        for record in records:
+            conn = None
+            try:
+                if scheme == 'https':
+                    conn = _PinnedHTTPSConnection(hostname, port, record[4], timeout=timeout)
+                else:
+                    conn = _PinnedHTTPConnection(hostname, port, record[4], timeout=timeout)
+                conn.request('GET', _preview_request_target(parsed), headers=headers)
+                response = conn.getresponse()
+                if response.status in {301, 302, 303, 307, 308}:
+                    location = str(response.headers.get('Location') or '').strip()
+                    try:
+                        response.read(1024)
+                    finally:
+                        conn.close()
+                    redirected_url = _redirect_target_url(current_url, location)
+                    if not redirected_url or not _is_allowed_preview_url(redirected_url):
+                        raise URLError('forbidden_host')
+                    break
+                if response.status >= 400:
+                    raise HTTPError(current_url, response.status, response.reason, response.headers, None)
+                return conn, response, current_url
+            except (HTTPError, URLError):
+                if conn is not None:
+                    conn.close()
+                raise
+            except (OSError, TimeoutError, ssl.SSLError, http.client.HTTPException) as exc:
+                if conn is not None:
+                    conn.close()
+                last_error = exc
+                continue
+
+        if redirected_url:
+            current_url = redirected_url
+            continue
+        if last_error:
+            raise URLError(last_error)
+        raise URLError('fetch_failed')
+
+    raise URLError('too_many_redirects')
 
 
 def _looks_like_challenge_url(url: str) -> bool:
@@ -473,12 +609,15 @@ def _fetch_preview_html(url: str) -> tuple[str, str]:
         'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
         'Cache-Control': 'no-cache',
     }
-    req = Request(url, headers=request_headers, method='GET')
-
-    with urlopen(req, timeout=_LINK_PREVIEW_TIMEOUT_SECONDS) as response:
+    conn, response, resolved_url = _open_public_preview_response(
+        url,
+        headers=request_headers,
+        timeout=_LINK_PREVIEW_TIMEOUT_SECONDS,
+    )
+    try:
         content_type_header = str(response.headers.get('Content-Type') or '').lower()
         if 'text/html' not in content_type_header and 'application/xhtml+xml' not in content_type_header:
-            return '', response.geturl()
+            return '', resolved_url
 
         data_buffer = bytearray()
         head_closed = False
@@ -498,7 +637,9 @@ def _fetch_preview_html(url: str) -> tuple[str, str]:
             html = data.decode(charset, errors='replace')
         except LookupError:
             html = data.decode('utf-8', errors='replace')
-        return html, response.geturl()
+        return html, resolved_url
+    finally:
+        conn.close()
 
 
 def _fetch_preview_image(url: str) -> tuple[bytes, str, str]:
@@ -506,9 +647,12 @@ def _fetch_preview_image(url: str) -> tuple[bytes, str, str]:
         'User-Agent': 'SUNMessengerLinkPreview/1.0',
         'Accept': 'image/*,*/*;q=0.1',
     }
-    req = Request(url, headers=request_headers, method='GET')
-
-    with urlopen(req, timeout=_LINK_PREVIEW_TIMEOUT_SECONDS) as response:
+    conn, response, resolved_url = _open_public_preview_response(
+        url,
+        headers=request_headers,
+        timeout=_LINK_PREVIEW_TIMEOUT_SECONDS,
+    )
+    try:
         content_type_header = str(response.headers.get('Content-Type') or '').strip().lower()
         mime_type = content_type_header.split(';', 1)[0].strip()
         if not mime_type.startswith('image/'):
@@ -517,7 +661,9 @@ def _fetch_preview_image(url: str) -> tuple[bytes, str, str]:
         data = response.read(_LINK_PREVIEW_MAX_IMAGE_BYTES + 1)
         if len(data) > _LINK_PREVIEW_MAX_IMAGE_BYTES:
             raise ValueError('image_too_large')
-        return data, mime_type, response.geturl()
+        return data, mime_type, resolved_url
+    finally:
+        conn.close()
 
 
 def _parse_preview_payload(url: str, html_text: str, resolved_url: str) -> dict:

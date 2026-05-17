@@ -8,11 +8,30 @@ import {
     buildAudioWaveformPeaks,
     probeVisualMediaMetadata,
 } from './chat-media-upload.js';
+import {
+    appendEncryptedMediaFragment,
+    encryptChatMediaFile,
+} from './chat-media-e2ee.js';
 import { createTypingSignalHeartbeat } from './chat-typing-signal-heartbeat.js';
 import { generateRequestId } from './utils.js';
 
 const OFFLINE_RETRY_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443 \u0447\u0435\u0440\u0435\u0437 \u043F\u0430\u0440\u0443 \u0441\u0435\u043A\u0443\u043D\u0434.';
 const OFFLINE_QUEUED_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E \u0434\u043B\u044F \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0439 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438.';
+const GROUP_MENTION_PATTERN = /(^|[\s([{])@([A-Za-z0-9_.-]{1,64})/g;
+
+function extractMentionedUsernames(text) {
+    const source = String(text || '');
+    const seen = new Set();
+    const result = [];
+    for (const match of source.matchAll(GROUP_MENTION_PATTERN)) {
+        const username = String(match?.[2] || '').trim().toLowerCase();
+        if (!username || seen.has(username)) continue;
+        seen.add(username);
+        result.push(username);
+        if (result.length >= 32) break;
+    }
+    return result;
+}
 
 function resolveTransferPresenceKinds(options = {}) {
     const hint = String(options?.typingKindHint || '').trim().toLowerCase();
@@ -165,8 +184,10 @@ export async function sendFileMessageFlow({
     transferPresenceSignal.start(transferPresenceKinds.upload);
     setSendingState(true);
     try {
+        const encryptedMedia = await encryptChatMediaFile(uploadFile);
+        const uploadBlob = encryptedMedia?.uploadFile || uploadFile;
         const [uploaded, audioWaveform] = await Promise.all([
-            uploadChatMedia(uploadFile, {
+            uploadChatMedia(uploadBlob, {
                 chatId: currentChatId || '',
                 csrfToken: getCsrfToken(),
                 onRequestReady: (cancelUpload) => {
@@ -184,19 +205,20 @@ export async function sendFileMessageFlow({
             audioWaveformPromise,
         ]);
 
-        let payloadMime = String(uploaded?.mime || uploadFile.type || 'application/octet-stream').toLowerCase();
+        let payloadMime = String(uploadFile.type || uploaded?.mime || 'application/octet-stream').toLowerCase();
         if (sourceCategory === 'audio' && !payloadMime.startsWith('audio/')) {
             payloadMime = 'audio/webm';
         }
 
         const finalPayload = {
             __sunfile: true,
-            name: uploaded?.name || uploadFile.name,
+            name: uploadFile.name || uploaded?.name,
             mime: payloadMime,
             attach_mode: attachMode,
-            data: uploaded?.url || '',
+            data: appendEncryptedMediaFragment(uploaded?.url || '', encryptedMedia?.metadata),
             caption: caption || '',
-            size: uploaded?.size || uploadFile.size,
+            size: uploadFile.size,
+            encrypted_file: true,
             uploading: false,
             upload_progress: 100,
             ...(Number.isFinite(audioDurationSeconds) && audioDurationSeconds > 0
@@ -221,6 +243,7 @@ export async function sendFileMessageFlow({
             reply_to_id: snapReplyId,
             request_id: clientId,
             ...(albumId ? { album_id: albumId } : {}),
+            ...(isGroupChat ? { mentioned_usernames: extractMentionedUsernames(caption) } : {}),
         };
         const emitted = emitSocket('send_message', sendPayload, { requireConnected: true });
         let isQueuedOffline = false;

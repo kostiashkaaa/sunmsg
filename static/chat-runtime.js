@@ -851,12 +851,49 @@ export const initChatPage = async () => {
     const replaceBrowserUrl = (...args) => sidebarShell.replaceBrowserUrl(...args);
     const syncBrowserUrlForActiveChat = (...args) => sidebarShell.syncBrowserUrlForActiveChat(...args);
 
+    async function getGroupMemberPublicKeysForChat(chatId) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) return [];
+        const collectKeys = (profile) => {
+            const members = Array.isArray(profile?.members) ? profile.members : [];
+            return Array.from(new Set(
+                members
+                    .map((member) => String(member?.public_key || '').trim())
+                    .filter(Boolean)
+                    .concat(String(currentUserPublicKey || '').trim())
+                    .filter(Boolean)
+            ));
+        };
+        const currentProfile = getCurrentPartnerData?.();
+        if (
+            currentProfile?._group_profile
+            && String(currentProfile.chat_id || '') === normalizedChatId
+            && Array.isArray(currentProfile.members)
+            && currentProfile.members.length
+        ) {
+            return collectKeys(currentProfile);
+        }
+
+        const response = await browserEnv.getAuthFetch()(withAppRoot(`/api/chats/group/info?chat_id=${encodeURIComponent(normalizedChatId)}`));
+        if (!response?.ok) return [];
+        const payload = await response.json();
+        if (!payload?.success || !payload?._group_profile) return [];
+        if (String(currentChatId || '') === normalizedChatId) {
+            setCurrentPartnerData({
+                ...(getCurrentPartnerData?.() || {}),
+                ...payload,
+            });
+        }
+        return collectKeys(payload);
+    }
+
     chatEncryptionRuntime = createChatEncryptionRuntime({
         windowRef: window,
         getCurrentChatId: () => currentChatId,
         isCurrentChatGroup: () => isCurrentChatGroup(),
         getCurrentContactPublicKey,
         getCurrentUserPublicKey: () => currentUserPublicKey,
+        getCurrentGroupMemberPublicKeys: getGroupMemberPublicKeysForChat,
         loadContacts: (options) => loadContacts(options),
         getPrivateKeyPem,
     });
@@ -1826,6 +1863,7 @@ export const initChatPage = async () => {
         getCurrentUserPublicKey: () => currentUserPublicKey,
         getCurrentUserId: () => CURRENT_USER_ID,
         getPrivateKeyPem,
+        getGroupMemberPublicKeysForChat,
         formatGroupMembersCountLabel,
         formatLastSeenText,
         parseSunFilePayload,
@@ -3365,9 +3403,9 @@ export const initChatPage = async () => {
         return chatEncryptionRuntime?.isEncryptedPayload(value) || false;
     }
 
-    async function decryptForDisplay(privateKeyPem, encryptedPayload, isSelf) {
+    async function decryptForDisplay(privateKeyPem, encryptedPayload, isSelf, expectedSenderPublicKey = '') {
         return chatEncryptionRuntime
-            ? chatEncryptionRuntime.decryptForDisplay(privateKeyPem, encryptedPayload, isSelf)
+            ? chatEncryptionRuntime.decryptForDisplay(privateKeyPem, encryptedPayload, isSelf, expectedSenderPublicKey)
             : encryptedPayload;
     }
 

@@ -14,6 +14,7 @@ _FORCED_MIME_BY_EXTENSION = {
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
     'svg': 'image/svg+xml',
+    'sunenc': 'application/octet-stream',
 }
 
 

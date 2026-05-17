@@ -26,6 +26,7 @@ export function createChatForwardFlow(deps = {}) {
         getCurrentUserPublicKey,
         getCurrentUserId,
         getPrivateKeyPem,
+        getGroupMemberPublicKeysForChat,
         // helpers
         formatGroupMembersCountLabel,
         formatLastSeenText,
@@ -373,21 +374,36 @@ export function createChatForwardFlow(deps = {}) {
     }
 
     async function encryptForForwardTarget(contactRow, plainText) {
+        const forwardPrivateKeyPem = getPrivateKeyPem?.();
+        if (!forwardPrivateKeyPem) {
+            throw new Error('РќРµС‚ РїСЂРёРІР°С‚РЅРѕРіРѕ РєР»СЋС‡Р°. Р’РѕР№РґРёС‚Рµ Р·Р°РЅРѕРІРѕ СЃ РІР°С€РёРј РєР»СЋС‡РѕРј.');
+        }
+        const forwardUserPublicKey = getCurrentUserPublicKey?.();
+        if (!forwardUserPublicKey) {
+            throw new Error('РќРµ РЅР°Р№РґРµРЅ РІР°С€ РїСѓР±Р»РёС‡РЅС‹Р№ РєР»СЋС‡. РћР±РЅРѕРІРёС‚Рµ СЃС‚СЂР°РЅРёС†Сѓ Рё РІРѕР№РґРёС‚Рµ Р·Р°РЅРѕРІРѕ.');
+        }
         if (contactRow.isGroup) {
-            return plainText;
+            const forwardGroupPublicKeys = await getGroupMemberPublicKeysForChat?.(contactRow.chatId);
+            if (!Array.isArray(forwardGroupPublicKeys) || !forwardGroupPublicKeys.length) {
+                throw new Error(`РќРµ РЅР°Р№РґРµРЅС‹ РєР»СЋС‡Рё СѓС‡Р°СЃС‚РЅРёРєРѕРІ РіСЂСѓРїРїС‹ ${contactRow.displayName}.`);
+            }
+            return window.e2e.encryptMessageE2EForRecipients(
+                forwardGroupPublicKeys,
+                forwardUserPublicKey,
+                plainText,
+                forwardPrivateKeyPem,
+            );
         }
-        const publicKey = String(contactRow.publicKey || '').trim();
-        if (!publicKey) {
-            throw new Error(`Не найден ключ шифрования для чата ${contactRow.displayName}.`);
+        const forwardPublicKey = String(contactRow.publicKey || '').trim();
+        if (!forwardPublicKey) {
+            throw new Error(`РќРµ РЅР°Р№РґРµРЅ РєР»СЋС‡ С€РёС„СЂРѕРІР°РЅРёСЏ РґР»СЏ С‡Р°С‚Р° ${contactRow.displayName}.`);
         }
-        if (!getPrivateKeyPem?.()) {
-            throw new Error('Нет приватного ключа. Войдите заново с вашим ключом.');
-        }
-        const userPublicKey = getCurrentUserPublicKey?.();
-        if (!userPublicKey) {
-            throw new Error('Не найден ваш публичный ключ. Обновите страницу и войдите заново.');
-        }
-        return window.e2e.encryptMessageE2E(publicKey, userPublicKey, plainText);
+        return window.e2e.encryptMessageE2E(
+            forwardPublicKey,
+            forwardUserPublicKey,
+            plainText,
+            forwardPrivateKeyPem,
+        );
     }
 
     async function forwardMessagesToTargets(sourceMessages, targetRows) {
