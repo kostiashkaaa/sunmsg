@@ -12269,7 +12269,8 @@
     min-height: 34px;
 }
 
-#voiceRecordBtn {
+#voiceRecordBtn,
+.voice-record-action-stack {
     width: 42px;
     height: 42px;
     flex-basis: 42px;

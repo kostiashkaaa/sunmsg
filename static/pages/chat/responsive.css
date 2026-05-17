@@ -1146,8 +1146,8 @@
             .btn-attach {
                 width: 34px;
                 height: 34px;
-                min-width: 42px;
-                min-height: 42px;
+                min-width: var(--composer-action-size);
+                min-height: var(--composer-action-size);
                 font-size: 18px;
                 margin-bottom: 0;
             }
@@ -1161,11 +1161,13 @@
                 flex-basis: 42px;
             }
             #voiceRecordBtn,
+            .voice-record-action-stack,
             .voice-record-control {
                 width: 44px;
                 height: 44px;
             }
-            #voiceRecordBtn {
+            #voiceRecordBtn,
+            .voice-record-action-stack {
                 max-width: 44px;
                 flex-basis: 44px;
             }
@@ -1513,6 +1515,10 @@
 
 
         @media (max-width: 480px) {
+            .chat-input-area {
+                --composer-action-size: 42px;
+            }
+
             .chat-messages.selecting {
                 --selection-marker-size: 18px;
             }
