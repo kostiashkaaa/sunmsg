@@ -277,12 +277,12 @@ def _create_call_log_message_for_call(conn, call: dict, *, commit: bool) -> dict
         '''
         INSERT INTO messages (
             chat_id, sender_id, receiver_id, message, message_type,
-            is_delivered, created_at
+            is_delivered, created_at, call_id
         )
-        VALUES (?, ?, ?, ?, 'call', 1, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, 'call', 1, CURRENT_TIMESTAMP, ?)
         RETURNING id, created_at
         ''',
-        (chat_id, initiator_id, receiver_id, message_text),
+        (chat_id, initiator_id, receiver_id, message_text, call_id),
     ).fetchone()
     if commit:
         conn.commit()
@@ -309,14 +309,9 @@ def _create_call_log_message_for_call(conn, call: dict, *, commit: bool) -> dict
 
 
 def _call_log_message_exists(conn, call_id: str) -> bool:
-    needle = f'%"call_id":"{call_id}"%'
     row = conn.execute(
-        '''
-        SELECT 1 FROM messages
-        WHERE message_type = 'call' AND message LIKE ?
-        LIMIT 1
-        ''',
-        (needle,),
+        'SELECT 1 FROM messages WHERE call_id = ? LIMIT 1',
+        (call_id,),
     ).fetchone()
     return row is not None
 

@@ -278,6 +278,8 @@ def handle_call_cancel(
     conn = get_db_connection_func(request_scoped=False)
     try:
         call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
+        # _is_chat_member not needed: initiator_id == user_id already proves membership
+        # (a non-member cannot have created the call session in the first place).
         if call is None or call['status'] != 'ringing' or int(call['initiator_id']) != int(user_id):
             return
         if not cancel_call(conn, call_id):
@@ -358,6 +360,15 @@ def handle_call_media_state(
             return
         if not _is_call_participant(conn, call_id, user_id):
             return
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET was_muted = %s, had_video = %s
+            WHERE call_id = %s AND user_id = %s AND left_at IS NULL
+            ''',
+            (1 if audio_muted else 0, 1 if video_enabled else 0, call_id, user_id),
+        )
+        conn.commit()
         for pid in _chat_members(conn, call['chat_id'], user_id):
             emit_func('call_media_state', {
                 'call_id': call_id, 'user_id': user_id,
