@@ -1,5 +1,8 @@
 from app import create_app
-from app.routes.chat_link_preview_routes import resolve_link_preview_payload
+from app.routes.chat_link_preview_routes import (
+    _socket_create_connection_address,
+    resolve_link_preview_payload,
+)
 
 
 def _noop_persist_link_preview_payload(*args, **kwargs):
@@ -274,6 +277,13 @@ def test_resolve_link_preview_payload_rejects_domain_when_dns_public_check_fails
     payload, status = resolve_link_preview_payload('https://example.com')
     assert status == 400
     assert payload == {'success': False, 'error': 'forbidden_host'}
+
+
+def test_socket_create_connection_address_accepts_ipv6_sockaddr():
+    assert _socket_create_connection_address(('2606:50c0:8003::154', 443, 0, 0)) == (
+        '2606:50c0:8003::154',
+        443,
+    )
 
 
 def test_resolve_link_preview_payload_returns_empty_image_when_meta_image_missing(monkeypatch):
