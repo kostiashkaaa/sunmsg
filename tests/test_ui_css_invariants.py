@@ -1388,7 +1388,8 @@ def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_mo
     assert 'minimum-scale=1' in head
 
     assert 'const vvHeight = roundedPx(vv.height)' in viewport
-    assert 'keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
+    assert 'const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
+    assert 'keyboardActive = composerFocused && keyboardGeometryActive' in viewport
     assert 'keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0' in viewport
     assert 'if (!keyboardActive && !composerFocused && vvHeight > 0)' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
