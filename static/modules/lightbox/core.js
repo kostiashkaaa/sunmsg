@@ -374,6 +374,25 @@ function _closeLightbox() {
     });
 }
 
+const _preloadCache = new Map();
+
+function _preloadLightboxNeighbors() {
+    const indices = [lightboxIndex - 1, lightboxIndex + 1];
+    indices.forEach((i) => {
+        const item = lightboxImages[i];
+        if (!item || item.kind === 'video') return;
+        const url = item.src;
+        if (!url || _preloadCache.has(url)) return;
+        const img = new window.Image();
+        img.src = url;
+        _preloadCache.set(url, img);
+        if (_preloadCache.size > 12) {
+            const firstKey = _preloadCache.keys().next().value;
+            _preloadCache.delete(firstKey);
+        }
+    });
+}
+
 function _renderLightbox() {
     const cur = lightboxImages[lightboxIndex];
     const els = _getLightboxEls();
@@ -392,7 +411,26 @@ function _renderLightbox() {
     if (!isVideo) {
         if (els.video) els.video.pause();
         _clearVideoControlsHideTimer();
-        els.img.src = cur.src;
+        // Show thumbnail instantly, then swap in full-res once loaded
+        const targetSeq = ++lightboxTransitionSeq;
+        if (cur.thumbnail && cur.thumbnail !== cur.src && !cur.thumbnail.startsWith('data:')) {
+            els.img.src = cur.thumbnail;
+            els.imageWrap?.classList.add('is-loading-full');
+            const fullImg = new window.Image();
+            fullImg.onload = () => {
+                if (lightboxTransitionSeq !== targetSeq) return;
+                els.img.src = cur.src;
+                els.imageWrap?.classList.remove('is-loading-full');
+            };
+            fullImg.onerror = () => {
+                if (lightboxTransitionSeq !== targetSeq) return;
+                els.imageWrap?.classList.remove('is-loading-full');
+            };
+            fullImg.src = cur.src;
+        } else {
+            els.img.src = cur.src;
+        }
+        _preloadLightboxNeighbors();
     } else if (els.video) {
         els.video.pause();
         els.video.src = cur.src;

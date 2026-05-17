@@ -152,9 +152,10 @@ function buildMediaStatusOverlay(filePayload) {
     const progress = clampUploadProgress(filePayload?.upload_progress);
     return `
         <div class="media-status-overlay${isUploading ? ' is-uploading' : ''}" data-upload-progress="${progress}" aria-hidden="true">
-            <span class="media-status-ring"></span>
-            <span class="media-status-value">${isUploading ? `${progress}%` : ''}</span>
-        </div>`;
+            <span class="media-status-ring" aria-hidden="true"></span>
+            <span class="media-status-value" aria-hidden="true"></span>
+        </div>
+        <div class="media-upload-progress-bar" data-upload-progress="${progress}" aria-hidden="true"></div>`;
 }
 
 function buildInlineUploadProgress(filePayload, extraClass = '') {

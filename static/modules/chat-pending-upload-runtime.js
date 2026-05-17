@@ -84,13 +84,16 @@ export function createPendingUploadRuntime({
         mediaWrap.setAttribute('data-upload-progress', String(progress));
 
         const overlay = mediaWrap.querySelector('.media-status-overlay');
-        if (!overlay) return;
-        overlay.classList.toggle('is-uploading', isUploading);
-        overlay.setAttribute('data-upload-progress', String(progress));
-        overlay.style.setProperty('--upload-progress', String(progress));
-        const value = overlay.querySelector('.media-status-value');
-        if (value) {
-            value.textContent = isUploading ? `${progress}%` : '';
+        if (overlay) {
+            overlay.classList.toggle('is-uploading', isUploading);
+            overlay.setAttribute('data-upload-progress', String(progress));
+            overlay.style.setProperty('--upload-progress', String(progress));
+        }
+
+        const progressBar = mediaWrap.querySelector('.media-upload-progress-bar');
+        if (progressBar) {
+            progressBar.setAttribute('data-upload-progress', String(progress));
+            progressBar.style.setProperty('--upload-progress', String(progress));
         }
     }
 

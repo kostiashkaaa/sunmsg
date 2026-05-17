@@ -2392,6 +2392,7 @@ export const initChatPage = async () => {
         getOpenChatUnreadCount: () => openChatUnreadCount,
         resetOpenChatUnreadCounter,
         updateJumpToNewMessagesButton,
+        cancelActiveUpload: () => cancelActiveComposerUpload(),
     });
 
     bindMobileViewportEvents();

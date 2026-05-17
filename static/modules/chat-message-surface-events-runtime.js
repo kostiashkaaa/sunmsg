@@ -22,6 +22,7 @@ export function bindChatMessageSurfaceEventsRuntime({
     getOpenChatUnreadCount = () => 0,
     resetOpenChatUnreadCounter = () => {},
     updateJumpToNewMessagesButton = () => {},
+    cancelActiveUpload = null,
 } = {}) {
     jumpToNewMessagesBtn?.addEventListener('click', () => {
         if (isProfileDrawerOpen()) {
@@ -55,6 +56,14 @@ export function bindChatMessageSurfaceEventsRuntime({
         if (!cell || !chatMessages.contains(cell)) return;
         if (isSelectionMode()) return;
         if (typeof openLightbox === 'function') openLightbox(cell);
+    });
+
+    // Cancel upload by clicking the upload overlay ring
+    chatMessages?.addEventListener('click', (event) => {
+        const overlay = event.target?.closest?.('.media-status-overlay.is-uploading');
+        if (!overlay || !chatMessages.contains(overlay)) return;
+        event.stopPropagation();
+        if (typeof cancelActiveUpload === 'function') cancelActiveUpload();
     });
 
     chatMessages?.addEventListener('click', handleMessageProfileTrigger);
