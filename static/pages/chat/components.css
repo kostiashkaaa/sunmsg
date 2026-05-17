@@ -11402,12 +11402,15 @@
     gap: 0;
 }
 
-#partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
+#partnerProfileDrawer .profile-hero-avatar {
     width: 132px;
     height: 132px;
     font-size: 38px;
     letter-spacing: 0.02em;
     box-shadow: none;
+}
+
+#partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
     background: color-mix(in srgb, var(--surface-2) 92%, transparent);
 }
 
