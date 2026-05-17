@@ -733,16 +733,17 @@
                 scrollbar-gutter: auto;
             }
             /* ===== Mobile chat layout — flex column =====
-               .chat-area fills .app and lays out its three rows in normal
-               flow: header (fixed height) / messages (flex:1, scrolls) /
-               composer (fixed height). The emoji picker is a fourth flow row
-               below the composer. Nothing is position:fixed/absolute, so
-               nothing can drift off-screen, and the browser
-               (interactive-widget=resizes-content) simply shrinks the whole
-               column when the keyboard opens. */
+               .chat-area fills .app and lays out its rows in normal flow:
+               header (fixed) / messages (flex:1, scrolls) / composer (fixed).
+               The emoji picker is an absolutely-positioned bottom sheet that
+               slides in with transform; while it is open .chat-area reserves
+               space for it via padding-bottom. The browser
+               (interactive-widget=resizes-content) shrinks the whole column
+               when the keyboard opens. */
             .chat-area {
                 --floating-composer-gap: 4px;
-                --emoji-sheet-motion-duration: 240ms;
+                --emoji-sheet-motion-duration: 220ms;
+                --emoji-sheet-height: min(300px, 42dvh);
                 --chat-bubble-max-width: min(92%, 680px);
                 --chat-profile-drawer-width: 0px;
                 --mobile-exit-swipe-shift: 0px;
@@ -1250,31 +1251,36 @@
                 flex-shrink: 0;
             }
 
+            /* ===== Mobile emoji picker — GPU sheet =====
+               The picker is absolutely positioned at the bottom of .chat-area
+               and slides with `transform: translateY` — a compositor-only
+               animation, so opening is smooth and cheap (no per-frame reflow
+               of the whole chat). The chat column reserves room for it via a
+               single padding change on .chat-area when the sheet is open. */
+            .emoji-picker-handle {
+                width: 36px;
+                height: 4px;
+                border-radius: 999px;
+                background: color-mix(in srgb, var(--border) 70%, transparent);
+                margin: 8px auto 0;
+                flex-shrink: 0;
+            }
+
             .emoji-picker {
                 --emoji-mobile-gutter: 12px;
-                --emoji-sheet-height: min(300px, 42dvh);
-                /* Always laid out (display:flex) so the height transition can
-                   run. Collapsed = height:0 + negative margin to cancel the
-                   parent's 8px row gap, so it takes zero visible space. */
                 display: flex !important;
                 flex-direction: column;
-                position: static !important;
-                left: auto !important;
+                position: absolute !important;
+                left: 0 !important;
+                right: 0 !important;
                 top: auto !important;
-                right: auto !important;
-                bottom: auto !important;
-                order: 99;            /* always last row, below composer-row */
-                flex: 0 0 auto;
+                bottom: 0 !important;
                 width: 100% !important;
+                height: var(--emoji-sheet-height) !important;
                 max-width: none;
-                height: 0 !important;
-                max-height: 0 !important;
-                min-height: 0;
-                margin-top: -8px;     /* cancels .chat-input-area row gap */
+                max-height: none;
+                margin: 0 !important;
                 overflow: hidden;
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
                 background:
                     linear-gradient(
                         180deg,
@@ -1283,48 +1289,61 @@
                     );
                 border: 0;
                 border-radius: 16px 16px 0 0;
-                box-shadow: none;
-                transform: none !important;
+                box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.22);
+                z-index: var(--z-emoji-sheet, 1010);
+                /* Closed: parked just below the visible area. */
+                transform: translate3d(0, 110%, 0);
+                opacity: 1;
+                visibility: hidden;
+                pointer-events: none;
+                contain: layout paint;
                 transition:
-                    height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    max-height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    margin-top var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    opacity 160ms var(--m-decel),
-                    visibility 0s linear var(--emoji-sheet-motion-duration, 240ms);
+                    transform var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
+                    visibility 0s linear var(--emoji-sheet-motion-duration, 220ms);
             }
 
-            /* Open: expand to fixed height. */
+            /* Open: slide up into place. */
             .emoji-picker.active {
-                height: var(--emoji-sheet-height) !important;
-                max-height: var(--emoji-sheet-height) !important;
-                margin-top: 0;
-                opacity: 1;
+                transform: translate3d(0, 0, 0);
                 visibility: visible;
                 pointer-events: auto;
                 transition:
-                    height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    max-height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    margin-top var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
-                    opacity 160ms var(--m-decel),
+                    transform var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     visibility 0s linear 0s;
             }
 
-            /* Closing: animate back to the collapsed (base) state. */
+            /* Closing: slide back down. */
             .emoji-picker.is-closing {
+                transform: translate3d(0, 110%, 0);
                 visibility: visible;
+                pointer-events: none;
+                transition:
+                    transform var(--emoji-sheet-motion-duration, 220ms) var(--m-accel),
+                    visibility 0s linear var(--emoji-sheet-motion-duration, 220ms);
             }
 
-            /* Instant collapse: used when the keyboard is about to open right
-               after closing the sheet. Snaps the sheet to height:0 with no
-               transition so .chat-input-area is the correct (small) size
-               before the keyboard resizes the viewport — otherwise the still
-               tall sheet would push the composer under the keyboard. */
+            /* Instant collapse when the keyboard is about to take over. */
             .emoji-picker.is-closing-instant {
                 transition: none !important;
-                height: 0 !important;
-                max-height: 0 !important;
-                margin-top: -8px !important;
-                opacity: 0 !important;
+                transform: translate3d(0, 110%, 0) !important;
+                visibility: hidden !important;
+            }
+
+            /* While the sheet is open the composer rides up above it. Using a
+               GPU transform (no reflow) keeps it perfectly in sync with the
+               sheet's slide animation. */
+            .chat-input-area {
+                transition: transform var(--emoji-sheet-motion-duration, 220ms) var(--m-decel);
+            }
+            .chat-area.emoji-sheet-open .chat-input-area {
+                transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0);
+            }
+            /* When the keyboard is taking over, the composer must snap back
+               instantly (in sync with the instant sheet collapse) so it is not
+               left mid-animation under the keyboard. */
+            .chat-area.emoji-sheet-instant .chat-input-area {
+                transition: none !important;
+                transform: none !important;
             }
 
             .emoji-picker-topbar {
@@ -1366,6 +1385,11 @@
                 border-color: transparent;
                 color: color-mix(in srgb, var(--text) 74%, transparent);
                 -webkit-tap-highlight-color: transparent;
+                transition:
+                    background 140ms var(--ease-quick),
+                    color 140ms var(--ease-quick),
+                    transform 150ms var(--ease-spring),
+                    box-shadow 140ms var(--ease-quick);
             }
 
             .emoji-category-btn.active {
@@ -1430,20 +1454,37 @@
                 background: transparent;
                 touch-action: manipulation;
                 -webkit-tap-highlight-color: transparent;
+                /* Fast, snappy press feedback that eases back out smoothly. */
                 transition:
-                    background var(--m-dur-instant) var(--m-spring),
-                    transform var(--m-dur-instant) var(--m-spring),
-                    box-shadow var(--m-dur-instant) var(--m-spring);
+                    background 110ms var(--ease-quick),
+                    transform 150ms var(--ease-spring),
+                    box-shadow 110ms var(--ease-quick);
             }
 
             .emoji-item .emoji-graphic {
                 width: 32px;
                 height: 32px;
+                transition: transform 150ms var(--ease-spring);
             }
 
             .emoji-item:active {
-                background: color-mix(in srgb, var(--accent-glow) 24%, var(--contact-hover) 76%);
-                transform: scale(0.92);
+                background: color-mix(in srgb, var(--accent-glow) 30%, var(--contact-hover) 70%);
+                transform: scale(0.88);
+                transition:
+                    background 60ms var(--ease-quick),
+                    transform 80ms var(--ease-quick),
+                    box-shadow 60ms var(--ease-quick);
+            }
+
+            /* Tapped emoji gets a brief pop so the choice feels acknowledged. */
+            .emoji-item.emoji-item--tapped .emoji-graphic,
+            .emoji-item.emoji-item--tapped {
+                animation: emojiTapPop 280ms var(--ease-spring);
+            }
+            @keyframes emojiTapPop {
+                0%   { transform: scale(0.86); }
+                45%  { transform: scale(1.18); }
+                100% { transform: scale(1); }
             }
 
             @media (max-width: 360px) {
