@@ -13,6 +13,7 @@ from app.routes.contacts_utils import (
 
 def test_is_encrypted_message_payload_detection():
     assert is_encrypted_message_payload('{"encrypted_message":"x"}') is True
+    assert is_encrypted_message_payload('{"v":2,"encrypted_keys":["x"],"iv":"y"}') is True
     assert is_encrypted_message_payload(' {"encrypted_message":"x"} ') is True
     assert is_encrypted_message_payload('plain-text') is False
     assert is_encrypted_message_payload(None) is False

@@ -7,7 +7,33 @@ ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__'
 
 
 def is_encrypted_message_payload(value) -> bool:
-    return isinstance(value, str) and value.strip().startswith('{') and 'encrypted_message' in value
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip()
+    if not normalized.startswith('{') or 'encrypted' not in normalized:
+        return False
+    if 'encrypted_message' in normalized:
+        return True
+    try:
+        payload = json.loads(normalized)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return bool(
+        payload.get('encrypted_message')
+        or payload.get('encryptedMessage')
+        or (
+            payload.get('v')
+            and payload.get('iv')
+            and (
+                payload.get('encrypted_key')
+                or payload.get('encrypted_key_receiver')
+                or payload.get('encrypted_key_sender')
+                or isinstance(payload.get('encrypted_keys'), list)
+            )
+        )
+    )
 
 
 def _format_call_duration(seconds) -> str:

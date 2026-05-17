@@ -1,5 +1,8 @@
+import json
+
 from flask import jsonify, request, session
 
+from app.routes.contacts_utils import is_encrypted_message_payload
 from app.services.chat_members import is_chat_member
 
 
@@ -30,11 +33,13 @@ def _validate_draft_text_or_error(raw_draft):
 
 def _is_encrypted_draft_payload(value: str) -> bool:
     normalized = str(value or '').strip()
-    return (
-        normalized.startswith('{')
-        and 'encrypted_message' in normalized
-        and 'iv' in normalized
-    )
+    if not is_encrypted_message_payload(normalized):
+        return False
+    try:
+        payload = json.loads(normalized)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and bool(payload.get('iv'))
 
 
 def _has_chat_access(conn, *, user_id: int, chat_id: str) -> bool:
