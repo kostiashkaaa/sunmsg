@@ -719,6 +719,15 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
         'cleanup_soft_deleted_messages',
     }
 
+    spotify_scheduler = scheduler_runtime.create_scheduler({
+        'SPOTIFY_CLIENT_ID': 'spotify-client',
+        'SPOTIFY_CLIENT_SECRET': 'spotify-secret',
+        'SPOTIFY_POLLING_INTERVAL_SECONDS': 10,
+    })
+    spotify_job = spotify_scheduler.get_job('poll_spotify_now_playing')
+    assert spotify_job is not None
+    assert spotify_job.trigger.interval.total_seconds() == 15
+
     class FakeScheduler:
         def __init__(self):
             self.started = 0
@@ -733,7 +742,7 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
     scheduler_runtime._scheduler_started = False
     scheduler_runtime._scheduler_instance = None
     fake_scheduler = FakeScheduler()
-    monkeypatch.setattr(scheduler_runtime, 'create_scheduler', lambda: fake_scheduler)
+    monkeypatch.setattr(scheduler_runtime, 'create_scheduler', lambda config=None: fake_scheduler)
 
     disabled = scheduler_runtime.start_scheduler_if_enabled({'SCHEDULER_ENABLED': False})
     assert disabled is None
@@ -764,6 +773,33 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
 
     scheduler_runtime.run_scheduler_forever('testing')
     assert fake_runtime_scheduler.shutdown_calls == [False]
+
+
+def test_spotify_scheduler_poll_uses_stored_config(monkeypatch):
+    from app.services import spotify
+
+    class FakeConn:
+        def close(self):
+            pass
+
+    conns = iter([FakeConn(), FakeConn()])
+    calls = []
+    monkeypatch.setattr(scheduler_runtime, '_spotify_poll_client_id', 'spotify-client')
+    monkeypatch.setattr(scheduler_runtime, '_spotify_poll_client_secret', 'spotify-secret')
+
+    monkeypatch.setattr(scheduler_runtime, 'get_db_connection', lambda: next(conns))
+    monkeypatch.setattr(spotify, 'get_connected_user_ids', lambda conn: [42])
+    monkeypatch.setattr(
+        spotify,
+        'poll_and_update',
+        lambda conn, user_id, client_id, client_secret: calls.append(
+            (user_id, client_id, client_secret)
+        ),
+    )
+
+    scheduler_runtime.poll_spotify_now_playing()
+
+    assert calls == [(42, 'spotify-client', 'spotify-secret')]
 
 
 def test_web_runtime_logging_and_server_modes(monkeypatch, tmp_path):

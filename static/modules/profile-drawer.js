@@ -682,6 +682,57 @@ export function renderProfileMeta(profile, { metaUsername, metaCreatedAt, metaUs
     refreshProfileLocaleBindings();
 }
 
+export function renderProfileSpotifyStatus(profile) {
+    const card = document.getElementById('profileSpotifyStatusCard');
+    if (!card) return;
+
+    const sp = profile?.spotify_status;
+    const isPlaying = sp?.is_playing === true;
+
+    if (!isPlaying) {
+        card.hidden = true;
+        card.setAttribute('aria-hidden', 'true');
+        return;
+    }
+
+    const trackEl = document.getElementById('profileSpotifyTrack');
+    const artistEl = document.getElementById('profileSpotifyArtist');
+    const artEl = document.getElementById('profileSpotifyArt');
+    const linkEl = document.getElementById('profileSpotifyTrackLink');
+    const fillEl = document.getElementById('profileSpotifyBarFill');
+
+    if (trackEl) trackEl.textContent = sp.track || '';
+    if (artistEl) artistEl.textContent = sp.artist || '';
+
+    if (artEl) {
+        if (sp.album_art_url) {
+            artEl.src = sp.album_art_url;
+            artEl.alt = sp.album || '';
+        } else {
+            artEl.src = '';
+            artEl.alt = '';
+        }
+    }
+
+    if (linkEl) {
+        if (sp.spotify_url) {
+            linkEl.href = sp.spotify_url;
+        } else {
+            linkEl.removeAttribute('href');
+        }
+    }
+
+    if (fillEl) {
+        const pct = (sp.duration_ms > 0)
+            ? Math.min(100, Math.round((sp.progress_ms / sp.duration_ms) * 100))
+            : 0;
+        fillEl.style.width = `${pct}%`;
+    }
+
+    card.hidden = false;
+    card.setAttribute('aria-hidden', 'false');
+}
+
 export function renderPartnerProfile(profilePayload, {
     existingProfile = {},
     currentPartnerId = null,
@@ -712,6 +763,7 @@ export function renderPartnerProfile(profilePayload, {
     });
     renderProfileBio(merged);
     renderProfileContactAccess(merged);
+    renderProfileSpotifyStatus(merged);
 
     if (typeof onRendered === 'function') {
         onRendered(merged);

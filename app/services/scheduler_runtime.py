@@ -14,6 +14,48 @@ logger = logging.getLogger(__name__)
 _scheduler_lock = Lock()
 _scheduler_started = False
 _scheduler_instance = None
+_spotify_poll_client_id = ''
+_spotify_poll_client_secret = ''
+
+
+def _configure_spotify_polling(config=None) -> int:
+    global _spotify_poll_client_id, _spotify_poll_client_secret
+    cfg = config or {}
+    _spotify_poll_client_id = str(cfg.get('SPOTIFY_CLIENT_ID') or '').strip()
+    _spotify_poll_client_secret = str(cfg.get('SPOTIFY_CLIENT_SECRET') or '').strip()
+    try:
+        interval = int(cfg.get('SPOTIFY_POLLING_INTERVAL_SECONDS') or 30)
+    except (TypeError, ValueError):
+        interval = 30
+    return max(15, interval)
+
+
+def poll_spotify_now_playing():
+    """Fetch current playback for all connected Spotify users and update cache."""
+    from app.services.spotify import (
+        get_connected_user_ids,
+        poll_and_update,
+    )
+
+    client_id = _spotify_poll_client_id
+    client_secret = _spotify_poll_client_secret
+    if not client_id or not client_secret:
+        return
+
+    conn = get_db_connection()
+    try:
+        user_ids = get_connected_user_ids(conn)
+    finally:
+        conn.close()
+
+    for uid in user_ids:
+        conn = get_db_connection()
+        try:
+            poll_and_update(conn, uid, client_id, client_secret)
+        except Exception:
+            logger.warning('Spotify poll failed for user %s', uid, exc_info=True)
+        finally:
+            conn.close()
 
 
 def cleanup_dialog_keys():
@@ -29,7 +71,7 @@ def cleanup_dialog_keys():
         conn.close()
 
 
-def create_scheduler():
+def create_scheduler(config=None):
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=cleanup_dialog_keys,
@@ -59,6 +101,15 @@ def create_scheduler():
         id='cleanup_soft_deleted_messages',
         replace_existing=True,
     )
+    poll_interval = _configure_spotify_polling(config)
+    if _spotify_poll_client_id and _spotify_poll_client_secret:
+        scheduler.add_job(
+            func=poll_spotify_now_playing,
+            trigger='interval',
+            seconds=poll_interval,
+            id='poll_spotify_now_playing',
+            replace_existing=True,
+        )
     return scheduler
 
 
@@ -71,7 +122,7 @@ def start_scheduler_if_enabled(config):
         if _scheduler_started and _scheduler_instance:
             return _scheduler_instance
 
-        scheduler = create_scheduler()
+        scheduler = create_scheduler(config=config)
         scheduler.start()
         _scheduler_instance = scheduler
         _scheduler_started = True

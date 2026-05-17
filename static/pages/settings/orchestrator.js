@@ -26,6 +26,7 @@ import { initSettingsTransferSection } from './settings-transfer-section.js';
 import { initDataMemorySection } from './data-memory-section.js';
 import { initSecuritySummarySection } from './security-summary-section.js';
 import { initProfilePullExpand } from './profile-pull-expand.js';
+import { initSpotifySection } from './spotify-section.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -431,6 +432,8 @@ export function initSettingsPage() {
         navigateOut,
         showAlert,
     });
+
+    initSpotifySection();
 
     initHomeMetaSync({ tr, i18nApi });
 }

@@ -108,3 +108,51 @@ def test_process_get_user_profile_handles_non_contact_public_and_hidden_status()
     assert hidden_contact['status'] == 'ok'
     assert hidden_contact['payload']['online'] is False
     assert hidden_contact['payload']['last_seen'] is None
+
+
+def test_process_get_user_profile_spotify_status_absent_when_no_func():
+    result = _run()
+    assert result['status'] == 'ok'
+    assert result['payload'].get('spotify_status') is None
+
+
+def test_process_get_user_profile_spotify_status_returned_when_playing():
+    playing = {
+        'is_playing': True,
+        'track': 'In Loving Memory',
+        'artist': 'Ivy Sole',
+        'album': 'IVY SOLE',
+        'album_art_url': 'https://example.com/art.jpg',
+        'spotify_url': 'https://open.spotify.com/track/abc',
+        'progress_ms': 60000,
+        'duration_ms': 240000,
+        'updated_at': 1710000000,
+    }
+    result = _run(get_spotify_status_func=lambda conn, viewer, owner: playing)
+    assert result['status'] == 'ok'
+    assert result['payload']['spotify_status'] == playing
+
+
+def test_process_get_user_profile_spotify_status_none_when_not_playing():
+    result = _run(get_spotify_status_func=lambda conn, viewer, owner: None)
+    assert result['status'] == 'ok'
+    assert result['payload']['spotify_status'] is None
+
+
+def test_process_get_user_profile_spotify_status_none_on_exception():
+    def _raise(conn, viewer, owner):
+        raise RuntimeError('spotify error')
+
+    result = _run(get_spotify_status_func=_raise)
+    assert result['status'] == 'ok'
+    assert result['payload']['spotify_status'] is None
+
+
+def test_process_get_user_profile_spotify_status_absent_for_blocked():
+    result = _run(
+        build_block_state_func=lambda conn, a, b: {'is_blocked': True, 'blocked_by_me': True, 'blocked_me': False},
+        get_spotify_status_func=lambda conn, viewer, owner: {'is_playing': True},
+    )
+    assert result['status'] == 'ok'
+    assert result['payload']['restricted'] is True
+    assert 'spotify_status' not in result['payload']

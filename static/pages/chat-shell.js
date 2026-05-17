@@ -24,6 +24,21 @@ document.addEventListener('DOMContentLoaded', async function () {
     };
     const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
+    function consumeInitialSettingsSection() {
+        try {
+            const url = new URL(window.location.href);
+            const section = String(url.searchParams.get('settings') || '').trim();
+            if (!section) return '';
+            url.searchParams.delete('settings');
+            window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+            return section;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    const initialSettingsSection = consumeInitialSettingsSection();
+
     async function persistClientPreferences(clientPreferences, options = {}) {
         const keepalive = options && options.keepalive === true;
         const response = await fetch(withAppRoot('/api/save_settings'), {
@@ -302,6 +317,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.error('Failed to initialize chat shell modules', error);
     }
 
+    if (initialSettingsSection) {
+        settingsOverlayApi.openSettingsOverlay(initialSettingsSection);
+    }
+
     const emptyStatePrimaryBtn = document.getElementById('emptyStatePrimaryBtn');
     const emptyStateSecondaryBtn = document.getElementById('emptyStateSecondaryBtn');
     const emptyStatePrimaryLabel = document.getElementById('emptyStatePrimaryLabel');
@@ -422,4 +441,3 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     syncEmptyStateUi();
 });
-

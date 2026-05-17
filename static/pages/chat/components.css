@@ -7378,6 +7378,110 @@
         }
 
 
+        .profile-spotify-card {
+            margin-top: 12px;
+            border-radius: 20px;
+            border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+            background: color-mix(in srgb, var(--surface) 94%, rgba(255, 255, 255, 0.02));
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-spotify-card[hidden] {
+            display: none;
+        }
+
+        .profile-spotify-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #1DB954;
+            opacity: 0.9;
+        }
+
+        .profile-spotify-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            color: #1DB954;
+        }
+
+        .profile-spotify-track-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 14px 12px;
+            text-decoration: none;
+            color: inherit;
+            border-radius: 0 0 20px 20px;
+            transition: background 0.15s ease;
+        }
+
+        .profile-spotify-track-link:hover,
+        .profile-spotify-track-link:focus-visible {
+            background: color-mix(in srgb, var(--accent) 8%, transparent);
+            outline: none;
+        }
+
+        .profile-spotify-art {
+            width: 52px;
+            height: 52px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+        }
+
+        .profile-spotify-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .profile-spotify-track {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-spotify-artist {
+            font-size: 12px;
+            color: var(--sub-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-spotify-progress-wrap {
+            margin-top: 6px;
+        }
+
+        .profile-spotify-bar {
+            height: 3px;
+            border-radius: 2px;
+            background: color-mix(in srgb, var(--border) 80%, transparent);
+            overflow: hidden;
+        }
+
+        .profile-spotify-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: #1DB954;
+            transition: width 0.4s linear;
+        }
+
         .profile-info-card,
         .profile-media-section {
             margin-top: 16px;
@@ -11003,6 +11107,31 @@
     border-right: 0;
     box-shadow: none;
     background: var(--surface);
+}
+
+#partnerProfileDrawer .profile-spotify-card {
+    margin-top: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+    box-shadow: none;
+    background: var(--surface);
+}
+
+#partnerProfileDrawer .profile-spotify-label {
+    padding: 10px var(--profile-panel-x-pad) 4px;
+}
+
+#partnerProfileDrawer .profile-spotify-track-link {
+    padding: 6px var(--profile-panel-x-pad) 12px;
+    border-radius: 0;
+}
+
+#partnerProfileDrawer .profile-spotify-art {
+    width: 44px;
+    height: 44px;
 }
 
 #partnerProfileDrawer .profile-info-card {

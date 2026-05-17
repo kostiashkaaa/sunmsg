@@ -152,6 +152,14 @@
                 </a>
             </section>
 
+            <section class="settings-nav-group" aria-label="Интеграции">
+                <div class="settings-nav-group-label">Интеграции</div>
+                <a href="#integrations" class="nav-item" data-section="integrations" data-nav-key="integrations" data-meta="—" id="navMetaIntegrations">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-plug"></use></svg>
+                    <span>Подключения</span>
+                </a>
+            </section>
+
             <section class="settings-nav-group" aria-label="Устройства">
                 <div class="settings-nav-group-label">Устройства</div>
                 <a href="#account" class="nav-item" data-section="account" data-nav-key="account" data-meta="—" id="navMetaDevices">
@@ -1409,6 +1417,58 @@
                     </button>
                 </div>
                 <p id="settingsSupportStatus" class="settings-body-copy settings-support-status"></p>
+            </div>
+        </section>
+
+        <section id="section-integrations" class="settings-hidden">
+            <div class="settings-card settings-spotify-card">
+                <div class="settings-card-header">
+                    <svg class="settings-spotify-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.208c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.856zm1.223-2.722a.78.78 0 0 1-1.072.257C14.1 12.282 10.539 11.88 7.2 12.84a.781.781 0 0 1-.973-.52.78.78 0 0 1 .52-.973c3.803-1.054 7.73-.604 10.626 1.163a.781.781 0 0 1 .436.192zm.105-2.835C15.199 9.048 10.9 8.9 7.677 9.874a.937.937 0 1 1-.543-1.794c3.727-1.13 9.024-.912 12.584 1.19a.937.937 0 0 1-.804 1.597z"/>
+                    </svg>
+                    <h3>Spotify</h3>
+                </div>
+
+                <div id="spotifyNotConfigured" class="settings-hidden">
+                    <p class="settings-body-copy">
+                        Интеграция со Spotify не настроена администратором.
+                        Для подключения нужно задать <code>SPOTIFY_CLIENT_ID</code> и <code>SPOTIFY_CLIENT_SECRET</code> в конфигурации сервера.
+                    </p>
+                </div>
+
+                <div id="spotifyDisconnected" class="settings-hidden">
+                    <p class="settings-body-copy">
+                        Подключите Spotify — и другие пользователи смогут видеть, что вы слушаете прямо в вашем профиле.
+                    </p>
+                    <div class="settings-save-row">
+                        <a href="/spotify/connect" class="btn-settings settings-spotify-connect-btn" id="spotifyConnectBtn">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
+                                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.208c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.856zm1.223-2.722a.78.78 0 0 1-1.072.257C14.1 12.282 10.539 11.88 7.2 12.84a.781.781 0 0 1-.973-.52.78.78 0 0 1 .52-.973c3.803-1.054 7.73-.604 10.626 1.163a.781.781 0 0 1 .436.192zm.105-2.835C15.199 9.048 10.9 8.9 7.677 9.874a.937.937 0 1 1-.543-1.794c3.727-1.13 9.024-.912 12.584 1.19a.937.937 0 0 1-.804 1.597z"/>
+                            </svg>
+                            Подключить Spotify
+                        </a>
+                    </div>
+                </div>
+
+                <div id="spotifyConnected" class="settings-hidden">
+                    <div class="settings-spotify-connected-state">
+                        <div class="settings-spotify-connected-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.208c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.856zm1.223-2.722a.78.78 0 0 1-1.072.257C14.1 12.282 10.539 11.88 7.2 12.84a.781.781 0 0 1-.973-.52.78.78 0 0 1 .52-.973c3.803-1.054 7.73-.604 10.626 1.163a.781.781 0 0 1 .436.192zm.105-2.835C15.199 9.048 10.9 8.9 7.677 9.874a.937.937 0 1 1-.543-1.794c3.727-1.13 9.024-.912 12.584 1.19a.937.937 0 0 1-.804 1.597z"/>
+                            </svg>
+                        </div>
+                        <div class="settings-spotify-connected-text">
+                            <div class="settings-spotify-connected-label">Spotify подключён</div>
+                            <div class="settings-spotify-connected-sub">Статус «слушает» будет виден другим в вашем профиле</div>
+                        </div>
+                    </div>
+                    <div class="settings-save-row">
+                        <button type="button" class="btn-settings secondary" id="spotifyDisconnectBtn">
+                            Отключить Spotify
+                        </button>
+                    </div>
+                    <p id="spotifyDisconnectStatus" class="settings-body-copy"></p>
+                </div>
             </div>
         </section>
 

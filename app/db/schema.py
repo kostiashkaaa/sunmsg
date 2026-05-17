@@ -37,6 +37,8 @@ APPLICATION_TABLES = (
     'chat_event_state',
     'chat_update_events',
     'schema_migrations',
+    'spotify_tokens',
+    'spotify_now_playing',
 )
 
 
@@ -554,6 +556,30 @@ def ensure_base_schema(conn) -> None:
             request_id TEXT,
             payload_json TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS spotify_tokens (
+            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            access_token TEXT NOT NULL,
+            refresh_token TEXT NOT NULL,
+            token_type TEXT NOT NULL DEFAULT 'Bearer',
+            scope TEXT NOT NULL DEFAULT '',
+            expires_at BIGINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS spotify_now_playing (
+            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            is_playing INTEGER NOT NULL DEFAULT 0,
+            track_name TEXT,
+            artist_name TEXT,
+            album_name TEXT,
+            album_art_url TEXT,
+            spotify_track_url TEXT,
+            progress_ms BIGINT DEFAULT 0,
+            duration_ms BIGINT DEFAULT 1,
+            cached_at DOUBLE PRECISION DEFAULT NULL
         );
 
         CREATE TABLE IF NOT EXISTS schema_migrations (

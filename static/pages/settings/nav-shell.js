@@ -50,6 +50,7 @@ export function initSettingsNavShell({
         'chat-style': 'Внешний вид',
         keys: 'Безопасность',
         support: 'Поддержка',
+        integrations: 'Подключения',
     };
     const navKeyTitles = {
     };
@@ -401,6 +402,17 @@ export function initSettingsNavShell({
             setMobileNavOpen(false);
         }
     }
+
+    document.addEventListener('sun-settings-navigate', (event) => {
+        const detail = event?.detail || {};
+        const section = String(detail.section || '').trim();
+        if (!section) return;
+        openSection(section, {
+            immediate: Boolean(detail.immediate),
+            navKey: String(detail.navKey || section),
+            scrollTargetId: String(detail.scrollTargetId || ''),
+        });
+    });
 
     settingsNavEditProfileBtnEl?.addEventListener('click', (event) => {
         event.preventDefault();

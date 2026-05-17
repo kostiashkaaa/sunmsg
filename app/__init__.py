@@ -25,6 +25,7 @@ from app.routes.auth import auth_bp
 from app.routes.chat import chat_bp
 from app.routes.contacts import contacts_bp
 from app.routes.moderation import moderation_bp
+from app.routes.spotify import spotify_bp
 from app.routes.support import support_bp
 from app.services.presence import configure_presence
 
@@ -71,6 +72,7 @@ def create_app(config_name=None, overrides=None):
     app.register_blueprint(chat_bp)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(moderation_bp)
+    app.register_blueprint(spotify_bp)
     app.register_blueprint(support_bp)
 
     register_asset_helpers(app)
