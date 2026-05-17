@@ -412,7 +412,7 @@ function _renderLightbox() {
         if (els.video) els.video.pause();
         _clearVideoControlsHideTimer();
         // Show thumbnail instantly, then swap in full-res once loaded
-        const targetSeq = ++lightboxTransitionSeq;
+        const targetSeq = lightboxTransitionSeq;
         if (cur.thumbnail && cur.thumbnail !== cur.src && !cur.thumbnail.startsWith('data:')) {
             els.img.src = cur.thumbnail;
             els.imageWrap?.classList.add('is-loading-full');
