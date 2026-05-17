@@ -10,6 +10,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     const commandLauncherInput = document.getElementById('searchInput');
     const settingsOverlay = document.getElementById('settingsOverlay');
     const settingsOverlayBackdrop = document.getElementById('settingsOverlayBackdrop');
+    const sidebarBrandDot = document.querySelector('.sidebar-brand-dot');
 
     let settingsOverlayPhase = 'closed';
     let settingsOverlayTransitionSeq = 0;
@@ -20,7 +21,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let settingsPanelInitPromise = null;
     let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
-    const SETTINGS_OVERLAY_GLOW_CLASS = 'settings-overlay--brand-glow';
+    const SETTINGS_BRAND_DOT_ACTIVE_CLASS = 'sidebar-brand-dot--settings-active';
 
     function prefersReducedMotion() {
         if (document.documentElement.classList.contains('perf-lite')) {
@@ -196,16 +197,8 @@ export function initChatShellSettingsOverlay(options = {}) {
         settingsOverlayScrollLocked = false;
     }
 
-    function restartSettingsOverlayGlow() {
-        if (!settingsOverlay) return;
-        settingsOverlay.classList.remove(SETTINGS_OVERLAY_GLOW_CLASS);
-        // Repaint the same overlay node so the brand glow is restored on every open.
-        void settingsOverlay.offsetWidth;
-        settingsOverlay.classList.add(SETTINGS_OVERLAY_GLOW_CLASS);
-    }
-
-    function clearSettingsOverlayGlow() {
-        settingsOverlay?.classList.remove(SETTINGS_OVERLAY_GLOW_CLASS);
+    function setSettingsBrandGlow(active) {
+        sidebarBrandDot?.classList.toggle(SETTINGS_BRAND_DOT_ACTIVE_CLASS, Boolean(active));
     }
 
     function initSettingsPanelOnce() {
@@ -282,7 +275,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (!settingsOverlay.classList.contains('active') && settingsOverlayPhase === 'closed') return;
         const closeSeq = ++settingsOverlayTransitionSeq;
         settingsOverlayPhase = 'closing';
-        clearSettingsOverlayGlow();
+        setSettingsBrandGlow(false);
         settingsOverlay.classList.remove('is-opening');
         settingsOverlay.classList.remove('active');
         settingsOverlay.classList.add('is-closing');
@@ -310,7 +303,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         const readyPromise = initSettingsPanelOnce() || Promise.resolve();
 
         if (settingsOverlay.classList.contains('active')) {
-            restartSettingsOverlayGlow();
+            setSettingsBrandGlow(true);
             navigateSettingsPanelToSection(targetSection);
             markFirstRunCompleted();
             return;
@@ -321,7 +314,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         settingsOverlay.setAttribute('aria-hidden', 'false');
         settingsOverlay.classList.remove('is-closing');
         settingsOverlay.classList.add('is-opening');
-        restartSettingsOverlayGlow();
+        setSettingsBrandGlow(true);
 
         const openSeq = ++settingsOverlayTransitionSeq;
         requestAnimationFrame(() => {
