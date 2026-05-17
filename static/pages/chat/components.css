@@ -540,8 +540,14 @@
         }
 
         .disappearing-pill-wrap {
-            padding: 8px clamp(14px, 4vw, 24px) 0;
-            flex-shrink: 0;
+            position: absolute;
+            top: calc(var(--vv-top-offset, 0px) + var(--header-h, 60px) + 10px);
+            left: 0;
+            right: 0;
+            z-index: 4;
+            display: flex;
+            justify-content: center;
+            padding: 0 clamp(14px, 4vw, 24px);
             pointer-events: none;
         }
 
@@ -552,21 +558,25 @@
 
         .disappearing-pill {
             display: grid;
-            grid-template-columns: 30px minmax(0, 1fr);
+            grid-template-columns: 28px minmax(0, auto);
             align-items: center;
-            gap: 10px;
+            gap: 9px;
             width: fit-content;
-            max-width: min(560px, calc(100vw - 28px));
+            max-width: min(620px, 100%);
             margin: 0 auto;
-            padding: 9px 12px;
+            padding: 8px 14px;
             color: var(--text);
             background:
                 linear-gradient(135deg,
-                    color-mix(in srgb, var(--surface) 82%, var(--accent) 18%) 0%,
-                    color-mix(in srgb, var(--surface) 94%, var(--accent) 6%) 100%);
-            border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border) 74%);
-            border-radius: 14px;
-            box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 12%, transparent);
+                    color-mix(in srgb, var(--surface) 76%, var(--accent) 24%) 0%,
+                    color-mix(in srgb, var(--surface) 91%, var(--accent) 9%) 100%);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
+            border-radius: 999px;
+            box-shadow:
+                0 10px 26px color-mix(in srgb, var(--accent) 14%, transparent),
+                inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
+            backdrop-filter: blur(14px) saturate(120%);
+            -webkit-backdrop-filter: blur(14px) saturate(120%);
             pointer-events: auto;
         }
 
@@ -574,35 +584,37 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 30px;
-            height: 30px;
-            border-radius: 10px;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
             color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 14%, var(--surface) 86%);
+            background: color-mix(in srgb, var(--accent) 16%, var(--surface) 84%);
         }
 
         .disappearing-pill__icon .sun-icon {
-            width: 15px;
-            height: 15px;
+            width: 14px;
+            height: 14px;
         }
 
         .disappearing-pill__copy {
-            display: grid;
-            gap: 2px;
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 4px 7px;
             min-width: 0;
             text-align: left;
         }
 
         .disappearing-pill__title {
-            font-size: 12px;
+            font-size: 12.5px;
             font-weight: 650;
             line-height: 1.2;
             color: var(--text);
         }
 
         .disappearing-pill__text {
-            font-size: 11.5px;
-            line-height: 1.25;
+            font-size: 12px;
+            line-height: 1.2;
             color: color-mix(in srgb, var(--sub-text) 84%, var(--text) 16%);
         }
 
@@ -2290,6 +2302,7 @@
             --msg-meta-tick-stroke: 1.35;
             --msg-meta-read-color: color-mix(in srgb, #5ea8ff 86%, var(--chat-bubble-out-text) 14%);
             --chat-bubble-max-width: min(68%, 720px);
+            --disappearing-pill-space: 0px;
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -2301,6 +2314,10 @@
             overflow: hidden;   /* clips drawer slide-in */
             isolation: isolate;
             overscroll-behavior: none;
+        }
+
+        .chat-area.chat-area--disappearing-enabled {
+            --disappearing-pill-space: 64px;
         }
 
 
@@ -3244,6 +3261,20 @@
 
 
         .message-lock { font-size: 10px; margin-left: 4px; opacity: 0.7; }
+        .chat-input-area {
+            --chat-message-scale: 1;
+            --chat-message-font-size: 14px;
+            --chat-message-pad-y: 9px;
+            --chat-message-pad-x: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .chat-input-area {
+                --chat-message-pad-y: 7px;
+                --chat-message-pad-x: 11px;
+            }
+        }
+
         .composer-row {
             display: flex;
             align-items: center;
