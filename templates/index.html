@@ -28,11 +28,11 @@
             'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),
         },
     } | tojson }}</script>
-    <script src="{{ asset_url('bootstrap.js') }}"></script>
-    <script src="{{ asset_url('interface-theme.js') }}"></script>
-    <script src="{{ asset_url('i18n-runtime.js') }}"></script>
-    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
-    <script src="{{ asset_url('pages/chat-theme-boot.js') }}"></script>
+    <script src="{{ asset_url('bootstrap.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('interface-theme.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('i18n-runtime.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('pages/chat-theme-boot.js') }}" nonce="{{ csp_nonce }}"></script>
     <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
     <link rel="stylesheet" href="{{ asset_url('pages/auth.css') }}">
     <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
@@ -89,7 +89,7 @@
                         <span id="loginIntroTitleMain">Войти</span>
                         <em class="auth-login-intro-em" id="loginIntroTitleAccent">за три секунды.</em>
                     </h2>
-                    <p class="auth-login-intro-sub" id="loginIntroSub">Откройте SUN на телефоне → отсканируйте QR-код.</p>
+                    <p class="auth-login-intro-sub" id="loginIntroSub">Откройте SUN на телефоне → сканируйте.</p>
                 </div>
 
                 <form id="ajaxLoginForm">
@@ -452,14 +452,14 @@
         <i class="bi bi-moon-stars" id="themeIcon"></i>
     </button>
 
-<script src="{{ asset_url('qrcode-loader.js') }}"></script>
-    <script src="{{ asset_url('crypto.js') }}"></script>
-    <script src="{{ asset_url('mnemonic.js') }}"></script>
-<script type="module" src="{{ asset_url('modules/auth-fetch.js') }}"></script>
-<script src="{{ asset_url('modules/device-key.js') }}"></script>
-<script src="{{ asset_url('modules/private-key-session-bridge.js') }}"></script>
-<script src="{{ asset_url('modules/bi-icon-adapter.js') }}"></script>
+<script src="{{ asset_url('qrcode-loader.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('crypto.js') }}" nonce="{{ csp_nonce }}"></script>
+    <script src="{{ asset_url('mnemonic.js') }}" nonce="{{ csp_nonce }}"></script>
+<script type="module" src="{{ asset_url('modules/auth-fetch.js') }}" nonce="{{ csp_nonce }}"></script>
+<script src="{{ asset_url('modules/device-key.js') }}" nonce="{{ csp_nonce }}"></script>
+<script src="{{ asset_url('modules/private-key-session-bridge.js') }}" nonce="{{ csp_nonce }}"></script>
+<script src="{{ asset_url('modules/bi-icon-adapter.js') }}" nonce="{{ csp_nonce }}"></script>
 
-<script type="module" src="{{ asset_url('pages/auth.js') }}"></script>
+<script type="module" src="{{ asset_url('pages/auth.js') }}" nonce="{{ csp_nonce }}"></script>
 </body>
 </html>

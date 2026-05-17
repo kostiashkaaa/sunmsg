@@ -56,7 +56,13 @@ export function createQrLoginFlow({
             return;
         }
         statusEl.hidden = false;
-        statusEl.textContent = value;
+        const indicator = document.createElement('span');
+        indicator.className = 'auth-qr-login-status__indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        const textNode = document.createElement('span');
+        textNode.className = 'auth-qr-login-status__text';
+        textNode.textContent = value;
+        statusEl.replaceChildren(indicator, textNode);
     }
 
     function clearLoginQrTimers() {

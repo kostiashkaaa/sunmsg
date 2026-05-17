@@ -112,8 +112,8 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setText(
         'registerStep4Sub',
         isEn
-            ? 'Registration is complete. You can now open messenger.'
-            : 'Регистрация завершена, можно переходить в мессенджер',
+            ? 'Account created. Message history is stored only on your devices.'
+            : 'Аккаунт создан. История пишется только на ваших устройствах.',
     );
     setText('registerDoneLoginLabel', isEn ? 'Open messenger' : 'Открыть мессенджер');
 
@@ -121,8 +121,8 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setHtml(
         'authLegalTitle',
         isEn
-            ? 'If you want to<em id="authLegalTitleAccent">dig deeper.</em>'
-            : 'Если хочется<em id="authLegalTitleAccent">разобраться глубже.</em>',
+            ? 'If you want to <em id="authLegalTitleAccent">dig deeper.</em>'
+            : 'Если хочется <em id="authLegalTitleAccent">разобраться глубже.</em>',
     );
     setText(
         'authLegalSub',
