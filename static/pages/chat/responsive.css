@@ -545,9 +545,20 @@
                 padding-top: 8px;
                 margin-top: 4px;
             }
+            /* Attach menu: absolutely positioned above the composer-controls,
+               anchored to its bottom-right corner. Stays inside the DOM (no
+               portal) so it always opens into visible space above the bar. */
             .attach-menu {
-                right: 6px;
-                min-width: min(240px, calc(100vw - 24px));
+                position: absolute;
+                right: 4px;
+                left: auto;
+                top: auto;
+                bottom: calc(100% + 8px);
+                width: min(248px, calc(100vw - 24px));
+                min-width: min(200px, calc(100vw - 24px));
+                max-width: calc(100vw - 16px);
+                transform-origin: bottom right;
+                z-index: var(--z-portal-menu, 9600);
             }
             .caption-modal {
                 width: min(560px, calc(100vw - 16px));
@@ -652,8 +663,12 @@
                 position: fixed;
                 top: 0;
                 right: 0;
-                bottom: 0;
                 left: 0;
+                /* No `bottom` — anchoring both top and bottom would stretch the
+                   shell across the full layout viewport and fight `height`.
+                   Pinning only the top and sizing with 100dvh lets the shell
+                   itself shrink with the browser-resized viewport. */
+                bottom: auto;
                 width: 100%;
                 height: 100dvh;
                 max-height: 100dvh;
@@ -717,47 +732,45 @@
             #sidebarScrollArea {
                 scrollbar-gutter: auto;
             }
+            /* ===== Mobile chat layout — flex column =====
+               .chat-area fills .app and lays out its three rows in normal
+               flow: header (fixed height) / messages (flex:1, scrolls) /
+               composer (fixed height). The emoji picker is a fourth flow row
+               below the composer. Nothing is position:fixed/absolute, so
+               nothing can drift off-screen, and the browser
+               (interactive-widget=resizes-content) simply shrinks the whole
+               column when the keyboard opens. */
             .chat-area {
                 --floating-composer-gap: 4px;
-                --floating-composer-reserve: 84px;
-                --mobile-bottom-dock-height: 0px;
                 --emoji-sheet-motion-duration: 240ms;
                 --chat-bubble-max-width: min(92%, 680px);
                 --chat-profile-drawer-width: 0px;
                 --mobile-exit-swipe-shift: 0px;
                 position: absolute;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                right: 0;
+                inset: 0;
                 height: 100%;
                 max-height: 100%;
                 min-height: 0;
                 display: none;
+                flex-direction: column;
                 z-index: var(--z-mobile-chat, 60);
                 transform: translateX(100%);
                 opacity: 0;
                 touch-action: pan-y;
             }
             .chat-messages {
+                flex: 1 1 auto;
                 min-height: 0;
                 overscroll-behavior: contain;
                 touch-action: pan-y;
-                /* Composer is position:absolute inside the (browser-resized)
-                   chat-area, so we only reserve the composer height plus the
-                   emoji sheet height when it is open. The keyboard no longer
-                   needs a manual inset — the browser already shrank the viewport. */
-                padding-bottom: calc(
-                    var(--floating-composer-reserve, 84px)
-                    + var(--mobile-bottom-dock-height, 0px)
-                    + env(safe-area-inset-bottom)
-                ) !important;
-                scroll-padding-bottom: calc(
-                    var(--floating-composer-reserve, 84px)
-                    + var(--mobile-bottom-dock-height, 0px)
-                    + env(safe-area-inset-bottom)
-                    + 12px
-                ) !important;
+                /* Composer & emoji sheet are real flow rows below, so messages
+                   only needs a small breathing-room pad at the bottom. */
+                padding-bottom: 10px !important;
+                scroll-padding-bottom: 16px !important;
+                /* Don't let the browser re-anchor scroll when the column
+                   resizes (keyboard / emoji sheet) — that is what made
+                   messages visibly jump. */
+                overflow-anchor: none;
                 transition:
                     opacity var(--m-dur-fast) var(--m-decel),
                     transform var(--m-dur-fast) var(--m-decel);
@@ -987,26 +1000,24 @@
                 width: min(280px, calc(100vw - 20px));
             }
 
-            /* Input area: pinned to the bottom of the layout viewport.
-               With interactive-widget=resizes-content the browser shrinks the
-               layout viewport when the keyboard opens, so bottom:0 keeps the
-               composer glued right above the keyboard automatically. */
+            /* Composer: a normal flow row at the bottom of the flex column.
+               Not fixed/absolute — it simply sits after .chat-messages, so it
+               can never drift off-screen. The keyboard shrinks the whole
+               column natively and the composer rides the bottom edge. */
             .chat-input-area {
                 --composer-min-height: 38px;
                 --composer-max-height: 88px;
                 --composer-action-size: 44px;
-                position: absolute;
-                left: 0;
-                right: 0;
-                bottom: var(--mobile-bottom-dock-height, 0px);
+                flex: 0 0 auto;
+                position: relative;
+                left: auto;
+                right: auto;
+                bottom: auto;
+                padding-top: 6px;
                 padding-left: max(8px, env(safe-area-inset-left, 0px));
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
                 z-index: var(--z-composer-mobile, 1004);
-                transition:
-                    bottom var(--emoji-sheet-motion-duration) var(--m-decel),
-                    opacity var(--m-dur-fast) var(--m-decel),
-                    transform var(--m-dur-fast) var(--m-decel);
             }
             .jump-to-new-btn {
                 --jump-to-new-size: 44px;
@@ -1224,58 +1235,12 @@
                 min-height: 36px;
             }
 
-            /* Emoji picker on mobile */
-            @keyframes emojiSheetUp {
-                from { opacity: 0; transform: translate3d(0, 100%, 0) scale(1); }
-                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-            }
-
-            /* Emoji sheet is a fixed-height bottom panel. The composer docks on
-               top of it. No keyboard-height measuring — the picker has its own
-               stable height. */
-            .chat-area.emoji-sheet-open {
-                --mobile-emoji-sheet-height: min(320px, 46dvh);
-                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height);
-            }
-
-            /* When emoji sheet is open: the composer docks on top of the
-               fixed-height sheet. Both slide together as one animated surface. */
-            .chat-area.emoji-sheet-open .chat-input-area {
-                display: flex !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                z-index: var(--z-emoji-sheet, 1010);
-            }
-
-            .chat-area.emoji-sheet-open .chat-input-area.chat-input-area--hidden {
-                display: flex !important;
-            }
-
-            .chat-area.emoji-sheet-open .composer-row {
-                z-index: 2;
-            }
-
-            .chat-area.emoji-sheet-open .emoji-picker {
-                z-index: 1;
-            }
-
-            .chat-area.emoji-sheet-open .chat-messages {
-                overflow-anchor: none;
-            }
-
-            .chat-area.emoji-sheet-open .chat-messages {
-                padding-bottom: calc(
-                    var(--floating-composer-reserve, 84px)
-                    + var(--mobile-emoji-sheet-height, 460px)
-                    + 12px
-                ) !important;
-                scroll-padding-bottom: calc(
-                    var(--floating-composer-reserve, 84px)
-                    + var(--mobile-emoji-sheet-height, 460px)
-                    + 16px
-                ) !important;
-            }
-
+            /* ===== Mobile emoji picker =====
+               The picker is a normal flow row INSIDE .chat-input-area (which is
+               a flex column), sitting right below .composer-row. Open/close is
+               a pure height animation: 0 -> fixed height. Because it is in the
+               flow, the composer above it is simply pushed up — nothing is
+               positioned absolutely, nothing can overlap or drift. */
             .emoji-picker-handle {
                 width: 36px;
                 height: 4px;
@@ -1285,62 +1250,68 @@
                 flex-shrink: 0;
             }
 
-            /* Mobile emoji picker is a pure-CSS bottom sheet: it ignores the
-               JS-set --emoji-left/top/width/height vars (those are desktop-only)
-               and pins itself to the bottom of the chat-area with a fixed
-               height. No JS positioning => no jitter. */
             .emoji-picker {
                 --emoji-mobile-gutter: 12px;
-                position: absolute !important;
-                left: 0 !important;
-                right: 0 !important;
+                --emoji-sheet-height: min(300px, 42dvh);
+                /* Always laid out (display:flex) so the height transition can
+                   run. Collapsed = height:0 + negative margin to cancel the
+                   parent's 8px row gap, so it takes zero visible space. */
+                display: flex !important;
+                flex-direction: column;
+                position: static !important;
+                left: auto !important;
                 top: auto !important;
-                bottom: 0 !important;
+                right: auto !important;
+                bottom: auto !important;
+                order: 99;            /* always last row, below composer-row */
+                flex: 0 0 auto;
                 width: 100% !important;
-                height: min(320px, 46dvh) !important;
                 max-width: none;
-                max-height: none;
+                height: 0 !important;
+                max-height: 0 !important;
+                min-height: 0;
+                margin-top: -8px;     /* cancels .chat-input-area row gap */
+                overflow: hidden;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
                 background:
                     linear-gradient(
                         180deg,
                         color-mix(in srgb, var(--surface) 96%, #ffffff 4%) 0%,
                         color-mix(in srgb, var(--chat-bg) 88%, var(--surface) 12%) 100%
                     );
-                border-right: 0;
-                border-bottom: 0;
-                border-left: 0;
-                border-radius: 18px 18px 0 0;
-                box-shadow:
-                    0 -18px 40px rgba(0, 0, 0, 0.34),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-                transform: translate3d(0, 100%, 0) scale(1);
-                transform-origin: bottom center;
-                z-index: 1001;
+                border: 0;
+                border-radius: 16px 16px 0 0;
+                box-shadow: none;
+                transform: none !important;
+                transition:
+                    height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    max-height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    margin-top var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    opacity 160ms var(--m-decel),
+                    visibility 0s linear var(--emoji-sheet-motion-duration, 240ms);
             }
 
+            /* Open: expand to fixed height. */
             .emoji-picker.active {
-                display: flex;
+                height: var(--emoji-sheet-height) !important;
+                max-height: var(--emoji-sheet-height) !important;
+                margin-top: 0;
                 opacity: 1;
                 visibility: visible;
                 pointer-events: auto;
-                transform: translate3d(0, 0, 0) scale(1);
                 transition:
-                    opacity var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel),
-                    transform var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel),
+                    height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    max-height var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    margin-top var(--emoji-sheet-motion-duration, 240ms) var(--m-decel),
+                    opacity 160ms var(--m-decel),
                     visibility 0s linear 0s;
-                animation: emojiSheetUp var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-decel);
             }
 
+            /* Closing: animate back to the collapsed (base) state. */
             .emoji-picker.is-closing {
-                display: flex;
-                opacity: 0;
                 visibility: visible;
-                pointer-events: none;
-                transform: translate3d(0, 100%, 0) scale(1);
-                transition:
-                    opacity var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-accel),
-                    transform var(--emoji-sheet-motion-duration, var(--m-dur-medium)) var(--m-accel),
-                    visibility 0s linear var(--emoji-sheet-motion-duration, var(--m-dur-medium));
             }
 
             .emoji-picker-topbar {

@@ -3609,20 +3609,6 @@
         }
 
 
-        .attach-menu.attach-menu--portal {
-            position: fixed;
-            left: var(--attach-menu-left, 12px);
-            top: var(--attach-menu-top, auto);
-            right: auto;
-            bottom: auto;
-            width: var(--attach-menu-width, min(216px, calc(100vw - 24px)));
-            min-width: min(190px, calc(100vw - 24px));
-            max-width: calc(100vw - 24px);
-            z-index: var(--z-portal-menu, 9600);
-            transform-origin: var(--attach-menu-origin, bottom right);
-        }
-
-
         .attach-menu.is-closing {
             opacity: 0;
             transform: translateY(6px) scale(0.98);

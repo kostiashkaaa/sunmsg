@@ -1,6 +1,18 @@
 import { waitForMotionEnd } from './motion.js';
 
-export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, triggerGap = 12 } = {}) {
+/**
+ * Attach menu controller.
+ *
+ * The menu is NOT portaled anymore and is NOT positioned by JS. It stays in
+ * the DOM next to its trigger (inside .composer-controls) and CSS anchors it
+ * with `position: absolute` directly above the attach button. Because the
+ * composer is a normal flow row at the bottom of the chat column, the menu
+ * always opens into visible space — no viewport math, no drift.
+ *
+ * This module now only toggles the `is-opening` / `is-open` / `is-closing`
+ * classes and keeps the item labels localized.
+ */
+export function initAttachMenuPortal({ attachMenu, trigger } = {}) {
     const noop = {
         setOpen() {},
         close() {},
@@ -11,12 +23,6 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
     if (!attachMenu || !trigger) return noop;
 
     let transitionSeq = 0;
-    const alignElement = trigger.closest('#messageForm') || trigger;
-
-    if (attachMenu.parentElement !== document.body) {
-        attachMenu.classList.add('attach-menu--portal');
-        document.body.appendChild(attachMenu);
-    }
 
     function getLanguage() {
         const i18nApi = window.SUN_I18N;
@@ -29,72 +35,20 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
     function syncLabels() {
         const labels = getLanguage() === 'en'
             ? { media: 'Photo or video', file: 'File' }
-            : { media: '\u0424\u043e\u0442\u043e \u0438\u043b\u0438 \u0432\u0438\u0434\u0435\u043e', file: '\u0424\u0430\u0439\u043b' };
+            : { media: 'Фото или видео', file: 'Файл' };
         attachMenu.querySelector('[data-attach-mode="media"] .attach-menu-item__text')?.replaceChildren(labels.media);
         attachMenu.querySelector('[data-attach-mode="file"] .attach-menu-item__text')?.replaceChildren(labels.file);
-    }
-
-    function readRootPixelVar(name) {
-        const root = document.documentElement;
-        if (!root) return 0;
-        const value = window.getComputedStyle(root).getPropertyValue(name);
-        const parsed = Number.parseFloat(String(value || '').trim());
-        return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function isMobileKeyboardOpen() {
-        const root = document.documentElement;
-        return Boolean(root?.classList.contains('mobile-keyboard-active'))
-            || readRootPixelVar('--vv-keyboard-inset') > 24
-            || readRootPixelVar('--mobile-composer-bottom-inset') > 24;
-    }
-
-    function position() {
-        attachMenu.classList.add('attach-menu--portal');
-        // position:fixed is relative to the layout viewport.
-        // getBoundingClientRect() returns layout-viewport coords — no vv.offset needed.
-        // When the keyboard is open vv.height is the usable area above the keyboard.
-        const vv = window.visualViewport;
-        const layoutW = window.innerWidth || document.documentElement.clientWidth || 0;
-        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
-        const usableH = vv ? Math.min(Number(vv.height || layoutH), layoutH) : layoutH;
-        const viewport = { left: 0, top: 0, width: layoutW, height: usableH };
-
-        const menuWidth = Math.min(216, Math.max(190, viewport.width - viewportGap * 2));
-        attachMenu.style.setProperty('--attach-menu-width', `${menuWidth}px`);
-
-        const alignRect = alignElement.getBoundingClientRect();
-        const inputAreaRect = document.getElementById('chatInputArea')?.getBoundingClientRect?.();
-        const keyboardOpen = isMobileKeyboardOpen();
-        const anchorRect = keyboardOpen && inputAreaRect && inputAreaRect.height > 0
-            ? inputAreaRect
-            : alignRect;
-        const menuHeight = Math.max(attachMenu.offsetHeight || 0, attachMenu.scrollHeight || 0, 96);
-        const minLeft = viewport.left + viewportGap;
-        const maxLeft = Math.max(minLeft, viewport.left + viewport.width - menuWidth - viewportGap);
-        const minTop = viewport.top + viewportGap;
-        const maxTop = Math.max(minTop, viewport.top + viewport.height - menuHeight - viewportGap);
-        const topAbove = anchorRect.top - menuHeight - triggerGap;
-        const topBelow = anchorRect.bottom + triggerGap;
-        const opensAbove = topAbove >= minTop || topBelow > maxTop;
-        const left = Math.min(Math.max(alignRect.right - menuWidth, minLeft), maxLeft);
-        const preferredTop = opensAbove ? topAbove : topBelow;
-        const top = Math.min(Math.max(preferredTop, minTop), maxTop);
-
-        attachMenu.style.setProperty('--attach-menu-left', `${left}px`);
-        attachMenu.style.setProperty('--attach-menu-top', `${top}px`);
-        attachMenu.style.setProperty('--attach-menu-origin', opensAbove ? 'bottom right' : 'top right');
     }
 
     function setOpen(open) {
         const shouldOpen = Boolean(open);
         transitionSeq += 1;
         const seq = transitionSeq;
+
         if (shouldOpen) {
             syncLabels();
             attachMenu.classList.remove('is-open', 'is-closing');
             attachMenu.classList.add('is-opening');
-            position();
         } else if (attachMenu.classList.contains('is-open') || attachMenu.classList.contains('is-opening')) {
             attachMenu.classList.remove('is-open', 'is-opening');
             attachMenu.classList.add('is-closing');
@@ -103,29 +57,22 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
                 attachMenu.classList.remove('is-closing');
             });
         }
+
         attachMenu.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
         trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+
         if (shouldOpen) {
             requestAnimationFrame(() => {
                 if (seq !== transitionSeq) return;
-                position();
                 attachMenu.classList.add('is-open');
                 requestAnimationFrame(() => {
                     if (seq !== transitionSeq) return;
-                    position();
                     attachMenu.classList.remove('is-opening');
                 });
             });
         }
     }
 
-    const repositionIfOpen = () => {
-        if (attachMenu.classList.contains('is-open')) position();
-    };
-    window.addEventListener('resize', repositionIfOpen);
-    window.addEventListener('orientationchange', repositionIfOpen);
-    window.visualViewport?.addEventListener('resize', repositionIfOpen);
-    window.visualViewport?.addEventListener('scroll', repositionIfOpen);
     window.addEventListener('sun-ui-language-changed', syncLabels);
     syncLabels();
 
@@ -133,6 +80,6 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         setOpen,
         close() { setOpen(false); },
         isOpen() { return attachMenu.classList.contains('is-open'); },
-        position,
+        position() {},
     };
 }
