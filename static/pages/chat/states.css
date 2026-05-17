@@ -315,6 +315,12 @@
             visibility: visible;
         }
 
+        .settings-overlay.settings-overlay--brand-glow {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+        }
+
 
         .settings-overlay.is-opening {
             display: flex;
@@ -333,7 +339,8 @@
 
 
         .settings-overlay.active .settings-overlay-backdrop,
-        .settings-overlay.is-opening .settings-overlay-backdrop {
+        .settings-overlay.is-opening .settings-overlay-backdrop,
+        .settings-overlay.settings-overlay--brand-glow .settings-overlay-backdrop {
             opacity: 1;
         }
 

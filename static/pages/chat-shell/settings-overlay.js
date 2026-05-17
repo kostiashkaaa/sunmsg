@@ -20,6 +20,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let settingsPanelInitPromise = null;
     let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
+    const SETTINGS_OVERLAY_GLOW_CLASS = 'settings-overlay--brand-glow';
 
     function prefersReducedMotion() {
         if (document.documentElement.classList.contains('perf-lite')) {
@@ -195,6 +196,18 @@ export function initChatShellSettingsOverlay(options = {}) {
         settingsOverlayScrollLocked = false;
     }
 
+    function restartSettingsOverlayGlow() {
+        if (!settingsOverlay) return;
+        settingsOverlay.classList.remove(SETTINGS_OVERLAY_GLOW_CLASS);
+        // Repaint the same overlay node so the brand glow is restored on every open.
+        void settingsOverlay.offsetWidth;
+        settingsOverlay.classList.add(SETTINGS_OVERLAY_GLOW_CLASS);
+    }
+
+    function clearSettingsOverlayGlow() {
+        settingsOverlay?.classList.remove(SETTINGS_OVERLAY_GLOW_CLASS);
+    }
+
     function initSettingsPanelOnce() {
         if (settingsPanelInitialized && settingsPanelInitPromise) return settingsPanelInitPromise;
         settingsPanelInitialized = true;
@@ -269,6 +282,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (!settingsOverlay.classList.contains('active') && settingsOverlayPhase === 'closed') return;
         const closeSeq = ++settingsOverlayTransitionSeq;
         settingsOverlayPhase = 'closing';
+        clearSettingsOverlayGlow();
         settingsOverlay.classList.remove('is-opening');
         settingsOverlay.classList.remove('active');
         settingsOverlay.classList.add('is-closing');
@@ -296,6 +310,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         const readyPromise = initSettingsPanelOnce() || Promise.resolve();
 
         if (settingsOverlay.classList.contains('active')) {
+            restartSettingsOverlayGlow();
             navigateSettingsPanelToSection(targetSection);
             markFirstRunCompleted();
             return;
@@ -306,6 +321,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         settingsOverlay.setAttribute('aria-hidden', 'false');
         settingsOverlay.classList.remove('is-closing');
         settingsOverlay.classList.add('is-opening');
+        restartSettingsOverlayGlow();
 
         const openSeq = ++settingsOverlayTransitionSeq;
         requestAnimationFrame(() => {
