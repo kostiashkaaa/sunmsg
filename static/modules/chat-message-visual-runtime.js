@@ -6,6 +6,7 @@ import {
     normalizeMessageReactions as baseNormalizeMessageReactions,
     buildMessageReactionsHtml as baseBuildMessageReactionsHtml,
 } from './reactions.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 const REACTION_ROW_STATE_CLASSES = [
     'reaction-row--active',
@@ -69,6 +70,10 @@ export function createChatMessageVisualRuntime({
             currentUserPublicKey: getCurrentUserContext().currentUserPublicKey,
             isGroupChat,
         });
+    }
+
+    function shouldPinStableMutationToBottom() {
+        return Boolean(getKeepChatPinnedToBottom?.()) && Boolean(isChatViewportPinnedToBottom?.());
     }
 
     function resolveCurrentChatMessageElementById(messageId) {
@@ -246,37 +251,39 @@ export function createChatMessageVisualRuntime({
 
     function patchPinnedMessageState(messageEl, isPinned) {
         if (!messageEl) return;
-        const meta = messageEl.querySelector('.msg-meta, .message-meta');
-        if (!meta) return;
-        const wasPinned = messageEl.classList.contains('message-pinned');
+        return withStableChatScroll(messageEl, () => {
+            const meta = messageEl.querySelector('.msg-meta, .message-meta');
+            if (!meta) return;
+            const wasPinned = messageEl.classList.contains('message-pinned');
 
-        let pinEl = meta.querySelector('.msg-pin');
-        if (isPinned) {
-            if (!pinEl) {
-                pinEl = documentRef.createElement('span');
-                pinEl.className = 'msg-pin';
-                pinEl.title = '\u0417\u0430\u043A\u0440\u0435\u043F\u043B\u0435\u043D\u043E';
-                pinEl.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
-                const editedEl = meta.querySelector('.msg-edited');
-                const timeEl = meta.querySelector('.msg-time');
-                if (editedEl) {
-                    editedEl.before(pinEl);
-                } else if (timeEl) {
-                    timeEl.before(pinEl);
-                } else {
-                    meta.prepend(pinEl);
+            let pinEl = meta.querySelector('.msg-pin');
+            if (isPinned) {
+                if (!pinEl) {
+                    pinEl = documentRef.createElement('span');
+                    pinEl.className = 'msg-pin';
+                    pinEl.title = '\u0417\u0430\u043A\u0440\u0435\u043F\u043B\u0435\u043D\u043E';
+                    pinEl.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
+                    const editedEl = meta.querySelector('.msg-edited');
+                    const timeEl = meta.querySelector('.msg-time');
+                    if (editedEl) {
+                        editedEl.before(pinEl);
+                    } else if (timeEl) {
+                        timeEl.before(pinEl);
+                    } else {
+                        meta.prepend(pinEl);
+                    }
                 }
+            } else {
+                pinEl?.remove();
             }
-        } else {
-            pinEl?.remove();
-        }
 
-        messageEl.classList.toggle('message-pinned', Boolean(isPinned));
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
-        if (wasPinned !== Boolean(isPinned)) {
-            runMessageStateMotion(messageEl, isPinned ? 'pin' : 'unpin');
-        }
+            messageEl.classList.toggle('message-pinned', Boolean(isPinned));
+            syncMessageBubbleLayoutClasses(messageEl);
+            refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinStableMutationToBottom() });
+            if (wasPinned !== Boolean(isPinned)) {
+                runMessageStateMotion(messageEl, isPinned ? 'pin' : 'unpin');
+            }
+        }, { pinToBottom: shouldPinStableMutationToBottom() });
     }
 
     function clearPinnedMessageStates() {
@@ -290,40 +297,42 @@ export function createChatMessageVisualRuntime({
 
     function patchFavoriteMessageState(messageEl, isFavorite) {
         if (!messageEl) return;
-        const meta = messageEl.querySelector('.msg-meta, .message-meta');
-        if (!meta) return;
-        const wasFavorite = messageEl.classList.contains('message-favorite');
+        return withStableChatScroll(messageEl, () => {
+            const meta = messageEl.querySelector('.msg-meta, .message-meta');
+            if (!meta) return;
+            const wasFavorite = messageEl.classList.contains('message-favorite');
 
-        let favoriteEl = meta.querySelector('.msg-favorite');
-        if (isFavorite) {
-            if (!favoriteEl) {
-                favoriteEl = documentRef.createElement('span');
-                favoriteEl.className = 'msg-favorite';
-                favoriteEl.title = '\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C';
-                favoriteEl.innerHTML = '<i class="bi bi-star-fill"></i>';
-                const pinEl = meta.querySelector('.msg-pin');
-                const editedEl = meta.querySelector('.msg-edited');
-                const timeEl = meta.querySelector('.msg-time');
-                if (pinEl) {
-                    pinEl.before(favoriteEl);
-                } else if (editedEl) {
-                    editedEl.before(favoriteEl);
-                } else if (timeEl) {
-                    timeEl.before(favoriteEl);
-                } else {
-                    meta.prepend(favoriteEl);
+            let favoriteEl = meta.querySelector('.msg-favorite');
+            if (isFavorite) {
+                if (!favoriteEl) {
+                    favoriteEl = documentRef.createElement('span');
+                    favoriteEl.className = 'msg-favorite';
+                    favoriteEl.title = '\u0412 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u043C';
+                    favoriteEl.innerHTML = '<i class="bi bi-star-fill"></i>';
+                    const pinEl = meta.querySelector('.msg-pin');
+                    const editedEl = meta.querySelector('.msg-edited');
+                    const timeEl = meta.querySelector('.msg-time');
+                    if (pinEl) {
+                        pinEl.before(favoriteEl);
+                    } else if (editedEl) {
+                        editedEl.before(favoriteEl);
+                    } else if (timeEl) {
+                        timeEl.before(favoriteEl);
+                    } else {
+                        meta.prepend(favoriteEl);
+                    }
                 }
+            } else {
+                favoriteEl?.remove();
             }
-        } else {
-            favoriteEl?.remove();
-        }
 
-        messageEl.classList.toggle('message-favorite', Boolean(isFavorite));
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: false });
-        if (wasFavorite !== Boolean(isFavorite)) {
-            runMessageStateMotion(messageEl, isFavorite ? 'favorite' : 'unfavorite');
-        }
+            messageEl.classList.toggle('message-favorite', Boolean(isFavorite));
+            syncMessageBubbleLayoutClasses(messageEl);
+            refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinStableMutationToBottom() });
+            if (wasFavorite !== Boolean(isFavorite)) {
+                runMessageStateMotion(messageEl, isFavorite ? 'favorite' : 'unfavorite');
+            }
+        }, { pinToBottom: shouldPinStableMutationToBottom() });
     }
 
     function clearFavoriteMessageStates() {
@@ -340,132 +349,134 @@ export function createChatMessageVisualRuntime({
         const msgId = Number(messageEl.getAttribute('data-msg-id'));
         if (!Number.isFinite(msgId) || msgId <= 0) return;
         const highlightedEmoji = String(animatedEmoji || '').trim();
-        const shouldPinToBottom = Boolean(getKeepChatPinnedToBottom?.()) && Boolean(isChatViewportPinnedToBottom?.());
+        const shouldPinToBottom = shouldPinStableMutationToBottom();
 
-        const stack = messageEl.querySelector('.message-stack');
-        if (!stack) return;
-        const bubble = stack.querySelector('.bubble');
-        if (!bubble) return;
-        const { useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
-        const existingFooter = bubble.querySelector(':scope > .message-footer');
-        const targetContainer = useOutsidePlacement ? stack : (existingFooter || bubble);
-        let currentRow = null;
-        const allRows = Array.from(stack.querySelectorAll('.message-reactions'));
-        allRows.forEach((row) => {
-            const isInTarget = row.parentElement === targetContainer;
-            if (isInTarget && !currentRow) {
-                currentRow = row;
-                return;
-            }
-            row.remove();
-        });
-        const nextMarkup = buildMessageReactionsHtml(msgId, reactions);
-
-        if (!nextMarkup) {
-            currentRow?.remove();
-            syncMessageBubbleLayoutClasses(messageEl);
-            refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
-            return;
-        }
-
-        const template = documentRef.createElement('template');
-        template.innerHTML = nextMarkup.trim();
-        const nextRow = Array.from(template.content.children)
-            .find((child) => child?.classList?.contains('message-reactions')) || null;
-
-        const isNewRow = !currentRow;
-        let updatedRow = currentRow;
-        if (!nextRow) {
-            currentRow?.remove();
-            targetContainer.insertAdjacentHTML('beforeend', nextMarkup);
-            updatedRow = Array.from(targetContainer.children).find((child) => child?.classList?.contains('message-reactions')) || null;
-        } else if (!updatedRow) {
-            targetContainer.append(nextRow);
-            updatedRow = nextRow;
-        } else {
-            const preservedRowStateClasses = REACTION_ROW_STATE_CLASSES.filter((className) => updatedRow.classList.contains(className));
-            updatedRow.className = nextRow.className;
-            updatedRow.setAttribute('data-msg-id', String(msgId));
-            preservedRowStateClasses.forEach((className) => updatedRow.classList.add(className));
-
-            const syncPill = (targetPill, sourcePill) => {
-                if (!targetPill || !sourcePill) return;
-                const nextEmoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
-                const preservedPillStateClasses = REACTION_PILL_STATE_CLASSES.filter((className) => targetPill.classList.contains(className));
-                targetPill.className = sourcePill.className;
-                targetPill.setAttribute('data-msg-id', String(msgId));
-                targetPill.setAttribute('data-emoji', nextEmoji);
-                preservedPillStateClasses.forEach((className) => targetPill.classList.add(className));
-                targetPill.innerHTML = sourcePill.innerHTML;
-            };
-
-            const currentPills = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'));
-            const currentPillByEmoji = new Map();
-            currentPills.forEach((pill) => {
-                const emoji = String(pill.getAttribute('data-emoji') || '').trim();
-                if (!emoji || currentPillByEmoji.has(emoji)) return;
-                currentPillByEmoji.set(emoji, pill);
-            });
-
-            const nextPills = Array.from(nextRow.querySelectorAll(':scope > .reaction-pill'));
-            const nextEmojiSet = new Set();
-            nextPills.forEach((sourcePill) => {
-                const emoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
-                if (!emoji) return;
-                nextEmojiSet.add(emoji);
-
-                const existingPill = currentPillByEmoji.get(emoji);
-                if (existingPill) {
-                    syncPill(existingPill, sourcePill);
-                    updatedRow.append(existingPill);
+        return withStableChatScroll(messageEl, () => {
+            const stack = messageEl.querySelector('.message-stack');
+            if (!stack) return;
+            const bubble = stack.querySelector('.bubble');
+            if (!bubble) return;
+            const { useOutsidePlacement } = resolveMessageReactionLayoutState(messageEl, bubble);
+            const existingFooter = bubble.querySelector(':scope > .message-footer');
+            const targetContainer = useOutsidePlacement ? stack : (existingFooter || bubble);
+            let currentRow = null;
+            const allRows = Array.from(stack.querySelectorAll('.message-reactions'));
+            allRows.forEach((row) => {
+                const isInTarget = row.parentElement === targetContainer;
+                if (isInTarget && !currentRow) {
+                    currentRow = row;
                     return;
                 }
-
-                updatedRow.append(sourcePill.cloneNode(true));
+                row.remove();
             });
+            const nextMarkup = buildMessageReactionsHtml(msgId, reactions);
 
-            currentPillByEmoji.forEach((pill, emoji) => {
-                if (!nextEmojiSet.has(emoji)) {
-                    pill.remove();
-                }
-            });
-        }
+            if (!nextMarkup) {
+                currentRow?.remove();
+                syncMessageBubbleLayoutClasses(messageEl);
+                refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
+                return;
+            }
 
-        if (updatedRow && animate && isNewRow) {
-            updatedRow.classList.add('reaction-row--reveal');
-            const onRevealEnd = () => {
-                updatedRow.classList.remove('reaction-row--reveal');
-                updatedRow.removeEventListener('animationend', onRevealEnd);
-            };
-            updatedRow.addEventListener('animationend', onRevealEnd);
-            windowRef.setTimeout(() => {
-                updatedRow.classList.remove('reaction-row--reveal');
-                updatedRow.removeEventListener('animationend', onRevealEnd);
-            }, 400);
-        }
-        if (updatedRow && animate) {
-            updatedRow.classList.add('is-updated');
-            windowRef.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
-            if (highlightedEmoji) {
-                const targetPill = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'))
-                    .find((pill) => String(pill.getAttribute('data-emoji') || '').trim() === highlightedEmoji);
-                if (targetPill) {
-                    targetPill.classList.add('reaction-just-added');
-                    const onEnd = () => {
-                        targetPill.classList.remove('reaction-just-added');
-                        targetPill.removeEventListener('animationend', onEnd);
-                    };
-                    targetPill.addEventListener('animationend', onEnd);
-                    windowRef.setTimeout(() => {
-                        targetPill.classList.remove('reaction-just-added');
-                        targetPill.removeEventListener('animationend', onEnd);
-                    }, 400);
+            const template = documentRef.createElement('template');
+            template.innerHTML = nextMarkup.trim();
+            const nextRow = Array.from(template.content.children)
+                .find((child) => child?.classList?.contains('message-reactions')) || null;
+
+            const isNewRow = !currentRow;
+            let updatedRow = currentRow;
+            if (!nextRow) {
+                currentRow?.remove();
+                targetContainer.insertAdjacentHTML('beforeend', nextMarkup);
+                updatedRow = Array.from(targetContainer.children).find((child) => child?.classList?.contains('message-reactions')) || null;
+            } else if (!updatedRow) {
+                targetContainer.append(nextRow);
+                updatedRow = nextRow;
+            } else {
+                const preservedRowStateClasses = REACTION_ROW_STATE_CLASSES.filter((className) => updatedRow.classList.contains(className));
+                updatedRow.className = nextRow.className;
+                updatedRow.setAttribute('data-msg-id', String(msgId));
+                preservedRowStateClasses.forEach((className) => updatedRow.classList.add(className));
+
+                const syncPill = (targetPill, sourcePill) => {
+                    if (!targetPill || !sourcePill) return;
+                    const nextEmoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
+                    const preservedPillStateClasses = REACTION_PILL_STATE_CLASSES.filter((className) => targetPill.classList.contains(className));
+                    targetPill.className = sourcePill.className;
+                    targetPill.setAttribute('data-msg-id', String(msgId));
+                    targetPill.setAttribute('data-emoji', nextEmoji);
+                    preservedPillStateClasses.forEach((className) => targetPill.classList.add(className));
+                    targetPill.innerHTML = sourcePill.innerHTML;
+                };
+
+                const currentPills = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'));
+                const currentPillByEmoji = new Map();
+                currentPills.forEach((pill) => {
+                    const emoji = String(pill.getAttribute('data-emoji') || '').trim();
+                    if (!emoji || currentPillByEmoji.has(emoji)) return;
+                    currentPillByEmoji.set(emoji, pill);
+                });
+
+                const nextPills = Array.from(nextRow.querySelectorAll(':scope > .reaction-pill'));
+                const nextEmojiSet = new Set();
+                nextPills.forEach((sourcePill) => {
+                    const emoji = String(sourcePill.getAttribute('data-emoji') || '').trim();
+                    if (!emoji) return;
+                    nextEmojiSet.add(emoji);
+
+                    const existingPill = currentPillByEmoji.get(emoji);
+                    if (existingPill) {
+                        syncPill(existingPill, sourcePill);
+                        updatedRow.append(existingPill);
+                        return;
+                    }
+
+                    updatedRow.append(sourcePill.cloneNode(true));
+                });
+
+                currentPillByEmoji.forEach((pill, emoji) => {
+                    if (!nextEmojiSet.has(emoji)) {
+                        pill.remove();
+                    }
+                });
+            }
+
+            if (updatedRow && animate && isNewRow) {
+                updatedRow.classList.add('reaction-row--reveal');
+                const onRevealEnd = () => {
+                    updatedRow.classList.remove('reaction-row--reveal');
+                    updatedRow.removeEventListener('animationend', onRevealEnd);
+                };
+                updatedRow.addEventListener('animationend', onRevealEnd);
+                windowRef.setTimeout(() => {
+                    updatedRow.classList.remove('reaction-row--reveal');
+                    updatedRow.removeEventListener('animationend', onRevealEnd);
+                }, 400);
+            }
+            if (updatedRow && animate) {
+                updatedRow.classList.add('is-updated');
+                windowRef.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
+                if (highlightedEmoji) {
+                    const targetPill = Array.from(updatedRow.querySelectorAll(':scope > .reaction-pill'))
+                        .find((pill) => String(pill.getAttribute('data-emoji') || '').trim() === highlightedEmoji);
+                    if (targetPill) {
+                        targetPill.classList.add('reaction-just-added');
+                        const onEnd = () => {
+                            targetPill.classList.remove('reaction-just-added');
+                            targetPill.removeEventListener('animationend', onEnd);
+                        };
+                        targetPill.addEventListener('animationend', onEnd);
+                        windowRef.setTimeout(() => {
+                            targetPill.classList.remove('reaction-just-added');
+                            targetPill.removeEventListener('animationend', onEnd);
+                        }, 400);
+                    }
                 }
             }
-        }
-        if (updatedRow) applyEmojiGraphics(updatedRow);
-        syncMessageBubbleLayoutClasses(messageEl);
-        refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
+            if (updatedRow) applyEmojiGraphics(updatedRow);
+            syncMessageBubbleLayoutClasses(messageEl);
+            refreshMessageHeightCache(messageEl, { keepBottomPinned: shouldPinToBottom });
+        }, { pinToBottom: shouldPinToBottom });
     }
 
     return {

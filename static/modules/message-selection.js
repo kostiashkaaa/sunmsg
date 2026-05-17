@@ -1,4 +1,5 @@
 import { runMessageSelectionMotion } from './message-action-motion.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 export function initMessageSelection({
     chatMessages,
@@ -39,25 +40,27 @@ export function initMessageSelection({
             return;
         }
 
-        isSelectionMode = nextState;
-        chatMessages?.classList.toggle('selecting', isSelectionMode);
-        headerSelectionWrap?.classList.toggle('active', isSelectionMode);
+        withStableChatScroll(chatMessages, () => {
+            isSelectionMode = nextState;
+            chatMessages?.classList.toggle('selecting', isSelectionMode);
+            headerSelectionWrap?.classList.toggle('active', isSelectionMode);
 
-        if (isSelectionMode) {
-            selectedMsgIds.clear();
-            getMessageElements().forEach((message) => {
-                message.classList.remove('selected');
-                message.classList.add('selecting');
-            });
-            onEnterSelectionMode?.();
-        } else {
-            selectedMsgIds.clear();
-            getMessageElements().forEach((message) => {
-                message.classList.remove('selecting');
-                message.classList.remove('selected');
-            });
-            onExitSelectionMode?.();
-        }
+            if (isSelectionMode) {
+                selectedMsgIds.clear();
+                getMessageElements().forEach((message) => {
+                    message.classList.remove('selected');
+                    message.classList.add('selecting');
+                });
+                onEnterSelectionMode?.();
+            } else {
+                selectedMsgIds.clear();
+                getMessageElements().forEach((message) => {
+                    message.classList.remove('selecting');
+                    message.classList.remove('selected');
+                });
+                onExitSelectionMode?.();
+            }
+        });
 
         updateSelectionUI();
     }
