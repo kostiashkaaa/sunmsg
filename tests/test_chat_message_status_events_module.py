@@ -4,10 +4,20 @@ import subprocess
 
 def _run_status_events_harness(harness_body: str) -> subprocess.CompletedProcess[str]:
     module_path = Path(__file__).resolve().parents[1] / 'static' / 'modules' / 'chat-message-status-events.js'
+    motion_path = Path(__file__).resolve().parents[1] / 'static' / 'modules' / 'message-delete-motion.js'
     node_harness = f"""
 import {{ readFile }} from 'node:fs/promises';
 
 let source = await readFile({str(module_path)!r}, 'utf8');
+let motionSource = await readFile({str(motion_path)!r}, 'utf8');
+motionSource = motionSource.replace(
+  /export\\s+function\\s+createMessageDeleteMotionController/,
+  'function createMessageDeleteMotionController'
+);
+source = source.replace(
+  /import\\s*\\{{\\s*createMessageDeleteMotionController\\s*\\}}\\s*from\\s*['"]\\.\\/message-delete-motion\\.js['"];\\s*/,
+  motionSource
+);
 source = source.replace(
   /import\\s*\\{{[\\s\\S]*?\\}}\\s*from\\s*['"]\\.\\/chat-group-read-receipts\\.js['"];\\s*/,
   `const applyGroupReadMetaToElement = () => {{}};
@@ -196,14 +206,13 @@ if (rerender.previousScrollTop !== 140 || rerender.previousScrollHeight !== 1200
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_delete_event_near_bottom_rerenders_to_bottom_without_anchor_measurement():
+def test_delete_event_near_bottom_rerenders_to_bottom_with_motion_snapshot():
     harness_body = """
 const handlers = new Map();
 const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
 const calls = [];
 let containerRectReads = 0;
 let messageRectReads = 0;
-const classes = new Set();
 const makeNode = (id, key) => ({
   getAttribute: (name) => {
     if (name === 'data-msg-id') return String(id);
@@ -270,11 +279,11 @@ if (!rerender || rerender.scrollToBottom !== true) {
 if (rerender.anchorMessageKey || rerender.preserveHeightDelta) {
   throw new Error(`Bottom delete must not preserve top anchor ${JSON.stringify(rerender)}`);
 }
-if (containerRectReads !== 0 || messageRectReads !== 0) {
-  throw new Error(`Bottom delete should skip anchor layout reads, got ${containerRectReads}/${messageRectReads}`);
+if (containerRectReads !== 1 || messageRectReads !== 2) {
+  throw new Error(`Bottom delete should capture one motion snapshot, got ${containerRectReads}/${messageRectReads}`);
 }
-if (!classes.has('20:message--removing')) {
-  throw new Error(`Expected removed node animation class, got ${Array.from(classes).join(',')}`);
+if (calls.map((entry) => entry[0]).join(',') !== 'remove,rerender,contacts') {
+  throw new Error(`Delete should update state and rerender in the same event turn, got ${JSON.stringify(calls)}`);
 }
 """
     result = _run_status_events_harness(harness_body)
@@ -336,33 +345,58 @@ if (!calls.some((entry) => entry[0] === 'contacts')) {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_delete_event_animates_visible_messages_and_dismisses_tab_alerts():
+def test_delete_event_animates_survivors_and_dismisses_tab_alerts():
     harness_body = """
 const handlers = new Map();
 const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
 const calls = [];
-const classes = new Set();
-let messageRectReads = 0;
-const removedTimers = [];
+const rafCallbacks = [];
+const timers = [];
+let phase = 'before';
+const survivorStyle = { transition: '', transform: '', willChange: '' };
+const ghostStyle = {};
+const ghostClasses = new Set();
+const ghostNode = {
+  style: ghostStyle,
+  classList: { add: (name) => ghostClasses.add(name) },
+  removeAttribute: () => {},
+  setAttribute: () => {},
+  remove: () => { ghostNode.removed = true; },
+};
 const messageNode = {
   getAttribute: (name) => {
     if (name === 'data-msg-id') return '20';
     if (name === 'data-message-key') return 'id:20';
     return '';
   },
-  getBoundingClientRect: () => {
-    messageRectReads += 1;
-    return { top: 80, bottom: 120, height: 40 };
-  },
+  getBoundingClientRect: () => ({ top: 80, left: 0, bottom: 120, width: 220, height: 40 }),
+  cloneNode: () => ghostNode,
   classList: {
-    add: (name) => classes.add(name),
+    contains: () => false,
+  },
+};
+const survivorNode = {
+  getAttribute: (name) => {
+    if (name === 'data-msg-id') return '21';
+    if (name === 'data-message-key') return 'id:21';
+    return '';
+  },
+  getBoundingClientRect: () => (
+    phase === 'before'
+      ? { top: 130, left: 0, bottom: 170, width: 220, height: 40 }
+      : { top: 90, left: 0, bottom: 130, width: 220, height: 40 }
+  ),
+  style: survivorStyle,
+  classList: {
+    contains: () => false,
   },
 };
 const chatMessages = {
   scrollTop: 50,
   scrollHeight: 500,
-  getBoundingClientRect: () => ({ top: 0, bottom: 300 }),
-  querySelectorAll: () => [messageNode],
+  ownerDocument: { body: { appendChild: () => {} } },
+  getBoundingClientRect: () => ({ top: 0, left: 0, bottom: 300, width: 320, height: 300 }),
+  querySelectorAll: () => (phase === 'before' ? [messageNode, survivorNode] : [survivorNode]),
 };
 
 moduleApi.registerMessageStatusSocketHandlers({
@@ -370,7 +404,10 @@ moduleApi.registerMessageStatusSocketHandlers({
   isBlockedChat: () => false,
   removeChatMessages: (chatId, ids) => calls.push(['remove', chatId, ids]),
   getCurrentChatId: () => 'chat-1',
-  rerenderCurrentChat: (options) => calls.push(['rerender', options]),
+  rerenderCurrentChat: (options) => {
+    calls.push(['rerender', options]);
+    phase = 'after';
+  },
   loadContacts: () => calls.push(['contacts']),
   getChatState: () => ({ messages: [], messageHeights: new Map(), renderedKeys: new Set() }),
   findMessageIndex: () => -1,
@@ -390,28 +427,38 @@ moduleApi.registerMessageStatusSocketHandlers({
   showToast: () => {},
   dismissTabAlertsForChat: (chatId, count) => calls.push(['dismiss-alerts', chatId, count]),
   setTimeoutFn: (handler, delay) => {
-    removedTimers.push(delay);
-    handler();
+    timers.push({ handler, delay });
     return 1;
+  },
+  requestAnimationFrameFn: (handler) => {
+    rafCallbacks.push(handler);
+    return rafCallbacks.length;
   },
 });
 
 handlers.get('messages_deleted')({ chat_id: 'chat-1', msg_ids: [20] });
 
-if (!classes.has('message--removing')) {
-  throw new Error('Visible deleted message should receive removal animation class.');
+if (calls.map((entry) => entry[0]).join(',') !== 'remove,dismiss-alerts,rerender,contacts') {
+  throw new Error(`Delete should not wait for animation before state removal: ${JSON.stringify(calls)}`);
 }
-if (messageRectReads !== 0) {
-  throw new Error(`Delete animation should not measure removed message layout, got ${messageRectReads} reads.`);
+if (survivorStyle.transform !== 'translate3d(0.00px, 40.00px, 0)') {
+  throw new Error(`Expected FLIP start transform on survivor, got ${survivorStyle.transform}`);
 }
-if (removedTimers.join(',') !== '220') {
-  throw new Error(`Expected delayed removal timer, got ${removedTimers.join(',')}`);
+if (!ghostClasses.has('message-delete-ghost')) {
+  throw new Error(`Deleted message should be cloned as a ghost, got ${Array.from(ghostClasses).join(',')}`);
+}
+rafCallbacks.splice(0).forEach((handler) => handler());
+if (!String(survivorStyle.transition).includes('transform 180ms') || survivorStyle.transform !== '') {
+  throw new Error(`Expected survivor transform to animate back, got ${JSON.stringify(survivorStyle)}`);
+}
+if (ghostStyle.opacity !== '0' || !String(ghostStyle.transform).includes('scale(0.97)')) {
+  throw new Error(`Expected ghost fade/scale animation, got ${JSON.stringify(ghostStyle)}`);
 }
 if (!calls.some((entry) => entry[0] === 'dismiss-alerts' && entry[1] === 'chat-1' && entry[2] === 1)) {
   throw new Error(`Expected tab alert dismiss call, got ${JSON.stringify(calls)}`);
 }
-if (!calls.some((entry) => entry[0] === 'remove')) {
-  throw new Error(`Expected final removal after animation, got ${JSON.stringify(calls)}`);
+if (timers.map((entry) => entry.delay).join(',') !== '240,240') {
+  throw new Error(`Expected only cleanup timers after same-frame removal, got ${timers.map((entry) => entry.delay).join(',')}`);
 }
 """
     result = _run_status_events_harness(harness_body)
