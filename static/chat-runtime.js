@@ -18,8 +18,7 @@ import { initPresence } from './modules/presence.js';
 import { showToast, initDialogRequests, sendDialogRequest } from './modules/dialogs.js';
 import { activateFocusTrap, deactivateFocusTrap } from './modules/focus-trap.js';
 import { showDeleteChatDialog } from './modules/delete-chat.js';
-import { initProfileDrawer, parseUtcDate as _parseUtcDate, formatLastSeenText as _formatLastSeenText, formatRegistrationDate as _formatRegistrationDate, renderProfileHeader as _renderProfileHeader, renderProfileStats as _renderProfileStats, renderProfileMeta as _renderProfileMeta, renderProfileBio as _renderProfileBio, renderPartnerProfile as _renderPartnerProfile, handleProfileAction as _handleProfileAction } from './modules/profile-drawer.js';
-import { createProfileSpotifyLiveUpdater } from './modules/profile-spotify-live.js';
+import { initProfileDrawer, parseUtcDate as _parseUtcDate, formatLastSeenText as _formatLastSeenText, formatRegistrationDate as _formatRegistrationDate, renderProfileHeader as _renderProfileHeader, renderProfileStats as _renderProfileStats, renderProfileMeta as _renderProfileMeta, renderProfileBio as _renderProfileBio, renderProfileSpotifyStatus as _renderProfileSpotifyStatus, renderPartnerProfile as _renderPartnerProfile, handleProfileAction as _handleProfileAction } from './modules/profile-drawer.js';
 import { getOutgoingStatus as _getOutgoingStatus, buildTickHtml as _buildTickHtml, applyTickToElement as _applyTickToElement, buildMessageAvatarHtml as _buildMessageAvatarHtml, isSameMessageGroup as _isSameMessageGroup, getMessageGroup as _getMessageGroup, getMessageDayKey as _getMessageDayKey, formatDaySeparatorLabel as _formatDaySeparatorLabel, createDaySeparatorNode as _createDaySeparatorNode, buildMessageElement as _buildMessageElement } from './modules/message-rendering.js';
 import { renderMessageLinkPreview } from './modules/message-link-preview.js';
 import { getChatState as _getChatState, createChatState as _createChatState, getMessageKey as _getMessageKey, findMessageIndex as _findMessageIndex, findMessageById as _findMessageById, compareChatMessages as _compareChatMessages, normalizeChatMessageOrder as _normalizeChatMessageOrder, upsertChatMessage as _upsertChatMessage, prependChatMessages as _prependChatMessages, removeChatMessages as _removeChatMessages, setChatMessages as _setChatMessages, estimateMessageHeight as _estimateMessageHeight, CHAT_DEFAULT_MESSAGE_HEIGHT as _CHAT_DEFAULT_MESSAGE_HEIGHT } from './modules/chat-state.js';
@@ -2039,7 +2038,6 @@ export const initChatPage = async () => {
     }
 
     let profileMediaPanelController = null;
-    let profileSpotifyLiveUpdater = null;
     const profileOrchestrator = createProfileOrchestrator({
         profileDrawer: _profileDrawer,
         partnerProfileDrawer,
@@ -2099,16 +2097,8 @@ export const initChatPage = async () => {
             if (timerContainer && disappearingMessagesController && currentChatId) {
                 disappearingMessagesController.renderTimerPickerInContainer(timerContainer, currentChatId);
             }
-            profileSpotifyLiveUpdater?.sync(profile);
         },
         fetchUserProfile,
-    });
-    profileSpotifyLiveUpdater = createProfileSpotifyLiveUpdater({
-        fetchUserProfile,
-        getCurrentPartnerId,
-        getCurrentPartnerData,
-        isProfileDrawerOpen: () => profileOrchestrator.isProfileDrawerOpen(),
-        renderPartnerProfile: (profilePayload) => profileOrchestrator.renderPartnerProfile(profilePayload),
     });
 
     function isProfileDrawerOpen() {
@@ -2148,7 +2138,6 @@ export const initChatPage = async () => {
     }
 
     function closePartnerProfileDrawer() {
-        profileSpotifyLiveUpdater?.stop();
         closeGroupPermissionsPanel();
         closeGroupEditModal({ restoreFocus: false });
         const defaultTargetId = resolveDefaultProfileTargetId();
@@ -3530,6 +3519,8 @@ export const initChatPage = async () => {
                 syncCurrentUserIdentityLegacyGlobals();
             },
             isSavedContactItem: (contactItem) => savedMessagesUi?.isSavedContactItem?.(contactItem) === true,
+            renderPartnerProfile: (profilePayload) => profileOrchestrator.renderPartnerProfile(profilePayload),
+            renderProfileSpotifyStatus: _renderProfileSpotifyStatus,
         },
         systemOptions: {
             socket,

@@ -57,6 +57,8 @@ export function registerProfileRealtimeSocketHandlers({
     setCurrentUserIdentity,
     isSavedContactItem = () => false,
     renderProfileBio = null,
+    renderPartnerProfile = null,
+    renderProfileSpotifyStatus = null,
 } = {}) {
     socket.on('user_status', (data) => {
         const publicKey = String(data?.public_key || '');
@@ -197,5 +199,35 @@ export function registerProfileRealtimeSocketHandlers({
         });
 
         rerenderCurrentChat();
+    });
+
+    socket.on('spotify_status_updated', (data) => {
+        const publicKey = String(data?.public_key || '');
+        const userId = String(data?.user_id || '').trim();
+        if (!publicKey && !userId) return;
+
+        const currentPartnerData = getCurrentPartnerData();
+        if (!currentPartnerData) return;
+
+        const currentPublicKey = String(currentPartnerData.public_key || getCurrentContactPublicKey() || '');
+        const currentUserId = String(currentPartnerData.user_id ?? currentPartnerData.userId ?? '').trim();
+        const matchesCurrentProfile = (
+            (publicKey && publicKey === currentPublicKey)
+            || (userId && userId === currentUserId)
+        );
+        if (!matchesCurrentProfile) return;
+
+        const nextPartnerData = {
+            ...currentPartnerData,
+            spotify_status: data.spotify_status || null,
+        };
+        setCurrentPartnerData(nextPartnerData);
+
+        const profileDrawer = getPartnerProfileDrawer();
+        if (profileDrawer?.classList.contains('active') && typeof renderProfileSpotifyStatus === 'function') {
+            renderProfileSpotifyStatus(nextPartnerData);
+        } else if (profileDrawer?.classList.contains('active') && typeof renderPartnerProfile === 'function') {
+            renderPartnerProfile(nextPartnerData);
+        }
     });
 }

@@ -20,8 +20,9 @@ revoke_tokens(conn, user_id) -> None
 get_connected_user_ids(conn) -> list[int]
     Returns all user_ids that have Spotify connected (for the scheduler).
 
-poll_and_update(conn, user_id, client_id, client_secret) -> None
-    Fetches current playback from Spotify API and upserts spotify_now_playing.
+poll_and_update(conn, user_id, client_id, client_secret) -> dict | None
+    Fetches current playback from Spotify API, updates spotify_now_playing,
+    and returns the public status payload for realtime broadcast.
 """
 
 from __future__ import annotations
@@ -168,7 +169,7 @@ def get_connected_user_ids(conn) -> list[int]:
 # Playback polling
 # ---------------------------------------------------------------------------
 
-def poll_and_update(conn, user_id: int, client_id: str, client_secret: str) -> None:
+def poll_and_update(conn, user_id: int, client_id: str, client_secret: str) -> dict | None:
     """Fetch current playback from Spotify and upsert spotify_now_playing."""
     cur = conn.cursor()
     cur.execute(
@@ -177,7 +178,7 @@ def poll_and_update(conn, user_id: int, client_id: str, client_secret: str) -> N
     )
     row = cur.fetchone()
     if row is None:
-        return
+        return None
 
     access_token = row['access_token']
     refresh_token = row['refresh_token']
@@ -190,10 +191,11 @@ def poll_and_update(conn, user_id: int, client_id: str, client_secret: str) -> N
             access_token = token_data['access_token']
         except Exception:
             logger.warning('Spotify token refresh failed for user %s', user_id, exc_info=True)
-            return
+            return None
 
     playback = _fetch_current_playback(access_token)
     _upsert_now_playing(conn, user_id, playback)
+    return _query_cached_status(conn, user_id)
 
 
 def _fetch_current_playback(access_token: str) -> dict | None:
