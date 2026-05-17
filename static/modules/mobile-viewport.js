@@ -11,8 +11,9 @@ function isCoarsePointer() {
  *
  * Keyboard state syncer.
  *
- * Layout stays native: `.app` keeps `100dvh`. `visualViewport` only exposes
- * keyboard state and the overlay inset used by the composer itself.
+ * Layout stays native while the keyboard is active. With the keyboard closed,
+ * iOS Safari can resolve `100dvh` before the bottom browser chrome settles
+ * after reload, so the app height follows the real visual viewport.
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
@@ -23,20 +24,24 @@ export function createVisualViewportCssSyncer(_options = {}) {
 
         const vv = window.visualViewport;
         const isTouchViewport = isCoarsePointer();
-        if (root.style.getPropertyValue('--app-vh') !== '100dvh') {
-            root.style.setProperty('--app-vh', '100dvh');
-        }
-        if (root.style.getPropertyValue('--app-vw') !== '100%') {
-            root.style.setProperty('--app-vw', '100%');
-        }
         let keyboardActive = false;
         let keyboardInset = 0;
+        let nextAppVh = '100dvh';
         if (vv && isTouchViewport) {
             const vvHeight = roundedPx(vv.height);
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
             const vvTop = roundedPx(vv.offsetTop);
             keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
             keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0;
+            if (!keyboardActive && vvHeight > 0) {
+                nextAppVh = `${vvHeight}px`;
+            }
+        }
+        if (root.style.getPropertyValue('--app-vh') !== nextAppVh) {
+            root.style.setProperty('--app-vh', nextAppVh);
+        }
+        if (root.style.getPropertyValue('--app-vw') !== '100%') {
+            root.style.setProperty('--app-vw', '100%');
         }
         const nextKeyboardInset = `${keyboardInset}px`;
         if (root.style.getPropertyValue('--vv-keyboard-inset') !== nextKeyboardInset) {

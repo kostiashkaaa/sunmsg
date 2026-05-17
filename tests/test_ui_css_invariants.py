@@ -1343,15 +1343,18 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     for token in (
         '--app-vh',
         '--app-vw',
-        '--layout-vh',
-        '--layout-vw',
-        '--vv-top-offset',
-        '--vv-left-offset',
         '--vv-keyboard-inset',
-        '--mobile-composer-bottom-inset',
-        '--mobile-keyboard-layout-inset',
     ):
         assert token in viewport, f'mobile-viewport.js: missing CSS var sync for {token}'
+    assert "let nextAppVh = '100dvh'" in viewport, (
+        'mobile-viewport.js: app height must fall back to native 100dvh while keyboard handling is active'
+    )
+    assert 'if (!keyboardActive && vvHeight > 0)' in viewport, (
+        'mobile-viewport.js: closed-keyboard mobile reload must bind app height to visualViewport.height'
+    )
+    assert "root.style.setProperty('--app-vh', nextAppVh)" in viewport, (
+        'mobile-viewport.js: measured app height must be written through --app-vh'
+    )
     assert 'function resetHorizontalViewportDrift()' in runtime, (
         'chat-mobile-viewport-runtime.js: composer focus should guard against mobile horizontal viewport drift'
     )
@@ -1369,49 +1372,30 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     )
 
 
-def test_mobile_keyboard_binds_chat_surface_to_visual_viewport() -> None:
-    """Keyboard-open mobile chat should resize the whole app, not push inner layers."""
+def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_model() -> None:
+    """Closed-keyboard mobile reload should use visualViewport height without old full JS layout driving."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     viewport = (STATIC / 'modules' / 'mobile-viewport.js').read_text(encoding='utf-8')
     head = (ROOT / 'templates' / 'chat' / '_head.html').read_text(encoding='utf-8')
 
-    assert 'interactive-widget=resizes-visual' in head
+    assert 'interactive-widget=resizes-content' in head
     assert 'minimum-scale=1' in head
 
-    assert 'const appHeight = hasKeyboardViewport ? vvHeight : layoutViewportHeight' in viewport
-    assert 'const appTopOffset = hasKeyboardViewport ? vvTop : 0' in viewport
-    assert 'const vvWidth = roundedPx(vv.width)' in viewport
-    assert 'const vvLeft = roundedPx(vv.offsetLeft)' in viewport
-    assert 'const appWidth = hasKeyboardViewport && vvWidth > 0 ? vvWidth : layoutViewportWidth' in viewport
-    assert 'const appLeftOffset = hasKeyboardViewport ? vvLeft : 0' in viewport
-    assert "root.classList.toggle('mobile-keyboard-active', hasKeyboardViewport)" in viewport
-    assert "root.style.setProperty(appVhVar, `${appHeight}px`)" in viewport
-    assert "root.style.setProperty(appVwVar, `${appWidth}px`)" in viewport
-    assert "root.style.setProperty(layoutVhVar, `${layoutViewportHeight}px`)" in viewport
-    assert "root.style.setProperty(layoutVwVar, `${layoutViewportWidth}px`)" in viewport
-    assert "root.style.setProperty(leftOffsetVar, `${appLeftOffset}px`)" in viewport
-    assert "root.style.setProperty(layoutKeyboardInsetVar, '0px')" in viewport
-    assert "root.style.setProperty(composerBottomInsetVar, `${keyboardInset}px`)" in viewport
+    assert 'const vvHeight = roundedPx(vv.height)' in viewport
+    assert 'keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
+    assert 'keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0' in viewport
+    assert 'if (!keyboardActive && vvHeight > 0)' in viewport
+    assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
 
     app_blocks = re.findall(r'\.app\s*\{([^}]*)\}', css, re.DOTALL)
-    assert any('top: var(--vv-top-offset, 0px)' in block for block in app_blocks), (
-        'mobile .app should follow visualViewport offset as one surface'
+    assert any('top: 0' in block for block in app_blocks), (
+        'mobile .app should stay top-pinned in the native resizes-content model'
     )
-    assert any('left: var(--vv-left-offset, 0px)' in block for block in app_blocks), (
-        'mobile .app should follow visualViewport horizontal offset as one surface'
+    assert any('bottom: auto' in block for block in app_blocks), (
+        'mobile .app should size by --app-vh instead of stretching top-to-bottom'
     )
-    assert any('width: var(--app-vw, 100vw)' in block for block in app_blocks), (
-        'mobile .app should bind width to the visual viewport when keyboard/focus changes'
+    assert any('height: var(--app-vh, 100dvh)' in block for block in app_blocks), (
+        'mobile .app should consume the synced visual height variable'
     )
-
-    header_blocks = re.findall(r'\.chat-header\s*\{([^}]*)\}', css, re.DOTALL)
-    assert any('position: relative' in block and 'top: auto' in block for block in header_blocks), (
-        'mobile .chat-header should not independently sticky-jump on visualViewport changes'
-    )
-
-    assert 'html.mobile-keyboard-active .chat-messages' in css
-    assert 'html.mobile-keyboard-active .chat-input-area' in css
-    assert '--mobile-keyboard-layout-inset' in css
-
-    keyboard_layout_segment = css[css.find('--mobile-keyboard-layout-inset'):]
-    assert 'var(--mobile-keyboard-layout-inset, 0px)' in keyboard_layout_segment
+    assert 'html.mobile-keyboard-active:not(.mobile-emoji-sheet-open) .chat-area:not(.emoji-sheet-open) .chat-input-area' in css
+    assert 'var(--vv-keyboard-inset, 0px)' in css
