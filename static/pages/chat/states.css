@@ -318,6 +318,7 @@
 
         .settings-overlay.is-opening {
             display: flex;
+            opacity: 1;
             visibility: visible;
             pointer-events: none;
         }
@@ -331,7 +332,8 @@
         }
 
 
-        .settings-overlay.active .settings-overlay-backdrop {
+        .settings-overlay.active .settings-overlay-backdrop,
+        .settings-overlay.is-opening .settings-overlay-backdrop {
             opacity: 1;
         }
 
