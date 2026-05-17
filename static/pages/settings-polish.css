@@ -590,6 +590,21 @@ body.settings-home-open .settings-nav-group .nav-item {
     height: 52px !important;
     padding: 0 36px 0 16px !important;
 }
+body.settings-home-open .settings-nav-group #navMetaIntegrations[data-meta]::after {
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 22px !important;
+    margin-left: auto !important;
+    padding: 0 9px !important;
+    border-radius: 999px !important;
+    background: #1ed760 !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, #1ed760 72%, #ffffff 28%) inset !important;
+    color: #06130a !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+    line-height: 22px !important;
+}
 body.settings-home-open .settings-nav-group .nav-item + .nav-item,
 body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 55%, transparent) !important;
