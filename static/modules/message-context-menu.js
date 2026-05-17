@@ -33,6 +33,36 @@ export function initMessageContextMenu({
     let repositionRafId = 0;
     let viewportBoundsLock = null;
 
+    function isCoarsePointerViewport() {
+        try {
+            return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isVisualKeyboardViewport() {
+        const vv = window.visualViewport;
+        if (!vv) return false;
+        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+        const visualH = Number(vv.height || 0);
+        return layoutH > 0 && visualH > 0 && visualH < layoutH * 0.85;
+    }
+
+    function isMobileKeyboardActive() {
+        return Boolean(
+            document.documentElement?.classList?.contains('mobile-keyboard-active')
+            || (isCoarsePointerViewport() && isVisualKeyboardViewport())
+        );
+    }
+
+    function shouldPreserveComposerFocus() {
+        if (!isCoarsePointerViewport()) return false;
+        if (isMobileKeyboardActive()) return true;
+        const active = document.activeElement;
+        return Boolean(active?.closest?.('#messageForm, #composerRow'));
+    }
+
     function getViewportBounds() {
         if (viewportBoundsLock) {
             return { ...viewportBoundsLock };
@@ -44,19 +74,24 @@ export function initMessageContextMenu({
         const vv = window.visualViewport;
         const layoutW = window.innerWidth || document.documentElement.clientWidth || 0;
         const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
-        // When the keyboard is open vv.height < layoutH; use vv.height as the usable bottom.
-        const usableH = vv ? Math.min(Number(vv.height || layoutH), layoutH) : layoutH;
+        const visibleTop = vv ? Math.max(0, Number(vv.offsetTop || 0)) : 0;
+        // When the keyboard is open vv.height < layoutH; use the visible bottom
+        // instead of the layout bottom so the menu never sits under the keyboard.
+        const visibleBottom = vv
+            ? Math.min(Number(vv.height || layoutH) + visibleTop, layoutH)
+            : layoutH;
         const headerRect = document.getElementById('chatHeader')?.getBoundingClientRect?.();
         const inputRect = document.querySelector('.chat-input-area')?.getBoundingClientRect?.();
-        const safeTop = headerRect && headerRect.bottom > 0 && headerRect.bottom < usableH
+        const safeTop = headerRect && headerRect.bottom > visibleTop && headerRect.bottom < visibleBottom
             ? headerRect.bottom
-            : 0;
-        const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
-        const safeBottom = !keyboardActive && inputRect && inputRect.top > safeTop && inputRect.top < usableH
+            : visibleTop;
+        const safeBottom = inputRect && inputRect.top > safeTop && inputRect.top < visibleBottom
             ? inputRect.top
-            : usableH;
+            : visibleBottom;
         const minUsable = 160;
-        const clampedBottom = Math.max(safeBottom, safeTop + minUsable);
+        const clampedBottom = isMobileKeyboardActive()
+            ? safeBottom
+            : Math.max(safeBottom, safeTop + minUsable);
         return {
             left: 0,
             top: safeTop,
@@ -88,7 +123,8 @@ export function initMessageContextMenu({
         const viewportX = Number.isFinite(x) ? x : NaN;
         const viewportY = Number.isFinite(y) ? y : NaN;
 
-        const availableHeight = Math.max(160, bounds.bottom - bounds.top - margin * 2);
+        const minAvailableHeight = isMobileKeyboardActive() ? 72 : 160;
+        const availableHeight = Math.max(minAvailableHeight, bounds.bottom - bounds.top - margin * 2);
         menuEl.style.maxHeight = `${Math.round(availableHeight)}px`;
         menuEl.style.overflowY = 'auto';
         const menuRect = menuEl.getBoundingClientRect();
@@ -194,8 +230,7 @@ export function initMessageContextMenu({
         // Only lock bounds when the keyboard is not active; if the keyboard is
         // open, the visual viewport will shift as the keyboard dismisses and
         // locking stale bounds would misplace the menu.
-        const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
-        if (!keyboardActive) {
+        if (!isMobileKeyboardActive()) {
             viewportBoundsLock = getViewportBounds();
         }
         if (replyItemEl) replyItemEl.hidden = blocked;
@@ -216,7 +251,9 @@ export function initMessageContextMenu({
             if (!menuEl || openSeq !== menuTransitionSeq) return;
             menuEl.classList.add('is-open');
             menuEl.classList.remove('is-opening');
-            focusContextMenuItem(0);
+            if (!shouldPreserveComposerFocus()) {
+                focusContextMenuItem(0);
+            }
         });
     }
 
