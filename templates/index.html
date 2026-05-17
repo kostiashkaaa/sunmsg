@@ -13,6 +13,7 @@
     <meta name="description" content="SUN Messenger — безопасный мессенджер с end-to-end шифрованием">
     <title>sun</title>
     {% include '_client_preferences_early_boot.html' %}
+    {% include '_legacy_cache_cleanup_early.html' %}
     <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
     <link rel="stylesheet" href="{{ asset_url('style.css') }}">
@@ -31,7 +32,6 @@
     <script src="{{ asset_url('bootstrap.js') }}" nonce="{{ csp_nonce }}"></script>
     <script src="{{ asset_url('interface-theme.js') }}" nonce="{{ csp_nonce }}"></script>
     <script src="{{ asset_url('i18n-runtime.js') }}" nonce="{{ csp_nonce }}"></script>
-    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}" nonce="{{ csp_nonce }}"></script>
     <script src="{{ asset_url('pages/chat-theme-boot.js') }}" nonce="{{ csp_nonce }}"></script>
     <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
     <link rel="stylesheet" href="{{ asset_url('pages/auth.css') }}">
