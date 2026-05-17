@@ -146,13 +146,16 @@ export function createDisappearingMessagesController({
         const pillWrap = documentRef?.getElementById?.('disappearingPillWrap');
         const pillTitleEl = documentRef?.getElementById?.('disappearingPillTitle');
         const pillTextEl = documentRef?.getElementById?.('disappearingPillText');
+        const chatAreaEl = documentRef?.getElementById?.('chatArea')
+            || pillWrap?.closest?.('.chat-area');
+        chatAreaEl?.classList?.toggle?.('chat-area--disappearing-enabled', enabled);
         if (pillWrap) {
             pillWrap.hidden = !enabled;
             pillWrap.classList.toggle('disappearing-pill-wrap--hidden', !enabled);
             pillWrap.setAttribute('aria-hidden', enabled ? 'false' : 'true');
         }
         if (pillTitleEl) {
-            pillTitleEl.textContent = enabled ? tr('Автоудаление сообщений включено') : '';
+            pillTitleEl.textContent = enabled ? tr('В этом чате включено автоудаление') : '';
         }
         if (pillTextEl) {
             pillTextEl.textContent = enabled ? pillText : '';
