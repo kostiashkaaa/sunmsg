@@ -19,6 +19,11 @@ def register_asset_helpers(app: Flask) -> None:
                     version = str(asset_path.stat().st_mtime_ns)
             except OSError:
                 pass
+            reset_version = ""
+            if request.args.get("reset_client") == "1":
+                reset_version = str(request.args.get("reset_v", "") or "").strip()
+            if reset_version:
+                return url_for("static", filename=normalized, v=version, reset_v=reset_version)
             return url_for("static", filename=normalized, v=version)
 
         resolved_ui_language = normalize_language(
