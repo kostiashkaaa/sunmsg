@@ -185,6 +185,7 @@ import { createChatGroupCreateController } from './modules/chat-group-create.js'
 import { createChatGroupEditController } from './modules/chat-group-edit.js';
 import { createChatGroupPermissionsController } from './modules/chat-group-permissions.js';
 import { createDisappearingMessagesController } from './modules/chat-disappearing-messages.js';
+import { createChatMessageExpiryRuntime } from './modules/chat-message-expiry-runtime.js';
 import { createGroupInviteLinkController } from './modules/chat-group-invite-link.js';
 import { resolveChatDomRefs } from './modules/chat-dom-refs.js';
 import { createChatBrowserEnv } from './modules/chat-browser-env.js';
@@ -366,6 +367,8 @@ export const initChatPage = async () => {
     let chatSearchRuntime = null;
     let messageAppendRuntime = null;
     let messageRenderRuntime = null;
+    let chatMessageExpiryRuntime = null;
+    let realtimeMessageStatusRuntime = null;
     let mobileViewportRuntime = null;
     let chatEncryptionRuntime = null;
     let contactPreviewRuntime = null;
@@ -932,6 +935,7 @@ export const initChatPage = async () => {
         syncE2EPillState,
         applyExpiryBadges: () => {
             chatMessages?.querySelectorAll('.expiry-badge').forEach((badge) => badge.remove());
+            chatMessageExpiryRuntime?.scheduleCurrentChatExpiry?.();
         },
         applyAlbums: () => {
             if (chatMessages) processAlbums(chatMessages, { registerHydration: registerMediaElementsForLazyHydration });
@@ -3370,7 +3374,7 @@ export const initChatPage = async () => {
 
     // Message status/edit ingress handlers are registered via extracted modules.
 
-    registerRealtimeOrchestrator({
+    const realtimeOrchestratorRuntime = registerRealtimeOrchestrator({
         socket,
         registerMessageStatusSocketHandlers,
         registerIncomingMessageSocketHandlers,
@@ -3407,6 +3411,7 @@ export const initChatPage = async () => {
             showToast,
             clearPendingReactionOp,
             applyChatBlockState,
+            dismissTabAlertsForChat: (chatId, count) => tabAlertController.dismissAlertsForChat(chatId, count),
             isGroupChatById: (chatId) => {
                 const normalizedChatId = String(chatId || '').trim();
                 if (!normalizedChatId) return false;
@@ -3551,6 +3556,18 @@ export const initChatPage = async () => {
             onChatAutoDeleteUpdated: (data) => disappearingMessagesController?.onChatAutoDeleteUpdated(data),
         },
     });
+    realtimeMessageStatusRuntime = realtimeOrchestratorRuntime?.messageStatusRuntime || null;
+    chatMessageExpiryRuntime = createChatMessageExpiryRuntime({
+        getCurrentChatId: () => currentChatId,
+        getChatState,
+        expireMessages: (chatId, messageIds) => {
+            realtimeMessageStatusRuntime?.handleLocalMessagesExpired?.({
+                chat_id: chatId,
+                message_ids: messageIds,
+            });
+        },
+    });
+    chatMessageExpiryRuntime.scheduleCurrentChatExpiry();
 
     function updateDialogRequestsBadge() {
         contactsSidebarController.updateDialogRequestsBadge(dialogRequestsList, dialogRequestsSection);
@@ -4076,6 +4093,7 @@ export const initChatPage = async () => {
         },
         voiceRecorderController,
         disposeChatAnimations: () => chatAnimationsController?.dispose(),
+        disposeChatMessageExpiryRuntime: () => chatMessageExpiryRuntime?.clear?.(),
         isChatIdbReady,
         chatIdbRuntime,
         getExistingChatHistoryRuntime: () => chatHistoryRuntime,

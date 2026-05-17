@@ -249,3 +249,85 @@ if (!calls.some((entry) => entry[0] === 'contacts')) {
 """
     result = _run_status_events_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_delete_event_animates_visible_messages_and_dismisses_tab_alerts():
+    harness_body = """
+const handlers = new Map();
+const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
+const calls = [];
+const classes = new Set();
+const nodeStyle = new Map();
+const removedTimers = [];
+const messageNode = {
+  getAttribute: (name) => {
+    if (name === 'data-msg-id') return '20';
+    if (name === 'data-message-key') return 'id:20';
+    return '';
+  },
+  getBoundingClientRect: () => ({ top: 80, bottom: 120, height: 40 }),
+  classList: {
+    add: (name) => classes.add(name),
+  },
+  style: {
+    setProperty: (name, value) => nodeStyle.set(name, value),
+  },
+};
+const chatMessages = {
+  scrollTop: 50,
+  scrollHeight: 500,
+  getBoundingClientRect: () => ({ top: 0, bottom: 300 }),
+  querySelectorAll: () => [messageNode],
+};
+
+moduleApi.registerMessageStatusSocketHandlers({
+  socket,
+  isBlockedChat: () => false,
+  removeChatMessages: (chatId, ids) => calls.push(['remove', chatId, ids]),
+  getCurrentChatId: () => 'chat-1',
+  rerenderCurrentChat: (options) => calls.push(['rerender', options]),
+  loadContacts: () => calls.push(['contacts']),
+  getChatState: () => ({ messages: [], messageHeights: new Map(), renderedKeys: new Set() }),
+  findMessageIndex: () => -1,
+  cancelPendingTimeout: () => {},
+  getMessageKey: () => '',
+  normalizeChatMessageOrder: () => {},
+  currentChatMessagesEl: chatMessages,
+  applyTickToElement: () => {},
+  formatTime: () => '',
+  formatFullTimestamp: () => '',
+  patchMessageReactions: () => {},
+  updateSidebarContactTick: () => {},
+  getContactsRoot: () => null,
+  markAllTicksRead: () => {},
+  onMessagesMarkedRead: () => {},
+  failPendingMessage: () => {},
+  showToast: () => {},
+  dismissTabAlertsForChat: (chatId, count) => calls.push(['dismiss-alerts', chatId, count]),
+  setTimeoutFn: (handler, delay) => {
+    removedTimers.push(delay);
+    handler();
+    return 1;
+  },
+});
+
+handlers.get('messages_deleted')({ chat_id: 'chat-1', msg_ids: [20] });
+
+if (!classes.has('message--removing')) {
+  throw new Error('Visible deleted message should receive removal animation class.');
+}
+if (nodeStyle.get('--message-removal-height') !== '40px') {
+  throw new Error(`Expected measured removal height, got ${nodeStyle.get('--message-removal-height')}`);
+}
+if (removedTimers.join(',') !== '220') {
+  throw new Error(`Expected delayed removal timer, got ${removedTimers.join(',')}`);
+}
+if (!calls.some((entry) => entry[0] === 'dismiss-alerts' && entry[1] === 'chat-1' && entry[2] === 1)) {
+  throw new Error(`Expected tab alert dismiss call, got ${JSON.stringify(calls)}`);
+}
+if (!calls.some((entry) => entry[0] === 'remove')) {
+  throw new Error(`Expected final removal after animation, got ${JSON.stringify(calls)}`);
+}
+"""
+    result = _run_status_events_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
