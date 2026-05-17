@@ -121,12 +121,13 @@
     };
 
     try {
-        if (localStorage.getItem('darkMode') === 'true') {
+        const storedDark = localStorage.getItem('darkMode');
+        if (storedDark === 'true') {
             document.documentElement.classList.add('dark-mode');
-        } else {
+        } else if (storedDark === 'false') {
             document.documentElement.classList.remove('dark-mode');
         }
     } catch (_error) {
-        document.documentElement.classList.remove('dark-mode');
+        // Keep the early boot theme if storage is unavailable.
     }
 })();
