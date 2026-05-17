@@ -14,6 +14,10 @@ let callMobileTopbarResizeHandler = null;
 let callInfoVisibilityTimer = 0;
 
 const CALL_INFO_AUTO_HIDE_MS = 3200;
+const CALL_CARD_MIN_WIDTH = 320;
+const CALL_CARD_MIN_HEIGHT = 430;
+const CALL_CARD_MAX_WIDTH = 820;
+const CALL_CARD_MAX_HEIGHT = 760;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
@@ -190,6 +194,14 @@ export function showActiveCallOverlay({
                     <span class="call-quality__text">Связь</span>
                 </div>
             </div>
+            <span class="call-card__resize call-card__resize--n" data-call-resize="n" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--e" data-call-resize="e" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--s" data-call-resize="s" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--w" data-call-resize="w" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--ne" data-call-resize="ne" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--se" data-call-resize="se" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--sw" data-call-resize="sw" aria-hidden="true"></span>
+            <span class="call-card__resize call-card__resize--nw" data-call-resize="nw" aria-hidden="true"></span>
             <audio id="call-remote-audio" class="call-overlay__remote-audio" autoplay playsinline></audio>
 
             <div class="call-device-panel" id="call-device-panel" hidden>
@@ -286,7 +298,9 @@ export function showActiveCallOverlay({
     _syncLocalVideo(overlay, activeLocalStream, isVideo);
     _bindCallInfoVisibility(overlay);
     if (!isMobile) {
-        _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__drag'));
+        const card = overlay.querySelector('#call-card');
+        _makeDraggable(card, overlay.querySelector('.call-card__drag'));
+        _makeResizable(card);
         overlay.querySelector('#call-fullscreen-btn')?.addEventListener('click', (event) => {
             event.stopPropagation();
             _toggleCallOverlayFullscreen(overlay);
@@ -484,10 +498,13 @@ export function stopCallDurationTimer() {
 }
 
 export function setCallStatusText(text) {
+    const nextText = String(text ?? '');
+    let changed = false;
     _currentOverlay()?.querySelectorAll('[data-call-status]').forEach((el) => {
-        el.textContent = text;
+        if (el.textContent !== nextText) changed = true;
+        el.textContent = nextText;
     });
-    _showCallInfoTemporarily();
+    if (changed) _showCallInfoTemporarily();
 }
 
 export function setCallVerificationCode(code) {
@@ -495,7 +512,13 @@ export function setCallVerificationCode(code) {
     if (!el) return;
     const value = String(code || '').trim();
     el.hidden = !value;
-    if (!value) { el.innerHTML = ''; return; }
+    if (!value) {
+        delete el.dataset.callVerificationCode;
+        el.innerHTML = '';
+        return;
+    }
+    const changed = el.hidden || el.dataset.callVerificationCode !== value;
+    el.dataset.callVerificationCode = value;
     const hint = 'Сравните этот код с собеседником вслух или в переписке.\n' +
         'Если коды совпадают — соединение защищено и сервер не перехватывает звонок.';
     el.innerHTML =
@@ -507,7 +530,7 @@ export function setCallVerificationCode(code) {
         ` stroke-width="2.2" stroke-linecap="round" aria-hidden="true">` +
         `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>` +
         `</svg></button>`;
-    _showCallInfoTemporarily();
+    if (changed) _showCallInfoTemporarily();
 }
 
 export function setCallQualityIndicator(stats = {}) {
@@ -523,12 +546,16 @@ export function setCallQualityIndicator(stats = {}) {
         rtt ? `задержка ${rtt} мс` : '',
         jitter ? `джиттер ${jitter} мс` : '',
     ].filter(Boolean).join(' · ');
+    const textEl = el.querySelector('.call-quality__text');
+    const changed = Boolean(el.hidden)
+        || el.dataset.qualityLevel !== level
+        || textEl?.textContent !== label;
     el.hidden = false;
     el.dataset.qualityLevel = level;
-    el.querySelector('.call-quality__text').textContent = label;
+    if (textEl) textEl.textContent = label;
     el.title = details || label;
     el.setAttribute('aria-label', details ? `${label}: ${details}` : label);
-    _showCallInfoTemporarily();
+    if (changed) _showCallInfoTemporarily();
 }
 
 export function setRemoteAudioMuted(muted) {
@@ -537,6 +564,7 @@ export function setRemoteAudioMuted(muted) {
     overlay.classList.toggle('call-overlay--remote-muted', Boolean(muted));
     let badge = overlay.querySelector('#call-remote-muted-badge');
     if (muted) {
+        const wasHidden = !badge || badge.hidden;
         if (!badge) {
             badge = document.createElement('div');
             badge.id = 'call-remote-muted-badge';
@@ -554,7 +582,7 @@ export function setRemoteAudioMuted(muted) {
             (stage || overlay).appendChild(badge);
         }
         badge.hidden = false;
-        _showCallInfoTemporarily();
+        if (wasHidden) _showCallInfoTemporarily();
     } else if (badge) {
         badge.hidden = true;
     }
@@ -923,6 +951,120 @@ function _makeDraggable(card, handle) {
 
     handle.addEventListener('pointerup', stopDrag);
     handle.addEventListener('pointercancel', stopDrag);
+}
+
+function _makeResizable(card) {
+    if (!card) return;
+    const handles = Array.from(card.querySelectorAll('[data-call-resize]'));
+    if (!handles.length) return;
+
+    let resizeState = null;
+    const margin = 8;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+    const readBounds = () => {
+        const viewport = window.visualViewport;
+        const viewportLeft = viewport?.offsetLeft || 0;
+        const viewportTop = viewport?.offsetTop || 0;
+        const viewportWidth = viewport?.width || window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = viewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
+        const availableWidth = Math.max(1, viewportWidth - margin * 2);
+        const availableHeight = Math.max(1, viewportHeight - margin * 2);
+        const maxWidth = Math.max(1, Math.min(CALL_CARD_MAX_WIDTH, availableWidth));
+        const maxHeight = Math.max(1, Math.min(CALL_CARD_MAX_HEIGHT, availableHeight));
+        return {
+            minLeft: viewportLeft + margin,
+            minTop: viewportTop + margin,
+            maxRight: viewportLeft + viewportWidth - margin,
+            maxBottom: viewportTop + viewportHeight - margin,
+            minWidth: Math.min(CALL_CARD_MIN_WIDTH, maxWidth),
+            minHeight: Math.min(CALL_CARD_MIN_HEIGHT, maxHeight),
+            maxWidth,
+            maxHeight,
+        };
+    };
+
+    const applyRect = ({ left, top, width, height }) => {
+        card.classList.add('call-card--resized');
+        card.style.left = `${Math.round(left)}px`;
+        card.style.top = `${Math.round(top)}px`;
+        card.style.width = `${Math.round(width)}px`;
+        card.style.height = `${Math.round(height)}px`;
+        card.style.transform = 'none';
+    };
+
+    const resizeCard = (event) => {
+        if (!resizeState) return;
+        const dx = event.clientX - resizeState.startX;
+        const dy = event.clientY - resizeState.startY;
+        const bounds = readBounds();
+        const edge = resizeState.edge;
+        const startRight = resizeState.left + resizeState.width;
+        const startBottom = resizeState.top + resizeState.height;
+
+        let nextLeft = resizeState.left;
+        let nextTop = resizeState.top;
+        let nextWidth = resizeState.width;
+        let nextHeight = resizeState.height;
+
+        if (edge.includes('e')) {
+            const maxWidth = Math.min(bounds.maxWidth, bounds.maxRight - resizeState.left);
+            nextWidth = clamp(resizeState.width + dx, bounds.minWidth, maxWidth);
+        }
+        if (edge.includes('s')) {
+            const maxHeight = Math.min(bounds.maxHeight, bounds.maxBottom - resizeState.top);
+            nextHeight = clamp(resizeState.height + dy, bounds.minHeight, maxHeight);
+        }
+        if (edge.includes('w')) {
+            const minLeft = Math.max(bounds.minLeft, startRight - bounds.maxWidth);
+            const maxLeft = startRight - bounds.minWidth;
+            nextLeft = clamp(resizeState.left + dx, minLeft, maxLeft);
+            nextWidth = startRight - nextLeft;
+        }
+        if (edge.includes('n')) {
+            const minTop = Math.max(bounds.minTop, startBottom - bounds.maxHeight);
+            const maxTop = startBottom - bounds.minHeight;
+            nextTop = clamp(resizeState.top + dy, minTop, maxTop);
+            nextHeight = startBottom - nextTop;
+        }
+
+        applyRect({ left: nextLeft, top: nextTop, width: nextWidth, height: nextHeight });
+        event.preventDefault();
+    };
+
+    const stopResize = (event) => {
+        if (!resizeState || event.pointerId !== resizeState.pointerId) return;
+        event.currentTarget?.releasePointerCapture?.(event.pointerId);
+        resizeState = null;
+        card.classList.remove('call-card--resizing');
+    };
+
+    handles.forEach((handle) => {
+        handle.addEventListener('pointerdown', (event) => {
+            if (event.button !== undefined && event.button !== 0) return;
+            if (card.closest('.call-overlay--fullscreen')) return;
+            const edge = String(handle.getAttribute('data-call-resize') || '');
+            if (!edge) return;
+            const rect = card.getBoundingClientRect();
+            resizeState = {
+                pointerId: event.pointerId,
+                edge,
+                startX: event.clientX,
+                startY: event.clientY,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+            };
+            card.classList.add('call-card--resizing');
+            handle.setPointerCapture?.(event.pointerId);
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        handle.addEventListener('pointermove', resizeCard);
+        handle.addEventListener('pointerup', stopResize);
+        handle.addEventListener('pointercancel', stopResize);
+    });
 }
 
 async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {

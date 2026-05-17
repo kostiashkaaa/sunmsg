@@ -325,6 +325,13 @@
     cursor: grabbing;
     user-select: none;
 }
+.call-card--resizing {
+    user-select: none;
+}
+.call-card--resized {
+    max-height: none;
+    aspect-ratio: auto;
+}
 .call-card__stage {
     position: relative;
     flex: 1 1 auto;
@@ -356,6 +363,68 @@
     cursor: pointer;
     -webkit-appearance: none;
     appearance: none;
+}
+.call-card__resize {
+    position: absolute;
+    z-index: 6;
+    display: block;
+    background: transparent;
+    pointer-events: auto;
+}
+.call-card__resize--n {
+    top: -4px;
+    left: 22px;
+    right: 22px;
+    height: 10px;
+    cursor: ns-resize;
+}
+.call-card__resize--e {
+    top: 22px;
+    right: -4px;
+    bottom: 22px;
+    width: 10px;
+    cursor: ew-resize;
+}
+.call-card__resize--s {
+    left: 22px;
+    right: 22px;
+    bottom: -4px;
+    height: 10px;
+    cursor: ns-resize;
+}
+.call-card__resize--w {
+    top: 22px;
+    left: -4px;
+    bottom: 22px;
+    width: 10px;
+    cursor: ew-resize;
+}
+.call-card__resize--ne,
+.call-card__resize--se,
+.call-card__resize--sw,
+.call-card__resize--nw {
+    width: 18px;
+    height: 18px;
+}
+.call-card__resize--ne {
+    top: -5px;
+    right: -5px;
+    cursor: nesw-resize;
+}
+.call-card__resize--se {
+    right: -5px;
+    bottom: -5px;
+    cursor: nwse-resize;
+}
+.call-card__resize--sw {
+    left: -5px;
+    bottom: -5px;
+    cursor: nesw-resize;
+}
+.call-card__resize--nw {
+    top: -5px;
+    left: -5px;
+    cursor: nwse-resize;
 }
 .call-card__audio-bg {
     position: absolute;
@@ -498,6 +567,9 @@
 .call-overlay--fullscreen .call-card__drag {
     display: none;
 }
+.call-overlay--fullscreen .call-card__resize {
+    display: none;
+}
 .call-overlay--fullscreen .call-card__fullscreen {
     top: max(16px, env(safe-area-inset-top, 0px));
     left: max(16px, env(safe-area-inset-left, 0px));
@@ -532,7 +604,7 @@
     right: 14px;
     z-index: 4;
     min-height: 32px;
-    max-width: calc(100% - 84px);
+    max-width: 132px;
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -569,6 +641,7 @@
 }
 
 .call-quality__text {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -613,9 +686,10 @@
 .call-remote-muted {
     position: absolute;
     top: 14px;
-    left: 100px;
+    left: 96px;
+    right: 14px;
     z-index: 4;
-    max-width: calc(100% - 114px);
+    max-width: none;
     min-height: 32px;
     display: inline-flex;
     align-items: center;
@@ -636,11 +710,16 @@
     display: none;
 }
 
+.call-quality:not([hidden]) ~ .call-remote-muted {
+    right: 152px;
+}
+
 .call-remote-muted svg {
     flex: 0 0 auto;
 }
 
 .call-remote-muted span {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1037,6 +1116,9 @@
     .call-card__fullscreen {
         display: none;
     }
+    .call-card__resize {
+        display: none;
+    }
     .call-card__minimize {
         display: inline-flex;
     }
@@ -1048,8 +1130,12 @@
         border-radius: 10px;
     }
     .call-remote-muted {
-        left: 58px;
-        max-width: calc(100% - 72px);
+        left: 72px;
+        right: 14px;
+        max-width: none;
+    }
+    .call-quality:not([hidden]) ~ .call-remote-muted {
+        right: 156px;
     }
     .call-overlay__controls {
         padding: 18px 14px max(22px, env(safe-area-inset-bottom, 0px));
