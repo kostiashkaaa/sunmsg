@@ -4143,21 +4143,29 @@ export const initChatPage = async () => {
         _callVideoBtn?.classList.add('call-header-btn--hidden');
     };
 
+    let _currentCallChatId = null;
+
     // Show call buttons only when a direct (non-saved) chat is open
     document.addEventListener('sun:chat:opened', (e) => {
-        const chatType = e.detail?.chatType;
-        if (chatType === 'direct') _showCallButtons();
-        else _hideCallButtons();
+        const { chatType, chatId } = e.detail || {};
+        if (chatType === 'direct') {
+            _currentCallChatId = chatId || null;
+            _showCallButtons();
+        } else {
+            _currentCallChatId = null;
+            _hideCallButtons();
+        }
     });
-    document.addEventListener('sun:chat:closed', _hideCallButtons);
+    document.addEventListener('sun:chat:closed', () => {
+        _currentCallChatId = null;
+        _hideCallButtons();
+    });
 
     _callAudioBtn?.addEventListener('click', () => {
-        const chatId = window._currentChatId;
-        if (chatId) callManager.startCall(chatId, 'audio');
+        if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'audio');
     });
     _callVideoBtn?.addEventListener('click', () => {
-        const chatId = window._currentChatId;
-        if (chatId) callManager.startCall(chatId, 'video');
+        if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'video');
     });
     // ─────────────────────────────────────────────────────────────────────────
 
