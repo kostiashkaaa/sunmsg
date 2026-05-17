@@ -76,6 +76,19 @@ export function createTabAlertController({
         applyTitleFrame();
     }
 
+    function dismissAlertsForChat(chatId, count = 1) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId || !alertsByChatId.has(normalizedChatId)) return;
+        const safeCount = Math.max(1, Number(count) || 1);
+        const nextCount = Math.max(0, Number(alertsByChatId.get(normalizedChatId) || 0) - safeCount);
+        if (nextCount > 0) {
+            alertsByChatId.set(normalizedChatId, nextCount);
+            applyTitleFrame();
+            return;
+        }
+        clearAlertForChat(normalizedChatId);
+    }
+
     function clearAllAlerts() {
         alertsByChatId.clear();
         stopBlinking();
@@ -104,6 +117,7 @@ export function createTabAlertController({
         startBlinking,
         stopBlinking,
         clearAlertForChat,
+        dismissAlertsForChat,
         clearAllAlerts,
         pushAlert,
     };

@@ -105,3 +105,44 @@ if (titleValue !== 'sun') {
 """
     result = _run_tab_alert_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_tab_alert_controller_dismisses_deleted_message_alerts():
+    harness_body = """
+let titleValue = 'sun';
+let clearCalls = 0;
+const controller = moduleApi.createTabAlertController({
+  baseTitle: 'sun',
+  setTitle: (nextTitle) => { titleValue = String(nextTitle || ''); },
+  getTitle: () => titleValue,
+  setIntervalFn: () => 1,
+  clearIntervalFn: () => { clearCalls += 1; },
+});
+
+controller.pushAlert('chat-a');
+controller.pushAlert('chat-a');
+controller.pushAlert('chat-b');
+controller.dismissAlertsForChat('chat-a', 1);
+
+if (controller.getAlertCount() !== 2) {
+  throw new Error(`Expected 2 alerts after partial dismiss, got ${controller.getAlertCount()}`);
+}
+if (!titleValue.includes('(2)')) {
+  throw new Error(`Expected title to include remaining count, got ${titleValue}`);
+}
+
+controller.dismissAlertsForChat('chat-a', 5);
+if (controller.getAlertCount() !== 1) {
+  throw new Error(`Expected only chat-b alert after over-dismiss, got ${controller.getAlertCount()}`);
+}
+
+controller.dismissAlertsForChat('chat-b', 1);
+if (controller.getAlertCount() !== 0 || titleValue !== 'sun') {
+  throw new Error(`Expected base title after deleting last alert, got count=${controller.getAlertCount()} title=${titleValue}`);
+}
+if (clearCalls !== 1) {
+  throw new Error(`Expected blinking to stop once, got ${clearCalls}`);
+}
+"""
+    result = _run_tab_alert_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

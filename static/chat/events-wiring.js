@@ -35,6 +35,7 @@ export function wireBeforeUnloadCleanup({
     unbindWindowActivityEvents,
     voiceRecorderController,
     disposeChatAnimations,
+    disposeChatMessageExpiryRuntime,
     isChatIdbReady,
     chatIdbRuntime,
     getExistingChatHistoryRuntime,
@@ -52,6 +53,9 @@ export function wireBeforeUnloadCleanup({
         voiceRecorderController.cleanup();
         if (typeof disposeChatAnimations === 'function') {
             disposeChatAnimations();
+        }
+        if (typeof disposeChatMessageExpiryRuntime === 'function') {
+            disposeChatMessageExpiryRuntime();
         }
         if (isChatIdbReady()) {
             chatIdbRuntime.close().catch(() => {});

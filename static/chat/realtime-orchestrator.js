@@ -69,7 +69,7 @@ export function registerRealtimeOrchestrator(options = {}) {
         systemOptions,
     } = options;
 
-    registerMessageStatusSocketHandlers(messageStatusOptions);
+    const messageStatusRuntime = registerMessageStatusSocketHandlers(messageStatusOptions);
 
     socket.on('voice_message_listened', (data) => {
         const chatId = String(data?.chat_id || '').trim();
@@ -81,4 +81,8 @@ export function registerRealtimeOrchestrator(options = {}) {
     registerIncomingMessageSocketHandlers(incomingOptions);
     registerProfileRealtimeSocketHandlers(profileOptions);
     registerSystemSocketHandlers(systemOptions);
+
+    return {
+        messageStatusRuntime,
+    };
 }

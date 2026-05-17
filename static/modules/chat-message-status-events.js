@@ -30,7 +30,10 @@ export function registerMessageStatusSocketHandlers({
     showToast = () => {},
     clearPendingReactionOp = null,
     applyChatBlockState = null,
+    dismissTabAlertsForChat = null,
+    setTimeoutFn = (handler, delay) => window.setTimeout(handler, delay),
 } = {}) {
+    const MESSAGE_REMOVAL_ANIMATION_MS = 220;
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
     const normalizeErrorText = (value) => {
         if (!value || typeof value !== 'object') return String(value || '').trim();
@@ -89,6 +92,26 @@ export function registerMessageStatusSocketHandlers({
             previousScrollHeight: chatMessages.scrollHeight,
         };
     };
+    const resolveDeletedMessageNodes = (deletedIds) => {
+        const chatMessages = currentChatMessagesEl;
+        if (!chatMessages || typeof chatMessages.querySelectorAll !== 'function') return [];
+        return Array.from(chatMessages.querySelectorAll('.message[data-msg-id]'))
+            .filter((node) => deletedIds.has(Number(node.getAttribute?.('data-msg-id'))))
+            .filter((node) => typeof node?.classList?.add === 'function');
+    };
+    const animateDeletedMessageNodes = (deletedIds) => {
+        const nodes = resolveDeletedMessageNodes(deletedIds);
+        if (!nodes.length) return false;
+        nodes.forEach((node) => {
+            const rect = node.getBoundingClientRect?.();
+            const height = Number(rect?.height);
+            if (Number.isFinite(height) && height > 0 && node.style?.setProperty) {
+                node.style.setProperty('--message-removal-height', `${Math.ceil(height)}px`);
+            }
+            node.classList.add('message--removing');
+        });
+        return true;
+    };
 
     const handleDeleteEvent = (data) => {
         const ids = normalizeDeletedMessageIds(data);
@@ -98,20 +121,34 @@ export function registerMessageStatusSocketHandlers({
         const renderAnchor = isCurrentChat ? resolveDeleteRenderAnchor(deletedIds) : null;
         const previousScrollTop = currentChatMessagesEl?.scrollTop;
         const previousScrollHeight = currentChatMessagesEl?.scrollHeight;
-        removeChatMessages(data.chat_id, ids);
-        if (isCurrentChat) {
-            rerenderCurrentChat(renderAnchor || {
-                preserveHeightDelta: true,
-                previousScrollTop,
-                previousScrollHeight,
-            });
+        const finishDelete = () => {
+            removeChatMessages(data.chat_id, ids);
+            if (typeof dismissTabAlertsForChat === 'function') {
+                dismissTabAlertsForChat(data.chat_id, ids.length);
+            }
+            if (isCurrentChat) {
+                rerenderCurrentChat(renderAnchor || {
+                    preserveHeightDelta: true,
+                    previousScrollTop,
+                    previousScrollHeight,
+                });
+            }
+            loadContacts();
+        };
+        if (isCurrentChat && animateDeletedMessageNodes(deletedIds)) {
+            setTimeoutFn(finishDelete, MESSAGE_REMOVAL_ANIMATION_MS);
+            return;
         }
-        loadContacts();
+        finishDelete();
     };
 
     socket.on('message_deleted', handleDeleteEvent);
     socket.on('messages_deleted', handleDeleteEvent);
     socket.on('messages_expired', handleDeleteEvent);
+
+    const handleLocalMessagesExpired = (data) => {
+        handleDeleteEvent(data);
+    };
 
     socket.on('error', (data) => {
         const requestId = String(data?.request_id || '').trim();
@@ -344,4 +381,9 @@ export function registerMessageStatusSocketHandlers({
             isGroup: true,
         });
     });
+
+    return {
+        handleDeleteEvent,
+        handleLocalMessagesExpired,
+    };
 }
