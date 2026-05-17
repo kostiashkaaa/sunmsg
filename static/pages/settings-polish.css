@@ -907,6 +907,12 @@ body.settings-home-open .settings-nav {
     }
 }
 
+@media (max-width: 1024px) {
+    .settings-scene .settings-content {
+        min-height: 0 !important;
+    }
+}
+
 /* ── Мобилка: панель на весь экран, без свободного места ─────────────────── */
 @media (max-width: 600px) {
     .settings-scene .settings-layout,
