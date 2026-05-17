@@ -61,6 +61,25 @@ def _emit_spotify_socket_event(event_name: str, payload: dict, *, room: str) -> 
     socketio.emit(event_name, payload, room=room_name)
 
 
+def _emit_scheduler_socket_event(event_name: str, payload: dict, *, room: str) -> None:
+    room_name = str(room or '').strip()
+    if not room_name:
+        return
+
+    publisher = _get_spotify_socket_publisher()
+    if publisher is not None:
+        publisher.emit(event_name, payload, room=room_name)
+        return
+
+    from app.extensions import socketio
+
+    socketio.emit(event_name, payload, room=room_name)
+
+
+def cleanup_disappearing_messages_realtime() -> int:
+    return cleanup_disappearing(emit_func=_emit_scheduler_socket_event)
+
+
 def _spotify_realtime_rooms(conn, user_id: int) -> set[str]:
     from app.services.blocking import list_visible_contact_public_keys
 
@@ -160,7 +179,7 @@ def create_scheduler(config=None):
         replace_existing=True,
     )
     scheduler.add_job(
-        func=cleanup_disappearing,
+        func=cleanup_disappearing_messages_realtime,
         trigger='interval',
         seconds=30,
         id='cleanup_disappearing_messages',

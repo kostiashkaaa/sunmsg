@@ -194,3 +194,58 @@ if (rerender.previousScrollTop !== 140 || rerender.previousScrollHeight !== 1200
 """
     result = _run_status_events_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_messages_expired_uses_delete_pipeline_and_message_ids_payload():
+    harness_body = """
+const handlers = new Map();
+const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
+const calls = [];
+const chatMessages = {
+  scrollTop: 20,
+  scrollHeight: 900,
+  getBoundingClientRect: () => ({ top: 0, bottom: 500 }),
+  querySelectorAll: () => [],
+};
+
+moduleApi.registerMessageStatusSocketHandlers({
+  socket,
+  isBlockedChat: () => false,
+  removeChatMessages: (chatId, ids) => calls.push(['remove', chatId, ids]),
+  getCurrentChatId: () => 'chat-1',
+  rerenderCurrentChat: (options) => calls.push(['rerender', options]),
+  loadContacts: () => calls.push(['contacts']),
+  getChatState: () => ({ messages: [], messageHeights: new Map(), renderedKeys: new Set() }),
+  findMessageIndex: () => -1,
+  cancelPendingTimeout: () => {},
+  getMessageKey: () => '',
+  normalizeChatMessageOrder: () => {},
+  currentChatMessagesEl: chatMessages,
+  applyTickToElement: () => {},
+  formatTime: () => '',
+  formatFullTimestamp: () => '',
+  patchMessageReactions: () => {},
+  updateSidebarContactTick: () => {},
+  getContactsRoot: () => null,
+  markAllTicksRead: () => {},
+  onMessagesMarkedRead: () => {},
+  failPendingMessage: () => {},
+  showToast: () => {},
+});
+
+handlers.get('messages_expired')({ chat_id: 'chat-1', message_ids: [20, '21', 'bad'] });
+
+const remove = calls.find((entry) => entry[0] === 'remove');
+if (!remove || remove[1] !== 'chat-1' || remove[2].join(',') !== '20,21') {
+  throw new Error(`Expired messages must use delete removal path: ${JSON.stringify(calls)}`);
+}
+const rerender = calls.find((entry) => entry[0] === 'rerender')?.[1];
+if (!rerender || rerender.preserveHeightDelta !== true || rerender.previousScrollTop !== 20 || rerender.previousScrollHeight !== 900) {
+  throw new Error(`Expired current chat should rerender with scroll fallback: ${JSON.stringify(calls)}`);
+}
+if (!calls.some((entry) => entry[0] === 'contacts')) {
+  throw new Error(`Expired messages should refresh sidebar preview: ${JSON.stringify(calls)}`);
+}
+"""
+    result = _run_status_events_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

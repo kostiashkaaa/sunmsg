@@ -720,6 +720,7 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
         'cleanup_refresh_tokens',
         'cleanup_soft_deleted_messages',
     }
+    assert scheduler.get_job('cleanup_disappearing_messages').func is scheduler_runtime.cleanup_disappearing_messages_realtime
 
     spotify_scheduler = scheduler_runtime.create_scheduler({
         'SPOTIFY_CLIENT_ID': 'spotify-client',
@@ -775,6 +776,34 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
 
     scheduler_runtime.run_scheduler_forever('testing')
     assert fake_runtime_scheduler.shutdown_calls == [False]
+
+
+def test_scheduler_disappearing_cleanup_broadcasts_realtime(monkeypatch):
+    emitted = []
+
+    def fake_cleanup(*, emit_func=None):
+        emit_func(
+            'messages_expired',
+            {'chat_id': 'chat-1', 'message_ids': [10, 11]},
+            room='chat-1',
+        )
+        return 2
+
+    monkeypatch.setattr(scheduler_runtime, 'cleanup_disappearing', fake_cleanup)
+    monkeypatch.setattr(
+        scheduler_runtime,
+        '_emit_scheduler_socket_event',
+        lambda event, payload, *, room: emitted.append((event, payload, room)),
+    )
+
+    assert scheduler_runtime.cleanup_disappearing_messages_realtime() == 2
+    assert emitted == [
+        (
+            'messages_expired',
+            {'chat_id': 'chat-1', 'message_ids': [10, 11]},
+            'chat-1',
+        ),
+    ]
 
 
 def test_spotify_scheduler_poll_uses_stored_config(monkeypatch):

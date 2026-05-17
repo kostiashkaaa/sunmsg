@@ -3552,15 +3552,6 @@ export const initChatPage = async () => {
         },
     });
 
-    socket.on('messages_expired', (payload) => {
-        const expiredIds = Array.isArray(payload?.message_ids) ? payload.message_ids : [];
-        if (!expiredIds.length || !chatMessages) return;
-        expiredIds.forEach((msgId) => {
-            const el = chatMessages.querySelector(`.message[data-msg-id="${String(msgId)}"]`);
-            el?.remove();
-        });
-    });
-
     function updateDialogRequestsBadge() {
         contactsSidebarController.updateDialogRequestsBadge(dialogRequestsList, dialogRequestsSection);
     }
