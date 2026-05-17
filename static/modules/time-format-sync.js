@@ -3,7 +3,8 @@ import { formatTime, formatFullTimestamp, formatSidebarTime } from './utils.js';
 function resolveContactTimestamp(contactItem) {
     if (!contactItem || typeof contactItem.getAttribute !== 'function') return '';
     const hasDraft = String(contactItem.getAttribute('data-has-draft') || '') === '1';
-    if (hasDraft) {
+    const draftPreviewHidden = String(contactItem.getAttribute('data-draft-preview-hidden') || '') === '1';
+    if (hasDraft && !draftPreviewHidden) {
         return String(
             contactItem.getAttribute('data-draft-updated-at')
             || contactItem.getAttribute('data-last-message-time')
@@ -38,4 +39,3 @@ export function refreshVisibleTimePreferenceRendering(root = document) {
         window.dispatchEvent(new Event('sun-time-format-changed'));
     }
 }
-

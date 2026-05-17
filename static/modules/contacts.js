@@ -202,11 +202,12 @@ export function buildContactItemHtml(contact, currentChatId) {
     const hasDraft = Boolean(contact?.has_draft) && Boolean(draftTextRaw.trim());
     const draftIsEncrypted = draftTextRaw.trim().startsWith('{') && draftTextRaw.includes('encrypted_message');
     const draftText = hasDraft && !draftIsEncrypted ? draftTextRaw : '';
-    const lastMessageText = hasDraft ? draftText : (contact?.last_message || '');
-    const previewIsSelf = hasDraft || isSavedMessages ? false : isSelf;
+    const shouldRenderDraftPreview = hasDraft && !isActive;
+    const lastMessageText = shouldRenderDraftPreview ? draftText : (contact?.last_message || '');
+    const previewIsSelf = shouldRenderDraftPreview || isSavedMessages ? false : isSelf;
     const draftUpdatedAtRaw = String(contact?.draft_updated_at || '').trim();
     const lastMessageTimeRaw = String(contact?.last_message_time || '').trim();
-    const previewTimestampRaw = hasDraft ? (draftUpdatedAtRaw || lastMessageTimeRaw) : lastMessageTimeRaw;
+    const previewTimestampRaw = shouldRenderDraftPreview ? (draftUpdatedAtRaw || lastMessageTimeRaw) : lastMessageTimeRaw;
     const lastMessageTimestamp = toMessageTimestamp(previewTimestampRaw);
     const timeText = formatSidebarTime(previewTimestampRaw);
     const rawLastMsg = String(contact?.last_message || '');
@@ -214,12 +215,12 @@ export function buildContactItemHtml(contact, currentChatId) {
     const lastMessageHtml = renderSidebarLastMessageHtml(lastMessageText, {
         isSelf: previewIsSelf,
         maxLen: 68,
-        isDraft: hasDraft,
+        isDraft: shouldRenderDraftPreview,
         draftLabel: contact?.draft_label,
     });
 
     return `
-<div class="contact-item ripple-target${isActive ? ' active' : ''}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-message-count="${escapeHtml(String(messageCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-saved-messages="${isSavedMessages ? '1' : '0'}" data-can-group-add-direct="${contact?.can_group_add_direct === false ? '0' : '1'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}">
+<div class="contact-item ripple-target${isActive ? ' active' : ''}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-message-count="${escapeHtml(String(messageCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-saved-messages="${isSavedMessages ? '1' : '0'}" data-can-group-add-direct="${contact?.can_group_add_direct === false ? '0' : '1'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}" data-draft-preview-hidden="${hasDraft && !shouldRenderDraftPreview ? '1' : '0'}">
     <div class="contact-avatar${hasAvatar ? ' avatar-loading' : ''}">
         ${avatarHtml}
         ${avatarLoadingBarsHtml}
@@ -285,16 +286,31 @@ export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, 
     const normalizedText = isDraft ? draftText : String(text ?? '');
     const effectiveIsSelf = isDraft || isSavedMessages ? false : Boolean(isSelf);
     const draftLabel = options?.draftLabel;
+    const preserveDraft = Boolean(options?.preserveDraft) && Boolean(draftText.trim());
+    const preservedDraftUpdatedAt = String(
+        options?.draftUpdatedAt
+        || el.getAttribute('data-draft-updated-at')
+        || ''
+    );
 
     if (isDraft) {
         const draftUpdatedAt = String(createdAt || new Date().toISOString());
         el.setAttribute('data-has-draft', '1');
         el.setAttribute('data-draft-text', draftText);
         el.setAttribute('data-draft-updated-at', draftUpdatedAt);
+        el.setAttribute('data-draft-preview-hidden', '0');
     } else {
-        el.setAttribute('data-has-draft', '0');
-        el.setAttribute('data-draft-text', '');
-        el.setAttribute('data-draft-updated-at', '');
+        if (preserveDraft) {
+            el.setAttribute('data-has-draft', '1');
+            el.setAttribute('data-draft-text', draftText);
+            el.setAttribute('data-draft-updated-at', preservedDraftUpdatedAt);
+            el.setAttribute('data-draft-preview-hidden', '1');
+        } else {
+            el.setAttribute('data-has-draft', '0');
+            el.setAttribute('data-draft-text', '');
+            el.setAttribute('data-draft-updated-at', '');
+            el.removeAttribute('data-draft-preview-hidden');
+        }
         el.setAttribute('data-raw-last-message', normalizedText);
         el.setAttribute('data-last-message-is-read', isStatusTrueFlag(deliveryState?.is_read) ? '1' : '0');
         el.setAttribute('data-last-message-is-delivered', isStatusTrueFlag(deliveryState?.is_delivered) ? '1' : '0');
