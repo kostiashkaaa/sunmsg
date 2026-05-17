@@ -67,6 +67,8 @@ export class CallMedia {
             video: { deviceId: { exact: next.deviceId } },
         });
         const newTrack = newStream.getVideoTracks()[0];
+        // Stop any extra tracks from the temporary stream (e.g. unexpected audio)
+        newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
 
         this._videoTrack.stop();
         this._videoTrack = newTrack;
@@ -76,6 +78,7 @@ export class CallMedia {
             this._localStream.addTrack(newTrack);
         }
         newTrack.enabled = this._videoEnabled;
+        return newTrack;
     }
 
     release() {

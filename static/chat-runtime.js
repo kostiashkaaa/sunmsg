@@ -4167,12 +4167,23 @@ export const initChatPage = async () => {
         currentChatId ||
         null;
 
+    // Extract partner display info from active contact item for caller overlay
+    const _resolvePartnerInfo = () => {
+        const item = document.querySelector('.contact-item.active');
+        if (!item) return null;
+        return {
+            display_name: item.getAttribute('data-display-name') || item.getAttribute('data-username') || '',
+            username:     item.getAttribute('data-username') || '',
+            avatar_url:   item.getAttribute('data-avatar-url') || '',
+        };
+    };
+
     // Show button immediately if a direct chat is already open on init
     const _initCallButtonState = () => {
         const activeItem = document.querySelector('.contact-item.active');
         if (!activeItem) return;
         const isGroup = activeItem.getAttribute('data-is-group') === '1';
-        const isSaved = activeItem.getAttribute('data-is-saved-messages') === '1';
+        const isSaved = activeItem.getAttribute('data-saved-messages') === '1';
         if (!isGroup && !isSaved) {
             _currentCallChatId = activeItem.getAttribute('data-chat-id');
             _showCallButtons();
@@ -4200,13 +4211,13 @@ export const initChatPage = async () => {
         e.stopPropagation();
         _callDropdown?.classList.remove('open');
         const chatId = _resolveCallChatId();
-        if (chatId) callManager.startCall(chatId, 'audio');
+        if (chatId) callManager.startCall(chatId, 'audio', _resolvePartnerInfo());
     });
     _callVideoBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         _callDropdown?.classList.remove('open');
         const chatId = _resolveCallChatId();
-        if (chatId) callManager.startCall(chatId, 'video');
+        if (chatId) callManager.startCall(chatId, 'video', _resolvePartnerInfo());
     });
     // ─────────────────────────────────────────────────────────────────────────
 

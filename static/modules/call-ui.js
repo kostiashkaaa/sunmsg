@@ -72,6 +72,7 @@ export function showActiveCallOverlay({
     removeActiveCallOverlay();
 
     const name = escapeHtml(partnerName || 'Собеседник');
+    const isVideo = callType === 'video';
 
     const overlay = document.createElement('div');
     overlay.id = 'call-active-overlay';
@@ -85,7 +86,7 @@ export function showActiveCallOverlay({
             <div class="call-overlay__status" id="call-status-text">Соединение...</div>
         </div>
 
-        <video id="call-local-video" class="call-overlay__local-video" autoplay playsinline muted></video>
+        <video id="call-local-video" class="call-overlay__local-video${isVideo ? '' : ' call-overlay__local-video--hidden'}" autoplay playsinline muted></video>
 
         <div class="call-overlay__controls">
             <div class="call-overlay__ctrl-group">
@@ -98,8 +99,9 @@ export function showActiveCallOverlay({
                             <line x1="8" y1="23" x2="16" y2="23"/>
                         </svg>
                     </span>
-                    <span class="call-ctrl__label">Выкл. звук</span>
+                    <span class="call-ctrl__label">Звук</span>
                 </button>
+                ${isVideo ? `
                 <button class="call-ctrl" id="call-btn-video" aria-label="Камера">
                     <span class="call-ctrl__icon">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -108,7 +110,7 @@ export function showActiveCallOverlay({
                         </svg>
                     </span>
                     <span class="call-ctrl__label">Камера</span>
-                </button>
+                </button>` : ''}
                 <button class="call-ctrl call-ctrl--end" id="call-btn-end" aria-label="Завершить">
                     <span class="call-ctrl__icon">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
@@ -116,7 +118,7 @@ export function showActiveCallOverlay({
                             <line x1="22" y1="2" x2="2" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
                         </svg>
                     </span>
-                    <span class="call-ctrl__label">Отклонить</span>
+                    <span class="call-ctrl__label">Завершить</span>
                 </button>
             </div>
         </div>
@@ -125,7 +127,7 @@ export function showActiveCallOverlay({
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('call-overlay--visible'));
 
-    if (localStream) {
+    if (localStream && isVideo) {
         overlay.querySelector('#call-local-video').srcObject = localStream;
     }
 
@@ -133,15 +135,17 @@ export function showActiveCallOverlay({
         const muted = onToggleAudio();
         const btn = overlay.querySelector('#call-btn-audio');
         btn.classList.toggle('call-ctrl--active', muted);
-        btn.querySelector('.call-ctrl__label').textContent = muted ? 'Вкл. звук' : 'Выкл. звук';
+        btn.querySelector('.call-ctrl__label').textContent = muted ? 'Без звука' : 'Звук';
     });
 
-    overlay.querySelector('#call-btn-video').addEventListener('click', () => {
-        const enabled = onToggleVideo();
-        const btn = overlay.querySelector('#call-btn-video');
-        btn.classList.toggle('call-ctrl--active', !enabled);
-        btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Камера' : 'Без камеры';
-    });
+    if (isVideo) {
+        overlay.querySelector('#call-btn-video').addEventListener('click', () => {
+            const enabled = onToggleVideo();
+            const btn = overlay.querySelector('#call-btn-video');
+            btn.classList.toggle('call-ctrl--active', !enabled);
+            btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Камера' : 'Без камеры';
+        });
+    }
 
     overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
 }

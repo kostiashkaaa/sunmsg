@@ -217,6 +217,7 @@
     z-index: 3;
     box-shadow: 0 4px 20px rgba(0,0,0,.4);
 }
+.call-overlay__local-video--hidden { display: none !important; }
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 .call-overlay__controls {
