@@ -39,15 +39,17 @@ export class CallWebRTC {
      * @param {function(string, object): void} opts.onSignal  - emit signalling event via socket
      * @param {string}   opts.callId
      * @param {string[]} opts.iceServers  - [{urls, username?, credential?}]
+     * @param {string} opts.iceTransportPolicy - 'all'|'relay'
      * @param {function(MediaStreamTrack): void} opts.onRemoteTrack
      * @param {function(string): void}           opts.onVerificationCode
      * @param {function(string): void}           opts.onConnectionState  - 'connected'|'disconnected'|'failed'
      * @param {function(object): void}           opts.onQualityStats
      */
-    constructor({ onSignal, callId, iceServers, onRemoteTrack, onVerificationCode, onConnectionState, onQualityStats }) {
+    constructor({ onSignal, callId, iceServers, iceTransportPolicy = 'all', onRemoteTrack, onVerificationCode, onConnectionState, onQualityStats }) {
         this._onSignal = onSignal;
         this._callId = callId;
         this._iceServers = iceServers || [];
+        this._iceTransportPolicy = _normalizeIceTransportPolicy(iceTransportPolicy);
         this._onRemoteTrack = onRemoteTrack || (() => {});
         this._onVerificationCode = onVerificationCode || (() => {});
         this._onConnectionState = onConnectionState || (() => {});
@@ -80,6 +82,7 @@ export class CallWebRTC {
 
         this._pc = new RTCPeerConnection({
             iceServers: this._iceServers,
+            iceTransportPolicy: this._iceTransportPolicy,
             // Force DTLS-SRTP (default in all modern browsers, explicit here)
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require',
@@ -177,10 +180,11 @@ export class CallWebRTC {
         await this._addIceCandidate(candidate || null);
     }
 
-    updateIceServers(iceServers) {
+    updateIceServers(iceServers, iceTransportPolicy = this._iceTransportPolicy) {
         const nextIceServers = Array.isArray(iceServers) ? iceServers.filter(Boolean) : [];
         if (nextIceServers.length === 0) return;
         this._iceServers = nextIceServers;
+        this._iceTransportPolicy = _normalizeIceTransportPolicy(iceTransportPolicy);
         if (!this._pc || typeof this._pc.setConfiguration !== 'function') return;
 
         const currentConfig = typeof this._pc.getConfiguration === 'function'
@@ -190,6 +194,7 @@ export class CallWebRTC {
             this._pc.setConfiguration({
                 ...currentConfig,
                 iceServers: nextIceServers,
+                iceTransportPolicy: this._iceTransportPolicy,
             });
         } catch (err) {
             console.warn('[CallWebRTC] ICE server update failed', err);
@@ -445,6 +450,10 @@ function _qualityLevel(packetLossPercent, rttMs, jitterMs) {
 
 function _worseQualityLevel(left, right) {
     return SEND_QUALITY_ORDER[left] <= SEND_QUALITY_ORDER[right] ? left : right;
+}
+
+function _normalizeIceTransportPolicy(value) {
+    return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
 }
 
 function _extractDtlsFingerprint(sdp) {

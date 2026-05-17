@@ -22,6 +22,7 @@ call_bp = Blueprint('call', __name__, url_prefix='/call')
 
 _DEFAULT_TTL = 3600
 _DEFAULT_STUN = 'stun:stun.l.google.com:19302'
+_ICE_TRANSPORT_POLICIES = {'all', 'relay'}
 
 
 def _parse_turn_urls(raw_value: str) -> list[str]:
@@ -34,6 +35,11 @@ def _parse_turn_urls(raw_value: str) -> list[str]:
             continue
         urls.append(url)
     return urls
+
+
+def _normalize_ice_transport_policy(raw_value: str) -> str:
+    policy = str(raw_value or '').strip().lower()
+    return policy if policy in _ICE_TRANSPORT_POLICIES else 'all'
 
 
 def _user_belongs_to_call_chat(conn, *, call_id: str, user_id: int) -> bool:
@@ -93,11 +99,16 @@ def ice_config():
         or ''
     ).strip()
     ttl         = int(current_app.config.get('TURN_CREDENTIAL_TTL_SECONDS') or _DEFAULT_TTL)
+    requested_ice_transport_policy = _normalize_ice_transport_policy(
+        current_app.config.get('CALL_ICE_TRANSPORT_POLICY') or 'all'
+    )
 
     ice_servers = [{'urls': _DEFAULT_STUN}]
     turn_urls = _parse_turn_urls(turn_urls_raw)
+    turn_configured = bool(turn_secret and turn_urls)
+    ice_transport_policy = requested_ice_transport_policy if turn_configured else 'all'
 
-    if turn_secret and turn_urls:
+    if turn_configured:
         expiry   = int(time.time()) + ttl
         username = f'{expiry}:{user_id}'
         credential = b64encode(
@@ -111,9 +122,10 @@ def ice_config():
 
     return jsonify({
         'ice_servers': ice_servers,
-        'turn_configured': bool(turn_secret and turn_urls),
+        'turn_configured': turn_configured,
         'turn_urls_count': len(turn_urls),
         'turn_credential_ttl_seconds': ttl,
+        'ice_transport_policy': ice_transport_policy,
     })
 
 

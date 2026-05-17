@@ -1,6 +1,10 @@
 import sqlite3
 
-from app.routes.call_routes import _parse_turn_urls, _user_belongs_to_call_chat
+from app.routes.call_routes import (
+    _normalize_ice_transport_policy,
+    _parse_turn_urls,
+    _user_belongs_to_call_chat,
+)
 
 
 def test_parse_turn_urls_accepts_comma_separated_turn_and_turns_urls():
@@ -16,6 +20,13 @@ def test_parse_turn_urls_accepts_comma_separated_turn_and_turns_urls():
         'turn:turn.example.com:3478?transport=tcp',
         'turns:turn.example.com:5349?transport=tcp',
     ]
+
+
+def test_normalize_ice_transport_policy_accepts_only_browser_values():
+    assert _normalize_ice_transport_policy('relay') == 'relay'
+    assert _normalize_ice_transport_policy(' all ') == 'all'
+    assert _normalize_ice_transport_policy('public') == 'all'
+    assert _normalize_ice_transport_policy('') == 'all'
 
 
 def test_user_belongs_to_call_chat_allows_incoming_callee_before_accept():

@@ -40,6 +40,10 @@ const STATES = {
 const DISCONNECT_TIMEOUT_MS = 15_000;
 const RING_TIMEOUT_MS = 60_000;
 
+function _normalizeIceTransportPolicy(value) {
+    return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
+}
+
 export class CallManager {
     /**
      * @param {object} opts
@@ -63,6 +67,7 @@ export class CallManager {
         this._media      = new CallMedia();
         this._webrtc     = null;
         this._iceServers = null;          // cached for the session
+        this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;    // epoch ms; 0 = not fetched
         this._ringTimeout = null;
         this._disconnectTimeout = null;
@@ -375,6 +380,7 @@ export class CallManager {
             try {
                 const result = await this._fetchIceServers();
                 this._iceServers = result.iceServers;
+                this._iceTransportPolicy = result.iceTransportPolicy;
                 // Server TTL is TURN_CREDENTIAL_TTL_SECONDS (default 3600 s). Use that if returned, else 55 min.
                 const ttlMs = (result.ttlSeconds || 3300) * 1000;
                 this._iceServersExpiresAt = Date.now() + ttlMs;
@@ -494,6 +500,7 @@ export class CallManager {
         this._webrtc = new CallWebRTC({
             callId:  this._callId,
             iceServers: this._iceServers,
+            iceTransportPolicy: this._iceTransportPolicy,
             onSignal: (event, payload) => this._emit(event, payload),
             onRemoteTrack: (track) => {
                 attachRemoteTrack(track);
@@ -569,11 +576,20 @@ export class CallManager {
             headers: { 'X-CSRFToken': this._getCsrfToken() },
         });
         if (!resp.ok) throw new Error(`ICE config ${resp.status}`);
-        const { ice_servers, turn_configured, turn_credential_ttl_seconds } = await resp.json();
+        const {
+            ice_servers,
+            turn_configured,
+            turn_credential_ttl_seconds,
+            ice_transport_policy,
+        } = await resp.json();
         if (!turn_configured) {
             console.warn('[CallManager] TURN is not configured; calls outside the same network may fail');
         }
-        return { iceServers: ice_servers, ttlSeconds: turn_credential_ttl_seconds || 3300 };
+        return {
+            iceServers: ice_servers,
+            iceTransportPolicy: _normalizeIceTransportPolicy(ice_transport_policy),
+            ttlSeconds: turn_credential_ttl_seconds || 3300,
+        };
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -585,9 +601,10 @@ export class CallManager {
             try {
                 const result = await this._fetchIceServers();
                 this._iceServers = result.iceServers;
+                this._iceTransportPolicy = result.iceTransportPolicy;
                 const ttlMs = (result.ttlSeconds || 3300) * 1000;
                 this._iceServersExpiresAt = Date.now() + ttlMs;
-                this._webrtc?.updateIceServers(this._iceServers);
+                this._webrtc?.updateIceServers(this._iceServers, this._iceTransportPolicy);
             } catch (err) {
                 console.warn('[CallManager] ICE config refresh failed before restart', err);
             }
@@ -633,6 +650,7 @@ export class CallManager {
         this._pendingSignals = [];
         this._iceRestarting = false;
         this._iceServers  = null;
+        this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;
         this._state    = STATES.IDLE;
         this._callId   = null;

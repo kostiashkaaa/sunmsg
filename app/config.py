@@ -101,6 +101,7 @@ class BaseConfig:
     TURN_SERVER_URL = ''
     TURN_SERVER_URLS = ''
     TURN_CREDENTIAL_TTL_SECONDS = 3600
+    CALL_ICE_TRANSPORT_POLICY = 'all'
     MODERATION_HIGH_RISK_IP_CIDRS = ''
     MODERATION_AUTO_ACTION_THRESHOLD = 0.85
     MODERATION_AUTO_ACTION_TYPE = 'mute_temp'
@@ -440,6 +441,9 @@ class BaseConfig:
                 os.environ.get('TURN_SERVER_URLS', cls.TURN_SERVER_URLS) or ''
             ).strip(),
             'TURN_CREDENTIAL_TTL_SECONDS': _env_int('TURN_CREDENTIAL_TTL_SECONDS', cls.TURN_CREDENTIAL_TTL_SECONDS),
+            'CALL_ICE_TRANSPORT_POLICY': str(
+                os.environ.get('CALL_ICE_TRANSPORT_POLICY', cls.CALL_ICE_TRANSPORT_POLICY) or 'all'
+            ).strip().lower(),
             'HOST': os.environ.get('HOST', '127.0.0.1'),
             'PORT': _env_int('PORT', 5000),
             'TLS_PORT': _env_int('TLS_PORT', 443),

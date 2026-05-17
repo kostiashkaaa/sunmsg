@@ -258,9 +258,9 @@ export class CallMedia {
 
     _videoConstraints({ deviceId = '', facingMode = '', allowStoredDevice = true } = {}) {
         const constraints = {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
+            width: { ideal: 640 },
+            height: { ideal: 360 },
+            frameRate: { ideal: 15 },
         };
         if (deviceId) {
             constraints.deviceId = { exact: deviceId };
