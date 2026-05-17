@@ -42,8 +42,9 @@ let _ringInterval = null;
 let _ringAudioEl = null;
 
 function playIncomingRingtonePulse() {
-    playChord([660, 880], 0.22, 'sine', 0.16, 0);
-    playChord([660, 880], 0.22, 'sine', 0.14, 0.32);
+    playChord([440, 554.37], 0.30, 'sine', 0.09, 0);
+    playChord([493.88, 659.25], 0.28, 'sine', 0.08, 0.36);
+    playChord([523.25, 698.46], 0.34, 'sine', 0.065, 0.72);
 }
 
 function playOutgoingRingbackPulse() {
