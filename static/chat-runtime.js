@@ -931,15 +931,7 @@ export const initChatPage = async () => {
         updateJumpToNewMessagesButton: () => updateJumpToNewMessagesButton(),
         syncE2EPillState,
         applyExpiryBadges: () => {
-            if (!chatMessages || !disappearingMessagesController) return;
-            chatMessages.querySelectorAll('.message[data-expires-at]').forEach((msgEl) => {
-                if (!msgEl.querySelector('.expiry-badge')) {
-                    disappearingMessagesController.addExpiryBadgeToMessage(
-                        msgEl,
-                        Number(msgEl.getAttribute('data-expires-at')),
-                    );
-                }
-            });
+            chatMessages?.querySelectorAll('.expiry-badge').forEach((badge) => badge.remove());
         },
         applyAlbums: () => {
             if (chatMessages) processAlbums(chatMessages, { registerHydration: registerMediaElementsForLazyHydration });

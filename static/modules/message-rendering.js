@@ -16,7 +16,6 @@ import {
     STANDARD_DOUBLE_CHECK_TICK_HTML,
 } from './check-glyph.js';
 import { buildGroupReadMetaHtml } from './chat-group-read-receipts.js';
-import { formatExpiresAt } from './chat-disappearing-messages.js';
 
 const DEFAULT_AUDIO_WAVEFORM = [
     30, 46, 62, 42, 58, 76, 40, 28, 64, 84, 52, 34,
@@ -1013,19 +1012,6 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
     bindMessageInteractiveHandlers(messageDiv);
     applyEmojiGraphics(messageDiv);
     if (isSelectionMode) messageDiv.classList.add('selecting');
-
-    const expiresAt = Number(msg.expires_at);
-    if (expiresAt > 0) {
-        const bubbleEl = messageDiv.querySelector('.bubble');
-        if (bubbleEl) {
-            const badge = document.createElement('span');
-            badge.className = 'expiry-badge';
-            badge.title = 'Исчезающее сообщение';
-            badge.textContent = formatExpiresAt(expiresAt) || '';
-            badge.dataset.expiresAt = String(expiresAt);
-            bubbleEl.appendChild(badge);
-        }
-    }
 
     return messageDiv;
 }

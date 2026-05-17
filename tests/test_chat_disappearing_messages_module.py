@@ -29,7 +29,7 @@ const checks = [
   [mod.formatTimerLabel(86400), '24 часа'],
   [mod.formatTimerSummary(0), 'Новые сообщения остаются в чате.'],
   [mod.formatTimerSummary(3600), 'Новые сообщения удаляются через 1 час после отправки.'],
-  [mod.formatTimerPillText(300), 'Исчезающие сообщения: 5 мин'],
+  [mod.formatTimerPillText(300), 'Новые сообщения будут удаляться через 5 мин.'],
   [mod.formatTimerPillText(0), ''],
 ];
 
@@ -41,3 +41,10 @@ for (const [actual, expected] of checks) {{
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr
+
+
+def test_expiring_messages_do_not_render_overlay_badges():
+    renderer = ROOT / 'static' / 'modules' / 'message-rendering.js'
+    source = renderer.read_text(encoding='utf-8')
+
+    assert 'expiry-badge' not in source
