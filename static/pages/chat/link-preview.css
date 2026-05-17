@@ -1,8 +1,23 @@
-/* Link preview card — messenger-style */
+/* Link preview card — Telegram-style */
+
+/* ── Wrapper ──────────────────────────────────────────────── */
 
 .message-link-preview {
     margin-top: 6px;
     min-width: 0;
+    animation: link-preview-appear 200ms var(--ease-quick) both;
+    transform-origin: top center;
+}
+
+@keyframes link-preview-appear {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scaleY(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+    }
 }
 
 /* ── Surface ─────────────────────────────────────────────── */
@@ -14,9 +29,9 @@
     gap: 0;
     text-decoration: none;
     color: var(--text);
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
     transition: background var(--dur-quick) var(--ease-quick);
     min-width: 0;
 }
@@ -31,7 +46,7 @@
     flex: 0 0 3px;
     background: var(--accent);
     border-radius: 3px 0 0 3px;
-    min-height: 32px;
+    min-height: 36px;
 }
 
 /* ── Inner body (meta + image) ───────────────────────────── */
@@ -41,7 +56,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding: 6px 8px 6px 10px;
+    padding: 7px 10px 7px 10px;
     gap: 0;
 }
 
@@ -50,55 +65,59 @@
 .message-link-preview__meta {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
 }
 
 .message-link-preview__site {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--accent);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.3;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    text-transform: none;
 }
 
 .message-link-preview__title {
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1.3;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.35;
     color: var(--preview-text, var(--text));
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    margin-top: 1px;
 }
 
 .message-link-preview__description {
-    font-size: 12px;
-    line-height: 1.35;
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.4;
     color: var(--preview-subtext, var(--sub-text));
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 
 .message-link-preview__url {
     display: none;
 }
 
-/* ── Compact layout: thumbnail on the right ──────────────── */
+/* ── Compact layout: square thumbnail on the right ───────── */
 
 .message-link-preview.is-compact .message-link-preview__body {
     flex-direction: row;
     align-items: flex-start;
-    gap: 8px;
-    padding-right: 6px;
+    gap: 10px;
+    padding-right: 8px;
 }
 
 .message-link-preview.is-compact .message-link-preview__meta {
@@ -107,9 +126,9 @@
 }
 
 .message-link-preview.is-compact .message-link-preview__media {
-    flex: 0 0 72px;
-    width: 72px;
-    height: 72px;
+    flex: 0 0 68px;
+    width: 68px;
+    height: 68px;
     aspect-ratio: 1 / 1;
     border-radius: 6px;
     overflow: hidden;
@@ -121,7 +140,7 @@
 /* ── Full layout: image below text ───────────────────────── */
 
 .message-link-preview__media {
-    margin-top: 6px;
+    margin-top: 8px;
     border-radius: 6px;
     overflow: hidden;
     background: color-mix(in srgb, var(--surface) 80%, var(--bg) 20%);
@@ -133,21 +152,66 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: opacity 200ms var(--ease-quick);
 }
 
-/* ── Loading skeleton ────────────────────────────────────── */
+/* ── Reduced motion ──────────────────────────────────────── */
 
+@media (prefers-reduced-motion: reduce) {
+    .message-link-preview {
+        animation: none;
+    }
+    .message-link-preview.is-loading .message-link-preview__site,
+    .message-link-preview.is-loading .message-link-preview__title,
+    .message-link-preview.is-loading .message-link-preview__description {
+        animation: none;
+    }
+}
+
+/* ── Shimmer skeleton loading ────────────────────────────── */
+
+@keyframes link-preview-shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+.message-link-preview.is-loading .message-link-preview__site,
 .message-link-preview.is-loading .message-link-preview__title,
-.message-link-preview.is-loading .message-link-preview__description,
+.message-link-preview.is-loading .message-link-preview__description {
+    color: transparent;
+    border-radius: 4px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--border) 70%, transparent) 25%,
+        color-mix(in srgb, var(--border) 30%, transparent) 50%,
+        color-mix(in srgb, var(--border) 70%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: link-preview-shimmer 1.4s ease-in-out infinite;
+    user-select: none;
+    pointer-events: none;
+}
+
 .message-link-preview.is-loading .message-link-preview__site {
-    opacity: 0.5;
+    min-width: 80px;
+    min-height: 10px;
+}
+
+.message-link-preview.is-loading .message-link-preview__title {
+    min-width: 140px;
+    min-height: 13px;
+}
+
+.message-link-preview.is-loading .message-link-preview__description {
+    min-width: 100px;
+    min-height: 11px;
 }
 
 /* ── Hover ───────────────────────────────────────────────── */
 
 @media (hover: hover) {
     .message-link-preview__surface:hover {
-        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        background: color-mix(in srgb, var(--accent) 13%, transparent);
     }
 }
 
@@ -156,27 +220,38 @@
     outline-offset: 2px;
 }
 
-/* ── Bubble-aware text colors ────────────────────────────── */
+/* ── Bubble-aware text/bg colors ─────────────────────────── */
 
-/* Incoming bubble: use bubble-in text palette */
 .message:not(.self) .bubble .message-link-preview {
     --preview-text:    var(--chat-bubble-in-text);
-    --preview-subtext: color-mix(in srgb, var(--chat-bubble-in-text) 68%, transparent);
+    --preview-subtext: color-mix(in srgb, var(--chat-bubble-in-text) 65%, transparent);
 }
 
-/* Outgoing bubble: use bubble-out text palette */
 .message.self .bubble .message-link-preview {
     --preview-text:    var(--chat-bubble-out-text);
-    --preview-subtext: color-mix(in srgb, var(--chat-bubble-out-text) 68%, transparent);
+    --preview-subtext: color-mix(in srgb, var(--chat-bubble-out-text) 65%, transparent);
 }
 
-/* Outgoing bubble surface background adapts to bubble color */
 .message.self .bubble .message-link-preview__surface {
-    background: color-mix(in srgb, var(--chat-bubble-out-text) 8%, transparent);
+    background: color-mix(in srgb, var(--chat-bubble-out-text) 9%, transparent);
 }
 
 @media (hover: hover) {
     .message.self .bubble .message-link-preview__surface:hover {
-        background: color-mix(in srgb, var(--chat-bubble-out-text) 14%, transparent);
+        background: color-mix(in srgb, var(--chat-bubble-out-text) 15%, transparent);
     }
+}
+
+/* shimmer adapts to bubble color */
+.message.self .bubble .message-link-preview.is-loading .message-link-preview__site,
+.message.self .bubble .message-link-preview.is-loading .message-link-preview__title,
+.message.self .bubble .message-link-preview.is-loading .message-link-preview__description {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--chat-bubble-out-text) 18%, transparent) 25%,
+        color-mix(in srgb, var(--chat-bubble-out-text) 8%, transparent) 50%,
+        color-mix(in srgb, var(--chat-bubble-out-text) 18%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: link-preview-shimmer 1.4s ease-in-out infinite;
 }

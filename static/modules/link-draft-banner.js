@@ -1,5 +1,6 @@
 import { waitForMotionEnd } from './motion.js';
 import { requestLinkPreviewPayload } from './link-preview-shared.js';
+import { withAppRoot } from './app-url.js';
 
 const LINK_URL_PATTERN = /\bhttps?:\/\/[^\s<>"'`]+|\bwww\.[^\s<>"'`]+/i;
 const TRAILING_PUNCTUATION_RE = /[),.;:!?\]]+$/;
@@ -49,10 +50,30 @@ function requestLinkPreview(normalizedUrl) {
     return requestLinkPreviewPayload(safeUrl);
 }
 
+function applyThumb(thumbEl, imgEl, imageUrl) {
+    if (!thumbEl || !imgEl) return;
+    const src = imageUrl ? withAppRoot(`/link_preview_image?url=${encodeURIComponent(imageUrl)}`) : '';
+    if (src) {
+        imgEl.src = src;
+        imgEl.onload = () => thumbEl.classList.add('has-image');
+        imgEl.onerror = () => {
+            thumbEl.classList.remove('has-image');
+            imgEl.removeAttribute('src');
+        };
+    } else {
+        thumbEl.classList.remove('has-image');
+        imgEl.removeAttribute('src');
+        imgEl.onload = null;
+        imgEl.onerror = null;
+    }
+}
+
 export function initLinkDraftBar({
     barEl,
     labelEl,
     textEl,
+    thumbEl,
+    thumbImgEl,
     closeBtnEl,
     inputEl,
     formEl,
@@ -109,6 +130,7 @@ export function initLinkDraftBar({
         if (String(urlToken) !== String(currentUrl)) return;
         if (!payload || payload.success === false) {
             setBannerText({ site: hostLabel(urlToken), summary: urlToken });
+            applyThumb(thumbEl, thumbImgEl, '');
             return;
         }
 
@@ -116,8 +138,10 @@ export function initLinkDraftBar({
         const title = String(payload.title || '').trim();
         const description = String(payload.description || '').trim();
         const summary = title || description || urlToken;
+        const imageUrl = String(payload.image_url || '').trim();
 
         setBannerText({ site: siteName, summary });
+        applyThumb(thumbEl, thumbImgEl, imageUrl);
     }
 
     function showForUrl(urlToken) {
@@ -129,6 +153,7 @@ export function initLinkDraftBar({
 
         showBar();
         setBannerText({ site: hostLabel(currentUrl), summary: currentUrl });
+        applyThumb(thumbEl, thumbImgEl, '');
 
         const requestSeq = ++pendingRequestSeq;
         requestLinkPreview(currentUrl).then((payload) => {
@@ -181,6 +206,7 @@ export function initLinkDraftBar({
     formEl?.addEventListener('reset', () => {
         currentUrl = '';
         dismissedUrl = '';
+        applyThumb(thumbEl, thumbImgEl, '');
         hideBar();
     });
 
