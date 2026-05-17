@@ -21,6 +21,7 @@ import {
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack,
+    startCallDurationTimer,
 } from './call-ui.js';
 import {
     startRingtone, stopRingtone,
@@ -99,7 +100,7 @@ export class CallManager {
         this._state    = STATES.RINGING_OUT;
         this._isPolite = false;  // caller is impolite
         this._partner  = partnerInfo;  // set from DOM before server confirms
-        startRingtone();
+        startRingtone('outgoing');
         this._ringTimeout = setTimeout(() => {
             if (this._state !== STATES.RINGING_OUT) return;
             if (this._callId) this._emit('call_cancel', { call_id: this._callId });
@@ -153,7 +154,7 @@ export class CallManager {
         this._callType = call_type;
         this._partner  = initiator;
         this._state    = STATES.RINGING_IN;
-        startRingtone();
+        startRingtone('incoming');
 
         // Auto-dismiss locally after the caller-side timeout expires.
         this._ringTimeout = setTimeout(() => {
@@ -307,8 +308,9 @@ export class CallManager {
             } else {
                 await this._media.acquireAudio();
             }
-        } catch {
-            showToast('Нет доступа к микрофону/камере', 'error');
+        } catch (err) {
+            console.warn('[CallManager] local media access failed', err);
+            setCallStatusText('Нет доступа к микрофону');
             this.endCall();
             return;
         }
@@ -355,6 +357,7 @@ export class CallManager {
             onRemoteTrack: (track) => {
                 attachRemoteTrack(track);
                 setCallStatusText('Соединено');
+                startCallDurationTimer();
             },
             onVerificationCode: (code) => setCallVerificationCode(code),
             onConnectionState: (state) => {
@@ -362,6 +365,7 @@ export class CallManager {
                     clearTimeout(this._disconnectTimeout);
                     this._disconnectTimeout = null;
                     setCallStatusText('Соединено');
+                    startCallDurationTimer();
                     playConnectedSound();
                 } else if (state === 'disconnected') {
                     setCallStatusText('Переподключение...');
@@ -404,7 +408,7 @@ export class CallManager {
             return true;
         } catch (err) {
             console.warn('[CallManager] video enable failed', err);
-            showToast('Нет доступа к камере', 'error');
+            setCallStatusText('Камера недоступна');
             return false;
         }
     }
@@ -419,7 +423,6 @@ export class CallManager {
         const { ice_servers, turn_configured } = await resp.json();
         if (!turn_configured) {
             console.warn('[CallManager] TURN is not configured; calls outside the same network may fail');
-            showToast('TURN не настроен: звонки между разными сетями могут быть без звука', 'warning');
         }
         return ice_servers;
     }

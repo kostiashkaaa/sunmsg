@@ -445,14 +445,13 @@
                 btn.innerHTML = `<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span> ${tr('Отправлено')}`;
                 btn.style.background = 'var(--success)';
                 btn.style.boxShadow = 'none';
-                showToast(`${tr('Запрос отправлен пользователю')} ${displayName}`.trim(), 'success');
             } else {
                 throw new Error(data.error || tr('Ошибка'));
             }
         } catch (err) {
             btn.disabled = false;
             btn.innerHTML = `<i class="bi bi-person-plus-fill"></i> ${tr('Добавить')}`;
-            showToast(err.message, 'error');
+            console.warn('[Search] send request failed', err);
         }
     }
 

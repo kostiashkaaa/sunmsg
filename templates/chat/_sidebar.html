@@ -56,6 +56,7 @@
                 {% set unread_count = contact.unreadCount or 0 %}
                 {% set draft_text = contact.draft_text or '' %}
                 {% set has_draft = contact.has_draft and draft_text.strip() %}
+                {% set draft_is_encrypted = draft_text.strip().startswith('{') and 'encrypted_message' in draft_text %}
                 {% set draft_label = 'Черновик:' %}
                 {% set preview_time = contact.draft_updated_at if has_draft else (contact.last_message_time or '') %}
                 <div class="contact-item ripple-target"
@@ -109,7 +110,7 @@
                             <span class="contact-last-msg">
                                 {% if has_draft %}
                                 <span class="contact-draft-label">{{ draft_label }}</span>
-                                <span class="contact-draft-preview">{{ draft_text }}</span>
+                                <span class="contact-draft-preview">{{ '🔒 Зашифрованное сообщение' if draft_is_encrypted else draft_text }}</span>
                                 {% elif contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
                                 <span class="contact-last-msg-loading" role="status" aria-live="polite" aria-label="Расшифровка сообщения">
                                     <i class="bi bi-lock-fill contact-last-msg-loading__lock" aria-hidden="true"></i>
@@ -118,6 +119,8 @@
                                         <span class="contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
                                     </span>
                                 </span>
+                                {% elif '__suncall' in (contact.last_message or '') %}
+                                Звонок
                                 {% else %}
                                 {{ contact.initial_last_message_preview or '' }}
                                 {% endif %}

@@ -94,6 +94,21 @@ def test_build_initial_last_message_preview_for_media_payloads():
     ) == ENCRYPTED_PREVIEW_LOADING_TOKEN
 
 
+def test_build_initial_last_message_preview_for_call_payloads():
+    assert build_initial_last_message_preview(
+        '{"__suncall":true,"version":1,"call_type":"audio","status":"ended","duration_sec":125}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='ru',
+    ) == 'Звонок · 02:05'
+    assert build_initial_last_message_preview(
+        '{"__suncall":true,"version":1,"call_type":"video","status":"missed","duration_sec":0}',
+        blocked_by_me=False,
+        blocked_me=False,
+        language='en',
+    ) == 'Video call · Missed'
+
+
 def test_parse_int_like_pattern_and_canonical_username():
     assert parse_int('10') == 10
     assert parse_int('-3') == -3

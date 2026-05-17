@@ -8,10 +8,13 @@ let _ctx = null;
 
 function getAudioCtx() {
     if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ctx.state === 'suspended') {
+        _ctx.resume?.().catch?.(() => {});
+    }
     return _ctx;
 }
 
-function playTone(frequency, duration, type = 'sine', volume = 0.3) {
+function playTone(frequency, duration, type = 'sine', volume = 0.3, delay = 0) {
     try {
         const ctx = getAudioCtx();
         const osc = ctx.createOscillator();
@@ -20,24 +23,39 @@ function playTone(frequency, duration, type = 'sine', volume = 0.3) {
         gain.connect(ctx.destination);
         osc.type = type;
         osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(volume, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + duration);
+        const start = ctx.currentTime + Math.max(0, Number(delay) || 0);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
+        gain.gain.setValueAtTime(volume, Math.max(start + 0.03, start + duration - 0.08));
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        osc.start(start);
+        osc.stop(start + duration + 0.02);
     } catch (_) {}
 }
 
-// Ringing tone — repeating 440/480 Hz alternating (like Russian phone ring)
+function playChord(frequencies, duration, type = 'sine', volume = 0.18, delay = 0) {
+    frequencies.forEach((frequency) => playTone(frequency, duration, type, volume / frequencies.length, delay));
+}
+
+// Ringtone/ringback cadence.
 let _ringInterval = null;
 let _ringAudioEl = null;
 
-export function startRingtone() {
+function playIncomingRingtonePulse() {
+    playChord([740, 932], 0.24, 'sine', 0.18, 0);
+    playChord([740, 932], 0.24, 'sine', 0.16, 0.34);
+}
+
+function playOutgoingRingbackPulse() {
+    playChord([425, 475], 1.15, 'sine', 0.16, 0);
+}
+
+export function startRingtone(mode = 'incoming') {
     stopRingtone();
-    let phase = 0;
-    _ringInterval = setInterval(() => {
-        playTone(phase % 2 === 0 ? 440 : 480, 0.4, 'sine', 0.25);
-        phase++;
-    }, 500);
+    const isOutgoing = mode === 'outgoing';
+    const pulse = isOutgoing ? playOutgoingRingbackPulse : playIncomingRingtonePulse;
+    pulse();
+    _ringInterval = setInterval(pulse, isOutgoing ? 3200 : 1900);
 }
 
 export function stopRingtone() {
@@ -47,22 +65,21 @@ export function stopRingtone() {
 
 // Connected sound — ascending two-tone
 export function playConnectedSound() {
-    playTone(660, 0.12, 'sine', 0.2);
-    setTimeout(() => playTone(880, 0.15, 'sine', 0.2), 120);
+    playChord([523.25, 659.25], 0.11, 'sine', 0.12, 0);
+    playChord([659.25, 783.99], 0.13, 'sine', 0.11, 0.13);
 }
 
 // End-call sound — descending
 export function playEndCallSound() {
-    playTone(440, 0.1, 'sine', 0.2);
-    setTimeout(() => playTone(330, 0.1, 'sine', 0.2), 100);
-    setTimeout(() => playTone(220, 0.15, 'sine', 0.15), 200);
+    playTone(392, 0.11, 'sine', 0.12, 0);
+    playTone(261.63, 0.16, 'sine', 0.10, 0.12);
 }
 
 // Busy tone — 425 Hz pulses
 export function playBusyTone() {
     let n = 0;
     const interval = setInterval(() => {
-        playTone(425, 0.3, 'sine', 0.2);
+        playTone(425, 0.32, 'sine', 0.16);
         if (++n >= 3) clearInterval(interval);
     }, 600);
 }

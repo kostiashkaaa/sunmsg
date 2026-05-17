@@ -6,17 +6,21 @@
 import { escapeHtml } from './utils.js';
 
 let screenWakeLock = null;
+let callDurationTimer = 0;
+let callDurationStartedAt = 0;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
 export function showIncomingCallBanner({ callId, callType, initiator, onAccept, onReject }) {
     removeIncomingCallBanner();
 
-    const name = escapeHtml(initiator.display_name || initiator.username || '');
-    const initial = (initiator.display_name || initiator.username || '?')[0].toUpperCase();
-    const typeLabel = callType === 'video' ? 'Входящий видеозвонок' : 'Входящий голосовой звонок';
-    const avatarHtml = initiator.avatar_url
-        ? `<img src="${escapeHtml(initiator.avatar_url)}" class="call-ib__avatar-img" alt="">`
+    const caller = initiator || {};
+    const rawName = caller.display_name || caller.username || 'Собеседник';
+    const name = escapeHtml(rawName);
+    const initial = (rawName || '?')[0].toUpperCase();
+    const typeLabel = callType === 'video' ? 'звонит по видео...' : 'звонит вам...';
+    const avatarHtml = caller.avatar_url
+        ? `<img src="${escapeHtml(caller.avatar_url)}" class="call-ib__avatar-img" alt="">`
         : `<div class="call-ib__avatar-fallback">${escapeHtml(initial)}</div>`;
 
     const banner = document.createElement('div');
@@ -25,33 +29,55 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     banner.setAttribute('role', 'alertdialog');
     banner.setAttribute('aria-label', 'Входящий звонок');
     banner.innerHTML = `
-        <div class="call-ib__left">
+        <span class="call-ib__chrome call-ib__chrome--left" aria-hidden="true">
+            <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
+        </span>
+        <button class="call-ib__chrome call-ib__chrome--right" type="button" data-call-reject aria-label="Отклонить">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+        <div class="call-ib__body">
+            <div class="call-ib__name">${name}</div>
+            <div class="call-ib__type">${typeLabel}</div>
             <div class="call-ib__avatar">${avatarHtml}</div>
-            <div class="call-ib__info">
-                <div class="call-ib__name">${name}</div>
-                <div class="call-ib__type">${typeLabel}</div>
-            </div>
         </div>
         <div class="call-ib__actions">
-            <button class="call-ib__btn call-ib__btn--reject" aria-label="Отклонить">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Микрофон">
+                <span class="call-ib__btn-icon">
+                    <i class="bi bi-mic-fill" aria-hidden="true"></i>
+                </span>
+                <span class="call-ib__btn-label">Звук</span>
+            </button>
+            <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Камера">
+                <span class="call-ib__btn-icon">
+                    <i class="bi ${callType === 'video' ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'}" aria-hidden="true"></i>
+                </span>
+                <span class="call-ib__btn-label">Камера</span>
+            </button>
+            <button class="call-ib__btn call-ib__btn--accept" type="button" data-call-accept aria-label="Принять">
+                <span class="call-ib__btn-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
+                    </svg>
+                </span>
+                <span class="call-ib__btn-label">Принять</span>
+            </button>
+            <button class="call-ib__btn call-ib__btn--reject" type="button" data-call-reject aria-label="Отклонить">
+                <span class="call-ib__btn-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
                     <line x1="22" y1="2" x2="2" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
-            </button>
-            <button class="call-ib__btn call-ib__btn--accept" aria-label="Принять">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
-                </svg>
+                </span>
+                <span class="call-ib__btn-label">Отклонить</span>
             </button>
         </div>
     `;
 
-    banner.querySelector('.call-ib__btn--reject').addEventListener('click', () => {
+    banner.querySelectorAll('[data-call-reject]').forEach((button) => button.addEventListener('click', () => {
         removeIncomingCallBanner();
         onReject(callId);
-    });
-    banner.querySelector('.call-ib__btn--accept').addEventListener('click', () => {
+    }));
+    banner.querySelector('[data-call-accept]').addEventListener('click', () => {
         removeIncomingCallBanner();
         onAccept(callId, callType);
     });
@@ -110,6 +136,7 @@ export function showActiveCallOverlay({
                     <span class="call-card__avatar">${avatarHtml}</span>
                     <span class="call-card__audio-name">${name}</span>
                     <span class="call-card__audio-status" data-call-status>Соединение...</span>
+                    <span class="call-card__duration" data-call-duration hidden>00:00</span>
                 </div>
                 <span class="call-card__drag" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
@@ -206,6 +233,7 @@ export function showActiveCallOverlay({
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
     _setSpeakerWakeMode(false);
+    stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
         if (immediate) {
@@ -215,6 +243,25 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
         el.classList.remove('call-overlay--visible');
         setTimeout(() => el.remove(), 250);
     });
+}
+
+export function startCallDurationTimer(startedAt = Date.now()) {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    if (!callDurationStartedAt) {
+        callDurationStartedAt = Number(startedAt) || Date.now();
+    }
+    _updateCallDuration();
+    if (callDurationTimer) return;
+    callDurationTimer = window.setInterval(_updateCallDuration, 1000);
+}
+
+export function stopCallDurationTimer() {
+    if (callDurationTimer) {
+        window.clearInterval(callDurationTimer);
+        callDurationTimer = 0;
+    }
+    callDurationStartedAt = 0;
 }
 
 export function setCallStatusText(text) {
@@ -269,6 +316,27 @@ export function removeRemoteTrack(kind) {
 function _currentOverlay() {
     const overlays = document.querySelectorAll('#call-active-overlay');
     return overlays[overlays.length - 1] || null;
+}
+
+function _updateCallDuration() {
+    const overlay = _currentOverlay();
+    if (!overlay || !callDurationStartedAt) return;
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - callDurationStartedAt) / 1000));
+    overlay.querySelectorAll('[data-call-duration]').forEach((el) => {
+        el.hidden = false;
+        el.textContent = _formatDuration(elapsedSeconds);
+    });
+}
+
+function _formatDuration(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function _playMedia(media) {

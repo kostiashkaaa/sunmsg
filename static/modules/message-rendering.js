@@ -933,8 +933,10 @@ export function buildMessageElement(msg, layout = {}, context = {}) {
         </div>`
         : '';
 
-    // File or text bubble
-    const callPayload = msg.message_type === 'call' ? parseSunCallPayload(rawMessageText) : null;
+    // File, call-log or text bubble
+    const messageType = String(msg.message_type || msg.messageType || '').trim().toLowerCase();
+    const parsedCallPayload = parseSunCallPayload(rawMessageText);
+    const callPayload = (messageType === 'call' || parsedCallPayload?.call_id) ? parsedCallPayload : null;
     const filePayload = callPayload ? null : parseSunFilePayload(rawMessageText);
 
     let bubbleClass = 'bubble';

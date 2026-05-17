@@ -9,7 +9,7 @@ export function createProfileContactRequestSender({
     return async function sendProfileContactRequest({ userId, displayName } = {}) {
         const normalizedUserId = Number.parseInt(String(userId || '').trim(), 10);
         if (!Number.isFinite(normalizedUserId) || normalizedUserId <= 0) {
-            showToast('Не удалось определить пользователя для запроса.', 'warning');
+            console.warn('[ProfileContactRequest] invalid user id');
             return false;
         }
         try {
@@ -24,18 +24,13 @@ export function createProfileContactRequestSender({
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload?.success) {
-                showToast(`Ошибка: ${getErrorMessage(payload?.error || 'Не удалось отправить запрос.')}`, 'danger');
+                console.warn('[ProfileContactRequest] send failed', getErrorMessage(payload?.error || 'Не удалось отправить запрос.'));
                 return false;
             }
-            const safeName = String(displayName || '').trim();
-            showToast(
-                safeName ? `Запрос пользователю ${safeName} отправлен.` : 'Запрос отправлен.',
-                'success',
-            );
             loadDialogRequests?.();
             return true;
-        } catch (_) {
-            showToast('Ошибка при отправке запроса.', 'danger');
+        } catch (err) {
+            console.warn('[ProfileContactRequest] send request failed', err);
             return false;
         }
     };
