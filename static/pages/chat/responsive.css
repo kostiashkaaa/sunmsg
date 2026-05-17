@@ -1033,16 +1033,9 @@
                 width: var(--jump-to-new-size);
                 height: var(--jump-to-new-size);
                 border-radius: 50%;
-                background:
-                    linear-gradient(
-                        135deg,
-                        color-mix(in srgb, var(--accent) 88%, #ffffff 12%) 0%,
-                        color-mix(in srgb, var(--accent-deep) 78%, var(--accent) 22%) 100%
-                    );
-                box-shadow:
-                    0 8px 20px color-mix(in srgb, var(--accent) 24%, transparent),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.28);
-                color: #fff;
+                background: color-mix(in srgb, var(--surface) 96%, transparent 4%);
+                box-shadow: none;
+                color: var(--sub-text);
                 transform: none !important;
                 transform-origin: center center;
                 transition:
