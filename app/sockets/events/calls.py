@@ -10,8 +10,11 @@ from app.sockets.call_handlers import (
     handle_call_initiate,
     handle_call_media_state,
     handle_call_reject,
+    handle_call_sync,
     handle_call_webrtc_signal,
 )
+from app.services.presence import count_active
+from app.services.web_push import send_call_incoming_push
 
 from . import context as ctx
 
@@ -34,6 +37,8 @@ def on_call_initiate(data):
         is_valid_chat_id_func=is_valid_chat_id,
         get_db_connection_func=get_db_connection,
         emit_func=ctx._emit_socket_event,
+        count_active_func=count_active,
+        send_call_incoming_push_func=send_call_incoming_push,
         logger=ctx.logger,
     )
 
@@ -87,6 +92,21 @@ def on_call_cancel(data):
 @ctx.authenticated_only
 def on_call_end(data):
     handle_call_end(
+        data,
+        session_store=session,
+        require_payload_dict_func=ctx._require_payload_dict,
+        socket_csrf_ok_func=ctx._socket_csrf_ok,
+        socket_rate_ok_func=ctx._socket_rate_ok,
+        get_db_connection_func=get_db_connection,
+        emit_func=ctx._emit_socket_event,
+        logger=ctx.logger,
+    )
+
+
+@socketio.on('call_sync')
+@ctx.authenticated_only
+def on_call_sync(data):
+    handle_call_sync(
         data,
         session_store=session,
         require_payload_dict_func=ctx._require_payload_dict,

@@ -5,6 +5,7 @@ relay validator against the real PostgreSQL test database, covering the call
 lifecycle, race-condition guards, and abandoned-call cleanup added in the
 second-iteration call audit.
 """
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -132,6 +133,20 @@ def test_lifecycle_initiate_accept_end(conn):
     assert end_call(conn, call_id, 1, final_status='ended') is True
     assert get_call_session(conn, call_id)['status'] == 'ended'
     assert get_active_call_in_chat(conn, 'chat-ab') is None
+
+
+def test_end_call_records_duration_from_iso_timestamp(conn):
+    call_id = create_call_session_locked(
+        conn, chat_id='chat-ab', initiator_id=1, call_type='audio')
+    assert accept_call(conn, call_id, 2) is True
+    accepted_at = (datetime.now(timezone.utc) - timedelta(seconds=65)).isoformat()
+    conn.execute('UPDATE call_sessions SET accepted_at = ? WHERE call_id = ?', (accepted_at, call_id))
+    conn.commit()
+
+    assert end_call(conn, call_id, 1, final_status='ended') is True
+
+    duration = int(get_call_session(conn, call_id)['duration_sec'])
+    assert 60 <= duration <= 70
 
 
 def test_reject_transitions_ringing_to_rejected(conn):

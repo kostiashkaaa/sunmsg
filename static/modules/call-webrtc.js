@@ -35,14 +35,16 @@ export class CallWebRTC {
      * @param {function(MediaStreamTrack): void} opts.onRemoteTrack
      * @param {function(string): void}           opts.onVerificationCode
      * @param {function(string): void}           opts.onConnectionState  - 'connected'|'disconnected'|'failed'
+     * @param {function(object): void}           opts.onQualityStats
      */
-    constructor({ onSignal, callId, iceServers, onRemoteTrack, onVerificationCode, onConnectionState }) {
+    constructor({ onSignal, callId, iceServers, onRemoteTrack, onVerificationCode, onConnectionState, onQualityStats }) {
         this._onSignal = onSignal;
         this._callId = callId;
         this._iceServers = iceServers || [];
         this._onRemoteTrack = onRemoteTrack || (() => {});
         this._onVerificationCode = onVerificationCode || (() => {});
         this._onConnectionState = onConnectionState || (() => {});
+        this._onQualityStats = onQualityStats || (() => {});
 
         this._pc = null;
         this._localStream = null;
@@ -51,6 +53,8 @@ export class CallWebRTC {
         this._polite = false;   // set by caller: caller=impolite(false), callee=polite(true)
         this._verificationCode = '';
         this._pendingIceCandidates = [];
+        this._statsTimer = null;
+        this._lastInboundStats = new Map();
     }
 
     // ── Setup ────────────────────────────────────────────────────────────────
@@ -111,6 +115,8 @@ export class CallWebRTC {
                 this._makingOffer = false;
             }
         };
+
+        this._startStatsMonitor();
     }
 
     // ── Signalling handlers (called by CallManager) ──────────────────────────
@@ -202,16 +208,21 @@ export class CallWebRTC {
         this._localStream?.getVideoTracks().forEach(t => { t.enabled = enabled; });
     }
 
-    replaceVideoTrack(newTrack) {
+    async replaceVideoTrack(newTrack) {
         const sender = this._pc?.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) sender.replaceTrack(newTrack);
+        if (sender) await sender.replaceTrack(newTrack);
     }
 
-    addVideoTrack(newTrack, stream = this._localStream) {
+    async replaceAudioTrack(newTrack) {
+        const sender = this._pc?.getSenders().find(s => s.track?.kind === 'audio');
+        if (sender) await sender.replaceTrack(newTrack);
+    }
+
+    async addVideoTrack(newTrack, stream = this._localStream) {
         if (!this._pc || !newTrack) return;
         const sender = this._pc.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
-            sender.replaceTrack(newTrack);
+            await sender.replaceTrack(newTrack);
             return;
         }
         const targetStream = stream || this._localStream || new MediaStream([newTrack]);
@@ -229,13 +240,77 @@ export class CallWebRTC {
         this._onVerificationCode(code);
     }
 
+    _startStatsMonitor() {
+        if (this._statsTimer || !this._pc?.getStats) return;
+        this._statsTimer = setInterval(async () => {
+            const pc = this._pc;
+            if (!pc || pc.connectionState === 'closed') return;
+            if (!['connected', 'connecting'].includes(pc.connectionState)) return;
+            try {
+                this._readQualityStats(await pc.getStats());
+            } catch (err) {
+                console.warn('[CallWebRTC] getStats failed', err);
+            }
+        }, 3000);
+    }
+
+    _readQualityStats(stats) {
+        let deltaLost = 0;
+        let deltaReceived = 0;
+        let jitterMs = 0;
+        let rttMs = 0;
+        let hasInbound = false;
+
+        stats.forEach((report) => {
+            if (report.type === 'inbound-rtp' && !report.isRemote) {
+                hasInbound = true;
+                const key = String(report.id || report.ssrc || '');
+                const lost = Number(report.packetsLost || 0);
+                const received = Number(report.packetsReceived || 0);
+                const previous = this._lastInboundStats.get(key);
+                if (previous) {
+                    deltaLost += Math.max(0, lost - previous.lost);
+                    deltaReceived += Math.max(0, received - previous.received);
+                } else {
+                    deltaLost += Math.max(0, lost);
+                    deltaReceived += Math.max(0, received);
+                }
+                this._lastInboundStats.set(key, { lost, received });
+                jitterMs = Math.max(jitterMs, Number(report.jitter || 0) * 1000);
+            } else if (report.type === 'remote-inbound-rtp' && report.roundTripTime != null) {
+                rttMs = Math.max(rttMs, Number(report.roundTripTime || 0) * 1000);
+            } else if (
+                report.type === 'candidate-pair'
+                && (report.nominated || report.selected)
+                && report.currentRoundTripTime != null
+            ) {
+                rttMs = Math.max(rttMs, Number(report.currentRoundTripTime || 0) * 1000);
+            }
+        });
+
+        const totalPackets = deltaLost + deltaReceived;
+        if (!hasInbound && !rttMs && !jitterMs) return;
+        const packetLossPercent = totalPackets > 0 ? (deltaLost / totalPackets) * 100 : 0;
+        const level = packetLossPercent >= 5 || rttMs >= 400 || jitterMs >= 80
+            ? 'poor'
+            : packetLossPercent >= 2 || rttMs >= 250 || jitterMs >= 40
+                ? 'fair'
+                : 'good';
+        this._onQualityStats({ level, packetLossPercent, rttMs, jitterMs });
+    }
+
     // ── Cleanup ──────────────────────────────────────────────────────────────
 
     close() {
+        if (this._statsTimer) {
+            clearInterval(this._statsTimer);
+            this._statsTimer = null;
+        }
         this._pc?.close();
         this._pc = null;
         this._localStream = null;
         this._pendingIceCandidates = [];
+        this._lastInboundStats.clear();
     }
 }
 

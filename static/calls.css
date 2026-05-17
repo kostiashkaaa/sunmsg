@@ -452,6 +452,54 @@
 }
 .call-overlay__verify[hidden] { display: none; }
 
+.call-quality {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 4;
+    min-height: 32px;
+    max-width: calc(100% - 84px);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.40);
+    color: rgba(255,255,255,.90);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.15;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.call-quality[hidden] {
+    display: none;
+}
+
+.call-quality__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex: 0 0 auto;
+}
+
+.call-quality[data-quality-level="fair"] .call-quality__dot {
+    background: #f59e0b;
+}
+
+.call-quality[data-quality-level="poor"] .call-quality__dot {
+    background: #ef4444;
+}
+
+.call-quality__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .call-verify__label,
 .call-verify__code {
     min-width: 0;
@@ -587,11 +635,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 18px;
+    flex-wrap: wrap;
+    gap: 12px 14px;
 }
 
 .call-ctrl {
-    min-width: 62px;
+    min-width: 58px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -659,6 +708,47 @@
     font-size: 12px;
     color: var(--call-muted);
     white-space: nowrap;
+}
+
+.call-device-panel {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--call-surface) 92%, #000 8%);
+    border-top: 1px solid color-mix(in srgb, var(--call-border) 72%, transparent);
+}
+
+.call-device-panel[hidden] {
+    display: none;
+}
+
+.call-device-field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--call-muted);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.call-device-field select {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    border: 1px solid color-mix(in srgb, var(--call-border) 84%, transparent);
+    border-radius: 8px;
+    padding: 0 8px;
+    background: color-mix(in srgb, var(--surface-2, #2a2f36) 86%, #000 8%);
+    color: var(--call-text);
+    font: inherit;
+}
+
+.call-device-panel--busy {
+    opacity: .72;
 }
 
 .call-ctrl--active .call-ctrl__icon {
@@ -873,7 +963,11 @@
     }
     .call-overlay__ctrl-group {
         width: min(100%, 420px);
-        gap: clamp(10px, 4vw, 22px);
+        gap: 10px 12px;
+    }
+    .call-device-panel {
+        grid-template-columns: 1fr;
+        padding: 10px 14px;
     }
     #call-btn-speaker {
         display: flex;

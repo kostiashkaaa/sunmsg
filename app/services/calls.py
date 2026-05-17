@@ -15,6 +15,32 @@ _CALL_ACTIVE_STALE_SECONDS = 12 * 60 * 60
 _CALL_LOG_FINAL_STATUSES = {'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 
 
+def _parse_call_timestamp(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        parsed = None
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S'):
+            try:
+                parsed = datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            try:
+                parsed = datetime.fromisoformat(text.replace('Z', '+00:00'))
+            except ValueError:
+                return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def generate_call_id() -> str:
     return str(uuid.uuid4())
 
@@ -136,7 +162,8 @@ def accept_call(conn, call_id: str, user_id: int) -> bool:
 
 
 def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -> bool:
-    now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.strftime('%Y-%m-%d %H:%M:%S')
     participant_update = conn.execute(
         '''
         UPDATE call_participants
@@ -162,14 +189,9 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
         return False
 
     duration_sec = None
-    if row['accepted_at']:
-        try:
-            fmt = '%Y-%m-%d %H:%M:%S'
-            accepted = datetime.strptime(str(row['accepted_at']), fmt).replace(tzinfo=timezone.utc)
-            ended = datetime.now(timezone.utc)
-            duration_sec = max(0, int((ended - accepted).total_seconds()))
-        except Exception:
-            pass
+    accepted = _parse_call_timestamp(row['accepted_at'])
+    if accepted is not None:
+        duration_sec = max(0, int((now_dt - accepted).total_seconds()))
 
     updated = conn.execute(
         '''

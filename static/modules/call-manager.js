@@ -21,7 +21,7 @@ import {
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
-    setRemoteAudioMuted, startCallDurationTimer,
+    setRemoteAudioMuted, startCallDurationTimer, setCallQualityIndicator,
 } from './call-ui.js';
 import {
     startRingtone, stopRingtone,
@@ -103,11 +103,17 @@ export class CallManager {
         this._socket.on('call_cancelled',    d => this._onCancelled(d));
         this._socket.on('call_ended',        d => this._onEnded(d));
         this._socket.on('call_error',        d => this._onError(d));
+        this._socket.on('call_sync',         d => this._onCallSync(d));
         this._socket.on('call_media_state',  d => this._onPartnerMediaState(d));
+        this._socket.on('connect',           () => this._syncCallState());
         // WebRTC P2P signalling — relayed by server without inspection
         this._socket.on('call_offer',        d => this._onOffer(d));
         this._socket.on('call_answer',       d => this._onAnswer(d));
         this._socket.on('call_ice_candidate',d => this._onIceCandidate(d));
+        if (this._socket.connected) {
+            const defer = globalThis.queueMicrotask || ((fn) => Promise.resolve().then(fn));
+            defer(() => this._syncCallState());
+        }
     }
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -214,6 +220,9 @@ export class CallManager {
             onToggleAudio: () => false,
             onToggleVideo: () => false,
             onSwitchCamera: () => {},
+            onListDevices: async () => ({}),
+            onSelectMicrophone: async () => null,
+            onSelectCamera: async () => null,
             onEnd: () => this.endCall(),
         });
         setCallStatusText('Звонок...');
@@ -272,6 +281,46 @@ export class CallManager {
         if (call_id !== this._callId) return;
         setRemoteVideoEnabled(Boolean(video_enabled));
         setRemoteAudioMuted(Boolean(audio_muted));
+    }
+
+    async _onCallSync({ active_call }) {
+        const activeCall = active_call || null;
+        if (!activeCall) {
+            if (this._state !== STATES.IDLE) {
+                showToast('Состояние звонка обновлено', 'info');
+                this._cleanup();
+            }
+            return;
+        }
+
+        const callId = String(activeCall.call_id || '');
+        const status = String(activeCall.status || '');
+        if (this._state !== STATES.IDLE && callId !== this._callId) {
+            showToast('Состояние звонка обновлено', 'info');
+            this._cleanup();
+            return;
+        }
+        if (this._state === STATES.RINGING_OUT && status === 'active' && callId === this._callId) {
+            this._state = STATES.ACTIVE;
+            stopRingtone();
+            clearTimeout(this._ringTimeout);
+            this._ringTimeout = null;
+            removeActiveCallOverlay();
+            await this._startMedia();
+            return;
+        }
+        if (this._state === STATES.RINGING_IN && status === 'active' && callId === this._callId) {
+            this._cleanup();
+            return;
+        }
+        if (this._state === STATES.IDLE && status === 'ringing' && activeCall.role === 'callee') {
+            this._onIncoming({
+                call_id: callId,
+                chat_id: activeCall.chat_id,
+                call_type: activeCall.call_type,
+                initiator: activeCall.partner,
+            });
+        }
     }
 
     // ── Signalling: WebRTC P2P ───────────────────────────────────────────────
@@ -346,7 +395,9 @@ export class CallManager {
             }
         } catch (err) {
             console.warn('[CallManager] local media access failed', err);
-            setCallStatusText('Нет доступа к микрофону');
+            const message = _mediaAccessMessage(err, this._callType);
+            setCallStatusText(message);
+            showToast(message, 'error');
             this.endCall();
             return;
         }
@@ -389,12 +440,51 @@ export class CallManager {
                     console.warn('[CallManager] camera switch failed', err);
                     setCallStatusText('Камера недоступна');
                 }
-                if (newTrack) this._webrtc?.replaceVideoTrack(newTrack);
+                if (newTrack) await this._webrtc?.replaceVideoTrack(newTrack);
                 return {
                     switched: Boolean(newTrack),
                     localStream: this._media.getLocalStream(),
                     facingMode: this._media.getVideoFacingMode(),
                 };
+            },
+            onListDevices: async () => {
+                const devices = await this._media.listDevices();
+                return {
+                    ...devices,
+                    selected: {
+                        audioInputId: this._media.getAudioDeviceId(),
+                        videoInputId: this._media.getVideoDeviceId(),
+                    },
+                };
+            },
+            onSelectMicrophone: async (deviceId) => {
+                try {
+                    const newTrack = await this._media.selectAudioInput(deviceId);
+                    await this._webrtc?.replaceAudioTrack(newTrack);
+                    this._webrtc?.setAudioEnabled(!this._media.isAudioMuted());
+                } catch (err) {
+                    const message = _mediaAccessMessage(err, 'audio');
+                    setCallStatusText(message);
+                    showToast(message, 'error');
+                }
+                return { localStream: this._media.getLocalStream() };
+            },
+            onSelectCamera: async (deviceId) => {
+                try {
+                    const newTrack = await this._media.selectVideoInput(deviceId);
+                    this._callType = 'video';
+                    await this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
+                    this._emit('call_media_state', {
+                        call_id:       this._callId,
+                        audio_muted:   this._media.isAudioMuted(),
+                        video_enabled: this._media.isVideoEnabled(),
+                    });
+                } catch (err) {
+                    const message = _mediaAccessMessage(err, 'video');
+                    setCallStatusText(message);
+                    showToast(message, 'error');
+                }
+                return { localStream: this._media.getLocalStream() };
             },
             onEnd: () => this.endCall(),
         });
@@ -410,6 +500,7 @@ export class CallManager {
                 startCallDurationTimer();
             },
             onVerificationCode: (code) => setCallVerificationCode(code),
+            onQualityStats: (stats) => setCallQualityIndicator(stats),
             onConnectionState: (state) => {
                 if (state === 'connected') {
                     clearTimeout(this._disconnectTimeout);
@@ -459,7 +550,7 @@ export class CallManager {
             const newTrack = await this._media.enableVideo();
             if (!newTrack) return false;
             this._callType = 'video';
-            this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
+            await this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
             return true;
         } catch (err) {
             console.warn('[CallManager] video enable failed', err);
@@ -485,6 +576,10 @@ export class CallManager {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    _syncCallState() {
+        this._emit('call_sync', { call_id: this._callId || null });
+    }
 
     _emit(event, data) {
         this._socket.emit(event, { ...data, csrf_token: this._getCsrfToken() });
@@ -534,4 +629,25 @@ export class CallManager {
 function _formatDuration(sec) {
     if (!sec) return '';
     return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+function _mediaAccessMessage(error, callType) {
+    const name = String(error?.name || '');
+    const isVideo = callType === 'video';
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+        return isVideo
+            ? 'Разрешите доступ к микрофону и камере в браузере'
+            : 'Разрешите доступ к микрофону в браузере';
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        return isVideo
+            ? 'Микрофон или камера не найдены. Подключите устройство и повторите звонок'
+            : 'Микрофон не найден. Подключите устройство и повторите звонок';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+        return 'Медиаустройство занято другим приложением';
+    }
+    return isVideo
+        ? 'Не удалось открыть микрофон или камеру'
+        : 'Не удалось открыть микрофон';
 }

@@ -92,12 +92,101 @@ def _emit_call_log_message(conn, call_id: str, emit_func, recipient_user_ids) ->
         emit_func('receive_message', payload, to=f'user_{user_id}')
 
 
+def _user_identity(conn, user_id: int) -> dict:
+    row = conn.execute(
+        'SELECT id, public_key, display_name, username, avatar_url FROM users WHERE id = %s',
+        (int(user_id),),
+    ).fetchone()
+    if not row:
+        return {
+            'user_id': int(user_id),
+            'public_key': '',
+            'display_name': '',
+            'username': '',
+            'avatar_url': '',
+        }
+    return {
+        'user_id': int(row['id']),
+        'public_key': str(row['public_key'] or ''),
+        'display_name': str(row['display_name'] or ''),
+        'username': str(row['username'] or ''),
+        'avatar_url': str(row['avatar_url'] or ''),
+    }
+
+
+def _call_partner_identity(conn, call: dict, user_id: int) -> dict:
+    initiator_id = int(call.get('initiator_id') or 0)
+    if initiator_id and initiator_id != int(user_id):
+        return _user_identity(conn, initiator_id)
+    for participant_id in _chat_members(conn, str(call.get('chat_id') or ''), user_id):
+        if int(participant_id) != int(user_id):
+            return _user_identity(conn, int(participant_id))
+    return _user_identity(conn, initiator_id or user_id)
+
+
+def _serialize_live_call_for_user(conn, call: dict, user_id: int) -> dict:
+    return {
+        'call_id': str(call.get('call_id') or ''),
+        'chat_id': str(call.get('chat_id') or ''),
+        'call_type': str(call.get('call_type') or 'audio'),
+        'status': str(call.get('status') or ''),
+        'initiator_id': int(call.get('initiator_id') or 0),
+        'role': 'initiator' if int(call.get('initiator_id') or 0) == int(user_id) else 'callee',
+        'accepted_at': str(call.get('accepted_at') or ''),
+        'partner': _call_partner_identity(conn, call, user_id),
+    }
+
+
+def _emit_active_call_ended(conn, call: dict, call_id: str, user_id: int, request_id: str | None, emit_func) -> bool:
+    if not _is_call_participant(conn, call_id, user_id):
+        return False
+    if not end_call(conn, call_id, user_id, final_status='ended'):
+        return False
+    updated = get_call_session(conn, call_id)
+    duration = updated['duration_sec'] if updated else None
+    other_user_ids = _chat_members(conn, call['chat_id'], user_id)
+    recipient_ids = [user_id, *other_user_ids]
+    _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
+
+    for pid in other_user_ids:
+        emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id, 'duration_sec': duration},
+                  to=f'user_{pid}')
+    emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id,
+                             'duration_sec': duration, 'request_id': request_id})
+    return True
+
+
+def _send_incoming_call_push_if_needed(
+    conn, *, call_id: str, chat_id: str, call_type: str, initiator: dict,
+    receiver_user_id: int, count_active_func=None, send_call_incoming_push_func=None,
+    logger=logger,
+) -> None:
+    if not callable(send_call_incoming_push_func):
+        return
+    receiver = _user_identity(conn, receiver_user_id)
+    receiver_public_key = str(receiver.get('public_key') or '').strip()
+    if callable(count_active_func) and receiver_public_key and count_active_func(receiver_public_key) > 0:
+        return
+    try:
+        send_call_incoming_push_func(
+            receiver_user_id=receiver_user_id,
+            initiator_user_id=int(initiator.get('user_id') or 0),
+            initiator_display_name=str(initiator.get('display_name') or ''),
+            initiator_username=str(initiator.get('username') or ''),
+            chat_id=chat_id,
+            call_id=call_id,
+            call_type=call_type,
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning('Incoming call web push failed for receiver_id=%s', receiver_user_id)
+
+
 # ── Lifecycle handlers ────────────────────────────────────────────────────────
 
 def handle_call_initiate(
     data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
     socket_rate_ok_func, is_valid_chat_id_func, get_db_connection_func,
-    emit_func, logger=logger,
+    emit_func, count_active_func=None, send_call_incoming_push_func=None, logger=logger,
 ):
     user_id = session_store.get('user_id')
     if not require_payload_dict_func(data):
@@ -160,14 +249,12 @@ def handle_call_initiate(
             })
             return
 
-        row = conn.execute(
-            'SELECT display_name, username, avatar_url FROM users WHERE id = %s', (user_id,),
-        ).fetchone()
+        initiator_identity = _user_identity(conn, user_id)
         initiator_info = {
-            'user_id': user_id,
-            'display_name': str(row['display_name'] or '') if row else '',
-            'username':     str(row['username']     or '') if row else '',
-            'avatar_url':   str(row['avatar_url']   or '') if row else '',
+            'user_id': initiator_identity['user_id'],
+            'display_name': initiator_identity['display_name'],
+            'username': initiator_identity['username'],
+            'avatar_url': initiator_identity['avatar_url'],
         }
 
         emit_func('call_initiated', {
@@ -183,6 +270,17 @@ def handle_call_initiate(
                 'call_id': call_id, 'chat_id': chat_id,
                 'call_type': call_type, 'initiator': initiator_info,
             }, to=f'user_{pid}')
+            _send_incoming_call_push_if_needed(
+                conn,
+                call_id=call_id,
+                chat_id=chat_id,
+                call_type=call_type,
+                initiator=initiator_info,
+                receiver_user_id=pid,
+                count_active_func=count_active_func,
+                send_call_incoming_push_func=send_call_incoming_push_func,
+                logger=logger,
+            )
 
         logger.info('Call initiated: call_id=%s chat=%s user=%s type=%s', call_id, chat_id, user_id, call_type)
     except Exception:
@@ -305,16 +403,21 @@ def handle_call_cancel(
         call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
         # _is_chat_member not needed: initiator_id == user_id already proves membership
         # (a non-member cannot have created the call session in the first place).
-        if call is None or call['status'] != 'ringing' or int(call['initiator_id']) != int(user_id):
+        if call is None or int(call['initiator_id']) != int(user_id):
             return
-        if not cancel_call(conn, call_id):
+        if call['status'] == 'ringing':
+            if not cancel_call(conn, call_id):
+                return
+            recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
+            _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
+            for pid in _chat_members(conn, call['chat_id'], user_id):
+                emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
+            emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id})
+            logger.info('Call cancelled: call_id=%s user=%s', call_id, user_id)
             return
-        recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
-        _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
-        for pid in _chat_members(conn, call['chat_id'], user_id):
-            emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
-        emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id})
-        logger.info('Call cancelled: call_id=%s user=%s', call_id, user_id)
+        if call['status'] == 'active':
+            if _emit_active_call_ended(conn, call, call_id, user_id, request_id, emit_func):
+                logger.info('Call ended from late cancel: call_id=%s user=%s', call_id, user_id)
     except Exception:
         logger.exception('Error in handle_call_cancel')
     finally:
@@ -341,23 +444,41 @@ def handle_call_end(
         call = get_call_session(conn, call_id)
         if call is None or call['status'] != 'active':
             return
-        if not _is_call_participant(conn, call_id, user_id):
-            return
-        if not end_call(conn, call_id, user_id, final_status='ended'):
-            return
-        updated  = get_call_session(conn, call_id)
-        duration = updated['duration_sec'] if updated else None
-        recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
-        _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
-
-        for pid in _chat_members(conn, call['chat_id'], user_id):
-            emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id, 'duration_sec': duration},
-                      to=f'user_{pid}')
-        emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id,
-                                 'duration_sec': duration, 'request_id': request_id})
-        logger.info('Call ended: call_id=%s user=%s duration=%s', call_id, user_id, duration)
+        if _emit_active_call_ended(conn, call, call_id, user_id, request_id, emit_func):
+            updated = get_call_session(conn, call_id)
+            duration = updated['duration_sec'] if updated else None
+            logger.info('Call ended: call_id=%s user=%s duration=%s', call_id, user_id, duration)
     except Exception:
         logger.exception('Error in handle_call_end')
+    finally:
+        conn.close()
+
+
+def handle_call_sync(
+    data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
+    socket_rate_ok_func, get_db_connection_func, emit_func, logger=logger,
+):
+    user_id = session_store.get('user_id')
+    if not require_payload_dict_func(data):
+        return
+    if not socket_csrf_ok_func(data):
+        return
+    if not socket_rate_ok_func(user_id, 'call_sync'):
+        return
+
+    request_id = str(data.get('request_id') or '').strip() or None
+    conn = get_db_connection_func(request_scoped=False)
+    try:
+        mark_missed_calls(conn)
+        call = get_user_active_call(conn, user_id)
+        payload = {
+            'active_call': _serialize_live_call_for_user(conn, call, user_id) if call else None,
+            'request_id': request_id,
+        }
+        emit_func('call_sync', payload)
+    except Exception:
+        logger.exception('Error in handle_call_sync')
+        emit_func('call_error', {'error': 'server_error', 'request_id': request_id})
     finally:
         conn.close()
 

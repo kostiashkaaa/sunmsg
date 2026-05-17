@@ -113,7 +113,8 @@ export function removeIncomingCallBanner() {
 
 export function showActiveCallOverlay({
     callId, callType, partnerName, partnerAvatar, localStream,
-    onToggleAudio, onToggleVideo, onSwitchCamera, onEnd, callRole = 'participant',
+    onToggleAudio, onToggleVideo, onSwitchCamera, onSelectMicrophone, onSelectCamera,
+    onListDevices, onEnd, callRole = 'participant',
 }) {
     removeActiveCallOverlay({ immediate: true });
 
@@ -172,8 +173,27 @@ export function showActiveCallOverlay({
                     </svg>
                 </span>
                 <div class="call-overlay__verify" id="call-verification-code" hidden></div>
+                <div class="call-quality" id="call-quality" data-quality-level="unknown" hidden>
+                    <span class="call-quality__dot" aria-hidden="true"></span>
+                    <span class="call-quality__text">Связь</span>
+                </div>
             </div>
             <audio id="call-remote-audio" class="call-overlay__remote-audio" autoplay playsinline></audio>
+
+            <div class="call-device-panel" id="call-device-panel" hidden>
+                <label class="call-device-field">
+                    <span>Микрофон</span>
+                    <select id="call-select-microphone"></select>
+                </label>
+                <label class="call-device-field">
+                    <span>Камера</span>
+                    <select id="call-select-camera"></select>
+                </label>
+                <label class="call-device-field">
+                    <span>Динамик</span>
+                    <select id="call-select-speaker"></select>
+                </label>
+            </div>
 
             <div class="call-overlay__controls">
                 <div class="call-overlay__ctrl-group">
@@ -206,6 +226,19 @@ export function showActiveCallOverlay({
                             </svg>
                         </span>
                         <span class="call-ctrl__label">Звук</span>
+                    </button>
+                    <button class="call-ctrl call-ctrl--devices" id="call-btn-devices" aria-label="Устройства" aria-expanded="false">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M4 7h10"/>
+                                <path d="M18 7h2"/>
+                                <path d="M4 17h2"/>
+                                <path d="M10 17h10"/>
+                                <circle cx="16" cy="7" r="2"/>
+                                <circle cx="8" cy="17" r="2"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Устройства</span>
                     </button>
                     <button class="call-ctrl" id="call-btn-speaker" aria-label="Динамик" aria-pressed="false">
                         <span class="call-ctrl__icon">
@@ -276,6 +309,73 @@ export function showActiveCallOverlay({
             _syncLocalVideo(overlay, activeLocalStream, enabled);
         } finally {
             btn.disabled = false;
+        }
+    });
+
+    const devicesBtn = overlay.querySelector('#call-btn-devices');
+    const devicePanel = overlay.querySelector('#call-device-panel');
+    const microphoneSelect = overlay.querySelector('#call-select-microphone');
+    const cameraSelect = overlay.querySelector('#call-select-camera');
+    const speakerSelect = overlay.querySelector('#call-select-speaker');
+    const refreshDevicePanel = async () => {
+        if (!devicePanel) return;
+        _setDevicePanelBusy(devicePanel, true);
+        try {
+            let devices = {};
+            try {
+                devices = typeof onListDevices === 'function' ? await onListDevices() : {};
+            } catch (err) {
+                console.warn('[CallUI] device list failed', err);
+            }
+            _syncDeviceSelect(microphoneSelect, devices.audioInputs || [], devices.selected?.audioInputId || '', 'Микрофон по умолчанию');
+            _syncDeviceSelect(cameraSelect, devices.videoInputs || [], devices.selected?.videoInputId || '', 'Камера по умолчанию');
+            const currentSinkId = overlay.querySelector('#call-remote-audio')?.sinkId || '';
+            _syncDeviceSelect(speakerSelect, devices.audioOutputs || [], currentSinkId, 'Системный вывод');
+            if (speakerSelect && !_supportsAudioOutputSelection()) {
+                speakerSelect.disabled = true;
+            }
+        } finally {
+            _setDevicePanelBusy(devicePanel, false);
+        }
+    };
+
+    devicesBtn?.addEventListener('click', async () => {
+        const willOpen = Boolean(devicePanel?.hidden);
+        if (devicePanel) devicePanel.hidden = !willOpen;
+        devicesBtn.setAttribute('aria-expanded', String(willOpen));
+        if (willOpen) await refreshDevicePanel();
+    });
+    microphoneSelect?.addEventListener('change', async () => {
+        microphoneSelect.disabled = true;
+        try {
+            await onSelectMicrophone?.(microphoneSelect.value);
+            await refreshDevicePanel();
+        } catch (err) {
+            console.warn('[CallUI] microphone selection failed', err);
+            microphoneSelect.disabled = false;
+        }
+    });
+    cameraSelect?.addEventListener('change', async () => {
+        cameraSelect.disabled = true;
+        try {
+            const result = await onSelectCamera?.(cameraSelect.value);
+            if (result?.localStream) activeLocalStream = result.localStream;
+            const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
+            _syncLocalVideo(overlay, activeLocalStream, enabled);
+            await refreshDevicePanel();
+        } catch (err) {
+            console.warn('[CallUI] camera selection failed', err);
+            cameraSelect.disabled = false;
+        }
+    });
+    speakerSelect?.addEventListener('change', async () => {
+        speakerSelect.disabled = true;
+        try {
+            await _selectAudioOutputById(overlay.querySelector('#call-remote-audio'), speakerSelect.value);
+            await refreshDevicePanel();
+        } catch (err) {
+            console.warn('[CallUI] speaker selection failed', err);
+            speakerSelect.disabled = false;
         }
     });
 
@@ -381,6 +481,26 @@ export function setCallVerificationCode(code) {
         ` stroke-width="2.2" stroke-linecap="round" aria-hidden="true">` +
         `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>` +
         `</svg></button>`;
+}
+
+export function setCallQualityIndicator(stats = {}) {
+    const el = _currentOverlay()?.querySelector('#call-quality');
+    if (!el) return;
+    const level = ['good', 'fair', 'poor'].includes(stats.level) ? stats.level : 'unknown';
+    const packetLoss = Number(stats.packetLossPercent || 0);
+    const rtt = Math.max(0, Math.round(Number(stats.rttMs || 0)));
+    const jitter = Math.max(0, Math.round(Number(stats.jitterMs || 0)));
+    const label = level === 'poor' ? 'Слабая связь' : level === 'fair' ? 'Нестабильно' : 'Хорошая связь';
+    const details = [
+        `потери ${packetLoss.toFixed(packetLoss % 1 === 0 ? 0 : 1)}%`,
+        rtt ? `задержка ${rtt} мс` : '',
+        jitter ? `джиттер ${jitter} мс` : '',
+    ].filter(Boolean).join(' · ');
+    el.hidden = false;
+    el.dataset.qualityLevel = level;
+    el.querySelector('.call-quality__text').textContent = label;
+    el.title = details || label;
+    el.setAttribute('aria-label', details ? `${label}: ${details}` : label);
 }
 
 export function setRemoteAudioMuted(muted) {
@@ -520,6 +640,45 @@ function _syncVideoLayout(overlay) {
         || overlay.classList.contains('call-overlay--has-remote-video');
     overlay.classList.toggle('call-overlay--video-active', hasAnyVideo);
     overlay.classList.toggle('call-overlay--audio-only', !hasAnyVideo);
+}
+
+function _setDevicePanelBusy(panel, busy) {
+    panel?.classList.toggle('call-device-panel--busy', Boolean(busy));
+    if (!busy) return;
+    panel?.querySelectorAll('select').forEach(select => {
+        select.disabled = true;
+    });
+}
+
+function _syncDeviceSelect(select, devices, selectedId, fallbackLabel) {
+    if (!select) return;
+    const previous = String(selectedId || select.value || '');
+    const options = [new Option(fallbackLabel, '')];
+    for (const device of devices) {
+        const value = String(device.deviceId || '');
+        if (!value || value === 'default') continue;
+        options.push(new Option(String(device.label || fallbackLabel), value));
+    }
+    select.replaceChildren(...options);
+    const hasPrevious = options.some(option => option.value === previous);
+    select.value = hasPrevious ? previous : '';
+    select.disabled = options.length <= 1;
+}
+
+async function _selectAudioOutputById(audioElement, sinkId) {
+    if (!audioElement || typeof audioElement.setSinkId !== 'function') {
+        return false;
+    }
+    try {
+        await audioElement.setSinkId(String(sinkId || ''));
+        audioElement.muted = false;
+        audioElement.volume = 1;
+        _playMedia(audioElement);
+        return true;
+    } catch (err) {
+        console.warn('[CallUI] audio output selection failed', err);
+        return false;
+    }
 }
 
 function _setCallTopbarActive(active, overlay = _currentOverlay()) {

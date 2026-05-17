@@ -35,6 +35,8 @@ self.addEventListener('push', (event) => {
     const badge = String(payload.badge || '/static/icons/icon-192x192.png');
     const tag = String(payload.tag || 'sun-message');
     const chatId = payload.chat_id ? String(payload.chat_id) : null;
+    const callId = payload.call_id ? String(payload.call_id) : null;
+    const requireInteraction = Boolean(payload.requireInteraction);
 
     event.waitUntil(
         self.registration.showNotification(title, {
@@ -42,7 +44,8 @@ self.addEventListener('push', (event) => {
             icon,
             badge,
             tag,
-            data: { url, chat_id: chatId },
+            requireInteraction,
+            data: { url, chat_id: chatId, call_id: callId },
         })
     );
 });

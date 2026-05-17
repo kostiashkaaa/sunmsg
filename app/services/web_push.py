@@ -261,6 +261,24 @@ def _build_push_payload(message_context: dict[str, str]) -> str:
     )
 
 
+def _build_call_push_payload(*, call_id: str, chat_id: str, call_type: str, title: str) -> str:
+    destination_url = f'/chat?chat_id={chat_id}' if chat_id else '/chat'
+    body = 'Входящий видеозвонок' if call_type == 'video' else 'Входящий звонок'
+    return json.dumps(
+        {
+            'title': title or 'SUN Messenger',
+            'body': body,
+            'url': destination_url,
+            'chat_id': chat_id,
+            'call_id': call_id,
+            'tag': f'call:{call_id}',
+            'kind': 'call',
+            'requireInteraction': True,
+        },
+        ensure_ascii=False,
+    )
+
+
 def _send_push_to_subscription(
     *,
     context: dict | None = None,
@@ -272,6 +290,7 @@ def _send_push_to_subscription(
     payload = str(push_context.get('payload') or '')
     cfg = push_context.get('cfg') or {}
     conn = push_context.get('conn')
+    ttl = int(push_context.get('ttl') or 3_600)
 
     subscription_info = {
         'endpoint': subscription['endpoint'],
@@ -286,7 +305,7 @@ def _send_push_to_subscription(
             data=payload,
             vapid_private_key=cfg['private_key'],
             vapid_claims={'sub': cfg['subject']},
-            ttl=3_600,
+            ttl=ttl,
         )
         _mark_push_send_success(conn, subscription_id=subscription['id'])
         return True
@@ -360,6 +379,70 @@ def send_chat_message_push(  # noqa: PLR0913 - explicit push-delivery contract
                     'payload': payload,
                     'cfg': cfg,
                     'conn': conn,
+                },
+            ):
+                sent += 1
+            else:
+                failed += 1
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {'sent': sent, 'failed': failed}
+
+
+def send_call_incoming_push(  # noqa: PLR0913 - explicit push-delivery contract
+    *,
+    receiver_user_id: int,
+    initiator_user_id: int,
+    initiator_display_name: str,
+    initiator_username: str,
+    chat_id: str,
+    call_id: str,
+    call_type: str = 'audio',
+) -> dict[str, int]:
+    cfg = web_push_config()
+    if not cfg['enabled']:
+        return {'sent': 0, 'failed': 0}
+
+    try:
+        from pywebpush import WebPushException, webpush
+    except Exception as exc:  # noqa: BLE001
+        logger.warning('Web push disabled at runtime: pywebpush unavailable: %s', exc)
+        return {'sent': 0, 'failed': 0}
+
+    conn = get_db_connection()
+    sent = 0
+    failed = 0
+    try:
+        subscriptions = _active_subscriptions_for_user(conn, user_id=receiver_user_id)
+        if not subscriptions:
+            return {'sent': 0, 'failed': 0}
+
+        display_name, username = _resolve_sender_identity_for_push(
+            conn,
+            sender_user_id=int(initiator_user_id),
+            sender_display_name=initiator_display_name,
+            sender_username=initiator_username,
+        )
+        payload = _build_call_push_payload(
+            call_id=str(call_id or ''),
+            chat_id=str(chat_id or ''),
+            call_type='video' if call_type == 'video' else 'audio',
+            title=display_name or username or 'SUN Messenger',
+        )
+
+        for item in subscriptions:
+            if _send_push_to_subscription(
+                context={
+                    'webpush_func': webpush,
+                    'webpush_exception_cls': WebPushException,
+                    'subscription': item,
+                    'payload': payload,
+                    'cfg': cfg,
+                    'conn': conn,
+                    'ttl': 60,
                 },
             ):
                 sent += 1

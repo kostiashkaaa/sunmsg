@@ -23,6 +23,7 @@ _NON_PERSISTED_CHAT_EVENTS = {
     'call_cancelled',
     'call_ended',
     'call_error',
+    'call_sync',
     'call_media_state',
     'call_offer',
     'call_answer',
