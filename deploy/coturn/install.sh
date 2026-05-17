@@ -10,7 +10,7 @@
 #
 # After running, set in your Flask .env:
 #   TURN_SECRET=<same secret>
-#   TURN_SERVER_URL=turns:<domain>:5349
+#   TURN_SERVER_URLS=turn:<domain>:3478?transport=udp,turn:<domain>:3478?transport=tcp,turns:<domain>:5349?transport=tcp
 
 set -euo pipefail
 
@@ -59,7 +59,7 @@ systemctl status coturn --no-pager
 echo ""
 echo "Done. Add to Flask .env:"
 echo "  TURN_SECRET=${TURN_SECRET}"
-echo "  TURN_SERVER_URL=turns:${DOMAIN}:5349"
+echo "  TURN_SERVER_URLS=turn:${DOMAIN}:3478?transport=udp,turn:${DOMAIN}:3478?transport=tcp,turns:${DOMAIN}:5349?transport=tcp"
 echo "  TURN_CREDENTIAL_TTL_SECONDS=3600"
 echo ""
 echo "Make sure TLS certificate exists at: ${CERT_DIR}"

@@ -22,6 +22,18 @@ _DEFAULT_TTL = 3600
 _DEFAULT_STUN = 'stun:stun.l.google.com:19302'
 
 
+def _parse_turn_urls(raw_value: str) -> list[str]:
+    urls = []
+    for item in str(raw_value or '').split(','):
+        url = item.strip()
+        if not url:
+            continue
+        if not (url.startswith('turn:') or url.startswith('turns:')):
+            continue
+        urls.append(url)
+    return urls
+
+
 @call_bp.route('/ice-config', methods=['GET'])
 @limiter.limit('30 per minute')
 def ice_config():
@@ -30,21 +42,30 @@ def ice_config():
 
     user_id    = session['user_id']
     turn_secret = str(current_app.config.get('TURN_SECRET') or '').strip()
-    turn_url    = str(current_app.config.get('TURN_SERVER_URL') or '').strip()
+    turn_urls_raw = str(
+        current_app.config.get('TURN_SERVER_URLS')
+        or current_app.config.get('TURN_SERVER_URL')
+        or ''
+    ).strip()
     ttl         = int(current_app.config.get('TURN_CREDENTIAL_TTL_SECONDS') or _DEFAULT_TTL)
 
     ice_servers = [{'urls': _DEFAULT_STUN}]
+    turn_urls = _parse_turn_urls(turn_urls_raw)
 
-    if turn_secret and turn_url:
+    if turn_secret and turn_urls:
         expiry   = int(time.time()) + ttl
         username = f'{expiry}:{user_id}'
         credential = b64encode(
             hmac.new(turn_secret.encode(), username.encode(), hashlib.sha1).digest()
         ).decode()
         ice_servers.append({
-            'urls':       turn_url,
+            'urls':       turn_urls if len(turn_urls) > 1 else turn_urls[0],
             'username':   username,
             'credential': credential,
         })
 
-    return jsonify({'ice_servers': ice_servers})
+    return jsonify({
+        'ice_servers': ice_servers,
+        'turn_configured': bool(turn_secret and turn_urls),
+        'turn_urls_count': len(turn_urls),
+    })

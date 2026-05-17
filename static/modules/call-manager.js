@@ -395,7 +395,11 @@ export class CallManager {
             headers: { 'X-CSRFToken': this._getCsrfToken() },
         });
         if (!resp.ok) throw new Error(`ICE config ${resp.status}`);
-        const { ice_servers } = await resp.json();
+        const { ice_servers, turn_configured } = await resp.json();
+        if (!turn_configured) {
+            console.warn('[CallManager] TURN is not configured; calls outside the same network may fail');
+            showToast('TURN не настроен: звонки между разными сетями могут быть без звука', 'warning');
+        }
         return ice_servers;
     }
 
