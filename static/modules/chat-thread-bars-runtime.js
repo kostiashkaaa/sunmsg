@@ -34,6 +34,8 @@ export function initChatThreadBarsRuntime({
         barEl: documentRef.getElementById('linkDraftBar'),
         textEl: documentRef.getElementById('linkDraftText'),
         labelEl: documentRef.getElementById('linkDraftLabel'),
+        thumbEl: documentRef.getElementById('linkDraftThumb'),
+        thumbImgEl: documentRef.getElementById('linkDraftThumbImg'),
         closeBtnEl: documentRef.getElementById('cancelLinkDraftBtn'),
         inputEl: messageInput,
         formEl: messageForm,

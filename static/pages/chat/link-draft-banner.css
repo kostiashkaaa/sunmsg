@@ -32,7 +32,7 @@
 
 .link-draft-bar.is-visible {
     display: flex;
-    max-height: 74px;
+    max-height: 80px;
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
@@ -104,5 +104,47 @@
     border: none;
 }
 
+/* ── Telegram-style thumbnail ─────────────────────────────── */
 
+.link-draft-bar__thumb {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface-2) 90%);
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background var(--dur-quick) var(--ease-quick);
+}
+
+.link-draft-bar__thumb-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 180ms var(--ease-quick);
+}
+
+.link-draft-bar__thumb.has-image .link-draft-bar__thumb-img {
+    opacity: 1;
+}
+
+.link-draft-bar__thumb.has-image .link-draft-bar__thumb-fallback {
+    opacity: 0;
+}
+
+.link-draft-bar__thumb-fallback {
+    width: 16px;
+    height: 16px;
+    color: var(--accent);
+    flex-shrink: 0;
+    transition: opacity 180ms var(--ease-quick);
+}
 
