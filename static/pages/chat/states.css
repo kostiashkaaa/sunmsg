@@ -1581,32 +1581,11 @@
 
         .file-msg-img[data-loaded] {
             opacity: 1;
-            transform: scale(1);
         }
 
 
         .file-msg-video-preview[data-loaded] {
             opacity: 1;
-            transform: scale(1);
-        }
-
-
-        .image-wrapper.is-loaded:not(.is-uploading) .media-status-overlay,
-        .video-preview.is-loaded:not(.is-uploading) .media-status-overlay {
-            opacity: 0;
-        }
-
-
-        .media-status-overlay:not(.is-uploading) .media-status-ring {
-            animation: mediaLoaderPulse 1.18s var(--ease-quick) infinite;
-            background:
-                linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)),
-                conic-gradient(from -90deg, rgba(255, 255, 255, 0.92) 0deg, rgba(255, 255, 255, 0.18) 360deg);
-        }
-
-
-        .media-status-overlay:not(.is-uploading) .media-status-value {
-            display: none;
         }
 
 

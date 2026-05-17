@@ -44,7 +44,10 @@ export function buildLightboxMediaItems({ formatFullTimestamp }) {
             || trigger.querySelector('.file-msg-img, .file-msg-video-preview')?.getAttribute('src')
             || trigger.querySelector('.file-msg-img')?.getAttribute('data-src')
             || '';
-        return { kind, src, caption: trigger.getAttribute('data-caption') || '', sender, datetime, time, tick };
+        // Thumbnail: the already-loaded small img in the bubble (for instant preview in lightbox)
+        const thumbImg = trigger.querySelector('.file-msg-img, .album-cell-img');
+        const thumbnail = (thumbImg?.currentSrc || thumbImg?.getAttribute('src') || '').trim();
+        return { kind, src, caption: trigger.getAttribute('data-caption') || '', sender, datetime, time, tick, thumbnail };
     });
 }
 
