@@ -55,7 +55,7 @@ def _build_content_security_policy(
     style_src_elem = _csp_sources("'self'", style_nonce, app.config.get("STYLE_SRC_HOSTS"))
     style_src_attr = _csp_sources("'unsafe-inline'") if not style_allow_inline else style_inline
     font_src = _csp_sources("'self'", app.config.get("FONT_SRC_HOSTS"))
-    img_src = _csp_sources("'self'", "data:", "blob:", app.config.get("IMG_SRC_HOSTS"))
+    img_src = _csp_sources("'self'", "data:", "blob:", "https://i.scdn.co", app.config.get("IMG_SRC_HOSTS"))
     media_src = _csp_sources("'self'", "data:", "blob:", app.config.get("MEDIA_SRC_HOSTS"))
     connect_src = _csp_connect_sources(app)
     manifest_src = _csp_sources("'self'")

@@ -37,6 +37,40 @@ function buildTimeFormatOptions() {
 }
 
 let profileLocaleListenerBound = false;
+let profileSpotifyProgressTimer = 0;
+
+function stopProfileSpotifyProgressTimer() {
+    if (!profileSpotifyProgressTimer) return;
+    window.clearInterval(profileSpotifyProgressTimer);
+    profileSpotifyProgressTimer = 0;
+}
+
+function updateProfileSpotifyProgress() {
+    const card = document.getElementById('profileSpotifyStatusCard');
+    const fillEl = document.getElementById('profileSpotifyBarFill');
+    if (!card || !fillEl || card.hidden) {
+        stopProfileSpotifyProgressTimer();
+        return;
+    }
+
+    const durationMs = Number(card.dataset.spotifyDurationMs || 0);
+    const progressMs = Number(card.dataset.spotifyProgressMs || 0);
+    const updatedAtMs = Number(card.dataset.spotifyUpdatedAtMs || 0);
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+        fillEl.style.width = '0%';
+        return;
+    }
+
+    const elapsedMs = updatedAtMs > 0 ? Math.max(0, Date.now() - updatedAtMs) : 0;
+    const liveProgressMs = Math.min(durationMs, Math.max(0, progressMs + elapsedMs));
+    fillEl.style.width = `${Math.min(100, Math.round((liveProgressMs / durationMs) * 100))}%`;
+}
+
+function startProfileSpotifyProgressTimer() {
+    stopProfileSpotifyProgressTimer();
+    updateProfileSpotifyProgress();
+    profileSpotifyProgressTimer = window.setInterval(updateProfileSpotifyProgress, 1000);
+}
 
 function formatSavedMessageCountLabel(rawCount) {
     const safeCount = Math.max(0, Number(rawCount) || 0);
@@ -690,6 +724,7 @@ export function renderProfileSpotifyStatus(profile) {
     const isPlaying = sp?.is_playing === true;
 
     if (!isPlaying) {
+        stopProfileSpotifyProgressTimer();
         card.hidden = true;
         card.setAttribute('aria-hidden', 'true');
         return;
@@ -706,10 +741,13 @@ export function renderProfileSpotifyStatus(profile) {
 
     if (artEl) {
         if (sp.album_art_url) {
+            artEl.onerror = () => {
+                artEl.removeAttribute('src');
+            };
             artEl.src = sp.album_art_url;
-            artEl.alt = sp.album || '';
+            artEl.alt = '';
         } else {
-            artEl.src = '';
+            artEl.removeAttribute('src');
             artEl.alt = '';
         }
     }
@@ -722,15 +760,13 @@ export function renderProfileSpotifyStatus(profile) {
         }
     }
 
-    if (fillEl) {
-        const pct = (sp.duration_ms > 0)
-            ? Math.min(100, Math.round((sp.progress_ms / sp.duration_ms) * 100))
-            : 0;
-        fillEl.style.width = `${pct}%`;
-    }
+    card.dataset.spotifyProgressMs = String(Math.max(0, Number(sp.progress_ms) || 0));
+    card.dataset.spotifyDurationMs = String(Math.max(0, Number(sp.duration_ms) || 0));
+    card.dataset.spotifyUpdatedAtMs = String(Math.max(0, Number(sp.updated_at) || 0) * 1000);
 
     card.hidden = false;
     card.setAttribute('aria-hidden', 'false');
+    if (fillEl) startProfileSpotifyProgressTimer();
 }
 
 export function renderPartnerProfile(profilePayload, {
