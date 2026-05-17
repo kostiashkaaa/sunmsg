@@ -484,7 +484,7 @@ class _PinnedHTTPConnection(http.client.HTTPConnection):
 
     def connect(self):
         self.sock = socket.create_connection(
-            self._resolved_sockaddr,
+            _socket_create_connection_address(self._resolved_sockaddr),
             self.timeout,
             self.source_address,
         )
@@ -498,11 +498,17 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
 
     def connect(self):
         raw_sock = socket.create_connection(
-            self._resolved_sockaddr,
+            _socket_create_connection_address(self._resolved_sockaddr),
             self.timeout,
             self.source_address,
         )
         self.sock = self._context.wrap_socket(raw_sock, server_hostname=self.host)
+
+
+def _socket_create_connection_address(sockaddr):
+    if isinstance(sockaddr, tuple) and len(sockaddr) >= 2:
+        return (sockaddr[0], sockaddr[1])
+    return sockaddr
 
 
 def _is_allowed_preview_url(url: str) -> bool:
