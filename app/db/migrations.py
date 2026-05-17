@@ -42,6 +42,7 @@ SPOTIFY_INTEGRATION_MIGRATION = (26, 'create_spotify_tables')
 USER_SESSION_AUTO_LOGOUT_MIGRATION = (27, 'add_user_session_auto_logout_seconds')
 CALLS_SCHEMA_MIGRATION = (28, 'create_call_sessions_and_participants_tables')
 CALL_FEATURE_ACCESS_MIGRATION = (29, 'create_call_feature_access_tables')
+MESSAGES_CALL_ID_MIGRATION = (30, 'add_call_id_to_messages')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -319,10 +320,19 @@ def _run_messages_schema_migrations(conn, cursor) -> None:
         ('is_delivered', 'is_delivered INTEGER NOT NULL DEFAULT 0'),
         ('voice_listened_by_receiver', 'voice_listened_by_receiver INTEGER NOT NULL DEFAULT 0'),
         ('read_at', 'read_at TIMESTAMP DEFAULT NULL'),
+        ('call_id', 'call_id TEXT DEFAULT NULL'),
     )
     for column_name, ddl in message_columns:
         add_column_if_missing(conn, cursor, 'messages', column_name, ddl)
     drop_not_null_if_set(conn, cursor, 'messages', 'receiver_id')
+    if not migration_applied(cursor, MESSAGES_CALL_ID_MIGRATION[0]):
+        cursor.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_call_id'
+            ' ON messages(call_id) WHERE call_id IS NOT NULL'
+        )
+        _record_migration(cursor, MESSAGES_CALL_ID_MIGRATION)
+        conn.commit()
+        logger.info('Migration: added call_id unique index to messages')
 
 
 def _run_users_schema_migrations(conn, cursor) -> None:

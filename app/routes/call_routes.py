@@ -77,6 +77,7 @@ def ice_config():
         'ice_servers': ice_servers,
         'turn_configured': bool(turn_secret and turn_urls),
         'turn_urls_count': len(turn_urls),
+        'turn_credential_ttl_seconds': ttl,
     })
 
 

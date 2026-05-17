@@ -305,7 +305,18 @@ export function setCallVerificationCode(code) {
     if (!el) return;
     const value = String(code || '').trim();
     el.hidden = !value;
-    el.textContent = value ? `Код безопасности: ${value}` : '';
+    if (!value) { el.innerHTML = ''; return; }
+    const hint = 'Сравните этот код с собеседником вслух или в переписке.\n' +
+        'Если коды совпадают — соединение защищено и сервер не перехватывает звонок.';
+    el.innerHTML =
+        `<span class="call-verify__label">Код безопасности:</span>` +
+        `<span class="call-verify__code">${escapeHtml(value)}</span>` +
+        `<button class="call-verify__hint" type="button" tabindex="0"` +
+        ` aria-label="Что это?" title="${escapeHtml(hint)}">` +
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
+        ` stroke-width="2.2" stroke-linecap="round" aria-hidden="true">` +
+        `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>` +
+        `</svg></button>`;
 }
 
 export function attachRemoteTrack(track) {

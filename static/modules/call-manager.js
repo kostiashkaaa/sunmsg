@@ -62,7 +62,8 @@ export class CallManager {
 
         this._media      = new CallMedia();
         this._webrtc     = null;
-        this._iceServers = null;  // cached for the session
+        this._iceServers = null;          // cached for the session
+        this._iceServersExpiresAt = 0;    // epoch ms; 0 = not fetched
         this._ringTimeout = null;
         this._disconnectTimeout = null;
 
@@ -296,13 +297,22 @@ export class CallManager {
     // ── Media & WebRTC setup ─────────────────────────────────────────────────
 
     async _startMedia() {
-        // 1. Get ICE server config from Flask (includes TURN credentials)
-        if (!this._iceServers) {
+        // 1. Get ICE server config from Flask (includes TURN credentials).
+        // Re-fetch if credentials are within 5 minutes of expiry to avoid stale TURN creds on reconnect.
+        const needsRefresh = !this._iceServers || Date.now() > this._iceServersExpiresAt - 5 * 60 * 1000;
+        if (needsRefresh) {
             try {
-                this._iceServers = await this._fetchIceServers();
+                const result = await this._fetchIceServers();
+                this._iceServers = result.iceServers;
+                // Server TTL is TURN_CREDENTIAL_TTL_SECONDS (default 3600 s). Use that if returned, else 55 min.
+                const ttlMs = (result.ttlSeconds || 3300) * 1000;
+                this._iceServersExpiresAt = Date.now() + ttlMs;
             } catch (err) {
                 console.warn('[CallManager] ICE config fetch failed, using STUN only', err);
-                this._iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+                if (!this._iceServers) {
+                    this._iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+                    this._iceServersExpiresAt = Date.now() + 55 * 60 * 1000;
+                }
             }
         }
 
@@ -428,11 +438,11 @@ export class CallManager {
             headers: { 'X-CSRFToken': this._getCsrfToken() },
         });
         if (!resp.ok) throw new Error(`ICE config ${resp.status}`);
-        const { ice_servers, turn_configured } = await resp.json();
+        const { ice_servers, turn_configured, turn_credential_ttl_seconds } = await resp.json();
         if (!turn_configured) {
             console.warn('[CallManager] TURN is not configured; calls outside the same network may fail');
         }
-        return ice_servers;
+        return { iceServers: ice_servers, ttlSeconds: turn_credential_ttl_seconds || 3300 };
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -468,6 +478,7 @@ export class CallManager {
         this._media.release();
         this._pendingSignals = [];
         this._iceServers  = null;
+        this._iceServersExpiresAt = 0;
         this._state    = STATES.IDLE;
         this._callId   = null;
         this._chatId   = null;
