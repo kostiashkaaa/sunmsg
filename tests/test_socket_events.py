@@ -171,6 +171,13 @@ def _seed_dialog(db_path: Path):
             ''',
             (chat_id, chat_id),
         )
+        conn.execute(
+            '''
+            INSERT INTO call_feature_allowlist (user_id, granted_by_user_id, note)
+            VALUES (1, 1, 'socket-test'), (2, 1, 'socket-test')
+            ON CONFLICT(user_id) DO NOTHING
+            '''
+        )
         conn.commit()
     return chat_id
 

@@ -305,6 +305,7 @@ export const initChatPage = async () => {
         || document.body?.dataset?.currentUserId
         || ''
     ).trim();
+    const callsFeatureEnabled = Boolean(bootstrapData?.app?.callsEnabled);
     const LAST_ACTIVE_CHAT_STORAGE_KEY = 'sun_last_active_chat_id';
     const CONTACT_USERNAME_PATTERN = /^[a-z0-9_]{1,50}$/;
     const initialUrlSearchParams = new URLSearchParams(browserEnv.getLocationSearch());
@@ -4138,6 +4139,10 @@ export const initChatPage = async () => {
     const _callMenuItems = [_callAudioBtn, _callVideoBtn].filter(Boolean);
 
     const _showCallButtons = () => {
+        if (!callsFeatureEnabled) {
+            _hideCallButtons();
+            return;
+        }
         _callBtnWrap?.classList.remove('call-header-btn--hidden');
         _callMenuItems.forEach(item => item.classList.remove('call-menu-item--hidden'));
     };
@@ -4167,6 +4172,11 @@ export const initChatPage = async () => {
     };
 
     const _startHeaderCall = (callType = 'audio') => {
+        if (!callsFeatureEnabled) {
+            _hideCallButtons();
+            showToast('Звонки доступны только тестовой группе', 'info');
+            return;
+        }
         const chatId = _resolveCallChatId();
         if (chatId) callManager.startCall(chatId, callType, _resolvePartnerInfo());
     };
@@ -4177,6 +4187,10 @@ export const initChatPage = async () => {
 
     // Show button immediately if a direct chat is already open on init
     const _initCallButtonState = () => {
+        if (!callsFeatureEnabled) {
+            _hideCallButtons();
+            return;
+        }
         const activeItem = document.querySelector('.contact-item.active');
         if (!activeItem) return;
         const isGroup = activeItem.getAttribute('data-is-group') === '1';
@@ -4191,7 +4205,7 @@ export const initChatPage = async () => {
 
     document.addEventListener('sun:chat:opened', (e) => {
         const { chatType, chatId } = e.detail || {};
-        if (chatType === 'direct') {
+        if (chatType === 'direct' && callsFeatureEnabled) {
             _currentCallChatId = chatId || null;
             _showCallButtons();
         } else {

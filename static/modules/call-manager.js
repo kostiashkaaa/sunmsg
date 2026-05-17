@@ -237,6 +237,7 @@ export class CallManager {
             user_busy:                'Вы уже в звонке',
             not_member:               'Нет доступа к чату',
             call_not_found_or_expired:'Звонок не найден или истёк',
+            calls_feature_disabled:    'Звонки доступны только тестовой группе',
             server_error:             'Ошибка сервера',
         };
         showToast(MESSAGES[error] || `Ошибка звонка: ${error}`, 'error');

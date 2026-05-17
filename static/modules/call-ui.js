@@ -243,10 +243,15 @@ export function showActiveCallOverlay({
     if (isMobile && speakerBtn) {
         speakerBtn.addEventListener('click', async () => {
             const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
+            speakerBtn.disabled = true;
             speakerBtn.setAttribute('aria-pressed', String(enabled));
             speakerBtn.classList.toggle('call-ctrl--active-positive', enabled);
             speakerBtn.querySelector('.call-ctrl__label').textContent = enabled ? 'Громко' : 'Динамик';
-            await _setSpeakerMode(enabled, overlay);
+            try {
+                await _setSpeakerMode(enabled, overlay);
+            } finally {
+                speakerBtn.disabled = false;
+            }
         });
     } else {
         speakerBtn?.remove();
@@ -479,16 +484,10 @@ function _makeDraggable(card, handle) {
 async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
     overlay?.classList.toggle('call-overlay--speaker-on', enabled);
     const remoteAudio = overlay?.querySelector('#call-remote-audio');
-    if (remoteAudio && enabled) {
+    if (remoteAudio) {
         remoteAudio.muted = false;
         remoteAudio.volume = 1;
-        if (typeof remoteAudio.setSinkId === 'function') {
-            try {
-                await remoteAudio.setSinkId('default');
-            } catch (err) {
-                console.warn('[CallUI] speaker sink selection unavailable', err);
-            }
-        }
+        await _selectAudioOutput(remoteAudio, { speaker: enabled });
         _playMedia(remoteAudio);
     }
 
@@ -497,6 +496,73 @@ async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
         return;
     }
     await _requestScreenWakeLock();
+}
+
+async function _selectAudioOutput(audioElement, { speaker }) {
+    if (!audioElement || typeof audioElement.setSinkId !== 'function') {
+        return false;
+    }
+
+    const candidates = speaker
+        ? await _speakerSinkCandidates()
+        : await _earpieceSinkCandidates();
+    let lastError = null;
+    for (const sinkId of candidates) {
+        if (!sinkId && typeof audioElement.sinkId === 'string' && audioElement.sinkId === '') {
+            return true;
+        }
+        if (sinkId && audioElement.sinkId === sinkId) {
+            return true;
+        }
+        try {
+            await audioElement.setSinkId(sinkId);
+            return true;
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    if (lastError) {
+        console.warn('[CallUI] audio output selection unavailable', lastError);
+    }
+    return false;
+}
+
+async function _speakerSinkCandidates() {
+    const devices = await _listAudioOutputDevices();
+    const matches = devices
+        .filter(device => /speaker|loud|\u0433\u0440\u043E\u043C\u043A/i.test(device.label || ''))
+        .map(device => device.deviceId)
+        .filter(Boolean);
+    return _uniqueSinkIds([...matches, 'default']);
+}
+
+async function _earpieceSinkCandidates() {
+    const devices = await _listAudioOutputDevices();
+    const matches = devices
+        .filter(device => /communication|receiver|earpiece|phone|\u0442\u0435\u043B\u0435\u0444\u043E\u043D|\u0433\u0430\u0440\u043D\u0438\u0442\u0443\u0440/i.test(device.label || ''))
+        .map(device => device.deviceId)
+        .filter(Boolean);
+    return _uniqueSinkIds(['communications', ...matches, 'default', '']);
+}
+
+async function _listAudioOutputDevices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return [];
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.filter(device => device.kind === 'audiooutput');
+    } catch (_) {
+        return [];
+    }
+}
+
+function _uniqueSinkIds(values) {
+    const result = [];
+    for (const value of values) {
+        const sinkId = String(value || '').trim();
+        if (result.includes(sinkId)) continue;
+        result.push(sinkId);
+    }
+    return result;
 }
 
 async function _requestScreenWakeLock() {

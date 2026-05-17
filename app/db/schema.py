@@ -41,6 +41,8 @@ APPLICATION_TABLES = (
     'spotify_now_playing',
     'call_sessions',
     'call_participants',
+    'call_feature_settings',
+    'call_feature_allowlist',
 )
 
 

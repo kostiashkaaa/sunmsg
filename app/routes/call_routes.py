@@ -14,7 +14,9 @@ from base64 import b64encode
 
 from flask import Blueprint, current_app, jsonify, session
 
+from app.database import get_db_connection
 from app.extensions import limiter
+from app.services.call_feature_access import can_user_use_calls
 
 call_bp = Blueprint('call', __name__, url_prefix='/call')
 
@@ -41,6 +43,13 @@ def ice_config():
         return jsonify({'error': 'unauthenticated'}), 401
 
     user_id    = session['user_id']
+    conn = get_db_connection()
+    try:
+        if not can_user_use_calls(conn, user_id=int(user_id)):
+            return jsonify({'error': 'calls_feature_disabled'}), 403
+    finally:
+        conn.close()
+
     turn_secret = str(current_app.config.get('TURN_SECRET') or '').strip()
     turn_urls_raw = str(
         current_app.config.get('TURN_SERVER_URLS')
