@@ -9,6 +9,7 @@ let screenWakeLock = null;
 let callDurationTimer = 0;
 let callDurationStartedAt = 0;
 let callTopbarResizeHandler = null;
+let callTopbarViewportHandler = null;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ export function showActiveCallOverlay({
 
     _syncLocalVideo(overlay, localStream, isVideo);
     if (!isMobile) {
-        _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__stage'));
+        _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__drag'));
     }
 
     overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
@@ -223,8 +224,6 @@ export function showActiveCallOverlay({
         const btn = overlay.querySelector('#call-btn-video');
         btn.classList.toggle('call-ctrl--active', !enabled);
         btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Камера' : 'Без камеры';
-        overlay.classList.toggle('call-overlay--video-active', enabled);
-        overlay.classList.toggle('call-overlay--audio-only', !enabled);
         if (!enabled) overlay.classList.remove('call-overlay--self-view-primary');
         _syncLocalVideo(overlay, stream, enabled);
     });
@@ -329,11 +328,20 @@ export function attachRemoteTrack(track) {
             void _setSpeakerMode(true, overlay);
         }
     } else if (track.kind === 'video') {
-        overlay?.classList.add('call-overlay--has-remote-video', 'call-overlay--video-active');
-        overlay?.classList.remove('call-overlay--audio-only');
+        overlay?.classList.add('call-overlay--has-remote-video');
+        _syncVideoLayout(overlay);
     }
     track.onunmute = () => _playMedia(media);
     _playMedia(media);
+}
+
+export function setRemoteVideoEnabled(enabled) {
+    const overlay = _currentOverlay();
+    const remoteVideo = overlay?.querySelector('#call-remote-video');
+    const hasTrack = Boolean(remoteVideo?.srcObject?.getVideoTracks?.().length);
+    overlay?.classList.toggle('call-overlay--has-remote-video', Boolean(enabled && hasTrack));
+    if (!enabled) overlay?.classList.remove('call-overlay--self-view-primary');
+    _syncVideoLayout(overlay);
 }
 
 export function removeRemoteTrack(kind) {
@@ -346,6 +354,10 @@ export function removeRemoteTrack(kind) {
         media.srcObject.removeTrack(t);
         t.stop();
     });
+    if (kind === 'video') {
+        overlay?.classList.remove('call-overlay--has-remote-video', 'call-overlay--self-view-primary');
+        _syncVideoLayout(overlay);
+    }
 }
 
 function _currentOverlay() {
@@ -391,10 +403,20 @@ function _syncLocalVideo(overlay, stream, enabled) {
     if (hasVideo) {
         localVideo.srcObject = stream;
         localVideo.classList.remove('call-overlay__local-video--hidden');
+        _syncVideoLayout(overlay);
         return;
     }
     localVideo.classList.add('call-overlay__local-video--hidden');
     overlay?.classList.remove('call-overlay--self-view-primary');
+    _syncVideoLayout(overlay);
+}
+
+function _syncVideoLayout(overlay) {
+    if (!overlay) return;
+    const hasAnyVideo = overlay.classList.contains('call-overlay--has-local-video')
+        || overlay.classList.contains('call-overlay--has-remote-video');
+    overlay.classList.toggle('call-overlay--video-active', hasAnyVideo);
+    overlay.classList.toggle('call-overlay--audio-only', !hasAnyVideo);
 }
 
 function _setCallTopbarActive(active, overlay = _currentOverlay()) {
@@ -408,19 +430,32 @@ function _setCallTopbarActive(active, overlay = _currentOverlay()) {
             window.removeEventListener('resize', callTopbarResizeHandler);
             callTopbarResizeHandler = null;
         }
+        if (callTopbarViewportHandler) {
+            window.visualViewport?.removeEventListener?.('resize', callTopbarViewportHandler);
+            window.visualViewport?.removeEventListener?.('scroll', callTopbarViewportHandler);
+            callTopbarViewportHandler = null;
+        }
         return;
     }
 
     const syncOffset = () => {
         const topbar = overlay?.querySelector?.('#call-topbar');
-        const height = Math.ceil(topbar?.getBoundingClientRect?.().height || 42);
+        const rect = chatArea.getBoundingClientRect();
+        const height = Math.ceil(topbar?.getBoundingClientRect?.().height || 34);
         chatArea.style.setProperty('--call-topbar-offset', `${height}px`);
+        topbar?.style?.setProperty('--call-topbar-left', `${Math.max(0, Math.round(rect.left))}px`);
+        topbar?.style?.setProperty('--call-topbar-width', `${Math.round(rect.width)}px`);
         chatArea.classList.add('chat-area--call-active');
     };
     syncOffset();
     if (!callTopbarResizeHandler) {
         callTopbarResizeHandler = syncOffset;
         window.addEventListener('resize', callTopbarResizeHandler);
+    }
+    if (!callTopbarViewportHandler) {
+        callTopbarViewportHandler = syncOffset;
+        window.visualViewport?.addEventListener?.('resize', callTopbarViewportHandler);
+        window.visualViewport?.addEventListener?.('scroll', callTopbarViewportHandler);
     }
 }
 

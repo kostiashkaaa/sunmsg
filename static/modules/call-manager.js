@@ -20,7 +20,7 @@ import {
     showIncomingCallBanner, removeIncomingCallBanner,
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
-    attachRemoteTrack, removeRemoteTrack,
+    attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
     startCallDurationTimer,
 } from './call-ui.js';
 import {
@@ -47,10 +47,11 @@ export class CallManager {
      * @param {function(): string} opts.getCsrfToken
      * @param {string} opts.iceConfigUrl  - Flask endpoint that returns {iceServers:[…]}
      */
-    constructor({ socket, getCsrfToken, iceConfigUrl = '/call/ice-config' }) {
+    constructor({ socket, getCsrfToken, iceConfigUrl = '/call/ice-config', resolvePartnerInfo = null }) {
         this._socket       = socket;
         this._getCsrfToken = getCsrfToken;
         this._iceConfigUrl = iceConfigUrl;
+        this._resolvePartnerInfo = typeof resolvePartnerInfo === 'function' ? resolvePartnerInfo : null;
 
         this._state    = STATES.IDLE;
         this._callId   = null;
@@ -99,7 +100,7 @@ export class CallManager {
         this._callType = callType;
         this._state    = STATES.RINGING_OUT;
         this._isPolite = false;  // caller is impolite
-        this._partner  = partnerInfo;  // set from DOM before server confirms
+        this._partner  = this._resolvePartner(partnerInfo);  // set from DOM before server confirms
         startRingtone('outgoing');
         this._ringTimeout = setTimeout(() => {
             if (this._state !== STATES.RINGING_OUT) return;
@@ -152,7 +153,7 @@ export class CallManager {
         this._callId   = call_id;
         this._chatId   = chat_id;
         this._callType = call_type;
-        this._partner  = initiator;
+        this._partner  = this._resolvePartner(initiator);
         this._state    = STATES.RINGING_IN;
         startRingtone('incoming');
 
@@ -166,7 +167,7 @@ export class CallManager {
         showIncomingCallBanner({
             callId:    call_id,
             callType:  call_type,
-            initiator,
+            initiator: this._partner,
             onAccept:  (id, type) => this.acceptCall(id, type),
             onReject:  (id)       => this.rejectCall(id),
         });
@@ -179,13 +180,15 @@ export class CallManager {
         }
         this._callId = call_id;
         // Show overlay immediately for caller with "Звонок..."
-        const partnerName = this._partner?.display_name || this._partner?.username || 'Собеседник';
+        const partner = this._resolvePartner(this._partner);
+        this._partner = partner;
+        const partnerName = partner.display_name || partner.username || 'Собеседник';
         showActiveCallOverlay({
             callId:    call_id,
             callType:  this._callType,
             callRole: 'caller',
             partnerName,
-            partnerAvatar: this._partner?.avatar_url || '',
+            partnerAvatar: partner.avatar_url || '',
             localStream: null,  // media not yet acquired — will be set on accept
             onToggleAudio: () => false,
             onToggleVideo: () => false,
@@ -246,7 +249,7 @@ export class CallManager {
 
     _onPartnerMediaState({ call_id, audio_muted, video_enabled }) {
         if (call_id !== this._callId) return;
-        // Future: show partner mute indicator in UI
+        setRemoteVideoEnabled(Boolean(video_enabled));
     }
 
     // ── Signalling: WebRTC P2P ───────────────────────────────────────────────
@@ -318,13 +321,15 @@ export class CallManager {
         }
 
         // 3. Show call overlay with local preview
-        const partnerName = this._partner?.display_name || this._partner?.username || 'Собеседник';
+        const partner = this._resolvePartner(this._partner);
+        this._partner = partner;
+        const partnerName = partner.display_name || partner.username || 'Собеседник';
         showActiveCallOverlay({
             callId:    this._callId,
             callType:  this._callType,
             callRole: this._isPolite ? 'callee' : 'caller',
             partnerName,
-            partnerAvatar: this._partner?.avatar_url || '',
+            partnerAvatar: partner.avatar_url || '',
             localStream: this._media.getLocalStream(),
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
@@ -434,6 +439,19 @@ export class CallManager {
 
     _emit(event, data) {
         this._socket.emit(event, { ...data, csrf_token: this._getCsrfToken() });
+    }
+
+    _resolvePartner(partnerInfo = null) {
+        const seed = partnerInfo || {};
+        const fallback = this._resolvePartnerInfo?.(seed) || {};
+        return {
+            ...fallback,
+            ...seed,
+            display_name: seed.display_name || fallback.display_name || '',
+            username: seed.username || fallback.username || '',
+            avatar_url: seed.avatar_url || fallback.avatar_url || '',
+            user_id: seed.user_id || fallback.user_id || null,
+        };
     }
 
     _cleanup() {
