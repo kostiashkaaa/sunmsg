@@ -24,6 +24,7 @@ const DISALLOWED_PICKER_EMOJIS = new Set([
 const MOBILE_EMOJI_QUERY = '(max-width: 768px)';
 const EMOJI_CLOSE_ANIMATION_MS = 240;
 const MOBILE_EMOJI_CHAT_PIN_THRESHOLD = 96;
+const MOBILE_EMOJI_TAP_CANCEL_PX = 10;
 const CATEGORY_SCROLL_SYNC_OFFSET = 24;
 
 const EMOJI_INLINE_KEYWORDS = {
@@ -943,32 +944,9 @@ export function initEmojiPicker(messageInput) {
         await onCategoryClick(categoryButton);
     });
 
-    // Immediate tactile feedback: pop the emoji the moment the finger lands,
-    // before the (slightly later) click that actually inserts it.
-    const playEmojiTapFeedback = (itemButton) => {
-        if (!itemButton) return;
-        itemButton.classList.remove('emoji-item--tapped');
-        // Force reflow so the animation restarts on rapid repeated taps.
-        void itemButton.offsetWidth;
-        itemButton.classList.add('emoji-item--tapped');
-        window.setTimeout(() => {
-            itemButton.classList.remove('emoji-item--tapped');
-        }, 300);
-    };
-
-    emojiList.addEventListener('pointerdown', (event) => {
-        const itemButton = event.target.closest('.emoji-item');
-        if (!itemButton || !emojiList.contains(itemButton)) return;
-        playEmojiTapFeedback(itemButton);
-    }, { passive: true });
-
-    emojiList.addEventListener('click', (event) => {
-        const itemButton = event.target.closest('.emoji-item');
-        if (!itemButton || !emojiList.contains(itemButton)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const emoji = String(itemButton.dataset.emoji || '').trim();
-        if (!isAllowedPickerEmoji(emoji)) return;
+    const selectEmojiItem = (itemButton) => {
+        const emoji = String(itemButton?.dataset?.emoji || '').trim();
+        if (!isAllowedPickerEmoji(emoji)) return false;
 
         const selection = getStoredSelection();
         const shouldFocusAfterInsert = !(isMobileEmojiViewport() && emojiPicker.classList.contains('active'));
@@ -985,10 +963,95 @@ export function initEmojiPicker(messageInput) {
             if (updateRecentSectionInPlace(emojiList, strings)) {
                 lastDefaultRenderKey = buildDefaultRenderKey(localeCode);
                 defaultListNeedsRefresh = false;
-                return;
+                return true;
             }
         }
         defaultListNeedsRefresh = true;
+        return true;
+    };
+
+    // Immediate tactile feedback: pop the emoji the moment the finger lands,
+    // before the mobile pointerup/click path that actually inserts it.
+    const playEmojiTapFeedback = (itemButton) => {
+        if (!itemButton) return;
+        itemButton.classList.remove('emoji-item--tapped');
+        // Force reflow so the animation restarts on rapid repeated taps.
+        void itemButton.offsetWidth;
+        itemButton.classList.add('emoji-item--tapped');
+        window.setTimeout(() => {
+            itemButton.classList.remove('emoji-item--tapped');
+        }, 300);
+    };
+
+    let pendingEmojiPointer = null;
+    let suppressNextEmojiClick = false;
+    let suppressNextEmojiClickTimer = 0;
+
+    const clearPendingEmojiPointer = (pointerId) => {
+        if (!pendingEmojiPointer) return;
+        if (Number.isFinite(pointerId) && pendingEmojiPointer.pointerId !== pointerId) return;
+        pendingEmojiPointer = null;
+    };
+
+    const suppressNextClickAfterPointerSelect = () => {
+        suppressNextEmojiClick = true;
+        window.clearTimeout(suppressNextEmojiClickTimer);
+        suppressNextEmojiClickTimer = window.setTimeout(() => {
+            suppressNextEmojiClick = false;
+        }, 500);
+    };
+
+    emojiList.addEventListener('pointerdown', (event) => {
+        const itemButton = event.target.closest('.emoji-item');
+        if (!itemButton || !emojiList.contains(itemButton)) return;
+        playEmojiTapFeedback(itemButton);
+        if (!isMobileEmojiViewport() || event.pointerType === 'mouse' || event.isPrimary === false) return;
+        pendingEmojiPointer = {
+            pointerId: event.pointerId,
+            itemButton,
+            startX: event.clientX,
+            startY: event.clientY,
+            moved: false,
+        };
+    }, { passive: true });
+
+    emojiList.addEventListener('pointermove', (event) => {
+        const pending = pendingEmojiPointer;
+        if (!pending || pending.pointerId !== event.pointerId) return;
+        const dx = event.clientX - pending.startX;
+        const dy = event.clientY - pending.startY;
+        pending.moved = pending.moved || (dx * dx + dy * dy) > (MOBILE_EMOJI_TAP_CANCEL_PX * MOBILE_EMOJI_TAP_CANCEL_PX);
+    }, { passive: true });
+
+    emojiList.addEventListener('pointercancel', (event) => {
+        clearPendingEmojiPointer(event.pointerId);
+    }, { passive: true });
+
+    emojiList.addEventListener('pointerup', (event) => {
+        const pending = pendingEmojiPointer;
+        if (!pending || pending.pointerId !== event.pointerId) return;
+        pendingEmojiPointer = null;
+        const itemButton = event.target.closest('.emoji-item');
+        if (pending.moved || itemButton !== pending.itemButton || !emojiList.contains(itemButton)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        if (selectEmojiItem(itemButton)) {
+            suppressNextClickAfterPointerSelect();
+        }
+    });
+
+    emojiList.addEventListener('click', (event) => {
+        const itemButton = event.target.closest('.emoji-item');
+        if (!itemButton || !emojiList.contains(itemButton)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (suppressNextEmojiClick) {
+            suppressNextEmojiClick = false;
+            window.clearTimeout(suppressNextEmojiClickTimer);
+            return;
+        }
+        selectEmojiItem(itemButton);
     });
 
     emojiSearchInput.addEventListener('input', async () => {
