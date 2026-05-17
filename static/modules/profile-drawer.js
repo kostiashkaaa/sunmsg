@@ -602,7 +602,7 @@ export function renderProfileHeader(profile, { isChatBlocked, profileOnlineDot }
     if (nameEl) nameEl.textContent = displayName;
 
     const showUsername = !isSavedMessagesProfile && !isGroupProfile && !!username;
-    if (userEl) userEl.textContent = showUsername ? `@${username}` : '';
+    if (userEl) userEl.textContent = showUsername ? username : '';
     if (usernameLine) usernameLine.classList.toggle('profile-info-line--hidden', !showUsername);
 
     if (largeAvatar) {
