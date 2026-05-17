@@ -1333,12 +1333,11 @@
             .chat-area.emoji-sheet-open .chat-input-area {
                 transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0);
             }
-            /* When the keyboard is taking over, the composer must snap back
-               instantly (in sync with the instant sheet collapse) so it is not
-               left mid-animation under the keyboard. */
+            /* When the keyboard is taking over, stop the sheet transform
+               immediately; the app height is driven by visualViewport. */
             .chat-area.emoji-sheet-keyboard-handoff .chat-input-area {
                 transition: none !important;
-                transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0) !important;
+                transform: none !important;
             }
 
             .emoji-picker-topbar {
