@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 from app.routes.contacts_list_handlers import fetch_contacts_for_user
 from app.services.crypto import generate_chat_id
@@ -538,3 +539,167 @@ def test_fetch_contacts_for_user_prioritizes_draft_preview_and_timestamp(tmp_pat
     assert draft_contact['draft_text'] == 'draft text'
     assert draft_contact['draft_updated_at'] == '2026-01-01 12:00:00'
     assert draft_contact['sidebar_time_text'] == 'ru:2026-01-01 12:00:00'
+
+
+def test_fetch_contacts_for_user_ignores_expired_direct_messages_before_cleanup(tmp_path):
+    db_path = tmp_path / 'contacts-list-handlers-expired-direct.db'
+    now_ts = int(time.time())
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute('ALTER TABLE messages ADD COLUMN expires_at INTEGER')
+        conn.execute(
+            '''
+            INSERT INTO users (
+                id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, hide_online_status
+            )
+            VALUES
+                (1, 'alice', 'Alice', 'pk-1', NULL, 'all', 0, 0),
+                (2, 'bob', 'Bob', 'pk-2', NULL, 'all', 0, 0)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, 'chat-a')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (
+                chat_id, sender_id, receiver_id, message, is_read, is_delivered, created_at, expires_at
+            )
+            VALUES
+                ('chat-a', 2, 1, 'still visible', 1, 1, '2026-01-01 10:00:00', NULL),
+                ('chat-a', 2, 1, 'expired preview', 0, 1, '2026-01-01 10:05:00', ?)
+            ''',
+            (now_ts - 10,),
+        )
+        conn.commit()
+
+        contacts = fetch_contacts_for_user(
+            1,
+            conn,
+            language='ru',
+            normalize_language_func=lambda language, default='ru': language,
+            ensure_pinned_chats_table_func=lambda conn: None,
+            format_sidebar_time_func=lambda raw, *, language: f"{language}:{raw}",
+            build_initial_last_message_preview_func=lambda raw, *, blocked_by_me, blocked_me, language: raw or '',
+            get_safe_avatar_url_func=lambda row, viewer_id: None,
+            is_effectively_online_func=lambda pub, *, persisted=False: bool(persisted),
+            include_self_contact=False,
+        )
+
+    contact = next(item for item in contacts if item['chatId'] == 'chat-a')
+    assert contact['last_message'] == 'still visible'
+    assert contact['last_message_time'] == '2026-01-01 10:00:00'
+    assert contact['sidebar_time_text'] == 'ru:2026-01-01 10:00:00'
+    assert contact['unreadCount'] == 0
+
+
+def test_fetch_contacts_for_user_ignores_expired_group_messages_before_cleanup(tmp_path):
+    db_path = tmp_path / 'contacts-list-handlers-expired-group.db'
+    now_ts = int(time.time())
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute('ALTER TABLE chats ADD COLUMN chat_type TEXT')
+        conn.execute('ALTER TABLE messages ADD COLUMN expires_at INTEGER')
+        conn.execute(
+            '''
+            CREATE TABLE chat_members (
+                user_id INTEGER NOT NULL,
+                chat_id TEXT NOT NULL
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TABLE message_receipts (
+                message_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                is_read INTEGER NOT NULL DEFAULT 0,
+                is_delivered INTEGER NOT NULL DEFAULT 0,
+                deleted_for_user INTEGER NOT NULL DEFAULT 0
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TABLE chat_drafts (
+                user_id INTEGER NOT NULL,
+                chat_id TEXT NOT NULL,
+                draft_text TEXT NOT NULL,
+                updated_at TEXT,
+                PRIMARY KEY (user_id, chat_id)
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO users (
+                id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, hide_online_status
+            )
+            VALUES
+                (1, 'alice', 'Alice', 'pk-1', NULL, 'all', 0, 0),
+                (2, 'bob', 'Bob', 'pk-2', NULL, 'all', 0, 0)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_type)
+            VALUES ('group-a', 'Group A', 'group')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id)
+            VALUES (1, 'group-a'), (2, 'group-a')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (
+                id, chat_id, sender_id, receiver_id, message, is_read, is_delivered, created_at, expires_at
+            )
+            VALUES
+                (10, 'group-a', 2, 1, 'group visible', 1, 1, '2026-01-01 10:00:00', NULL),
+                (11, 'group-a', 2, 1, 'group expired preview', 0, 1, '2026-01-01 10:05:00', ?)
+            ''',
+            (now_ts - 10,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO message_receipts (message_id, user_id, is_read, is_delivered, deleted_for_user)
+            VALUES
+                (10, 1, 1, 1, 0),
+                (11, 1, 0, 1, 0)
+            '''
+        )
+        conn.commit()
+
+        contacts = fetch_contacts_for_user(
+            1,
+            conn,
+            language='ru',
+            normalize_language_func=lambda language, default='ru': language,
+            ensure_pinned_chats_table_func=lambda conn: conn.execute(
+                '''
+                CREATE TABLE IF NOT EXISTS pinned_chats (
+                    user_id INTEGER NOT NULL,
+                    chat_id TEXT NOT NULL,
+                    pin_order INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (user_id, chat_id)
+                )
+                '''
+            ),
+            format_sidebar_time_func=lambda raw, *, language: f"{language}:{raw}",
+            build_initial_last_message_preview_func=lambda raw, *, blocked_by_me, blocked_me, language: raw or '',
+            get_safe_avatar_url_func=lambda row, viewer_id: None,
+            is_effectively_online_func=lambda pub, *, persisted=False: bool(persisted),
+            include_self_contact=False,
+        )
+
+    group_contact = next(item for item in contacts if item['chatId'] == 'group-a')
+    assert group_contact['last_message'] == 'group visible'
+    assert group_contact['last_message_time'] == '2026-01-01 10:00:00'
+    assert group_contact['sidebar_time_text'] == 'ru:2026-01-01 10:00:00'
+    assert group_contact['unreadCount'] == 0
