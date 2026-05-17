@@ -23,6 +23,7 @@ from app.bootstrap.security import (
 from app.db.connection import close_request_db_connection
 from app.extensions import init_extensions
 from app.routes.auth import auth_bp
+from app.routes.call_routes import call_bp
 from app.routes.chat import chat_bp
 from app.routes.contacts import contacts_bp
 from app.routes.moderation import moderation_bp
@@ -112,6 +113,7 @@ def create_app(config_name=None, overrides=None):
     csrf.init_app(app)
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(call_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(moderation_bp)

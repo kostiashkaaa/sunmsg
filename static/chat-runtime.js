@@ -201,6 +201,7 @@ import { createComposerUploadState } from './modules/chat-composer-upload-state.
 import { createChatAnimationsController } from './modules/chat-animations.js';
 import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
 import { initWebPush } from './modules/web-push.js';
+import { CallManager } from './modules/call-manager.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
 import { syncE2EPillState as syncE2EPillStateFlow } from './chat/e2e-flows.js';
@@ -4122,6 +4123,43 @@ export const initChatPage = async () => {
         loadContacts,
         syncChatConnectionStatus,
     });
+
+    // ── Calls (P2P DTLS-SRTP, E2E) ───────────────────────────────────────────
+    const callManager = new CallManager({
+        socket,
+        getCsrfToken,
+        iceConfigUrl: '/call/ice-config',
+    });
+
+    const _callAudioBtn = document.getElementById('callAudioBtn');
+    const _callVideoBtn = document.getElementById('callVideoBtn');
+
+    const _showCallButtons = () => {
+        _callAudioBtn?.classList.remove('call-header-btn--hidden');
+        _callVideoBtn?.classList.remove('call-header-btn--hidden');
+    };
+    const _hideCallButtons = () => {
+        _callAudioBtn?.classList.add('call-header-btn--hidden');
+        _callVideoBtn?.classList.add('call-header-btn--hidden');
+    };
+
+    // Show call buttons only when a direct (non-saved) chat is open
+    document.addEventListener('sun:chat:opened', (e) => {
+        const chatType = e.detail?.chatType;
+        if (chatType === 'direct') _showCallButtons();
+        else _hideCallButtons();
+    });
+    document.addEventListener('sun:chat:closed', _hideCallButtons);
+
+    _callAudioBtn?.addEventListener('click', () => {
+        const chatId = window._currentChatId;
+        if (chatId) callManager.startCall(chatId, 'audio');
+    });
+    _callVideoBtn?.addEventListener('click', () => {
+        const chatId = window._currentChatId;
+        if (chatId) callManager.startCall(chatId, 'video');
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 
     wireBeforeUnloadCleanup({
         tabAlertController,

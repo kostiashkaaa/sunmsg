@@ -16,6 +16,17 @@ _NON_PERSISTED_CHAT_EVENTS = {
     'partner_stop_typing',
     'user_status',
     'force_leave_chat',
+    # Calls: transient WebRTC negotiation events
+    'call_incoming',
+    'call_accepted',
+    'call_rejected',
+    'call_cancelled',
+    'call_ended',
+    'call_error',
+    'call_media_state',
+    'call_offer',
+    'call_answer',
+    'call_ice_candidate',
 }
 _INTERNAL_EMIT_CACHE_KEY = '__sun_emit_cache__'
 _EMIT_CACHE_REUSE_WINDOW_SECONDS = 5.0

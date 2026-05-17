@@ -40,6 +40,7 @@ MESSAGE_ALBUM_ID_MIGRATION = (24, 'add_album_id_to_messages')
 USER_PRIVACY_CHOICES_MIGRATION = (25, 'add_user_privacy_choices')
 SPOTIFY_INTEGRATION_MIGRATION = (26, 'create_spotify_tables')
 USER_SESSION_AUTO_LOGOUT_MIGRATION = (27, 'add_user_session_auto_logout_seconds')
+CALLS_SCHEMA_MIGRATION = (28, 'create_call_sessions_and_participants_tables')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -645,6 +646,54 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
         )
         _record_migration(cursor, USER_SESSION_AUTO_LOGOUT_MIGRATION)
 
+def _run_calls_schema_migration(conn, cursor) -> None:
+    if migration_applied(cursor, CALLS_SCHEMA_MIGRATION[0]):
+        return
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS call_sessions (
+            call_id TEXT PRIMARY KEY,
+            chat_id TEXT NOT NULL REFERENCES chats(chat_id) ON DELETE CASCADE,
+            initiator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            call_type TEXT NOT NULL DEFAULT 'audio',
+            status TEXT NOT NULL DEFAULT 'ringing',
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            accepted_at TIMESTAMP DEFAULT NULL,
+            ended_at TIMESTAMP DEFAULT NULL,
+            duration_sec INTEGER DEFAULT NULL,
+            mediasoup_room_id TEXT DEFAULT NULL
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_sessions_chat_id ON call_sessions(chat_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_sessions_initiator ON call_sessions(initiator_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_sessions_status ON call_sessions(status)'
+    )
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS call_participants (
+            call_id TEXT NOT NULL REFERENCES call_sessions(call_id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            joined_at TIMESTAMP DEFAULT NULL,
+            left_at TIMESTAMP DEFAULT NULL,
+            was_muted INTEGER NOT NULL DEFAULT 0,
+            had_video INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (call_id, user_id)
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_call_participants_user ON call_participants(user_id)'
+    )
+    _record_migration(cursor, CALLS_SCHEMA_MIGRATION)
+    conn.commit()
+    logger.info('Migration: created call_sessions and call_participants tables')
+
 
 def run_migrations() -> None:
     global _chat_pins_schema_checked
@@ -675,6 +724,7 @@ def run_migrations() -> None:
         _run_group_chats_schema_backfill_migration(conn, cursor)
         _run_group_owner_role_backfill_migration(conn, cursor)
         _run_new_feature_schema_migrations(conn, cursor)
+        _run_calls_schema_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

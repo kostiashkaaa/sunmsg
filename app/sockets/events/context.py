@@ -53,6 +53,16 @@ _SOCKET_EVENT_RATE_LIMITS = {
     'unpin_message': (20, 60),
     'favorite_message': (30, 60),
     'unfavorite_message': (30, 60),
+    # Calls signalling
+    'call_initiate': (5, 60),
+    'call_accept': (15, 60),
+    'call_reject': (15, 60),
+    'call_cancel': (15, 60),
+    'call_end': (20, 60),
+    'call_media_state': (60, 60),
+    'call_offer': (10, 60),
+    'call_answer': (10, 60),
+    'call_ice_candidate': (300, 60),
 }
 _TYPING_EVENT_MIN_INTERVALS = {
     'typing': 2.5,
