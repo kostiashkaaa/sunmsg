@@ -4124,7 +4124,7 @@ export const initChatPage = async () => {
         syncChatConnectionStatus,
     });
 
-    // ── Calls (P2P DTLS-SRTP, E2E) ───────────────────────────────────────────
+    // ── Calls (P2P DTLS-SRTP transport encryption) ───────────────────────────
     const callManager = new CallManager({
         socket,
         getCsrfToken,

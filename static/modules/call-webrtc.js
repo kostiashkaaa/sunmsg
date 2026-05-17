@@ -8,6 +8,8 @@
  *     but NEVER holds media keys — it physically cannot decrypt the stream.
  *   - TURN server (coturn) relays encrypted RTP packets when P2P is blocked
  *     by NAT; coturn also cannot decrypt (keys stay in DTLS handshake).
+ *   - This is media transport encryption, not app-level identity verification:
+ *     preventing signalling-server MITM requires verified SDP fingerprints.
  *
  * Flow (caller):
  *   createOffer() → local SDP → send via call_offer →

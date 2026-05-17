@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 _CALL_STATUSES = {'ringing', 'active', 'ended', 'rejected', 'cancelled', 'missed', 'failed'}
@@ -75,8 +75,8 @@ def get_user_active_call(conn, user_id: int) -> dict | None:
     return dict(row)
 
 
-def accept_call(conn, call_id: str, user_id: int) -> None:
-    conn.execute(
+def accept_call(conn, call_id: str, user_id: int) -> bool:
+    updated = conn.execute(
         '''
         UPDATE call_sessions
         SET status = 'active', accepted_at = CURRENT_TIMESTAMP
@@ -84,6 +84,9 @@ def accept_call(conn, call_id: str, user_id: int) -> None:
         ''',
         (call_id,),
     )
+    if updated.rowcount <= 0:
+        conn.commit()
+        return False
     conn.execute(
         '''
         INSERT INTO call_participants (call_id, user_id, joined_at)
@@ -93,11 +96,12 @@ def accept_call(conn, call_id: str, user_id: int) -> None:
         (call_id, user_id),
     )
     conn.commit()
+    return True
 
 
-def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -> None:
+def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -> bool:
     now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-    conn.execute(
+    participant_update = conn.execute(
         '''
         UPDATE call_participants
         SET left_at = ?
@@ -105,6 +109,10 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
         ''',
         (now, call_id, user_id),
     )
+    if participant_update.rowcount <= 0:
+        conn.commit()
+        return False
+
     row = conn.execute(
         '''
         SELECT cs.started_at, cs.accepted_at, cs.status
@@ -115,7 +123,7 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
     ).fetchone()
     if row is None:
         conn.commit()
-        return
+        return False
 
     duration_sec = None
     if row['accepted_at']:
@@ -127,19 +135,20 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
         except Exception:
             pass
 
-    conn.execute(
+    updated = conn.execute(
         '''
         UPDATE call_sessions
         SET status = ?, ended_at = ?, duration_sec = ?
-        WHERE call_id = ? AND status NOT IN ('ended', 'rejected', 'cancelled', 'missed', 'failed')
+        WHERE call_id = ? AND status = 'active'
         ''',
         (final_status, now, duration_sec, call_id),
     )
     conn.commit()
+    return updated.rowcount > 0
 
 
-def reject_call(conn, call_id: str) -> None:
-    conn.execute(
+def reject_call(conn, call_id: str) -> bool:
+    updated = conn.execute(
         '''
         UPDATE call_sessions
         SET status = 'rejected', ended_at = CURRENT_TIMESTAMP
@@ -148,10 +157,11 @@ def reject_call(conn, call_id: str) -> None:
         (call_id,),
     )
     conn.commit()
+    return updated.rowcount > 0
 
 
-def cancel_call(conn, call_id: str) -> None:
-    conn.execute(
+def cancel_call(conn, call_id: str) -> bool:
+    updated = conn.execute(
         '''
         UPDATE call_sessions
         SET status = 'cancelled', ended_at = CURRENT_TIMESTAMP
@@ -160,26 +170,40 @@ def cancel_call(conn, call_id: str) -> None:
         (call_id,),
     )
     conn.commit()
+    return updated.rowcount > 0
 
 
-def mark_missed_calls(conn, chat_id: str) -> list[str]:
+def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
     """Mark ringing calls older than timeout as missed. Returns list of affected call_ids."""
-    rows = conn.execute(
-        '''
-        SELECT call_id FROM call_sessions
-        WHERE chat_id = ?
-          AND status = 'ringing'
-          AND started_at < CURRENT_TIMESTAMP - INTERVAL '? seconds'
-        ''',
-        (chat_id, _CALL_RING_TIMEOUT_SECONDS),
-    ).fetchall()
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(seconds=_CALL_RING_TIMEOUT_SECONDS)
+    ).strftime('%Y-%m-%d %H:%M:%S')
+    if chat_id is None:
+        rows = conn.execute(
+            '''
+            SELECT call_id FROM call_sessions
+            WHERE status = 'ringing'
+              AND started_at < ?
+            ''',
+            (cutoff,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            '''
+            SELECT call_id FROM call_sessions
+            WHERE chat_id = ?
+              AND status = 'ringing'
+              AND started_at < ?
+            ''',
+            (chat_id, cutoff),
+        ).fetchall()
     call_ids = [str(r['call_id']) for r in rows]
     for call_id in call_ids:
         conn.execute(
             '''
             UPDATE call_sessions
             SET status = 'missed', ended_at = CURRENT_TIMESTAMP
-            WHERE call_id = ?
+            WHERE call_id = ? AND status = 'ringing'
             ''',
             (call_id,),
         )
@@ -204,4 +228,3 @@ def get_call_history(conn, chat_id: str, *, limit: int = 50, offset: int = 0) ->
         (chat_id, limit, offset),
     ).fetchall()
     return [dict(r) for r in rows]
-

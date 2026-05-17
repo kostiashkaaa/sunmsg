@@ -11,9 +11,9 @@ from app.services.calls import (
     get_active_call_in_chat,
     get_call_session,
     get_user_active_call,
+    mark_missed_calls,
     reject_call,
 )
-from app.services.crypto import is_valid_chat_id
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +54,17 @@ def _is_chat_member(conn, chat_id: str, user_id: int) -> bool:
 
 def _is_call_participant(conn, call_id: str, user_id: int) -> bool:
     row = conn.execute(
-        'SELECT 1 FROM call_participants WHERE call_id = %s AND user_id = %s',
+        'SELECT 1 FROM call_participants WHERE call_id = %s AND user_id = %s AND left_at IS NULL',
         (call_id, user_id),
     ).fetchone()
     return row is not None
+
+
+def _refresh_stale_ringing_call(conn, call: dict | None) -> dict | None:
+    if call is None or call['status'] != 'ringing':
+        return call
+    mark_missed_calls(conn, call['chat_id'])
+    return get_call_session(conn, call['call_id'])
 
 
 # ── Lifecycle handlers ────────────────────────────────────────────────────────
@@ -90,6 +97,8 @@ def handle_call_initiate(
         if not _is_chat_member(conn, chat_id, user_id):
             emit_func('call_error', {'error': 'not_member', 'request_id': request_id})
             return
+
+        mark_missed_calls(conn)
 
         existing = get_active_call_in_chat(conn, chat_id)
         if existing:
@@ -154,16 +163,24 @@ def handle_call_accept(
 
     conn = get_db_connection_func(request_scoped=False)
     try:
-        call = get_call_session(conn, call_id)
+        call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
         if call is None or call['status'] != 'ringing':
             emit_func('call_error', {'error': 'call_not_found_or_expired', 'call_id': call_id, 'request_id': request_id})
             return
+
+        if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
+            emit_func('call_error', {'error': 'not_member', 'call_id': call_id, 'request_id': request_id})
+            return
+
+        mark_missed_calls(conn)
 
         if get_user_active_call(conn, user_id):
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
             return
 
-        accept_call(conn, call_id, user_id)
+        if not accept_call(conn, call_id, user_id):
+            emit_func('call_error', {'error': 'call_not_found_or_expired', 'call_id': call_id, 'request_id': request_id})
+            return
 
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id},
@@ -191,13 +208,18 @@ def handle_call_reject(
 
     call_id    = str(data.get('call_id')    or '').strip()
     request_id = str(data.get('request_id') or '').strip() or None
+    if not call_id:
+        return
 
     conn = get_db_connection_func(request_scoped=False)
     try:
-        call = get_call_session(conn, call_id)
-        if call is None:
+        call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
+        if call is None or call['status'] != 'ringing':
             return
-        reject_call(conn, call_id)
+        if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
+            return
+        if not reject_call(conn, call_id):
+            return
         emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id},
                   to=f'user_{call["initiator_id"]}')
         emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
@@ -225,10 +247,11 @@ def handle_call_cancel(
 
     conn = get_db_connection_func(request_scoped=False)
     try:
-        call = get_call_session(conn, call_id)
-        if call is None or call['initiator_id'] != user_id:
+        call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
+        if call is None or call['status'] != 'ringing' or int(call['initiator_id']) != int(user_id):
             return
-        cancel_call(conn, call_id)
+        if not cancel_call(conn, call_id):
+            return
         for pid in _chat_members(conn, call['chat_id'], user_id):
             emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
         emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id})
@@ -257,9 +280,12 @@ def handle_call_end(
     conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
-        if call is None:
+        if call is None or call['status'] != 'active':
             return
-        end_call(conn, call_id, user_id, final_status='ended')
+        if not _is_call_participant(conn, call_id, user_id):
+            return
+        if not end_call(conn, call_id, user_id, final_status='ended'):
+            return
         updated  = get_call_session(conn, call_id)
         duration = updated['duration_sec'] if updated else None
 
@@ -296,6 +322,8 @@ def handle_call_media_state(
         call = get_call_session(conn, call_id)
         if call is None or call['status'] != 'active':
             return
+        if not _is_call_participant(conn, call_id, user_id):
+            return
         for pid in _chat_members(conn, call['chat_id'], user_id):
             emit_func('call_media_state', {
                 'call_id': call_id, 'user_id': user_id,
@@ -309,7 +337,7 @@ def handle_call_media_state(
 
 # ── P2P WebRTC signal relay ───────────────────────────────────────────────────
 # The server relays SDP offer/answer and ICE candidates between the two peers.
-# It never decrypts or inspects the DTLS handshake — full E2E security.
+# It never decrypts media; SDP still requires trusting the signalling server.
 
 def handle_call_webrtc_signal(
     data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
@@ -330,14 +358,14 @@ def handle_call_webrtc_signal(
     conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
-        if call is None:
+        if call is None or call['status'] != 'active':
             return
 
         # Verify sender is a participant (either initiator or acceptee)
         if not _is_call_participant(conn, call_id, user_id):
             return
 
-        payload = {k: v for k, v in data.items() if k != '_csrf_token'}
+        payload = {k: v for k, v in data.items() if k not in ('csrf_token', '_csrf_token')}
         payload['from_user_id'] = user_id
 
         # Relay to the other participant only

@@ -215,17 +215,154 @@ def test_call_lifecycle_and_webrtc_signal_reach_peer_user_room(monkeypatch, tmp_
             {'call_id': call_id, 'sdp': offer_sdp, 'csrf_token': alice_csrf},
         )
         relayed_offers = _wait_for_event_payloads(bob_socket, 'call_offer')
-        assert any(
-            payload['call_id'] == call_id
+        relayed_offer = next(
+            payload for payload in relayed_offers
+            if payload['call_id'] == call_id
             and payload['from_user_id'] == 1
             and payload['sdp'] == offer_sdp
-            for payload in relayed_offers
         )
+        assert relayed_offer['call_id'] == call_id
+        assert 'csrf_token' not in relayed_offer
+        assert '_csrf_token' not in relayed_offer
+
+        bob_socket.emit('call_reject', {'call_id': call_id, 'csrf_token': bob_csrf})
+        rejected_after_accept = _wait_for_event_payloads(alice_socket, 'call_rejected', timeout=0.1)
+        assert rejected_after_accept == []
+        with _connect(db_path) as conn:
+            row = conn.execute(
+                'SELECT status FROM call_sessions WHERE call_id = ?',
+                (call_id,),
+            ).fetchone()
+        assert row['status'] == 'active'
     finally:
         if alice_socket.is_connected():
             alice_socket.disconnect()
         if bob_socket.is_connected():
             bob_socket.disconnect()
+
+
+def test_stale_ringing_call_is_missed_before_new_call(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-stale.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+    old_started_at = (datetime.now(timezone.utc) - timedelta(seconds=120)).strftime('%Y-%m-%d %H:%M:%S')
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO call_sessions (call_id, chat_id, initiator_id, call_type, status, started_at)
+            VALUES ('stale-call', ?, 1, 'audio', 'ringing', ?)
+            ''',
+            (chat_id, old_started_at),
+        )
+        conn.execute(
+            '''
+            INSERT INTO call_participants (call_id, user_id, joined_at)
+            VALUES ('stale-call', 1, ?)
+            ''',
+            (old_started_at,),
+        )
+        conn.commit()
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+
+    try:
+        assert alice_socket.is_connected()
+        alice_socket.get_received()
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+
+        initiated = _wait_for_event_payloads(alice_socket, 'call_initiated')
+        assert len(initiated) == 1
+        new_call_id = initiated[0]['call_id']
+        assert new_call_id != 'stale-call'
+
+        with _connect(db_path) as conn:
+            stale = conn.execute(
+                'SELECT status FROM call_sessions WHERE call_id = ?',
+                ('stale-call',),
+            ).fetchone()
+            fresh = conn.execute(
+                'SELECT status FROM call_sessions WHERE call_id = ?',
+                (new_call_id,),
+            ).fetchone()
+        assert stale['status'] == 'missed'
+        assert fresh['status'] == 'ringing'
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+
+
+def test_non_participant_cannot_control_active_call(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-authz.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (3, 'pk-3', 'mallory', 'Mallory')
+            '''
+        )
+        conn.commit()
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    bob_http, bob_csrf = _prepare_http_client(app, 2, 'pk-2')
+    mallory_http, mallory_csrf = _prepare_http_client(app, 3, 'pk-3')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+    bob_socket = _socket_client(app, bob_http, bob_csrf)
+    mallory_socket = _socket_client(app, mallory_http, mallory_csrf)
+
+    try:
+        assert alice_socket.is_connected()
+        assert bob_socket.is_connected()
+        assert mallory_socket.is_connected()
+        alice_socket.get_received()
+        bob_socket.get_received()
+        mallory_socket.get_received()
+
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+        call_id = _wait_for_event_payloads(alice_socket, 'call_initiated')[0]['call_id']
+        _wait_for_event_payloads(bob_socket, 'call_incoming')
+        bob_socket.emit('call_accept', {'call_id': call_id, 'csrf_token': bob_csrf})
+        assert _wait_for_event_payloads(alice_socket, 'call_accepted')
+
+        mallory_socket.emit('call_end', {'call_id': call_id, 'csrf_token': mallory_csrf})
+        mallory_socket.emit(
+            'call_media_state',
+            {'call_id': call_id, 'audio_muted': True, 'video_enabled': False, 'csrf_token': mallory_csrf},
+        )
+        mallory_socket.emit(
+            'call_offer',
+            {'call_id': call_id, 'sdp': {'type': 'offer', 'sdp': 'v=0\r\n'}, 'csrf_token': mallory_csrf},
+        )
+
+        assert _wait_for_event_payloads(alice_socket, 'call_ended', timeout=0.1) == []
+        assert _wait_for_event_payloads(bob_socket, 'call_media_state', timeout=0.1) == []
+        assert _wait_for_event_payloads(bob_socket, 'call_offer', timeout=0.1) == []
+        with _connect(db_path) as conn:
+            row = conn.execute(
+                'SELECT status FROM call_sessions WHERE call_id = ?',
+                (call_id,),
+            ).fetchone()
+        assert row['status'] == 'active'
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+        if bob_socket.is_connected():
+            bob_socket.disconnect()
+        if mallory_socket.is_connected():
+            mallory_socket.disconnect()
 
 
 def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch, tmp_path):
