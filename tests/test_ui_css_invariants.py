@@ -1349,8 +1349,14 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     assert "let nextAppVh = '100dvh'" in viewport, (
         'mobile-viewport.js: app height must fall back to native 100dvh while keyboard handling is active'
     )
-    assert 'if (!keyboardActive && vvHeight > 0)' in viewport, (
-        'mobile-viewport.js: closed-keyboard mobile reload must bind app height to visualViewport.height'
+    assert 'const composerFocused = Boolean(' in viewport, (
+        'mobile-viewport.js: composer focus must keep keyboard layout on native 100dvh'
+    )
+    assert "activeElement.closest?.('#messageForm, #composerRow')" in viewport, (
+        'mobile-viewport.js: composer focus guard must target the message composer only'
+    )
+    assert 'if (!keyboardActive && !composerFocused && vvHeight > 0)' in viewport, (
+        'mobile-viewport.js: idle mobile reload must bind app height to visualViewport.height'
     )
     assert "root.style.setProperty('--app-vh', nextAppVh)" in viewport, (
         'mobile-viewport.js: measured app height must be written through --app-vh'
@@ -1384,7 +1390,7 @@ def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_mo
     assert 'const vvHeight = roundedPx(vv.height)' in viewport
     assert 'keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
     assert 'keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0' in viewport
-    assert 'if (!keyboardActive && vvHeight > 0)' in viewport
+    assert 'if (!keyboardActive && !composerFocused && vvHeight > 0)' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
 
     app_blocks = re.findall(r'\.app\s*\{([^}]*)\}', css, re.DOTALL)

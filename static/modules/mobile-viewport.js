@@ -13,7 +13,7 @@ function isCoarsePointer() {
  *
  * Layout stays native while the keyboard is active. With the keyboard closed,
  * iOS Safari can resolve `100dvh` before the bottom browser chrome settles
- * after reload, so the app height follows the real visual viewport.
+ * after reload, so the idle app height follows the real visual viewport.
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
@@ -24,6 +24,12 @@ export function createVisualViewportCssSyncer(_options = {}) {
 
         const vv = window.visualViewport;
         const isTouchViewport = isCoarsePointer();
+        const activeElement = document.activeElement;
+        const composerFocused = Boolean(
+            activeElement
+            && activeElement !== document.body
+            && activeElement.closest?.('#messageForm, #composerRow')
+        );
         let keyboardActive = false;
         let keyboardInset = 0;
         let nextAppVh = '100dvh';
@@ -33,7 +39,7 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const vvTop = roundedPx(vv.offsetTop);
             keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
             keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0;
-            if (!keyboardActive && vvHeight > 0) {
+            if (!keyboardActive && !composerFocused && vvHeight > 0) {
                 nextAppVh = `${vvHeight}px`;
             }
         }
