@@ -37,12 +37,13 @@ function buildTimeFormatOptions() {
 }
 
 let profileLocaleListenerBound = false;
-let profileSpotifyProgressTimer = 0;
+let profileSpotifyProgressFrame = 0;
+let profileSpotifyVisibilityTimer = 0;
 
 function stopProfileSpotifyProgressTimer() {
-    if (!profileSpotifyProgressTimer) return;
-    window.clearInterval(profileSpotifyProgressTimer);
-    profileSpotifyProgressTimer = 0;
+    if (!profileSpotifyProgressFrame) return;
+    window.cancelAnimationFrame(profileSpotifyProgressFrame);
+    profileSpotifyProgressFrame = 0;
 }
 
 function updateProfileSpotifyProgress() {
@@ -63,13 +64,75 @@ function updateProfileSpotifyProgress() {
 
     const elapsedMs = updatedAtMs > 0 ? Math.max(0, Date.now() - updatedAtMs) : 0;
     const liveProgressMs = Math.min(durationMs, Math.max(0, progressMs + elapsedMs));
-    fillEl.style.width = `${Math.min(100, Math.round((liveProgressMs / durationMs) * 100))}%`;
+    const progressPct = Math.min(100, (liveProgressMs / durationMs) * 100);
+    fillEl.style.width = `${progressPct.toFixed(3)}%`;
+    profileSpotifyProgressFrame = window.requestAnimationFrame(updateProfileSpotifyProgress);
 }
 
 function startProfileSpotifyProgressTimer() {
     stopProfileSpotifyProgressTimer();
-    updateProfileSpotifyProgress();
-    profileSpotifyProgressTimer = window.setInterval(updateProfileSpotifyProgress, 1000);
+    profileSpotifyProgressFrame = window.requestAnimationFrame(updateProfileSpotifyProgress);
+}
+
+function clearProfileSpotifyVisibilityTimer() {
+    if (!profileSpotifyVisibilityTimer) return;
+    window.clearTimeout(profileSpotifyVisibilityTimer);
+    profileSpotifyVisibilityTimer = 0;
+}
+
+function showProfileSpotifyCard(card) {
+    clearProfileSpotifyVisibilityTimer();
+    if (!card.hidden && !card.classList.contains('profile-spotify-card--hiding')) return;
+
+    card.hidden = false;
+    card.setAttribute('aria-hidden', 'false');
+    card.classList.remove('profile-spotify-card--hiding');
+    card.classList.add('profile-spotify-card--revealing');
+    card.style.height = '0px';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-6px)';
+
+    window.requestAnimationFrame(() => {
+        card.style.height = `${card.scrollHeight}px`;
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+    });
+
+    profileSpotifyVisibilityTimer = window.setTimeout(() => {
+        card.classList.remove('profile-spotify-card--revealing');
+        card.style.removeProperty('height');
+        card.style.removeProperty('opacity');
+        card.style.removeProperty('transform');
+        profileSpotifyVisibilityTimer = 0;
+    }, 260);
+}
+
+function hideProfileSpotifyCard(card) {
+    stopProfileSpotifyProgressTimer();
+    clearProfileSpotifyVisibilityTimer();
+    card.setAttribute('aria-hidden', 'true');
+    if (card.hidden) return;
+
+    card.classList.remove('profile-spotify-card--revealing');
+    card.classList.add('profile-spotify-card--hiding');
+    card.style.height = `${card.scrollHeight}px`;
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+
+    window.requestAnimationFrame(() => {
+        card.style.height = '0px';
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(-6px)';
+    });
+
+    profileSpotifyVisibilityTimer = window.setTimeout(() => {
+        card.hidden = true;
+        card.classList.remove('profile-spotify-card--hiding');
+        card.style.removeProperty('height');
+        card.style.removeProperty('opacity');
+        card.style.removeProperty('transform');
+        profileSpotifyVisibilityTimer = 0;
+    }, 260);
 }
 
 function formatSavedMessageCountLabel(rawCount) {
@@ -724,9 +787,7 @@ export function renderProfileSpotifyStatus(profile) {
     const isPlaying = sp?.is_playing === true;
 
     if (!isPlaying) {
-        stopProfileSpotifyProgressTimer();
-        card.hidden = true;
-        card.setAttribute('aria-hidden', 'true');
+        hideProfileSpotifyCard(card);
         return;
     }
 
@@ -764,8 +825,7 @@ export function renderProfileSpotifyStatus(profile) {
     card.dataset.spotifyDurationMs = String(Math.max(0, Number(sp.duration_ms) || 0));
     card.dataset.spotifyUpdatedAtMs = String(Math.max(0, Number(sp.updated_at) || 0) * 1000);
 
-    card.hidden = false;
-    card.setAttribute('aria-hidden', 'false');
+    showProfileSpotifyCard(card);
     if (fillEl) startProfileSpotifyProgressTimer();
 }
 

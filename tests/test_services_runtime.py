@@ -728,7 +728,7 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
     })
     spotify_job = spotify_scheduler.get_job('poll_spotify_now_playing')
     assert spotify_job is not None
-    assert spotify_job.trigger.interval.total_seconds() == 15
+    assert spotify_job.trigger.interval.total_seconds() == 10
 
     class FakeScheduler:
         def __init__(self):
@@ -788,6 +788,7 @@ def test_spotify_scheduler_poll_uses_stored_config(monkeypatch):
     calls = []
     monkeypatch.setattr(scheduler_runtime, '_spotify_poll_client_id', 'spotify-client')
     monkeypatch.setattr(scheduler_runtime, '_spotify_poll_client_secret', 'spotify-secret')
+    monkeypatch.setattr(scheduler_runtime, '_broadcast_spotify_status', lambda conn, user_id, status: None)
 
     monkeypatch.setattr(scheduler_runtime, 'get_db_connection', lambda: next(conns))
     monkeypatch.setattr(spotify, 'get_connected_user_ids', lambda conn: [42])
@@ -802,6 +803,45 @@ def test_spotify_scheduler_poll_uses_stored_config(monkeypatch):
     scheduler_runtime.poll_spotify_now_playing()
 
     assert calls == [(42, 'spotify-client', 'spotify-secret')]
+
+
+def test_spotify_scheduler_broadcasts_realtime_status(monkeypatch):
+    class QueryResult:
+        def __init__(self, *, one=None, rows=None):
+            self.one = one
+            self.rows = rows or []
+
+        def fetchone(self):
+            return self.one
+
+        def fetchall(self):
+            return self.rows
+
+    class FakeConn:
+        def execute(self, sql, params=()):
+            if 'FROM users' in sql:
+                return QueryResult(one={'public_key': 'owner-pk'})
+            if 'FROM contacts' in sql:
+                return QueryResult(rows=[{'public_key': 'viewer-pk'}])
+            return QueryResult()
+
+    emitted = []
+    monkeypatch.setattr(
+        scheduler_runtime,
+        '_emit_spotify_socket_event',
+        lambda event, payload, *, room: emitted.append((event, payload, room)),
+    )
+
+    status = {'is_playing': True, 'track': 'Song'}
+    scheduler_runtime._broadcast_spotify_status(FakeConn(), 42, status)
+
+    assert {
+        (event, room, payload['user_id'], payload['public_key'], payload['spotify_status']['track'])
+        for event, payload, room in emitted
+    } == {
+        ('spotify_status_updated', 'owner-pk', 42, 'owner-pk', 'Song'),
+        ('spotify_status_updated', 'viewer-pk', 42, 'owner-pk', 'Song'),
+    }
 
 
 def test_web_runtime_logging_and_server_modes(monkeypatch, tmp_path):

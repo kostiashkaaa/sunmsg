@@ -3,6 +3,7 @@ import time
 from threading import Lock
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from flask_socketio import SocketIO
 
 from app.database import get_db_connection
 from app.services.refresh_tokens import cleanup_expired as cleanup_expired_refresh
@@ -16,18 +17,88 @@ _scheduler_started = False
 _scheduler_instance = None
 _spotify_poll_client_id = ''
 _spotify_poll_client_secret = ''
+_spotify_socket_message_queue = ''
+_spotify_socket_publisher = None
 
 
 def _configure_spotify_polling(config=None) -> int:
-    global _spotify_poll_client_id, _spotify_poll_client_secret
+    global _spotify_poll_client_id, _spotify_poll_client_secret, _spotify_socket_message_queue, _spotify_socket_publisher
     cfg = config or {}
     _spotify_poll_client_id = str(cfg.get('SPOTIFY_CLIENT_ID') or '').strip()
     _spotify_poll_client_secret = str(cfg.get('SPOTIFY_CLIENT_SECRET') or '').strip()
+    next_queue = str(cfg.get('SOCKETIO_MESSAGE_QUEUE') or '').strip()
+    if next_queue != _spotify_socket_message_queue:
+        _spotify_socket_publisher = None
+    _spotify_socket_message_queue = next_queue
     try:
         interval = int(cfg.get('SPOTIFY_POLLING_INTERVAL_SECONDS') or 30)
     except (TypeError, ValueError):
         interval = 30
-    return max(15, interval)
+    return max(5, interval)
+
+
+def _get_spotify_socket_publisher():
+    global _spotify_socket_publisher
+    if not _spotify_socket_message_queue:
+        return None
+    if _spotify_socket_publisher is None:
+        _spotify_socket_publisher = SocketIO(message_queue=_spotify_socket_message_queue)
+    return _spotify_socket_publisher
+
+
+def _emit_spotify_socket_event(event_name: str, payload: dict, *, room: str) -> None:
+    room_name = str(room or '').strip()
+    if not room_name:
+        return
+
+    publisher = _get_spotify_socket_publisher()
+    if publisher is not None:
+        publisher.emit(event_name, payload, room=room_name)
+        return
+
+    from app.extensions import socketio
+
+    socketio.emit(event_name, payload, room=room_name)
+
+
+def _spotify_realtime_rooms(conn, user_id: int) -> set[str]:
+    from app.services.blocking import list_visible_contact_public_keys
+
+    rooms: set[str] = set()
+    owner = conn.execute(
+        'SELECT public_key FROM users WHERE id = ?',
+        (user_id,),
+    ).fetchone()
+    owner_public_key = str(owner['public_key'] or '').strip() if owner else ''
+    if owner_public_key:
+        rooms.add(owner_public_key)
+
+    for row in list_visible_contact_public_keys(conn, user_id):
+        public_key = str(row['public_key'] or '').strip()
+        if public_key:
+            rooms.add(public_key)
+    return rooms
+
+
+def _broadcast_spotify_status(conn, user_id: int, spotify_status: dict | None) -> None:
+    owner = conn.execute(
+        'SELECT public_key FROM users WHERE id = ?',
+        (user_id,),
+    ).fetchone()
+    owner_public_key = str(owner['public_key'] or '').strip() if owner else ''
+    if not owner_public_key:
+        return
+
+    payload = {
+        'user_id': int(user_id),
+        'public_key': owner_public_key,
+        'spotify_status': spotify_status,
+    }
+    for room in _spotify_realtime_rooms(conn, user_id):
+        try:
+            _emit_spotify_socket_event('spotify_status_updated', payload, room=room)
+        except Exception:
+            logger.debug('Spotify realtime emit failed for room %s user %s', room, user_id, exc_info=True)
 
 
 def poll_spotify_now_playing():
@@ -51,7 +122,8 @@ def poll_spotify_now_playing():
     for uid in user_ids:
         conn = get_db_connection()
         try:
-            poll_and_update(conn, uid, client_id, client_secret)
+            spotify_status = poll_and_update(conn, uid, client_id, client_secret)
+            _broadcast_spotify_status(conn, uid, spotify_status)
         except Exception:
             logger.warning('Spotify poll failed for user %s', uid, exc_info=True)
         finally:

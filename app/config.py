@@ -453,7 +453,7 @@ class BaseConfig:
             'SPOTIFY_CLIENT_ID': str(os.environ.get('SPOTIFY_CLIENT_ID') or '').strip(),
             'SPOTIFY_CLIENT_SECRET': str(os.environ.get('SPOTIFY_CLIENT_SECRET') or '').strip(),
             'SPOTIFY_REDIRECT_URI': str(os.environ.get('SPOTIFY_REDIRECT_URI') or '').strip(),
-            'SPOTIFY_POLLING_INTERVAL_SECONDS': max(15, _env_int('SPOTIFY_POLLING_INTERVAL_SECONDS', cls.SPOTIFY_POLLING_INTERVAL_SECONDS)),
+            'SPOTIFY_POLLING_INTERVAL_SECONDS': max(5, _env_int('SPOTIFY_POLLING_INTERVAL_SECONDS', cls.SPOTIFY_POLLING_INTERVAL_SECONDS)),
         }
 
 

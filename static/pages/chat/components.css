@@ -7387,10 +7387,20 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            transition:
+                height 0.24s var(--ease-quick),
+                opacity 0.2s var(--ease-quick),
+                transform 0.24s var(--ease-quick);
+            will-change: height, opacity, transform;
         }
 
         .profile-spotify-card[hidden] {
             display: none;
+        }
+
+        .profile-spotify-card--hiding,
+        .profile-spotify-card--revealing {
+            pointer-events: none;
         }
 
         .profile-spotify-label {
@@ -7484,7 +7494,7 @@
             height: 100%;
             border-radius: 2px;
             background: #1DB954;
-            transition: width 0.4s linear;
+            transition: none;
         }
 
         .profile-info-card,
