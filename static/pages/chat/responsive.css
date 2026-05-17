@@ -661,7 +661,7 @@
                visualViewport resize events. */
             .app {
                 position: fixed;
-                top: 0;
+                top: var(--vv-top-offset, 0px);
                 right: 0;
                 left: 0;
                 /* No `bottom` — anchoring both top and bottom would stretch the

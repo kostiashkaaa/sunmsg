@@ -33,13 +33,18 @@ export function createVisualViewportCssSyncer(_options = {}) {
         let keyboardActive = false;
         let keyboardInset = 0;
         let nextAppVh = '100dvh';
+        let nextViewportTop = '0px';
+        let nextViewportLeft = '0px';
         if (vv && isTouchViewport) {
             const vvHeight = roundedPx(vv.height);
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
             const vvTop = roundedPx(vv.offsetTop);
+            const vvLeft = roundedPx(vv.offsetLeft);
             if (vvHeight > 0) {
                 nextAppVh = `${vvHeight}px`;
             }
+            nextViewportTop = `${vvTop}px`;
+            nextViewportLeft = `${vvLeft}px`;
             const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop);
             const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22));
             const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
@@ -52,6 +57,12 @@ export function createVisualViewportCssSyncer(_options = {}) {
         }
         if (root.style.getPropertyValue('--app-vw') !== '100%') {
             root.style.setProperty('--app-vw', '100%');
+        }
+        if (root.style.getPropertyValue('--vv-top-offset') !== nextViewportTop) {
+            root.style.setProperty('--vv-top-offset', nextViewportTop);
+        }
+        if (root.style.getPropertyValue('--vv-left-offset') !== nextViewportLeft) {
+            root.style.setProperty('--vv-left-offset', nextViewportLeft);
         }
         const nextKeyboardInset = `${keyboardInset}px`;
         if (root.style.getPropertyValue('--vv-keyboard-inset') !== nextKeyboardInset) {

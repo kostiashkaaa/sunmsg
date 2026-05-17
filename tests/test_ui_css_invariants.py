@@ -1343,6 +1343,8 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     for token in (
         '--app-vh',
         '--app-vw',
+        '--vv-top-offset',
+        '--vv-left-offset',
         '--vv-keyboard-inset',
     ):
         assert token in viewport, f'mobile-viewport.js: missing CSS var sync for {token}'
@@ -1388,7 +1390,11 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert 'minimum-scale=1' in head
 
     assert 'const vvHeight = roundedPx(vv.height)' in viewport
+    assert 'const vvTop = roundedPx(vv.offsetTop)' in viewport
+    assert 'const vvLeft = roundedPx(vv.offsetLeft)' in viewport
     assert 'nextAppVh = `${vvHeight}px`' in viewport
+    assert 'nextViewportTop = `${vvTop}px`' in viewport
+    assert 'nextViewportLeft = `${vvLeft}px`' in viewport
     assert 'const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop)' in viewport
     assert 'const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22))' in viewport
     assert 'const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
@@ -1397,8 +1403,8 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
 
     app_blocks = re.findall(r'\.app\s*\{([^}]*)\}', css, re.DOTALL)
-    assert any('top: 0' in block for block in app_blocks), (
-        'mobile .app should stay top-pinned in the native resizes-content model'
+    assert any('top: var(--vv-top-offset, 0px)' in block for block in app_blocks), (
+        'mobile .app should follow visualViewport.offsetTop when iOS pans the keyboard viewport'
     )
     assert any('bottom: auto' in block for block in app_blocks), (
         'mobile .app should size by --app-vh instead of stretching top-to-bottom'
