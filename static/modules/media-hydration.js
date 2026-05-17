@@ -103,7 +103,9 @@ export function createMediaHydrationController(options = {}) {
 
         if (isAudio && !force) return false;
         if (isAudio) {
-            mediaEl.setAttribute('src', dataSrc);
+            resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
+                .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc); })
+                .catch(() => { assignHydratedSource(mediaEl, dataSrc); });
             return true;
         }
 

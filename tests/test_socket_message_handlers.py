@@ -1,7 +1,10 @@
+import base64
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 from app.sockets.message_handlers import (
+    _is_valid_e2ee_message_payload,
     _partition_delete_rows,
     _validate_send_payload,
     handle_delete_messages_event,
@@ -12,9 +15,34 @@ from app.db_backend import DatabaseError
 from tests._pg_test_db import connect_test_db
 from app.sockets.validation import parse_db_utc_timestamp
 
+_E2EE_CIPHERTEXT = base64.b64encode(b'c' * 32).decode('ascii')
+_E2EE_IV = base64.b64encode(b'i' * 12).decode('ascii')
+_E2EE_KEY = base64.b64encode(b'k' * 256).decode('ascii')
+_E2EE_SIGNATURE = base64.b64encode(b's' * 256).decode('ascii')
+E2EE_DIRECT_MESSAGE = json.dumps({
+    'encrypted_message': _E2EE_CIPHERTEXT,
+    'encrypted_key_receiver': _E2EE_KEY,
+    'encrypted_key_sender': _E2EE_KEY,
+    'iv': _E2EE_IV,
+    'signature': _E2EE_SIGNATURE,
+})
+E2EE_GROUP_MESSAGE = json.dumps({
+    'encrypted_message': _E2EE_CIPHERTEXT,
+    'encrypted_keys': [_E2EE_KEY],
+    'iv': _E2EE_IV,
+    'signature': _E2EE_SIGNATURE,
+})
+
 
 def _connect(db_path: Path):
     return connect_test_db(db_path)
+
+
+def test_e2ee_payload_validation_rejects_plaintext_and_wrong_group_envelope():
+    assert _is_valid_e2ee_message_payload('hello', chat_type='direct') is False
+    assert _is_valid_e2ee_message_payload(E2EE_DIRECT_MESSAGE, chat_type='direct') is True
+    assert _is_valid_e2ee_message_payload(E2EE_DIRECT_MESSAGE, chat_type='group') is False
+    assert _is_valid_e2ee_message_payload(E2EE_GROUP_MESSAGE, chat_type='group') is True
 
 
 def test_validate_send_payload_preserves_request_id_on_rate_limit_error():
@@ -23,7 +51,7 @@ def test_validate_send_payload_preserves_request_id_on_rate_limit_error():
     result = _validate_send_payload(
         {
             'chat_id': 'chat-a',
-            'message': 'hello',
+            'message': E2EE_DIRECT_MESSAGE,
             'message_type': 'text',
             'request_id': 'client-123',
         },
@@ -245,7 +273,7 @@ def test_handle_edit_message_event_updates_message_and_emits(tmp_path):
     emitted = []
 
     handle_edit_message_event(
-        {'msg_id': 10, 'new_content': 'new text', 'chat_id': 'chat-a', 'message_type': 'text'},
+        {'msg_id': 10, 'new_content': E2EE_DIRECT_MESSAGE, 'chat_id': 'chat-a', 'message_type': 'text'},
         session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
         require_payload_dict_func=lambda payload: payload,
         socket_csrf_ok_func=lambda payload: True,
@@ -269,7 +297,7 @@ def test_handle_edit_message_event_updates_message_and_emits(tmp_path):
             'SELECT message, message_type, is_edited, edit_count FROM messages WHERE id = 10'
         ).fetchone()
 
-    assert row['message'] == 'new text'
+    assert row['message'] == E2EE_DIRECT_MESSAGE
     assert row['message_type'] == 'text'
     assert int(row['is_edited']) == 1
     assert int(row['edit_count']) == 1
@@ -476,7 +504,7 @@ def test_handle_send_message_event_success_inserts_and_emits(tmp_path):
     handle_send_message_event(
         {
             'chat_id': 'chat-a',
-            'message': 'hello',
+            'message': E2EE_DIRECT_MESSAGE,
             'message_type': 'text',
             'reply_to_id': 100,
             'client_id': 'client-1',
@@ -515,7 +543,7 @@ def test_handle_send_message_event_success_inserts_and_emits(tmp_path):
     assert blocked_errors == []
     assert row['sender_id'] == 1
     assert row['receiver_id'] == 2
-    assert row['message'] == 'hello'
+    assert row['message'] == E2EE_DIRECT_MESSAGE
     assert row['message_type'] == 'text'
     assert int(row['reply_to_id']) == 100
     assert int(row['is_delivered']) == 1
@@ -582,7 +610,7 @@ def test_handle_send_message_event_triggers_web_push_when_receiver_offline(tmp_p
     push_calls = []
 
     handle_send_message_event(
-        {'chat_id': 'chat-a', 'message': 'hello'},
+        {'chat_id': 'chat-a', 'message': E2EE_DIRECT_MESSAGE},
         session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
         require_payload_dict_func=lambda payload: payload,
         socket_csrf_ok_func=lambda payload: True,
@@ -917,7 +945,11 @@ def test_handle_send_message_event_group_mentions_emit_and_push(tmp_path):
     push_calls = []
 
     handle_send_message_event(
-        {'chat_id': 'group-a', 'message': 'hello @member and @ghost'},
+        {
+            'chat_id': 'group-a',
+            'message': E2EE_GROUP_MESSAGE,
+            'mentioned_usernames': ['member', 'ghost'],
+        },
         session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
         require_payload_dict_func=lambda payload: payload,
         socket_csrf_ok_func=lambda payload: True,

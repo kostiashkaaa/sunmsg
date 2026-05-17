@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime, timezone
 
@@ -88,6 +89,69 @@ def _emit_send_error(emit_func, message: str, *, request_id: str | None = None, 
     emit_func('error', _send_error_payload(message, request_id=request_id, **extra))
 
 
+def _non_empty_string(value) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _base64_decoded_length_at_least(value, minimum_bytes: int) -> bool:
+    if not _non_empty_string(value):
+        return False
+    normalized = str(value).strip()
+    normalized += '=' * ((4 - (len(normalized) % 4)) % 4)
+    try:
+        decoded = base64.b64decode(normalized, altchars=b'-_', validate=True)
+    except (ValueError, TypeError):
+        return False
+    return len(decoded) >= int(minimum_bytes)
+
+
+def _load_e2ee_message_payload(raw_message: str) -> dict | None:
+    try:
+        payload = json.loads(str(raw_message or '').strip())
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _has_e2ee_key_envelope(payload: dict, chat_type: str) -> bool:
+    encrypted_keys = payload.get('encrypted_keys')
+    has_multi_recipient_keys = (
+        isinstance(encrypted_keys, list)
+        and any(_base64_decoded_length_at_least(item, 128) for item in encrypted_keys)
+    )
+    if str(chat_type or '') == 'group':
+        return has_multi_recipient_keys
+    return (
+        has_multi_recipient_keys
+        or (
+            _base64_decoded_length_at_least(payload.get('encrypted_key_receiver'), 128)
+            and _base64_decoded_length_at_least(payload.get('encrypted_key_sender'), 128)
+        )
+    )
+
+
+def _is_valid_e2ee_message_payload(raw_message: str, *, chat_type: str) -> bool:
+    payload = _load_e2ee_message_payload(raw_message)
+    if not payload:
+        return False
+    if not _base64_decoded_length_at_least(payload.get('encrypted_message'), 16):
+        return False
+    if not _base64_decoded_length_at_least(payload.get('iv'), 12):
+        return False
+    if not _base64_decoded_length_at_least(payload.get('signature'), 128):
+        return False
+    return _has_e2ee_key_envelope(payload, chat_type)
+
+
+def _emit_e2ee_required_error(emit_func, *, request_id: str = '') -> None:
+    _emit_send_error(
+        emit_func,
+        'Encrypted message payload is required.',
+        request_id=request_id,
+        code='e2ee_payload_required',
+    )
+
+
 def _resolve_message_table_columns(conn) -> set[str]:
     try:
         probe_cursor = conn.execute('SELECT * FROM messages LIMIT 0')
@@ -164,8 +228,12 @@ def _resolve_group_mentions_context(
     sender_id: int,
     message: str,
     message_type: str,
+    mentioned_usernames=None,
 ) -> tuple[list[dict], list[int], list[str], str]:
-    raw_mentioned_usernames = _extract_group_mention_usernames(message, message_type)
+    raw_mentioned_usernames = (
+        _normalize_group_mentioned_usernames(mentioned_usernames)
+        or _extract_group_mention_usernames(message, message_type)
+    )
     if not raw_mentioned_usernames:
         return [], [], [], ''
 
@@ -202,6 +270,20 @@ def _resolve_group_mentions_context(
         chat_name_row = None
     group_chat_display_name = str(chat_name_row['chat_name'] or '').strip() if chat_name_row else ''
     return mentioned_members, mentioned_user_ids, mentioned_usernames, group_chat_display_name
+
+
+def _normalize_group_mentioned_usernames(raw_value) -> list[str]:
+    if not isinstance(raw_value, list):
+        return []
+    normalized: list[str] = []
+    seen = set()
+    for item in raw_value[:32]:
+        username = str(item or '').strip().lstrip('@').lower()
+        if not username or username in seen:
+            continue
+        seen.add(username)
+        normalized.append(username)
+    return normalized
 
 
 def _resolve_group_restriction(
@@ -821,6 +903,7 @@ def _initialize_send_runtime_state(conn, *, context: dict | None = None) -> dict
             sender_id=sender_id,
             message=message,
             message_type=message_type,
+            mentioned_usernames=data.get('mentioned_usernames'),
         )
 
     sender_display_name = str(session_store.get('display_name') or session_store.get('username') or '').strip()
@@ -1540,6 +1623,9 @@ def handle_edit_message_event(  # noqa: PLR0913 - dependency-injected socket han
             return
 
         chat_type = get_chat_type(conn, chat_id)
+        if not _is_valid_e2ee_message_payload(new_content, chat_type=chat_type):
+            _emit_e2ee_required_error(emit_func, request_id=request_id)
+            return
         msg = conn.execute(
             '''
             SELECT m.sender_id, m.chat_id, m.created_at, m.edit_count, u.public_key AS receiver_public_key
@@ -1846,6 +1932,9 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             delivery_context['receiver_pub'],
             delivery_context['receiver_is_connected'],
         )
+        if not _is_valid_e2ee_message_payload(message, chat_type=chat_type):
+            _emit_e2ee_required_error(emit_func, request_id=request_id)
+            return
         runtime_state = _initialize_send_runtime_state(
             conn,
             context={

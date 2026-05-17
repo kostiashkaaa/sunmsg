@@ -743,7 +743,8 @@ def test_totp_setup_verify_persists_secret_and_clears_pending(monkeypatch, tmp_p
 
     with _connect(db_path) as conn:
         user = conn.execute('SELECT totp_secret, totp_enabled_at FROM users WHERE id = 1').fetchone()
-    assert user['totp_secret'] == staged_secret
+    assert user['totp_secret'] != staged_secret
+    assert str(user['totp_secret']).startswith('fernet:')
     assert user['totp_enabled_at']
 
     with client.session_transaction() as sess:

@@ -6,6 +6,10 @@ import {
     touchCachedMediaEntry,
     writeCachedMediaEntry,
 } from './chat-media-cache-db.js';
+import {
+    decryptChatMediaBlob,
+    parseEncryptedMediaUrl,
+} from './chat-media-e2ee.js';
 
 function resolveCategoryByKind(kind) {
     const normalizedKind = String(kind || '').trim().toLowerCase();
@@ -68,8 +72,25 @@ export function createChatMediaCacheRuntime({
     }
 
     async function resolveMediaSource(sourceUrl, { kind = 'other' } = {}) {
+        const encryptedMedia = parseEncryptedMediaUrl(sourceUrl);
         const cacheKey = normalizeMediaCacheKey(sourceUrl);
-        if (!cacheKey || !ready) return String(sourceUrl || '').trim();
+        if (!cacheKey || !ready) {
+            if (encryptedMedia && resolvedFetch) {
+                try {
+                    const response = await resolvedFetch(encryptedMedia.fetchUrl, {
+                        method: 'GET',
+                        credentials: 'include',
+                        cache: 'default',
+                    });
+                    if (!response?.ok) return '';
+                    const blob = await decryptChatMediaBlob(await response.blob(), encryptedMedia.metadata);
+                    return URL.createObjectURL(blob);
+                } catch (_) {
+                    return '';
+                }
+            }
+            return String(sourceUrl || '').trim();
+        }
 
         const cached = await readCachedMediaEntry(cacheKey);
         if (cached?.blob instanceof Blob) {
@@ -77,11 +98,24 @@ export function createChatMediaCacheRuntime({
             return getOrCreateObjectUrl(cacheKey, cached.blob);
         }
 
+        if (encryptedMedia) {
+            const stored = await rememberFromNetwork(sourceUrl, { kind });
+            if (stored) {
+                const nextCached = await readCachedMediaEntry(cacheKey);
+                if (nextCached?.blob instanceof Blob) {
+                    return getOrCreateObjectUrl(cacheKey, nextCached.blob);
+                }
+            }
+            return '';
+        }
+
         rememberFromNetwork(sourceUrl, { kind }).catch(() => {});
         return String(sourceUrl || '').trim();
     }
 
     async function rememberFromNetwork(sourceUrl, { kind = 'other' } = {}) {
+        const encryptedMedia = parseEncryptedMediaUrl(sourceUrl);
+        const networkSourceUrl = encryptedMedia?.fetchUrl || sourceUrl;
         const cacheKey = normalizeMediaCacheKey(sourceUrl);
         if (!cacheKey || !ready || !resolvedFetch) return false;
 
@@ -89,15 +123,18 @@ export function createChatMediaCacheRuntime({
 
         const requestPromise = (async () => {
             try {
-                const response = await resolvedFetch(sourceUrl, {
+                const response = await resolvedFetch(networkSourceUrl, {
                     method: 'GET',
                     credentials: 'include',
                     cache: 'default',
                 });
                 if (!response?.ok) return false;
-                const blob = await response.blob();
+                const responseBlob = await response.blob();
+                const blob = encryptedMedia
+                    ? await decryptChatMediaBlob(responseBlob, encryptedMedia.metadata)
+                    : responseBlob;
                 if (!(blob instanceof Blob) || Number(blob.size) <= 0) return false;
-                const mimeType = String(response.headers?.get('content-type') || blob.type || '').trim();
+                const mimeType = String(encryptedMedia?.metadata?.mime || response.headers?.get('content-type') || blob.type || '').trim();
                 const category = resolveCategoryByMime(mimeType, kind);
                 const stored = await writeCachedMediaEntry({
                     sourceUrl,

@@ -103,6 +103,8 @@ def test_validate_openxml_package_and_chat_media_content():
     assert validate_chat_media_content(_Upload(b'bad\x00text'), 'txt', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
     assert validate_chat_media_content(_Upload(docx_bytes), 'docx', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
     assert validate_chat_media_content(_Upload(xlsx_bytes), 'xlsx', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(b'SUNENC1\nciphertext'), 'sunenc', chat_media_magic_rules=chat_routes._CHAT_MEDIA_MAGIC_RULES) is True
+    assert validate_chat_media_content(_Upload(b'ciphertext'), 'sunenc', chat_media_magic_rules=chat_routes._CHAT_MEDIA_MAGIC_RULES) is False
     assert validate_chat_media_content(_Upload(b'zip?'), 'docx', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
     assert validate_chat_media_content(_Upload(b'anything'), 'unknown', chat_media_magic_rules=_CHAT_MEDIA_MAGIC_RULES) is False
 
@@ -126,6 +128,7 @@ def test_detect_media_type_normalize_mime_and_block_state():
     assert normalize_chat_media_mime('application/octet-stream', 'photo.jpg', 'jpg') == 'image/jpeg'
     assert normalize_chat_media_mime(None, 'track.mp3', 'mp3') == 'audio/mpeg'
     assert normalize_chat_media_mime(None, 'sheet.xlsx', 'xlsx') in {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'}
+    assert normalize_chat_media_mime('text/plain', 'payload.sunenc', 'sunenc') == 'application/octet-stream'
 
     assert serialize_block_state({'blocked_by_me': True, 'blocked_me': False}) == {
         'is_blocked': True,

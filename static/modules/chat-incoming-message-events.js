@@ -14,7 +14,12 @@ async function decryptReplyPreview({
 
     try {
         const replyIsSelf = data.reply_sender_pub === currentUserPublicKey;
-        return await decryptForDisplay(privateKeyPem, data.reply_message, replyIsSelf);
+        return await decryptForDisplay(
+            privateKeyPem,
+            data.reply_message,
+            replyIsSelf,
+            String(data.reply_sender_pub || '').trim()
+        );
     } catch (_) {
         return '\u{1F512}';
     }
@@ -178,7 +183,12 @@ export function registerIncomingMessageSocketHandlers({
             const isSelf = isIncomingSenderCurrentUser(data, currentUserPublicKey, currentUserId);
             const wasNearBottom = isChatNearBottom();
             const previousScrollTop = getCurrentChatScrollTop();
-            const rawDecryptedMessage = await decryptForDisplay(privateKeyPem, data.message, isSelf);
+            const rawDecryptedMessage = await decryptForDisplay(
+                privateKeyPem,
+                data.message,
+                isSelf,
+                String(data.sender_public_key || '').trim()
+            );
             const decryptedMessage = typeof enrichVisualMediaMessage === 'function'
                 ? await enrichVisualMediaMessage(rawDecryptedMessage)
                 : rawDecryptedMessage;
@@ -350,7 +360,12 @@ export function registerIncomingMessageSocketHandlers({
         }
 
         const isSelfOther = isIncomingSenderCurrentUser(data, currentUserPublicKey, currentUserId);
-        const rawDecryptedOtherMessage = await decryptForDisplay(privateKeyPem, data.message, isSelfOther);
+        const rawDecryptedOtherMessage = await decryptForDisplay(
+            privateKeyPem,
+            data.message,
+            isSelfOther,
+            String(data.sender_public_key || '').trim()
+        );
         const decryptedMessage = typeof enrichVisualMediaMessage === 'function'
             ? await enrichVisualMediaMessage(rawDecryptedOtherMessage)
             : rawDecryptedOtherMessage;
@@ -444,7 +459,12 @@ export function registerIncomingMessageSocketHandlers({
             const stateMessage = state.messages[msgIndex];
             const privateKeyPem = getPrivateKeyPem();
             const isSelf = stateMessage.sender === 'self';
-            const rawDecrypted = await decryptForDisplay(privateKeyPem, data.new_content, isSelf);
+            const rawDecrypted = await decryptForDisplay(
+                privateKeyPem,
+                data.new_content,
+                isSelf,
+                String(data.sender_public_key || '').trim()
+            );
             const decrypted = typeof enrichVisualMediaMessage === 'function'
                 ? await enrichVisualMediaMessage(rawDecrypted)
                 : rawDecrypted;

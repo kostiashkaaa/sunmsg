@@ -60,6 +60,10 @@ def test_resolve_link_preview_payload_parses_meta_and_caches(monkeypatch):
         'app.routes.chat_link_preview_routes._is_allowed_preview_hostname',
         lambda hostname: True,
     )
+    monkeypatch.setattr(
+        'app.routes.chat_link_preview_routes._hostname_resolves_public_only',
+        lambda hostname, port=443: True,
+    )
     monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_CACHE', {})
     monkeypatch.setattr('app.routes.chat_link_preview_routes._fetch_preview_html', fake_fetch)
 
@@ -251,7 +255,7 @@ def test_link_preview_image_rejects_forbidden_redirect_target(monkeypatch, tmp_p
     assert response.get_json() == {'success': False, 'error': 'forbidden_host'}
 
 
-def test_resolve_link_preview_payload_allows_domain_when_dns_public_check_fails(monkeypatch):
+def test_resolve_link_preview_payload_rejects_domain_when_dns_public_check_fails(monkeypatch):
     _disable_persistent_link_preview_store(monkeypatch)
     monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_CACHE', {})
     monkeypatch.setattr(
@@ -260,16 +264,16 @@ def test_resolve_link_preview_payload_allows_domain_when_dns_public_check_fails(
     )
     monkeypatch.setattr(
         'app.routes.chat_link_preview_routes._hostname_resolves_public_only',
-        lambda hostname: False,
+        lambda hostname, port=443: False,
     )
     monkeypatch.setattr(
         'app.routes.chat_link_preview_routes._fetch_preview_html',
-        lambda url: ('<html><head><meta property="og:title" content="ok"></head></html>', url),
+        lambda url: (_ for _ in ()).throw(AssertionError('network fetch must not run')),
     )
 
     payload, status = resolve_link_preview_payload('https://example.com')
-    assert status == 200
-    assert payload.get('success') is True
+    assert status == 400
+    assert payload == {'success': False, 'error': 'forbidden_host'}
 
 
 def test_resolve_link_preview_payload_returns_empty_image_when_meta_image_missing(monkeypatch):

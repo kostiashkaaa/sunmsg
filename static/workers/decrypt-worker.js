@@ -37,15 +37,15 @@ function _hashKey(str) {
     return h.toString(16);
 }
 
-async function decryptPayload(privateKeyPem, payload, isSelf) {
+async function decryptPayload(privateKeyPem, payload, isSelf, expectedSenderPublicKey = '') {
     if (!isEncryptedPayload(payload)) return payload;
     if (!privateKeyPem || !decryptModuleReady) return payload;
 
     const raw = String(payload || '');
-    const cacheKey = `${isSelf ? '1' : '0'}:${raw.length}:${_hashKey(raw)}`;
+    const cacheKey = `${isSelf ? '1' : '0'}:${String(expectedSenderPublicKey || '')}:${raw.length}:${_hashKey(raw)}`;
     if (!decryptCache.has(cacheKey)) {
         const promise = self.e2e
-            .decryptMessageE2E(privateKeyPem, payload, Boolean(isSelf))
+            .decryptMessageE2E(privateKeyPem, payload, Boolean(isSelf), expectedSenderPublicKey)
             .catch((err) => {
                 // \u041D\u0435 \u0437\u0430\u043B\u0438\u043F\u0430\u0435\u043C \u043D\u0430 \u043E\u0442\u043A\u043B\u043E\u043D\u0451\u043D\u043D\u043E\u043C \u043F\u0440\u043E\u043C\u0438\u0441\u0435 — \u043F\u0440\u043E\u0431\u0443\u0435\u043C \u0437\u0430\u043D\u043E\u0432\u043E \u043F\u0440\u0438 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0437\u0430\u043F\u0440\u043E\u0441\u0435.
                 decryptCache.delete(cacheKey);
@@ -72,12 +72,22 @@ self.addEventListener('message', async (event) => {
             const index = Number(job?.index);
             if (!Number.isFinite(index) || index < 0) continue;
 
-            const decryptedMessage = await decryptPayload(privateKeyPem, job?.message, job?.isSelf);
+            const decryptedMessage = await decryptPayload(
+                privateKeyPem,
+                job?.message,
+                job?.isSelf,
+                String(job?.senderPublicKey || '')
+            );
 
             let decryptedReply = '';
             if (job?.hasReply && job?.replyMessage) {
                 try {
-                    decryptedReply = await decryptPayload(privateKeyPem, job.replyMessage, job?.replyIsSelf);
+                    decryptedReply = await decryptPayload(
+                        privateKeyPem,
+                        job.replyMessage,
+                        job?.replyIsSelf,
+                        String(job?.replySenderPublicKey || '')
+                    );
                 } catch (_) {
                     decryptedReply = '🔒';
                 }

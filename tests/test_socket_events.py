@@ -1,3 +1,5 @@
+import base64
+import json
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -16,6 +18,18 @@ from flask_wtf.csrf import generate_csrf
 from wtforms.validators import ValidationError
 from app.db_backend import DatabaseError
 from tests._pg_test_db import connect_test_db
+
+_E2EE_CIPHERTEXT = base64.b64encode(b'c' * 32).decode('ascii')
+_E2EE_IV = base64.b64encode(b'i' * 12).decode('ascii')
+_E2EE_KEY = base64.b64encode(b'k' * 256).decode('ascii')
+_E2EE_SIGNATURE = base64.b64encode(b's' * 256).decode('ascii')
+E2EE_DIRECT_MESSAGE = json.dumps({
+    'encrypted_message': _E2EE_CIPHERTEXT,
+    'encrypted_key_receiver': _E2EE_KEY,
+    'encrypted_key_sender': _E2EE_KEY,
+    'iv': _E2EE_IV,
+    'signature': _E2EE_SIGNATURE,
+})
 
 
 class _ConnectionHandle:
@@ -208,7 +222,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
         bob_typing_payloads = _wait_for_event_payloads(bob_socket, 'partner_typing')
         assert any(payload['chat_id'] == chat_id for payload in bob_typing_payloads)
 
-        message_text = 'hello encrypted world'
+        message_text = E2EE_DIRECT_MESSAGE
         alice_socket.emit(
             'send_message',
             {
@@ -496,7 +510,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
             'send_message',
             {
                 'chat_id': chat_id,
-                'message': 'delete for me only',
+                'message': E2EE_DIRECT_MESSAGE,
                 'client_id': 'client-2',
                 'csrf_token': alice_csrf,
             },
@@ -557,7 +571,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
             'send_message',
             {
                 'chat_id': chat_id,
-                'message': 'delete for both',
+                'message': E2EE_DIRECT_MESSAGE,
                 'client_id': 'client-3',
                 'csrf_token': alice_csrf,
             },
@@ -970,7 +984,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             'send_message',
             {
                 'chat_id': chat_id,
-                'message': 'reply message',
+                'message': E2EE_DIRECT_MESSAGE,
                 'reply_to_id': 12,
                 'message_type': 'unknown-type',
                 'client_id': 'client-negative',

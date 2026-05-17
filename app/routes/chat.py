@@ -61,7 +61,7 @@ ALLOWED_CHAT_MEDIA_EXTENSIONS = {
     'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'heif', 'avif',
     'mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv', 'mpeg', 'mpg', '3gp',
     'ogg', 'wav', 'mp3', 'm4a', 'aac', 'opus',
-    'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'csv', 'xlsx',
+    'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', '7z', 'csv', 'xlsx', 'sunenc',
 }
 
 _MAGIC_BYTES = {
@@ -103,6 +103,7 @@ _CHAT_MEDIA_MAGIC_RULES = {
     '7z': [[(0, b"7z\xbc\xaf'\x1c")]],
     'docx': [[(0, b'PK\x03\x04')], [(0, b'PK\x05\x06')], [(0, b'PK\x07\x08')]],
     'xlsx': [[(0, b'PK\x03\x04')], [(0, b'PK\x05\x06')], [(0, b'PK\x07\x08')]],
+    'sunenc': [[(0, b'SUNENC1\n')]],
 }
 _DANGEROUS_INLINE_MIME_PREFIXES = (
     'image/svg+xml',

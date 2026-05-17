@@ -252,9 +252,11 @@ export function createChatHistoryRuntime(ctx = {}) {
                 index,
                 message: msg.message,
                 isSelf: isMessageFromCurrentUser(msg),
+                senderPublicKey: String(msg.sender_public_key || '').trim(),
                 hasReply: Boolean(msg.reply_to_id && msg.reply_message),
                 replyMessage: msg.reply_message || '',
                 replyIsSelf: msg.reply_sender_pub === currentUserPublicKey,
+                replySenderPublicKey: String(msg.reply_sender_pub || '').trim(),
             }));
 
             try {
@@ -284,11 +286,11 @@ export function createChatHistoryRuntime(ctx = {}) {
         }
 
         const decryptCache = new Map();
-        const decryptCached = async (payload, isSelf) => {
+        const decryptCached = async (payload, isSelf, expectedSenderPublicKey = '') => {
             if (!ctx.isEncryptedPayload(payload)) return payload;
-            const key = `${isSelf ? '1' : '0'}:${String(payload || '')}`;
+            const key = `${isSelf ? '1' : '0'}:${String(expectedSenderPublicKey || '')}:${String(payload || '')}`;
             if (!decryptCache.has(key)) {
-                decryptCache.set(key, ctx.decryptForDisplay(privateKeyPem, payload, isSelf));
+                decryptCache.set(key, ctx.decryptForDisplay(privateKeyPem, payload, isSelf, expectedSenderPublicKey));
             }
             return decryptCache.get(key);
         };
@@ -299,13 +301,13 @@ export function createChatHistoryRuntime(ctx = {}) {
             async (msg) => {
                 const isSelf = isMessageFromCurrentUser(msg);
                 let decMessage = msg.message;
-                decMessage = await decryptCached(msg.message, isSelf);
+                decMessage = await decryptCached(msg.message, isSelf, String(msg.sender_public_key || '').trim());
 
                 let replyText = '';
                 if (msg.reply_to_id && msg.reply_message) {
                     const replyIsSelf = msg.reply_sender_pub === currentUserPublicKey;
                     try {
-                        replyText = await decryptCached(msg.reply_message, replyIsSelf);
+                        replyText = await decryptCached(msg.reply_message, replyIsSelf, String(msg.reply_sender_pub || '').trim());
                     } catch (_) {
                         replyText = '??';
                     }
@@ -333,7 +335,7 @@ export function createChatHistoryRuntime(ctx = {}) {
             } else {
                 try {
                     const isSelf = pin.sender_pub === currentUserPublicKey;
-                    pinPreview = await ctx.decryptForDisplay(privateKeyPem, pinPreview, isSelf);
+                    pinPreview = await ctx.decryptForDisplay(privateKeyPem, pinPreview, isSelf, String(pin.sender_pub || '').trim());
                 } catch (_) {}
             }
             return {
@@ -360,7 +362,7 @@ export function createChatHistoryRuntime(ctx = {}) {
             } else {
                 try {
                     const isSelf = favorite.sender_pub === currentUserPublicKey;
-                    favoritePreview = await ctx.decryptForDisplay(privateKeyPem, favoritePreview, isSelf);
+                    favoritePreview = await ctx.decryptForDisplay(privateKeyPem, favoritePreview, isSelf, String(favorite.sender_pub || '').trim());
                 } catch (_) {}
             }
             return {
