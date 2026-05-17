@@ -11399,9 +11399,9 @@
 }
 
 #partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
-    width: 92px;
-    height: 92px;
-    font-size: 28px;
+    width: 132px;
+    height: 132px;
+    font-size: 38px;
     letter-spacing: 0.02em;
     box-shadow: none;
     background: color-mix(in srgb, var(--surface-2) 92%, transparent);
@@ -11409,7 +11409,7 @@
 
 #partnerProfileDrawer .profile-hero-name {
     margin: 10px 0 0;
-    font-size: 20px;
+    font-size: 24px;
     line-height: 1.2;
     font-weight: 650;
 }
@@ -11429,7 +11429,7 @@
 #partnerProfileDrawer .profile-hero-status {
     margin-top: 2px;
     min-height: 0;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.3;
     font-family: var(--font);
     letter-spacing: 0;
@@ -11818,17 +11818,17 @@
     }
 
     #partnerProfileDrawer .profile-hero-avatar {
-        width: 92px;
-        height: 92px;
-        font-size: 28px;
+        width: 120px;
+        height: 120px;
+        font-size: 34px;
     }
 
     #partnerProfileDrawer .profile-hero-name {
-        font-size: 20px;
+        font-size: 22px;
     }
 
     #partnerProfileDrawer .profile-hero-status {
-        font-size: 13px;
+        font-size: 14px;
     }
 
     #partnerProfileDrawer .profile-group-tabs {
