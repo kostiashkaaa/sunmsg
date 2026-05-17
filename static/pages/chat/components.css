@@ -5398,9 +5398,9 @@
             background: linear-gradient(
                 90deg,
                 transparent 0%,
-                rgba(255, 255, 255, 0.07) 40%,
-                rgba(255, 255, 255, 0.13) 50%,
-                rgba(255, 255, 255, 0.07) 60%,
+                color-mix(in srgb, var(--paper) 12%, transparent) 40%,
+                color-mix(in srgb, var(--paper) 22%, transparent) 50%,
+                color-mix(in srgb, var(--paper) 12%, transparent) 60%,
                 transparent 100%
             );
             background-size: 200% 100%;
@@ -5478,9 +5478,9 @@
             background: linear-gradient(
                 90deg,
                 transparent 0%,
-                rgba(255, 255, 255, 0.06) 40%,
-                rgba(255, 255, 255, 0.11) 50%,
-                rgba(255, 255, 255, 0.06) 60%,
+                color-mix(in srgb, var(--paper) 10%, transparent) 40%,
+                color-mix(in srgb, var(--paper) 18%, transparent) 50%,
+                color-mix(in srgb, var(--paper) 10%, transparent) 60%,
                 transparent 100%
             );
             background-size: 200% 100%;
@@ -5640,8 +5640,12 @@
             transition: width 80ms linear;
         }
 
-        .media-status-overlay.is-uploading ~ .media-upload-progress-bar,
-        .image-wrapper.is-uploading .media-upload-progress-bar {
+        .media-status-overlay.is-uploading ~ .media-upload-progress-bar {
+            opacity: 1;
+        }
+
+        .image-wrapper.is-uploading .media-upload-progress-bar,
+        .video-preview.is-uploading .media-upload-progress-bar {
             opacity: 1;
         }
 
@@ -5775,9 +5779,9 @@
             background: linear-gradient(
                 90deg,
                 transparent 0%,
-                rgba(255, 255, 255, 0.07) 40%,
-                rgba(255, 255, 255, 0.13) 50%,
-                rgba(255, 255, 255, 0.07) 60%,
+                color-mix(in srgb, var(--paper) 12%, transparent) 40%,
+                color-mix(in srgb, var(--paper) 22%, transparent) 50%,
+                color-mix(in srgb, var(--paper) 12%, transparent) 60%,
                 transparent 100%
             );
             background-size: 200% 100%;
@@ -11408,7 +11412,7 @@
     background: var(--surface);
     box-shadow: none;
     overflow: visible;
-    row-gap: 2px;
+    row-gap: 0;
 }
 
 #partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {

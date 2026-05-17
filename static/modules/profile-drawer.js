@@ -598,18 +598,12 @@ export function renderProfileHeader(profile, { isChatBlocked, profileOnlineDot }
     const nameEl = document.getElementById('profileDisplayName');
     const userEl = document.getElementById('profileMetaUsername');
     const usernameLine = document.getElementById('profileUsernameLine');
-    const heroUsernameEl = ensureProfileHeroUsernameElement();
 
     if (nameEl) nameEl.textContent = displayName;
 
     const showUsername = !isSavedMessagesProfile && !isGroupProfile && !!username;
     if (userEl) userEl.textContent = showUsername ? `@${username}` : '';
     if (usernameLine) usernameLine.classList.toggle('profile-info-line--hidden', !showUsername);
-
-    if (heroUsernameEl) {
-        heroUsernameEl.textContent = '';
-        heroUsernameEl.classList.add('profile-hero-username--hidden');
-    }
 
     if (largeAvatar) {
         if (isSavedMessagesProfile) {
