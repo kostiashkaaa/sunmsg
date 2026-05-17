@@ -558,6 +558,7 @@ def test_csp_uses_script_nonce_and_restricts_websocket_sources():
     style_src_elem = directives.get('style-src-elem', '')
     style_src_attr = directives.get('style-src-attr', '')
     connect_src = directives.get('connect-src', '')
+    img_src = directives.get('img-src', '')
     media_src = directives.get('media-src', '')
     manifest_src = directives.get('manifest-src', '')
     worker_src = directives.get('worker-src', '')
@@ -580,6 +581,7 @@ def test_csp_uses_script_nonce_and_restricts_websocket_sources():
     assert frame_src == "frame-src 'self'"
     assert 'blob:' in media_src
     assert 'data:' in media_src
+    assert 'https://i.scdn.co' in img_src
 
     padded_connect = f' {connect_src} '
     assert ' ws: ' not in padded_connect

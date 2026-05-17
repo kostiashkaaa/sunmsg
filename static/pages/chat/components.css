@@ -7439,6 +7439,11 @@
             background: color-mix(in srgb, var(--surface-2) 80%, transparent);
         }
 
+        .profile-spotify-art:not([src]) {
+            background:
+                linear-gradient(135deg, color-mix(in srgb, #1DB954 34%, var(--surface-2)), var(--surface-2));
+        }
+
         .profile-spotify-info {
             flex: 1;
             min-width: 0;

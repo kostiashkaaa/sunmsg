@@ -17,6 +17,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let settingsOverlayBodyOverflow = '';
     let settingsOverlayBodyPaddingRight = '';
     let settingsPanelInitialized = false;
+    let settingsPanelInitPromise = null;
     let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
 
@@ -195,32 +196,45 @@ export function initChatShellSettingsOverlay(options = {}) {
     }
 
     function initSettingsPanelOnce() {
-        if (settingsPanelInitialized) return;
+        if (settingsPanelInitialized && settingsPanelInitPromise) return settingsPanelInitPromise;
         settingsPanelInitialized = true;
-        import('../settings/orchestrator.js')
+        settingsPanelInitPromise = import('../settings/orchestrator.js')
             .then(({ initSettingsPage }) => {
                 initSettingsPage();
             })
             .catch((err) => {
                 console.warn('[settings-overlay] Failed to init settings panel', err);
+                settingsPanelInitialized = false;
+                settingsPanelInitPromise = null;
             });
+        return settingsPanelInitPromise;
     }
 
     function scrollSettingsPanelToSection(section) {
-        const targetId = `section-${section}`;
-        const el = document.getElementById(targetId);
-        if (!el) return;
-        const frame = document.getElementById('settingsOverlayFrame');
-        if (frame) {
-            try {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } catch (_) {}
-        }
         // Trigger nav-shell section switch via custom event
         document.dispatchEvent(new CustomEvent('sun-settings-navigate', {
             detail: { section },
             bubbles: false,
         }));
+        window.requestAnimationFrame(() => {
+            const el = document.getElementById(`section-${section}`);
+            if (!el) return;
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (_) {}
+        });
+    }
+
+    function navigateSettingsPanelToSection(section) {
+        const targetSection = String(section || 'profile').trim() || 'profile';
+        const readyPromise = initSettingsPanelOnce() || Promise.resolve();
+        void readyPromise
+            .then(() => {
+                window.requestAnimationFrame(() => scrollSettingsPanelToSection(targetSection));
+            })
+            .catch(() => {
+                scrollSettingsPanelToSection(targetSection);
+            });
     }
 
     function openCommandPalette(prefill = '') {
@@ -279,10 +293,10 @@ export function initChatShellSettingsOverlay(options = {}) {
         }
 
         // Init settings JS lazily on first open
-        initSettingsPanelOnce();
+        const readyPromise = initSettingsPanelOnce() || Promise.resolve();
 
         if (settingsOverlay.classList.contains('active')) {
-            scrollSettingsPanelToSection(targetSection);
+            navigateSettingsPanelToSection(targetSection);
             markFirstRunCompleted();
             return;
         }
@@ -299,7 +313,11 @@ export function initChatShellSettingsOverlay(options = {}) {
             settingsOverlay.classList.add('active');
             settingsOverlay.classList.remove('is-opening');
             settingsOverlayPhase = 'open';
-            scrollSettingsPanelToSection(targetSection);
+            void readyPromise.then(() => {
+                window.requestAnimationFrame(() => scrollSettingsPanelToSection(targetSection));
+            }).catch(() => {
+                scrollSettingsPanelToSection(targetSection);
+            });
         });
 
         markFirstRunCompleted();
