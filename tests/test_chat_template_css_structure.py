@@ -44,11 +44,11 @@ def test_chat_template_partials_exist() -> None:
         assert path.exists(), f'Missing chat partial: {path}'
 
 
-def test_auth_remember_device_control_is_in_primary_login_flow() -> None:
+def test_auth_login_does_not_render_remember_device_checkbox() -> None:
     src = AUTH_TEMPLATE.read_text(encoding='utf-8')
 
-    assert src.count('id="rememberDeviceCheckbox"') == 1
-    assert src.index('id="rememberDeviceCheckbox"') < src.index('id="loginOtherMethodsDetails"')
+    assert 'id="rememberDeviceCheckbox"' not in src
+    assert 'id="rememberDeviceLabel"' not in src
 
 
 def test_chat_template_keeps_inline_styles_to_minimum() -> None:

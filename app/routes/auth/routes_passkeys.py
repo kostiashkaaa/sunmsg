@@ -17,8 +17,8 @@ from app.services.locale import (
     normalize_language,
 )
 from app.services.refresh_tokens import issue_refresh_token, set_refresh_cookie
+from app.services.session_policy import apply_session_auto_logout, session_auto_logout_seconds_from_row
 from app.services.session_state import resolve_guest_ui_language
-from app.routes.auth_utils import wants_remember
 from .context import (
     auth_bp,
 )
@@ -75,10 +75,6 @@ def _resolve_guest_ui_language() -> str:
     )
 
 
-def _wants_remember(data) -> bool:
-    return wants_remember(data)
-
-
 def _clear_pending_totp() -> None:
     for key in (
         'pending_totp_user_id',
@@ -99,14 +95,26 @@ def _stage_pending_totp(user, *, remember: bool) -> None:
     session['pending_totp_issued_at'] = int(time.time())
 
 
-def _login_success_response(user_id: int, *, remember: bool):
+def _session_auto_logout_seconds_for_user(user_id: int) -> int:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
+            (int(user_id),),
+        ).fetchone()
+    finally:
+        conn.close()
+    return session_auto_logout_seconds_from_row(row)
+
+
+def _login_success_response(user_id: int):
     payload = {'success': True}
-    session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    if remember:
-        raw, _exp = issue_refresh_token(user_id, ttl_seconds=None)
-        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-        set_refresh_cookie(response, raw, secure=secure)
+    ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
+    apply_session_auto_logout(session, ttl_seconds)
+    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
     return response
 
 
@@ -481,7 +489,6 @@ def passkey_login_options():  # noqa: C901 - passkey login options branching by 
 
     data = request.get_json(silent=True) or {}
     username = str(data.get('username') or '').strip()
-    remember = _wants_remember(data)
 
     user_id = None
     allow_credentials = []
@@ -525,7 +532,7 @@ def passkey_login_options():  # noqa: C901 - passkey login options branching by 
 
     challenge = secrets.token_bytes(32)
     challenge_b64 = bytes_to_base64url(challenge)
-    _stage_pending_passkey_login(user_id, challenge_b64, remember=remember)
+    _stage_pending_passkey_login(user_id, challenge_b64, remember=True)
 
     try:
         options = generate_authentication_options(
@@ -645,11 +652,10 @@ def passkey_login_verify():  # noqa: C901 - passkey assertion verification and l
     finally:
         conn.close()
 
-    remember = bool(pending['remember'])
     _clear_pending_passkey_login()
 
     if user['totp_secret']:
-        _stage_pending_totp(user, remember=remember)
+        _stage_pending_totp(user, remember=True)
         return jsonify(
             {
                 'success': True,
@@ -663,4 +669,4 @@ def passkey_login_verify():  # noqa: C901 - passkey assertion verification and l
     session['user_id'] = user['id']
     session['ui_language'] = language_from_user_row(user, default=_resolve_guest_ui_language())
 
-    return _login_success_response(user['id'], remember=remember)
+    return _login_success_response(user['id'])

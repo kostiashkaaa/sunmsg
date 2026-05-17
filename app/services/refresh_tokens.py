@@ -17,11 +17,16 @@ from flask import request
 
 from app.db_backend import DatabaseError
 from app.database import get_db_connection
+from app.services.session_policy import (
+    SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,
+    normalize_session_auto_logout_seconds,
+    session_auto_logout_seconds_from_row,
+)
 
 logger = logging.getLogger(__name__)
 
-REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
-SESSION_TOKEN_TTL_SECONDS = 24 * 60 * 60       # 24 hours — for non-persistent logins
+REFRESH_TOKEN_TTL_SECONDS = SESSION_AUTO_LOGOUT_DEFAULT_SECONDS
+SESSION_TOKEN_TTL_SECONDS = 24 * 60 * 60       # 24 hours — lower bound for legacy session labels
 REFRESH_COOKIE_NAME = 'refresh_token'
 REFRESH_COOKIE_PATH = '/'
 
@@ -57,7 +62,7 @@ def issue_refresh_token(
     """Insert a new refresh token row. Returns (raw_token, expires_at_ts)."""
     raw = secrets.token_urlsafe(48)
     now = int(time.time())
-    exp = now + (ttl_seconds if ttl_seconds is not None else REFRESH_TOKEN_TTL_SECONDS)
+    exp = now + normalize_session_auto_logout_seconds(ttl_seconds)
     fam = family_id or secrets.token_hex(16)
     ua, ip = _client_meta()
     conn = get_db_connection()
@@ -96,7 +101,18 @@ def rotate_refresh_token(raw_token: str) -> Optional[tuple[int, str, int]]:
         # Keep rotation atomic under concurrent refresh calls.
         conn.execute('BEGIN')
         row = conn.execute(
-            'SELECT id, user_id, family_id, expires_at, revoked_at FROM refresh_tokens WHERE token_hash = ?',
+            '''
+            SELECT
+                rt.id,
+                rt.user_id,
+                rt.family_id,
+                rt.expires_at,
+                rt.revoked_at,
+                u.session_auto_logout_seconds
+            FROM refresh_tokens rt
+            JOIN users u ON u.id = rt.user_id
+            WHERE rt.token_hash = ?
+            ''',
             (token_hash,),
         ).fetchone()
         if not row:
@@ -128,7 +144,8 @@ def rotate_refresh_token(raw_token: str) -> Optional[tuple[int, str, int]]:
             return None
 
         new_raw = secrets.token_urlsafe(48)
-        new_exp = now + REFRESH_TOKEN_TTL_SECONDS
+        ttl_seconds = session_auto_logout_seconds_from_row(row)
+        new_exp = now + ttl_seconds
         ua, ip = _client_meta()
         conn.execute(
             '''INSERT INTO refresh_tokens
@@ -159,6 +176,33 @@ def revoke_refresh_token(raw_token: str) -> bool:
         return cur.rowcount > 0
     except DatabaseError:
         logger.exception('revoke_refresh_token DB error')
+        return False
+    finally:
+        conn.close()
+
+
+def touch_refresh_token(raw_token: str, user_id: int, *, ttl_seconds: Optional[int] = None) -> bool:
+    if not raw_token or not isinstance(raw_token, str):
+        return False
+    now = int(time.time())
+    exp = now + normalize_session_auto_logout_seconds(ttl_seconds)
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            '''
+            UPDATE refresh_tokens
+            SET expires_at = ?, last_used_at = ?
+            WHERE token_hash = ?
+              AND user_id = ?
+              AND revoked_at IS NULL
+              AND expires_at > ?
+            ''',
+            (exp, now, _hash(raw_token), int(user_id), now),
+        )
+        conn.commit()
+        return int(cur.rowcount or 0) == 1
+    except DatabaseError:
+        logger.exception('touch_refresh_token DB error')
         return False
     finally:
         conn.close()
@@ -195,11 +239,29 @@ def cleanup_expired() -> int:
         conn.close()
 
 
-def set_refresh_cookie(response, raw_token: str, *, secure: bool) -> None:
+def refresh_cookie_max_age_from_expiry(expires_at: int, *, now: Optional[int] = None) -> int:
+    current = int(time.time()) if now is None else int(now)
+    try:
+        return max(1, int(expires_at) - current)
+    except (TypeError, ValueError):
+        return REFRESH_TOKEN_TTL_SECONDS
+
+
+def set_refresh_cookie(
+    response,
+    raw_token: str,
+    *,
+    secure: bool,
+    max_age_seconds: Optional[int] = None,
+) -> None:
+    try:
+        max_age = int(max_age_seconds) if max_age_seconds is not None else REFRESH_TOKEN_TTL_SECONDS
+    except (TypeError, ValueError):
+        max_age = REFRESH_TOKEN_TTL_SECONDS
     response.set_cookie(
         REFRESH_COOKIE_NAME,
         raw_token,
-        max_age=REFRESH_TOKEN_TTL_SECONDS,
+        max_age=max(1, max_age),
         httponly=True,
         secure=secure,
         samesite='Lax',

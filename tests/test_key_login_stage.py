@@ -19,15 +19,15 @@ const stageFnSuccess = async (pem, options) => {{
 }};
 const success = await stageKeyForLogin({{
   privateKeyPem: 'pem-1',
-  rememberDevice: true,
+  rememberDevice: false,
   stagePrivateKeyForRedirect: stageFnSuccess,
   tr: (v) => v,
 }});
 if (!success.staged || success.warningMessage) {{
   throw new Error('Expected successful staging result without warning');
 }}
-if (calls.length !== 1 || calls[0].options.rememberDevice !== true || calls[0].options.notify !== false) {{
-  throw new Error('Expected stagePrivateKeyForRedirect to be called with rememberDevice and notify=false');
+if (calls.length !== 1 || calls[0].options.rememberDevice !== false || calls[0].options.notify !== false) {{
+  throw new Error('Expected stagePrivateKeyForRedirect to be called with session-scoped rememberDevice=false and notify=false');
 }}
 
 const fail = await stageKeyForLogin({{

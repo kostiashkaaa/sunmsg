@@ -383,9 +383,9 @@ export function initSettingsPage() {
 
                 await clearPrivateKeyPem({
                     notify: true,
-                    clearWrappedSession: false,
-                    clearWrappedPersistent: false,
-                    clearDeviceKey: false,
+                    clearWrappedSession: true,
+                    clearWrappedPersistent: true,
+                    clearDeviceKey: true,
                 });
 
                 try {

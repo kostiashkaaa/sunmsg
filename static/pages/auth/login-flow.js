@@ -17,7 +17,6 @@ export function initLoginFlow({
     let currentLoginMethod = 'qr';
     let totpStepUnlocked = false;
     let pendingLoginPrivateKeyPem = '';
-    let pendingLoginRememberDevice = false;
     let pendingLoginProfile = null;
 
     const loginSubmitBtn = document.getElementById('loginSubmitBtn');
@@ -97,7 +96,7 @@ export function initLoginFlow({
         if (pendingLoginPrivateKeyPem) {
             const keyStageResult = await stageKeyForLogin({
                 privateKeyPem: pendingLoginPrivateKeyPem,
-                rememberDevice: pendingLoginRememberDevice,
+                rememberDevice: false,
                 stagePrivateKeyForRedirect,
                 tr,
             });
@@ -108,7 +107,6 @@ export function initLoginFlow({
 
         const profileForOverlay = pendingLoginProfile;
         pendingLoginPrivateKeyPem = '';
-        pendingLoginRememberDevice = false;
         pendingLoginProfile = null;
         totpStepUnlocked = false;
         qrFlow.setLoginQrRing('success');
@@ -175,7 +173,7 @@ export function initLoginFlow({
         }
     }
 
-    async function completeLoginWithPrivateKey({ username, privateKeyPem, rememberDevice, profile }) {
+    async function completeLoginWithPrivateKey({ username, privateKeyPem, profile }) {
         const chalRes = await fetch(withAppRoot('/api/get_challenge'), {
             method: 'POST',
             credentials: 'include',
@@ -198,7 +196,7 @@ export function initLoginFlow({
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCsrfToken(),
             },
-            body: JSON.stringify({ signature: signatureB64, remember_device: rememberDevice }),
+            body: JSON.stringify({ signature: signatureB64 }),
         });
         const loginData = await loginRes.json();
 
@@ -207,7 +205,6 @@ export function initLoginFlow({
                 setCsrfToken(loginData.csrf_token);
             }
             pendingLoginPrivateKeyPem = privateKeyPem;
-            pendingLoginRememberDevice = rememberDevice;
             pendingLoginProfile = profile || { username };
             totpStepUnlocked = true;
             qrFlow.setLoginQrPulse(false);
@@ -222,7 +219,7 @@ export function initLoginFlow({
 
         const keyStageResult = await stageKeyForLogin({
             privateKeyPem,
-            rememberDevice,
+            rememberDevice: false,
             stagePrivateKeyForRedirect,
             tr,
         });
@@ -231,7 +228,6 @@ export function initLoginFlow({
         }
 
         pendingLoginPrivateKeyPem = '';
-        pendingLoginRememberDevice = false;
         pendingLoginProfile = null;
         qrFlow.setLoginQrPulse(false);
         qrFlow.setLoginQrRing('success');
@@ -291,7 +287,6 @@ export function initLoginFlow({
         const btn = document.getElementById('loginSubmitBtn');
         const btnText = document.getElementById('loginBtnText');
         const username = document.getElementById('login_username')?.value.trim() || '';
-        const rememberDevice = !!document.getElementById('rememberDeviceCheckbox')?.checked;
 
         if (!btn || !btnText) return;
         btn.disabled = true;
@@ -355,7 +350,7 @@ export function initLoginFlow({
                 throw decryptErr;
             }
 
-            await completeLoginWithPrivateKey({ username, privateKeyPem, rememberDevice });
+            await completeLoginWithPrivateKey({ username, privateKeyPem });
         } catch (err) {
             showToast(tr(err?.message || ''), 'error');
         } finally {
@@ -374,7 +369,6 @@ export function initLoginFlow({
         setLoginMethod,
         clearPendingLoginSecrets() {
             pendingLoginPrivateKeyPem = '';
-            pendingLoginRememberDevice = false;
             pendingLoginProfile = null;
         },
         unlockTotpStep() {

@@ -11,6 +11,8 @@ export function initDevicesSection({
 }) {
     const sessionDevicesListEl = document.getElementById('sessionDevicesList');
     const signOutOtherSessionsBtn = document.getElementById('signOutOtherSessionsBtn');
+    const sessionAutoLogoutSelectEl = document.getElementById('sessionAutoLogoutSelect');
+    const sessionAutoLogoutSummaryEl = document.getElementById('sessionAutoLogoutSummary');
 
     function formatSessionTimestamp(ts) {
         const value = Number(ts || 0);
@@ -73,11 +75,39 @@ export function initDevicesSection({
         return `<svg class="sun-icon session-device-icon" aria-hidden="true"><use href="#${iconId}"></use></svg>`;
     }
 
+    function optionLabel(option) {
+        if (!option) return '';
+        return String(uiLocale() || '').startsWith('en')
+            ? String(option.label_en || option.label_ru || '')
+            : String(option.label_ru || option.label_en || '');
+    }
+
+    function applySessionAutoLogout(data) {
+        if (!sessionAutoLogoutSelectEl) return;
+        const options = Array.isArray(data?.session_auto_logout_options) ? data.session_auto_logout_options : [];
+        if (options.length) {
+            sessionAutoLogoutSelectEl.innerHTML = options.map((option) => {
+                const seconds = Number(option?.seconds || 0);
+                if (!Number.isFinite(seconds) || seconds <= 0) return '';
+                return `<option value="${String(seconds)}">${escapeHtml(optionLabel(option))}</option>`;
+            }).join('');
+        }
+
+        const selected = String(Number(data?.session_auto_logout_seconds || 0) || 2592000);
+        sessionAutoLogoutSelectEl.value = selected;
+        const selectedOption = Array.from(sessionAutoLogoutSelectEl.options).find(option => option.value === selected);
+        if (sessionAutoLogoutSummaryEl) {
+            const label = selectedOption?.textContent || tr('1 месяц');
+            sessionAutoLogoutSummaryEl.textContent = tr('Неактивные устройства будут отключены через:') + ` ${label}`;
+        }
+    }
+
     async function loadSessionDevices() {
         if (!sessionDevicesListEl) return;
         sessionDevicesListEl.innerHTML = `<div class="session-device-empty">${escapeHtml(tr('Загружаем активные сессии…'))}</div>`;
         try {
             const data = await api.getSessionDevices();
+            applySessionAutoLogout(data);
             const devices = Array.isArray(data.devices) ? data.devices : [];
 
             if (!devices.length) {
@@ -236,6 +266,23 @@ export function initDevicesSection({
             await loadSessionDevices();
         } catch (_err) {
             showAlert(tr('Сетевая ошибка при завершении остальных сессий.'), 'danger');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    sessionAutoLogoutSelectEl?.addEventListener('change', async function () {
+        const seconds = Number(this.value || 0);
+        if (!Number.isFinite(seconds) || seconds <= 0) return;
+        this.disabled = true;
+        try {
+            const data = await api.updateSessionAutoLogoutSeconds(seconds);
+            applySessionAutoLogout(data);
+            showAlert(tr('Срок автоматического завершения сеанса обновлен.'), 'success');
+            await loadSessionDevices();
+        } catch (_err) {
+            showAlert(tr('Сетевая ошибка при обновлении срока сессии.'), 'danger');
+            await loadSessionDevices();
         } finally {
             this.disabled = false;
         }

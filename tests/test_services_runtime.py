@@ -170,6 +170,31 @@ def test_refresh_token_lifecycle_and_cleanup(monkeypatch, tmp_path):
     assert expired_row is None
 
 
+def test_refresh_rotation_uses_user_session_auto_logout_policy(monkeypatch, tmp_path):
+    db_path = tmp_path / 'refresh-policy.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, session_auto_logout_seconds)
+            VALUES (1, 'pk-1', 'alice', 'Alice', ?)
+            ''',
+            (7 * 24 * 60 * 60,),
+        )
+        conn.commit()
+
+    with app.test_request_context('/api/refresh'):
+        raw_token, _ = refresh_tokens.issue_refresh_token(1, family_id='family-policy')
+        rotated = refresh_tokens.rotate_refresh_token(raw_token)
+
+    assert rotated is not None
+    _user_id, _new_raw, rotated_exp = rotated
+    assert rotated_exp <= int(time.time()) + 7 * 24 * 60 * 60
+    assert rotated_exp > int(time.time()) + 6 * 24 * 60 * 60
+
+
 def test_refresh_rotation_is_atomic_under_concurrency(monkeypatch, tmp_path):
     db_path = tmp_path / 'refresh-race.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -235,9 +260,10 @@ def test_refresh_cookie_helpers_set_expected_flags():
 
     with app.test_request_context('/'):
         response = app.make_response('')
-        refresh_tokens.set_refresh_cookie(response, 'raw-token', secure=True)
+        refresh_tokens.set_refresh_cookie(response, 'raw-token', secure=True, max_age_seconds=7 * 24 * 60 * 60)
         cookie_headers = response.headers.getlist('Set-Cookie')
         assert any('refresh_token=raw-token' in header for header in cookie_headers)
+        assert any('Max-Age=604800' in header for header in cookie_headers)
         assert any('HttpOnly' in header for header in cookie_headers)
         assert any('Secure' in header for header in cookie_headers)
         assert any('SameSite=Lax' in header for header in cookie_headers)

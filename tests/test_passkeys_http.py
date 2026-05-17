@@ -430,7 +430,7 @@ def test_passkey_login_options_stages_pending_context(tmp_path, monkeypatch):
     client = app.test_client()
     response = client.post(
         '/api/passkey/login/options',
-        json={'username': 'alice', 'remember_device': True},
+        json={'username': 'alice'},
     )
     payload = response.get_json()
 
@@ -475,7 +475,7 @@ def test_passkey_login_options_without_username_uses_discoverable_credentials(tm
     monkeypatch.setattr(auth_routes, 'options_to_json', lambda _obj: '{"publicKey":{"rpId":"localhost"}}')
 
     client = app.test_client()
-    response = client.post('/api/passkey/login/options', json={'remember_device': True})
+    response = client.post('/api/passkey/login/options', json={})
     payload = response.get_json()
 
     assert response.status_code == 200

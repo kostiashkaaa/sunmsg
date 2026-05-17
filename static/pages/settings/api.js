@@ -83,6 +83,10 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
             method: 'POST',
             json: {},
         }, 'Не удалось завершить другие сессии.'),
+        updateSessionAutoLogoutSeconds: (seconds) => requestSuccess('/api/session_devices/auto_logout', {
+            method: 'POST',
+            json: { session_auto_logout_seconds: seconds },
+        }, 'Не удалось обновить срок сессии.'),
         getTotpStatus: () => requestSuccess('/api/totp_status', {}, 'Не удалось загрузить состояние TOTP.'),
         manageTotp: (action) => requestSuccess('/api/totp_manage', {
             method: 'POST',

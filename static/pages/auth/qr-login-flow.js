@@ -356,12 +356,10 @@ export function createQrLoginFlow({
                 avatarUrl: String(payload.avatar_url || '').trim(),
             };
 
-            const rememberDevice = !!document.getElementById('rememberDeviceCheckbox')?.checked;
             try {
                 await onCompleteLogin({
                     username: claimUsername,
                     privateKeyPem,
-                    rememberDevice,
                     profile,
                 });
             } catch (err) {
