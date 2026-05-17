@@ -33,9 +33,6 @@ export function createChatHistoryRuntime(ctx = {}) {
     const decryptWorkerPending = new Map();
 
     function shouldAnimateHistoryReveal() {
-        if (typeof ctx.isMobileViewport === 'function') {
-            return Boolean(ctx.isMobileViewport());
-        }
         return true;
     }
 
