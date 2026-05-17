@@ -291,11 +291,85 @@ def test_stale_ringing_call_is_missed_before_new_call(monkeypatch, tmp_path):
                 'SELECT status FROM call_sessions WHERE call_id = ?',
                 (new_call_id,),
             ).fetchone()
+            call_message = conn.execute(
+                '''
+                SELECT message, message_type FROM messages
+                WHERE chat_id = ? AND message_type = 'call'
+                ORDER BY id DESC
+                LIMIT 1
+                ''',
+                (chat_id,),
+            ).fetchone()
         assert stale['status'] == 'missed'
         assert fresh['status'] == 'ringing'
+        assert call_message['message_type'] == 'call'
+        call_payload = json.loads(call_message['message'])
+        assert call_payload['__suncall'] is True
+        assert call_payload['call_id'] == 'stale-call'
+        assert call_payload['status'] == 'missed'
     finally:
         if alice_socket.is_connected():
             alice_socket.disconnect()
+
+
+def test_ended_call_creates_chat_call_message(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-log.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    bob_http, bob_csrf = _prepare_http_client(app, 2, 'pk-2')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+    bob_socket = _socket_client(app, bob_http, bob_csrf)
+
+    try:
+        assert alice_socket.is_connected()
+        assert bob_socket.is_connected()
+        alice_socket.get_received()
+        bob_socket.get_received()
+
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+        call_id = _wait_for_event_payloads(alice_socket, 'call_initiated')[0]['call_id']
+        _wait_for_event_payloads(bob_socket, 'call_incoming')
+
+        bob_socket.emit('call_accept', {'call_id': call_id, 'csrf_token': bob_csrf})
+        assert _wait_for_event_payloads(alice_socket, 'call_accepted')
+        alice_socket.get_received()
+        bob_socket.get_received()
+
+        bob_socket.emit('call_end', {'call_id': call_id, 'csrf_token': bob_csrf})
+        alice_messages = _wait_for_event_payloads(alice_socket, 'receive_message')
+        bob_messages = _wait_for_event_payloads(bob_socket, 'receive_message')
+        alice_call_message = next(payload for payload in alice_messages if payload.get('message_type') == 'call')
+        bob_call_message = next(payload for payload in bob_messages if payload.get('message_type') == 'call')
+
+        assert alice_call_message['id'] == bob_call_message['id']
+        assert alice_call_message['chat_id'] == chat_id
+        assert alice_call_message['sender_user_id'] == 1
+        payload = json.loads(alice_call_message['message'])
+        assert payload['__suncall'] is True
+        assert payload['call_id'] == call_id
+        assert payload['status'] == 'ended'
+        assert payload['duration_sec'] >= 0
+
+        with _connect(db_path) as conn:
+            row = conn.execute(
+                'SELECT message_type, sender_id, receiver_id FROM messages WHERE id = ?',
+                (alice_call_message['id'],),
+            ).fetchone()
+        assert row['message_type'] == 'call'
+        assert int(row['sender_id']) == 1
+        assert int(row['receiver_id']) == 2
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+        if bob_socket.is_connected():
+            bob_socket.disconnect()
 
 
 def test_non_participant_cannot_control_active_call(monkeypatch, tmp_path):

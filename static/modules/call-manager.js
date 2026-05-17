@@ -183,6 +183,7 @@ export class CallManager {
             callId:    call_id,
             callType:  this._callType,
             partnerName,
+            partnerAvatar: this._partner?.avatar_url || '',
             localStream: null,  // media not yet acquired — will be set on accept
             onToggleAudio: () => false,
             onToggleVideo: () => false,
@@ -318,6 +319,7 @@ export class CallManager {
             callId:    this._callId,
             callType:  this._callType,
             partnerName,
+            partnerAvatar: this._partner?.avatar_url || '',
             localStream: this._media.getLocalStream(),
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
@@ -329,15 +331,14 @@ export class CallManager {
                 });
                 return muted;
             },
-            onToggleVideo: () => {
-                const enabled = this._media.toggleVideo();
-                this._webrtc?.setVideoEnabled(enabled);
+            onToggleVideo: async () => {
+                const enabled = await this._toggleVideo();
                 this._emit('call_media_state', {
                     call_id:       this._callId,
                     audio_muted:   this._media.isAudioMuted(),
                     video_enabled: enabled,
                 });
-                return enabled;
+                return { enabled, localStream: this._media.getLocalStream() };
             },
             onSwitchCamera: async () => {
                 const newTrack = await this._media.switchCamera();
@@ -386,6 +387,26 @@ export class CallManager {
 
         // 5. Drain signals queued before _webrtc was ready
         await this._drainPendingSignals();
+    }
+
+    async _toggleVideo() {
+        if (this._media.getVideoTrack()) {
+            const enabled = this._media.toggleVideo();
+            this._webrtc?.setVideoEnabled(enabled);
+            return enabled;
+        }
+
+        try {
+            const newTrack = await this._media.enableVideo();
+            if (!newTrack) return false;
+            this._callType = 'video';
+            this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
+            return true;
+        } catch (err) {
+            console.warn('[CallManager] video enable failed', err);
+            showToast('Нет доступа к камере', 'error');
+            return false;
+        }
     }
 
     // ── ICE server config ────────────────────────────────────────────────────

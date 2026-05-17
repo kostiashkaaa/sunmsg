@@ -444,6 +444,18 @@ export function parseSunFilePayload(messageText) {
     return null;
 }
 
+export function parseSunCallPayload(messageText) {
+    if (!messageText || typeof messageText !== 'string') return null;
+    const normalized = messageText.trim();
+    if (!normalized) return null;
+    if (normalized.charCodeAt(0) !== 123 || !normalized.includes('__suncall')) return null;
+    try {
+        const parsed = JSON.parse(normalized);
+        if (parsed && parsed.__suncall) return parsed;
+    } catch (_) {}
+    return null;
+}
+
 function looksLikeImageSource(src) {
     if (typeof src !== 'string' || !src) return false;
     return src.startsWith('data:image/')
@@ -517,6 +529,7 @@ export function renderMessagePreviewHtml(messageText, options = {}) {
         mediaTokenStyle = 'tag',
     } = options;
 
+    const callPayload = parseSunCallPayload(messageText);
     const filePayload = parseSunFilePayload(messageText);
     const selfPrefix = isSelf ? `${tr('\u0412\u044B')}: ` : '';
     const photoFallback = tr(defaultPhotoText);
@@ -561,6 +574,18 @@ export function renderMessagePreviewHtml(messageText, options = {}) {
             return `${escapeHtml(selfPrefix)}${safeFileText}`;
         }
         return `${escapeHtml(selfPrefix)}[file] ${safeFileText}`;
+    }
+
+    if (callPayload) {
+        const callLabel = callPayload.call_type === 'video'
+            ? tr('\u0412\u0438\u0434\u0435\u043E\u0437\u0432\u043E\u043D\u043E\u043A')
+            : tr('\u0417\u0432\u043E\u043D\u043E\u043A');
+        const status = String(callPayload.status || '').trim();
+        const statusText = status === 'ended'
+            ? formatMediaDuration(Number(callPayload.duration_sec) || 0)
+            : (status === 'cancelled' ? tr('\u041E\u0442\u043C\u0435\u043D\u0451\u043D') : tr('\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D'));
+        const text = clipPreviewText(`${selfPrefix}${callLabel} · ${statusText}`, maxLen);
+        return escapeHtml(text || emptyText);
     }
 
     const text = clipPreviewText((selfPrefix + (messageText || '')), maxLen);

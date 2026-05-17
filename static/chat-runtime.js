@@ -4133,30 +4133,18 @@ export const initChatPage = async () => {
 
     const _callBtnWrap  = document.getElementById('callBtnWrap');
     const _callBtn      = document.getElementById('callBtn');
-    const _callDropdown = document.getElementById('callDropdown');
     const _callAudioBtn = document.getElementById('callAudioBtn');
     const _callVideoBtn = document.getElementById('callVideoBtn');
+    const _callMenuItems = [_callAudioBtn, _callVideoBtn].filter(Boolean);
 
-    const _showCallButtons = () => _callBtnWrap?.classList.remove('call-header-btn--hidden');
+    const _showCallButtons = () => {
+        _callBtnWrap?.classList.remove('call-header-btn--hidden');
+        _callMenuItems.forEach(item => item.classList.remove('call-menu-item--hidden'));
+    };
     const _hideCallButtons = () => {
         _callBtnWrap?.classList.add('call-header-btn--hidden');
-        _callDropdown?.classList.remove('open');
-        if (_callBtn) _callBtn.setAttribute('aria-expanded', 'false');
+        _callMenuItems.forEach(item => item.classList.add('call-menu-item--hidden'));
     };
-
-    // Toggle dropdown
-    _callBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = _callDropdown?.classList.contains('open');
-        _callDropdown?.classList.toggle('open', !isOpen);
-        _callBtn.setAttribute('aria-expanded', String(!isOpen));
-    });
-
-    // Close dropdown on outside click
-    document.addEventListener('click', () => {
-        _callDropdown?.classList.remove('open');
-        _callBtn?.setAttribute('aria-expanded', 'false');
-    });
 
     let _currentCallChatId = null;
 
@@ -4176,6 +4164,15 @@ export const initChatPage = async () => {
             username:     item.getAttribute('data-username') || '',
             avatar_url:   item.getAttribute('data-avatar-url') || '',
         };
+    };
+
+    const _startHeaderCall = (callType = 'audio') => {
+        const chatId = _resolveCallChatId();
+        if (chatId) callManager.startCall(chatId, callType, _resolvePartnerInfo());
+    };
+
+    const _closeHeaderCallMenu = () => {
+        document.dispatchEvent(new Event('sun-close-header-dropdown'));
     };
 
     // Show button immediately if a direct chat is already open on init
@@ -4209,15 +4206,17 @@ export const initChatPage = async () => {
 
     _callAudioBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        _callDropdown?.classList.remove('open');
-        const chatId = _resolveCallChatId();
-        if (chatId) callManager.startCall(chatId, 'audio', _resolvePartnerInfo());
+        _closeHeaderCallMenu();
+        _startHeaderCall('audio');
     });
     _callVideoBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        _callDropdown?.classList.remove('open');
-        const chatId = _resolveCallChatId();
-        if (chatId) callManager.startCall(chatId, 'video', _resolvePartnerInfo());
+        _closeHeaderCallMenu();
+        _startHeaderCall('video');
+    });
+    _callBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _startHeaderCall('audio');
     });
     // ─────────────────────────────────────────────────────────────────────────
 
