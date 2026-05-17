@@ -16,6 +16,21 @@ function tr(value) {
     return String(value ?? '');
 }
 
+function nextFrame(callback) {
+    const raf = globalThis?.requestAnimationFrame;
+    if (typeof raf === 'function') return raf(callback);
+    return globalThis?.setTimeout?.(callback, 16);
+}
+
+function cancelNextFrame(frameId) {
+    if (!frameId) return;
+    if (typeof globalThis?.cancelAnimationFrame === 'function') {
+        globalThis.cancelAnimationFrame(frameId);
+        return;
+    }
+    globalThis?.clearTimeout?.(frameId);
+}
+
 export function formatTimerLabel(seconds) {
     const safeSeconds = Number(seconds) || 0;
     const timer = DISAPPEARING_TIMERS.find((item) => item.value === safeSeconds);
@@ -59,6 +74,10 @@ export function createDisappearingMessagesController({
     documentRef = globalThis.document,
 } = {}) {
     const autoDeleteByChatId = new Map();
+    let pillHideTimer = 0;
+    let pillUpdateTimer = 0;
+    let pillRevealFrame = 0;
+    let lastVisiblePillSeconds = 0;
 
     function getAutoDeleteSeconds(chatId) {
         return autoDeleteByChatId.get(chatId) ?? 0;
@@ -119,6 +138,59 @@ export function createDisappearingMessagesController({
             </div>`;
     }
 
+    function setPillVisibility(pillWrap, enabled) {
+        if (!pillWrap) return;
+        if (pillHideTimer) {
+            clearTimeout(pillHideTimer);
+            pillHideTimer = 0;
+        }
+        if (enabled) {
+            const wasHidden = pillWrap.hidden
+                || pillWrap.classList?.contains?.('disappearing-pill-wrap--hidden');
+            pillWrap.hidden = false;
+            pillWrap.setAttribute('aria-hidden', 'false');
+            if (wasHidden) {
+                pillWrap.classList?.add?.('disappearing-pill-wrap--hidden');
+                pillRevealFrame = nextFrame(() => {
+                    pillRevealFrame = 0;
+                    pillWrap.classList?.remove?.('disappearing-pill-wrap--hidden');
+                });
+            } else {
+                pillWrap.classList?.remove?.('disappearing-pill-wrap--hidden');
+            }
+            return;
+        }
+
+        lastVisiblePillSeconds = 0;
+        pillWrap.setAttribute('aria-hidden', 'true');
+        pillWrap.classList?.add?.('disappearing-pill-wrap--hidden');
+        if (pillWrap.hidden) return;
+        pillHideTimer = setTimeout(() => {
+            pillHideTimer = 0;
+            if (pillWrap.classList?.contains?.('disappearing-pill-wrap--hidden')) {
+                pillWrap.hidden = true;
+            }
+        }, 240);
+    }
+
+    function animatePillTimerChange(pillEl, seconds) {
+        if (!pillEl || seconds <= 0) return;
+        if (!lastVisiblePillSeconds || lastVisiblePillSeconds === seconds) {
+            lastVisiblePillSeconds = seconds;
+            return;
+        }
+        pillEl.classList?.remove?.('disappearing-pill--timer-changing');
+        nextFrame(() => {
+            pillEl.classList?.add?.('disappearing-pill--timer-changing');
+        });
+        if (pillUpdateTimer) clearTimeout(pillUpdateTimer);
+        pillUpdateTimer = setTimeout(() => {
+            pillUpdateTimer = 0;
+            pillEl.classList?.remove?.('disappearing-pill--timer-changing');
+        }, 420);
+        lastVisiblePillSeconds = seconds;
+    }
+
     function syncCurrentChatTimerUi() {
         const chatId = String(typeof getCurrentChatId === 'function' ? getCurrentChatId() || '' : '').trim();
         const seconds = chatId ? getAutoDeleteSeconds(chatId) : 0;
@@ -144,22 +216,20 @@ export function createDisappearingMessagesController({
         }
 
         const pillWrap = documentRef?.getElementById?.('disappearingPillWrap');
+        const pillEl = documentRef?.getElementById?.('disappearingPill');
         const pillTitleEl = documentRef?.getElementById?.('disappearingPillTitle');
         const pillTextEl = documentRef?.getElementById?.('disappearingPillText');
         const chatAreaEl = documentRef?.getElementById?.('chatArea')
             || pillWrap?.closest?.('.chat-area');
         chatAreaEl?.classList?.toggle?.('chat-area--disappearing-enabled', enabled);
-        if (pillWrap) {
-            pillWrap.hidden = !enabled;
-            pillWrap.classList.toggle('disappearing-pill-wrap--hidden', !enabled);
-            pillWrap.setAttribute('aria-hidden', enabled ? 'false' : 'true');
-        }
+        setPillVisibility(pillWrap, enabled);
         if (pillTitleEl) {
             pillTitleEl.textContent = enabled ? tr('В этом чате включено автоудаление') : '';
         }
         if (pillTextEl) {
             pillTextEl.textContent = enabled ? pillText : '';
         }
+        animatePillTimerChange(pillEl, enabled ? seconds : 0);
 
         const profileContainer = documentRef?.getElementById?.('disappearingTimerContainer');
         const profileRow = profileContainer?.querySelector?.('.profile-info-line--timer');
@@ -212,6 +282,9 @@ export function createDisappearingMessagesController({
 
     function destroy() {
         clearInterval(_interval);
+        if (pillHideTimer) clearTimeout(pillHideTimer);
+        if (pillUpdateTimer) clearTimeout(pillUpdateTimer);
+        cancelNextFrame(pillRevealFrame);
     }
 
     return {

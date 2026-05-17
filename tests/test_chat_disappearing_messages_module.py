@@ -65,6 +65,8 @@ function makeElement() {{
     textContent: '',
     attributes: new Map(),
     classList: {{
+      add: (name) => classes.add(name),
+      remove: (name) => classes.delete(name),
       toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
       contains: (name) => classes.has(name),
     }},
@@ -76,10 +78,12 @@ function makeElement() {{
 
 const elements = {{
   chatArea: makeElement(),
+  disappearingPill: makeElement(),
   disappearingPillWrap: makeElement(),
   disappearingPillTitle: makeElement(),
   disappearingPillText: makeElement(),
 }};
+elements.disappearingPillWrap.hidden = true;
 const documentRef = {{
   getElementById: (id) => elements[id] || null,
   querySelectorAll: () => [],
@@ -97,16 +101,33 @@ if (!elements.chatArea.classList.contains('chat-area--disappearing-enabled')) {{
 if (elements.disappearingPillWrap.hidden !== false) {{
   throw new Error('Disappearing pill should be visible when timer is enabled.');
 }}
+await new Promise((resolve) => setTimeout(resolve, 30));
+if (elements.disappearingPillWrap.classList.contains('disappearing-pill-wrap--hidden')) {{
+  throw new Error('Disappearing pill should animate into visible state.');
+}}
 if (elements.disappearingPillTitle.textContent !== 'В этом чате включено автоудаление') {{
   throw new Error(`Unexpected pill title: ${{elements.disappearingPillTitle.textContent}}`);
+}}
+
+controller.setAutoDeleteSeconds('chat-1', 30);
+await new Promise((resolve) => setTimeout(resolve, 30));
+if (!elements.disappearingPill.classList.contains('disappearing-pill--timer-changing')) {{
+  throw new Error('Timer value changes should animate the pill.');
 }}
 
 controller.setAutoDeleteSeconds('chat-1', 0);
 if (elements.chatArea.classList.contains('chat-area--disappearing-enabled')) {{
   throw new Error('Chat area reserve class must be removed when timer is disabled.');
 }}
+if (!elements.disappearingPillWrap.classList.contains('disappearing-pill-wrap--hidden')) {{
+  throw new Error('Disappearing pill should start hide animation when timer is disabled.');
+}}
+if (elements.disappearingPillWrap.hidden !== false) {{
+  throw new Error('Disappearing pill should remain mounted during hide animation.');
+}}
+await new Promise((resolve) => setTimeout(resolve, 260));
 if (elements.disappearingPillWrap.hidden !== true) {{
-  throw new Error('Disappearing pill should be hidden when timer is disabled.');
+  throw new Error('Disappearing pill should be hidden after hide animation.');
 }}
 controller.destroy();
 """
