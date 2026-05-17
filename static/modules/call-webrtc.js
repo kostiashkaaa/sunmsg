@@ -45,6 +45,7 @@ export class CallWebRTC {
         this._ignoreOffer = false;
         this._polite = false;   // set by caller: caller=impolite(false), callee=polite(true)
         this._verificationCode = '';
+        this._pendingIceCandidates = [];
     }
 
     // ── Setup ────────────────────────────────────────────────────────────────
@@ -121,6 +122,7 @@ export class CallWebRTC {
 
         await this._pc.setRemoteDescription(new RTCSessionDescription(sdp));
         await this._updateVerificationCode();
+        await this._drainPendingIceCandidates();
 
         if (sdp.type === 'offer') {
             await this._pc.setLocalDescription();
@@ -137,10 +139,26 @@ export class CallWebRTC {
         if (this._pc.signalingState === 'stable') return;  // already applied
         await this._pc.setRemoteDescription(new RTCSessionDescription(sdp));
         await this._updateVerificationCode();
+        await this._drainPendingIceCandidates();
     }
 
     async handleIceCandidate({ candidate }) {
         if (!this._pc) return;
+        if (!this._pc.remoteDescription) {
+            this._pendingIceCandidates.push(candidate || null);
+            return;
+        }
+        await this._addIceCandidate(candidate || null);
+    }
+
+    async _drainPendingIceCandidates() {
+        const queue = this._pendingIceCandidates.splice(0);
+        for (const candidate of queue) {
+            await this._addIceCandidate(candidate);
+        }
+    }
+
+    async _addIceCandidate(candidate) {
         try {
             await this._pc.addIceCandidate(
                 candidate ? new RTCIceCandidate(candidate) : null,
@@ -182,6 +200,7 @@ export class CallWebRTC {
         this._pc?.close();
         this._pc = null;
         this._localStream = null;
+        this._pendingIceCandidates = [];
     }
 }
 
