@@ -325,7 +325,7 @@ body:not(.settings-embed-mode) .settings-scene {
 /* Lighter scrim — design uses just a 30px gradient hint */
 .settings-overlay-backdrop {
     background:
-        radial-gradient(circle at 22% 24%, color-mix(in srgb, #d9a637 14%, transparent) 0%, transparent 42%),
+        radial-gradient(circle at 74px 36px, color-mix(in srgb, #d9a637 14%, transparent) 0%, transparent 42%),
         linear-gradient(to right, rgba(10, 9, 7, 0.18), rgba(10, 9, 7, 0.10)) !important;
 }
 
