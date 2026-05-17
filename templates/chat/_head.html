@@ -9,6 +9,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>sun</title>
     {% include '_client_preferences_early_boot.html' %}
+    {% include '_legacy_cache_cleanup_early.html' %}
     <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
     <link rel="stylesheet" href="{{ asset_url('style-base-layer.css') }}">
@@ -40,7 +41,6 @@
     } | tojson }}</script>
     <script src="{{ asset_url('bootstrap.js') }}"></script>
     <script src="{{ asset_url('i18n-runtime.js') }}"></script>
-    <script src="{{ asset_url('pages/legacy-cache-cleanup.js') }}"></script>
     <script src="{{ asset_url('pages/chat-theme-boot.js') }}"></script>
     <script src="{{ asset_url('interface-theme.js') }}"></script>
     <script src="{{ asset_url('chat-appearance.js') }}"></script>
