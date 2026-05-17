@@ -3646,7 +3646,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
             overflow-y: auto;
             overflow-x: hidden;
             overflow-anchor: none;
-            padding: 8px 22px 0 22px;
+            padding: calc(8px + var(--disappearing-pill-space, 0px)) 22px 0 22px;
             padding-bottom: calc(
                 var(--floating-composer-reserve, 72px)
                 + env(safe-area-inset-bottom)
