@@ -39,6 +39,8 @@ APPLICATION_TABLES = (
     'schema_migrations',
     'spotify_tokens',
     'spotify_now_playing',
+    'call_sessions',
+    'call_participants',
 )
 
 

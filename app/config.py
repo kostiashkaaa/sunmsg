@@ -97,6 +97,9 @@ class BaseConfig:
     SPOTIFY_POLLING_INTERVAL_SECONDS = 30
     MODERATOR_USER_IDS = ''
     MODERATION_BLOCKED_PUBLIC_DOMAINS = ''
+    TURN_SECRET = ''
+    TURN_SERVER_URL = ''
+    TURN_CREDENTIAL_TTL_SECONDS = 3600
     MODERATION_HIGH_RISK_IP_CIDRS = ''
     MODERATION_AUTO_ACTION_THRESHOLD = 0.85
     MODERATION_AUTO_ACTION_TYPE = 'mute_temp'
@@ -426,6 +429,13 @@ class BaseConfig:
                 'CSP_STYLE_UNSAFE_INLINE',
                 cls.CSP_STYLE_UNSAFE_INLINE,
             ),
+            'TURN_SECRET': str(
+                os.environ.get('TURN_SECRET', cls.TURN_SECRET) or ''
+            ).strip(),
+            'TURN_SERVER_URL': str(
+                os.environ.get('TURN_SERVER_URL', cls.TURN_SERVER_URL) or ''
+            ).strip(),
+            'TURN_CREDENTIAL_TTL_SECONDS': _env_int('TURN_CREDENTIAL_TTL_SECONDS', cls.TURN_CREDENTIAL_TTL_SECONDS),
             'HOST': os.environ.get('HOST', '127.0.0.1'),
             'PORT': _env_int('PORT', 5000),
             'TLS_PORT': _env_int('TLS_PORT', 443),

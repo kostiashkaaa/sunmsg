@@ -280,3 +280,4 @@ register_chat_profile_routes(
     get_safe_avatar_url_func=get_safe_avatar_url,
     fetch_conversation_stats_func=_fetch_conversation_stats,
 )
+

@@ -8,6 +8,7 @@ from . import errors as _errors  # noqa: F401
 from . import bootstrap  # noqa: F401
 from . import presence  # noqa: F401
 from . import moderation  # noqa: F401
+from . import calls  # noqa: F401
 
 for _name in dir(_context):
     if _name.startswith('__'):
@@ -22,6 +23,7 @@ _EVENT_MODULES = (
     bootstrap,
     presence,
     moderation,
+    calls,
 )
 
 
