@@ -4160,6 +4160,27 @@ export const initChatPage = async () => {
 
     let _currentCallChatId = null;
 
+    // Resolve chat id: prefer tracked value, fall back to active contact DOM attr
+    const _resolveCallChatId = () =>
+        _currentCallChatId ||
+        document.querySelector('.contact-item.active')?.getAttribute('data-chat-id') ||
+        currentChatId ||
+        null;
+
+    // Show button immediately if a direct chat is already open on init
+    const _initCallButtonState = () => {
+        const activeItem = document.querySelector('.contact-item.active');
+        if (!activeItem) return;
+        const isGroup = activeItem.getAttribute('data-is-group') === '1';
+        const isSaved = activeItem.getAttribute('data-is-saved-messages') === '1';
+        if (!isGroup && !isSaved) {
+            _currentCallChatId = activeItem.getAttribute('data-chat-id');
+            _showCallButtons();
+        }
+    };
+    // Run after DOM is ready (callManager init happens at end of script)
+    setTimeout(_initCallButtonState, 0);
+
     document.addEventListener('sun:chat:opened', (e) => {
         const { chatType, chatId } = e.detail || {};
         if (chatType === 'direct') {
@@ -4178,12 +4199,14 @@ export const initChatPage = async () => {
     _callAudioBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         _callDropdown?.classList.remove('open');
-        if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'audio');
+        const chatId = _resolveCallChatId();
+        if (chatId) callManager.startCall(chatId, 'audio');
     });
     _callVideoBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         _callDropdown?.classList.remove('open');
-        if (_currentCallChatId) callManager.startCall(_currentCallChatId, 'video');
+        const chatId = _resolveCallChatId();
+        if (chatId) callManager.startCall(chatId, 'video');
     });
     // ─────────────────────────────────────────────────────────────────────────
 
