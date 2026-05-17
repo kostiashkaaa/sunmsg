@@ -399,30 +399,8 @@
         if (window.InterfaceTheme) window.InterfaceTheme.applyCurrentTheme();
     })();
 
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        const iconMap = { error: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
-        const successIcon = '<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span>';
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        const icon = type === 'success' ? document.createElement('span') : document.createElement('i');
-        if (type === 'success') {
-            icon.innerHTML = successIcon;
-            icon.className = 'toast-check-wrap';
-        } else {
-            icon.className = `bi ${iconMap[type] || iconMap.info}`;
-        }
-        const text = document.createElement('span');
-        text.textContent = String(message || '');
-        toast.appendChild(icon);
-        toast.appendChild(text);
-        container.appendChild(toast);
-        toast.addEventListener('click', () => removeToast(toast));
-        setTimeout(() => removeToast(toast), 4000);
-    }
-    function removeToast(toast) {
-        toast.classList.add('toast-out');
-        setTimeout(() => toast.remove(), 220);
+    function showToast(_message, _type = 'info') {
+        // Toast UI is intentionally disabled; keep the public hook for existing callers.
     }
 
     async function sendRequest(userId, displayName, btn) {

@@ -4,80 +4,11 @@ import { applyFallbackAvatarTint, escapeHtml, getErrorMessage } from './utils.js
 import { getCsrfToken } from './csrf.js';
 import { STANDARD_SINGLE_CHECK_UI_HTML } from './check-glyph.js';
 import { withAppRoot } from './app-url.js';
-import { waitForMotionEnd } from './motion.js';
 
 // normalized: removed mojibake comment
 
-export function showToast(message, type, options = {}) {
-    if (window.showToast && window.showToast !== showToast) {
-        window.showToast(message, type, options);
-        return;
-    }
-    const normalizedType = type === 'error' ? 'danger' : (type || 'info');
-    const variant = {
-        success: { icon: 'check-circle-fill', title: 'Успешно' },
-        danger: { icon: 'x-circle-fill', title: 'Ошибка' },
-        warning: { icon: 'exclamation-triangle-fill', title: 'Внимание' },
-        info: { icon: 'info-circle-fill', title: 'Информация' },
-    }[normalizedType] || { icon: 'info-circle-fill', title: 'Информация' };
-
-    const el = document.createElement('div');
-    el.className = 'toast-msg ' + normalizedType;
-
-    const iconWrap = document.createElement('span');
-    iconWrap.className = 'toast-msg__icon';
-    iconWrap.innerHTML = `<i class="bi bi-${variant.icon}" aria-hidden="true"></i>`;
-
-    const content = document.createElement('div');
-    content.className = 'toast-msg__content';
-
-    const title = document.createElement('div');
-    title.className = 'toast-msg__title';
-    title.textContent = variant.title;
-
-    const text = document.createElement('div');
-    text.className = 'toast-msg__text';
-    text.textContent = message;
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'toast-msg__close';
-    closeBtn.setAttribute('aria-label', 'Закрыть уведомление');
-    closeBtn.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
-
-    content.append(title, text);
-    el.append(iconWrap, content, closeBtn);
-
-    const hideToast = () => {
-        if (el.classList.contains('is-hiding')) return;
-        el.classList.add('is-hiding');
-        waitForMotionEnd(el, 300).then(() => {
-            el.remove();
-        });
-    };
-    closeBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        hideToast();
-    });
-    el.addEventListener('click', hideToast);
-
-    const tc = document.getElementById('toastContainer');
-    if (tc) {
-        const scopeKeyRaw = String(options?.scopeKey || '').trim();
-        const scopeKey = scopeKeyRaw.replace(/[^a-z0-9_-]/gi, '');
-        if (scopeKey) {
-            el.dataset.toastScope = scopeKey;
-            tc.querySelectorAll(`.toast-msg[data-toast-scope="${scopeKey}"]`).forEach((toastEl) => {
-                toastEl.remove();
-            });
-        }
-        tc.prepend(el);
-        const shownToasts = tc.querySelectorAll('.toast-msg');
-        for (let i = 5; i < shownToasts.length; i += 1) {
-            shownToasts[i].remove();
-        }
-    }
-    setTimeout(hideToast, 4200);
+export function showToast(_message, _type, _options = {}) {
+    // Toast UI is intentionally disabled; keep the public hook for existing callers.
 }
 
 // normalized: removed mojibake comment

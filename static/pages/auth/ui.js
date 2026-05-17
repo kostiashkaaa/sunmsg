@@ -339,37 +339,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         this.value = this.value.replace(/\D/g, '').slice(0, 6);
     });
 
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-        const safeMessage = tr(message);
-        const icons = {
-            error: 'bi-x-circle-fill',
-            info: 'bi-info-circle-fill',
-        };
-        const successIcon = '<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui auth-toast-icon" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span>';
-        const iconHtml = type === 'success'
-            ? successIcon
-            : `<i class="bi ${icons[type] || icons.info} auth-toast-icon"></i>`;
-        const toast = document.createElement('div');
-        toast.className = `auth-toast auth-toast-${type}`;
-        toast.innerHTML = `
-            ${iconHtml}
-            <div>
-                <div class="auth-toast-brand">SUN Messenger</div>
-                <div class="auth-toast-text">${safeMessage}</div>
-            </div>
-        `;
-        container.appendChild(toast);
-        toast.addEventListener('click', () => removeToast(toast));
-        setTimeout(() => removeToast(toast), 4500);
-    }
-
-    function removeToast(toast) {
-        toast.classList.add('auth-toast-out');
-        waitForMotionEnd(toast, 280).then(() => {
-            toast.remove();
-        });
+    function showToast(_message, _type = 'info') {
+        // Toast UI is intentionally disabled; keep the public hook for existing callers.
     }
 
     function setSubmitButtonState(button, isLoading) {
