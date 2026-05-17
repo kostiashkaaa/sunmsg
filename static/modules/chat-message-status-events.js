@@ -57,7 +57,7 @@ export function registerMessageStatusSocketHandlers({
         return null;
     };
     const normalizeDeletedMessageIds = (data) => (
-        (data?.msg_id ? [data.msg_id] : (data?.msg_ids || []))
+        (data?.msg_id ? [data.msg_id] : (data?.msg_ids || data?.message_ids || []))
             .map((id) => Number(id))
             .filter((id) => Number.isFinite(id) && id > 0)
     );
@@ -111,6 +111,7 @@ export function registerMessageStatusSocketHandlers({
 
     socket.on('message_deleted', handleDeleteEvent);
     socket.on('messages_deleted', handleDeleteEvent);
+    socket.on('messages_expired', handleDeleteEvent);
 
     socket.on('error', (data) => {
         const requestId = String(data?.request_id || '').trim();
