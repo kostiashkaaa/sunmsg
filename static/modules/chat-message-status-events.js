@@ -3,6 +3,7 @@ import {
     applyGroupReadUpdateToMessage,
     normalizeGroupReadUpdate,
 } from './chat-group-read-receipts.js';
+import { createMessageDeleteMotionController } from './message-delete-motion.js';
 
 export function registerMessageStatusSocketHandlers({
     socket,
@@ -33,8 +34,19 @@ export function registerMessageStatusSocketHandlers({
     applyChatBlockState = null,
     dismissTabAlertsForChat = null,
     setTimeoutFn = (handler, delay) => window.setTimeout(handler, delay),
+    requestAnimationFrameFn = (handler) => (
+        globalThis.requestAnimationFrame
+            ? globalThis.requestAnimationFrame(handler)
+            : setTimeoutFn(handler, 16)
+    ),
 } = {}) {
-    const MESSAGE_REMOVAL_ANIMATION_MS = 220;
+    const MESSAGE_REMOVAL_ANIMATION_MS = 180;
+    const deleteMotionController = createMessageDeleteMotionController({
+        getChatMessages: () => currentChatMessagesEl,
+        setTimeoutFn,
+        requestAnimationFrameFn,
+        removalAnimationMs: MESSAGE_REMOVAL_ANIMATION_MS,
+    });
     const currentUtcText = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
     const normalizeErrorText = (value) => {
         if (!value || typeof value !== 'object') return String(value || '').trim();
@@ -65,49 +77,6 @@ export function registerMessageStatusSocketHandlers({
             .map((id) => Number(id))
             .filter((id) => Number.isFinite(id) && id > 0)
     );
-    const resolveDeleteRenderAnchor = (deletedIds) => {
-        const chatMessages = currentChatMessagesEl;
-        if (!chatMessages || typeof chatMessages.querySelectorAll !== 'function') return null;
-        const containerRect = chatMessages.getBoundingClientRect?.();
-        if (!containerRect) return null;
-
-        const messages = Array.from(chatMessages.querySelectorAll('.message[data-message-key]'));
-        const anchorEl = messages.find((node) => {
-            const msgId = Number(node.getAttribute?.('data-msg-id'));
-            if (deletedIds.has(msgId)) return false;
-            const rect = node.getBoundingClientRect?.();
-            if (!rect) return false;
-            return rect.bottom > containerRect.top && rect.top < containerRect.bottom;
-        });
-        if (!anchorEl) return null;
-
-        const anchorMessageKey = String(anchorEl.getAttribute?.('data-message-key') || '').trim();
-        const anchorRect = anchorEl.getBoundingClientRect?.();
-        if (!anchorMessageKey || !anchorRect) return null;
-
-        return {
-            anchorMessageKey,
-            anchorOffsetTop: anchorRect.top - containerRect.top,
-            preserveHeightDelta: true,
-            previousScrollTop: chatMessages.scrollTop,
-            previousScrollHeight: chatMessages.scrollHeight,
-        };
-    };
-    const resolveDeletedMessageNodes = (deletedIds) => {
-        const chatMessages = currentChatMessagesEl;
-        if (!chatMessages || typeof chatMessages.querySelectorAll !== 'function') return [];
-        return Array.from(chatMessages.querySelectorAll('.message[data-msg-id]'))
-            .filter((node) => deletedIds.has(Number(node.getAttribute?.('data-msg-id'))))
-            .filter((node) => typeof node?.classList?.add === 'function');
-    };
-    const animateDeletedMessageNodes = (deletedIds) => {
-        const nodes = resolveDeletedMessageNodes(deletedIds);
-        if (!nodes.length) return false;
-        nodes.forEach((node) => {
-            node.classList.add('message--removing');
-        });
-        return true;
-    };
 
     const handleDeleteEvent = (data) => {
         const ids = normalizeDeletedMessageIds(data);
@@ -115,32 +84,35 @@ export function registerMessageStatusSocketHandlers({
         const isCurrentChat = String(data?.chat_id || '') === String(getCurrentChatId() || '');
         const deletedIds = new Set(ids);
         const wasNearBottom = isCurrentChat && Boolean(isChatNearBottom());
-        const renderAnchor = isCurrentChat && !wasNearBottom ? resolveDeleteRenderAnchor(deletedIds) : null;
         const previousScrollTop = currentChatMessagesEl?.scrollTop;
         const previousScrollHeight = currentChatMessagesEl?.scrollHeight;
-        const finishDelete = () => {
-            removeChatMessages(data.chat_id, ids);
-            if (typeof dismissTabAlertsForChat === 'function') {
-                dismissTabAlertsForChat(data.chat_id, ids.length);
+        const renderState = isCurrentChat ? deleteMotionController.captureDeleteRenderState(deletedIds) : null;
+        const renderAnchor = isCurrentChat && !wasNearBottom && renderState?.anchor
+            ? {
+                ...renderState.anchor,
+                preserveHeightDelta: true,
+                previousScrollTop,
+                previousScrollHeight,
             }
-            if (isCurrentChat) {
-                rerenderCurrentChat(
-                    wasNearBottom
-                        ? { scrollToBottom: true }
-                        : (renderAnchor || {
-                            preserveHeightDelta: true,
-                            previousScrollTop,
-                            previousScrollHeight,
-                        })
-                );
-            }
-            loadContacts();
-        };
-        if (isCurrentChat && animateDeletedMessageNodes(deletedIds)) {
-            setTimeoutFn(finishDelete, MESSAGE_REMOVAL_ANIMATION_MS);
-            return;
+            : null;
+
+        removeChatMessages(data.chat_id, ids);
+        if (typeof dismissTabAlertsForChat === 'function') {
+            dismissTabAlertsForChat(data.chat_id, ids.length);
         }
-        finishDelete();
+        if (isCurrentChat) {
+            rerenderCurrentChat(
+                wasNearBottom
+                    ? { scrollToBottom: true }
+                    : (renderAnchor || {
+                        preserveHeightDelta: true,
+                        previousScrollTop,
+                        previousScrollHeight,
+                    })
+            );
+            deleteMotionController.runDeleteMotion(renderState?.motion);
+        }
+        loadContacts();
     };
 
     socket.on('message_deleted', handleDeleteEvent);
