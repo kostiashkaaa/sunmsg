@@ -4130,6 +4130,7 @@ export const initChatPage = async () => {
         socket,
         getCsrfToken,
         iceConfigUrl: '/call/ice-config',
+        resolvePartnerInfo: (seed) => _resolvePartnerInfo(seed),
     });
 
     const _callBtnWrap  = document.getElementById('callBtnWrap');
@@ -4161,13 +4162,22 @@ export const initChatPage = async () => {
         null;
 
     // Extract partner display info from active contact item for caller overlay
-    const _resolvePartnerInfo = () => {
-        const item = document.querySelector('.contact-item.active');
-        if (!item) return null;
+    const _resolvePartnerInfo = (seed = null) => {
+        const rawUserId = String(seed?.user_id || '').trim();
+        const rawUsername = String(seed?.username || '').trim().toLowerCase();
+        const escapedUserId = window.CSS?.escape ? window.CSS.escape(rawUserId) : rawUserId.replace(/["\\]/g, '\\$&');
+        const escapedUsername = window.CSS?.escape ? window.CSS.escape(rawUsername) : rawUsername.replace(/["\\]/g, '\\$&');
+        const item = (rawUserId && document.querySelector(`.contact-item[data-contact-id="${escapedUserId}"]`))
+            || (rawUsername && document.querySelector(`.contact-item[data-username="${escapedUsername}"]`))
+            || (!rawUserId && !rawUsername ? document.querySelector('.contact-item.active') : null);
+        const headerAvatarUrl = item?.classList?.contains('active')
+            ? chatPartnerAvatar?.querySelector('img')?.getAttribute('src') || ''
+            : '';
         return {
-            display_name: item.getAttribute('data-display-name') || item.getAttribute('data-username') || '',
-            username:     item.getAttribute('data-username') || '',
-            avatar_url:   item.getAttribute('data-avatar-url') || '',
+            user_id: rawUserId || item?.getAttribute('data-contact-id') || '',
+            display_name: item?.getAttribute('data-display-name') || item?.getAttribute('data-username') || '',
+            username:     item?.getAttribute('data-username') || '',
+            avatar_url:   item?.getAttribute('data-avatar-url') || headerAvatarUrl || '',
         };
     };
 
