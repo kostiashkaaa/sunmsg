@@ -1181,8 +1181,10 @@
                 height: 9px;
             }
             #messageInput {
-                min-height: 20px;
+                min-height: 34px;
                 box-sizing: border-box;
+                /* Prevent iOS from clipping the placeholder or caret on initial render */
+                width: 100%;
             }
             #messageInput,
             .composer-input-visual {

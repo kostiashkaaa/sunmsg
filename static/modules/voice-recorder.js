@@ -612,6 +612,22 @@ export function initVoiceRecorder({
             throw new Error('API MediaDevices недоступен.');
         }
 
+        // Check permission state before calling getUserMedia to avoid
+        // a system dialog when the user has already denied microphone access.
+        // navigator.permissions is not available on all browsers (e.g. iOS Safari
+        // < 16) so we fall through silently if the API is missing.
+        try {
+            const result = await navigator.permissions?.query({ name: 'microphone' });
+            if (result?.state === 'denied') {
+                const err = new Error('Microphone permission denied');
+                err.name = 'NotAllowedError';
+                throw err;
+            }
+        } catch (permErr) {
+            if (permErr.name === 'NotAllowedError') throw permErr;
+            // permissions API unavailable — fall through to getUserMedia
+        }
+
         const attempts = [
             {
                 audio: {
