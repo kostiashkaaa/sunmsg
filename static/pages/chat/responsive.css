@@ -1351,14 +1351,11 @@
             .chat-area.emoji-sheet-open .chat-input-area {
                 transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0);
             }
-            html.mobile-keyboard-active:not(.mobile-emoji-sheet-open) .chat-area:not(.emoji-sheet-open) .chat-input-area {
-                transform: translate3d(0, calc(-1 * var(--vv-keyboard-inset, 0px)), 0);
-            }
-            /* During emoji -> keyboard handoff, use the real keyboard inset,
-               not the old emoji-sheet height. */
+            /* During emoji -> keyboard handoff, keep the composer in normal
+               flow; --app-vh already follows visualViewport.height. */
             .chat-area.emoji-sheet-keyboard-handoff .chat-input-area {
                 transition: none !important;
-                transform: translate3d(0, calc(-1 * var(--vv-keyboard-inset, 0px)), 0) !important;
+                transform: none !important;
             }
 
             .emoji-picker-topbar {

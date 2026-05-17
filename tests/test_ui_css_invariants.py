@@ -1347,16 +1347,16 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     ):
         assert token in viewport, f'mobile-viewport.js: missing CSS var sync for {token}'
     assert "let nextAppVh = '100dvh'" in viewport, (
-        'mobile-viewport.js: app height must fall back to native 100dvh while keyboard handling is active'
+        'mobile-viewport.js: app height must keep a native 100dvh fallback'
     )
     assert 'const composerFocused = Boolean(' in viewport, (
-        'mobile-viewport.js: composer focus must keep keyboard layout on native 100dvh'
+        'mobile-viewport.js: composer focus must keep keyboard state scoped to the composer'
     )
     assert "activeElement.closest?.('#messageForm, #composerRow')" in viewport, (
         'mobile-viewport.js: composer focus guard must target the message composer only'
     )
-    assert 'if (!keyboardActive && !composerFocused && vvHeight > 0)' in viewport, (
-        'mobile-viewport.js: idle mobile reload must bind app height to visualViewport.height'
+    assert 'nextAppVh = `${vvHeight}px`' in viewport, (
+        'mobile-viewport.js: mobile app height must bind to visualViewport.height'
     )
     assert "root.style.setProperty('--app-vh', nextAppVh)" in viewport, (
         'mobile-viewport.js: measured app height must be written through --app-vh'
@@ -1378,8 +1378,8 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     )
 
 
-def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_model() -> None:
-    """Closed-keyboard mobile reload should use visualViewport height without old full JS layout driving."""
+def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
+    """Mobile keyboard layout should use visualViewport height, not composer paint offsets."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     viewport = (STATIC / 'modules' / 'mobile-viewport.js').read_text(encoding='utf-8')
     head = (ROOT / 'templates' / 'chat' / '_head.html').read_text(encoding='utf-8')
@@ -1388,12 +1388,12 @@ def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_mo
     assert 'minimum-scale=1' in head
 
     assert 'const vvHeight = roundedPx(vv.height)' in viewport
+    assert 'nextAppVh = `${vvHeight}px`' in viewport
     assert 'const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop)' in viewport
     assert 'const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22))' in viewport
     assert 'const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
     assert 'keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset' in viewport
     assert 'keyboardInset = keyboardActive ? keyboardInsetCandidate : 0' in viewport
-    assert 'if (!keyboardActive && !composerFocused && vvHeight > 0)' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
 
     app_blocks = re.findall(r'\.app\s*\{([^}]*)\}', css, re.DOTALL)
@@ -1406,5 +1406,6 @@ def test_mobile_viewport_reload_uses_visual_height_without_reverting_keyboard_mo
     assert any('height: var(--app-vh, 100dvh)' in block for block in app_blocks), (
         'mobile .app should consume the synced visual height variable'
     )
-    assert 'html.mobile-keyboard-active:not(.mobile-emoji-sheet-open) .chat-area:not(.emoji-sheet-open) .chat-input-area' in css
-    assert 'var(--vv-keyboard-inset, 0px)' in css
+    assert 'html.mobile-keyboard-active:not(.mobile-emoji-sheet-open) .chat-area:not(.emoji-sheet-open) .chat-input-area' not in css
+    assert 'transform: translate3d(0, calc(-1 * var(--vv-keyboard-inset' not in css
+    assert '.chat-area.emoji-sheet-keyboard-handoff .chat-input-area' in css
