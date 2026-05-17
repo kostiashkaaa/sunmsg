@@ -438,14 +438,24 @@ export function createChatMessageRenderRuntime({
         });
     }
 
-    function applyLoadedMessageBlockAnimations(container) {
-        if (!container || prefersReducedMotionSetting?.()) return;
+    function shouldSkipLoadedMessageBlockAnimations() {
+        try {
+            return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function prepareLoadedMessageBlockAnimations(container) {
+        if (!container || shouldSkipLoadedMessageBlockAnimations()) return null;
         const messageNodes = Array.from(container.querySelectorAll('.message'));
-        if (!messageNodes.length) return;
+        if (!messageNodes.length) return null;
         const animationSeq = String(++loadedMessageBlockAnimationSeq);
+        const entries = [];
 
         messageNodes.forEach((node) => {
             node.classList.remove('message-block-load-animate');
+            node.classList.remove('message-block-load-visible');
             delete node.dataset.messageBlockLoadAnimationSeq;
         });
         void container.offsetWidth;
@@ -455,25 +465,41 @@ export function createChatMessageRenderRuntime({
             if (!bubble) return;
             node.dataset.messageBlockLoadAnimationSeq = animationSeq;
             node.classList.add('message-block-load-animate');
+            entries.push({ node, bubble });
+        });
 
-            let timeoutId = 0;
-            const clear = () => {
+        if (!entries.length) return null;
+        return { animationSeq, entries };
+    }
+
+    function runLoadedMessageBlockAnimations(prepared) {
+        if (!prepared?.entries?.length) return;
+        const { animationSeq, entries } = prepared;
+
+        requestAnimationFrameFn(() => {
+            entries.forEach(({ node, bubble }) => {
                 if (node.dataset.messageBlockLoadAnimationSeq !== animationSeq) return;
-                node.classList.remove('message-block-load-animate');
-                delete node.dataset.messageBlockLoadAnimationSeq;
-                bubble.removeEventListener('animationend', onAnimationEnd);
-                if (timeoutId) {
-                    globalThis.clearTimeout(timeoutId);
-                    timeoutId = 0;
-                }
-            };
-            const onAnimationEnd = (event) => {
-                if (event.target !== bubble) return;
-                clear();
-            };
+                let timeoutId = 0;
+                const clear = () => {
+                    if (node.dataset.messageBlockLoadAnimationSeq !== animationSeq) return;
+                    node.classList.remove('message-block-load-animate');
+                    node.classList.remove('message-block-load-visible');
+                    delete node.dataset.messageBlockLoadAnimationSeq;
+                    bubble.removeEventListener('transitionend', onTransitionEnd);
+                    if (timeoutId) {
+                        globalThis.clearTimeout(timeoutId);
+                        timeoutId = 0;
+                    }
+                };
+                const onTransitionEnd = (event) => {
+                    if (event.target !== bubble) return;
+                    clear();
+                };
 
-            bubble.addEventListener('animationend', onAnimationEnd);
-            timeoutId = globalThis.setTimeout(clear, 560);
+                bubble.addEventListener('transitionend', onTransitionEnd);
+                node.classList.add('message-block-load-visible');
+                timeoutId = globalThis.setTimeout(clear, 420);
+            });
         });
     }
 
@@ -511,13 +537,14 @@ export function createChatMessageRenderRuntime({
         } finally {
             const currentMessages = getCurrentMessagesElement();
             if (!currentMessages) return;
+            const preparedMessageBlockAnimations = options?.animateReveal && !suppressHydrationMask
+                ? prepareLoadedMessageBlockAnimations(currentMessages)
+                : null;
             if (!suppressHydrationMask) {
                 currentMessages.style.visibility = '';
             }
             currentMessages.classList.remove('is-hydrating');
-            if (options?.animateReveal) {
-                applyLoadedMessageBlockAnimations(currentMessages);
-            }
+            runLoadedMessageBlockAnimations(preparedMessageBlockAnimations);
         }
     }
 

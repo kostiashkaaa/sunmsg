@@ -2755,8 +2755,15 @@
         }
 
         .message.message-block-load-animate .message-stack > .bubble {
-            animation: messageBlockLoadIn var(--dur-medium) var(--ease-quick) both;
+            opacity: 0;
+            transform: translate3d(0, 10px, 0) scale(0.985);
+            transition: opacity 240ms var(--ease-quick), transform 240ms var(--ease-quick);
             will-change: transform, opacity;
+        }
+
+        .message.message-block-load-animate.message-block-load-visible .message-stack > .bubble {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
         }
 
 
@@ -3080,13 +3087,6 @@
             from { opacity: 0; transform: translate3d(0, 8px, 0); }
             to   { opacity: 1; transform: translate3d(0, 0, 0); }
         }
-
-        @keyframes messageBlockLoadIn {
-            from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
-            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-        }
-
-
 
         .message .bubble {
             display: inline-flex;
@@ -12430,7 +12430,7 @@
     }
 
     .message.message-block-load-animate .message-stack > .bubble {
-        animation: none !important;
+        transition: none !important;
         opacity: 1;
         transform: none;
         will-change: auto;
