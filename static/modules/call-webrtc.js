@@ -21,6 +21,11 @@
  *   local SDP → send via call_answer → ICE trickle → connected
  */
 
+// Cap on buffered remote ICE candidates awaiting a remoteDescription. A
+// well-behaved peer trickles a few dozen; an unbounded queue lets a malicious
+// participant exhaust memory by flooding call_ice_candidate.
+const MAX_PENDING_ICE_CANDIDATES = 100;
+
 export class CallWebRTC {
     /**
      * @param {object} opts
@@ -145,10 +150,29 @@ export class CallWebRTC {
     async handleIceCandidate({ candidate }) {
         if (!this._pc) return;
         if (!this._pc.remoteDescription) {
+            if (this._pendingIceCandidates.length >= MAX_PENDING_ICE_CANDIDATES) {
+                console.warn('[CallWebRTC] pending ICE queue full, dropping candidate');
+                return;
+            }
             this._pendingIceCandidates.push(candidate || null);
             return;
         }
         await this._addIceCandidate(candidate || null);
+    }
+
+    /**
+     * Restart ICE after a transient network change (Wi-Fi ↔ cellular) without
+     * tearing down the call. Only the impolite peer (caller) initiates it; the
+     * resulting offer flows through the normal negotiationneeded path.
+     */
+    restartIce() {
+        if (!this._pc || this._polite) return;
+        if (this._pc.signalingState !== 'stable') return;
+        try {
+            this._pc.restartIce();
+        } catch (err) {
+            console.warn('[CallWebRTC] restartIce failed', err);
+        }
     }
 
     async _drainPendingIceCandidates() {

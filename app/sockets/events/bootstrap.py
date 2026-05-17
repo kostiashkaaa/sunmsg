@@ -16,6 +16,7 @@ from app.sockets.connection_handlers import (
     handle_connect_event,
     handle_disconnect_event,
 )
+from app.sockets.call_handlers import handle_call_disconnect_cleanup
 
 from . import context as ctx
 
@@ -60,4 +61,10 @@ def handle_disconnect():
         emit_chat_status_for_user_func=ctx._emit_chat_status_for_user,
         utc_now_text_func=lambda: datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         logger=ctx.logger,
+        terminate_calls_func=lambda uid: handle_call_disconnect_cleanup(
+            uid,
+            get_db_connection_func=get_db_connection,
+            emit_func=ctx._emit_socket_event,
+            logger=ctx.logger,
+        ),
     )

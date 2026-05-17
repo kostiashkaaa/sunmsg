@@ -21,7 +21,7 @@ import {
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
-    startCallDurationTimer,
+    setRemoteAudioMuted, startCallDurationTimer,
 } from './call-ui.js';
 import {
     startRingtone, stopRingtone,
@@ -71,6 +71,26 @@ export class CallManager {
         this._pendingSignals = [];
 
         this._bindSocketEvents();
+        this._bindUnloadHandler();
+    }
+
+    // Tell the server the call is over when the tab is closing. 'pagehide'
+    // fires reliably on mobile (unlike 'beforeunload'); the emit is best-effort
+    // but the server-side disconnect cleanup is the real safety net.
+    _bindUnloadHandler() {
+        this._onPageHide = () => {
+            if (this._state === STATES.IDLE || !this._callId) return;
+            const event = this._state === STATES.RINGING_OUT ? 'call_cancel'
+                : this._state === STATES.RINGING_IN ? 'call_reject'
+                : 'call_end';
+            try {
+                this._socket.emit(event, {
+                    call_id: this._callId,
+                    csrf_token: this._getCsrfToken(),
+                });
+            } catch (_) { /* tab is closing — best effort */ }
+        };
+        window.addEventListener('pagehide', this._onPageHide);
     }
 
     // ── Socket event bindings ────────────────────────────────────────────────
@@ -251,6 +271,7 @@ export class CallManager {
     _onPartnerMediaState({ call_id, audio_muted, video_enabled }) {
         if (call_id !== this._callId) return;
         setRemoteVideoEnabled(Boolean(video_enabled));
+        setRemoteAudioMuted(Boolean(audio_muted));
     }
 
     // ── Signalling: WebRTC P2P ───────────────────────────────────────────────
@@ -361,8 +382,19 @@ export class CallManager {
                 return { enabled, localStream: this._media.getLocalStream() };
             },
             onSwitchCamera: async () => {
-                const newTrack = await this._media.switchCamera();
+                let newTrack = null;
+                try {
+                    newTrack = await this._media.switchCamera();
+                } catch (err) {
+                    console.warn('[CallManager] camera switch failed', err);
+                    setCallStatusText('Камера недоступна');
+                }
                 if (newTrack) this._webrtc?.replaceVideoTrack(newTrack);
+                return {
+                    switched: Boolean(newTrack),
+                    localStream: this._media.getLocalStream(),
+                    facingMode: this._media.getVideoFacingMode(),
+                };
             },
             onEnd: () => this.endCall(),
         });
@@ -387,7 +419,11 @@ export class CallManager {
                     playConnectedSound();
                 } else if (state === 'disconnected') {
                     setCallStatusText('Переподключение...');
-                    // End call if still disconnected after timeout
+                    // Try to recover the connection in place via ICE restart
+                    // (handles Wi-Fi ↔ cellular switches) before giving up.
+                    this._webrtc?.restartIce();
+                    // End the call only if it has not recovered by the timeout.
+                    clearTimeout(this._disconnectTimeout);
                     this._disconnectTimeout = setTimeout(() => {
                         if (this._state === STATES.ACTIVE) {
                             showToast('Соединение потеряно', 'error');
@@ -396,6 +432,7 @@ export class CallManager {
                     }, DISCONNECT_TIMEOUT_MS);
                 } else if (state === 'failed') {
                     clearTimeout(this._disconnectTimeout);
+                    this._disconnectTimeout = null;
                     showToast('Соединение потеряно', 'error');
                     this.endCall();
                 } else if (state === 'closed') {
@@ -434,7 +471,9 @@ export class CallManager {
     // ── ICE server config ────────────────────────────────────────────────────
 
     async _fetchIceServers() {
-        const resp = await fetch(this._iceConfigUrl, {
+        const url = new URL(this._iceConfigUrl, window.location.origin);
+        if (this._callId) url.searchParams.set('call_id', this._callId);
+        const resp = await fetch(url.toString(), {
             headers: { 'X-CSRFToken': this._getCsrfToken() },
         });
         if (!resp.ok) throw new Error(`ICE config ${resp.status}`);

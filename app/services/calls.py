@@ -8,11 +8,45 @@ from datetime import datetime, timedelta, timezone
 _CALL_STATUSES = {'ringing', 'active', 'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 _CALL_TYPES = {'audio', 'video'}
 _CALL_RING_TIMEOUT_SECONDS = 60
+# An 'active' call with no participant traffic this long is considered abandoned
+# (both peers closed their tab without a clean call_end). Reaped so the chat is
+# not blocked forever by a phantom call_already_active.
+_CALL_ACTIVE_STALE_SECONDS = 12 * 60 * 60
 _CALL_LOG_FINAL_STATUSES = {'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 
 
 def generate_call_id() -> str:
     return str(uuid.uuid4())
+
+
+def _lock_chat_for_calls(conn, chat_id: str) -> None:
+    """Serialize call-session creation per chat with a transaction-scoped
+    advisory lock. Released automatically on commit/rollback. Prevents two
+    concurrent call_initiate requests from both creating a 'ringing' session."""
+    conn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext('suncall:' || ?))",
+        (str(chat_id),),
+    )
+
+
+def create_call_session_locked(
+    conn, *, chat_id: str, initiator_id: int, call_type: str,
+) -> str | None:
+    """Atomically reap stale calls, verify no live call exists, and create a new
+    'ringing' session — all under a per-chat advisory lock held until commit.
+
+    Returns the new call_id, or None if a live call already exists in the chat.
+    The caller MUST treat a non-None return as committed."""
+    _lock_chat_for_calls(conn, chat_id)
+    mark_missed_calls(conn, chat_id)
+    _reap_stale_active_calls(conn, chat_id)
+    if get_active_call_in_chat(conn, chat_id) is not None:
+        conn.commit()
+        return None
+    call_id = generate_call_id()
+    create_call_session(conn, call_id=call_id, chat_id=chat_id,
+                         initiator_id=initiator_id, call_type=call_type)
+    return call_id
 
 
 def create_call_session(conn, *, call_id: str, chat_id: str, initiator_id: int, call_type: str) -> None:
@@ -199,9 +233,9 @@ def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
             ''',
             (chat_id, cutoff),
         ).fetchall()
-    call_ids = [str(r['call_id']) for r in rows]
-    for call_id in call_ids:
-        conn.execute(
+    affected: list[str] = []
+    for call_id in (str(r['call_id']) for r in rows):
+        updated = conn.execute(
             '''
             UPDATE call_sessions
             SET status = 'missed', ended_at = CURRENT_TIMESTAMP
@@ -209,12 +243,107 @@ def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
             ''',
             (call_id,),
         )
+        # rowcount == 0: another worker (scheduler vs. handler) already
+        # transitioned this call — skip the log message to avoid a UNIQUE
+        # violation on idx_messages_call_id aborting the whole transaction.
+        if updated.rowcount <= 0:
+            continue
+        affected.append(call_id)
         call = get_call_session(conn, call_id)
         if call:
             _create_call_log_message_for_call(conn, call, commit=False)
-    if call_ids:
+    if affected:
         conn.commit()
-    return call_ids
+    return affected
+
+
+def _reap_stale_active_calls(conn, chat_id: str | None = None) -> list[str]:
+    """Mark 'active' calls abandoned long ago as 'failed'. Without this an
+    'active' session whose peers both vanished (closed tab, lost network)
+    blocks every future call in the chat via get_active_call_in_chat()."""
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(seconds=_CALL_ACTIVE_STALE_SECONDS)
+    ).strftime('%Y-%m-%d %H:%M:%S')
+    if chat_id is None:
+        rows = conn.execute(
+            "SELECT call_id FROM call_sessions WHERE status = 'active' AND started_at < ?",
+            (cutoff,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT call_id FROM call_sessions"
+            " WHERE chat_id = ? AND status = 'active' AND started_at < ?",
+            (chat_id, cutoff),
+        ).fetchall()
+    affected: list[str] = []
+    for call_id in (str(r['call_id']) for r in rows):
+        updated = conn.execute(
+            '''
+            UPDATE call_sessions
+            SET status = 'failed', ended_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND status = 'active'
+            ''',
+            (call_id,),
+        )
+        if updated.rowcount <= 0:
+            continue
+        affected.append(call_id)
+        conn.execute(
+            "UPDATE call_participants SET left_at = CURRENT_TIMESTAMP"
+            " WHERE call_id = ? AND left_at IS NULL",
+            (call_id,),
+        )
+        call = get_call_session(conn, call_id)
+        if call:
+            _create_call_log_message_for_call(conn, call, commit=False)
+    if affected:
+        conn.commit()
+    return affected
+
+
+def get_user_live_calls(conn, user_id: int) -> list[dict]:
+    """All non-final call sessions the user is currently a participant of."""
+    rows = conn.execute(
+        '''
+        SELECT cs.*
+        FROM call_sessions cs
+        JOIN call_participants cp ON cs.call_id = cp.call_id
+        WHERE cp.user_id = ?
+          AND cs.status IN ('ringing', 'active')
+          AND cp.left_at IS NULL
+        ''',
+        (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def terminate_call_on_disconnect(conn, call: dict, user_id: int) -> str | None:
+    """End a single call because `user_id`'s socket disconnected.
+
+    'active'  → 'ended'   (other peer is told the call finished)
+    'ringing' → 'cancelled' if the user is the initiator, else 'rejected'.
+
+    Returns the final status applied, or None if the call already moved on.
+    Commits on success."""
+    call_id = str(call.get('call_id') or '')
+    status = str(call.get('status') or '')
+    if status == 'active':
+        return 'ended' if end_call(conn, call_id, user_id, final_status='ended') else None
+    if status == 'ringing':
+        is_initiator = int(call.get('initiator_id') or 0) == int(user_id)
+        if is_initiator:
+            return 'cancelled' if cancel_call(conn, call_id) else None
+        # A ringing callee that disconnects is treated as rejecting.
+        if reject_call(conn, call_id):
+            conn.execute(
+                "UPDATE call_participants SET left_at = CURRENT_TIMESTAMP"
+                " WHERE call_id = ? AND user_id = ? AND left_at IS NULL",
+                (call_id, user_id),
+            )
+            conn.commit()
+            return 'rejected'
+        return None
+    return None
 
 
 def get_call_history(conn, chat_id: str, *, limit: int = 50, offset: int = 0) -> list[dict]:
