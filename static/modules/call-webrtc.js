@@ -8,8 +8,8 @@
  *     but NEVER holds media keys — it physically cannot decrypt the stream.
  *   - TURN server (coturn) relays encrypted RTP packets when P2P is blocked
  *     by NAT; coturn also cannot decrypt (keys stay in DTLS handshake).
- *   - This is media transport encryption, not app-level identity verification:
- *     preventing signalling-server MITM requires verified SDP fingerprints.
+ *   - A short verification code is derived from both DTLS fingerprints after
+ *     SDP exchange. Matching codes detect signalling-server MITM when compared.
  *
  * Flow (caller):
  *   createOffer() → local SDP → send via call_offer →
@@ -28,13 +28,15 @@ export class CallWebRTC {
      * @param {string}   opts.callId
      * @param {string[]} opts.iceServers  - [{urls, username?, credential?}]
      * @param {function(MediaStreamTrack): void} opts.onRemoteTrack
+     * @param {function(string): void}           opts.onVerificationCode
      * @param {function(string): void}           opts.onConnectionState  - 'connected'|'disconnected'|'failed'
      */
-    constructor({ onSignal, callId, iceServers, onRemoteTrack, onConnectionState }) {
+    constructor({ onSignal, callId, iceServers, onRemoteTrack, onVerificationCode, onConnectionState }) {
         this._onSignal = onSignal;
         this._callId = callId;
         this._iceServers = iceServers || [];
         this._onRemoteTrack = onRemoteTrack || (() => {});
+        this._onVerificationCode = onVerificationCode || (() => {});
         this._onConnectionState = onConnectionState || (() => {});
 
         this._pc = null;
@@ -42,6 +44,7 @@ export class CallWebRTC {
         this._makingOffer = false;
         this._ignoreOffer = false;
         this._polite = false;   // set by caller: caller=impolite(false), callee=polite(true)
+        this._verificationCode = '';
     }
 
     // ── Setup ────────────────────────────────────────────────────────────────
@@ -91,6 +94,7 @@ export class CallWebRTC {
             try {
                 this._makingOffer = true;
                 await this._pc.setLocalDescription();
+                await this._updateVerificationCode();
                 this._onSignal('call_offer', {
                     call_id: this._callId,
                     sdp: this._pc.localDescription,
@@ -116,9 +120,11 @@ export class CallWebRTC {
         if (this._ignoreOffer) return;
 
         await this._pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await this._updateVerificationCode();
 
         if (sdp.type === 'offer') {
             await this._pc.setLocalDescription();
+            await this._updateVerificationCode();
             this._onSignal('call_answer', {
                 call_id: this._callId,
                 sdp: this._pc.localDescription,
@@ -130,6 +136,7 @@ export class CallWebRTC {
         if (!this._pc) throw new Error('CallWebRTC not initialised');
         if (this._pc.signalingState === 'stable') return;  // already applied
         await this._pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await this._updateVerificationCode();
     }
 
     async handleIceCandidate({ candidate }) {
@@ -158,6 +165,17 @@ export class CallWebRTC {
         if (sender) sender.replaceTrack(newTrack);
     }
 
+    async _updateVerificationCode() {
+        const localFingerprint = _extractDtlsFingerprint(this._pc?.localDescription?.sdp);
+        const remoteFingerprint = _extractDtlsFingerprint(this._pc?.remoteDescription?.sdp);
+        if (!localFingerprint || !remoteFingerprint) return;
+
+        const code = await deriveCallVerificationCode(localFingerprint, remoteFingerprint);
+        if (!code || code === this._verificationCode) return;
+        this._verificationCode = code;
+        this._onVerificationCode(code);
+    }
+
     // ── Cleanup ──────────────────────────────────────────────────────────────
 
     close() {
@@ -165,4 +183,29 @@ export class CallWebRTC {
         this._pc = null;
         this._localStream = null;
     }
+}
+
+function _extractDtlsFingerprint(sdp) {
+    const text = String(sdp || '');
+    const match = text.match(/^a=fingerprint:[^\s]+\s+([0-9A-Fa-f:]+)$/m);
+    return match ? match[1].replace(/:/g, '').toUpperCase() : '';
+}
+
+export async function deriveCallVerificationCode(localFingerprint, remoteFingerprint) {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle) return '';
+
+    const normalized = [localFingerprint, remoteFingerprint]
+        .map(value => String(value || '').replace(/[^0-9A-Fa-f]/g, '').toUpperCase())
+        .filter(Boolean)
+        .sort()
+        .join('|');
+    if (!normalized) return '';
+
+    const encoded = new TextEncoder().encode(`sun-call-v1|${normalized}`);
+    const digest = new Uint8Array(await subtle.digest('SHA-256', encoded));
+    const numeric = (
+        ((digest[0] << 16) | (digest[1] << 8) | digest[2]) % 1_000_000
+    ).toString().padStart(6, '0');
+    return `${numeric.slice(0, 3)} ${numeric.slice(3)}`;
 }

@@ -205,6 +205,19 @@
     margin-top: 6px;
     text-shadow: 0 1px 4px rgba(0,0,0,.3);
 }
+.call-overlay__verify {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    color: rgba(255,255,255,.86);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+.call-overlay__verify[hidden] { display: none; }
 
 .call-overlay__local-video {
     position: absolute;
