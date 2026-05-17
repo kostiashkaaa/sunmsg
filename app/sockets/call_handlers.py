@@ -21,16 +21,40 @@ _CALL_RING_TIMEOUT_SECONDS = 60
 
 
 def _chat_members(conn, chat_id: str, user_id: int) -> list[int]:
+    # Direct chats use contacts table; group chats use chat_members
     rows = conn.execute(
-        'SELECT user_id FROM chat_members WHERE chat_id = ? AND user_id != ?',
+        'SELECT contact_id AS user_id FROM contacts WHERE chat_id = %s AND user_id = %s',
+        (chat_id, user_id),
+    ).fetchall()
+    if rows:
+        return [int(r['user_id']) for r in rows]
+    # Fallback: group chat
+    rows = conn.execute(
+        'SELECT user_id FROM chat_members WHERE chat_id = %s AND user_id != %s',
         (chat_id, user_id),
     ).fetchall()
     return [int(r['user_id']) for r in rows]
 
 
+def _is_chat_member(conn, chat_id: str, user_id: int) -> bool:
+    # Direct chat: check contacts table
+    row = conn.execute(
+        'SELECT 1 FROM contacts WHERE chat_id = %s AND user_id = %s',
+        (chat_id, user_id),
+    ).fetchone()
+    if row:
+        return True
+    # Group chat: check chat_members
+    row = conn.execute(
+        'SELECT 1 FROM chat_members WHERE chat_id = %s AND user_id = %s',
+        (chat_id, user_id),
+    ).fetchone()
+    return row is not None
+
+
 def _is_call_participant(conn, call_id: str, user_id: int) -> bool:
     row = conn.execute(
-        'SELECT 1 FROM call_participants WHERE call_id = ? AND user_id = ?',
+        'SELECT 1 FROM call_participants WHERE call_id = %s AND user_id = %s',
         (call_id, user_id),
     ).fetchone()
     return row is not None
@@ -63,10 +87,7 @@ def handle_call_initiate(
 
     conn = get_db_connection_func()
     try:
-        if not conn.execute(
-            'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ?',
-            (chat_id, user_id),
-        ).fetchone():
+        if not _is_chat_member(conn, chat_id, user_id):
             emit_func('call_error', {'error': 'not_member', 'request_id': request_id})
             return
 
@@ -83,7 +104,7 @@ def handle_call_initiate(
         create_call_session(conn, call_id=call_id, chat_id=chat_id, initiator_id=user_id, call_type=call_type)
 
         row = conn.execute(
-            'SELECT display_name, username, avatar_url FROM users WHERE id = ?', (user_id,),
+            'SELECT display_name, username, avatar_url FROM users WHERE id = %s', (user_id,),
         ).fetchone()
         initiator_info = {
             'user_id': user_id,
