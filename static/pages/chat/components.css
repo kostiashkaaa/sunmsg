@@ -11826,13 +11826,17 @@
     }
 
     #partnerProfileDrawer .profile-hero-avatar {
-        width: 84px;
-        height: 84px;
-        font-size: 25px;
+        width: 92px;
+        height: 92px;
+        font-size: 28px;
     }
 
     #partnerProfileDrawer .profile-hero-name {
-        font-size: 18px;
+        font-size: 20px;
+    }
+
+    #partnerProfileDrawer .profile-hero-status {
+        font-size: 13px;
     }
 
     #partnerProfileDrawer .profile-group-tabs {
