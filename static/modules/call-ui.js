@@ -85,6 +85,7 @@ export function showActiveCallOverlay({
         <div class="call-overlay__top">
             <div class="call-overlay__partner">${name}</div>
             <div class="call-overlay__status" id="call-status-text">Соединение...</div>
+            <div class="call-overlay__verify" id="call-verification-code" hidden></div>
         </div>
 
         <video id="call-local-video" class="call-overlay__local-video${isVideo ? '' : ' call-overlay__local-video--hidden'}" autoplay playsinline muted></video>
@@ -166,6 +167,14 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
 export function setCallStatusText(text) {
     const el = _currentOverlay()?.querySelector('#call-status-text');
     if (el) el.textContent = text;
+}
+
+export function setCallVerificationCode(code) {
+    const el = _currentOverlay()?.querySelector('#call-verification-code');
+    if (!el) return;
+    const value = String(code || '').trim();
+    el.hidden = !value;
+    el.textContent = value ? `Код безопасности: ${value}` : '';
 }
 
 export function attachRemoteTrack(track) {

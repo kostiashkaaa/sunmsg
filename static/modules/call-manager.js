@@ -19,7 +19,8 @@ import { CallWebRTC } from './call-webrtc.js';
 import {
     showIncomingCallBanner, removeIncomingCallBanner,
     showActiveCallOverlay, removeActiveCallOverlay,
-    setCallStatusText, attachRemoteTrack, removeRemoteTrack,
+    setCallStatusText, setCallVerificationCode,
+    attachRemoteTrack, removeRemoteTrack,
 } from './call-ui.js';
 import {
     startRingtone, stopRingtone,
@@ -354,6 +355,7 @@ export class CallManager {
                 attachRemoteTrack(track);
                 setCallStatusText('Соединено');
             },
+            onVerificationCode: (code) => setCallVerificationCode(code),
             onConnectionState: (state) => {
                 if (state === 'connected') {
                     clearTimeout(this._disconnectTimeout);
