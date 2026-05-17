@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import re
 import secrets
@@ -12,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from flask import (
     current_app,
     flash,
+    g,
     jsonify,
     make_response,
     redirect,
@@ -271,8 +273,102 @@ def index():
         ui_language=ui_language,
     ))
     if request.args.get('reset_client') == '1':
-        response.headers['Clear-Site-Data'] = '"cache", "storage"'
+        response.headers['Clear-Site-Data'] = '"cache"'
     return response
+
+
+@auth_bp.route('/reset-client', methods=['GET'])
+def reset_client_state():
+    target_url = url_for(
+        'auth.index',
+        reset_client='1',
+        reset_done='1',
+        reset_v=int(time.time()),
+    )
+    csp_nonce = str(getattr(g, 'csp_nonce', '') or '')
+    target_json = json.dumps(target_url)
+    html = f"""<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUN reset</title>
+    <style nonce="{csp_nonce}">
+        body {{
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #f7f4ee;
+            color: #221d19;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }}
+        main {{
+            width: min(100% - 40px, 420px);
+            border: 1px solid #ddd5c8;
+            border-radius: 14px;
+            background: #fffdf8;
+            padding: 24px;
+            box-sizing: border-box;
+        }}
+        h1 {{
+            margin: 0 0 12px;
+            font-size: 26px;
+            line-height: 1.1;
+        }}
+        p {{
+            margin: 0;
+            color: #6d6459;
+            line-height: 1.45;
+        }}
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Reset SUN</h1>
+        <p id="status">Cleaning browser cache...</p>
+    </main>
+    <script nonce="{csp_nonce}">
+    (() => {{
+        const targetUrl = {target_json};
+        const statusEl = document.getElementById('status');
+        const setStatus = (text) => {{
+            if (statusEl) statusEl.textContent = text;
+        }};
+        const runStep = async (label, action) => {{
+            try {{
+                await action();
+            }} catch (_error) {{}}
+            setStatus(label);
+        }};
+        const reset = async () => {{
+            await runStep('Removing old service worker...', async () => {{
+                if (!('serviceWorker' in navigator)) return;
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map((registration) => registration.unregister()));
+            }});
+            await runStep('Clearing static cache...', async () => {{
+                if (!('caches' in window)) return;
+                const keys = await caches.keys();
+                await Promise.all(keys.map((key) => caches.delete(key)));
+            }});
+            setStatus('Opening fresh SUN...');
+            window.setTimeout(() => {{
+                window.location.replace(targetUrl);
+            }}, 250);
+        }};
+        reset().catch(() => {{
+            window.location.replace(targetUrl);
+        }});
+    }})();
+    </script>
+</body>
+</html>"""
+    response = make_response(html)
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    response.headers['Clear-Site-Data'] = '"cache"'
+    return response
+
 
 @auth_bp.route('/api/set_guest_language', methods=['POST'])
 @limiter.limit("120 per minute")

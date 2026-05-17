@@ -821,6 +821,31 @@ def test_auth_index_detects_language_by_country(monkeypatch, tmp_path):
     assert b'<html lang="en">' in global_response.data
 
 
+def test_auth_index_reset_client_only_clears_browser_cache(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-index-reset-client.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    response = app.test_client().get('/?reset_client=1')
+
+    assert response.status_code == 200
+    assert response.headers['Clear-Site-Data'] == '"cache"'
+
+
+def test_reset_client_page_unregisters_service_workers(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-reset-client-page.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    response = app.test_client().get('/reset-client')
+
+    assert response.status_code == 200
+    assert response.headers['Clear-Site-Data'] == '"cache"'
+    assert b'navigator.serviceWorker.getRegistrations' in response.data
+    assert b'caches.keys' in response.data
+    assert b'window.location.replace' in response.data
+
+
 def test_api_save_settings_updates_language(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-save-settings-language.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
