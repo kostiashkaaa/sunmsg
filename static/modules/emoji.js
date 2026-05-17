@@ -212,13 +212,23 @@ function setMobileEmojiSheetState(emojiPicker, isOpen, height = null) {
     chatArea.classList.toggle('emoji-sheet-open', Boolean(isOpen));
     document.documentElement.classList.toggle('mobile-emoji-sheet-open', Boolean(isOpen));
     if (isOpen && Number.isFinite(height)) {
+        chatArea.classList.remove('emoji-sheet-releasing');
         chatArea.style.setProperty('--mobile-emoji-sheet-height', `${Math.round(height)}px`);
         if (shouldPinChatToBottom) {
             pinMobileEmojiChatToBottom(chatArea);
         }
     } else if (!isOpen) {
         chatArea.classList.remove('emoji-keyboard-handoff');
+        // Suppress transitions while collapsing the dock so the input bar
+        // doesn't visibly jump downward during keyboard-handoff or close.
+        chatArea.classList.add('emoji-sheet-releasing');
         chatArea.style.removeProperty('--mobile-emoji-sheet-height');
+        // Remove the releasing flag after the current paint to re-enable transitions.
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                chatArea.classList.remove('emoji-sheet-releasing');
+            });
+        });
     }
 }
 
@@ -400,17 +410,24 @@ function getEmojiButtonLabel(mode) {
     return localeCode === 'en' ? 'Show emojis' : 'Показать смайлики';
 }
 
+let emojiLoadRetryAt = 0;
+const EMOJI_LOAD_RETRY_DELAY_MS = 8000;
+
 async function loadEmojiData() {
     if (emojiData) return emojiData;
-    if (emojiLoadFailed) return null;
+    // Allow retry after a cooldown so that a transient network error on the
+    // first open does not permanently break the picker for the session.
+    if (emojiLoadFailed && performance.now() < emojiLoadRetryAt) return null;
 
     const cachedData = readCachedEmojiData();
     if (cachedData) {
+        emojiLoadFailed = false;
         emojiData = cachedData;
         return emojiData;
     }
 
     try {
+        emojiLoadFailed = false;
         const resp = await fetch(withAppRoot('/static/emojis.json'));
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const nextData = normalizeEmojiDataPayload(await resp.json());
@@ -421,6 +438,7 @@ async function loadEmojiData() {
     } catch (error) {
         console.error('Failed to load emojis', error);
         emojiLoadFailed = true;
+        emojiLoadRetryAt = performance.now() + EMOJI_LOAD_RETRY_DELAY_MS;
         return null;
     }
 }
@@ -1002,7 +1020,16 @@ export function initEmojiPicker(messageInput) {
             preferredMobileSheetHeight: preferredMobileSheetHeight > 0 ? preferredMobileSheetHeight : null,
         });
         if (shouldOpenMobile && document.activeElement === messageInput) {
+            // Suppress layout transitions while the keyboard dismisses so the
+            // input bar doesn't jump before the emoji sheet slides into position.
+            const chatArea = resolveEmojiChatArea(emojiPicker);
+            chatArea?.classList.add('emoji-sheet-releasing');
             messageInput.blur();
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    chatArea?.classList.remove('emoji-sheet-releasing');
+                });
+            });
         }
         syncEmojiButtonMode(true);
 

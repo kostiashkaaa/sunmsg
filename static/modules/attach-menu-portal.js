@@ -78,10 +78,9 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         const opensAbove = topAbove >= minTop || topBelow > maxTop;
         const left = Math.min(Math.max(alignRect.right - menuWidth, minLeft), maxLeft);
         const preferredTop = opensAbove ? topAbove : topBelow;
-        const anchorToComposerDuringKeyboard = opensAbove && keyboardOpen;
-        const top = anchorToComposerDuringKeyboard
-            ? Math.max(preferredTop, minTop)
-            : Math.min(Math.max(preferredTop, minTop), maxTop);
+        // Always clamp within [minTop, maxTop] so the menu never flies off-screen,
+        // even when the keyboard is open and the anchor is near the top of the visual viewport.
+        const top = Math.min(Math.max(preferredTop, minTop), maxTop);
 
         attachMenu.style.setProperty('--attach-menu-left', `${left}px`);
         attachMenu.style.setProperty('--attach-menu-top', `${top}px`);

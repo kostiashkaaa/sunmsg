@@ -49,14 +49,22 @@ export function initMessageContextMenu({
             : top;
         const visualBottom = top + height;
         const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
+        // When the keyboard is active the visual viewport is already cropped to
+        // the area above the keyboard, so use visualBottom as the safe bottom.
+        // When the keyboard is hidden, keep the input bar out of the menu zone.
         const safeBottom = !keyboardActive && inputRect && inputRect.top > safeTop && inputRect.top < visualBottom
             ? inputRect.top
             : visualBottom;
+        // Guarantee at least 160px of usable vertical space regardless of what the
+        // viewport reports (prevents the menu from collapsing to zero height on
+        // small devices or during resize events).
+        const minUsable = 160;
+        const clampedBottom = Math.max(safeBottom, safeTop + minUsable);
         return {
             left,
             top: safeTop,
             right: left + width,
-            bottom: safeBottom,
+            bottom: clampedBottom,
         };
     }
 
@@ -185,7 +193,13 @@ export function initMessageContextMenu({
             ? Boolean(options.canDeleteForAll)
             : Boolean(isCurrentUserGroupModerator());
         viewportBoundsLock = null;
-        viewportBoundsLock = getViewportBounds();
+        // Only lock bounds when the keyboard is not active; if the keyboard is
+        // open, the visual viewport will shift as the keyboard dismisses and
+        // locking stale bounds would misplace the menu.
+        const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
+        if (!keyboardActive) {
+            viewportBoundsLock = getViewportBounds();
+        }
         if (replyItemEl) replyItemEl.hidden = blocked;
         if (editItemEl) editItemEl.hidden = blocked || !isOwnMessage || !canEdit;
         if (deleteItemEl) deleteItemEl.hidden = blocked;
