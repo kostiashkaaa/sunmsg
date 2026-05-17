@@ -218,6 +218,7 @@
 .call-overlay--visible {
     opacity: 1;
     pointer-events: none;
+    /* pointer-events are enabled per-element via child elements */
 }
 .call-overlay--caller { --call-role-accent: var(--accent, #8b6cff); }
 .call-overlay--callee { --call-role-accent: var(--success, var(--accent, #8b6cff)); }
@@ -418,6 +419,8 @@
     z-index: 1;
     cursor: pointer;
 }
+/* Never mirror remote video */
+#call-remote-video { transform: none !important; }
 .call-overlay--has-remote-video .call-overlay__remote-video {
     opacity: 1;
 }
@@ -462,7 +465,7 @@
     box-shadow: 0 4px 20px rgba(0,0,0,.4);
     cursor: pointer;
     background: #111827;
-    transform: none;
+    transform: none !important;
 }
 .call-overlay__local-video--hidden { display: none !important; }
 .call-overlay--has-local-video:not(.call-overlay--has-remote-video) .call-overlay__local-video {
@@ -523,14 +526,15 @@
     align-items: center;
     gap: 8px;
     border: none;
-    background: none;
+    background: none !important;
     cursor: pointer;
     color: var(--call-text);
     padding: 0;
-    border-radius: 999px;
+    border-radius: 0;
     -webkit-appearance: none;
     appearance: none;
     -webkit-tap-highlight-color: transparent;
+    outline: none;
 }
 .call-ctrl:focus {
     outline: none;
@@ -557,14 +561,23 @@
     backdrop-filter: blur(8px);
     overflow: hidden;
 }
+.call-ctrl--active:not(.call-ctrl--end) .call-ctrl__icon {
+    position: relative;
+    overflow: visible;
+}
 .call-ctrl--active:not(.call-ctrl--end) .call-ctrl__icon::after {
     content: "";
     position: absolute;
     width: 2px;
-    height: 70%;
+    height: 130%;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
     border-radius: 999px;
-    background: currentColor;
-    transform: rotate(45deg);
+    background: #ef4444;
+    transform: rotate(40deg);
+    pointer-events: none;
+    z-index: 10;
 }
 .call-ctrl:hover .call-ctrl__icon { background: color-mix(in srgb, var(--call-role-accent) 20%, var(--surface-2, #2a2f36)); }
 .call-ctrl:active .call-ctrl__icon { transform: scale(.88); }
@@ -592,6 +605,10 @@
     display: none;
 }
 .call-overlay--has-local-video .call-ctrl--switch-camera {
+    display: flex;
+}
+/* Also show switch camera when video is active but no track yet */
+.call-overlay--video-active .call-ctrl--switch-camera {
     display: flex;
 }
 
@@ -709,8 +726,23 @@
     .call-overlay--minimized .call-topbar {
         left: 0;
         width: 100vw;
-        height: 38px;
+        height: 52px;
         display: grid;
+        cursor: pointer;
+        background: color-mix(in srgb, var(--call-surface-2) 94%, var(--call-role-accent) 20%);
+        border-bottom: 1px solid var(--call-border);
+        box-shadow: 0 4px 16px rgba(0,0,0,.24);
+    }
+    .call-overlay--minimized .call-topbar::after {
+        content: "Нажмите, чтобы вернуться";
+        position: absolute;
+        bottom: 3px;
+        left: 50%;
+        translate: -50% 0;
+        font-size: 10px;
+        color: color-mix(in srgb, var(--call-text) 54%, transparent);
+        white-space: nowrap;
+        pointer-events: none;
     }
     .call-overlay--minimized .call-card {
         display: none;

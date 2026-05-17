@@ -45,30 +45,45 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
         <div class="call-ib__actions">
             <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Микрофон">
                 <span class="call-ib__btn-icon">
-                    <i class="bi bi-mic-fill" aria-hidden="true"></i>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                        <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
                 </span>
                 <span class="call-ib__btn-label">Звук</span>
             </button>
             <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Камера">
                 <span class="call-ib__btn-icon">
-                    <i class="bi ${callType === 'video' ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'}" aria-hidden="true"></i>
+                    ${callType === 'video'
+                        ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/>
+                            <rect x="1" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none"/>
+                        </svg>`
+                        : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/>
+                            <rect x="1" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none"/>
+                            <line x1="22" y1="2" x2="2" y2="22" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                        </svg>`
+                    }
                 </span>
                 <span class="call-ib__btn-label">Камера</span>
             </button>
             <button class="call-ib__btn call-ib__btn--accept" type="button" data-call-accept aria-label="Принять">
                 <span class="call-ib__btn-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <path d="M6.6 10.8C7.4 12.55 8.82 13.98 10.56 14.78L11.96 13.38C12.14 13.2 12.39 13.15 12.62 13.22C13.38 13.47 14.2 13.6 15.05 13.6C15.6 13.6 16.05 14.05 16.05 14.6V17.05C16.05 17.6 15.6 18.05 15.05 18.05C8.97 18.05 4.05 13.13 4.05 7.05C4.05 6.5 4.5 6.05 5.05 6.05H7.5C8.05 6.05 8.5 6.5 8.5 7.05C8.5 7.91 8.63 8.73 8.88 9.49C8.95 9.72 8.89 9.97 8.71 10.15L6.6 10.8Z" fill="white"/>
                     </svg>
                 </span>
                 <span class="call-ib__btn-label">Принять</span>
             </button>
             <button class="call-ib__btn call-ib__btn--reject" type="button" data-call-reject aria-label="Отклонить">
                 <span class="call-ib__btn-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
-                    <line x1="22" y1="2" x2="2" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <path d="M6.6 10.8C7.4 12.55 8.82 13.98 10.56 14.78L11.96 13.38C12.14 13.2 12.39 13.15 12.62 13.22C13.38 13.47 14.2 13.6 15.05 13.6C15.6 13.6 16.05 14.05 16.05 14.6V17.05C16.05 17.6 15.6 18.05 15.05 18.05C8.97 18.05 4.05 13.13 4.05 7.05C4.05 6.5 4.5 6.05 5.05 6.05H7.5C8.05 6.05 8.5 6.5 8.5 7.05C8.5 7.91 8.63 8.73 8.88 9.49C8.95 9.72 8.89 9.97 8.71 10.15L6.6 10.8Z" fill="white"/>
+                        <line x1="19.5" y1="4.5" x2="4.5" y2="19.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
                 </span>
                 <span class="call-ib__btn-label">Отклонить</span>
             </button>
@@ -128,9 +143,9 @@ export function showActiveCallOverlay({
             </div>
             <div class="call-topbar__name">${name}</div>
             <button class="call-topbar__end" type="button" aria-label="Завершить звонок">
-                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M6.4 4.4l2.2 3.2-1.2 1.2c1 2.4 3.4 4.8 5.8 5.8l1.2-1.2 3.2 2.2-.7 2.7c-.2.8-1 1.3-1.8 1.1C9.9 18.2 5.8 14.1 4.6 8.9c-.2-.8.3-1.6 1.1-1.8l.7-2.7z"/>
-                    <path d="M21 3L3 21"/>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6.6 10.8C7.4 12.55 8.82 13.98 10.56 14.78L11.96 13.38C12.14 13.2 12.39 13.15 12.62 13.22C13.38 13.47 14.2 13.6 15.05 13.6C15.6 13.6 16.05 14.05 16.05 14.6V17.05C16.05 17.6 15.6 18.05 15.05 18.05C8.97 18.05 4.05 13.13 4.05 7.05C4.05 6.5 4.5 6.05 5.05 6.05H7.5C8.05 6.05 8.5 6.5 8.5 7.05C8.5 7.91 8.63 8.73 8.88 9.49C8.95 9.72 8.89 9.97 8.71 10.15L6.6 10.8Z" fill="currentColor"/>
+                    <line x1="19.5" y1="4.5" x2="4.5" y2="19.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
                 </svg>
             </button>
         </div>
@@ -138,8 +153,8 @@ export function showActiveCallOverlay({
         <section class="call-card call-card--${safeRole}" id="call-card" role="dialog" aria-label="Звонок">
             <div class="call-card__stage">
                 <button class="call-card__minimize" id="call-minimize-btn" type="button" aria-label="Свернуть звонок">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-                        <path d="M18 6L6 18M6 6l12 12"/>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6"/>
                     </svg>
                 </button>
                 <video id="call-remote-video" class="call-overlay__remote-video" autoplay playsinline muted data-call-view-toggle title="Переключить вид"></video>
@@ -203,9 +218,9 @@ export function showActiveCallOverlay({
                     </button>
                     <button class="call-ctrl call-ctrl--end" id="call-btn-end" aria-label="Завершить">
                         <span class="call-ctrl__icon">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M4.5 2C4.5 2 2 2 2 4.5 2 13.6 10.4 22 19.5 22c2.5 0 2.5-2.5 2.5-2.5v-3s0-1.5-1.5-1.5c-.9 0-2.1-.4-3-.7-.6-.2-1.3-.1-1.8.4l-1.5 1.5C12.1 15 9 11.9 7.8 9.3l1.5-1.5c.5-.5.6-1.2.4-1.8C9.4 5.1 9 3.9 9 3c0-1.5-1.5-1.5-1.5-1.5H4.5z"/>
-                                <line x1="22" y1="2" x2="2" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6.6 10.8C7.4 12.55 8.82 13.98 10.56 14.78L11.96 13.38C12.14 13.2 12.39 13.15 12.62 13.22C13.38 13.47 14.2 13.6 15.05 13.6C15.6 13.6 16.05 14.05 16.05 14.6V17.05C16.05 17.6 15.6 18.05 15.05 18.05C8.97 18.05 4.05 13.13 4.05 7.05C4.05 6.5 4.5 6.05 5.05 6.05H7.5C8.05 6.05 8.5 6.5 8.5 7.05C8.5 7.91 8.63 8.73 8.88 9.49C8.95 9.72 8.89 9.97 8.71 10.15L6.6 10.8Z" fill="white"/>
+                                <line x1="19.5" y1="4.5" x2="4.5" y2="19.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
                             </svg>
                         </span>
                         <span class="call-ctrl__label">Завершить</span>
@@ -272,18 +287,24 @@ export function showActiveCallOverlay({
     overlay.querySelector('.call-card__stage')?.addEventListener('click', toggleViewSwap);
 
     const speakerBtn = overlay.querySelector('#call-btn-speaker');
-    if (supportsSpeakerToggle && speakerBtn) {
-        speakerBtn.addEventListener('click', async () => {
-            const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
-            speakerBtn.disabled = true;
-            try {
-                const applied = await _setSpeakerMode(enabled, overlay);
-                _syncSpeakerButton(speakerBtn, applied ? enabled : !enabled);
-            } finally {
-                speakerBtn.disabled = false;
-            }
-        });
-    } else {
+    if (isMobile && speakerBtn) {
+        if (_isIos()) {
+            // iOS Safari does not support setSinkId; audio routing is controlled
+            // by the system based on connected audio devices. Hide the button.
+            speakerBtn.remove();
+        } else {
+            speakerBtn.addEventListener('click', async () => {
+                const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
+                speakerBtn.disabled = true;
+                try {
+                    const applied = await _setSpeakerMode(enabled, overlay);
+                    _syncSpeakerButton(speakerBtn, applied ? enabled : !enabled);
+                } finally {
+                    speakerBtn.disabled = false;
+                }
+            });
+        }
+    } else if (!isMobile) {
         speakerBtn?.remove();
     }
 
@@ -294,7 +315,7 @@ export function showActiveCallOverlay({
         overlay.classList.add('call-overlay--minimized');
     });
     overlay.querySelector('#call-topbar')?.addEventListener('click', (event) => {
-        if (event.target.closest('button')) return;
+        if (event.target.closest('.call-topbar__end')) return;
         overlay.classList.remove('call-overlay--minimized');
     });
 }
@@ -604,8 +625,11 @@ async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
     if (remoteAudio) {
         remoteAudio.muted = false;
         remoteAudio.volume = 1;
-        const selected = await _selectAudioOutput(remoteAudio, { speaker: enabled });
-        if (!selected) return false;
+
+        if (_supportsAudioOutputSelection()) {
+            await _selectAudioOutput(remoteAudio, { speaker: enabled });
+        }
+
         overlay?.classList.toggle('call-overlay--speaker-on', enabled);
         _playMedia(remoteAudio);
     }
@@ -714,6 +738,11 @@ function _isMobileCallUi() {
         window.matchMedia?.('(pointer: coarse)').matches
         || window.matchMedia?.('(max-width: 768px)').matches
     );
+}
+
+function _isIos() {
+    return /iP(hone|ad|od)/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 async function _releaseScreenWakeLock() {
