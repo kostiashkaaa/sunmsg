@@ -51,17 +51,18 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
 
     function position() {
         attachMenu.classList.add('attach-menu--portal');
+        // position:fixed is relative to the layout viewport.
+        // getBoundingClientRect() returns layout-viewport coords — no vv.offset needed.
+        // When the keyboard is open vv.height is the usable area above the keyboard.
         const vv = window.visualViewport;
-        const viewport = {
-            left: Number(vv?.offsetLeft || 0),
-            top: Number(vv?.offsetTop || 0),
-            width: Number(vv?.width || window.innerWidth || document.documentElement.clientWidth || 0),
-            height: Number(vv?.height || window.innerHeight || document.documentElement.clientHeight || 0),
-        };
+        const layoutW = window.innerWidth || document.documentElement.clientWidth || 0;
+        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+        const usableH = vv ? Math.min(Number(vv.height || layoutH), layoutH) : layoutH;
+        const viewport = { left: 0, top: 0, width: layoutW, height: usableH };
+
         const menuWidth = Math.min(216, Math.max(190, viewport.width - viewportGap * 2));
         attachMenu.style.setProperty('--attach-menu-width', `${menuWidth}px`);
 
-        const triggerRect = trigger.getBoundingClientRect();
         const alignRect = alignElement.getBoundingClientRect();
         const inputAreaRect = document.getElementById('chatInputArea')?.getBoundingClientRect?.();
         const keyboardOpen = isMobileKeyboardOpen();
@@ -78,8 +79,6 @@ export function initAttachMenuPortal({ attachMenu, trigger, viewportGap = 8, tri
         const opensAbove = topAbove >= minTop || topBelow > maxTop;
         const left = Math.min(Math.max(alignRect.right - menuWidth, minLeft), maxLeft);
         const preferredTop = opensAbove ? topAbove : topBelow;
-        // Always clamp within [minTop, maxTop] so the menu never flies off-screen,
-        // even when the keyboard is open and the anchor is near the top of the visual viewport.
         const top = Math.min(Math.max(preferredTop, minTop), maxTop);
 
         attachMenu.style.setProperty('--attach-menu-left', `${left}px`);

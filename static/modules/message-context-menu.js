@@ -37,33 +37,30 @@ export function initMessageContextMenu({
         if (viewportBoundsLock) {
             return { ...viewportBoundsLock };
         }
+        // position:fixed is relative to the layout viewport (window.innerWidth/Height).
+        // visualViewport.width/height gives the area not covered by the keyboard.
+        // visualViewport.offsetTop/Left are the scroll offsets of the visual viewport
+        // inside the layout viewport — irrelevant for fixed positioning.
         const vv = window.visualViewport;
-        const left = vv ? Number(vv.offsetLeft || 0) : 0;
-        const top = vv ? Number(vv.offsetTop || 0) : 0;
-        const width = vv ? Number(vv.width || window.innerWidth) : window.innerWidth;
-        const height = vv ? Number(vv.height || window.innerHeight) : window.innerHeight;
+        const layoutW = window.innerWidth || document.documentElement.clientWidth || 0;
+        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+        // When the keyboard is open vv.height < layoutH; use vv.height as the usable bottom.
+        const usableH = vv ? Math.min(Number(vv.height || layoutH), layoutH) : layoutH;
         const headerRect = document.getElementById('chatHeader')?.getBoundingClientRect?.();
         const inputRect = document.querySelector('.chat-input-area')?.getBoundingClientRect?.();
-        const safeTop = headerRect && headerRect.bottom > top && headerRect.bottom < top + height
+        const safeTop = headerRect && headerRect.bottom > 0 && headerRect.bottom < usableH
             ? headerRect.bottom
-            : top;
-        const visualBottom = top + height;
+            : 0;
         const keyboardActive = Boolean(document.documentElement?.classList?.contains('mobile-keyboard-active'));
-        // When the keyboard is active the visual viewport is already cropped to
-        // the area above the keyboard, so use visualBottom as the safe bottom.
-        // When the keyboard is hidden, keep the input bar out of the menu zone.
-        const safeBottom = !keyboardActive && inputRect && inputRect.top > safeTop && inputRect.top < visualBottom
+        const safeBottom = !keyboardActive && inputRect && inputRect.top > safeTop && inputRect.top < usableH
             ? inputRect.top
-            : visualBottom;
-        // Guarantee at least 160px of usable vertical space regardless of what the
-        // viewport reports (prevents the menu from collapsing to zero height on
-        // small devices or during resize events).
+            : usableH;
         const minUsable = 160;
         const clampedBottom = Math.max(safeBottom, safeTop + minUsable);
         return {
-            left,
+            left: 0,
             top: safeTop,
-            right: left + width,
+            right: layoutW,
             bottom: clampedBottom,
         };
     }
@@ -83,12 +80,13 @@ export function initMessageContextMenu({
 
     function positionContextMenu(x, y, msgId) {
         if (!menuEl) return;
-        const vv = window.visualViewport;
         const bounds = getViewportBounds();
         const margin = 8;
         const gap = 10;
-        const viewportX = Number.isFinite(x) ? x + (vv ? Number(vv.offsetLeft || 0) : 0) : NaN;
-        const viewportY = Number.isFinite(y) ? y + (vv ? Number(vv.offsetTop || 0) : 0) : NaN;
+        // touch.clientX/Y and getBoundingClientRect() are already in layout-viewport
+        // coordinates which is exactly what position:fixed uses — do NOT add vv.offset.
+        const viewportX = Number.isFinite(x) ? x : NaN;
+        const viewportY = Number.isFinite(y) ? y : NaN;
 
         const availableHeight = Math.max(160, bounds.bottom - bounds.top - margin * 2);
         menuEl.style.maxHeight = `${Math.round(availableHeight)}px`;
