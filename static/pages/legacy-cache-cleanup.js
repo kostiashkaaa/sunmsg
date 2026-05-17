@@ -4,7 +4,7 @@
                     navigator.serviceWorker.getRegistrations()
                         .then((registrations) => Promise.all(registrations.map((registration) => {
                             const scriptUrl = registration.active?.scriptURL || registration.waiting?.scriptURL || registration.installing?.scriptURL || '';
-                            if (scriptUrl.includes('/static/service-worker.js')) {
+                            if (scriptUrl.includes('/static/service-worker.js') || scriptUrl.includes('/service-worker.js')) {
                                 return registration.unregister();
                             }
                             return null;
