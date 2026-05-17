@@ -23,6 +23,7 @@ from app.routes.user_search_handlers import (
     build_search_users_payload,
     fetch_public_search_results,
 )
+from app.services.client_preferences import client_preferences_from_db
 from app.services.locale import normalize_language
 from app.services.user import get_safe_avatar_url
 
@@ -185,8 +186,28 @@ def search():
         raw_query=request.args.get('q', ''),
         fetch_public_search_results_func=fetch_public_search_results,
     )
+    user_row = conn.execute(
+        '''
+        SELECT language, client_preferences
+        FROM users
+        WHERE id = ?
+        ''',
+        (user_id,),
+    ).fetchone()
     conn.close()
-    return render_template('search.html', results=result['results'], query=result['query'])
+    ui_language = normalize_language(
+        user_row['language'] if user_row and 'language' in user_row.keys() else session.get('ui_language')
+    )
+    client_preferences = client_preferences_from_db(
+        user_row['client_preferences'] if user_row and 'client_preferences' in user_row.keys() else None
+    )
+    return render_template(
+        'search.html',
+        results=result['results'],
+        query=result['query'],
+        ui_language=ui_language,
+        client_preferences=client_preferences,
+    )
 
 
 @contacts_bp.route('/search_users', methods=['GET'])

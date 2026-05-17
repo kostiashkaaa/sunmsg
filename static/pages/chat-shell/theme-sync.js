@@ -1,3 +1,5 @@
+import { readAppliedDarkMode } from '../../modules/theme-state.js';
+
 export function initChatShellThemeSync(options = {}) {
     const interfaceThemeApi = options.interfaceThemeApi || window.InterfaceTheme || null;
     const chatAppearanceApi = options.chatAppearanceApi || window.ChatAppearance || null;
@@ -18,7 +20,7 @@ export function initChatShellThemeSync(options = {}) {
         return String(value ?? '');
     };
 
-    const isDark = () => localStorage.getItem('darkMode') === 'true';
+    const isDark = () => readAppliedDarkMode();
 
     const resolveCurrentLanguage = () => {
         if (i18nApi && typeof i18nApi.getLanguage === 'function') {

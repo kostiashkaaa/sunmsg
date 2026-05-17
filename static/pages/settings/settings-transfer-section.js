@@ -1,3 +1,5 @@
+import { readAppliedDarkMode } from '../../modules/theme-state.js';
+
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
 const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
@@ -104,7 +106,7 @@ export function initSettingsTransferSection({
         const unifiedPrefs = window.SUN_CLIENT_PREFERENCES?.read?.() || null;
         const interfaceThemeStore = window.InterfaceTheme?.readStore?.() || null;
         const chatAppearanceStore = window.ChatAppearance?.readStore?.() || null;
-        const darkMode = localStorage.getItem('darkMode') === 'true';
+        const darkMode = readAppliedDarkMode();
         const messageScale = normalizeMessageScale(localStorage.getItem(MESSAGE_SCALE_STORAGE_KEY) || '1');
         return {
             interfaceThemeStore,
@@ -179,7 +181,7 @@ export function initSettingsTransferSection({
         if (direct && typeof direct === 'object') {
             const hasExplicitMetrics = Object.prototype.hasOwnProperty.call(direct, 'sidebarWeatherMetrics');
             return {
-                darkMode: typeof direct.darkMode === 'boolean' ? direct.darkMode : false,
+                darkMode: typeof direct.darkMode === 'boolean' ? direct.darkMode : readAppliedDarkMode(),
                 messageScale: normalizeMessageScale(direct.messageScale),
                 performanceMode: String(direct.performanceMode || 'auto').toLowerCase() === 'full'
                     ? 'full'
@@ -211,7 +213,9 @@ export function initSettingsTransferSection({
 
         const localAppearance = payload?.localAppearance || {};
         return {
-            darkMode: !!localAppearance.darkMode,
+            darkMode: typeof localAppearance.darkMode === 'boolean'
+                ? localAppearance.darkMode
+                : readAppliedDarkMode(),
             messageScale: normalizeMessageScale(localAppearance.messageScale),
             performanceMode: 'auto',
             motionLevel: 'auto',

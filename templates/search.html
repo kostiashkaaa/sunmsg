@@ -11,6 +11,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>sun</title>
     <link rel="icon" href="{{ asset_url('icons/favicon-32x32.png') }}" type="image/png">
+    {% include '_client_preferences_early_boot.html' %}
     <script src="{{ asset_url('interface-theme.js') }}"></script>
     <script src="{{ asset_url('i18n-runtime.js') }}"></script>
     <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
@@ -386,9 +387,15 @@
     applyAvatarTints();
 
     (function () {
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.body.classList.add('dark-mode');
+        let dark = document.documentElement.classList.contains('dark-mode');
+        try {
+            const storedDark = localStorage.getItem('darkMode');
+            if (storedDark === 'true') dark = true;
+            if (storedDark === 'false') dark = false;
+        } catch (_) {
+            // Keep the theme applied by early boot.
         }
+        document.body.classList.toggle('dark-mode', dark);
         if (window.InterfaceTheme) window.InterfaceTheme.applyCurrentTheme();
     })();
 
