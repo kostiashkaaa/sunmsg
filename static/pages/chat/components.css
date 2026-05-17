@@ -11343,7 +11343,7 @@
 /* Flat messenger-like profile sidebar */
 #partnerProfileDrawer {
     --profile-panel-x-pad: 12px;
-    --profile-panel-y-gap: 4px;
+    --profile-panel-y-gap: 0px;
     --profile-panel-divider: color-mix(in srgb, var(--border) 46%, transparent);
     --profile-panel-hover: color-mix(in srgb, var(--border) 18%, transparent);
 }
@@ -11406,7 +11406,7 @@
 
 #partnerProfileDrawer .profile-hero {
     margin-top: 0;
-    padding: 16px var(--profile-panel-x-pad) 14px;
+    padding: 28px var(--profile-panel-x-pad) 16px;
     border-radius: 0;
     border: 0;
     background: var(--surface);
