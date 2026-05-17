@@ -766,7 +766,7 @@ export function renderProfileContactAccess(profile) {
 
 export function renderProfileMeta(profile, { metaUsername, metaCreatedAt, metaUserId, currentPartnerId } = {}) {
     if (!metaUsername || !metaCreatedAt || !metaUserId) return;
-    metaUsername.textContent = profile?.username ? `@${profile.username}` : '@unknown';
+    metaUsername.textContent = profile?.username || '';
     metaCreatedAt.dataset.createdAtRaw = String(profile?.created_at || '');
     metaCreatedAt.textContent = formatRegistrationDate(profile?.created_at);
     metaUserId.textContent = String(profile?.user_id || profile?.userId || currentPartnerId || '—');
