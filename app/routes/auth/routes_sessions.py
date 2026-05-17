@@ -14,6 +14,7 @@ from app.services.refresh_tokens import (
 from app.services.session_policy import (
     apply_session_auto_logout,
     parse_session_auto_logout_seconds,
+    session_auto_logout_payload,
     session_auto_logout_options,
     session_auto_logout_seconds_from_row,
 )
@@ -95,6 +96,7 @@ def api_session_devices():
         'success': True,
         'devices': devices,
         'session_auto_logout_seconds': session_auto_logout_seconds_from_row(policy_row),
+        'session_expires_at': session_auto_logout_payload(session)['session_expires_at'],
         'session_auto_logout_options': session_auto_logout_options(),
     })
 
@@ -137,6 +139,7 @@ def api_update_session_auto_logout():
     response = make_response(jsonify({
         'success': True,
         'session_auto_logout_seconds': seconds,
+        'session_expires_at': session_auto_logout_payload(session)['session_expires_at'],
         'session_auto_logout_options': session_auto_logout_options(),
         'updated_sessions': updated,
     }))

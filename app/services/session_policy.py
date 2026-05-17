@@ -69,3 +69,15 @@ def apply_session_auto_logout(session_store: Any, ttl_seconds: Any, *, now: int 
     session_store['session_expires_at'] = current + ttl
     session_store['session_last_activity_touch_at'] = current
     return ttl
+
+
+def session_auto_logout_payload(session_store: Any) -> dict[str, int]:
+    ttl = normalize_session_auto_logout_seconds(session_store.get('session_auto_logout_seconds'))
+    try:
+        expires_at = int(session_store.get('session_expires_at') or 0)
+    except (TypeError, ValueError):
+        expires_at = 0
+    return {
+        'session_auto_logout_seconds': ttl,
+        'session_expires_at': expires_at,
+    }

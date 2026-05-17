@@ -184,3 +184,100 @@ if (cleanupCalls.session !== 1 || cleanupCalls.persistent !== 1) {{
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_stage_private_key_for_redirect_forwards_persistent_session_expiry():
+    script_path = Path(__file__).resolve().parents[1] / 'static' / 'modules' / 'private-key-session-bridge.js'
+
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+import vm from 'node:vm';
+
+class FakeEventTarget {{
+  constructor() {{
+    this.listeners = new Map();
+  }}
+
+  addEventListener(type, handler) {{
+    if (!this.listeners.has(type)) this.listeners.set(type, []);
+    this.listeners.get(type).push(handler);
+  }}
+
+  dispatchEvent(event) {{
+    const handlers = this.listeners.get(event.type) || [];
+    for (const handler of handlers) {{
+      handler.call(this, event);
+    }}
+  }}
+}}
+
+function createStorage() {{
+  const data = new Map();
+  return {{
+    getItem(key) {{
+      return data.has(key) ? data.get(key) : null;
+    }},
+    setItem(key, value) {{
+      data.set(key, String(value));
+    }},
+    removeItem(key) {{
+      data.delete(key);
+    }},
+  }};
+}}
+
+let capturedOptions = null;
+const windowTarget = new FakeEventTarget();
+windowTarget.deviceKey = {{
+  async wrapPrivateKey(_pem, options = {{}}) {{
+    capturedOptions = options;
+    return true;
+  }},
+}};
+
+const context = {{
+  window: windowTarget,
+  sessionStorage: createStorage(),
+  localStorage: createStorage(),
+  Event: function Event(type) {{
+    this.type = type;
+  }},
+  console,
+}};
+
+context.window.window = context.window;
+context.window.sessionStorage = context.sessionStorage;
+context.window.localStorage = context.localStorage;
+context.window.Event = context.Event;
+context.window.console = console;
+
+const source = await readFile({str(script_path)!r}, 'utf8');
+vm.runInNewContext(source, context, {{ filename: 'private-key-session-bridge.js' }});
+
+const staged = await context.window.sunPrivateKeySession.stagePrivateKeyForRedirect('pem-test', {{
+  persistent: true,
+  sessionAutoLogoutSeconds: 604800,
+  sessionExpiresAt: 2000000000,
+  notify: false,
+}});
+if (!staged) {{
+  throw new Error('Expected stagePrivateKeyForRedirect to succeed');
+}}
+if (
+  !capturedOptions
+  || capturedOptions.persistent !== true
+  || capturedOptions.ttlSeconds !== 604800
+  || capturedOptions.expiresAt !== 2000000000
+) {{
+  throw new Error(`Expected persistent expiry metadata, got ${{JSON.stringify(capturedOptions)}}`);
+}}
+"""
+
+    result = subprocess.run(
+        ['node', '--input-type=module', '-e', node_harness],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout

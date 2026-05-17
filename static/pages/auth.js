@@ -1,6 +1,6 @@
 import { getCsrfToken, setCsrfToken } from '../modules/csrf.js';
 import { withAppRoot } from '../modules/app-url.js';
-import { stagePrivateKeyForRedirect } from '../modules/private-key-session.js';
+import { clearPrivateKeyPem, stagePrivateKeyForRedirect } from '../modules/private-key-session.js';
 import { stageKeyForLogin } from '../modules/key-login-stage.js';
 import { initMotionRuntime, initSunRipple } from '../modules/motion.js';
 
@@ -18,6 +18,12 @@ import { initRegisterFlow } from './auth/register-flow.js';
 
 initMotionRuntime();
 initSunRipple(document);
+void clearPrivateKeyPem({
+    notify: false,
+    clearWrappedSession: true,
+    clearWrappedPersistent: true,
+    clearDeviceKey: true,
+});
 
 const ui = initAuthUi({ withAppRoot, getCsrfToken });
 

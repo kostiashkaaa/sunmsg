@@ -88,7 +88,7 @@ export function initMnemonicSection({
 
             const privateKeyPem = await window.mnemonic.decryptVault(mnemonicPhrase, data.login_vault);
             const staged = await stagePrivateKeyForRedirect(privateKeyPem, {
-                rememberDevice: false,
+                persistent: true,
                 notify: true,
             });
             if (!staged) {

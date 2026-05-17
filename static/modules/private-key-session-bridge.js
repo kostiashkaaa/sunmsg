@@ -6,6 +6,7 @@
 
     const PRIVATE_KEY_STATUS_EVENT = 'sun-private-key-status-changed';
     const LEGACY_PRIVATE_KEY_STORAGE_KEY = 'e2e_private_key';
+    const DEFAULT_SESSION_AUTO_LOGOUT_SECONDS = 30 * 24 * 60 * 60;
 
     let inMemoryPrivateKeyPem = '';
 
@@ -15,6 +16,40 @@
 
     function hasDeviceKeyApi() {
         return !!window.deviceKey && typeof window.deviceKey.wrapPrivateKey === 'function';
+    }
+
+    function positiveInteger(value) {
+        const parsed = Number(value || 0);
+        if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+        return Math.floor(parsed);
+    }
+
+    function readBootstrapSession() {
+        return window.SUN_BOOTSTRAP?.session || {};
+    }
+
+    function resolveSessionAutoLogoutSeconds(options = {}) {
+        return positiveInteger(options.sessionAutoLogoutSeconds ?? options.ttlSeconds)
+            || positiveInteger(readBootstrapSession().autoLogoutSeconds)
+            || positiveInteger(window.SUN_SESSION_AUTO_LOGOUT_SECONDS)
+            || DEFAULT_SESSION_AUTO_LOGOUT_SECONDS;
+    }
+
+    function resolveSessionExpiresAt(options = {}) {
+        return positiveInteger(options.sessionExpiresAt ?? options.expiresAt)
+            || positiveInteger(readBootstrapSession().expiresAt)
+            || 0;
+    }
+
+    function buildPersistentWrapOptions(options = {}) {
+        const persistent = options?.persistent === true || options?.rememberDevice === true;
+        const ttlSeconds = resolveSessionAutoLogoutSeconds(options);
+        const expiresAt = resolveSessionExpiresAt(options);
+        return {
+            persistent,
+            ttlSeconds,
+            expiresAt: expiresAt || Math.floor(Date.now() / 1000) + ttlSeconds,
+        };
     }
 
     function notifyPrivateKeyStatusChanged() {
@@ -82,7 +117,6 @@
     }
 
     async function stagePrivateKeyForRedirect(pem, options = {}) {
-        const rememberDevice = options?.rememberDevice === true;
         const notify = options?.notify !== false;
         const normalizedPem = normalizePem(pem);
         if (!normalizedPem) return false;
@@ -99,7 +133,7 @@
 
         let wrapped = false;
         try {
-            wrapped = await window.deviceKey.wrapPrivateKey(normalizedPem, { persistent: rememberDevice });
+            wrapped = await window.deviceKey.wrapPrivateKey(normalizedPem, buildPersistentWrapOptions(options));
         } catch (_) {
             wrapped = false;
         }
@@ -153,6 +187,16 @@
         return Boolean(inMemoryPrivateKeyPem);
     }
 
+    function touchPersistentKeyFromSession(payload = {}) {
+        if (!window.deviceKey || typeof window.deviceKey.touchPersistentWrappedKey !== 'function') {
+            return false;
+        }
+        return window.deviceKey.touchPersistentWrappedKey({
+            sessionAutoLogoutSeconds: payload.session_auto_logout_seconds ?? payload.sessionAutoLogoutSeconds,
+            sessionExpiresAt: payload.session_expires_at ?? payload.sessionExpiresAt,
+        });
+    }
+
     clearLegacyPlaintextKeyStorage();
 
     window.sunPrivateKeySession = {
@@ -162,6 +206,7 @@
         clearPrivateKeyPem,
         stagePrivateKeyForRedirect,
         restoreWrappedPrivateKey,
+        touchPersistentKeyFromSession,
         notifyPrivateKeyStatusChanged,
         clearLegacyPlaintextKeyStorage,
     };
