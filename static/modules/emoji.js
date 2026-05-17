@@ -773,9 +773,12 @@ export function initEmojiPicker(messageInput) {
         }
     };
 
-    const closePicker = ({ focusInput = false } = {}) => {
+    const closePicker = ({ focusInput = false, keyboardOpening = false } = {}) => {
         openRenderSeq += 1;
         const isMobile = isMobileEmojiViewport();
+        // The keyboard is (about to be) on screen if we are going to focus the
+        // input ourselves, or if the input just received focus on its own.
+        const keyboardComing = isMobile && (focusInput || keyboardOpening);
 
         if (!emojiPicker.classList.contains('active') && !emojiPicker.classList.contains('is-closing')) {
             // Already closed — just normalize state.
@@ -788,14 +791,29 @@ export function initEmojiPicker(messageInput) {
 
         const closeSeq = ++emojiCloseSeq;
         emojiPicker.classList.remove('active');
-        emojiPicker.classList.add('is-closing');
         emojiPicker.setAttribute('aria-hidden', 'true');
         syncEmojiButtonMode(false);
 
-        // On mobile: focusing the input opens the native keyboard. The browser
-        // resizes the layout viewport, so the composer naturally slides up with
-        // the keyboard — no manual handoff or height measuring needed.
-        if (focusInput) focusComposerInput();
+        // When the keyboard is coming up the sheet MUST collapse instantly:
+        // otherwise the still-tall closing sheet keeps .chat-input-area
+        // expanded while the browser shrinks the viewport for the keyboard,
+        // pushing the composer underneath it. Instant collapse makes the flex
+        // column correct before the keyboard animates in.
+        if (keyboardComing) {
+            emojiPicker.classList.add('is-closing-instant');
+            clearMobileEmojiSheetState(emojiPicker);
+            if (focusInput) focusComposerInput();
+            // Drop the helper class on the next frame once layout has settled.
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    if (closeSeq !== emojiCloseSeq) return;
+                    emojiPicker.classList.remove('is-closing-instant');
+                });
+            });
+            return;
+        }
+
+        emojiPicker.classList.add('is-closing');
 
         waitForMotionEnd(emojiPicker, maxTransitionMs(emojiPicker, EMOJI_CLOSE_ANIMATION_MS)).then(() => {
             if (closeSeq !== emojiCloseSeq) return;
@@ -990,7 +1008,9 @@ export function initEmojiPicker(messageInput) {
 
     messageInput.addEventListener('focus', () => {
         if (isMobileEmojiViewport() && emojiPicker.classList.contains('active')) {
-            closePicker();
+            // The keyboard is opening (the input just got focus) — collapse the
+            // sheet instantly so the composer is not left under the keyboard.
+            closePicker({ keyboardOpening: true });
         }
     });
 

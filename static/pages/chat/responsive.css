@@ -1314,6 +1314,19 @@
                 visibility: visible;
             }
 
+            /* Instant collapse: used when the keyboard is about to open right
+               after closing the sheet. Snaps the sheet to height:0 with no
+               transition so .chat-input-area is the correct (small) size
+               before the keyboard resizes the viewport — otherwise the still
+               tall sheet would push the composer under the keyboard. */
+            .emoji-picker.is-closing-instant {
+                transition: none !important;
+                height: 0 !important;
+                max-height: 0 !important;
+                margin-top: -8px !important;
+                opacity: 0 !important;
+            }
+
             .emoji-picker-topbar {
                 padding: 9px var(--emoji-mobile-gutter) 8px;
                 gap: 8px;
