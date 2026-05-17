@@ -69,7 +69,7 @@ export function showActiveCallOverlay({
     callId, callType, partnerName, localStream,
     onToggleAudio, onToggleVideo, onSwitchCamera, onEnd,
 }) {
-    removeActiveCallOverlay();
+    removeActiveCallOverlay({ immediate: true });
 
     const name = escapeHtml(partnerName || 'Собеседник');
     const isVideo = callType === 'video';
@@ -79,7 +79,8 @@ export function showActiveCallOverlay({
     overlay.className = 'call-overlay';
     overlay.innerHTML = `
         <div class="call-overlay__bg"></div>
-        <video id="call-remote-video" class="call-overlay__remote-video" autoplay playsinline></video>
+        <video id="call-remote-video" class="call-overlay__remote-video" autoplay playsinline muted></video>
+        <audio id="call-remote-audio" class="call-overlay__remote-audio" autoplay playsinline></audio>
 
         <div class="call-overlay__top">
             <div class="call-overlay__partner">${name}</div>
@@ -150,32 +151,66 @@ export function showActiveCallOverlay({
     overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
 }
 
-export function removeActiveCallOverlay() {
-    const el = document.getElementById('call-active-overlay');
-    if (el) {
+export function removeActiveCallOverlay({ immediate = false } = {}) {
+    const overlays = document.querySelectorAll('#call-active-overlay');
+    overlays.forEach((el) => {
+        if (immediate) {
+            el.remove();
+            return;
+        }
         el.classList.remove('call-overlay--visible');
         setTimeout(() => el.remove(), 250);
-    }
+    });
 }
 
 export function setCallStatusText(text) {
-    const el = document.getElementById('call-status-text');
+    const el = _currentOverlay()?.querySelector('#call-status-text');
     if (el) el.textContent = text;
 }
 
 export function attachRemoteTrack(track) {
-    const video = document.getElementById('call-remote-video');
-    if (!video) return;
-    if (!video.srcObject) video.srcObject = new MediaStream();
-    video.srcObject.addTrack(track);
-    if (video.paused) video.play().catch(() => {});
+    const overlay = _currentOverlay();
+    const media = track.kind === 'audio'
+        ? overlay?.querySelector('#call-remote-audio')
+        : overlay?.querySelector('#call-remote-video');
+    if (!media) return;
+
+    const stream = media.srcObject instanceof MediaStream ? media.srcObject : new MediaStream();
+    if (!stream.getTracks().some(t => t.id === track.id)) {
+        stream.addTrack(track);
+    }
+    media.srcObject = stream;
+
+    if (track.kind === 'audio') {
+        media.muted = false;
+        media.volume = 1;
+    }
+    track.onunmute = () => _playMedia(media);
+    _playMedia(media);
 }
 
 export function removeRemoteTrack(kind) {
-    const video = document.getElementById('call-remote-video');
-    if (!video || !video.srcObject) return;
-    video.srcObject.getTracks().filter(t => t.kind === kind).forEach(t => {
-        video.srcObject.removeTrack(t);
+    const overlay = _currentOverlay();
+    const media = kind === 'audio'
+        ? overlay?.querySelector('#call-remote-audio')
+        : overlay?.querySelector('#call-remote-video');
+    if (!media || !media.srcObject) return;
+    media.srcObject.getTracks().filter(t => t.kind === kind).forEach(t => {
+        media.srcObject.removeTrack(t);
         t.stop();
     });
+}
+
+function _currentOverlay() {
+    const overlays = document.querySelectorAll('#call-active-overlay');
+    return overlays[overlays.length - 1] || null;
+}
+
+function _playMedia(media) {
+    const playPromise = media.play();
+    if (playPromise?.catch) {
+        playPromise.catch((err) => {
+            console.warn('[CallUI] remote media playback blocked', err);
+        });
+    }
 }
