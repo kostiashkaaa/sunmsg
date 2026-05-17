@@ -17,6 +17,8 @@ from flask import Blueprint, current_app, jsonify, request, session
 from app.database import get_db_connection
 from app.extensions import limiter
 from app.services.call_feature_access import can_user_use_calls
+from app.services.turn_pool import parse_turn_urls
+from app.services.turn_pool import select_turn_relays
 
 call_bp = Blueprint('call', __name__, url_prefix='/call')
 
@@ -26,15 +28,7 @@ _ICE_TRANSPORT_POLICIES = {'all', 'relay'}
 
 
 def _parse_turn_urls(raw_value: str) -> list[str]:
-    urls = []
-    for item in str(raw_value or '').split(','):
-        url = item.strip()
-        if not url:
-            continue
-        if not (url.startswith('turn:') or url.startswith('turns:')):
-            continue
-        urls.append(url)
-    return urls
+    return parse_turn_urls(raw_value)
 
 
 def _normalize_ice_transport_policy(raw_value: str) -> str:
@@ -98,14 +92,20 @@ def ice_config():
         or current_app.config.get('TURN_SERVER_URL')
         or ''
     ).strip()
+    turn_pool_raw = str(current_app.config.get('TURN_SERVER_POOL') or '').strip()
+    turn_pool_limit = current_app.config.get('TURN_SERVER_POOL_LIMIT') or 2
     ttl         = int(current_app.config.get('TURN_CREDENTIAL_TTL_SECONDS') or _DEFAULT_TTL)
     requested_ice_transport_policy = _normalize_ice_transport_policy(
         current_app.config.get('CALL_ICE_TRANSPORT_POLICY') or 'all'
     )
 
     ice_servers = [{'urls': _DEFAULT_STUN}]
-    turn_urls = _parse_turn_urls(turn_urls_raw)
-    turn_configured = bool(turn_secret and turn_urls)
+    turn_selection = select_turn_relays(
+        pool_raw=turn_pool_raw,
+        legacy_urls_raw=turn_urls_raw,
+        limit=turn_pool_limit,
+    )
+    turn_configured = bool(turn_secret and turn_selection.relays)
     ice_transport_policy = requested_ice_transport_policy if turn_configured else 'all'
 
     if turn_configured:
@@ -114,16 +114,21 @@ def ice_config():
         credential = b64encode(
             hmac.new(turn_secret.encode(), username.encode(), hashlib.sha1).digest()
         ).decode()
-        ice_servers.append({
-            'urls':       turn_urls if len(turn_urls) > 1 else turn_urls[0],
-            'username':   username,
-            'credential': credential,
-        })
+        for relay in turn_selection.relays:
+            ice_servers.append({
+                'urls':       list(relay.urls) if len(relay.urls) > 1 else relay.urls[0],
+                'username':   username,
+                'credential': credential,
+            })
 
     return jsonify({
         'ice_servers': ice_servers,
         'turn_configured': turn_configured,
-        'turn_urls_count': len(turn_urls),
+        'turn_urls_count': turn_selection.urls_count,
+        'turn_relays_count': len(turn_selection.relays),
+        'turn_pool_configured': turn_selection.pool_configured,
+        'turn_pool_source': turn_selection.source,
+        'turn_pool_selected_ids': turn_selection.selected_ids,
         'turn_credential_ttl_seconds': ttl,
         'ice_transport_policy': ice_transport_policy,
     })

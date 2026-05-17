@@ -100,6 +100,8 @@ class BaseConfig:
     TURN_SECRET = ''
     TURN_SERVER_URL = ''
     TURN_SERVER_URLS = ''
+    TURN_SERVER_POOL = ''
+    TURN_SERVER_POOL_LIMIT = 2
     TURN_CREDENTIAL_TTL_SECONDS = 3600
     CALL_ICE_TRANSPORT_POLICY = 'all'
     MODERATION_HIGH_RISK_IP_CIDRS = ''
@@ -440,6 +442,10 @@ class BaseConfig:
             'TURN_SERVER_URLS': str(
                 os.environ.get('TURN_SERVER_URLS', cls.TURN_SERVER_URLS) or ''
             ).strip(),
+            'TURN_SERVER_POOL': str(
+                os.environ.get('TURN_SERVER_POOL', cls.TURN_SERVER_POOL) or ''
+            ).strip(),
+            'TURN_SERVER_POOL_LIMIT': min(8, max(1, _env_int('TURN_SERVER_POOL_LIMIT', cls.TURN_SERVER_POOL_LIMIT))),
             'TURN_CREDENTIAL_TTL_SECONDS': _env_int('TURN_CREDENTIAL_TTL_SECONDS', cls.TURN_CREDENTIAL_TTL_SECONDS),
             'CALL_ICE_TRANSPORT_POLICY': str(
                 os.environ.get('CALL_ICE_TRANSPORT_POLICY', cls.CALL_ICE_TRANSPORT_POLICY) or 'all'
