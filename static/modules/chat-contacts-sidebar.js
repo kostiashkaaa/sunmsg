@@ -154,6 +154,14 @@ export function initChatContactsSidebar({
         return Boolean(contact?.has_draft) && Boolean(draftText.trim());
     }
 
+    function shouldRenderSidebarDraftPreview(contactChatId, currentChatId, hasDraft) {
+        if (!hasDraft) return false;
+        const normalizedContactChatId = String(contactChatId || '').trim();
+        if (!normalizedContactChatId) return false;
+        const normalizedCurrentChatId = String(currentChatId || '').trim();
+        return !normalizedCurrentChatId || normalizedContactChatId !== normalizedCurrentChatId;
+    }
+
     function buildGetContactsUrl(limit) {
         const params = new URLSearchParams();
         if (Number.isFinite(limit) && limit > 0) {
@@ -281,6 +289,7 @@ export function initChatContactsSidebar({
 
             const isSelfContact = String(contact.last_sender_id) === String(getCurrentUserId());
             const isSavedMessagesContact = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
+            const currentChatId = getCurrentChatId();
             const hasDraft = hasContactDraft(contact);
             let draftText = hasDraft ? String(contact.draft_text || '') : '';
             if (!isBlocked && hasDraft && isEncryptedPayload(draftText)) {
@@ -295,12 +304,13 @@ export function initChatContactsSidebar({
                     draftText = ENCRYPTED_PREVIEW_LOADING_TOKEN;
                 }
             }
-            const previewMessage = hasDraft ? draftText : displayLastMessage;
-            const previewIsSelf = hasDraft || isSavedMessagesContact ? false : isSelfContact;
-            const previewTimestamp = hasDraft
+            const shouldRenderDraftPreview = shouldRenderSidebarDraftPreview(contact.chatId, currentChatId, hasDraft);
+            const previewMessage = shouldRenderDraftPreview ? draftText : displayLastMessage;
+            const previewIsSelf = shouldRenderDraftPreview || isSavedMessagesContact ? false : isSelfContact;
+            const previewTimestamp = shouldRenderDraftPreview
                 ? String(contact.draft_updated_at || contact.last_message_time || '').trim()
                 : contact.last_message_time;
-            const previewStatus = hasDraft
+            const previewStatus = shouldRenderDraftPreview
                 ? { pending: false, is_read: false, is_delivered: false }
                 : {
                     is_read: isStatusTrueFlag(contact.last_message_is_read),
@@ -310,7 +320,6 @@ export function initChatContactsSidebar({
                 ? 0
                 : Math.max(0, Number(contact.unreadCount) || 0);
             const unread = unreadCount > 0;
-            const currentChatId = getCurrentChatId();
             const existing = contact.chatId
                 ? document.querySelector(`.contact-item[data-chat-id="${CSS.escape(String(contact.chatId))}"]`)
                 : null;
@@ -396,8 +405,10 @@ export function initChatContactsSidebar({
                     previewStatus,
                     previewTimestamp,
                     {
-                        isDraft: hasDraft,
+                        isDraft: shouldRenderDraftPreview,
                         draftText,
+                        draftUpdatedAt: String(contact.draft_updated_at || ''),
+                        preserveDraft: hasDraft && !shouldRenderDraftPreview,
                     },
                 );
                 if (!deferSort) {
