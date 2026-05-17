@@ -908,8 +908,21 @@ body.settings-home-open .settings-nav {
 }
 
 @media (max-width: 1024px) {
+    body.settings-detail-open {
+        overflow: hidden;
+    }
+    body.settings-detail-open .settings-overlay-frame,
+    body.settings-detail-open .settings-scene,
+    body.settings-detail-open .settings-layout,
+    body.settings-detail-open .settings-panel-body {
+        overflow: hidden !important;
+    }
+    body.settings-detail-open .settings-layout {
+        height: 100dvh !important;
+    }
     .settings-scene .settings-content {
         min-height: 0 !important;
+        overscroll-behavior-y: contain;
     }
 }
 
