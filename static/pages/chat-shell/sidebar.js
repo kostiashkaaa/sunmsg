@@ -54,12 +54,6 @@ export function initChatShellSidebar() {
         switchSidebarTab(button.dataset.tab || 'all');
     });
 
-    requestsShortcutBtn?.addEventListener('click', (event) => {
-        event.preventDefault();
-        const currentTab = String(document.body.dataset.sidebarTab || 'all');
-        switchSidebarTab(currentTab === 'requests' ? 'all' : 'requests');
-    });
-
     function applyAvatarTints() {
         document.querySelectorAll('.contact-item .contact-avatar').forEach((avatar) => {
             if (avatar.querySelector('img')) return;

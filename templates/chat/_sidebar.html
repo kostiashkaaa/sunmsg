@@ -16,19 +16,10 @@
                         </button>
                     </div>
                 </div>
-                <button
-                    class="sidebar-requests-shortcut sidebar-requests-shortcut--hidden"
-                    id="requestsShortcutBtn"
-                    type="button"
-                    aria-label="Запросы на диалог"
-                    aria-pressed="false"
-                >
-                    <i class="bi bi-person-plus"></i>
-                    <span class="sidebar-requests-shortcut__count" id="requestsShortcutCount"></span>
-                </button>
             </div>
             <div class="sidebar-tabs" id="sidebarTabs">
                 <button class="sidebar-tab active" data-tab="all" type="button">Все<span class="sidebar-tab-count" id="unreadTabCount" aria-live="polite"></span></button>
+                <button class="sidebar-tab sidebar-requests-shortcut--hidden" id="requestsShortcutBtn" data-tab="requests" type="button" aria-label="Запросы на диалог" aria-pressed="false">Запросы<span class="sidebar-tab-count" id="requestsShortcutCount"></span></button>
             </div>
         </div>
 
