@@ -3451,6 +3451,7 @@ export const initChatPage = async () => {
             markAllTicksRead,
             failPendingMessage,
             showToast,
+            isChatNearBottom,
             clearPendingReactionOp,
             applyChatBlockState,
             dismissTabAlertsForChat: (chatId, count) => tabAlertController.dismissAlertsForChat(chatId, count),

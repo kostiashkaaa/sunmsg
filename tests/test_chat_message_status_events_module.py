@@ -196,6 +196,91 @@ if (rerender.previousScrollTop !== 140 || rerender.previousScrollHeight !== 1200
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_delete_event_near_bottom_rerenders_to_bottom_without_anchor_measurement():
+    harness_body = """
+const handlers = new Map();
+const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
+const calls = [];
+let containerRectReads = 0;
+let messageRectReads = 0;
+const classes = new Set();
+const makeNode = (id, key) => ({
+  getAttribute: (name) => {
+    if (name === 'data-msg-id') return String(id);
+    if (name === 'data-message-key') return key;
+    return '';
+  },
+  getBoundingClientRect: () => {
+    messageRectReads += 1;
+    return { top: 80, bottom: 120 };
+  },
+  classList: {
+    add: (name) => classes.add(`${id}:${name}`),
+  },
+});
+const chatMessages = {
+  scrollTop: 900,
+  scrollHeight: 1200,
+  getBoundingClientRect: () => {
+    containerRectReads += 1;
+    return { top: 20, bottom: 620 };
+  },
+  querySelectorAll: () => [
+    makeNode(20, 'id:20'),
+    makeNode(21, 'id:21'),
+  ],
+};
+
+moduleApi.registerMessageStatusSocketHandlers({
+  socket,
+  isBlockedChat: () => false,
+  removeChatMessages: (chatId, ids) => calls.push(['remove', chatId, ids]),
+  getCurrentChatId: () => 'chat-1',
+  rerenderCurrentChat: (options) => calls.push(['rerender', options]),
+  loadContacts: () => calls.push(['contacts']),
+  getChatState: () => ({ messages: [], messageHeights: new Map(), renderedKeys: new Set() }),
+  findMessageIndex: () => -1,
+  cancelPendingTimeout: () => {},
+  getMessageKey: () => '',
+  normalizeChatMessageOrder: () => {},
+  currentChatMessagesEl: chatMessages,
+  applyTickToElement: () => {},
+  formatTime: () => '',
+  formatFullTimestamp: () => '',
+  patchMessageReactions: () => {},
+  updateSidebarContactTick: () => {},
+  getContactsRoot: () => null,
+  markAllTicksRead: () => {},
+  onMessagesMarkedRead: () => {},
+  failPendingMessage: () => {},
+  showToast: () => {},
+  isChatNearBottom: () => true,
+  setTimeoutFn: (handler) => {
+    handler();
+    return 1;
+  },
+});
+
+handlers.get('messages_deleted')({ chat_id: 'chat-1', msg_ids: [20] });
+
+const rerender = calls.find((entry) => entry[0] === 'rerender')?.[1];
+if (!rerender || rerender.scrollToBottom !== true) {
+  throw new Error(`Expected bottom-pinned delete rerender, got ${JSON.stringify(calls)}`);
+}
+if (rerender.anchorMessageKey || rerender.preserveHeightDelta) {
+  throw new Error(`Bottom delete must not preserve top anchor ${JSON.stringify(rerender)}`);
+}
+if (containerRectReads !== 0 || messageRectReads !== 0) {
+  throw new Error(`Bottom delete should skip anchor layout reads, got ${containerRectReads}/${messageRectReads}`);
+}
+if (!classes.has('20:message--removing')) {
+  throw new Error(`Expected removed node animation class, got ${Array.from(classes).join(',')}`);
+}
+"""
+    result = _run_status_events_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_messages_expired_uses_delete_pipeline_and_message_ids_payload():
     harness_body = """
 const handlers = new Map();

@@ -167,6 +167,13 @@ export function createChatMessageRenderRuntime({
         return distance <= thresholdPx;
     }
 
+    function setElementScrollToBottom(chatMessages) {
+        if (!chatMessages) return false;
+        const max = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
+        chatMessages.scrollTop = max;
+        return true;
+    }
+
     function requestAutoScrollToBottom({ ifNearBottom = false, smooth = true } = {}) {
         const chatMessages = getCurrentMessagesElement();
         const currentChatId = getCurrentChatId?.();
@@ -389,14 +396,14 @@ export function createChatMessageRenderRuntime({
             schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true, albums: true });
         } else if (options.scrollToBottom) {
             suppressChatScrollHandling = true;
+            setElementScrollToBottom(chatMessages);
             requestAnimationFrameFn(() => {
                 const currentMessages = getCurrentMessagesElement();
                 if (!currentMessages) {
                     suppressChatScrollHandling = false;
                     return;
                 }
-                const max = Math.max(0, currentMessages.scrollHeight - currentMessages.clientHeight);
-                currentMessages.scrollTop = max;
+                setElementScrollToBottom(currentMessages);
                 requestAnimationFrameFn(() => {
                     suppressChatScrollHandling = false;
                     saveChatScrollPosition?.(chatId);
