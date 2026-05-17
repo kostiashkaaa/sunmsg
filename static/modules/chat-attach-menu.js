@@ -146,8 +146,10 @@ export function createChatAttachMenuController(deps = {}) {
     }
 
     // Wiring
+    // Touch: toggle on pointerdown + preventDefault so the attach button never
+    // steals focus / dismisses the keyboard, which kept the menu jumping.
     attachBtn?.addEventListener('pointerdown', (event) => {
-        if (!isMobileComposerPointer(event) || !isMessageInputActive()) return;
+        if (!isMobileComposerPointer(event)) return;
         event.preventDefault();
         event.stopPropagation();
         suppressSyntheticAttachClick();
@@ -169,8 +171,13 @@ export function createChatAttachMenuController(deps = {}) {
     });
 
     attachMenuItems.forEach((item) => {
+        // On touch devices act on pointerdown and preventDefault: this stops
+        // iOS from dismissing the keyboard (which would shift the layout and
+        // make the follow-up click land outside the moved menu item — the
+        // "buttons don't work" bug). It no longer depends on the input being
+        // focused, so the items work whether or not the keyboard is open.
         item.addEventListener('pointerdown', (event) => {
-            if (!isMobileComposerPointer(event) || !isMessageInputActive()) return;
+            if (!isMobileComposerPointer(event)) return;
             event.preventDefault();
             event.stopPropagation();
             suppressSyntheticMenuItemClick();

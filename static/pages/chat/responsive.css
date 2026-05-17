@@ -643,24 +643,22 @@
 
 
         @media (max-width: 768px) {
+            /* Native keyboard handling: interactive-widget=resizes-content makes the
+               browser shrink the layout viewport (and 100dvh) when the keyboard
+               opens, so the app naturally sits above the keyboard without any JS
+               viewport syncing. This eliminates the jitter from chasing
+               visualViewport resize events. */
             .app {
                 position: fixed;
-                top: var(--vv-top-offset, 0px);
+                top: 0;
                 right: 0;
-                bottom: auto;
-                left: var(--vv-left-offset, 0px);
-                width: var(--app-vw, 100vw);
-                height: var(--app-vh, 100dvh);
-                max-height: var(--app-vh, 100dvh);
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 100dvh;
+                max-height: 100dvh;
                 min-height: 0;
                 touch-action: pan-y;
-            }
-            html.mobile-emoji-sheet-open .app {
-                top: 0;
-                left: 0;
-                width: var(--layout-vw, var(--app-vw, 100vw));
-                height: var(--layout-vh, var(--app-vh, 100dvh));
-                max-height: var(--layout-vh, var(--app-vh, 100dvh));
             }
             .sidebar-top-row {
                 gap: 10px;
@@ -745,27 +743,24 @@
                 min-height: 0;
                 overscroll-behavior: contain;
                 touch-action: pan-y;
-                /* Account for fixed composer + keyboard height */
+                /* Composer is position:absolute inside the (browser-resized)
+                   chat-area, so we only reserve the composer height plus the
+                   emoji sheet height when it is open. The keyboard no longer
+                   needs a manual inset — the browser already shrank the viewport. */
                 padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-bottom-dock-height, 0px)
-                    + var(--mobile-keyboard-layout-inset, 0px)
                     + env(safe-area-inset-bottom)
                 ) !important;
                 scroll-padding-bottom: calc(
                     var(--floating-composer-reserve, 84px)
                     + var(--mobile-bottom-dock-height, 0px)
-                    + var(--mobile-keyboard-layout-inset, 0px)
                     + env(safe-area-inset-bottom)
                     + 12px
                 ) !important;
                 transition:
                     opacity var(--m-dur-fast) var(--m-decel),
                     transform var(--m-dur-fast) var(--m-decel);
-            }
-            html.mobile-keyboard-active .chat-messages,
-            html.mobile-keyboard-active .chat-input-area {
-                transition: none !important;
             }
             .message-avatar-slot,
             .message-stack {
@@ -992,12 +987,15 @@
                 width: min(280px, calc(100vw - 20px));
             }
 
-            /* Input area: fixed to the visual viewport on mobile. */
+            /* Input area: pinned to the bottom of the layout viewport.
+               With interactive-widget=resizes-content the browser shrinks the
+               layout viewport when the keyboard opens, so bottom:0 keeps the
+               composer glued right above the keyboard automatically. */
             .chat-input-area {
                 --composer-min-height: 38px;
                 --composer-max-height: 88px;
                 --composer-action-size: 44px;
-                position: fixed;
+                position: absolute;
                 left: 0;
                 right: 0;
                 bottom: var(--mobile-bottom-dock-height, 0px);
@@ -1232,26 +1230,21 @@
                 to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
             }
 
+            /* Emoji sheet is a fixed-height bottom panel. The composer docks on
+               top of it. No keyboard-height measuring — the picker has its own
+               stable height. */
             .chat-area.emoji-sheet-open {
-                --mobile-emoji-sheet-height: min(460px, 55dvh);
-                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height, min(460px, 55dvh));
+                --mobile-emoji-sheet-height: min(320px, 46dvh);
+                --mobile-bottom-dock-height: var(--mobile-emoji-sheet-height);
             }
 
-            .chat-area.emoji-keyboard-handoff {
-                --mobile-emoji-sheet-height: 0px;
-                --mobile-bottom-dock-height: 0px;
-            }
-
-            /* When emoji sheet is open: composer follows the bottom dock as one animated surface. */
+            /* When emoji sheet is open: the composer docks on top of the
+               fixed-height sheet. Both slide together as one animated surface. */
             .chat-area.emoji-sheet-open .chat-input-area {
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
                 z-index: var(--z-emoji-sheet, 1010);
-                transition:
-                    bottom var(--emoji-sheet-motion-duration) var(--m-decel),
-                    opacity var(--m-dur-fast) var(--m-decel),
-                    transform var(--m-dur-fast) var(--m-decel) !important;
             }
 
             .chat-area.emoji-sheet-open .chat-input-area.chat-input-area--hidden {
@@ -1266,20 +1259,8 @@
                 z-index: 1;
             }
 
-            .chat-area.emoji-keyboard-handoff .chat-input-area,
-            .chat-area.emoji-keyboard-handoff .chat-messages {
-                transition: none !important;
-            }
-
-            .chat-area.emoji-keyboard-handoff .chat-messages,
-            .chat-area.emoji-sheet-open .chat-messages,
-            .chat-area.emoji-sheet-releasing .chat-messages {
+            .chat-area.emoji-sheet-open .chat-messages {
                 overflow-anchor: none;
-            }
-
-            .chat-area.emoji-sheet-releasing .chat-input-area,
-            .chat-area.emoji-sheet-releasing .chat-messages {
-                transition: none !important;
             }
 
             .chat-area.emoji-sheet-open .chat-messages {
@@ -1304,12 +1285,19 @@
                 flex-shrink: 0;
             }
 
+            /* Mobile emoji picker is a pure-CSS bottom sheet: it ignores the
+               JS-set --emoji-left/top/width/height vars (those are desktop-only)
+               and pins itself to the bottom of the chat-area with a fixed
+               height. No JS positioning => no jitter. */
             .emoji-picker {
-                --emoji-width: 100vw;
-                --emoji-height: min(460px, 55dvh);
                 --emoji-mobile-gutter: 12px;
-                width: var(--emoji-width);
-                height: var(--emoji-height);
+                position: absolute !important;
+                left: 0 !important;
+                right: 0 !important;
+                top: auto !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: min(320px, 46dvh) !important;
                 max-width: none;
                 max-height: none;
                 background:
@@ -1322,10 +1310,6 @@
                 border-bottom: 0;
                 border-left: 0;
                 border-radius: 18px 18px 0 0;
-                top: auto;
-                right: 0;
-                bottom: 0;
-                left: 0;
                 box-shadow:
                     0 -18px 40px rgba(0, 0, 0, 0.34),
                     inset 0 1px 0 rgba(255, 255, 255, 0.05);
