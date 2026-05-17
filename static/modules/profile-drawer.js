@@ -200,7 +200,7 @@ function ensureProfileHeroUsernameElement() {
 
         const statusEl = heroEl.querySelector('#profileLastSeen');
         if (statusEl && statusEl.parentNode === heroEl) {
-            statusEl.after(usernameEl);
+            heroEl.insertBefore(usernameEl, statusEl);
         } else {
             heroEl.appendChild(usernameEl);
         }
@@ -597,17 +597,18 @@ export function renderProfileHeader(profile, { isChatBlocked, profileOnlineDot }
     const largeAvatar = document.getElementById('profileLargeAvatar');
     const nameEl = document.getElementById('profileDisplayName');
     const userEl = document.getElementById('profileMetaUsername');
+    const usernameLine = document.getElementById('profileUsernameLine');
     const heroUsernameEl = ensureProfileHeroUsernameElement();
 
     if (nameEl) nameEl.textContent = displayName;
-    if (userEl) userEl.textContent = isSavedMessagesProfile ? '' : (username ? `@${username}` : '@unknown');
+
+    const showUsername = !isSavedMessagesProfile && !isGroupProfile && !!username;
+    if (userEl) userEl.textContent = showUsername ? `@${username}` : '';
+    if (usernameLine) usernameLine.classList.toggle('profile-info-line--hidden', !showUsername);
 
     if (heroUsernameEl) {
-        const heroUsernameText = (!isSavedMessagesProfile && !isGroupProfile && username)
-            ? `@${username}`
-            : '';
-        heroUsernameEl.textContent = heroUsernameText;
-        heroUsernameEl.classList.toggle('profile-hero-username--hidden', !heroUsernameText);
+        heroUsernameEl.textContent = '';
+        heroUsernameEl.classList.add('profile-hero-username--hidden');
     }
 
     if (largeAvatar) {
