@@ -177,11 +177,26 @@ export class CallWebRTC {
         await this._addIceCandidate(candidate || null);
     }
 
-    /**
-     * Restart ICE after a transient network change (Wi-Fi ↔ cellular) without
-     * tearing down the call. Only the impolite peer (caller) initiates it; the
-     * resulting offer flows through the normal negotiationneeded path.
-     */
+    updateIceServers(iceServers) {
+        const nextIceServers = Array.isArray(iceServers) ? iceServers.filter(Boolean) : [];
+        if (nextIceServers.length === 0) return;
+        this._iceServers = nextIceServers;
+        if (!this._pc || typeof this._pc.setConfiguration !== 'function') return;
+
+        const currentConfig = typeof this._pc.getConfiguration === 'function'
+            ? this._pc.getConfiguration()
+            : {};
+        try {
+            this._pc.setConfiguration({
+                ...currentConfig,
+                iceServers: nextIceServers,
+            });
+        } catch (err) {
+            console.warn('[CallWebRTC] ICE server update failed', err);
+        }
+    }
+
+    // Only the impolite peer initiates ICE restart; the offer uses normal signalling.
     restartIce() {
         if (!this._pc || this._polite) return;
         if (this._pc.signalingState !== 'stable') return;

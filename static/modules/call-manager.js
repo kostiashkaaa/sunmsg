@@ -66,6 +66,7 @@ export class CallManager {
         this._iceServersExpiresAt = 0;    // epoch ms; 0 = not fetched
         this._ringTimeout = null;
         this._disconnectTimeout = null;
+        this._iceRestarting = false;
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
         this._pendingSignals = [];
@@ -512,7 +513,7 @@ export class CallManager {
                     setCallStatusText('Переподключение...');
                     // Try to recover the connection in place via ICE restart
                     // (handles Wi-Fi ↔ cellular switches) before giving up.
-                    this._webrtc?.restartIce();
+                    void this._restartIceWithFreshConfig();
                     // End the call only if it has not recovered by the timeout.
                     clearTimeout(this._disconnectTimeout);
                     this._disconnectTimeout = setTimeout(() => {
@@ -577,6 +578,25 @@ export class CallManager {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    async _restartIceWithFreshConfig() {
+        if (this._iceRestarting) return;
+        this._iceRestarting = true;
+        try {
+            try {
+                const result = await this._fetchIceServers();
+                this._iceServers = result.iceServers;
+                const ttlMs = (result.ttlSeconds || 3300) * 1000;
+                this._iceServersExpiresAt = Date.now() + ttlMs;
+                this._webrtc?.updateIceServers(this._iceServers);
+            } catch (err) {
+                console.warn('[CallManager] ICE config refresh failed before restart', err);
+            }
+            this._webrtc?.restartIce();
+        } finally {
+            this._iceRestarting = false;
+        }
+    }
+
     _syncCallState() {
         this._emit('call_sync', { call_id: this._callId || null });
     }
@@ -611,6 +631,7 @@ export class CallManager {
         this._webrtc = null;
         this._media.release();
         this._pendingSignals = [];
+        this._iceRestarting = false;
         this._iceServers  = null;
         this._iceServersExpiresAt = 0;
         this._state    = STATES.IDLE;
