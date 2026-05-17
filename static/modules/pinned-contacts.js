@@ -132,27 +132,34 @@ export function sortContactsList(contactsList) {
 
     const items = Array.from(contactsList.querySelectorAll('.contact-item'));
     const indexed = items.map((item, index) => ({ item, index }));
-    const pinned = indexed
-        .filter(({ item }) => item.getAttribute('data-pinned') === '1')
+    const isSavedMessagesItem = (item) => item.getAttribute('data-saved-messages') === '1';
+    const isPinnedItem = (item) => item.getAttribute('data-pinned') === '1';
+    const getPinOrder = (item) => {
+        const rawOrder = Number(item.getAttribute('data-pin-order'));
+        return Number.isFinite(rawOrder) ? rawOrder : Number.MAX_SAFE_INTEGER;
+    };
+    const ordered = indexed
         .sort((a, b) => {
-            const aOrder = Number(a.item.getAttribute('data-pin-order'));
-            const bOrder = Number(b.item.getAttribute('data-pin-order'));
-            const safeA = Number.isFinite(aOrder) ? aOrder : Number.MAX_SAFE_INTEGER;
-            const safeB = Number.isFinite(bOrder) ? bOrder : Number.MAX_SAFE_INTEGER;
-            if (safeA !== safeB) return safeA - safeB;
-            return a.index - b.index;
-        })
-        .map(({ item }) => item);
-    const unpinned = indexed
-        .filter(({ item }) => item.getAttribute('data-pinned') !== '1')
-        .sort((a, b) => {
+            const aSaved = isSavedMessagesItem(a.item);
+            const bSaved = isSavedMessagesItem(b.item);
+            if (aSaved !== bSaved) return aSaved ? -1 : 1;
+
+            const aPinned = isPinnedItem(a.item);
+            const bPinned = isPinnedItem(b.item);
+            if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
+            if (aPinned && bPinned) {
+                const aOrder = getPinOrder(a.item);
+                const bOrder = getPinOrder(b.item);
+                if (aOrder !== bOrder) return aOrder - bOrder;
+            }
+
             const aTs = getContactLastMessageTs(a.item);
             const bTs = getContactLastMessageTs(b.item);
             if (aTs !== bTs) return bTs - aTs;
             return a.index - b.index;
         })
         .map(({ item }) => item);
-    const ordered = [...pinned, ...unpinned];
     const isSameOrder = ordered.length === items.length
         && ordered.every((item, index) => item === items[index]);
     if (isSameOrder) return;
