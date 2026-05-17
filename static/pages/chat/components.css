@@ -11406,13 +11406,16 @@
 
 #partnerProfileDrawer .profile-hero {
     margin-top: 0;
-    padding: 14px var(--profile-panel-x-pad) 10px;
+    padding: 16px var(--profile-panel-x-pad) 14px;
     border-radius: 0;
     border: 0;
     background: var(--surface);
     box-shadow: none;
     overflow: visible;
-    row-gap: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
 }
 
 #partnerProfileDrawer .profile-hero-avatar:not([data-avatar-tint]) {
@@ -11425,14 +11428,14 @@
 }
 
 #partnerProfileDrawer .profile-hero-name {
-    margin: 6px 0 2px;
+    margin: 10px 0 0;
     font-size: 20px;
     line-height: 1.2;
     font-weight: 650;
 }
 
 #partnerProfileDrawer .profile-hero-username {
-    margin-top: 4px;
+    margin-top: 3px;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
@@ -11441,11 +11444,10 @@
 
 #partnerProfileDrawer .profile-hero-username--hidden {
     display: none;
-    margin: 0;
 }
 
 #partnerProfileDrawer .profile-hero-status {
-    margin-top: 0;
+    margin-top: 2px;
     min-height: 0;
     font-size: 12px;
     line-height: 1.3;
