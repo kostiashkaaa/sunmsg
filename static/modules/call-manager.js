@@ -124,7 +124,7 @@ export class CallManager {
     _onIncoming({ call_id, chat_id, call_type, initiator }) {
         if (this._state !== STATES.IDLE) {
             // Already busy — auto-reject
-            this._socket.emit('call_reject', { call_id, _csrf_token: this._getCsrfToken() });
+            this._socket.emit('call_reject', { call_id, csrf_token: this._getCsrfToken() });
             return;
         }
         this._callId   = call_id;
@@ -320,7 +320,7 @@ export class CallManager {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     _emit(event, data) {
-        this._socket.emit(event, { ...data, _csrf_token: this._getCsrfToken() });
+        this._socket.emit(event, { ...data, csrf_token: this._getCsrfToken() });
     }
 
     _cleanup() {
