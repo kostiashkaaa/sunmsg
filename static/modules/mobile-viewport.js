@@ -11,9 +11,9 @@ function isCoarsePointer() {
  *
  * Keyboard state syncer.
  *
- * Layout stays native while the keyboard is active. With the keyboard closed,
- * iOS Safari can resolve `100dvh` before the bottom browser chrome settles
- * after reload, so the idle app height follows the real visual viewport.
+ * Layout height follows the real visual viewport on touch devices. This keeps
+ * the chat flex column tied to the visible area whether the browser resizes
+ * content for the keyboard or overlays the keyboard above the layout viewport.
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
@@ -37,15 +37,15 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const vvHeight = roundedPx(vv.height);
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
             const vvTop = roundedPx(vv.offsetTop);
+            if (vvHeight > 0) {
+                nextAppVh = `${vvHeight}px`;
+            }
             const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop);
             const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22));
             const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
             // Safari browser chrome can also shrink visualViewport; require the larger real-keyboard inset.
             keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset;
             keyboardInset = keyboardActive ? keyboardInsetCandidate : 0;
-            if (!keyboardActive && !composerFocused && vvHeight > 0) {
-                nextAppVh = `${vvHeight}px`;
-            }
         }
         if (root.style.getPropertyValue('--app-vh') !== nextAppVh) {
             root.style.setProperty('--app-vh', nextAppVh);
