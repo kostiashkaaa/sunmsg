@@ -257,7 +257,7 @@ const handlers = new Map();
 const socket = { on: (eventName, callback) => handlers.set(eventName, callback) };
 const calls = [];
 const classes = new Set();
-const nodeStyle = new Map();
+let messageRectReads = 0;
 const removedTimers = [];
 const messageNode = {
   getAttribute: (name) => {
@@ -265,12 +265,12 @@ const messageNode = {
     if (name === 'data-message-key') return 'id:20';
     return '';
   },
-  getBoundingClientRect: () => ({ top: 80, bottom: 120, height: 40 }),
+  getBoundingClientRect: () => {
+    messageRectReads += 1;
+    return { top: 80, bottom: 120, height: 40 };
+  },
   classList: {
     add: (name) => classes.add(name),
-  },
-  style: {
-    setProperty: (name, value) => nodeStyle.set(name, value),
   },
 };
 const chatMessages = {
@@ -316,8 +316,8 @@ handlers.get('messages_deleted')({ chat_id: 'chat-1', msg_ids: [20] });
 if (!classes.has('message--removing')) {
   throw new Error('Visible deleted message should receive removal animation class.');
 }
-if (nodeStyle.get('--message-removal-height') !== '40px') {
-  throw new Error(`Expected measured removal height, got ${nodeStyle.get('--message-removal-height')}`);
+if (messageRectReads !== 0) {
+  throw new Error(`Delete animation should not measure removed message layout, got ${messageRectReads} reads.`);
 }
 if (removedTimers.join(',') !== '220') {
   throw new Error(`Expected delayed removal timer, got ${removedTimers.join(',')}`);
