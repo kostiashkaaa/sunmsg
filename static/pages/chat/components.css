@@ -5389,6 +5389,31 @@
             overflow: hidden;
         }
 
+        /* Shimmer skeleton while image loads */
+        .bubble--image .image-wrapper::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.07) 40%,
+                rgba(255, 255, 255, 0.13) 50%,
+                rgba(255, 255, 255, 0.07) 60%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: mediaSkeleton 1.6s ease-in-out infinite;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .bubble--image .image-wrapper.is-loaded::before {
+            opacity: 0;
+            animation: none;
+        }
+
 
         .file-msg-img {
             position: absolute;
@@ -5402,8 +5427,7 @@
             display: block;
             contain: layout;
             opacity: 0;
-            transform: scale(1.018);
-            transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-medium) var(--ease-quick);
+            transition: opacity 180ms ease;
         }
 
 
@@ -5445,6 +5469,31 @@
             overflow: hidden;
         }
 
+        /* Shimmer for video preview */
+        .video-preview::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.06) 40%,
+                rgba(255, 255, 255, 0.11) 50%,
+                rgba(255, 255, 255, 0.06) 60%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: mediaSkeleton 1.6s ease-in-out infinite;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .video-preview.is-loaded::before {
+            opacity: 0;
+            animation: none;
+        }
+
 
         .file-msg-video-preview {
             position: absolute;
@@ -5460,11 +5509,17 @@
             user-select: none;
             contain: layout;
             opacity: 0;
-            transform: scale(1.018);
-            transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-medium) var(--ease-quick);
+            transition: opacity 180ms ease;
         }
 
 
+        /* ===== MEDIA SKELETON SHIMMER ===== */
+        @keyframes mediaSkeleton {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ===== MEDIA STATUS OVERLAY (upload progress only) ===== */
         .media-status-overlay {
             position: absolute;
             inset: 0;
@@ -5473,66 +5528,121 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 0;
             pointer-events: none;
-            background:
-                radial-gradient(circle at center, rgba(6, 12, 22, 0.28) 0%, rgba(6, 12, 22, 0.46) 62%, rgba(6, 12, 22, 0.56) 100%);
-            opacity: 1;
-            transition: opacity var(--dur-quick) var(--ease-quick);
+            opacity: 0;
+            transition: opacity 180ms ease;
         }
 
+        /* Only visible during upload */
+        .media-status-overlay.is-uploading {
+            opacity: 1;
+            pointer-events: auto;
+        }
 
+        /* Dark scrim behind upload controls */
+        .media-status-overlay.is-uploading::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.46);
+            border-radius: inherit;
+        }
+
+        /* Upload progress ring (Telegram-style circle) */
         .media-status-ring {
-            width: 54px;
-            height: 54px;
+            position: relative;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background:
-                conic-gradient(
-                    from -90deg,
-                    rgba(255, 255, 255, 0.96) 0deg,
-                    rgba(255, 255, 255, 0.96) calc(var(--upload-progress, 0) * 3.6deg),
-                    rgba(255, 255, 255, 0.14) calc(var(--upload-progress, 0) * 3.6deg),
-                    rgba(255, 255, 255, 0.14) 360deg
-                );
-            box-shadow: var(--shadow-md);
+            background: rgba(0, 0, 0, 0.54);
+            border: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
-
+        /* SVG-like ring via clip-path + conic */
         .media-status-ring::before {
             content: "";
-            width: 38px;
-            height: 38px;
+            position: absolute;
+            inset: 3px;
             border-radius: 50%;
-            background: rgba(10, 14, 22, 0.72);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+            background: conic-gradient(
+                from -90deg,
+                rgba(255, 255, 255, 0.95) 0deg,
+                rgba(255, 255, 255, 0.95) calc(var(--upload-progress, 0) * 3.6deg),
+                rgba(255, 255, 255, 0.22) calc(var(--upload-progress, 0) * 3.6deg),
+                rgba(255, 255, 255, 0.22) 360deg
+            );
         }
 
+        /* Inner circle cutout */
+        .media-status-ring::after {
+            content: "";
+            position: absolute;
+            inset: 7px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.54);
+        }
 
+        /* Cancel icon inside ring */
         .media-status-value {
-            min-width: 42px;
-            text-align: center;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            line-height: 1;
-            letter-spacing: 0.08em;
-            color: rgba(255, 255, 255, 0.96);
-            text-transform: uppercase;
+            position: relative;
+            z-index: 1;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0;
         }
 
+        .media-status-value::before,
+        .media-status-value::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 2px;
+            background: #fff;
+            border-radius: 1px;
+        }
 
-        @keyframes mediaLoaderPulse {
-            0%, 100% {
-                transform: scale(0.94);
-                opacity: 0.78;
-            }
-            50% {
-                transform: scale(1);
-                opacity: 1;
-            }
+        .media-status-value::before { transform: rotate(45deg); }
+        .media-status-value::after  { transform: rotate(-45deg); }
+
+        /* Upload progress bar at bottom (Telegram-style strip) */
+        .media-upload-progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            z-index: 7;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 0 0 14px 14px;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 180ms ease;
+        }
+
+        .media-upload-progress-bar::after {
+            content: "";
+            position: absolute;
+            inset-block: 0;
+            left: 0;
+            width: calc(var(--upload-progress, 0) * 1%);
+            background: #fff;
+            border-radius: inherit;
+            transition: width 80ms linear;
+        }
+
+        .media-status-overlay.is-uploading ~ .media-upload-progress-bar,
+        .image-wrapper.is-uploading .media-upload-progress-bar {
+            opacity: 1;
         }
 
 
@@ -11289,7 +11399,7 @@
 }
 
 #partnerProfileDrawer .profile-hero-username {
-    margin-top: 1px;
+    margin-top: 4px;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
@@ -11301,7 +11411,7 @@
 }
 
 #partnerProfileDrawer .profile-hero-status {
-    margin-top: 1px;
+    margin-top: 2px;
     min-height: 14px;
     font-size: 12px;
     line-height: 1.3;
