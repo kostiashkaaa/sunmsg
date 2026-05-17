@@ -11444,8 +11444,8 @@
 }
 
 #partnerProfileDrawer .profile-hero-status {
-    margin-top: 2px;
-    min-height: 14px;
+    margin-top: 3px;
+    min-height: 0;
     font-size: 12px;
     line-height: 1.3;
     font-family: var(--font);
