@@ -34,13 +34,10 @@
     color: var(--accent);
 }
 .call-header-phone-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 20px;
     height: 20px;
-    font-size: 20px;
-    line-height: 1;
+    fill: currentColor;
+    stroke: none;
 }
 
 @media (max-width: 480px) {
@@ -55,7 +52,6 @@
     .call-header-phone-icon {
         width: 18px;
         height: 18px;
-        font-size: 18px;
     }
 }
 
