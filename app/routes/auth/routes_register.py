@@ -6,7 +6,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
-from flask import jsonify, request, session
+from flask import current_app, jsonify, make_response, request, session
 
 from app.database import get_db_connection
 from app.db_backend import IntegrityError
@@ -23,6 +23,8 @@ from app.routes.auth_helpers_register import (
 )
 from app.services.crypto import add_pem_headers, normalize_public_key
 from app.services.locale import detect_auth_language, normalize_language
+from app.services.refresh_tokens import issue_refresh_token, set_refresh_cookie
+from app.services.session_policy import SESSION_AUTO_LOGOUT_DEFAULT_SECONDS, apply_session_auto_logout
 from .context import (
     auth_bp,
 )
@@ -138,7 +140,7 @@ def register_client():  # noqa: C901, PLR0915 - registration orchestration with 
     session['user_id'] = created_user_id
     session['public_key_pem'] = created_user_public_key
     session['ui_language'] = profile_language
-    session.permanent = False
+    apply_session_auto_logout(session, SESSION_AUTO_LOGOUT_DEFAULT_SECONDS)
     for key in (
         'pending_totp_user_id',
         'pending_totp_public_key',
@@ -150,4 +152,16 @@ def register_client():  # noqa: C901, PLR0915 - registration orchestration with 
     ):
         session.pop(key, None)
 
-    return jsonify({'success': True})
+    response = make_response(jsonify({'success': True}))
+    raw, _exp = issue_refresh_token(
+        created_user_id,
+        ttl_seconds=SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,
+    )
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(
+        response,
+        raw,
+        secure=secure,
+        max_age_seconds=SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,
+    )
+    return response

@@ -36,16 +36,17 @@ from app.routes.auth_utils import (
     build_decoy_login_vault,
     is_valid_b64_blob,
     normalize_login_vault,
-    wants_remember,
 )
 from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
     clear_refresh_cookie,
     issue_refresh_token,
+    refresh_cookie_max_age_from_expiry,
     revoke_refresh_token,
     rotate_refresh_token,
     set_refresh_cookie,
 )
+from app.services.session_policy import apply_session_auto_logout, session_auto_logout_seconds_from_row
 from .context import (
     auth_bp,
 )
@@ -106,10 +107,6 @@ def _normalize_login_vault(raw_value):
 
 def _build_decoy_login_vault():
     return build_decoy_login_vault()
-
-
-def _wants_remember(data) -> bool:
-    return wants_remember(data)
 
 
 def _totp_rate_limit_key():
@@ -174,14 +171,26 @@ def _pending_totp_context():
     }
 
 
-def _login_success_response(user_id: int, *, remember: bool):
+def _session_auto_logout_seconds_for_user(user_id: int) -> int:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
+            (int(user_id),),
+        ).fetchone()
+    finally:
+        conn.close()
+    return session_auto_logout_seconds_from_row(row)
+
+
+def _login_success_response(user_id: int):
     payload = {'success': True}
-    session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    if remember:
-        raw, _exp = issue_refresh_token(user_id, ttl_seconds=None)
-        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-        set_refresh_cookie(response, raw, secure=secure)
+    ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
+    apply_session_auto_logout(session, ttl_seconds)
+    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
+    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+    set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
     return response
 
 
@@ -208,11 +217,11 @@ def index():
         if raw_token:
             rotated = rotate_refresh_token(raw_token)
             if rotated:
-                user_id, new_raw, _new_exp = rotated
+                user_id, new_raw, new_exp = rotated
                 conn = get_db_connection()
                 try:
                     user = conn.execute(
-                        'SELECT id, public_key, language FROM users WHERE id = ?',
+                        'SELECT id, public_key, language, session_auto_logout_seconds FROM users WHERE id = ?',
                         (user_id,),
                     ).fetchone()
                 finally:
@@ -222,11 +231,16 @@ def index():
                     session['user_id'] = user['id']
                     session['public_key_pem'] = user['public_key']
                     session['ui_language'] = language_from_user_row(user, default=_resolve_guest_ui_language())
-                    session.permanent = True
+                    apply_session_auto_logout(session, session_auto_logout_seconds_from_row(user))
 
                     response = make_response(redirect(url_for('chat.chat_index')))
                     secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-                    set_refresh_cookie(response, new_raw, secure=secure)
+                    set_refresh_cookie(
+                        response,
+                        new_raw,
+                        secure=secure,
+                        max_age_seconds=refresh_cookie_max_age_from_expiry(new_exp),
+                    )
                     return response
 
                 secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
@@ -367,7 +381,7 @@ def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded
         _clear_pending_passkey_login()
 
         if user['totp_secret']:
-            _stage_pending_totp(user, remember=_wants_remember(data))
+            _stage_pending_totp(user, remember=True)
             return jsonify(
                 {
                     'success': True,
@@ -382,7 +396,7 @@ def login_challenge():  # noqa: C901, PLR0915 - auth challenge flow with guarded
         session['user_id'] = user['id']
         session['ui_language'] = language_from_user_row(user, default=_resolve_guest_ui_language())
 
-        return _login_success_response(user['id'], remember=_wants_remember(data))
+        return _login_success_response(user['id'])
     except InvalidSignature:
         _clear_login_challenge_state()
         _clear_pending_totp()
@@ -449,13 +463,12 @@ def login_totp():
     finally:
         conn.close()
 
-    remember = bool(pending['remember'])
     session.clear()
     session['public_key_pem'] = user['public_key']
     session['user_id'] = user['id']
     session['ui_language'] = language_from_user_row(user, default=_resolve_guest_ui_language())
 
-    return _login_success_response(user['id'], remember=remember)
+    return _login_success_response(user['id'])
 
 @auth_bp.route('/api/refresh', methods=['POST'])
 @limiter.limit("60 per minute")
@@ -472,12 +485,12 @@ def api_refresh():
         clear_refresh_cookie(response, secure=secure)
         return response
 
-    user_id, new_raw, _new_exp = result
+    user_id, new_raw, new_exp = result
 
     conn = get_db_connection()
     try:
         user = conn.execute(
-            'SELECT id, public_key, language FROM users WHERE id = ?',
+            'SELECT id, public_key, language, session_auto_logout_seconds FROM users WHERE id = ?',
             (user_id,),
         ).fetchone()
     finally:
@@ -493,14 +506,19 @@ def api_refresh():
     session['user_id'] = user['id']
     session['public_key_pem'] = user['public_key']
     session['ui_language'] = language_from_user_row(user, default=_resolve_guest_ui_language())
-    session.permanent = True
+    apply_session_auto_logout(session, session_auto_logout_seconds_from_row(user))
 
     response = make_response(jsonify({
         'success': True,
         'csrf_token': generate_csrf(),
     }))
     secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, new_raw, secure=secure)
+    set_refresh_cookie(
+        response,
+        new_raw,
+        secure=secure,
+        max_age_seconds=refresh_cookie_max_age_from_expiry(new_exp),
+    )
     return response
 
 @auth_bp.route('/logout', methods=['POST'])

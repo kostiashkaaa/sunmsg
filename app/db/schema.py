@@ -153,7 +153,8 @@ def ensure_base_schema(conn) -> None:
             totp_enabled_at TIMESTAMP,
             login_vault TEXT,
             language TEXT NOT NULL DEFAULT 'ru',
-            client_preferences TEXT NOT NULL DEFAULT '{}'
+            client_preferences TEXT NOT NULL DEFAULT '{}',
+            session_auto_logout_seconds INTEGER NOT NULL DEFAULT 2592000
         );
 
         CREATE TABLE IF NOT EXISTS chats (

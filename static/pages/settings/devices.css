@@ -2,6 +2,10 @@
 
 /* ── Devices list ──────────────────────────────────────────────────── */
 
+.session-auto-logout-row {
+    margin-bottom: 12px;
+}
+
 .session-device-list {
     display: flex;
     flex-direction: column;

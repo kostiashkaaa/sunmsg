@@ -1,7 +1,8 @@
 import logging
 import secrets
+import time
 
-from flask import Flask, g, redirect, request
+from flask import Flask, g, jsonify, redirect, request, session
 from flask_compress import Compress
 from flask_wtf.csrf import CSRFProtect
 
@@ -60,6 +61,48 @@ def create_app(config_name=None, overrides=None):
     @app.before_request
     def _prepare_request_context():
         g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.before_request
+    def _enforce_session_auto_logout():
+        if request.path.startswith('/static/') or request.path == '/favicon.ico':
+            return None
+        if request.path in {'/api/refresh', '/logout', '/api/logout'}:
+            return None
+        user_id = session.get('user_id')
+        if not user_id:
+            return None
+
+        from app.services.refresh_tokens import REFRESH_COOKIE_NAME, touch_refresh_token
+        from app.services.session_policy import normalize_session_auto_logout_seconds
+
+        now = int(time.time())
+        ttl_seconds = normalize_session_auto_logout_seconds(session.get('session_auto_logout_seconds'))
+        try:
+            expires_at = int(session.get('session_expires_at') or 0)
+        except (TypeError, ValueError):
+            expires_at = 0
+        if expires_at and expires_at <= now:
+            session.clear()
+            if request.path == '/':
+                return None
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'error': 'Сессия истекла.'}), 401
+            return redirect('/')
+
+        session.permanent = True
+        session['session_auto_logout_seconds'] = ttl_seconds
+        session['session_expires_at'] = now + ttl_seconds
+
+        try:
+            last_touch = int(session.get('session_last_activity_touch_at') or 0)
+        except (TypeError, ValueError):
+            last_touch = 0
+        if now - last_touch >= 60 * 60:
+            raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
+            if raw_token:
+                touch_refresh_token(raw_token, int(user_id), ttl_seconds=ttl_seconds)
+            session['session_last_activity_touch_at'] = now
+        return None
 
     @app.teardown_appcontext
     def _close_request_db_connection(_exception):

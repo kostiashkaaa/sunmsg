@@ -13,6 +13,7 @@ from app.db.schema import (
     table_columns,
 )
 from app.services.favorites_chat import ensure_saved_messages_chat
+from app.services.session_policy import SESSION_AUTO_LOGOUT_DEFAULT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ CHAT_AUTO_DELETE_MIGRATION = (23, 'add_auto_delete_seconds_to_chats')
 MESSAGE_ALBUM_ID_MIGRATION = (24, 'add_album_id_to_messages')
 USER_PRIVACY_CHOICES_MIGRATION = (25, 'add_user_privacy_choices')
 SPOTIFY_INTEGRATION_MIGRATION = (26, 'create_spotify_tables')
+USER_SESSION_AUTO_LOGOUT_MIGRATION = (27, 'add_user_session_auto_logout_seconds')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -344,6 +346,10 @@ def _run_users_schema_migrations(conn, cursor) -> None:
         ('bio', "bio TEXT NOT NULL DEFAULT ''"),
         ('language', "language TEXT NOT NULL DEFAULT 'ru'"),
         ('client_preferences', "client_preferences TEXT NOT NULL DEFAULT '{}'"),
+        (
+            'session_auto_logout_seconds',
+            f'session_auto_logout_seconds INTEGER NOT NULL DEFAULT {SESSION_AUTO_LOGOUT_DEFAULT_SECONDS}',
+        ),
     )
     for column_name, ddl in user_columns:
         add_column_if_missing(conn, cursor, 'users', column_name, ddl)
@@ -613,6 +619,31 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
             '''
         )
         _record_migration(cursor, SPOTIFY_INTEGRATION_MIGRATION)
+
+    if not migration_applied(cursor, USER_SESSION_AUTO_LOGOUT_MIGRATION[0]):
+        add_column_if_missing(
+            conn,
+            cursor,
+            'users',
+            'session_auto_logout_seconds',
+            f'session_auto_logout_seconds INTEGER NOT NULL DEFAULT {SESSION_AUTO_LOGOUT_DEFAULT_SECONDS}',
+        )
+        cursor.execute(
+            '''
+            UPDATE users
+            SET session_auto_logout_seconds = ?
+            WHERE session_auto_logout_seconds IS NULL
+               OR session_auto_logout_seconds NOT IN (?, ?, ?, ?)
+            ''',
+            (
+                SESSION_AUTO_LOGOUT_DEFAULT_SECONDS,
+                7 * 24 * 60 * 60,
+                30 * 24 * 60 * 60,
+                90 * 24 * 60 * 60,
+                180 * 24 * 60 * 60,
+            ),
+        )
+        _record_migration(cursor, USER_SESSION_AUTO_LOGOUT_MIGRATION)
 
 
 def run_migrations() -> None:

@@ -89,7 +89,7 @@ export function initRegisterFlow({
         }
         try {
             const staged = await stagePrivateKeyForRedirect(pem, {
-                rememberDevice: true,
+                rememberDevice: false,
                 notify: true,
             });
             return Boolean(staged);

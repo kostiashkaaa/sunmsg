@@ -61,7 +61,6 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
             ? 'Open Google Authenticator or Microsoft Authenticator → enter the 6-digit code'
             : 'Откройте Google Authenticator или Microsoft Authenticator → введите 6-значный код',
     );
-    setText('rememberDeviceLabel', isEn ? 'Remember this device for 30 days' : 'Запомнить это устройство на 30 дней');
     setText(
         'reg_username_hint',
         isEn ? 'Allowed characters: a-z, 0-9, _' : 'Допустимые символы: a-z, 0-9, _',

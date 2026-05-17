@@ -9,6 +9,13 @@ from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
     SESSION_TOKEN_TTL_SECONDS,
     clear_refresh_cookie,
+    set_refresh_cookie,
+)
+from app.services.session_policy import (
+    apply_session_auto_logout,
+    parse_session_auto_logout_seconds,
+    session_auto_logout_options,
+    session_auto_logout_seconds_from_row,
 )
 from .context import auth_bp
 
@@ -23,6 +30,10 @@ def api_session_devices():
     conn = get_db_connection()
     try:
         current_family_id = current_refresh_family_id(conn, request.cookies.get(REFRESH_COOKIE_NAME))
+        policy_row = conn.execute(
+            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
+            (user_id,),
+        ).fetchone()
         rows = conn.execute(
             '''
             SELECT family_id, created_at, last_used_at, expires_at, user_agent, ip
@@ -39,7 +50,7 @@ def api_session_devices():
     for row in rows:
         created = int(row['created_at'] or 0)
         expires = int(row['expires_at'] or 0)
-        # A token is persistent (30-day) when its TTL at issuance was > 24 h.
+        # Refresh-cookie devices use the user-selected auto-logout TTL.
         persistent = (expires - created) > SESSION_TOKEN_TTL_SECONDS
         devices.append({
             'family_id': str(row['family_id']),
@@ -80,7 +91,59 @@ def api_session_devices():
             }
         )
 
-    return jsonify({'success': True, 'devices': devices})
+    return jsonify({
+        'success': True,
+        'devices': devices,
+        'session_auto_logout_seconds': session_auto_logout_seconds_from_row(policy_row),
+        'session_auto_logout_options': session_auto_logout_options(),
+    })
+
+@auth_bp.route('/api/session_devices/auto_logout', methods=['POST'])
+@limiter.limit("20 per minute")
+def api_update_session_auto_logout():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Не авторизован.'}), 401
+
+    data = request.get_json(silent=True) or {}
+    seconds = parse_session_auto_logout_seconds(data.get('session_auto_logout_seconds'))
+    if seconds is None:
+        return jsonify({'success': False, 'error': 'Недопустимый срок завершения сессии.'}), 400
+
+    user_id = int(session['user_id'])
+    now = int(time.time())
+    new_expires_at = now + seconds
+    raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    conn = get_db_connection()
+    try:
+        current_family_id = current_refresh_family_id(conn, raw_token)
+        conn.execute(
+            'UPDATE users SET session_auto_logout_seconds = ? WHERE id = ?',
+            (seconds, user_id),
+        )
+        cur = conn.execute(
+            '''
+            UPDATE refresh_tokens
+            SET expires_at = ?
+            WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
+            ''',
+            (new_expires_at, user_id, now),
+        )
+        conn.commit()
+        updated = int(cur.rowcount or 0)
+    finally:
+        conn.close()
+
+    apply_session_auto_logout(session, seconds, now=now)
+    response = make_response(jsonify({
+        'success': True,
+        'session_auto_logout_seconds': seconds,
+        'session_auto_logout_options': session_auto_logout_options(),
+        'updated_sessions': updated,
+    }))
+    if raw_token and current_family_id:
+        secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
+        set_refresh_cookie(response, raw_token, secure=secure, max_age_seconds=seconds)
+    return response
 
 @auth_bp.route('/api/session_devices/revoke', methods=['POST'])
 @limiter.limit("20 per minute")

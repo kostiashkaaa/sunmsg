@@ -59,12 +59,6 @@ def build_decoy_login_vault() -> str:
     })
 
 
-def wants_remember(data) -> bool:
-    if not isinstance(data, dict):
-        return False
-    return bool(data.get('remember_device'))
-
-
 def safe_remove_stored_file(base_dir: str, storage_name: str, *, logger) -> None:
     if not storage_name:
         return

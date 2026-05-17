@@ -440,57 +440,6 @@
             color: var(--ink-mute);
         }
 
-        /* Trust device checkbox — filled square with check */
-.auth-trust-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 16px;
-            font-size: 13px;
-            color: var(--ink-mute);
-            cursor: pointer;
-    position: relative;
-    top: 0;
-}
-        .auth-trust-row > span:last-child {
-            display: inline-flex;
-            align-items: center;
-            min-height: 16px;
-        }
-        .auth-trust-checkbox {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .auth-trust-box {
-            width: 16px;
-            height: 16px;
-            border: 1px solid var(--ink);
-            border-radius: 3px;
-            background: var(--ink);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--bg);
-            font-size: 11px;
-            line-height: 1;
-            flex-shrink: 0;
-            transition: background var(--dur-instant);
-        }
-        .auth-trust-box .sun-check-glyph {
-            width: 10px;
-            height: 10px;
-        }
-        .auth-trust-checkbox:not(:checked) + .auth-trust-box {
-            background: transparent;
-            color: transparent;
-        }
-        .auth-trust-checkbox:focus-visible + .auth-trust-box {
-            outline: 2px solid var(--accent);
-            outline-offset: 2px;
-        }
-
         /* Primary button arrow */
         .auth-btn-arrow {
             font-size: 14px;
@@ -1436,10 +1385,6 @@
         width: min(100%, 300px);
     }
 
-    .auth-trust-row {
-        margin-top: 12px;
-    }
-
     .auth-footer {
         flex-wrap: wrap;
         justify-content: flex-start;
@@ -1493,15 +1438,6 @@
         flex: 1 1 100%;
     }
 
-    .auth-trust-row {
-        align-items: flex-start;
-        top: 0;
-        margin-top: 10px;
-    }
-
-    .auth-trust-row > span:last-child {
-        line-height: 1.35;
-    }
 }
 
 /* SUN Auth Redesign integration */
@@ -1595,10 +1531,6 @@
 
 .auth-login-other-content #loginSubmitBtn {
     margin-top: 4px;
-}
-
-.auth-login-other-content .auth-trust-row {
-    margin-top: 6px;
 }
 
 .auth-login-other-content .auth-method-switcher {
@@ -2639,7 +2571,6 @@ body.auth-register-flow-active .auth-card {
 }
 
 .auth-login-other-details[data-view="form"] #loginOtherMethodsTip,
-.auth-login-other-details[data-view="form"] .auth-trust-row,
 .auth-login-other-details[data-view="form"] #loginTotpGroup {
     display: none !important;
 }

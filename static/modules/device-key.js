@@ -136,7 +136,7 @@
 
     async function wrapPrivateKey(pem, options = {}) {
         if (!pem) return false;
-        const persistent = options?.persistent !== false;
+        const persistent = options?.persistent === true;
 
         try {
             const key = await getOrCreateDeviceKey();
@@ -199,6 +199,8 @@
             await idbDelete(db, KEY_ID);
         } catch (_) {}
     }
+
+    removePersistentWrappedPayload();
 
     window.deviceKey = {
         wrapPrivateKey,

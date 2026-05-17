@@ -1343,7 +1343,19 @@
             <div class="settings-card">
                 <div class="settings-card-header">
                     <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-devices"></use></svg>
-                    <h3>Активные сессии</h3>
+                    <h3>Устройства</h3>
+                </div>
+                <div class="settings-row session-auto-logout-row">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">Автоматически завершать сеанс</div>
+                        <div class="settings-row-desc" id="sessionAutoLogoutSummary">Если устройство неактивно выбранное время, cookie-сессия истечет.</div>
+                    </div>
+                    <select id="sessionAutoLogoutSelect" class="settings-select settings-select-control" aria-label="Автоматически завершать сеанс">
+                        <option value="604800">1 неделя</option>
+                        <option value="2592000">1 месяц</option>
+                        <option value="7776000">3 месяца</option>
+                        <option value="15552000">6 месяцев</option>
+                    </select>
                 </div>
                 <p class="settings-body-copy">Здесь показаны устройства, где ваш аккаунт сейчас авторизован.</p>
                 <div class="session-device-list" id="sessionDevicesList">

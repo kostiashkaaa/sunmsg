@@ -8,7 +8,6 @@ from app.routes.auth_utils import (
     is_valid_b64_blob,
     normalize_login_vault,
     safe_remove_stored_file,
-    wants_remember,
 )
 
 
@@ -91,12 +90,7 @@ def test_build_decoy_login_vault_shape():
     assert len(base64.b64decode(payload['data'])) == 128
 
 
-def test_wants_remember_and_avatar_storage_name():
-    assert wants_remember({'remember_device': True}) is True
-    assert wants_remember({'remember_device': 1}) is True
-    assert wants_remember({'remember_device': 0}) is False
-    assert wants_remember(None) is False
-
+def test_avatar_storage_name_from_url():
     assert avatar_storage_name_from_url('/static/avatars/a.png') == 'a.png'
     assert avatar_storage_name_from_url('/static/avatars/') is None
     assert avatar_storage_name_from_url('/other/path/a.png') is None

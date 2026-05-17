@@ -29,6 +29,7 @@ from app.services.refresh_tokens import (
     rotate_refresh_token,
     set_refresh_cookie,
 )
+from app.services.session_policy import apply_session_auto_logout, session_auto_logout_seconds_from_row
 
 from app.database import get_db_connection
 from app.services.locale import detect_auth_language, language_from_user_row, normalize_language
@@ -45,7 +46,6 @@ from app.routes.auth_utils import (
     is_valid_b64_blob,
     normalize_login_vault,
     safe_remove_stored_file,
-    wants_remember,
 )
 from app.routes.auth_session_utils import (
     consume_register_challenge,
@@ -192,10 +192,6 @@ def _totp_rate_limit_key():
 
 def _build_decoy_login_vault():
     return build_decoy_login_vault()
-
-
-def _wants_remember(data) -> bool:
-    return wants_remember(data)
 
 
 def _clear_pending_totp() -> None:
@@ -531,13 +527,26 @@ def _cleanup_login_key_transfer_sessions(conn) -> None:
     )
 
 
-def _login_success_response(user_id: int, *, remember: bool):
+def _session_auto_logout_seconds_for_user(user_id: int) -> int:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
+            (int(user_id),),
+        ).fetchone()
+    finally:
+        conn.close()
+    return session_auto_logout_seconds_from_row(row)
+
+
+def _login_success_response(user_id: int, *, remember: bool = True):
     payload = {'success': True}
-    session.permanent = bool(remember)
     response = make_response(jsonify(payload))
-    raw, _exp = issue_refresh_token(user_id)
+    ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
+    apply_session_auto_logout(session, ttl_seconds)
+    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
     secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, raw, secure=secure)
+    set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
     return response
 
 

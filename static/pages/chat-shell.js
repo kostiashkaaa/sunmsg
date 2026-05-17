@@ -123,9 +123,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (window.sunPrivateKeySession && typeof window.sunPrivateKeySession.clearPrivateKeyPem === 'function') {
                     await window.sunPrivateKeySession.clearPrivateKeyPem({
                         notify: true,
-                        clearWrappedSession: false,
-                        clearWrappedPersistent: false,
-                        clearDeviceKey: false,
+                        clearWrappedSession: true,
+                        clearWrappedPersistent: true,
+                        clearDeviceKey: true,
                     });
                 } else {
                     sessionStorage.removeItem('e2e_private_key');

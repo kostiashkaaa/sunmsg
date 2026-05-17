@@ -244,7 +244,7 @@ def test_login_challenge_with_totp_stages_second_factor(monkeypatch, tmp_path):
 
     response = client.post(
         '/api/login_challenge',
-        json={'signature': signature, 'remember_device': True},
+        json={'signature': signature},
     )
     payload = response.get_json()
 
@@ -530,7 +530,7 @@ def test_register_login_refresh_logout_full_session_cycle(monkeypatch, tmp_path)
     login_signature = _signed_login_challenge(challenge, private_key_pem)
     login_res = client.post(
         '/api/login_challenge',
-        json={'signature': login_signature, 'remember_device': True},
+        json={'signature': login_signature},
     )
     assert login_res.status_code == 200
     assert login_res.get_json()['success'] is True
@@ -593,7 +593,7 @@ def test_login_totp_and_get_login_vault_cover_success_and_invalid_storage(monkey
     client = app.test_client()
     standalone_response = client.post(
         '/api/login_totp',
-        json={'username': 'alice', 'totp_code': pyotp.TOTP(totp_secret).now(), 'remember_device': True},
+        json={'username': 'alice', 'totp_code': pyotp.TOTP(totp_secret).now()},
     )
     assert standalone_response.status_code == 401
     assert standalone_response.get_json() == {'success': False, 'error': 'Сначала подтвердите вход 24 словами.'}
@@ -628,7 +628,7 @@ def test_login_totp_and_get_login_vault_cover_success_and_invalid_storage(monkey
     assert response.get_json() == {'success': False, 'error': 'Повреждённые данные сейфа.'}
 
 
-def test_login_totp_without_remember_keeps_session_non_permanent(monkeypatch, tmp_path):
+def test_login_totp_without_remember_uses_cookie_session_policy(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-totp-no-remember.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
 
@@ -653,14 +653,44 @@ def test_login_totp_without_remember_keeps_session_non_permanent(monkeypatch, tm
     )
     assert response.status_code == 200
     assert response.get_json()['success'] is True
-    assert all(REFRESH_COOKIE_NAME not in cookie for cookie in response.headers.getlist('Set-Cookie'))
+    assert any(REFRESH_COOKIE_NAME in cookie for cookie in response.headers.getlist('Set-Cookie'))
 
     response = client.get('/api/get_login_vault')
     assert response.status_code == 200
 
     with client.session_transaction() as sess:
-        assert sess.permanent is False
+        assert sess.permanent is True
         assert sess['ui_language'] == 'ru'
+
+
+def test_expired_cookie_session_is_cleared_by_auto_logout(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-session-auto-logout-expired.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, login_vault)
+            VALUES (1, 'pk-1', 'alice', 'Alice', ?)
+            ''',
+            (_valid_login_vault(),),
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    with client.session_transaction() as sess:
+        sess['session_auto_logout_seconds'] = 7 * 24 * 60 * 60
+        sess['session_expires_at'] = int(time.time()) - 1
+
+    response = client.get('/api/get_login_vault')
+
+    assert response.status_code == 401
+    assert response.get_json() == {'success': False, 'error': 'Сессия истекла.'}
+    with client.session_transaction() as sess:
+        assert 'user_id' not in sess
+        assert 'public_key_pem' not in sess
 
 
 def test_totp_manage_enable_stages_pending_setup_and_status(monkeypatch, tmp_path):
@@ -1337,6 +1367,48 @@ def test_session_devices_list_and_revoke_endpoints(monkeypatch, tmp_path):
     assert devices_by_family['family-b']['is_current'] is False
     assert devices_by_family['family-a']['persistent'] is True
     assert devices_by_family['family-b']['persistent'] is True
+    assert payload['session_auto_logout_seconds'] == 30 * 24 * 60 * 60
+    assert [option['seconds'] for option in payload['session_auto_logout_options']] == [
+        7 * 24 * 60 * 60,
+        30 * 24 * 60 * 60,
+        90 * 24 * 60 * 60,
+        180 * 24 * 60 * 60,
+    ]
+
+    policy_response = client.post(
+        '/api/session_devices/auto_logout',
+        json={'session_auto_logout_seconds': 7 * 24 * 60 * 60},
+    )
+    policy_payload = policy_response.get_json()
+    assert policy_response.status_code == 200
+    assert policy_payload['success'] is True
+    assert policy_payload['session_auto_logout_seconds'] == 7 * 24 * 60 * 60
+    assert policy_payload['updated_sessions'] == 2
+    assert any('Max-Age=604800' in cookie for cookie in policy_response.headers.getlist('Set-Cookie'))
+
+    with _connect(db_path) as conn:
+        policy_row = conn.execute(
+            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
+            (1,),
+        ).fetchone()
+        active_rows = conn.execute(
+            '''
+            SELECT expires_at
+            FROM refresh_tokens
+            WHERE family_id IN ('family-a', 'family-b') AND revoked_at IS NULL
+            '''
+        ).fetchall()
+
+    assert policy_row['session_auto_logout_seconds'] == 7 * 24 * 60 * 60
+    assert len(active_rows) == 2
+    assert all(int(row['expires_at']) <= int(time.time()) + 7 * 24 * 60 * 60 for row in active_rows)
+
+    invalid_policy_response = client.post(
+        '/api/session_devices/auto_logout',
+        json={'session_auto_logout_seconds': 2 * 24 * 60 * 60},
+    )
+    assert invalid_policy_response.status_code == 400
+    assert invalid_policy_response.get_json()['success'] is False
 
     response = client.post('/api/session_devices/revoke_others')
     assert response.status_code == 200
