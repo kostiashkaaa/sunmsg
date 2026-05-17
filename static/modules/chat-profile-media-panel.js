@@ -1,7 +1,8 @@
 import { collectMediaFromMessages, renderMediaTabs } from './profile-media.js';
+import { createProfileSharedContentIndex, mergeMediaCollections } from './chat-profile-shared-content.js';
 
 function createEmptyMediaCollections() {
-    return { photos: [], videos: [], files: [], audio: [], voices: [], links: [] };
+    return { media: [], files: [], audio: [], voices: [], links: [] };
 }
 
 export function createProfileMediaPanelController({
@@ -15,6 +16,9 @@ export function createProfileMediaPanelController({
     isProfileDrawerOpen = () => false,
     closePartnerProfileDrawer = () => {},
     loadOlderMessages = async () => false,
+    fetchImpl = fetch,
+    resolveAppUrl = (path) => path,
+    decodeChatMessages = async (messages) => messages,
     openLightbox = null,
     scrollToMessage = null,
     reportVoiceListened = () => {},
@@ -23,6 +27,11 @@ export function createProfileMediaPanelController({
     let profileMediaActiveTab = null;
     let profileMediaRenderFrame = 0;
     let profileMediaLoadToken = 0;
+    const sharedContentIndex = createProfileSharedContentIndex({
+        fetchImpl,
+        resolveAppUrl,
+        decodeChatMessages,
+    });
 
     function bumpLoadToken() {
         profileMediaLoadToken += 1;
@@ -38,7 +47,10 @@ export function createProfileMediaPanelController({
             return createEmptyMediaCollections();
         }
         const state = getChatState(chatId);
-        return collectMediaFromMessages(state?.messages || []);
+        return mergeMediaCollections(
+            collectMediaFromMessages(state?.messages || []),
+            sharedContentIndex.getCollections(chatId),
+        );
     }
 
     function syncProfileMediaEmptyState(message) {
@@ -127,10 +139,14 @@ export function createProfileMediaPanelController({
         const mediaSection = profileMediaTabs.closest('.profile-media-section');
 
         const chatId = getCurrentChatId();
+        scheduleSharedContentIndexing(chatId);
         const media = buildProfileMediaCollections(chatId);
         const state = chatId ? getChatState(chatId) : null;
         const hasMoreHistory = Boolean(state?.hasMoreBefore);
         const isLoadingHistory = Boolean(state?.isLoadingInitial || state?.isLoadingOlder);
+        const sharedStatus = chatId ? sharedContentIndex.getStatus(chatId) : {};
+        const isLoadingSharedContent = Boolean(sharedStatus.loading);
+        const hasMoreSharedContent = Boolean(sharedStatus.hasMoreBefore);
 
         const activeTab = renderMediaTabs({
             tabsEl: profileMediaTabs,
@@ -149,9 +165,10 @@ export function createProfileMediaPanelController({
 
         const totalItems = Object.values(media).reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0);
         if (!totalItems) {
-            if (mediaSection) mediaSection.style.display = 'none';
+            const isSearching = hasMoreHistory || isLoadingHistory || hasMoreSharedContent || isLoadingSharedContent;
+            if (mediaSection) mediaSection.style.display = isSearching && !isGroupMembersTabActive() ? '' : 'none';
             syncProfileMediaEmptyState(
-                hasMoreHistory || isLoadingHistory
+                isSearching
                     ? 'Ищем медиа и ссылки в истории…'
                     : 'Пока нет общего контента',
             );
@@ -159,14 +176,27 @@ export function createProfileMediaPanelController({
         }
 
         if (mediaSection && !isGroupMembersTabActive()) mediaSection.style.display = '';
-        if (hasMoreHistory || isLoadingHistory) {
+        if (hasMoreHistory || isLoadingHistory || hasMoreSharedContent || isLoadingSharedContent) {
             const note = document.createElement('div');
             note.className = 'profile-media-footnote';
-            note.textContent = isLoadingHistory
+            note.textContent = isLoadingHistory || isLoadingSharedContent
                 ? 'Загружаем ещё сообщения из истории…'
                 : 'Показан уже найденный контент. Остальная история подгружается в фоне.';
             profileMediaContent.appendChild(note);
         }
+    }
+
+    function scheduleSharedContentIndexing(chatId = getCurrentChatId()) {
+        if (!chatId || !isProfileDrawerOpen()) return;
+        const loadToken = profileMediaLoadToken;
+        sharedContentIndex.loadUntilDone(chatId, {
+            shouldContinue: () => (
+                loadToken === profileMediaLoadToken
+                && String(chatId) === String(getCurrentChatId())
+                && isProfileDrawerOpen()
+            ),
+            onUpdate: () => scheduleProfileMediaPanelRefresh(chatId, { force: true }),
+        }).catch(() => {});
     }
 
     function scheduleProfileMediaPanelRefresh(chatId = getCurrentChatId(), options = {}) {

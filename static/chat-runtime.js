@@ -2203,6 +2203,9 @@ export const initChatPage = async () => {
         isProfileDrawerOpen,
         closePartnerProfileDrawer,
         loadOlderMessages,
+        fetchImpl: browserEnv.getAuthFetch(),
+        resolveAppUrl: withAppRoot,
+        decodeChatMessages: (messages) => decodeChatMessages(messages),
         openLightbox: browserEnv.openLightbox,
         scrollToMessage: (msgId) => _focusMessageById(msgId),
         reportVoiceListened: (msgId) => {
