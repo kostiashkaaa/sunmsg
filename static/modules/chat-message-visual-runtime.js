@@ -373,6 +373,7 @@ export function createChatMessageVisualRuntime({
         const nextRow = Array.from(template.content.children)
             .find((child) => child?.classList?.contains('message-reactions')) || null;
 
+        const isNewRow = !currentRow;
         let updatedRow = currentRow;
         if (!nextRow) {
             currentRow?.remove();
@@ -430,6 +431,18 @@ export function createChatMessageVisualRuntime({
             });
         }
 
+        if (updatedRow && animate && isNewRow) {
+            updatedRow.classList.add('reaction-row--reveal');
+            const onRevealEnd = () => {
+                updatedRow.classList.remove('reaction-row--reveal');
+                updatedRow.removeEventListener('animationend', onRevealEnd);
+            };
+            updatedRow.addEventListener('animationend', onRevealEnd);
+            windowRef.setTimeout(() => {
+                updatedRow.classList.remove('reaction-row--reveal');
+                updatedRow.removeEventListener('animationend', onRevealEnd);
+            }, 400);
+        }
         if (updatedRow && animate) {
             updatedRow.classList.add('is-updated');
             windowRef.setTimeout(() => updatedRow.classList.remove('is-updated'), 220);
@@ -438,7 +451,15 @@ export function createChatMessageVisualRuntime({
                     .find((pill) => String(pill.getAttribute('data-emoji') || '').trim() === highlightedEmoji);
                 if (targetPill) {
                     targetPill.classList.add('reaction-just-added');
-                    windowRef.setTimeout(() => targetPill.classList.remove('reaction-just-added'), 280);
+                    const onEnd = () => {
+                        targetPill.classList.remove('reaction-just-added');
+                        targetPill.removeEventListener('animationend', onEnd);
+                    };
+                    targetPill.addEventListener('animationend', onEnd);
+                    windowRef.setTimeout(() => {
+                        targetPill.classList.remove('reaction-just-added');
+                        targetPill.removeEventListener('animationend', onEnd);
+                    }, 400);
                 }
             }
         }

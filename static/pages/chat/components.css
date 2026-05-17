@@ -541,7 +541,7 @@
 
         .disappearing-pill-wrap {
             position: absolute;
-            top: calc(var(--vv-top-offset, 0px) + var(--header-h, 60px) + 10px);
+            top: calc(var(--vv-top-offset, 0px) + var(--header-h, 60px) + 20px);
             left: 0;
             right: 0;
             z-index: 4;
@@ -549,11 +549,24 @@
             justify-content: center;
             padding: 0 clamp(14px, 4vw, 24px);
             pointer-events: none;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            transition:
+                opacity var(--dur-medium) var(--ease-quick),
+                transform var(--dur-medium) var(--ease-spring),
+                visibility 0s linear 0s;
         }
 
         .disappearing-pill-wrap[hidden],
         .disappearing-pill-wrap--hidden {
-            display: none !important;
+            opacity: 0 !important;
+            transform: translateY(-10px) scale(0.96) !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+            transition:
+                opacity var(--dur-medium) var(--ease-quick),
+                transform var(--dur-medium) var(--ease-spring),
+                visibility 0s linear var(--dur-medium) !important;
         }
 
         .disappearing-pill {
@@ -578,6 +591,16 @@
             backdrop-filter: blur(14px) saturate(120%);
             -webkit-backdrop-filter: blur(14px) saturate(120%);
             pointer-events: auto;
+            transform-origin: center;
+            transition:
+                border-color 180ms var(--ease-quick),
+                box-shadow 180ms var(--ease-quick),
+                transform 180ms var(--ease-quick);
+            will-change: transform;
+        }
+
+        .disappearing-pill--timer-changing {
+            animation: disappearing-pill-timer-change 420ms var(--ease-quick) both;
         }
 
         .disappearing-pill__icon {
@@ -621,6 +644,38 @@
         @media (max-width: 520px) {
             .disappearing-pill {
                 width: 100%;
+            }
+        }
+
+        @keyframes disappearing-pill-timer-change {
+            0% {
+                transform: scale(1);
+                box-shadow:
+                    0 10px 26px color-mix(in srgb, var(--accent) 14%, transparent),
+                    inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
+            }
+            38% {
+                transform: scale(1.025);
+                box-shadow:
+                    0 14px 34px color-mix(in srgb, var(--accent) 22%, transparent),
+                    inset 0 1px 0 color-mix(in srgb, #ffffff 30%, transparent);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow:
+                    0 10px 26px color-mix(in srgb, var(--accent) 14%, transparent),
+                    inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .disappearing-pill-wrap,
+            .disappearing-pill {
+                transition: none;
+            }
+
+            .disappearing-pill--timer-changing {
+                animation: none;
             }
         }
 
@@ -2317,7 +2372,7 @@
         }
 
         .chat-area.chat-area--disappearing-enabled {
-            --disappearing-pill-space: 64px;
+            --disappearing-pill-space: 78px;
         }
 
 
@@ -2560,6 +2615,59 @@
             width: 100%;
     transition: background var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick);
             transform-origin: left bottom;
+        }
+
+        .message.message--removing {
+            --message-removal-height: 120px;
+            max-height: var(--message-removal-height);
+            overflow: hidden;
+            pointer-events: none;
+            animation: messageRemovalCollapse 220ms var(--ease-quick) forwards;
+        }
+
+        .message.message--removing .message-row-track {
+            animation: messageRemovalBubble 220ms var(--ease-quick) forwards;
+        }
+
+        .message.self.message--removing .message-row-track {
+            transform-origin: right bottom;
+        }
+
+        .message.other.message--removing .message-row-track {
+            transform-origin: left bottom;
+        }
+
+        @keyframes messageRemovalBubble {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: none;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-6px) scale(0.96);
+                filter: blur(1px);
+            }
+        }
+
+        @keyframes messageRemovalCollapse {
+            0% {
+                opacity: 1;
+                max-height: var(--message-removal-height);
+                margin-bottom: var(--chat-message-gap);
+            }
+            100% {
+                opacity: 0;
+                max-height: 0;
+                margin-bottom: 0;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .message.message--removing,
+            .message.message--removing .message-row-track {
+                animation-duration: 0.01ms;
+            }
         }
 
         .message-row-track {
@@ -12099,6 +12207,87 @@
     .reaction-reactor {
         width: var(--chat-reaction-asset-size);
         height: var(--chat-reaction-asset-size);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATION STABILITY PATCH
+   Устранение прыжков и скачков в чате: реакции, баннер, bubble
+   ═══════════════════════════════════════════════════════════════ */
+
+/* GPU-слой для message-stack во время свайп-анимации и реакций */
+.message-stack {
+    will-change: transform;
+}
+
+/* Плавный переход строки реакций при первом появлении         */
+.message-reactions {
+    transition:
+        opacity var(--dur-medium) var(--ease-quick),
+        transform var(--dur-medium) var(--ease-spring);
+}
+
+/* Строка реакций, которая только что появилась (новая реакция) */
+.message-reactions.reaction-row--reveal {
+    animation: reactionRowReveal var(--dur-medium) var(--ease-spring) both;
+}
+
+/* Плавное изменение высоты footer при переключении
+   inside/outside реакций — через max-height анимацию          */
+.message .bubble > .message-footer {
+    transition:
+        opacity var(--dur-quick) var(--ease-quick),
+        max-height var(--dur-medium) var(--ease-spring);
+}
+
+/* bubble--text-has-reactions: плавный переход в grid-layout   */
+.message .bubble.bubble--text {
+    transition:
+        background var(--dur-quick) var(--ease-quick),
+        border-color var(--dur-quick) var(--ease-quick),
+        padding var(--dur-medium) var(--ease-spring);
+}
+
+/* Новый pill появляется с масштабом, а не скачком             */
+.reaction-pill {
+    transform-origin: center bottom;
+}
+
+/* Анимация появления нового pill (добавляется JS-ом,
+   но также работает при первом рендере через CSS-анимацию)    */
+@keyframes reactionPillIn {
+    0%   { opacity: 0; transform: scale(0.6) translateY(4px); }
+    60%  { opacity: 1; transform: scale(1.08) translateY(-1px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Pill исчезает плавно                                        */
+@keyframes reactionPillOut {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.72) translateY(3px); }
+}
+
+.reaction-pill.reaction-pill--removing {
+    animation: reactionPillOut var(--dur-quick) var(--ease-quick) both;
+    pointer-events: none;
+}
+
+/* Улучшенная анимация reaction-just-added с правильным
+   transform-origin для pill в нижней части bubble            */
+.reaction-pill.reaction-just-added {
+    transform-origin: center bottom;
+}
+
+/* Reduce motion: все анимации отключаются                    */
+@media (prefers-reduced-motion: reduce) {
+    .message,
+    .message *,
+    .message-reactions,
+    .reaction-pill,
+    .disappearing-pill-wrap {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 
