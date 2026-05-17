@@ -10,6 +10,7 @@
     data-initial-chat-contact-username="{{ (initial_chat_contact_username or '')|e }}"
     data-ui-language="{{ ui_language|default('ru') }}"
 >
+<script nonce="{{ csp_nonce }}">window.SUN_SYNC_BODY_THEME_BOOT?.();</script>
 {% include 'chat/_svg_icons_sprite.html' %}
 {% set ui_lang = ui_language|default('ru') %}
 {% set has_initial_contacts = (initial_contacts|length) > 0 %}
