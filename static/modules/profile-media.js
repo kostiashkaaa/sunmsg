@@ -1,7 +1,7 @@
 // Media tabs renderer for the partner profile drawer.
 // Source of truth: already decrypted chat messages from local chat state.
 
-import { parseSunFilePayload } from './utils.js';
+import { parseSunFilePayload, sanitizeFileUri } from './utils.js';
 import { getMotionDurationTokenMs, waitForMotionEnd } from './motion.js';
 
 const URL_REGEX = /\bhttps?:\/\/[^\s<>"'`]+/gi;
@@ -175,6 +175,55 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function normalizeProfileMediaKind(kind) {
+    const normalized = String(kind || '').toLowerCase();
+    if (normalized === 'photo' || normalized === 'image') return 'image';
+    if (normalized === 'video') return 'video';
+    if (normalized === 'audio' || normalized === 'voice') return 'audio';
+    if (normalized === 'file') return 'file';
+    return 'other';
+}
+
+function isEncryptedMediaReference(source) {
+    return String(source || '').includes('sun_media_e2ee=');
+}
+
+export async function resolveProfileMediaSource(rawUri, kind = 'other') {
+    const mediaKind = normalizeProfileMediaKind(kind);
+    const safeUri = sanitizeFileUri(rawUri, { imageOnlyData: mediaKind === 'image' });
+    if (!safeUri || safeUri === '#') return '';
+
+    const resolver = window.__sunMediaCacheResolveSource;
+    if (typeof resolver !== 'function') {
+        return isEncryptedMediaReference(safeUri) ? '' : safeUri;
+    }
+
+    try {
+        const resolved = String(await resolver(safeUri, { kind: mediaKind }) || '').trim();
+        if (resolved) return resolved;
+    } catch (_) {}
+    return isEncryptedMediaReference(safeUri) ? '' : safeUri;
+}
+
+export async function hydrateProfileMediaElement(mediaEl, rawUri, kind = 'other') {
+    if (!mediaEl || typeof mediaEl.setAttribute !== 'function') return false;
+    const mediaKind = normalizeProfileMediaKind(kind);
+    const safeUri = sanitizeFileUri(rawUri, { imageOnlyData: mediaKind === 'image' });
+    if (!safeUri || safeUri === '#') return false;
+
+    const nextSeq = Number(mediaEl.dataset?.profileMediaSourceSeq || 0) + 1;
+    if (mediaEl.dataset) {
+        mediaEl.dataset.profileMediaSourceSeq = String(nextSeq);
+    }
+    mediaEl.setAttribute('data-src', safeUri);
+
+    const resolvedSource = await resolveProfileMediaSource(safeUri, mediaKind);
+    if (!resolvedSource) return false;
+    if (mediaEl.dataset && mediaEl.dataset.profileMediaSourceSeq !== String(nextSeq)) return false;
+    mediaEl.setAttribute('src', resolvedSource);
+    return true;
+}
+
 function normalizeWaveform(rawWaveform) {
     let values = [];
     if (Array.isArray(rawWaveform)) {
@@ -328,6 +377,9 @@ function renderMediaGrid(contentEl, items, onItemClick) {
     items.forEach((entry) => {
         const url = String(entry.payload?.data || '');
         const isVideo = entry.mediaKind === 'video';
+        const mediaKind = isVideo ? 'video' : 'image';
+        const safeUrl = sanitizeFileUri(url, { imageOnlyData: mediaKind === 'image' });
+        if (!safeUrl || safeUrl === '#') return;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `profile-media-grid-item${isVideo ? ' is-video' : ' is-photo'}`;
@@ -335,13 +387,14 @@ function renderMediaGrid(contentEl, items, onItemClick) {
 
         if (isVideo) {
             btn.innerHTML = `
-                <video src="${escapeHtml(url)}" preload="metadata" muted playsinline></video>
+                <video data-src="${escapeHtml(safeUrl)}" preload="metadata" muted playsinline></video>
                 <span class="profile-media-grid-duration">${escapeHtml(formatDuration(entry.payload?.duration_seconds) || '')}</span>
             `;
         } else {
-            btn.innerHTML = `<img src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async">`;
+            btn.innerHTML = `<img data-src="${escapeHtml(safeUrl)}" alt="" loading="lazy" decoding="async">`;
         }
 
+        hydrateProfileMediaElement(btn.querySelector(isVideo ? 'video' : 'img'), safeUrl, mediaKind).catch(() => {});
         btn.addEventListener('click', () => onItemClick?.({ kind: isVideo ? 'video' : 'photo', entry }));
         grid.appendChild(btn);
     });
