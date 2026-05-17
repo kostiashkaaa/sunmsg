@@ -123,8 +123,13 @@ export function initMessageContextMenu({
         const viewportX = Number.isFinite(x) ? x : NaN;
         const viewportY = Number.isFinite(y) ? y : NaN;
 
-        const minAvailableHeight = isMobileKeyboardActive() ? 72 : 160;
-        const availableHeight = Math.max(minAvailableHeight, bounds.bottom - bounds.top - margin * 2);
+        const keyboardActive = isMobileKeyboardActive();
+        const minAvailableHeight = keyboardActive ? 72 : 160;
+        const reactionReserve = keyboardActive ? 56 : 0;
+        const availableHeight = Math.max(
+            minAvailableHeight,
+            bounds.bottom - bounds.top - margin * 2 - reactionReserve,
+        );
         menuEl.style.maxHeight = `${Math.round(availableHeight)}px`;
         menuEl.style.overflowY = 'auto';
         const menuRect = menuEl.getBoundingClientRect();
@@ -139,7 +144,10 @@ export function initMessageContextMenu({
         let targetLeft = viewportX;
         let targetTop = viewportY;
 
-        if (anchorRect) {
+        if (keyboardActive) {
+            targetLeft = bounds.left + ((bounds.right - bounds.left - menuWidth) / 2);
+            targetTop = bounds.bottom - menuHeight - margin;
+        } else if (anchorRect) {
             const centeredLeft = anchorRect.left + (anchorRect.width - menuWidth) / 2;
             const aboveTop = anchorRect.top - menuHeight - gap;
             const belowTop = anchorRect.bottom + gap;
