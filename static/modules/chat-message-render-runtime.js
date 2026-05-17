@@ -50,6 +50,7 @@ export function createChatMessageRenderRuntime({
     let bottomInertiaFrame = 0;
     let bottomInertiaToken = 0;
     let keepChatPinnedToBottom = false;
+    let loadedMessageBlockAnimationSeq = 0;
 
     function getCurrentMessagesElement() {
         return getChatMessages?.() || null;
@@ -437,6 +438,45 @@ export function createChatMessageRenderRuntime({
         });
     }
 
+    function applyLoadedMessageBlockAnimations(container) {
+        if (!container || prefersReducedMotionSetting?.()) return;
+        const messageNodes = Array.from(container.querySelectorAll('.message'));
+        if (!messageNodes.length) return;
+        const animationSeq = String(++loadedMessageBlockAnimationSeq);
+
+        messageNodes.forEach((node) => {
+            node.classList.remove('message-block-load-animate');
+            delete node.dataset.messageBlockLoadAnimationSeq;
+        });
+        void container.offsetWidth;
+
+        messageNodes.forEach((node) => {
+            const bubble = node.querySelector('.message-stack > .bubble') || node.querySelector('.bubble');
+            if (!bubble) return;
+            node.dataset.messageBlockLoadAnimationSeq = animationSeq;
+            node.classList.add('message-block-load-animate');
+
+            let timeoutId = 0;
+            const clear = () => {
+                if (node.dataset.messageBlockLoadAnimationSeq !== animationSeq) return;
+                node.classList.remove('message-block-load-animate');
+                delete node.dataset.messageBlockLoadAnimationSeq;
+                bubble.removeEventListener('animationend', onAnimationEnd);
+                if (timeoutId) {
+                    globalThis.clearTimeout(timeoutId);
+                    timeoutId = 0;
+                }
+            };
+            const onAnimationEnd = (event) => {
+                if (event.target !== bubble) return;
+                clear();
+            };
+
+            bubble.addEventListener('animationend', onAnimationEnd);
+            timeoutId = globalThis.setTimeout(clear, 560);
+        });
+    }
+
     async function renderChatMessagesStable(chatId = getCurrentChatId?.(), options = {}) {
         const chatMessages = getCurrentMessagesElement();
         const currentChatId = getCurrentChatId?.();
@@ -476,7 +516,7 @@ export function createChatMessageRenderRuntime({
             }
             currentMessages.classList.remove('is-hydrating');
             if (options?.animateReveal) {
-                triggerChatHistoryRevealAnimation?.();
+                applyLoadedMessageBlockAnimations(currentMessages);
             }
         }
     }
