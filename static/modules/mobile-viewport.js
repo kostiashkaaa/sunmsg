@@ -37,7 +37,9 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const vvHeight = roundedPx(vv.height);
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
             const vvTop = roundedPx(vv.offsetTop);
-            keyboardActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
+            const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
+            // Safari browser chrome can also shrink visualViewport; only composer focus makes it a keyboard state.
+            keyboardActive = composerFocused && keyboardGeometryActive;
             keyboardInset = keyboardActive ? Math.max(0, layoutHeight - vvHeight - vvTop) : 0;
             if (!keyboardActive && !composerFocused && vvHeight > 0) {
                 nextAppVh = `${vvHeight}px`;
