@@ -159,6 +159,10 @@ def handle_call_accept(
             emit_func('call_error', {'error': 'call_not_found_or_expired', 'call_id': call_id, 'request_id': request_id})
             return
 
+        if get_user_active_call(conn, user_id):
+            emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
+            return
+
         accept_call(conn, call_id, user_id)
 
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})

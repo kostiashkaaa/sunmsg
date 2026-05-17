@@ -34,6 +34,9 @@ const STATES = {
     ACTIVE:      'active',
 };
 
+// How long to wait in 'disconnected' state before giving up
+const DISCONNECT_TIMEOUT_MS = 15_000;
+
 export class CallManager {
     /**
      * @param {object} opts
@@ -57,6 +60,10 @@ export class CallManager {
         this._webrtc     = null;
         this._iceServers = null;  // cached for the session
         this._ringTimeout = null;
+        this._disconnectTimeout = null;
+
+        // Queue for WebRTC signals that arrive before _webrtc is initialised
+        this._pendingSignals = [];
 
         this._bindSocketEvents();
     }
@@ -80,7 +87,7 @@ export class CallManager {
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    async startCall(chatId, callType = 'audio') {
+    async startCall(chatId, callType = 'audio', partnerInfo = null) {
         if (this._state !== STATES.IDLE) {
             showToast('Уже есть активный звонок', 'warning');
             return;
@@ -89,6 +96,7 @@ export class CallManager {
         this._callType = callType;
         this._state    = STATES.RINGING_OUT;
         this._isPolite = false;  // caller is impolite
+        this._partner  = partnerInfo;  // set from DOM before server confirms
         startRingtone();
         this._emit('call_initiate', { chat_id: chatId, call_type: callType });
     }
@@ -97,6 +105,8 @@ export class CallManager {
         if (this._state === STATES.IDLE) return;
         if (this._state === STATES.RINGING_OUT) {
             this._emit('call_cancel', { call_id: this._callId });
+        } else if (this._state === STATES.RINGING_IN) {
+            this._emit('call_reject', { call_id: this._callId });
         } else {
             this._emit('call_end', { call_id: this._callId });
         }
@@ -114,6 +124,8 @@ export class CallManager {
         this._state    = STATES.ACTIVE;
         this._isPolite = true;   // callee is polite
         stopRingtone();
+        clearTimeout(this._ringTimeout);
+        this._ringTimeout = null;
         removeIncomingCallBanner();
         this._emit('call_accept', { call_id: callId });
         await this._startMedia();
@@ -123,8 +135,9 @@ export class CallManager {
 
     _onIncoming({ call_id, chat_id, call_type, initiator }) {
         if (this._state !== STATES.IDLE) {
-            // Already busy — auto-reject
+            // Already busy — auto-reject with notification
             this._socket.emit('call_reject', { call_id, csrf_token: this._getCsrfToken() });
+            showToast('Входящий звонок отклонён (вы в другом звонке)', 'info');
             return;
         }
         this._callId   = call_id;
@@ -134,8 +147,13 @@ export class CallManager {
         this._state    = STATES.RINGING_IN;
         startRingtone();
 
+        // Auto-dismiss after 60s as missed call
         this._ringTimeout = setTimeout(() => {
-            if (this._state === STATES.RINGING_IN) this._cleanup();
+            if (this._state === STATES.RINGING_IN) {
+                // Notify server so it can mark as missed
+                this._socket.emit('call_reject', { call_id: this._callId, csrf_token: this._getCsrfToken() });
+                this._cleanup();
+            }
         }, 60_000);
 
         showIncomingCallBanner({
@@ -149,6 +167,18 @@ export class CallManager {
 
     _onInitiated({ call_id }) {
         this._callId = call_id;
+        // Show overlay immediately for caller with "Звонок..."
+        const partnerName = this._partner?.display_name || this._partner?.username || 'Собеседник';
+        showActiveCallOverlay({
+            callId:    call_id,
+            callType:  this._callType,
+            partnerName,
+            localStream: null,  // media not yet acquired — will be set on accept
+            onToggleAudio: () => false,
+            onToggleVideo: () => false,
+            onSwitchCamera: () => {},
+            onEnd: () => this.endCall(),
+        });
         setCallStatusText('Звонок...');
     }
 
@@ -157,8 +187,9 @@ export class CallManager {
         if (this._state !== STATES.RINGING_OUT) return;
         this._state = STATES.ACTIVE;
         stopRingtone();
-        playConnectedSound();
         setCallStatusText('Соединение...');
+        // Remove placeholder overlay and build real one with media
+        removeActiveCallOverlay();
         await this._startMedia();
     }
 
@@ -205,18 +236,42 @@ export class CallManager {
     // ── Signalling: WebRTC P2P ───────────────────────────────────────────────
 
     async _onOffer({ call_id, sdp, from_user_id }) {
-        if (call_id !== this._callId || !this._webrtc) return;
+        if (call_id !== this._callId) return;
+        if (!this._webrtc) {
+            // Queue until _webrtc is ready
+            this._pendingSignals.push({ type: 'offer', sdp, from_user_id });
+            return;
+        }
         await this._webrtc.handleOffer({ sdp });
     }
 
     async _onAnswer({ call_id, sdp, from_user_id }) {
-        if (call_id !== this._callId || !this._webrtc) return;
+        if (call_id !== this._callId) return;
+        if (!this._webrtc) {
+            this._pendingSignals.push({ type: 'answer', sdp, from_user_id });
+            return;
+        }
         await this._webrtc.handleAnswer({ sdp });
     }
 
     async _onIceCandidate({ call_id, candidate, from_user_id }) {
-        if (call_id !== this._callId || !this._webrtc) return;
+        if (call_id !== this._callId) return;
+        if (!this._webrtc) {
+            this._pendingSignals.push({ type: 'ice', candidate, from_user_id });
+            return;
+        }
         await this._webrtc.handleIceCandidate({ candidate });
+    }
+
+    // Drain any signals that arrived before _webrtc was ready
+    async _drainPendingSignals() {
+        const queue = this._pendingSignals.splice(0);
+        for (const sig of queue) {
+            if (!this._webrtc) break;
+            if (sig.type === 'offer')  await this._webrtc.handleOffer({ sdp: sig.sdp });
+            if (sig.type === 'answer') await this._webrtc.handleAnswer({ sdp: sig.sdp });
+            if (sig.type === 'ice')    await this._webrtc.handleIceCandidate({ candidate: sig.candidate });
+        }
     }
 
     // ── Media & WebRTC setup ─────────────────────────────────────────────────
@@ -246,10 +301,11 @@ export class CallManager {
         }
 
         // 3. Show call overlay with local preview
+        const partnerName = this._partner?.display_name || this._partner?.username || 'Собеседник';
         showActiveCallOverlay({
             callId:    this._callId,
             callType:  this._callType,
-            partnerName: this._partner?.display_name || 'Собеседник',
+            partnerName,
             localStream: this._media.getLocalStream(),
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
@@ -289,21 +345,34 @@ export class CallManager {
             },
             onConnectionState: (state) => {
                 if (state === 'connected') {
+                    clearTimeout(this._disconnectTimeout);
+                    this._disconnectTimeout = null;
                     setCallStatusText('Соединено');
                     playConnectedSound();
                 } else if (state === 'disconnected') {
                     setCallStatusText('Переподключение...');
+                    // End call if still disconnected after timeout
+                    this._disconnectTimeout = setTimeout(() => {
+                        if (this._state === STATES.ACTIVE) {
+                            showToast('Соединение потеряно', 'error');
+                            this.endCall();
+                        }
+                    }, DISCONNECT_TIMEOUT_MS);
                 } else if (state === 'failed') {
+                    clearTimeout(this._disconnectTimeout);
                     showToast('Соединение потеряно', 'error');
                     this.endCall();
+                } else if (state === 'closed') {
+                    // handled by endCall/cleanup
                 }
             },
         });
 
         // polite = callee (acceptCall sets _isPolite=true), impolite = caller
         this._webrtc.init(this._media.getLocalStream(), { polite: this._isPolite });
-        // RTCPeerConnection.onnegotiationneeded fires automatically for the caller
-        // and triggers the first offer via _onSignal → call_offer socket event.
+
+        // 5. Drain signals queued before _webrtc was ready
+        await this._drainPendingSignals();
     }
 
     // ── ICE server config ────────────────────────────────────────────────────
@@ -324,13 +393,18 @@ export class CallManager {
     }
 
     _cleanup() {
-        if (this._ringTimeout) { clearTimeout(this._ringTimeout); this._ringTimeout = null; }
+        if (this._ringTimeout)       { clearTimeout(this._ringTimeout);       this._ringTimeout = null; }
+        if (this._disconnectTimeout) { clearTimeout(this._disconnectTimeout); this._disconnectTimeout = null; }
         stopRingtone();
         removeIncomingCallBanner();
         removeActiveCallOverlay();
+        // Release remote tracks before closing peer connection
+        removeRemoteTrack('audio');
+        removeRemoteTrack('video');
         this._webrtc?.close();
         this._webrtc = null;
         this._media.release();
+        this._pendingSignals = [];
         this._iceServers  = null;
         this._state    = STATES.IDLE;
         this._callId   = null;
