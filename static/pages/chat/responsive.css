@@ -1020,6 +1020,24 @@
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
                 z-index: var(--z-composer-mobile, 1004);
             }
+            .chat-area.is-profile-drawer-layout-frozen .chat-messages {
+                position: absolute;
+                top: var(--profile-freeze-messages-top);
+                left: 0;
+                right: 0;
+                height: var(--profile-freeze-messages-height);
+                min-height: 0;
+                flex: none;
+            }
+            .chat-area.is-profile-drawer-layout-frozen .chat-input-area {
+                position: absolute;
+                top: var(--profile-freeze-composer-top);
+                left: var(--profile-freeze-composer-left);
+                right: var(--profile-freeze-composer-right);
+                height: var(--profile-freeze-composer-height);
+                min-height: 0;
+                flex: none;
+            }
             .jump-to-new-btn {
                 --jump-to-new-size: 44px;
                 left: auto !important;

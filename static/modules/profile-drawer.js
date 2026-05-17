@@ -222,6 +222,98 @@ export function initProfileDrawer({
     let transitionPromise = null;
     let contentRevealSeq = 0;
     let lastFocusedElement = null;
+    let suppressFocusRestore = false;
+    let layoutFreezeToken = 0;
+
+    function isMobileTouchViewport() {
+        try {
+            return window.matchMedia('(max-width: 768px)').matches
+                && window.matchMedia('(pointer: coarse)').matches;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isComposerElement(element) {
+        return element instanceof Element
+            && Boolean(element.closest('#messageForm, #composerRow'));
+    }
+
+    function getVisualViewportKeyboardHeight() {
+        const viewport = window.visualViewport;
+        if (!viewport) return 0;
+
+        const layoutHeight = Math.round(
+            window.innerHeight
+            || document.documentElement?.clientHeight
+            || viewport.height
+            || 0
+        );
+        const viewportBottom = Math.round((viewport.offsetTop || 0) + (viewport.height || 0));
+        return Math.max(0, layoutHeight - viewportBottom);
+    }
+
+    function isKeyboardTransitionLikely(activeElement) {
+        if (isComposerElement(activeElement)) return true;
+
+        const viewport = window.visualViewport;
+        if (!viewport) return false;
+
+        const keyboardHeight = getVisualViewportKeyboardHeight();
+        if (keyboardHeight >= 80) return true;
+
+        const screenHeight = Math.round(window.screen?.height || 0);
+        const viewportHeight = Math.round(viewport.height || 0);
+        return screenHeight > 0
+            && viewportHeight > 0
+            && screenHeight - viewportHeight >= Math.max(160, Math.round(screenHeight * 0.22));
+    }
+
+    function freezeChatLayoutForKeyboardDismiss(activeElement) {
+        if (!chatArea || !isMobileTouchViewport() || !isKeyboardTransitionLikely(activeElement)) return 0;
+
+        const messagesEl = document.getElementById('chatMessages') || chatArea.querySelector('.chat-messages');
+        const inputEl = document.getElementById('chatInputArea') || chatArea.querySelector('.chat-input-area');
+        if (!messagesEl || !inputEl) return 0;
+
+        const areaRect = chatArea.getBoundingClientRect();
+        const messagesRect = messagesEl.getBoundingClientRect();
+        const inputRect = inputEl.getBoundingClientRect();
+        if (areaRect.width <= 0 || areaRect.height <= 0 || inputRect.height <= 0) return 0;
+
+        const px = (value) => `${Math.max(0, Math.round(value))}px`;
+        chatArea.style.setProperty('--profile-freeze-messages-top', px(messagesRect.top - areaRect.top));
+        chatArea.style.setProperty('--profile-freeze-messages-height', px(messagesRect.height));
+        chatArea.style.setProperty('--profile-freeze-composer-top', px(inputRect.top - areaRect.top));
+        chatArea.style.setProperty('--profile-freeze-composer-left', px(inputRect.left - areaRect.left));
+        chatArea.style.setProperty('--profile-freeze-composer-right', px(areaRect.right - inputRect.right));
+        chatArea.style.setProperty('--profile-freeze-composer-height', px(inputRect.height));
+        chatArea.classList.add('is-profile-drawer-layout-frozen');
+
+        layoutFreezeToken += 1;
+        return layoutFreezeToken;
+    }
+
+    function releaseChatLayoutFreeze(token = layoutFreezeToken) {
+        if (!chatArea || !token || token !== layoutFreezeToken) return;
+        chatArea.classList.remove('is-profile-drawer-layout-frozen');
+        chatArea.style.removeProperty('--profile-freeze-messages-top');
+        chatArea.style.removeProperty('--profile-freeze-messages-height');
+        chatArea.style.removeProperty('--profile-freeze-composer-top');
+        chatArea.style.removeProperty('--profile-freeze-composer-left');
+        chatArea.style.removeProperty('--profile-freeze-composer-right');
+        chatArea.style.removeProperty('--profile-freeze-composer-height');
+    }
+
+    function blurComposerForProfile(activeElement) {
+        if (!isMobileTouchViewport() || !isComposerElement(activeElement)) return false;
+        try {
+            activeElement.blur();
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
 
     function resetDragState() {
         if (!sheet) return;
@@ -346,6 +438,8 @@ export function initProfileDrawer({
         phase = 'opening';
         transitionPromise = null;
         lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const freezeToken = freezeChatLayoutForKeyboardDismiss(lastFocusedElement);
+        suppressFocusRestore = blurComposerForProfile(lastFocusedElement);
         drawer.hidden = false;
         drawer.removeAttribute('hidden');
         drawer.classList.remove('active', 'is-closing', 'is-profile-opening');
@@ -362,8 +456,10 @@ export function initProfileDrawer({
                 drawer.classList.remove('is-opening');
                 phase = 'open';
                 waitForAnimationEnd(sheet || drawer, getTransitionMs(sheet || drawer, 460) + 40).then(() => {
-                    if (openSeq !== transitionSeq) return;
-                    drawer.classList.remove('is-profile-opening');
+                    if (openSeq === transitionSeq) {
+                        drawer.classList.remove('is-profile-opening');
+                    }
+                    releaseChatLayoutFreeze(freezeToken);
                 });
             });
         });
@@ -383,6 +479,7 @@ export function initProfileDrawer({
         const closeSeq = ++transitionSeq;
         phase = 'closing';
         clearContentReveal();
+        releaseChatLayoutFreeze();
         sheet?.classList.remove('is-dragging');
         chatArea?.classList.remove('is-profile-drawer-dragging');
         drawer.classList.add('is-closing');
@@ -403,10 +500,11 @@ export function initProfileDrawer({
             phase = 'closed';
             transitionPromise = null;
 
-            if (lastFocusedElement instanceof HTMLElement && document.contains(lastFocusedElement)) {
+            if (!suppressFocusRestore && lastFocusedElement instanceof HTMLElement && document.contains(lastFocusedElement)) {
                 try { lastFocusedElement.focus({ preventScroll: true }); } catch (_) {}
             }
             lastFocusedElement = null;
+            suppressFocusRestore = false;
             return true;
         });
 
