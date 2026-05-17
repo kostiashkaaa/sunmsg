@@ -1077,6 +1077,15 @@ def test_theme_toggle_syncs_chat_and_settings_surfaces() -> None:
     assert "notifyParent('sun-settings-theme-updated', { dark })" in settings
 
 
+def test_chat_theme_boot_does_not_override_early_boot_without_explicit_theme() -> None:
+    """Legacy chat boot must not turn auto/unified dark mode into light mode."""
+    theme_boot = (STATIC / 'pages' / 'chat-theme-boot.js').read_text(encoding='utf-8')
+    assert "const storedDark = localStorage.getItem('darkMode');" in theme_boot
+    assert "if (storedDark === 'true')" in theme_boot
+    assert "else if (storedDark === 'false')" in theme_boot
+    assert "document.documentElement.classList.remove('dark-mode');\n        } else" not in theme_boot
+
+
 def test_interface_theme_runtime_updates_all_accent_variants() -> None:
     """Preset/accent changes must update every semantic accent token used by CSS."""
     interface_theme = (STATIC / 'interface-theme.js').read_text(encoding='utf-8')
