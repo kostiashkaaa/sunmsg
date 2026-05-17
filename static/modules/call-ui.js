@@ -95,20 +95,22 @@ export function removeIncomingCallBanner() {
 
 export function showActiveCallOverlay({
     callId, callType, partnerName, partnerAvatar, localStream,
-    onToggleAudio, onToggleVideo, onSwitchCamera, onEnd,
+    onToggleAudio, onToggleVideo, onSwitchCamera, onEnd, callRole = 'participant',
 }) {
     removeActiveCallOverlay({ immediate: true });
 
     const name = escapeHtml(partnerName || 'Собеседник');
     const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
     const isVideo = callType === 'video';
+    const isMobile = _isMobileCallUi();
+    const safeRole = callRole === 'caller' || callRole === 'callee' ? callRole : 'participant';
     const avatarHtml = partnerAvatar
         ? `<img src="${escapeHtml(partnerAvatar)}" class="call-card__avatar-img" alt="">`
         : `<span class="call-card__avatar-fallback">${initial}</span>`;
 
     const overlay = document.createElement('div');
     overlay.id = 'call-active-overlay';
-    overlay.className = `call-overlay${isVideo ? ' call-overlay--video-active' : ''}`;
+    overlay.className = `call-overlay call-overlay--${safeRole}${isVideo ? ' call-overlay--video-active' : ''}`;
     overlay.innerHTML = `
         <div class="call-topbar" id="call-topbar">
             <div class="call-topbar__state">
@@ -129,7 +131,7 @@ export function showActiveCallOverlay({
             </button>
         </div>
 
-        <section class="call-card" id="call-card" role="dialog" aria-label="Звонок">
+        <section class="call-card call-card--${safeRole}" id="call-card" role="dialog" aria-label="Звонок">
             <div class="call-card__stage">
                 <video id="call-remote-video" class="call-overlay__remote-video" autoplay playsinline muted></video>
                 <div class="call-card__audio-bg">
@@ -198,7 +200,9 @@ export function showActiveCallOverlay({
     requestAnimationFrame(() => overlay.classList.add('call-overlay--visible'));
 
     _syncLocalVideo(overlay, localStream, isVideo);
-    _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__stage'));
+    if (!isMobile) {
+        _makeDraggable(overlay.querySelector('#call-card'), overlay.querySelector('.call-card__stage'));
+    }
 
     overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
         const muted = onToggleAudio();
@@ -218,21 +222,25 @@ export function showActiveCallOverlay({
         _syncLocalVideo(overlay, stream, enabled);
     });
 
-    overlay.querySelector('#call-btn-speaker').addEventListener('click', async () => {
-        const btn = overlay.querySelector('#call-btn-speaker');
-        const enabled = btn.getAttribute('aria-pressed') !== 'true';
-        btn.setAttribute('aria-pressed', String(enabled));
-        btn.classList.toggle('call-ctrl--active-positive', enabled);
-        btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Громко' : 'Динамик';
-        await _setSpeakerWakeMode(enabled);
-    });
+    const speakerBtn = overlay.querySelector('#call-btn-speaker');
+    if (isMobile && speakerBtn) {
+        speakerBtn.addEventListener('click', async () => {
+            const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
+            speakerBtn.setAttribute('aria-pressed', String(enabled));
+            speakerBtn.classList.toggle('call-ctrl--active-positive', enabled);
+            speakerBtn.querySelector('.call-ctrl__label').textContent = enabled ? 'Громко' : 'Динамик';
+            await _setSpeakerMode(enabled, overlay);
+        });
+    } else {
+        speakerBtn?.remove();
+    }
 
     overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
     overlay.querySelector('.call-topbar__end').addEventListener('click', () => onEnd(callId));
 }
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
-    _setSpeakerWakeMode(false);
+    _setSpeakerMode(false);
     stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
@@ -294,6 +302,9 @@ export function attachRemoteTrack(track) {
     if (track.kind === 'audio') {
         media.muted = false;
         media.volume = 1;
+        if (overlay?.classList.contains('call-overlay--speaker-on')) {
+            void _setSpeakerMode(true, overlay);
+        }
     } else if (track.kind === 'video') {
         overlay?.classList.add('call-overlay--has-remote-video', 'call-overlay--video-active');
     }
@@ -417,11 +428,31 @@ function _makeDraggable(card, handle) {
     handle.addEventListener('pointercancel', stopDrag);
 }
 
-async function _setSpeakerWakeMode(enabled) {
+async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
+    overlay?.classList.toggle('call-overlay--speaker-on', enabled);
+    const remoteAudio = overlay?.querySelector('#call-remote-audio');
+    if (remoteAudio && enabled) {
+        remoteAudio.muted = false;
+        remoteAudio.volume = 1;
+        if (typeof remoteAudio.setSinkId === 'function') {
+            try {
+                await remoteAudio.setSinkId('default');
+            } catch (err) {
+                console.warn('[CallUI] speaker sink selection unavailable', err);
+            }
+        }
+        _playMedia(remoteAudio);
+    }
+
     if (!enabled) {
         await _releaseScreenWakeLock();
         return;
     }
+    await _requestScreenWakeLock();
+}
+
+async function _requestScreenWakeLock() {
+    if (screenWakeLock) return;
     if (!navigator.wakeLock?.request) return;
     try {
         screenWakeLock = await navigator.wakeLock.request('screen');
@@ -431,6 +462,13 @@ async function _setSpeakerWakeMode(enabled) {
     } catch (err) {
         console.warn('[CallUI] screen wake lock unavailable', err);
     }
+}
+
+function _isMobileCallUi() {
+    return Boolean(
+        window.matchMedia?.('(pointer: coarse)').matches
+        || window.matchMedia?.('(max-width: 768px)').matches
+    );
 }
 
 async function _releaseScreenWakeLock() {

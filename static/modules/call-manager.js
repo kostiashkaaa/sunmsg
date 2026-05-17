@@ -183,6 +183,7 @@ export class CallManager {
         showActiveCallOverlay({
             callId:    call_id,
             callType:  this._callType,
+            callRole: 'caller',
             partnerName,
             partnerAvatar: this._partner?.avatar_url || '',
             localStream: null,  // media not yet acquired — will be set on accept
@@ -320,6 +321,7 @@ export class CallManager {
         showActiveCallOverlay({
             callId:    this._callId,
             callType:  this._callType,
+            callRole: this._isPolite ? 'callee' : 'caller',
             partnerName,
             partnerAvatar: this._partner?.avatar_url || '',
             localStream: this._media.getLocalStream(),
