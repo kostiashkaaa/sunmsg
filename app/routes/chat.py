@@ -41,6 +41,7 @@ from app.routes.chat_page_routes import register_chat_page_routes
 from app.routes.chat_presence_route_handlers import process_get_online_status as _process_get_online_status
 from app.routes.chat_profile_routes import register_chat_profile_routes
 from app.routes.chat_profile_utils import fetch_conversation_stats
+from app.routes.chat_shared_content_routes import register_chat_shared_content_routes
 from app.routes.chat_user_profile_route_handlers import process_get_user_profile as _process_get_user_profile
 from app.routes.contacts import fetch_contacts_for_user
 from app.routes.socket_emit import build_route_socket_emitter
@@ -196,6 +197,15 @@ register_chat_history_routes(
     build_block_state_func=build_block_state,
     serialize_block_state_func=_serialize_block_state,
     block_forbidden_response_func=block_forbidden_response,
+)
+
+register_chat_shared_content_routes(
+    chat_bp,
+    logger=logger,
+    limiter=limiter,
+    get_db_connection_func=get_db_connection,
+    is_valid_chat_id_func=is_valid_chat_id,
+    get_chat_partner_func=get_chat_partner,
 )
 
 register_chat_draft_routes(
