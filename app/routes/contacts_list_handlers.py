@@ -1,4 +1,5 @@
 from datetime import datetime
+import time
 
 from app.db.schema import tables_columns
 from app.services.favorites_chat import (
@@ -24,14 +25,14 @@ def _coerce_bool_flag(value, *, default: bool = True) -> bool:
 def _resolve_schema_columns(conn, cursor, *, ensure_pinned_chats_table_func):
     schema_columns = tables_columns(
         cursor,
-        ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
+        ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts', 'messages'),
     )
     has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
     if not has_pinned_chats:
         ensure_pinned_chats_table_func(conn)
         schema_columns = tables_columns(
             cursor,
-            ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts'),
+            ('chat_drafts', 'pinned_chats', 'users', 'chats', 'chat_members', 'message_receipts', 'messages'),
         )
         has_pinned_chats = bool(schema_columns.get('pinned_chats', set()))
     has_chat_drafts = bool(schema_columns.get('chat_drafts', set()))
@@ -95,6 +96,9 @@ def _build_sql_projection_parts(*, schema_columns: dict, has_pinned_chats: bool,
         pinned_join_sql = ''
         pinned_order_presence_sql = ''
         pinned_order_value_sql = ''
+    message_expiry_filter_sql = ''
+    if 'expires_at' in schema_columns.get('messages', set()):
+        message_expiry_filter_sql = 'AND (m.expires_at IS NULL OR m.expires_at > ?)'
 
     return {
         'last_seen_select_sql': last_seen_select_sql,
@@ -107,6 +111,7 @@ def _build_sql_projection_parts(*, schema_columns: dict, has_pinned_chats: bool,
         'pinned_join_sql': pinned_join_sql,
         'pinned_order_presence_sql': pinned_order_presence_sql,
         'pinned_order_value_sql': pinned_order_value_sql,
+        'message_expiry_filter_sql': message_expiry_filter_sql,
     }
 
 
@@ -128,6 +133,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
                 FROM messages m
                 JOIN user_chat_ids uci ON uci.chat_id = m.chat_id
                 WHERE m.sender_id = ? AND m.deleted_by_sender = 0
+                  {message_expiry_filter_sql}
 
                 UNION ALL
 
@@ -135,6 +141,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
                 FROM messages m
                 JOIN user_chat_ids uci ON uci.chat_id = m.chat_id
                 WHERE m.receiver_id = ? AND m.deleted_by_receiver = 0
+                  {message_expiry_filter_sql}
             ) AS visible
             GROUP BY visible.chat_id
         ),
@@ -160,6 +167,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
                 m.receiver_id = ?
                 AND m.is_read = 0
                 AND m.deleted_by_receiver = 0
+                {message_expiry_filter_sql}
             GROUP BY m.chat_id
         )
         SELECT
@@ -210,6 +218,7 @@ def _build_direct_contacts_query(*, projection_parts: dict) -> str:
         draft_order_value_sql=projection_parts['draft_order_value_sql'],
         last_seen_select_sql=projection_parts['last_seen_select_sql'],
         group_add_direct_select_sql=projection_parts['group_add_direct_select_sql'],
+        message_expiry_filter_sql=projection_parts['message_expiry_filter_sql'],
     )
 
 
@@ -221,7 +230,18 @@ def _build_direct_contacts_params(
     has_chat_drafts: bool,
     limit: int | None,
 ):
-    params = [user_id, user_id, user_id, user_id]
+    message_expiry_filter_sql = str(projection_parts.get('message_expiry_filter_sql') or '')
+    has_message_expiry_filter = bool(message_expiry_filter_sql)
+    expiry_cutoff = int(time.time())
+    params = [user_id, user_id]
+    if has_message_expiry_filter:
+        params.append(expiry_cutoff)
+    params.append(user_id)
+    if has_message_expiry_filter:
+        params.append(expiry_cutoff)
+    params.append(user_id)
+    if has_message_expiry_filter:
+        params.append(expiry_cutoff)
     if projection_parts['has_group_invite_privacy']:
         params.append(user_id)
     params.extend([user_id, user_id])
@@ -352,6 +372,11 @@ def _fetch_group_rows(conn, cursor, *, schema_columns: dict, user_id: int):
     has_message_receipts_table = bool(schema_columns.get('message_receipts', set()))
     if not has_chat_members_table or not has_message_receipts_table:
         return []
+    message_expiry_filter_sql = ''
+    if 'expires_at' in schema_columns.get('messages', set()):
+        message_expiry_filter_sql = 'AND (m.expires_at IS NULL OR m.expires_at > ?)'
+    has_message_expiry_filter = bool(message_expiry_filter_sql)
+    expiry_cutoff = int(time.time())
 
     has_group_membership = cursor.execute(
         '''
@@ -390,6 +415,7 @@ def _fetch_group_rows(conn, cursor, *, schema_columns: dict, user_id: int):
                 JOIN user_groups ug ON ug.chat_id = m.chat_id
                 WHERE mr.user_id = ?
                   AND mr.deleted_for_user = 0
+                  {message_expiry_filter_sql}
                 GROUP BY m.chat_id
             ),
             last_messages AS (
@@ -415,6 +441,7 @@ def _fetch_group_rows(conn, cursor, *, schema_columns: dict, user_id: int):
                   AND mr.deleted_for_user = 0
                   AND mr.is_read = 0
                   AND m.sender_id <> ?
+                  {message_expiry_filter_sql}
                 GROUP BY m.chat_id
             ),
             group_member_counts AS (
@@ -446,7 +473,17 @@ def _fetch_group_rows(conn, cursor, *, schema_columns: dict, user_id: int):
             LEFT JOIN pinned_chats pc ON pc.user_id = ? AND pc.chat_id = ug.chat_id
             LEFT JOIN chat_drafts cd ON cd.user_id = ? AND cd.chat_id = ug.chat_id
             ''',
-            (user_id, user_id, user_id, user_id, user_id, user_id, user_id),
+            (
+                user_id,
+                user_id,
+                *([expiry_cutoff] if has_message_expiry_filter else []),
+                user_id,
+                user_id,
+                user_id,
+                *([expiry_cutoff] if has_message_expiry_filter else []),
+                user_id,
+                user_id,
+            ),
         ).fetchall()
     except Exception:  # noqa: BLE001
         try:
