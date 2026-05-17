@@ -704,6 +704,21 @@
         return hour >= AUTO_DARK_START_HOUR || hour < AUTO_DARK_END_HOUR;
     }
 
+    function syncDomThemeMode(root, body = document.body) {
+        const targetRoot = root || document.documentElement;
+        if (!targetRoot) return 'light';
+        const darkMode = targetRoot.classList.contains('dark-mode');
+        const themeKey = darkMode ? 'dark' : 'light';
+        targetRoot.dataset.theme = themeKey;
+        targetRoot.dataset.bsTheme = themeKey;
+        if (body) {
+            body.classList.toggle('dark-mode', darkMode);
+            body.dataset.theme = themeKey;
+            body.dataset.bsTheme = themeKey;
+        }
+        return themeKey;
+    }
+
     // style.css defines theme variables on `body.dark-mode` / `:root`.
     // A rule that targets `body` directly overrides any value inherited
     // from <html>, so applying preset vars only to documentElement leaves
@@ -731,7 +746,9 @@
     function mirrorRootVarsToBody() {
         const root = document.documentElement;
         const body = document.body;
-        if (!root || !body) return;
+        if (!root) return;
+        syncDomThemeMode(root, body);
+        if (!body) return;
         const inline = root.style;
         for (let i = 0; i < inline.length; i += 1) {
             const name = inline.item(i);
@@ -766,10 +783,10 @@
         if (darkMode !== null) {
             root.classList.toggle('dark-mode', darkMode);
         }
+        const themeKey = syncDomThemeMode(root);
 
         const rawCssVars = asObject(boot.cssVars);
         const cssVars = bootDarkMode === null || bootDarkMode === darkMode ? rawCssVars : {};
-        const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
         if (Object.keys(cssVars).length > 0) {
             applyCssVars(root, cssVars);
         } else {
@@ -818,7 +835,7 @@
                     root.classList.toggle('dark-mode', resolveLocalTimeDarkMode());
                 }
             }
-            const themeKey = root.classList.contains('dark-mode') ? 'dark' : 'light';
+            const themeKey = syncDomThemeMode(root);
             applyLegacyInterfacePreset(root, themeKey);
             applyLegacyInterfaceAccent(root, themeKey);
             applyLegacyChatWallpaper(root, themeKey);
@@ -891,6 +908,8 @@
             // Ignore storage write errors.
         }
     }
+
+    window.SUN_SYNC_BODY_THEME_BOOT = mirrorRootVarsToBody;
 
     try {
         syncServerThemePreferencesIntoStorage();

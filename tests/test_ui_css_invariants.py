@@ -1120,6 +1120,34 @@ def test_early_boot_ignores_stale_boot_css_vars_when_theme_mode_changed() -> Non
     assert "const cssVars = bootDarkMode === null || bootDarkMode === darkMode ? rawCssVars : {};" in early_boot
 
 
+def test_chat_body_theme_boot_runs_before_loading_shell() -> None:
+    """Chat loading UI must not paint before body receives the early theme."""
+    chat_template = (ROOT / 'templates' / 'chat.html').read_text(encoding='utf-8')
+
+    body_sync_pos = chat_template.find('window.SUN_SYNC_BODY_THEME_BOOT?.();')
+    boot_overlay_pos = chat_template.find("{% include 'chat/_boot_overlay.html' %}")
+    app_shell_pos = chat_template.find('<div class="app">')
+
+    assert body_sync_pos != -1, 'chat.html: early body theme sync script is missing'
+    assert boot_overlay_pos != -1, 'chat.html: boot overlay include not found'
+    assert app_shell_pos != -1, 'chat.html: app shell not found'
+    assert body_sync_pos < boot_overlay_pos
+    assert body_sync_pos < app_shell_pos
+
+
+def test_early_boot_exposes_immediate_body_theme_sync() -> None:
+    """The head boot script must expose a sync hook for the first body paint."""
+    early_boot = (ROOT / 'templates' / '_client_preferences_early_boot.html').read_text(encoding='utf-8')
+
+    assert 'function syncDomThemeMode(root, body = document.body)' in early_boot
+    assert "targetRoot.dataset.theme = themeKey;" in early_boot
+    assert "targetRoot.dataset.bsTheme = themeKey;" in early_boot
+    assert "body.classList.toggle('dark-mode', darkMode);" in early_boot
+    assert "body.dataset.theme = themeKey;" in early_boot
+    assert "body.dataset.bsTheme = themeKey;" in early_boot
+    assert 'window.SUN_SYNC_BODY_THEME_BOOT = mirrorRootVarsToBody;' in early_boot
+
+
 def test_interface_theme_runtime_updates_all_accent_variants() -> None:
     """Preset/accent changes must update every semantic accent token used by CSS."""
     interface_theme = (STATIC / 'interface-theme.js').read_text(encoding='utf-8')
