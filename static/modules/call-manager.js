@@ -2,7 +2,7 @@
  * call-manager.js
  * P2P call coordinator.
  *
- * Security: DTLS-SRTP E2E — server only relays SDP/ICE, never sees media keys.
+ * Security: DTLS-SRTP transport encryption. The server relays SDP/ICE only.
  *
  * Perfect negotiation pattern (RFC 8829):
  *   Caller  = impolite peer (polite=false) — initiates offer
@@ -36,6 +36,7 @@ const STATES = {
 
 // How long to wait in 'disconnected' state before giving up
 const DISCONNECT_TIMEOUT_MS = 15_000;
+const RING_TIMEOUT_MS = 60_000;
 
 export class CallManager {
     /**
@@ -98,6 +99,12 @@ export class CallManager {
         this._isPolite = false;  // caller is impolite
         this._partner  = partnerInfo;  // set from DOM before server confirms
         startRingtone();
+        this._ringTimeout = setTimeout(() => {
+            if (this._state !== STATES.RINGING_OUT) return;
+            if (this._callId) this._emit('call_cancel', { call_id: this._callId });
+            showToast('Звонок не принят', 'info');
+            this._cleanup();
+        }, RING_TIMEOUT_MS);
         this._emit('call_initiate', { chat_id: chatId, call_type: callType });
     }
 
@@ -147,14 +154,12 @@ export class CallManager {
         this._state    = STATES.RINGING_IN;
         startRingtone();
 
-        // Auto-dismiss after 60s as missed call
+        // Auto-dismiss locally after the caller-side timeout expires.
         this._ringTimeout = setTimeout(() => {
             if (this._state === STATES.RINGING_IN) {
-                // Notify server so it can mark as missed
-                this._socket.emit('call_reject', { call_id: this._callId, csrf_token: this._getCsrfToken() });
                 this._cleanup();
             }
-        }, 60_000);
+        }, RING_TIMEOUT_MS);
 
         showIncomingCallBanner({
             callId:    call_id,
@@ -166,6 +171,10 @@ export class CallManager {
     }
 
     _onInitiated({ call_id }) {
+        if (this._state !== STATES.RINGING_OUT) {
+            this._emit('call_cancel', { call_id });
+            return;
+        }
         this._callId = call_id;
         // Show overlay immediately for caller with "Звонок..."
         const partnerName = this._partner?.display_name || this._partner?.username || 'Собеседник';
@@ -187,6 +196,8 @@ export class CallManager {
         if (this._state !== STATES.RINGING_OUT) return;
         this._state = STATES.ACTIVE;
         stopRingtone();
+        clearTimeout(this._ringTimeout);
+        this._ringTimeout = null;
         setCallStatusText('Соединение...');
         // Remove placeholder overlay and build real one with media
         removeActiveCallOverlay();
