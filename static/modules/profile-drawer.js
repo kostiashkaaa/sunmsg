@@ -200,7 +200,7 @@ function ensureProfileHeroUsernameElement() {
 
         const statusEl = heroEl.querySelector('#profileLastSeen');
         if (statusEl && statusEl.parentNode === heroEl) {
-            heroEl.insertBefore(usernameEl, statusEl);
+            statusEl.after(usernameEl);
         } else {
             heroEl.appendChild(usernameEl);
         }
