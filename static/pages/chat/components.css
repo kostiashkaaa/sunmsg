@@ -5766,6 +5766,31 @@
             min-height: 100px;
         }
 
+        /* Shimmer for album cells */
+        .album-cell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.07) 40%,
+                rgba(255, 255, 255, 0.13) 50%,
+                rgba(255, 255, 255, 0.07) 60%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: mediaSkeleton 1.6s ease-in-out infinite;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .album-cell.is-loaded::before {
+            opacity: 0;
+            animation: none;
+        }
+
         .album-cell-img,
         .album-cell-video {
             position: absolute;
@@ -5775,14 +5800,12 @@
             object-fit: cover;
             display: block;
             opacity: 0;
-            transform: scale(1.018);
-            transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-medium) var(--ease-quick);
+            transition: opacity 180ms ease;
         }
 
         .album-cell-img.is-loaded,
         .album-cell-video.is-loaded {
             opacity: 1;
-            transform: scale(1);
         }
 
         .album-cell .video-preview-gradient {
@@ -6948,6 +6971,12 @@
             object-fit: contain;
             display: block;
             cursor: zoom-in;
+            transition: filter 200ms ease;
+        }
+
+        /* Blur thumbnail while full image loads */
+        .lightbox-image-wrapper.is-loading-full #lightboxImg {
+            filter: blur(12px) brightness(0.85);
         }
 
 
