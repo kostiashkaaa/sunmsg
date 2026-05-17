@@ -264,12 +264,15 @@ def index():
     login_form = LoginForm(prefix='login')
     ui_language = _resolve_guest_ui_language()
 
-    return render_template(
+    response = make_response(render_template(
         'index.html',
         registration_form=registration_form,
         login_form=login_form,
         ui_language=ui_language,
-    )
+    ))
+    if request.args.get('reset_client') == '1':
+        response.headers['Clear-Site-Data'] = '"cache", "storage"'
+    return response
 
 @auth_bp.route('/api/set_guest_language', methods=['POST'])
 @limiter.limit("120 per minute")
