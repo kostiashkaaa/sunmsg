@@ -85,7 +85,7 @@ def handle_call_initiate(
         emit_func('call_error', {'error': 'invalid_chat_id', 'request_id': request_id})
         return
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         if not _is_chat_member(conn, chat_id, user_id):
             emit_func('call_error', {'error': 'not_member', 'request_id': request_id})
@@ -152,7 +152,7 @@ def handle_call_accept(
         emit_func('call_error', {'error': 'missing_call_id', 'request_id': request_id})
         return
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None or call['status'] != 'ringing':
@@ -188,7 +188,7 @@ def handle_call_reject(
     call_id    = str(data.get('call_id')    or '').strip()
     request_id = str(data.get('request_id') or '').strip() or None
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None:
@@ -219,7 +219,7 @@ def handle_call_cancel(
     call_id    = str(data.get('call_id')    or '').strip()
     request_id = str(data.get('request_id') or '').strip() or None
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None or call['initiator_id'] != user_id:
@@ -250,7 +250,7 @@ def handle_call_end(
     call_id    = str(data.get('call_id')    or '').strip()
     request_id = str(data.get('request_id') or '').strip() or None
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None:
@@ -287,7 +287,7 @@ def handle_call_media_state(
     audio_muted   = bool(data.get('audio_muted',   False))
     video_enabled = bool(data.get('video_enabled', False))
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None or call['status'] != 'active':
@@ -323,7 +323,7 @@ def handle_call_webrtc_signal(
 
     call_id = str(data.get('call_id') or '').strip()
 
-    conn = get_db_connection_func()
+    conn = get_db_connection_func(request_scoped=False)
     try:
         call = get_call_session(conn, call_id)
         if call is None:
