@@ -2441,7 +2441,10 @@ export const initChatPage = async () => {
         stopVoiceRecording,
         captureChatDomSnapshot,
         getCurrentChatId: () => currentChatId,
-        setCurrentChatId: (value) => { currentChatId = value; },
+        setCurrentChatId: (value) => {
+            currentChatId = value;
+            disappearingMessagesController?.syncCurrentChatTimerUi?.();
+        },
         setCurrentContactId: (value) => { currentContactId = value; },
         hideTyping,
         syncDraftPreviewForContact,
@@ -2576,6 +2579,7 @@ export const initChatPage = async () => {
         disconnectLazyMediaHydrationObserver();
         resetMessageRenderScrollState();
         currentChatId = null; currentContactId = null;
+        disappearingMessagesController?.syncCurrentChatTimerUi?.();
         syncForwardDraftBarForCurrentChat();
         onlineStatusController.reset();
         clearCurrentPartnerSession();
