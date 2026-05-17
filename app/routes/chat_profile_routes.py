@@ -1,5 +1,7 @@
 from flask import jsonify, request, session
 
+from app.services.spotify import get_public_listening_status as _spotify_get_status
+
 
 def _unauthorized_response():
     return jsonify({'success': False}), 401
@@ -116,6 +118,7 @@ def register_chat_profile_routes(  # noqa: PLR0913
                 fetch_conversation_stats_func=fetch_conversation_stats_func,
                 is_effectively_online_func=is_effectively_online_func,
                 get_safe_avatar_url_func=get_safe_avatar_url_func,
+                get_spotify_status_func=_spotify_get_status,
             )
             return _response_for_user_profile(result)
         finally:

@@ -60,6 +60,28 @@ def test_run_migrations_backfills_saved_messages_chat_for_existing_users(monkeyp
             'SELECT version, name FROM schema_migrations WHERE version = ?',
             (db_migrations.SAVED_MESSAGES_CHAT_BACKFILL_MIGRATION[0],),
         ).fetchone()
+        spotify_migration_row = conn.execute(
+            'SELECT version, name FROM schema_migrations WHERE version = ?',
+            (db_migrations.SPOTIFY_INTEGRATION_MIGRATION[0],),
+        ).fetchone()
+        spotify_tokens_table = conn.execute(
+            '''
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = ?
+            ''',
+            ('spotify_tokens',),
+        ).fetchone()
+        spotify_now_playing_table = conn.execute(
+            '''
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = ?
+            ''',
+            ('spotify_now_playing',),
+        ).fetchone()
 
     assert len(self_contact_1) == 1
     assert self_contact_1[0]['chat_id'] == expected_chat_1
@@ -71,3 +93,7 @@ def test_run_migrations_backfills_saved_messages_chat_for_existing_users(monkeyp
     assert self_chat_2['chat_name'] == 'Saved Messages'
     assert migration_row
     assert int(migration_row['version']) == db_migrations.SAVED_MESSAGES_CHAT_BACKFILL_MIGRATION[0]
+    assert spotify_migration_row
+    assert int(spotify_migration_row['version']) == db_migrations.SPOTIFY_INTEGRATION_MIGRATION[0]
+    assert spotify_tokens_table
+    assert spotify_now_playing_table

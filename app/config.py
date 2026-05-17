@@ -91,6 +91,10 @@ class BaseConfig:
     WEB_PUSH_VAPID_PUBLIC_KEY = ''
     WEB_PUSH_VAPID_PRIVATE_KEY = ''
     WEB_PUSH_VAPID_SUBJECT = 'mailto:noreply@sunmessenger.local'
+    SPOTIFY_CLIENT_ID = ''
+    SPOTIFY_CLIENT_SECRET = ''
+    SPOTIFY_REDIRECT_URI = ''
+    SPOTIFY_POLLING_INTERVAL_SECONDS = 30
     MODERATOR_USER_IDS = ''
     MODERATION_BLOCKED_PUBLIC_DOMAINS = ''
     MODERATION_HIGH_RISK_IP_CIDRS = ''
@@ -446,6 +450,10 @@ class BaseConfig:
             'PROXY_FIX_X_HOST': max(0, _env_int('PROXY_FIX_X_HOST', cls.PROXY_FIX_X_HOST)),
             'PROXY_FIX_X_PORT': max(0, _env_int('PROXY_FIX_X_PORT', cls.PROXY_FIX_X_PORT)),
             'PROXY_FIX_X_PREFIX': max(0, _env_int('PROXY_FIX_X_PREFIX', cls.PROXY_FIX_X_PREFIX)),
+            'SPOTIFY_CLIENT_ID': str(os.environ.get('SPOTIFY_CLIENT_ID') or '').strip(),
+            'SPOTIFY_CLIENT_SECRET': str(os.environ.get('SPOTIFY_CLIENT_SECRET') or '').strip(),
+            'SPOTIFY_REDIRECT_URI': str(os.environ.get('SPOTIFY_REDIRECT_URI') or '').strip(),
+            'SPOTIFY_POLLING_INTERVAL_SECONDS': max(15, _env_int('SPOTIFY_POLLING_INTERVAL_SECONDS', cls.SPOTIFY_POLLING_INTERVAL_SECONDS)),
         }
 
 

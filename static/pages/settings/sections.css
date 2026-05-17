@@ -1043,6 +1043,65 @@
     justify-content: flex-end;
 }
 
+.settings-spotify-logo {
+    width: 22px;
+    height: 22px;
+    color: #1db954;
+    flex: 0 0 auto;
+}
+
+.settings-spotify-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #06140a;
+    background: #1db954;
+    text-decoration: none;
+}
+
+.settings-spotify-connect-btn:hover {
+    background: #1ed760;
+}
+
+.settings-spotify-connected-state {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid color-mix(in srgb, #1db954 35%, var(--rule));
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, #1db954 9%, var(--paper));
+}
+
+.settings-spotify-connected-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    color: #1db954;
+    border-radius: 50%;
+    background: color-mix(in srgb, #1db954 14%, transparent);
+    flex: 0 0 auto;
+}
+
+.settings-spotify-connected-label {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.settings-spotify-connected-sub {
+    margin-top: 2px;
+    color: var(--sub-text);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+#spotifyDisconnectStatus {
+    min-height: 20px;
+}
+
 .theme-preview-row {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));

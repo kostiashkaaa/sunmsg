@@ -37,6 +37,7 @@ MESSAGE_EXPIRES_AT_MIGRATION = (22, 'add_expires_at_to_messages')
 CHAT_AUTO_DELETE_MIGRATION = (23, 'add_auto_delete_seconds_to_chats')
 MESSAGE_ALBUM_ID_MIGRATION = (24, 'add_album_id_to_messages')
 USER_PRIVACY_CHOICES_MIGRATION = (25, 'add_user_privacy_choices')
+SPOTIFY_INTEGRATION_MIGRATION = (26, 'create_spotify_tables')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -578,6 +579,40 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
         '''
     )
     _record_migration(cursor, USER_PRIVACY_CHOICES_MIGRATION)
+
+    # Spotify integration tables
+    if not migration_applied(cursor, SPOTIFY_INTEGRATION_MIGRATION[0]):
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS spotify_tokens (
+                user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT NOT NULL,
+                token_type TEXT NOT NULL DEFAULT 'Bearer',
+                scope TEXT NOT NULL DEFAULT '',
+                expires_at BIGINT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            '''
+        )
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS spotify_now_playing (
+                user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                is_playing INTEGER NOT NULL DEFAULT 0,
+                track_name TEXT,
+                artist_name TEXT,
+                album_name TEXT,
+                album_art_url TEXT,
+                spotify_track_url TEXT,
+                progress_ms BIGINT DEFAULT 0,
+                duration_ms BIGINT DEFAULT 1,
+                cached_at DOUBLE PRECISION DEFAULT NULL
+            )
+            '''
+        )
+        _record_migration(cursor, SPOTIFY_INTEGRATION_MIGRATION)
 
 
 def run_migrations() -> None:

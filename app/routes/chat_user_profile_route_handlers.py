@@ -14,6 +14,7 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
     fetch_conversation_stats_func,
     is_effectively_online_func,
     get_safe_avatar_url_func,
+    get_spotify_status_func=None,
 ):
     if target_raw in (None, ''):
         return {'status': 'invalid_target'}
@@ -131,6 +132,13 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
         online = None
         last_seen = None
 
+    spotify_status = None
+    if callable(get_spotify_status_func):
+        try:
+            spotify_status = get_spotify_status_func(conn, current_user_id, target_user_id)
+        except Exception:
+            spotify_status = None
+
     return {
         'status': 'ok',
         'payload': {
@@ -157,5 +165,6 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
                 'files': int(stats['files'] or 0),
                 'links': int(stats['links'] or 0),
             },
+            'spotify_status': spotify_status,
         },
     }
