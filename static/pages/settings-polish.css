@@ -616,15 +616,19 @@ body.settings-home-open .settings-logout-form .nav-item {
     height: 52px !important;
 }
 
-/* HOME: все слои прозрачные — три острова */
+/* HOME + DETAIL: все слои прозрачные — острова поверх размытой панели */
 body.settings-home-open .settings-layout,
 body.settings-home-open .settings-overlay-frame,
-body.settings-home-open .settings-scene {
+body.settings-home-open .settings-scene,
+body.settings-detail-open .settings-layout,
+body.settings-detail-open .settings-overlay-frame,
+body.settings-detail-open .settings-scene {
     background: transparent !important;
     box-shadow: none !important;
 }
-/* Блок 1: шапка-остров — тот же цвет что профиль и список */
-body.settings-home-open .settings-panel-head {
+/* Шапка-остров (home и detail) */
+body.settings-home-open .settings-panel-head,
+body.settings-detail-open .settings-panel-head {
     margin: 10px 12px 0 !important;
     padding: 4px 8px 4px 4px !important;
     background: var(--sx-bg-elev, var(--surface)) !important;
@@ -634,11 +638,11 @@ body.settings-home-open .settings-panel-head {
     box-sizing: border-box !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
 }
-body.settings-home-open .settings-panel-body {
+body.settings-home-open .settings-panel-body,
+body.settings-detail-open .settings-panel-body {
     overflow-y: auto !important;
     background: transparent !important;
 }
-/* Все три острова одинаковой ширины — через nav padding */
 body.settings-home-open .settings-nav {
     width: 100% !important;
     max-width: none !important;

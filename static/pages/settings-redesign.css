@@ -323,9 +323,11 @@ body:not(.settings-embed-mode) .settings-scene {
         color-mix(in srgb, var(--sx-bg-soft, #f4ecd9) 94%, transparent) 100%) !important;
 }
 
-/* Home-режим: scene прозрачная — три острова поверх стеклянной панели */
+/* Home + detail: scene прозрачная — острова поверх стеклянной панели */
 body.settings-home-open .settings-scene,
-body.settings-home-open .settings-overlay-shell {
+body.settings-home-open .settings-overlay-shell,
+body.settings-detail-open .settings-scene,
+body.settings-detail-open .settings-overlay-shell {
     background: transparent !important;
 }
 /* Lighter scrim — design uses just a 30px gradient hint */

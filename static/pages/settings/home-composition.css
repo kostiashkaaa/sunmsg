@@ -96,16 +96,20 @@
         width: min(760px, 100%);
     }
 
-    /* ── HOME: все слои прозрачные — три острова ── */
+    /* ── Общее для home и detail: панель прозрачная, острова поверх ── */
     body.settings-home-open .settings-layout,
     body.settings-home-open .settings-overlay-frame,
-    body.settings-home-open .settings-scene {
+    body.settings-home-open .settings-scene,
+    body.settings-detail-open .settings-layout,
+    body.settings-detail-open .settings-overlay-frame,
+    body.settings-detail-open .settings-scene {
         background: transparent !important;
         box-shadow: none !important;
     }
 
-    /* Блок 1: шапка-остров — тот же цвет и отступы что у блоков 2 и 3 */
-    body.settings-home-open .settings-panel-head {
+    /* Шапка — остров 1 (одинаково в home и detail) */
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head {
         margin: 10px 12px 0 !important;
         padding: 4px 8px 4px 4px !important;
         background: var(--sx-bg-elev, var(--surface)) !important;
@@ -116,18 +120,22 @@
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
     }
 
-    body.settings-home-open .settings-panel-body {
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
         display: block;
         overflow-y: auto;
         background: transparent !important;
     }
 
+    /* Контент вкладки — остров 2 */
     body.settings-detail-open .settings-content {
-        width: min(680px, 100%);
-        margin: 0 auto;
-        padding: 0 clamp(18px, 4.8vw, 36px) 28px;
+        width: auto;
+        margin: 8px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+        padding: 0 20px 20px;
         border-left: 0;
-        background: transparent;
+        background: var(--sx-bg-elev, var(--surface));
+        border-radius: 18px;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset;
     }
 
     body.settings-detail-open .settings-card {
