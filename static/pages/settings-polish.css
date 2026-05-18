@@ -500,7 +500,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 }
 .settings-scene .settings-content::-webkit-scrollbar-track { background: transparent; }
 
-/* ── HOME-вид: крупная профиль-карточка как в мессенджере ───────────────────── */
+/* ── HOME-вид: профиль без фона, список в отдельном острове ─────────────────── */
 body.settings-home-open .settings-nav-profile {
     display: grid !important;
     grid-template-columns: 1fr !important;
@@ -511,20 +511,21 @@ body.settings-home-open .settings-nav-profile {
     position: relative !important;
     justify-items: center !important;
     align-items: center !important;
-    margin: 14px 0 0 !important;
-    padding: 22px 18px 16px !important;
-    border-radius: var(--settings-ui-radius-lg) !important;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
+    margin: 20px 0 4px !important;
+    padding: 18px 18px 14px !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
     text-align: center !important;
-    transition: padding var(--sun-dur) var(--sun-ease), box-shadow var(--sun-dur) var(--sun-ease) !important;
+    transition: padding var(--sun-dur) var(--sun-ease) !important;
 }
 body.settings-home-open .settings-nav-profile.is-pull-expanded {
-    padding-top: calc(22px + var(--settings-profile-pull-pad, 0px)) !important;
+    padding-top: calc(18px + var(--settings-profile-pull-pad, 0px)) !important;
 }
 body.settings-home-open .settings-nav-avatar-wrap {
     grid-area: avatar !important;
-    width: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
-    height: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    width: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    height: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
     justify-self: center !important;
     align-self: center !important;
     display: flex !important;
@@ -535,9 +536,9 @@ body.settings-home-open .settings-nav-avatar {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
-    height: min(calc(96px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
-    font-size: 36px !important;
+    width: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    height: min(calc(88px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    font-size: 34px !important;
     line-height: 1 !important;
     border-radius: 50% !important;
     overflow: hidden !important;
@@ -566,18 +567,19 @@ body.settings-home-open .settings-nav-profile-status {
 }
 body.settings-home-open .settings-nav-profile-action {
     position: absolute !important;
-    top: 18px !important;
-    right: 18px !important;
-    width: 38px !important;
-    height: 38px !important;
+    top: 14px !important;
+    right: 14px !important;
+    width: 36px !important;
+    height: 36px !important;
 }
 body.settings-home-open .settings-nav-profile-rows {
     grid-area: rows !important;
     justify-content: center !important;
-    margin-top: 12px !important;
+    margin-top: 10px !important;
 }
+/* Список настроек — отдельный остров с рамкой */
 body.settings-home-open .settings-nav-list {
-    margin-top: var(--settings-ui-card-gap) !important;
+    margin-top: 10px !important;
     border-radius: var(--settings-ui-radius-lg) !important;
     background: var(--sx-bg-elev, var(--paper)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;

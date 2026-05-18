@@ -204,52 +204,53 @@
         overflow: visible;
     }
 
-    /* Profile chip — compact horizontal card */
+    /* Profile — no background card, centred avatar + text */
     body.settings-home-open .settings-nav-profile {
         position: relative;
         display: grid;
-        grid-template-columns: 56px minmax(0, 1fr) 36px;
+        grid-template-columns: 1fr;
         grid-template-areas:
-            "avatar info action"
-            "rows   rows rows";
+            "avatar"
+            "info"
+            "rows";
+        justify-items: center;
         align-items: center;
-        gap: 14px;
-        row-gap: 10px;
-        margin: 14px 12px 8px;
-        padding: 14px;
-        text-align: left;
-        background: var(--sx-bg-elev, #fff);
-        border-radius: 18px;
+        gap: 0;
+        margin: 16px 12px 4px;
+        padding: 16px 14px 12px;
+        text-align: center;
+        background: transparent;
+        border-radius: 0;
         border: 0;
-        box-shadow: 0 0 0 1px var(--sx-line, #e7dcc0) inset;
+        box-shadow: none;
     }
 
     body.settings-home-open .settings-nav-avatar-wrap {
         grid-area: avatar;
-        width: 56px;
-        height: 56px;
-        justify-content: flex-start;
+        width: 80px;
+        height: 80px;
+        justify-content: center;
     }
 
     body.settings-home-open .settings-nav-avatar {
-        width: 56px;
-        height: 56px;
-        font-size: 22px;
+        width: 80px;
+        height: 80px;
+        font-size: 30px;
         border-radius: 50%;
     }
 
     body.settings-home-open .settings-nav-profile-main {
         grid-area: info;
-        margin: 0;
+        margin: 10px 0 0;
         padding-right: 0;
-        text-align: left;
+        text-align: center;
         min-width: 0;
     }
 
     body.settings-home-open .settings-nav-profile-name {
-        font-size: 17px;
+        font-size: 18px;
         line-height: 1.2;
-        font-weight: 600;
+        font-weight: 650;
         letter-spacing: -0.01em;
         color: var(--sx-ink, #1c1916);
         white-space: nowrap;
@@ -265,10 +266,11 @@
     }
 
     body.settings-home-open .settings-nav-profile-action {
-        position: static;
-        grid-area: action;
-        width: 36px;
-        height: 36px;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 34px;
+        height: 34px;
         margin: 0;
         border: 0;
         border-radius: 50%;
@@ -286,28 +288,29 @@
         filter: brightness(1.04);
     }
     body.settings-home-open .settings-nav-profile-action .sun-icon {
-        width: 18px;
-        height: 18px;
+        width: 17px;
+        height: 17px;
     }
 
-    /* Inline chips under the profile card (display_name / @username / bio) */
+    /* Inline chips under avatar */
     body.settings-home-open .settings-nav-profile-rows {
         grid-area: rows;
         display: flex;
         flex-wrap: wrap;
+        justify-content: center;
         width: 100%;
         max-width: none;
-        margin: 0;
+        margin: 8px 0 0;
         padding: 0;
         gap: 6px 8px;
         border-top: 0;
-        text-align: left;
+        text-align: center;
     }
 
     body.settings-home-open .settings-nav-profile-row {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         min-height: 0;
         padding: 4px 10px;
         border-radius: 999px;
@@ -320,18 +323,18 @@
     }
 
     body.settings-home-open .settings-nav-profile-row > .sun-icon {
-        width: 14px;
-        min-width: 14px;
-        height: 14px;
+        width: 13px;
+        min-width: 13px;
+        height: 13px;
         margin: 0;
-        opacity: .7;
+        opacity: .65;
         color: var(--sx-ink-2, #6b6358);
     }
 
     body.settings-home-open .settings-nav-profile-row-copy {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         text-align: left;
     }
 
@@ -358,14 +361,17 @@
         display: none !important;
     }
 
-    /* Category list — continuous list with hairline dividers (no boxed groups) */
+    /* Category list — separate island card */
     body.settings-home-open .settings-nav-list {
         display: block;
-        padding: 8px 0 0;
+        margin: 8px 12px 0;
+        padding: 4px 0;
         gap: 0;
+        border-radius: 18px;
         border: 0;
-        background: transparent;
-        overflow: visible;
+        background: var(--sx-bg-elev, var(--paper));
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset;
+        overflow: hidden;
         touch-action: pan-y;
         flex: 0 0 auto;
     }
