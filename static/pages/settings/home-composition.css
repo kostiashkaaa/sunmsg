@@ -96,7 +96,7 @@
         width: min(760px, 100%);
     }
 
-    /* ── HOME: три острова, все слои прозрачные ── */
+    /* ── HOME: все слои прозрачные — три острова ── */
     body.settings-home-open .settings-layout,
     body.settings-home-open .settings-overlay-frame,
     body.settings-home-open .settings-scene {
@@ -104,15 +104,16 @@
         box-shadow: none !important;
     }
 
-    /* Блок 1: шапка — отдельный остров */
+    /* Блок 1: шапка-остров — тот же цвет и отступы что у блоков 2 и 3 */
     body.settings-home-open .settings-panel-head {
-        margin: 10px 12px 0;
-        padding: 6px 10px 6px 6px;
-        background: var(--sx-bg-elev, var(--paper)) !important;
+        margin: 10px 12px 0 !important;
+        padding: 4px 8px 4px 4px !important;
+        background: var(--sx-bg-elev, var(--surface)) !important;
         border-radius: 18px !important;
-        border-bottom-color: transparent !important;
         border-bottom: none !important;
         min-height: 52px !important;
+        box-sizing: border-box !important;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
     }
 
     body.settings-home-open .settings-panel-body {
