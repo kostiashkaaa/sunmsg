@@ -112,6 +112,7 @@
     body.settings-detail-open .settings-panel-head {
         margin: 10px 12px 0 !important;
         padding: 4px 8px 4px 4px !important;
+        width: calc(100% - 24px) !important;
         background: var(--sx-bg-elev, var(--surface)) !important;
         border-radius: 18px !important;
         border-bottom: none !important;
@@ -249,8 +250,10 @@
         justify-items: center;
         align-items: center;
         gap: 0;
-        margin: 16px 12px 4px;
+        margin: 10px 12px 0;
         padding: 16px 14px 14px;
+        box-sizing: border-box;
+        width: calc(100% - 24px);
         text-align: center;
         background: var(--sx-bg-elev, var(--paper));
         border-radius: 18px;
@@ -397,7 +400,7 @@
     /* Category list — separate island card */
     body.settings-home-open .settings-nav-list {
         display: block;
-        margin: 8px 12px 0;
+        margin: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px));
         padding: 4px 0;
         gap: 0;
         border-radius: 18px;
@@ -407,6 +410,8 @@
         overflow: hidden;
         touch-action: pan-y;
         flex: 0 0 auto;
+        box-sizing: border-box;
+        width: calc(100% - 24px);
     }
 
     body.settings-home-open .settings-nav-group {
