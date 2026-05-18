@@ -977,17 +977,18 @@
 .call-ctrl--end:hover .call-ctrl__icon { background: #dc2626; }
 
 /* ── Chat call message card ───────────────────────────────────────────────── */
-.bubble--call {
+.message .bubble.bubble--call {
+    --call-message-scale: var(--chat-message-scale, 1);
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    column-gap: 10px;
-    min-width: min(265px, 76vw);
+    column-gap: calc(10px * var(--call-message-scale));
+    min-width: min(calc(265px * var(--call-message-scale)), 76vw);
 }
 .call-message-card {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: calc(10px * var(--call-message-scale));
     min-width: 0;
     cursor: pointer;
     outline: none;
@@ -1005,12 +1006,12 @@
     display: block;
 }
 .call-message-card:focus-visible {
-    border-radius: 8px;
+    border-radius: calc(8px * var(--call-message-scale));
     box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 34%, transparent);
 }
 .call-message-card__icon {
-    width: 34px;
-    height: 34px;
+    width: calc(34px * var(--call-message-scale));
+    height: calc(34px * var(--call-message-scale));
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
@@ -1023,29 +1024,37 @@
     background: color-mix(in srgb, var(--accent, #8b6cff) 18%, transparent);
     color: var(--accent, #8b6cff);
 }
+.call-message-card__icon svg {
+    width: calc(19px * var(--call-message-scale));
+    height: calc(19px * var(--call-message-scale));
+}
 .call-message-card__body {
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 2px;
+    gap: calc(2px * var(--call-message-scale));
 }
 .call-message-card__title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 15px;
+    font-size: calc(15px * var(--call-message-scale));
     font-weight: 800;
     line-height: 1.25;
 }
 .call-message-card__detail {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: calc(4px * var(--call-message-scale));
     min-width: 0;
     color: rgba(255,255,255,.78);
-    font-size: 13px;
+    font-size: calc(13px * var(--call-message-scale));
     font-weight: 700;
     line-height: 1.2;
+}
+.call-message-card__detail svg {
+    width: calc(13px * var(--call-message-scale));
+    height: calc(13px * var(--call-message-scale));
 }
 .message.other .call-message-card__detail {
     color: var(--sub-text, rgba(255,255,255,.64));
