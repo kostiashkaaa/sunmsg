@@ -8,6 +8,10 @@
             linear-gradient(180deg, color-mix(in srgb, var(--sidebar-bg) 90%, var(--chat-bg) 10%) 0%, color-mix(in srgb, var(--chat-bg) 88%, var(--surface) 12%) 100%);
     }
 
+    body.settings-home-open .settings-scene {
+        background: transparent !important;
+    }
+
     .settings-layout {
         width: min(420px, 100%);
         min-height: 100vh;
