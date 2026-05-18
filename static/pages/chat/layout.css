@@ -1391,6 +1391,9 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     touch-action: pan-y;
     background: var(--bg);
 }
+body.settings-home-open .settings-overlay-frame {
+    background: transparent;
+}
 
 @media (max-width: 960px) {
     .settings-overlay-panel {
