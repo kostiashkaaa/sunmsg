@@ -150,5 +150,9 @@ def test_profile_lightbox_proxy_uses_resolved_media_source():
 
     assert 'resolveProfileMediaSource' in source
     assert 'const src = await resolveProfileMediaSource(rawSrc, mediaKind);' in source
+    assert "proxyMessage.className = 'message profile-lightbox-proxy-message'" in source
+    assert 'proxyMessage.appendChild(proxy)' in source
+    assert 'chatMessages.appendChild(proxyMessage)' in source
     assert "proxy.setAttribute('data-media-src', src)" in source
     assert "proxy.setAttribute('data-media-src', rawSrc)" not in source
+    assert 'proxyMessage.remove()' in source

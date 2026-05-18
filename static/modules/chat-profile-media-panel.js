@@ -75,12 +75,15 @@ export function createProfileMediaPanelController({
         proxy.setAttribute('data-media-kind', mediaKind);
         proxy.setAttribute('data-media-src', src);
         proxy.setAttribute('data-caption', String(entry?.payload?.caption || entry?.payload?.name || '').trim());
-        proxy.style.display = 'none';
-        chatMessages.appendChild(proxy);
+        const proxyMessage = document.createElement('div');
+        proxyMessage.className = 'message profile-lightbox-proxy-message';
+        proxyMessage.style.display = 'none';
+        proxyMessage.appendChild(proxy);
+        chatMessages.appendChild(proxyMessage);
         try {
             openLightbox(proxy);
         } finally {
-            window.setTimeout(() => proxy.remove(), 0);
+            window.setTimeout(() => proxyMessage.remove(), 0);
         }
     }
 
