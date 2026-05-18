@@ -607,7 +607,7 @@ body.settings-home-open .settings-nav-group #navMetaIntegrations[data-meta]::aft
 }
 body.settings-home-open .settings-nav-group .nav-item + .nav-item,
 body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 55%, transparent) !important;
+    box-shadow: none !important;
 }
 body.settings-home-open .settings-logout-form .nav-item {
     min-height: 52px !important;
