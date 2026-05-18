@@ -883,6 +883,76 @@
             color: var(--ink-mute);
         }
 
+        .command-palette-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .command-palette-section-header .command-palette-section-title {
+            margin-bottom: 0;
+        }
+
+        .palette-recent-clear-btn {
+            width: 24px;
+            height: 24px;
+            flex: 0 0 24px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--sub-text);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        #paletteRecentSearchResults {
+            display: grid;
+            gap: 6px;
+        }
+
+        .palette-recent-item {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid var(--rule-soft);
+            border-radius: var(--radius-sm);
+            background: var(--paper);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .palette-recent-item-icon {
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--accent) 14%, transparent);
+            color: var(--accent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .palette-recent-item-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
         .search-frequent-chats {
             display: flex;
             align-items: flex-start;
@@ -3580,14 +3650,14 @@
 
         .attach-menu {
             position: absolute;
-            right: 52px;
+            right: 9px;
             bottom: calc(100% + 10px);
             min-width: min(228px, calc(100vw - 72px));
             max-width: min(280px, calc(100vw - 24px));
             padding: 8px;
             border-radius: 14px;
             border: 1px solid color-mix(in srgb, var(--border) 76%, transparent 24%);
-            background: color-mix(in srgb, var(--surface) 93%, #0d1321 7%);
+            background: var(--overlay-menu-bg, var(--surface));
             box-shadow: var(--shadow-md);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
