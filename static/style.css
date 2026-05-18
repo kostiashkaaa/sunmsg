@@ -489,7 +489,7 @@ a:hover { color: var(--accent-hover); }
     top: calc(
         var(--vv-top-offset, 0px)
         + var(--header-h, 64px)
-        + env(safe-area-inset-top)
+        + env(safe-area-inset-top, 0px)
         + 10px
     );
     left: calc((100vw + var(--sidebar-width, 320px)) / 2);

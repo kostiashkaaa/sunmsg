@@ -1112,14 +1112,14 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
         overflow-y: auto;
     }
     .profile-close-btn {
-        top: calc(12px + env(safe-area-inset-top));
+        top: calc(12px + env(safe-area-inset-top, 0px));
         right: 12px;
     }
     .profile-sheet-grabber {
         display: block;
         position: sticky;
-        top: calc(8px + env(safe-area-inset-top));
-        margin: calc(10px + env(safe-area-inset-top)) auto 4px;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        margin: calc(10px + env(safe-area-inset-top, 0px)) auto 4px;
         width: 42px;
         height: 5px;
         border-radius: 999px;
@@ -1129,10 +1129,10 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     .profile-pane-main {
         border-right: 0;
         border-bottom: 1px solid var(--profile-pane-border);
-        padding: calc(46px + env(safe-area-inset-top)) 16px 16px;
+        padding: calc(46px + env(safe-area-inset-top, 0px)) 16px 16px;
     }
     .profile-pane-side {
-        padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+        padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px));
         gap: 16px;
     }
 
@@ -1231,7 +1231,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     }
 
     #toastContainer {
-        top: calc(8px + env(safe-area-inset-top));
+        top: calc(8px + env(safe-area-inset-top, 0px));
         left: 50%;
         right: auto;
         transform: translateX(-50%);
@@ -3659,7 +3659,7 @@ body.settings-detail-open .settings-overlay-frame {
             padding: calc(8px + var(--disappearing-pill-space, 0px)) 22px 0 22px;
             padding-bottom: calc(
                 var(--floating-composer-reserve, 72px)
-                + env(safe-area-inset-bottom)
+                + env(safe-area-inset-bottom, 0px)
             );
             --selection-row-bleed-left: 26px;
             --selection-row-bleed-right: 26px;
@@ -3676,7 +3676,7 @@ body.settings-detail-open .settings-overlay-frame {
             scroll-padding-top: 10px;
             scroll-padding-bottom: calc(
                 var(--floating-composer-reserve, 72px)
-                + env(safe-area-inset-bottom)
+                + env(safe-area-inset-bottom, 0px)
                 + 12px
             );
             scrollbar-gutter: stable both-edges;
@@ -3736,7 +3736,7 @@ body.settings-detail-open .settings-overlay-frame {
             right: 0;
             bottom: calc(
                 var(--floating-composer-gap)
-                + env(safe-area-inset-bottom)
+                + env(safe-area-inset-bottom, 0px)
             );
             padding: 0 22px 10px 22px;
             background: transparent !important;

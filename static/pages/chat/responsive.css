@@ -674,6 +674,7 @@
                 max-height: var(--app-vh, 100dvh);
                 min-height: 0;
                 touch-action: pan-y;
+                overscroll-behavior: none;
             }
             .sidebar-top-row {
                 gap: 10px;
@@ -1034,7 +1035,7 @@
                 padding-top: 6px;
                 padding-left: max(8px, env(safe-area-inset-left, 0px));
                 padding-right: max(8px, env(safe-area-inset-right, 0px));
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
                 z-index: var(--z-composer-mobile, 1004);
             }
             .chat-area.is-profile-drawer-layout-frozen .chat-messages {
@@ -1071,18 +1072,19 @@
                 background: color-mix(in srgb, var(--surface) 96%, transparent 4%);
                 box-shadow: none;
                 color: var(--sub-text);
-                transform: none !important;
+                transform: scale(0.82) !important;
                 transform-origin: center center;
                 transition:
                     opacity var(--dur-quick) var(--ease-quick),
+                    transform var(--dur-quick) var(--ease-spring),
                     filter var(--dur-quick) var(--ease-quick) !important;
-                will-change: opacity;
+                will-change: opacity, transform;
             }
-            .jump-to-new-btn.is-visible,
-            .jump-to-new-btn.is-visible:active {
-                transform: none !important;
+            .jump-to-new-btn.is-visible {
+                transform: scale(1) !important;
             }
             .jump-to-new-btn.is-visible:active {
+                transform: scale(0.92) !important;
                 filter: brightness(0.94);
             }
             .chat-input-area > .jump-to-new-btn {
@@ -1149,12 +1151,13 @@
                 gap: 10px;
             }
             .chat-input-area .message-actions-bar .message-actions-bar__buttons {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                display: flex;
+                flex-wrap: wrap;
                 width: 100%;
                 gap: 8px;
             }
             .chat-input-area .message-actions-bar .btn-msg-bar {
+                flex: 1 1 calc(50% - 4px);
                 justify-content: center;
                 min-height: 36px;
             }
@@ -1287,14 +1290,6 @@
                animation, so opening is smooth and cheap (no per-frame reflow
                of the whole chat). The chat column reserves room for it via a
                single padding change on .chat-area when the sheet is open. */
-            .emoji-picker-handle {
-                width: 36px;
-                height: 4px;
-                border-radius: 999px;
-                background: color-mix(in srgb, var(--border) 70%, transparent);
-                margin: 8px auto 0;
-                flex-shrink: 0;
-            }
 
             .emoji-picker {
                 --emoji-mobile-gutter: 12px;
@@ -1367,12 +1362,14 @@
             }
             .chat-area.emoji-sheet-open .chat-input-area {
                 transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0);
+                will-change: transform;
             }
             /* During emoji -> keyboard handoff, keep the composer in normal
                flow; --app-vh already follows visualViewport.height. */
             .chat-area.emoji-sheet-keyboard-handoff .chat-input-area {
                 transition: none !important;
                 transform: none !important;
+                will-change: auto;
             }
 
             .emoji-picker-topbar {

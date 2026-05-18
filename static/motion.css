@@ -1755,6 +1755,8 @@ button > i[class*=" bi-"],
     pointer-events: none;
     transform: translate3d(0, 6px, 0);
     transition:
+        max-height var(--sun3-dur-exit) var(--sun3-ease-exit),
+        padding var(--sun3-dur-exit) var(--sun3-ease-exit),
         opacity var(--sun3-dur-exit) var(--sun3-ease-exit),
         transform var(--sun3-dur-exit) var(--sun3-ease-exit);
 }
