@@ -163,13 +163,15 @@
 
     // ── Обработчики событий ───────────────────────────────────────────────────
 
-    badge.addEventListener('click', () => {
+    badge.addEventListener('click', e => {
+        e.stopPropagation();
         if (_currentProto && _currentProto !== 'none') _openVerifyModal();
     });
 
     badge.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
+            e.stopPropagation();
             if (_currentProto && _currentProto !== 'none') _openVerifyModal();
         }
     });
