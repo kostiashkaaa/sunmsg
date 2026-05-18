@@ -376,16 +376,16 @@ export function createChatForwardFlow(deps = {}) {
     async function encryptForForwardTarget(contactRow, plainText) {
         const forwardPrivateKeyPem = getPrivateKeyPem?.();
         if (!forwardPrivateKeyPem) {
-            throw new Error('РќРµС‚ РїСЂРёРІР°С‚РЅРѕРіРѕ РєР»СЋС‡Р°. Р’РѕР№РґРёС‚Рµ Р·Р°РЅРѕРІРѕ СЃ РІР°С€РёРј РєР»СЋС‡РѕРј.');
+            throw new Error('Нет приватного ключа. Войдите заново с вашим ключом.');
         }
         const forwardUserPublicKey = getCurrentUserPublicKey?.();
         if (!forwardUserPublicKey) {
-            throw new Error('РќРµ РЅР°Р№РґРµРЅ РІР°С€ РїСѓР±Р»РёС‡РЅС‹Р№ РєР»СЋС‡. РћР±РЅРѕРІРёС‚Рµ СЃС‚СЂР°РЅРёС†Сѓ Рё РІРѕР№РґРёС‚Рµ Р·Р°РЅРѕРІРѕ.');
+            throw new Error('Не найден ваш публичный ключ. Обновите страницу и войдите заново.');
         }
         if (contactRow.isGroup) {
             const forwardGroupPublicKeys = await getGroupMemberPublicKeysForChat?.(contactRow.chatId);
             if (!Array.isArray(forwardGroupPublicKeys) || !forwardGroupPublicKeys.length) {
-                throw new Error(`РќРµ РЅР°Р№РґРµРЅС‹ РєР»СЋС‡Рё СѓС‡Р°СЃС‚РЅРёРєРѕРІ РіСЂСѓРїРїС‹ ${contactRow.displayName}.`);
+                throw new Error(`Не найдены ключи участников группы ${contactRow.displayName}.`);
             }
             return window.e2e.encryptMessageE2EForRecipients(
                 forwardGroupPublicKeys,
@@ -396,7 +396,7 @@ export function createChatForwardFlow(deps = {}) {
         }
         const forwardPublicKey = String(contactRow.publicKey || '').trim();
         if (!forwardPublicKey) {
-            throw new Error(`РќРµ РЅР°Р№РґРµРЅ РєР»СЋС‡ С€РёС„СЂРѕРІР°РЅРёСЏ РґР»СЏ С‡Р°С‚Р° ${contactRow.displayName}.`);
+            throw new Error(`Не найден ключ шифрования для чата ${contactRow.displayName}.`);
         }
         return window.e2e.encryptMessageE2E(
             forwardPublicKey,

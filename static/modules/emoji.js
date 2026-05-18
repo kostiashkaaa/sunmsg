@@ -880,12 +880,12 @@ export function initEmojiPicker(messageInput) {
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
 
         if (shouldOpenMobile) {
-            // Dismiss the keyboard first; the emoji sheet (fixed CSS height)
-            // takes its place. Mark the chat-area so CSS docks the composer.
+            // Mark the chat-area first so CSS docks the composer before the
+            // native keyboard blur starts resizing the viewport.
+            setMobileEmojiSheetState(emojiPicker, true);
             if (document.activeElement === messageInput) {
                 messageInput.blur();
             }
-            setMobileEmojiSheetState(emojiPicker, true);
         } else {
             positionEmojiPicker(emojiPicker, emojiBtn);
         }

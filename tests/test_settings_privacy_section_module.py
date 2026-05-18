@@ -2,6 +2,14 @@ from pathlib import Path
 import subprocess
 
 
+def _privacy_section_test_source(module_path: Path) -> str:
+    source = module_path.read_text(encoding='utf-8')
+    return source.replace(
+        "import { readAppliedDarkMode } from '../../modules/theme-state.js';",
+        'const readAppliedDarkMode = () => false;',
+    )
+
+
 def test_settings_nav_status_follows_page_visibility(tmp_path):
     module_path = (
         Path(__file__).resolve().parents[1]
@@ -11,7 +19,7 @@ def test_settings_nav_status_follows_page_visibility(tmp_path):
         / 'privacy-section.js'
     )
     module_copy = tmp_path / 'privacy-section.mjs'
-    module_copy.write_text(module_path.read_text(encoding='utf-8'), encoding='utf-8')
+    module_copy.write_text(_privacy_section_test_source(module_path), encoding='utf-8')
     module_url = module_copy.as_uri()
     node_harness = f"""
 const documentListeners = new Map();
@@ -224,7 +232,7 @@ def test_sidebar_weather_preferences_autosave_client_preferences(tmp_path):
         / 'privacy-section.js'
     )
     module_copy = tmp_path / 'privacy-section.mjs'
-    module_copy.write_text(module_path.read_text(encoding='utf-8'), encoding='utf-8')
+    module_copy.write_text(_privacy_section_test_source(module_path), encoding='utf-8')
     module_url = module_copy.as_uri()
     node_harness = f"""
 const documentListeners = new Map();
@@ -468,7 +476,7 @@ def test_privacy_preferences_autosave_server_fields(tmp_path):
         / 'privacy-section.js'
     )
     module_copy = tmp_path / 'privacy-section.mjs'
-    module_copy.write_text(module_path.read_text(encoding='utf-8'), encoding='utf-8')
+    module_copy.write_text(_privacy_section_test_source(module_path), encoding='utf-8')
     module_url = module_copy.as_uri()
     node_harness = f"""
 class FakeElement {{

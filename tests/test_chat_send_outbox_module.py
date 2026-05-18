@@ -147,6 +147,11 @@ const buildAudioWaveformPeaks = async () => null;
 const probeVisualMediaMetadata = async () => null;`,
 );
 source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-media-e2ee\\.js';/,
+  `const appendEncryptedMediaFragment = (url) => url;
+const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: null }});`,
+);
+source = source.replace(
   "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
   "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
 );

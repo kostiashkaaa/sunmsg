@@ -322,7 +322,7 @@ def test_handle_edit_message_event_rejects_foreign_message_edit(tmp_path):
     emitted = []
 
     handle_edit_message_event(
-        {'msg_id': 10, 'new_content': 'tampered', 'chat_id': 'chat-a', 'message_type': 'text'},
+        {'msg_id': 10, 'new_content': E2EE_DIRECT_MESSAGE, 'chat_id': 'chat-a', 'message_type': 'text'},
         session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
         require_payload_dict_func=lambda payload: payload,
         socket_csrf_ok_func=lambda payload: True,

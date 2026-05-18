@@ -320,11 +320,11 @@ def _stabilize_settings_visual_state(page: Page) -> None:
     )
 
 
-def _open_settings_via_test_login(context: BrowserContext) -> Page:
+def _open_settings_via_test_login(context: BrowserContext, section: str = 'profile') -> Page:
     page = _open_page(context, '/__visual_test__/login?next=/chat', wait_until='domcontentloaded')
     page.wait_for_selector('#contactsList', timeout=90_000)
     page.wait_for_function("() => typeof window.openSettingsOverlay === 'function'", timeout=90_000)
-    page.evaluate("() => window.openSettingsOverlay('profile')")
+    page.evaluate("(targetSection) => window.openSettingsOverlay(targetSection)", section)
     return page
 
 
@@ -425,13 +425,10 @@ def test_visual_settings_mobile_dropdown_state(visual_server):
             base_url=visual_server['base_url'],
             mobile=True,
         )
-        page = _open_settings_via_test_login(context)
+        page = _open_settings_via_test_login(context, section='settings')
         _wait_settings_ready(page)
-        if page.is_visible('#settingsNavToggle'):
-            page.click('#settingsNavToggle')
-            page.wait_for_function("() => document.getElementById('settingsNav')?.classList.contains('mobile-open') === true")
-        else:
-            page.wait_for_selector('#settingsNavList')
+        page.wait_for_function("() => document.body.classList.contains('settings-home-open')")
+        page.wait_for_selector('#settingsNavProfile', state='visible')
         _stabilize_settings_visual_state(page)
         _assert_visual_snapshot(page, 'settings-mobile-dropdown-open')
         page.close()
@@ -457,10 +454,9 @@ def test_visual_settings_desktop_loading_and_empty_passkeys(visual_server):
             )
 
         context.route('**/api/passkeys', _handle_passkeys)
-        page = _open_settings_via_test_login(context)
+        page = _open_settings_via_test_login(context, section='keys')
         _wait_settings_ready(page)
 
-        page.click('.nav-item[data-section="keys"]')
         page.wait_for_selector('#section-keys.section-active')
         page.wait_for_selector('#section-keys #mnemonicUnlockCard')
         _stabilize_settings_visual_state(page)

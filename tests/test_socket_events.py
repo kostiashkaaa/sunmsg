@@ -642,7 +642,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
         alice_socket.get_received()
         bob_socket.get_received()
 
-        edited_text = 'hello encrypted world (edited)'
+        edited_text = E2EE_DIRECT_MESSAGE
         alice_socket.emit(
             'edit_message',
             {
@@ -878,18 +878,9 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
                 'csrf_token': alice_csrf,
             },
         )
-        _wait_for_events(alice_socket, {'receive_message', 'message_sent'})
+        alice_delete_for_me_send_events = _wait_for_events(alice_socket, {'receive_message', 'message_sent'})
         _wait_for_events(bob_socket, {'receive_message'})
-
-        with _connect(db_path) as conn:
-            delete_for_me_row = conn.execute(
-                '''
-                SELECT id
-                FROM messages
-                WHERE chat_id = ? AND message = ?
-                ''',
-                (chat_id, 'delete for me only'),
-            ).fetchone()
+        delete_for_me_id = _payloads_from_events(alice_delete_for_me_send_events, 'message_sent')[0]['id']
 
         alice_socket.get_received()
         bob_socket.get_received()
@@ -898,7 +889,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
             'delete_messages',
             {
                 'chat_id': chat_id,
-                'msg_ids': [delete_for_me_row['id']],
+                'msg_ids': [delete_for_me_id],
                 'mode': 'for_me',
                 'csrf_token': alice_csrf,
             },
@@ -908,7 +899,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
         assert any(
             payload['chat_id'] == chat_id
             and payload['mode'] == 'for_me'
-            and payload['msg_ids'] == [delete_for_me_row['id']]
+            and payload['msg_ids'] == [delete_for_me_id]
             for payload in alice_delete_for_me_payloads
         )
         time.sleep(0.05)
@@ -921,7 +912,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
                 FROM messages
                 WHERE id = ?
                 ''',
-                (delete_for_me_row['id'],),
+                (delete_for_me_id,),
             ).fetchone()
 
         assert bool(delete_for_me_flags['deleted_by_sender']) is True
@@ -939,18 +930,9 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
                 'csrf_token': alice_csrf,
             },
         )
-        _wait_for_events(alice_socket, {'receive_message', 'message_sent'})
+        alice_delete_for_both_send_events = _wait_for_events(alice_socket, {'receive_message', 'message_sent'})
         _wait_for_events(bob_socket, {'receive_message'})
-
-        with _connect(db_path) as conn:
-            delete_for_both_row = conn.execute(
-                '''
-                SELECT id
-                FROM messages
-                WHERE chat_id = ? AND message = ?
-                ''',
-                (chat_id, 'delete for both'),
-            ).fetchone()
+        delete_for_both_id = _payloads_from_events(alice_delete_for_both_send_events, 'message_sent')[0]['id']
 
         alice_socket.get_received()
         bob_socket.get_received()
@@ -959,7 +941,7 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
             'delete_messages',
             {
                 'chat_id': chat_id,
-                'msg_ids': [delete_for_both_row['id']],
+                'msg_ids': [delete_for_both_id],
                 'mode': 'for_both',
                 'csrf_token': alice_csrf,
             },
@@ -970,20 +952,20 @@ def test_socket_realtime_flow_covers_delivery_status_send_and_block(monkeypatch,
         assert any(
             payload['chat_id'] == chat_id
             and payload['mode'] == 'for_both'
-            and payload['msg_ids'] == [delete_for_both_row['id']]
+            and payload['msg_ids'] == [delete_for_both_id]
             for payload in alice_delete_for_both_payloads
         )
         assert any(
             payload['chat_id'] == chat_id
             and payload['mode'] == 'for_both'
-            and payload['msg_ids'] == [delete_for_both_row['id']]
+            and payload['msg_ids'] == [delete_for_both_id]
             for payload in bob_delete_for_both_payloads
         )
 
         with _connect(db_path) as conn:
             deleted_for_both_row = conn.execute(
                 'SELECT 1 FROM messages WHERE id = ?',
-                (delete_for_both_row['id'],),
+                (delete_for_both_id,),
             ).fetchone()
             conn.execute(
                 'INSERT INTO block_list (blocker_id, blocked_id) VALUES (?, ?)',
@@ -1364,7 +1346,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             'edit_message',
             {
                 'msg_id': 10,
-                'new_content': 'edited too late',
+                'new_content': E2EE_DIRECT_MESSAGE,
                 'chat_id': chat_id,
                 'csrf_token': alice_csrf,
             },
@@ -1376,7 +1358,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             'edit_message',
             {
                 'msg_id': 11,
-                'new_content': 'edited too many times',
+                'new_content': E2EE_DIRECT_MESSAGE,
                 'chat_id': chat_id,
                 'csrf_token': alice_csrf,
             },

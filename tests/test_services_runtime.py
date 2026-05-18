@@ -744,6 +744,7 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
         'cleanup_dialog_keys',
         'cleanup_disappearing_messages',
         'cleanup_refresh_tokens',
+        'cleanup_stale_ringing_calls',
         'cleanup_soft_deleted_messages',
     }
     assert scheduler.get_job('cleanup_disappearing_messages').func is scheduler_runtime.cleanup_disappearing_messages_realtime

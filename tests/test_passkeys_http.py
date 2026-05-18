@@ -536,7 +536,7 @@ def test_passkey_login_verify_without_totp_establishes_session(tmp_path, monkeyp
     assert response.status_code == 200
     assert payload['success'] is True
     assert payload.get('requires_totp') is None
-    assert all(REFRESH_COOKIE_NAME not in cookie for cookie in response.headers.getlist('Set-Cookie'))
+    assert any(REFRESH_COOKIE_NAME in cookie for cookie in response.headers.getlist('Set-Cookie'))
 
     with _connect(db_path) as conn:
         row = conn.execute(
