@@ -12771,6 +12771,35 @@
 
 /* ── E2EE key verification dialog ─────────────────────────────────────────── */
 
+.e2ee-verify-modal {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    background: var(--overlay-menu-bg);
+    color: var(--text);
+    box-shadow: var(--shadow-lg);
+    max-width: 420px;
+    width: 92vw;
+    outline: none;
+}
+
+.e2ee-verify-modal::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.e2ee-verify-modal .modal-dialog {
+    margin: 0;
+    max-width: none;
+}
+
+.e2ee-verify-modal .modal-content {
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
 .e2ee-verify-modal .modal-header {
     border-bottom: 1px solid var(--border);
     padding-bottom: 12px;

@@ -127,16 +127,34 @@
 
     // ── Диалог верификации ────────────────────────────────────────────────────
 
-    let _myEd = null;
+    let _myEd   = null;
     let _peerEd = null;
+    let _isLegacy = false;
 
-    async function setKeys(myEdB64u, peerEdB64u, peerName) {
-        _myEd = myEdB64u;
-        _peerEd = peerEdB64u;
+    function setKeys(myEdB64u, peerKeyRaw, peerName, proto) {
+        _myEd     = myEdB64u;
+        _peerEd   = peerKeyRaw;
+        _isLegacy = proto === 'legacy';
 
         if (peerLabel) {
-            peerLabel.textContent = `Ключ ${peerName || 'собеседника'} (Ed25519)`;
+            const keyType = _isLegacy ? 'RSA-2048' : 'Ed25519';
+            peerLabel.textContent = `Ключ ${peerName || 'собеседника'} (${keyType})`;
         }
+    }
+
+    async function _fingerprintForProto(key) {
+        if (!key) return null;
+        if (_isLegacy) {
+            // RSA public key — хэшируем как строку UTF-8
+            try {
+                const enc = new TextEncoder().encode(key.trim());
+                const hash = await crypto.subtle.digest('SHA-256', enc);
+                if (window.cryptoV2) return window.cryptoV2.b64uEncode(hash);
+                return btoa(String.fromCharCode(...new Uint8Array(hash)))
+                    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            } catch { return null; }
+        }
+        return _ed25519Fingerprint(key);
     }
 
     async function _openVerifyModal() {
@@ -147,11 +165,12 @@
             protoText.innerHTML = `Протокол: <strong>${meta.protoDesc}</strong>`;
         }
 
-        // Fingerprints
-        const myHash  = await _ed25519Fingerprint(_myEd);
-        const peerHash = await _ed25519Fingerprint(_peerEd);
+        const myHash   = _isLegacy ? null : await _ed25519Fingerprint(_myEd);
+        const peerHash = await _fingerprintForProto(_peerEd);
 
-        if (myFp)   myFp.innerHTML   = _formatFingerprint(myHash);
+        if (myFp)   myFp.innerHTML   = _isLegacy
+            ? '<em style="color:var(--text-muted)">RSA — без Ed25519 отпечатка</em>'
+            : _formatFingerprint(myHash);
         if (peerFp) peerFp.innerHTML = _formatFingerprint(peerHash);
 
         modal.showModal?.() ?? modal.setAttribute('open', '');

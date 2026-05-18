@@ -4,6 +4,7 @@ export function syncE2EPillState({
     getCurrentChatId,
     isCurrentChatGroup,
     getChatState,
+    getCurrentPartnerDisplayName,
     e2ePillWrap,
     e2eIndicator,
 }) {
@@ -24,10 +25,22 @@ export function syncE2EPillState({
         e2eIndicator.setAttribute('aria-pressed', 'false');
     }
 
-    _syncE2eeStatusBadge({ currentChatId, isCurrentChatGroup, state });
+    _syncE2eeStatusBadge({
+        currentChatId,
+        isCurrentChatGroup,
+        state,
+        getCurrentContactPublicKey,
+        getCurrentPartnerDisplayName,
+    });
 }
 
-function _syncE2eeStatusBadge({ currentChatId, isCurrentChatGroup, state }) {
+function _syncE2eeStatusBadge({
+    currentChatId,
+    isCurrentChatGroup,
+    state,
+    getCurrentContactPublicKey,
+    getCurrentPartnerDisplayName,
+}) {
     const ui = window.e2eeStatusUI;
     if (!ui) return;
 
@@ -36,15 +49,19 @@ function _syncE2eeStatusBadge({ currentChatId, isCurrentChatGroup, state }) {
         return;
     }
 
-    // Определяем протокол по последнему расшифрованному сообщению в состоянии чата
     const proto = _detectProtoFromState(state);
     if (proto) {
         ui.setStatus(proto);
+        // Обновить ключи для диалога верификации
+        const peerRsaKey = typeof getCurrentContactPublicKey === 'function'
+            ? getCurrentContactPublicKey() : null;
+        const peerName = typeof getCurrentPartnerDisplayName === 'function'
+            ? getCurrentPartnerDisplayName() : null;
+        const myPub = window.deviceKey?.loadV2PublicKeys?.();
+        ui.setKeys(myPub?.ed25519Public || null, peerRsaKey || null, peerName, proto);
     } else if (typeof isCurrentChatGroup === 'function' && isCurrentChatGroup()) {
-        // Групповой чат без истории — ещё нет протокола
         ui.hide();
     } else {
-        // 1:1 чат без истории — скрываем до первого сообщения
         ui.hide();
     }
 }

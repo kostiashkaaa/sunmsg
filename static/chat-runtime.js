@@ -954,6 +954,7 @@ export const initChatPage = async () => {
             getCurrentChatId: () => currentChatId,
             isCurrentChatGroup,
             getChatState,
+            getCurrentPartnerDisplayName,
             e2ePillWrap,
             e2eIndicator,
         });
