@@ -112,7 +112,7 @@ export function initMessageTouchContext(options = {}) {
             'a,button,input,textarea,select,label,[contenteditable="true"],' +
             '.reaction-pill,.reaction-picker,.file-msg-media-trigger,.file-msg-link,' +
             '.audio-player,.audio-player-toggle,.audio-player-progress,.audio-player-speed,.reply-quote,' +
-            '[data-open-profile-trigger]'
+            '[data-open-profile-trigger],[data-call-message-trigger]'
         ));
     }
 

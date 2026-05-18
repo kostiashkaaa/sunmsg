@@ -196,6 +196,28 @@ function bindMessageInteractiveHandlers(messageDiv) {
         });
     }
 
+    const callTrigger = messageDiv.querySelector('[data-call-message-trigger]');
+    if (callTrigger) {
+        const startCallFromMessage = (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            const callType = callTrigger.getAttribute('data-call-type') === 'video' ? 'video' : 'audio';
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            callTrigger.dispatchEvent(new CustomEvent('sun:call-message-start', {
+                bubbles: true,
+                detail: { callType },
+            }));
+        };
+        callTrigger.addEventListener('click', (event) => {
+            if (event.button !== 0) return;
+            startCallFromMessage(event);
+        });
+        callTrigger.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            startCallFromMessage(event);
+        });
+    }
+
     messageDiv.querySelectorAll('.file-msg-media-trigger').forEach((trigger) => {
         trigger.addEventListener('click', () => {
             if (typeof window._openLightbox === 'function') {
@@ -783,7 +805,7 @@ function buildFileBubble(filePayload) {
 }
 
 function buildCallBubble(callPayload, { isSelf = false } = {}) {
-    const callType = String(callPayload?.call_type || 'audio');
+    const callType = String(callPayload?.call_type || '').trim() === 'video' ? 'video' : 'audio';
     const status = String(callPayload?.status || '').trim();
     const duration = Number(callPayload?.duration_sec) || 0;
     const isVideo = callType === 'video';
@@ -801,9 +823,10 @@ function buildCallBubble(callPayload, { isSelf = false } = {}) {
     const mediaIcon = isVideo
         ? '<path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/><rect x="2" y="6" width="13" height="12" rx="2.5" fill="currentColor" stroke="none"/>'
         : '<path d="M4.5 2.5s-2 0-2 2c0 8.28 6.72 15 15 15 2 0 2-2 2-2v-3s0-1.5-1.5-1.5c-.81 0-1.92-.34-2.74-.63-.59-.21-1.26-.06-1.67.35l-1.41 1.41c-2.12-1.25-4.06-3.19-5.31-5.31l1.41-1.41c.41-.41.56-1.08.35-1.67C8.34 4.92 8 3.81 8 3c0-1.5-1.5-1.5-1.5-1.5h-2z" fill="currentColor" stroke="none"/>';
+    const actionLabel = isVideo ? 'Начать видеозвонок' : 'Начать аудиозвонок';
 
     return `
-        <div class="call-message-card">
+        <div class="call-message-card" data-call-message-trigger="1" data-call-type="${callType}" role="button" tabindex="0" aria-label="${escapeHtml(actionLabel)}">
             <span class="call-message-card__icon" aria-hidden="true">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${mediaIcon}</svg>
             </span>
@@ -815,6 +838,14 @@ function buildCallBubble(callPayload, { isSelf = false } = {}) {
                 </span>
             </span>
         </div>`;
+}
+
+function isMessageSelectionActive(messageDiv) {
+    if (!messageDiv) return false;
+    return Boolean(
+        messageDiv.classList.contains('selecting')
+        || messageDiv.closest('.chat-messages')?.classList.contains('selecting')
+    );
 }
 
 // ?? Main element builder ??????????????????????????????????????????????????????

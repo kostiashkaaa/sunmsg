@@ -4164,6 +4164,15 @@ export const initChatPage = async () => {
         currentChatId ||
         null;
 
+    const _hasDirectCallTarget = () => {
+        if (_currentCallChatIsDirect && _resolveCallChatId()) return true;
+        const activeItem = document.querySelector('.contact-item.active');
+        if (!activeItem) return false;
+        const isGroup = activeItem.getAttribute('data-is-group') === '1';
+        const isSaved = activeItem.getAttribute('data-saved-messages') === '1';
+        return Boolean(activeItem.getAttribute('data-chat-id')) && !isGroup && !isSaved;
+    };
+
     // Extract partner display info from active contact item for caller overlay
     const _resolvePartnerInfo = (seed = null) => {
         const rawUserId = String(seed?.user_id || '').trim();
@@ -4220,6 +4229,7 @@ export const initChatPage = async () => {
                 return;
             }
         }
+        if (!_hasDirectCallTarget()) return;
         const chatId = _resolveCallChatId();
         if (chatId) callManager.startCall(chatId, callType, _resolvePartnerInfo());
     };
@@ -4284,6 +4294,10 @@ export const initChatPage = async () => {
     _callBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         void _startHeaderCall('audio');
+    });
+    document.addEventListener('sun:call-message-start', (e) => {
+        const callType = e.detail?.callType === 'video' ? 'video' : 'audio';
+        void _startHeaderCall(callType);
     });
     // ─────────────────────────────────────────────────────────────────────────
 
