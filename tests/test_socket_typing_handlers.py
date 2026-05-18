@@ -108,6 +108,39 @@ def test_handle_typing_event_forwards_extended_typing_kind():
     conn.close()
 
 
+def test_handle_typing_event_respects_sender_typing_privacy():
+    emitted = []
+    conn = _connect()
+    conn.execute(
+        '''
+        INSERT INTO users (id, public_key, username, display_name, typing_privacy)
+        VALUES (1, 'pk-1', 'alice', 'Alice', 'nobody')
+        ON CONFLICT(id) DO UPDATE SET
+            public_key = EXCLUDED.public_key,
+            username = EXCLUDED.username,
+            display_name = EXCLUDED.display_name,
+            typing_privacy = EXCLUDED.typing_privacy
+        '''
+    )
+    conn.commit()
+
+    handle_typing_event(
+        {'chat_id': 'chat-a'},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_signal_interval_ok_func=lambda uid, event_name: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: conn,
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    assert emitted == []
+    conn.close()
+
+
 def test_handle_typing_event_uses_kind_specific_interval_bucket():
     observed_event_names = []
 

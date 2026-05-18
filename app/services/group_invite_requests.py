@@ -10,6 +10,9 @@ GROUP_INVITE_PRIVACY_VALUES = {
     GROUP_INVITE_PRIVACY_CONTACTS,
     GROUP_INVITE_PRIVACY_NOBODY,
 }
+GROUP_INVITE_ACTION_ADD = 'add'
+GROUP_INVITE_ACTION_REQUEST = 'request'
+GROUP_INVITE_ACTION_DENY = 'deny'
 
 
 def normalize_group_invite_privacy(value: str | None) -> str:
@@ -32,12 +35,12 @@ def _is_contact(conn, *, owner_user_id: int, contact_user_id: int) -> bool:
     return row is not None
 
 
-def should_route_group_invite_to_request(
+def resolve_group_invite_privacy_action(
     conn,
     *,
     inviter_user_id: int,
     invitee_user_id: int,
-) -> bool:
+) -> str:
     row = conn.execute(
         '''
         SELECT group_invite_privacy
@@ -51,14 +54,29 @@ def should_route_group_invite_to_request(
         row['group_invite_privacy'] if row and 'group_invite_privacy' in row.keys() else GROUP_INVITE_PRIVACY_ALL
     )
     if privacy == GROUP_INVITE_PRIVACY_ALL:
-        return False
+        return GROUP_INVITE_ACTION_ADD
     if privacy == GROUP_INVITE_PRIVACY_CONTACTS:
-        return not _is_contact(
+        if _is_contact(
             conn,
             owner_user_id=int(invitee_user_id),
             contact_user_id=int(inviter_user_id),
-        )
-    return True
+        ):
+            return GROUP_INVITE_ACTION_ADD
+        return GROUP_INVITE_ACTION_REQUEST
+    return GROUP_INVITE_ACTION_DENY
+
+
+def should_route_group_invite_to_request(
+    conn,
+    *,
+    inviter_user_id: int,
+    invitee_user_id: int,
+) -> bool:
+    return resolve_group_invite_privacy_action(
+        conn,
+        inviter_user_id=inviter_user_id,
+        invitee_user_id=invitee_user_id,
+    ) == GROUP_INVITE_ACTION_REQUEST
 
 
 def ensure_group_invite_request(

@@ -46,6 +46,7 @@ MESSAGES_CALL_ID_MIGRATION = (30, 'add_call_id_to_messages')
 USER_CREATED_AT_MIGRATION = (31, 'add_created_at_to_users')
 CRYPTO_V2_SCHEMA_MIGRATION = (32, 'add_x25519_ed25519_double_ratchet_mls_schema')
 SPOTIFY_PRIVACY_MIGRATION = (33, 'add_spotify_privacy_and_explicit_fields')
+USER_EXTENDED_PRIVACY_MIGRATION = (34, 'add_extended_user_privacy_controls')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -354,6 +355,11 @@ def _run_users_schema_migrations(conn, cursor) -> None:
         ('group_invite_privacy', "group_invite_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('voice_message_privacy', "voice_message_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('message_privacy', "message_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('read_receipts_privacy', "read_receipts_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('typing_privacy', "typing_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('voice_listened_privacy', "voice_listened_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('call_privacy', "call_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('public_key_search_privacy', "public_key_search_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('is_online', 'is_online INTEGER DEFAULT 0'),
         ('totp_secret', 'totp_secret TEXT'),
         ('totp_enabled_at', 'totp_enabled_at TIMESTAMP'),
@@ -576,6 +582,11 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
         ('forward_link_privacy', "forward_link_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('voice_message_privacy', "voice_message_privacy TEXT NOT NULL DEFAULT 'all'"),
         ('message_privacy', "message_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('read_receipts_privacy', "read_receipts_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('typing_privacy', "typing_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('voice_listened_privacy', "voice_listened_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('call_privacy', "call_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('public_key_search_privacy', "public_key_search_privacy TEXT NOT NULL DEFAULT 'all'"),
     )
     for column_name, ddl in privacy_columns:
         add_column_if_missing(conn, cursor, 'users', column_name, ddl)
@@ -607,6 +618,31 @@ def _run_new_feature_schema_migrations(conn, cursor) -> None:
             message_privacy = CASE
                 WHEN LOWER(COALESCE(message_privacy, '')) IN ('all', 'contacts', 'nobody')
                     THEN LOWER(message_privacy)
+                ELSE 'all'
+            END,
+            read_receipts_privacy = CASE
+                WHEN LOWER(COALESCE(read_receipts_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(read_receipts_privacy)
+                ELSE 'all'
+            END,
+            typing_privacy = CASE
+                WHEN LOWER(COALESCE(typing_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(typing_privacy)
+                ELSE 'all'
+            END,
+            voice_listened_privacy = CASE
+                WHEN LOWER(COALESCE(voice_listened_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(voice_listened_privacy)
+                ELSE 'all'
+            END,
+            call_privacy = CASE
+                WHEN LOWER(COALESCE(call_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(call_privacy)
+                ELSE 'all'
+            END,
+            public_key_search_privacy = CASE
+                WHEN LOWER(COALESCE(public_key_search_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(public_key_search_privacy)
                 ELSE 'all'
             END
         '''
@@ -887,6 +923,54 @@ def _run_spotify_privacy_migration(conn, cursor) -> None:
     logger.info('Migration: added spotify privacy and explicit fields')
 
 
+def _run_extended_user_privacy_migration(conn, cursor) -> None:
+    if migration_applied(cursor, USER_EXTENDED_PRIVACY_MIGRATION[0]):
+        return
+    privacy_columns = (
+        ('read_receipts_privacy', "read_receipts_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('typing_privacy', "typing_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('voice_listened_privacy', "voice_listened_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('call_privacy', "call_privacy TEXT NOT NULL DEFAULT 'all'"),
+        ('public_key_search_privacy', "public_key_search_privacy TEXT NOT NULL DEFAULT 'all'"),
+    )
+    for column_name, ddl in privacy_columns:
+        add_column_if_missing(conn, cursor, 'users', column_name, ddl)
+    cursor.execute(
+        '''
+        UPDATE users
+        SET
+            read_receipts_privacy = CASE
+                WHEN LOWER(COALESCE(read_receipts_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(read_receipts_privacy)
+                ELSE 'all'
+            END,
+            typing_privacy = CASE
+                WHEN LOWER(COALESCE(typing_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(typing_privacy)
+                ELSE 'all'
+            END,
+            voice_listened_privacy = CASE
+                WHEN LOWER(COALESCE(voice_listened_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(voice_listened_privacy)
+                ELSE 'all'
+            END,
+            call_privacy = CASE
+                WHEN LOWER(COALESCE(call_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(call_privacy)
+                ELSE 'all'
+            END,
+            public_key_search_privacy = CASE
+                WHEN LOWER(COALESCE(public_key_search_privacy, '')) IN ('all', 'contacts', 'nobody')
+                    THEN LOWER(public_key_search_privacy)
+                ELSE 'all'
+            END
+        '''
+    )
+    _record_migration(cursor, USER_EXTENDED_PRIVACY_MIGRATION)
+    conn.commit()
+    logger.info('Migration: added extended user privacy controls')
+
+
 def _run_call_feature_access_migration(conn, cursor) -> None:
     if migration_applied(cursor, CALL_FEATURE_ACCESS_MIGRATION[0]):
         return
@@ -958,6 +1042,7 @@ def run_migrations() -> None:
         _run_call_feature_access_migration(conn, cursor)
         _run_crypto_v2_schema_migration(conn, cursor)
         _run_spotify_privacy_migration(conn, cursor)
+        _run_extended_user_privacy_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

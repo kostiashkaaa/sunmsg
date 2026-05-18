@@ -80,6 +80,8 @@ def get_settings():
                    avatar_url, avatar_visibility,
                    last_seen_visibility, bio_visibility, forward_link_privacy,
                    group_invite_privacy, voice_message_privacy, message_privacy,
+                   read_receipts_privacy, typing_privacy, voice_listened_privacy,
+                   call_privacy, public_key_search_privacy,
                    bio, status_text, language, client_preferences
             FROM users
             WHERE public_key = ?
@@ -123,6 +125,11 @@ def get_settings():
         ),
         'voice_message_privacy': normalize_privacy_choice(user['voice_message_privacy'] if 'voice_message_privacy' in user.keys() else None),
         'message_privacy':       normalize_privacy_choice(user['message_privacy'] if 'message_privacy' in user.keys() else None),
+        'read_receipts_privacy': normalize_privacy_choice(user['read_receipts_privacy'] if 'read_receipts_privacy' in user.keys() else None),
+        'typing_privacy':        normalize_privacy_choice(user['typing_privacy'] if 'typing_privacy' in user.keys() else None),
+        'voice_listened_privacy': normalize_privacy_choice(user['voice_listened_privacy'] if 'voice_listened_privacy' in user.keys() else None),
+        'call_privacy':          normalize_privacy_choice(user['call_privacy'] if 'call_privacy' in user.keys() else None),
+        'public_key_search_privacy': normalize_privacy_choice(user['public_key_search_privacy'] if 'public_key_search_privacy' in user.keys() else None),
         'bio':                  (user['bio'] if 'bio' in user.keys() else '') or '',
         'status_text':          (user['status_text'] if 'status_text' in user.keys() else '') or '',
         'language':             language_from_user_row(user),
@@ -195,6 +202,11 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         'forward_link_privacy': 'Недопустимое значение приватности пересылки.',
         'voice_message_privacy': 'Недопустимое значение приватности голосовых сообщений.',
         'message_privacy': 'Недопустимое значение приватности сообщений.',
+        'read_receipts_privacy': 'Недопустимое значение приватности отчетов о прочтении.',
+        'typing_privacy': 'Недопустимое значение приватности индикатора набора.',
+        'voice_listened_privacy': 'Недопустимое значение приватности прослушивания голосовых.',
+        'call_privacy': 'Недопустимое значение приватности звонков.',
+        'public_key_search_privacy': 'Недопустимое значение приватности поиска по ключу.',
     }
     normalized_privacy_choices = {}
     for field_name, error_text in privacy_choice_fields.items():
@@ -281,6 +293,11 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     group_invite_privacy = COALESCE(?, group_invite_privacy),
                     voice_message_privacy= COALESCE(?, voice_message_privacy),
                     message_privacy      = COALESCE(?, message_privacy),
+                    read_receipts_privacy= COALESCE(?, read_receipts_privacy),
+                    typing_privacy       = COALESCE(?, typing_privacy),
+                    voice_listened_privacy= COALESCE(?, voice_listened_privacy),
+                    call_privacy         = COALESCE(?, call_privacy),
+                    public_key_search_privacy = COALESCE(?, public_key_search_privacy),
                     bio                  = COALESCE(?, bio),
                     status_text          = COALESCE(?, status_text),
                     language             = COALESCE(?, language),
@@ -300,6 +317,11 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                 group_invite_privacy,
                 normalized_privacy_choices['voice_message_privacy'],
                 normalized_privacy_choices['message_privacy'],
+                normalized_privacy_choices['read_receipts_privacy'],
+                normalized_privacy_choices['typing_privacy'],
+                normalized_privacy_choices['voice_listened_privacy'],
+                normalized_privacy_choices['call_privacy'],
+                normalized_privacy_choices['public_key_search_privacy'],
                 bio_value,
                 status_text_value,
                 new_language,

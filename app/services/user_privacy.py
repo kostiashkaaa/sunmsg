@@ -40,7 +40,16 @@ def is_privacy_allowed(conn, *, owner_id: int, viewer_id: int | None, policy) ->
     return is_contact(conn, owner_id=owner_id, viewer_id=viewer_id)
 
 
-_ALLOWED_PRIVACY_COLUMNS = frozenset({'voice_message_privacy', 'message_privacy'})
+_ALLOWED_PRIVACY_COLUMNS = frozenset({
+    'voice_message_privacy',
+    'message_privacy',
+    'last_seen_visibility',
+    'read_receipts_privacy',
+    'typing_privacy',
+    'voice_listened_privacy',
+    'call_privacy',
+    'public_key_search_privacy',
+})
 
 
 def _users_table_has_column(conn, column_name: str) -> bool:
@@ -52,6 +61,46 @@ def _users_table_has_column(conn, column_name: str) -> bool:
         except Exception:
             pass
         return False
+
+
+def privacy_column_value(conn, *, user_id: int, column_name: str, default: str = PRIVACY_ALL) -> str | None:
+    if column_name not in _ALLOWED_PRIVACY_COLUMNS:
+        return normalize_privacy_choice(default)
+    if not _users_table_has_column(conn, column_name):
+        return normalize_privacy_choice(default)
+    try:
+        row = conn.execute(
+            f'SELECT {column_name} FROM users WHERE id = ?',
+            (int(user_id),),
+        ).fetchone()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return normalize_privacy_choice(default)
+    if not row:
+        return None
+    return normalize_privacy_choice(row[column_name], default=default)
+
+
+def is_user_privacy_allowed(
+    conn,
+    *,
+    owner_id: int,
+    viewer_id: int | None,
+    column_name: str,
+    default: str = PRIVACY_ALL,
+) -> bool:
+    policy = privacy_column_value(
+        conn,
+        user_id=owner_id,
+        column_name=column_name,
+        default=default,
+    )
+    if policy is None:
+        return False
+    return is_privacy_allowed(conn, owner_id=owner_id, viewer_id=viewer_id, policy=policy)
 
 
 def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_type: str) -> bool:
@@ -78,6 +127,58 @@ def can_send_direct_message(conn, *, receiver_id: int, sender_id: int, message_t
         owner_id=receiver_id,
         viewer_id=sender_id,
         policy=row[column_name],
+    )
+
+
+def can_share_read_receipt(conn, *, reader_id: int, viewer_id: int | None) -> bool:
+    return is_user_privacy_allowed(
+        conn,
+        owner_id=reader_id,
+        viewer_id=viewer_id,
+        column_name='read_receipts_privacy',
+    )
+
+
+def can_share_typing_signal(
+    conn,
+    *,
+    sender_id: int,
+    viewer_id: int | None,
+    message_type: str = 'text',
+) -> bool:
+    _ = message_type
+    return is_user_privacy_allowed(
+        conn,
+        owner_id=sender_id,
+        viewer_id=viewer_id,
+        column_name='typing_privacy',
+    )
+
+
+def can_share_voice_listened(conn, *, listener_id: int, viewer_id: int | None) -> bool:
+    return is_user_privacy_allowed(
+        conn,
+        owner_id=listener_id,
+        viewer_id=viewer_id,
+        column_name='voice_listened_privacy',
+    )
+
+
+def can_receive_call(conn, *, receiver_id: int, caller_id: int) -> bool:
+    return is_user_privacy_allowed(
+        conn,
+        owner_id=receiver_id,
+        viewer_id=caller_id,
+        column_name='call_privacy',
+    )
+
+
+def can_find_by_public_key(conn, *, owner_id: int, viewer_id: int | None) -> bool:
+    return is_user_privacy_allowed(
+        conn,
+        owner_id=owner_id,
+        viewer_id=viewer_id,
+        column_name='public_key_search_privacy',
     )
 
 

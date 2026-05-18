@@ -31,7 +31,8 @@ def _connect_in_memory() -> sqlite3.Connection:
             avatar_visibility TEXT,
             is_online INTEGER,
             last_seen TEXT,
-            hide_online_status INTEGER
+            hide_online_status INTEGER,
+            last_seen_visibility TEXT DEFAULT 'all'
         )
         '''
     )
@@ -85,10 +86,10 @@ def test_build_group_chat_profile_payload_includes_members_permissions_and_appea
         )
         conn.execute(
             '''
-            INSERT INTO users (id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, last_seen, hide_online_status)
+            INSERT INTO users (id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, last_seen, hide_online_status, last_seen_visibility)
             VALUES
-                (1, 'alice', 'Alice', 'pk-1', '/static/a.png', 'public', 1, NULL, 0),
-                (2, 'bob', 'Bob', 'pk-2', '/static/b.png', 'public', 0, '2026-01-01 10:00:00', 0)
+                (1, 'alice', 'Alice', 'pk-1', '/static/a.png', 'public', 1, '2026-01-01 09:00:00', 0, 'nobody'),
+                (2, 'bob', 'Bob', 'pk-2', '/static/b.png', 'public', 0, '2026-01-01 10:00:00', 0, 'all')
             '''
         )
         conn.execute(
@@ -142,6 +143,8 @@ def test_build_group_chat_profile_payload_includes_members_permissions_and_appea
     assert payload['my_pending_group_appeal']['appeal_id'] == 11
     assert [m['user_id'] for m in payload['members']] == [1, 2]
     assert payload['members'][0]['avatar_url'] == '/safe/1.png'
+    assert payload['members'][0]['online'] is False
+    assert payload['members'][0]['last_seen'] is None
     assert payload['members'][1]['online'] is True
 
 

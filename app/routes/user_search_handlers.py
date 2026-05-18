@@ -1,3 +1,6 @@
+from app.services.user_privacy import can_find_by_public_key
+
+
 def _coerce_bool_flag(value, *, default: bool = True) -> bool:
     if isinstance(value, bool):
         return value
@@ -111,6 +114,7 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
         users = conn.execute(
             f'''
             SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
+                   public_key_search_privacy,
                    EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
                    {group_add_direct_select_sql}
             FROM users
@@ -142,6 +146,8 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
         ).fetchall()
 
         for user in users[:limit]:
+            if not can_find_by_public_key(conn, owner_id=int(user['id']), viewer_id=user_id):
+                continue
             results.append(
                 {
                     'userId': user['id'],

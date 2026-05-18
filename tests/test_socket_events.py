@@ -249,6 +249,40 @@ def test_call_lifecycle_and_webrtc_signal_reach_peer_user_room(monkeypatch, tmp_
             bob_socket.disconnect()
 
 
+def test_call_initiate_respects_callee_privacy(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-privacy.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+    with _connect(db_path) as conn:
+        conn.execute("UPDATE users SET call_privacy = 'nobody' WHERE id = 2")
+        conn.commit()
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    bob_http, bob_csrf = _prepare_http_client(app, 2, 'pk-2')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+    bob_socket = _socket_client(app, bob_http, bob_csrf)
+
+    try:
+        alice_socket.get_received()
+        bob_socket.get_received()
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+
+        errors = _wait_for_event_payloads(alice_socket, 'call_error')
+        assert errors
+        assert errors[0]['error'] == 'call_privacy_restricted'
+        assert _wait_for_event_payloads(bob_socket, 'call_incoming', timeout=0.1) == []
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+        if bob_socket.is_connected():
+            bob_socket.disconnect()
+
+
 def test_stale_ringing_call_is_missed_before_new_call(monkeypatch, tmp_path):
     db_path = tmp_path / 'socket-call-stale.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

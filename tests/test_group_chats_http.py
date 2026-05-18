@@ -162,6 +162,51 @@ def test_create_group_chat_creates_join_request_when_invitee_allows_contacts_onl
     assert int(invite_for_bob['payload']['request_id']) > 0
 
 
+def test_create_group_chat_denies_invitee_with_nobody_privacy(monkeypatch, tmp_path):
+    db_path = tmp_path / 'group-chat-create-denied-invite-http.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, group_invite_privacy)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice', 'all'),
+                (2, 'pk-2', 'bob', 'Bob', 'nobody')
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+    monkeypatch.setattr(
+        chat_routes.socketio,
+        'emit',
+        lambda name, payload=None, *args, **kwargs: emitted.append(
+            {'name': name, 'payload': payload, 'args': args, 'kwargs': kwargs}
+        ),
+    )
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post(
+        '/api/chats/group/create',
+        json={'title': 'Denied Gate', 'member_user_ids': [2]},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 403
+    assert payload['success'] is False
+    assert payload['denied_member_ids'] == [2]
+    assert emitted == []
+
+    with _connect(db_path) as conn:
+        chat_count = conn.execute('SELECT COUNT(*) AS cnt FROM chats').fetchone()['cnt']
+        invite_count = conn.execute('SELECT COUNT(*) AS cnt FROM group_invite_requests').fetchone()['cnt']
+
+    assert int(chat_count) == 0
+    assert int(invite_count) == 0
+
+
 def test_get_group_chat_history_uses_member_receipts(monkeypatch, tmp_path):
     db_path = tmp_path / 'group-chat-history-http.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

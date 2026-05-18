@@ -71,6 +71,36 @@ const PRIVACY_SETTING_DEFS = Object.freeze({
         question: 'Кто может отправлять мне сообщения?',
         hint: 'Ограничение применяется к личным чатам и новым запросам.',
     },
+    read_receipts_privacy: {
+        selectId: 'readReceiptsPrivacySelect',
+        title: 'Отчеты о прочтении',
+        question: 'Кто видит, что я прочитал(а) сообщения?',
+        hint: 'Если ограничить доступ, собеседники не увидят отметку прочтения от вас.',
+    },
+    typing_privacy: {
+        selectId: 'typingPrivacySelect',
+        title: 'Индикатор набора',
+        question: 'Кто видит, что я печатаю?',
+        hint: 'Ограничение применяется к личным и групповым чатам.',
+    },
+    voice_listened_privacy: {
+        selectId: 'voiceListenedPrivacySelect',
+        title: 'Прослушивание голосовых',
+        question: 'Кто видит, что я прослушал(а) голосовое?',
+        hint: 'Если ограничить доступ, автор голосового не увидит отметку прослушивания.',
+    },
+    call_privacy: {
+        selectId: 'callPrivacySelect',
+        title: 'Звонки',
+        question: 'Кто может мне звонить?',
+        hint: 'Запрещенные звонки не будут создавать входящий вызов.',
+    },
+    public_key_search_privacy: {
+        selectId: 'publicKeySearchPrivacySelect',
+        title: 'Поиск по ключу',
+        question: 'Кто может найти меня по публичному ключу?',
+        hint: 'Обычный поиск по имени по-прежнему зависит от публичности профиля.',
+    },
 });
 
 function normalizeSendShortcut(value) {
@@ -655,6 +685,11 @@ export function initPrivacySection({
             group_invite_privacy: getPrivacySelection('group_invite_privacy'),
             voice_message_privacy: getPrivacySelection('voice_message_privacy'),
             message_privacy: getPrivacySelection('message_privacy'),
+            read_receipts_privacy: getPrivacySelection('read_receipts_privacy'),
+            typing_privacy: getPrivacySelection('typing_privacy'),
+            voice_listened_privacy: getPrivacySelection('voice_listened_privacy'),
+            call_privacy: getPrivacySelection('call_privacy'),
+            public_key_search_privacy: getPrivacySelection('public_key_search_privacy'),
         };
     }
 
@@ -671,6 +706,11 @@ export function initPrivacySection({
             group_invite_privacy: normalizePrivacyChoice(privacyPrefs.group_invite_privacy),
             voice_message_privacy: normalizePrivacyChoice(privacyPrefs.voice_message_privacy),
             message_privacy: normalizePrivacyChoice(privacyPrefs.message_privacy),
+            read_receipts_privacy: normalizePrivacyChoice(privacyPrefs.read_receipts_privacy),
+            typing_privacy: normalizePrivacyChoice(privacyPrefs.typing_privacy),
+            voice_listened_privacy: normalizePrivacyChoice(privacyPrefs.voice_listened_privacy),
+            call_privacy: normalizePrivacyChoice(privacyPrefs.call_privacy),
+            public_key_search_privacy: normalizePrivacyChoice(privacyPrefs.public_key_search_privacy),
         });
     }
 
@@ -916,6 +956,11 @@ export function initPrivacySection({
         setPrivacySelection('forward_link_privacy', payload.forward_link_privacy || 'all');
         setPrivacySelection('voice_message_privacy', payload.voice_message_privacy || 'all');
         setPrivacySelection('message_privacy', payload.message_privacy || 'all');
+        setPrivacySelection('read_receipts_privacy', payload.read_receipts_privacy || 'all');
+        setPrivacySelection('typing_privacy', payload.typing_privacy || 'all');
+        setPrivacySelection('voice_listened_privacy', payload.voice_listened_privacy || 'all');
+        setPrivacySelection('call_privacy', payload.call_privacy || 'all');
+        setPrivacySelection('public_key_search_privacy', payload.public_key_search_privacy || 'all');
         if (autoDeclineEl) autoDeclineEl.checked = !!payload.auto_decline_requests;
         if (muteRequestsEl) muteRequestsEl.checked = !!payload.mute_dialog_requests;
         if (avatarVisibilityEl) {
@@ -1058,6 +1103,11 @@ export function initPrivacySection({
         document.getElementById('groupInvitePrivacySelect'),
         document.getElementById('voiceMessagePrivacySelect'),
         document.getElementById('messagePrivacySelect'),
+        document.getElementById('readReceiptsPrivacySelect'),
+        document.getElementById('typingPrivacySelect'),
+        document.getElementById('voiceListenedPrivacySelect'),
+        document.getElementById('callPrivacySelect'),
+        document.getElementById('publicKeySearchPrivacySelect'),
         sendShortcutEnterEl,
         sendShortcutCtrlEnterEl,
         timeFormat12hEl,
@@ -1133,6 +1183,11 @@ export function initPrivacySection({
         document.getElementById('groupInvitePrivacySelect'),
         document.getElementById('voiceMessagePrivacySelect'),
         document.getElementById('messagePrivacySelect'),
+        document.getElementById('readReceiptsPrivacySelect'),
+        document.getElementById('typingPrivacySelect'),
+        document.getElementById('voiceListenedPrivacySelect'),
+        document.getElementById('callPrivacySelect'),
+        document.getElementById('publicKeySearchPrivacySelect'),
     ].forEach((field) => {
         if (!field) return;
         field.addEventListener('input', schedulePrivacyPreferencesSave);

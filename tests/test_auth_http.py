@@ -1289,6 +1289,62 @@ def test_api_save_settings_updates_group_invite_privacy(monkeypatch, tmp_path):
     assert response.get_json()['group_invite_privacy'] == 'contacts'
 
 
+def test_api_save_settings_updates_extended_privacy_controls(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-save-settings-extended-privacy.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, 1, 'pk-1')
+    response = client.post(
+        '/api/save_settings',
+        json={
+            'read_receipts_privacy': 'contacts',
+            'typing_privacy': 'nobody',
+            'voice_listened_privacy': 'contacts',
+            'call_privacy': 'nobody',
+            'public_key_search_privacy': 'contacts',
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {'success': True}
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            '''
+            SELECT read_receipts_privacy, typing_privacy, voice_listened_privacy,
+                   call_privacy, public_key_search_privacy
+            FROM users
+            WHERE id = 1
+            '''
+        ).fetchone()
+
+    assert row['read_receipts_privacy'] == 'contacts'
+    assert row['typing_privacy'] == 'nobody'
+    assert row['voice_listened_privacy'] == 'contacts'
+    assert row['call_privacy'] == 'nobody'
+    assert row['public_key_search_privacy'] == 'contacts'
+
+    response = client.get('/api/get_settings')
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['read_receipts_privacy'] == 'contacts'
+    assert payload['typing_privacy'] == 'nobody'
+    assert payload['voice_listened_privacy'] == 'contacts'
+    assert payload['call_privacy'] == 'nobody'
+    assert payload['public_key_search_privacy'] == 'contacts'
+
+
 def test_api_save_settings_rejects_invalid_group_invite_privacy(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-save-settings-invalid-group-invite-privacy.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

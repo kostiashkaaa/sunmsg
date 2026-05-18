@@ -301,6 +301,11 @@ function element(id) {{
   'groupInvitePrivacySelect',
   'voiceMessagePrivacySelect',
   'messagePrivacySelect',
+  'readReceiptsPrivacySelect',
+  'typingPrivacySelect',
+  'voiceListenedPrivacySelect',
+  'callPrivacySelect',
+  'publicKeySearchPrivacySelect',
   'timeFormat24hOption',
   'settingsNavProfileStatus',
   'sidebarWeatherEnabledSwitch',
@@ -561,6 +566,11 @@ element('forwardLinkPrivacySelect').value = 'all';
 element('groupInvitePrivacySelect').value = 'all';
 element('voiceMessagePrivacySelect').value = 'all';
 element('messagePrivacySelect').value = 'all';
+element('readReceiptsPrivacySelect').value = 'all';
+element('typingPrivacySelect').value = 'all';
+element('voiceListenedPrivacySelect').value = 'all';
+element('callPrivacySelect').value = 'all';
+element('publicKeySearchPrivacySelect').value = 'all';
 element('lastSeenVisibilitySelect').value = 'all';
 element('timeFormat24hOption').checked = true;
 element('sidebarWeatherSourceSelect').value = 'auto';
@@ -627,6 +637,11 @@ moduleApi.initPrivacySection({{
       group_invite_privacy: 'all',
       voice_message_privacy: 'all',
       message_privacy: 'all',
+      read_receipts_privacy: 'all',
+      typing_privacy: 'all',
+      voice_listened_privacy: 'all',
+      call_privacy: 'all',
+      public_key_search_privacy: 'all',
       online: true,
       last_seen: null,
       client_preferences: {{}},
@@ -665,6 +680,11 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 element('hideOnlineStatusSwitch').checked = true;
 element('avatarVisibilitySelect').value = 'contacts';
 element('groupInvitePrivacySelect').value = 'nobody';
+element('readReceiptsPrivacySelect').value = 'contacts';
+element('typingPrivacySelect').value = 'nobody';
+element('voiceListenedPrivacySelect').value = 'contacts';
+element('callPrivacySelect').value = 'contacts';
+element('publicKeySearchPrivacySelect').value = 'nobody';
 element('hideOnlineStatusSwitch').dispatchEvent(new Event('change'));
 await new Promise((resolve) => setTimeout(resolve, 0));
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -679,6 +699,11 @@ if (payload.hide_online_status !== true) throw new Error('hide_online_status was
 if (payload.last_seen_visibility !== 'nobody') throw new Error(`Expected nobody last seen, got ${{payload.last_seen_visibility}}`);
 if (payload.avatar_visibility !== 'contacts') throw new Error(`Expected contacts avatar, got ${{payload.avatar_visibility}}`);
 if (payload.group_invite_privacy !== 'nobody') throw new Error(`Expected nobody group invite, got ${{payload.group_invite_privacy}}`);
+if (payload.read_receipts_privacy !== 'contacts') throw new Error(`Expected contacts read receipts, got ${{payload.read_receipts_privacy}}`);
+if (payload.typing_privacy !== 'nobody') throw new Error(`Expected nobody typing, got ${{payload.typing_privacy}}`);
+if (payload.voice_listened_privacy !== 'contacts') throw new Error(`Expected contacts voice listened, got ${{payload.voice_listened_privacy}}`);
+if (payload.call_privacy !== 'contacts') throw new Error(`Expected contacts calls, got ${{payload.call_privacy}}`);
+if (payload.public_key_search_privacy !== 'nobody') throw new Error(`Expected nobody key search, got ${{payload.public_key_search_privacy}}`);
 """
     harness_path = tmp_path / 'settings-privacy-autosave-harness.mjs'
     harness_path.write_text(node_harness, encoding='utf-8')

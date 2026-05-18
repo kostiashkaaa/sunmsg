@@ -34,7 +34,8 @@ def _prepare_group_schema(conn):
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             username TEXT,
-            display_name TEXT
+            display_name TEXT,
+            read_receipts_privacy TEXT DEFAULT 'all'
         )
         '''
     )
@@ -122,6 +123,56 @@ def test_handle_messages_seen_event_marks_read_and_notifies(tmp_path):
     assert any(event[0] == 'messages_read' and event[2].get('room') == 'pk-2' for event in emitted)
 
 
+def test_handle_messages_seen_event_hides_receipt_when_reader_disallows(tmp_path):
+    db_path = tmp_path / 'socket-read-receipt-seen-private.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                read_receipts_privacy TEXT DEFAULT 'all'
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO users (id, read_receipts_privacy)
+            VALUES (1, 'nobody'), (2, 'all')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, is_read, is_delivered)
+            VALUES (11, 'chat-a', 2, 1, 0, 0)
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_messages_seen_event(
+        {'chat_id': 'chat-a'},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT is_read, is_delivered FROM messages WHERE id = 11'
+        ).fetchone()
+
+    assert int(row['is_read']) == 1
+    assert int(row['is_delivered']) == 1
+    assert not any(event[0] == 'messages_read' for event in emitted)
+
+
 def test_handle_messages_seen_event_blocked_emits_state_and_skips_update(tmp_path):
     db_path = tmp_path / 'socket-read-receipt-seen-blocked.db'
     with _connect(db_path) as conn:
@@ -201,6 +252,56 @@ def test_handle_voice_message_listened_event_updates_and_notifies(tmp_path):
         and event[2].get('room') == 'pk-2'
         for event in emitted
     )
+
+
+def test_handle_voice_message_listened_event_hides_listener_when_disallowed(tmp_path):
+    db_path = tmp_path / 'socket-read-receipt-voice-private.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                voice_listened_privacy TEXT DEFAULT 'all'
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO users (id, voice_listened_privacy)
+            VALUES (1, 'nobody'), (2, 'all')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, voice_listened_by_receiver)
+            VALUES (15, 'chat-a', 2, 1, 0)
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_voice_message_listened_event(
+        {'chat_id': 'chat-a', 'msg_id': 15},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        is_valid_chat_id_func=lambda chat_id: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': 2, 'public_key': 'pk-2'}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT voice_listened_by_receiver FROM messages WHERE id = 15'
+        ).fetchone()
+
+    assert int(row['voice_listened_by_receiver']) == 1
+    assert not any(event[0] == 'voice_message_listened' for event in emitted)
 
 
 def test_handle_voice_message_listened_event_updates_legacy_null_receiver(tmp_path):

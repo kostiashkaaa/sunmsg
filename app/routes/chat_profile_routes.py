@@ -9,7 +9,7 @@ def _unauthorized_response():
 
 def _fetch_presence_row(db_conn, target_user_id):
     return db_conn.execute(
-        'SELECT is_online, last_seen, public_key, hide_online_status, avatar_url, avatar_visibility FROM users WHERE id = ?',
+        'SELECT is_online, last_seen, public_key, hide_online_status, last_seen_visibility, avatar_url, avatar_visibility FROM users WHERE id = ?',
         (target_user_id,),
     ).fetchone()
 

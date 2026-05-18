@@ -27,9 +27,11 @@ from app.services.chat_members import (
 )
 from app.services.chat_media_service import delete_file_quietly
 from app.services.group_invite_requests import (
+    GROUP_INVITE_ACTION_DENY,
+    GROUP_INVITE_ACTION_REQUEST,
     build_group_invite_request_payload,
     ensure_group_invite_request,
-    should_route_group_invite_to_request,
+    resolve_group_invite_privacy_action,
 )
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS, ACTION_INVITE
 from app.services.group_permissions import (
@@ -123,15 +125,26 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             }
             auto_add_member_ids: list[int] = []
             requested_member_ids: list[int] = []
+            denied_member_ids: list[int] = []
             for candidate_user_id in member_ids:
-                if should_route_group_invite_to_request(
+                invite_action = resolve_group_invite_privacy_action(
                     conn,
                     inviter_user_id=creator_id,
                     invitee_user_id=int(candidate_user_id),
-                ):
+                )
+                if invite_action == GROUP_INVITE_ACTION_REQUEST:
                     requested_member_ids.append(int(candidate_user_id))
+                elif invite_action == GROUP_INVITE_ACTION_DENY:
+                    denied_member_ids.append(int(candidate_user_id))
                 else:
                     auto_add_member_ids.append(int(candidate_user_id))
+
+            if not auto_add_member_ids and not requested_member_ids:
+                return jsonify({
+                    'success': False,
+                    'error': 'No invitees allow group invitations.',
+                    'denied_member_ids': denied_member_ids,
+                }), 403
 
             chat_id = new_group_chat_id(creator_user_id=creator_id)
             conn.execute(
@@ -175,6 +188,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
                 'chat_avatar_url': '',
                 'chat_type': CHAT_TYPE_GROUP,
                 'members_count': len(auto_add_member_ids) + 1,
+                'denied_member_ids': denied_member_ids,
             }
             if creator_pub:
                 socketio_emit_func('group_chat_created', payload, room=creator_pub)
@@ -200,6 +214,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
                     'chat_type': CHAT_TYPE_GROUP,
                     'members_count': len(auto_add_member_ids) + 1,
                     'requested_member_ids': requested_member_ids,
+                    'denied_member_ids': denied_member_ids,
                 }
             ), 201
         finally:
@@ -294,13 +309,17 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
 
             auto_add_ids: list[int] = []
             request_only_ids: list[int] = []
+            denied_member_ids: list[int] = []
             for candidate_user_id in resolved_ids:
-                if should_route_group_invite_to_request(
+                invite_action = resolve_group_invite_privacy_action(
                     conn,
                     inviter_user_id=user_id,
                     invitee_user_id=int(candidate_user_id),
-                ):
+                )
+                if invite_action == GROUP_INVITE_ACTION_REQUEST:
                     request_only_ids.append(int(candidate_user_id))
+                elif invite_action == GROUP_INVITE_ACTION_DENY:
+                    denied_member_ids.append(int(candidate_user_id))
                 else:
                     auto_add_ids.append(int(candidate_user_id))
 
@@ -351,6 +370,7 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
                     'chat_id': chat_id,
                     'added_member_ids': auto_add_ids,
                     'requested_member_ids': request_only_ids,
+                    'denied_member_ids': denied_member_ids,
                 }
             ), 200
         finally:

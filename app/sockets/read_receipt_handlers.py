@@ -3,6 +3,7 @@ from app.services.group_receipts import (
     build_group_read_updates,
     list_unread_group_receipt_message_ids,
 )
+from app.services.user_privacy import can_share_read_receipt, can_share_voice_listened
 
 
 def _is_missing_read_at_column_error(exc: Exception) -> bool:
@@ -370,6 +371,12 @@ def handle_messages_seen_event(  # noqa: PLR0913 - dependency-injected socket ha
             },
         )
         should_notify = cursor.rowcount > 0 if cursor is not None else False
+        if should_notify:
+            should_notify = can_share_read_receipt(
+                conn,
+                reader_id=user_id,
+                viewer_id=None if is_group_chat else partner['contact_id'],
+            )
         if should_notify and is_group_chat and affected_message_ids:
             group_read_updates = build_group_read_updates(
                 conn,
@@ -449,6 +456,11 @@ def handle_voice_message_listened_event(  # noqa: PLR0913 - dependency-injected 
             return
         partner = resolved['partner']
         is_group_chat = bool(resolved['is_group_chat'])
+        should_notify = can_share_voice_listened(
+            conn,
+            listener_id=user_id,
+            viewer_id=None if is_group_chat else partner['contact_id'],
+        )
         updated_rows = _apply_voice_listened_update(
             conn,
             context={
@@ -466,7 +478,7 @@ def handle_voice_message_listened_event(  # noqa: PLR0913 - dependency-injected 
     _emit_voice_listened_update(
         context={
             'emit_func': emit_func,
-            'updated_rows': updated_rows,
+            'updated_rows': updated_rows if should_notify else 0,
             'partner': partner,
             'is_group_chat': is_group_chat,
             'chat_id': chat_id,

@@ -22,6 +22,7 @@ def _prepare_schema(conn):
             avatar_url TEXT,
             avatar_visibility TEXT DEFAULT 'all',
             group_invite_privacy TEXT DEFAULT 'all',
+            public_key_search_privacy TEXT DEFAULT 'all',
             is_public INTEGER NOT NULL DEFAULT 1
         )
         '''
@@ -133,6 +134,41 @@ def test_build_search_users_payload_key_query_keeps_public_key(tmp_path):
     assert len(payload['results']) == 1
     assert payload['results'][0]['userId'] == 2
     assert payload['results'][0]['public_key'] == target_key
+
+
+def test_build_search_users_payload_key_query_respects_public_key_privacy(tmp_path):
+    db_path = tmp_path / 'user-search-key-privacy.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        target_key = (
+            '-----BEGIN PUBLIC KEY-----\n'
+            'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtargetkeymaterial1234567890\n'
+            '-----END PUBLIC KEY-----'
+        )
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, public_key_search_privacy, is_public)
+            VALUES
+                (1, 'pk-1', 'owner', 'Owner', 'all', 1),
+                (2, ?, 'hidden_key', 'Hidden Key', 'nobody', 1)
+            ''',
+            (target_key,),
+        )
+        conn.commit()
+
+        payload = build_search_users_payload(
+            conn,
+            user_id=1,
+            query=target_key,
+            limit=5,
+            offset=0,
+            min_query_length=3,
+            like_pattern_func=_like_pattern,
+            get_safe_avatar_url_func=lambda row, viewer_id: dict(row).get('avatar_url'),
+        )
+
+    assert payload['success'] is True
+    assert payload['results'] == []
 
 
 def test_build_search_users_payload_sets_group_add_direct_flag(tmp_path):

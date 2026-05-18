@@ -326,6 +326,21 @@ export function initSettingsTransferSection({
                 message_privacy: ['all', 'contacts', 'nobody'].includes(String(server.message_privacy || '').toLowerCase())
                     ? String(server.message_privacy).toLowerCase()
                     : 'all',
+                read_receipts_privacy: ['all', 'contacts', 'nobody'].includes(String(server.read_receipts_privacy || '').toLowerCase())
+                    ? String(server.read_receipts_privacy).toLowerCase()
+                    : 'all',
+                typing_privacy: ['all', 'contacts', 'nobody'].includes(String(server.typing_privacy || '').toLowerCase())
+                    ? String(server.typing_privacy).toLowerCase()
+                    : 'all',
+                voice_listened_privacy: ['all', 'contacts', 'nobody'].includes(String(server.voice_listened_privacy || '').toLowerCase())
+                    ? String(server.voice_listened_privacy).toLowerCase()
+                    : 'all',
+                call_privacy: ['all', 'contacts', 'nobody'].includes(String(server.call_privacy || '').toLowerCase())
+                    ? String(server.call_privacy).toLowerCase()
+                    : 'all',
+                public_key_search_privacy: ['all', 'contacts', 'nobody'].includes(String(server.public_key_search_privacy || '').toLowerCase())
+                    ? String(server.public_key_search_privacy).toLowerCase()
+                    : 'all',
             };
 
             const resolvedClientPreferences = resolveClientPreferences(parsed);

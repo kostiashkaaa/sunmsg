@@ -369,20 +369,43 @@ def terminate_call_on_disconnect(conn, call: dict, user_id: int) -> str | None:
 
 
 def get_call_history(conn, chat_id: str, *, limit: int = 50, offset: int = 0) -> list[dict]:
-    rows = conn.execute(
-        '''
-        SELECT cs.call_id, cs.initiator_id, cs.call_type, cs.status,
-               cs.started_at, cs.ended_at, cs.duration_sec,
-               u.display_name AS initiator_name, u.username AS initiator_username,
-               u.avatar_url AS initiator_avatar
-        FROM call_sessions cs
-        JOIN users u ON cs.initiator_id = u.id
-        WHERE cs.chat_id = ?
-        ORDER BY cs.started_at DESC
-        LIMIT ? OFFSET ?
-        ''',
-        (chat_id, limit, offset),
-    ).fetchall()
+    try:
+        rows = conn.execute(
+            '''
+            SELECT cs.call_id, cs.initiator_id, cs.call_type, cs.status,
+                   cs.started_at, cs.ended_at, cs.duration_sec,
+                   u.display_name AS initiator_name, u.username AS initiator_username,
+                   CASE
+                       WHEN LOWER(COALESCE(u.avatar_visibility, 'all')) = 'all' THEN u.avatar_url
+                       ELSE ''
+                   END AS initiator_avatar
+            FROM call_sessions cs
+            JOIN users u ON cs.initiator_id = u.id
+            WHERE cs.chat_id = ?
+            ORDER BY cs.started_at DESC
+            LIMIT ? OFFSET ?
+            ''',
+            (chat_id, limit, offset),
+        ).fetchall()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        rows = conn.execute(
+            '''
+            SELECT cs.call_id, cs.initiator_id, cs.call_type, cs.status,
+                   cs.started_at, cs.ended_at, cs.duration_sec,
+                   u.display_name AS initiator_name, u.username AS initiator_username,
+                   u.avatar_url AS initiator_avatar
+            FROM call_sessions cs
+            JOIN users u ON cs.initiator_id = u.id
+            WHERE cs.chat_id = ?
+            ORDER BY cs.started_at DESC
+            LIMIT ? OFFSET ?
+            ''',
+            (chat_id, limit, offset),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -483,14 +506,28 @@ def _resolve_direct_call_receiver_id(conn, chat_id: str, initiator_id: int) -> i
 
 
 def _get_call_sender_identity(conn, user_id: int) -> dict:
-    row = conn.execute(
-        '''
-        SELECT public_key, display_name, username, avatar_url
-        FROM users
-        WHERE id = ?
-        ''',
-        (user_id,),
-    ).fetchone()
+    try:
+        row = conn.execute(
+            '''
+            SELECT public_key, display_name, username, avatar_url, avatar_visibility
+            FROM users
+            WHERE id = ?
+            ''',
+            (user_id,),
+        ).fetchone()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        row = conn.execute(
+            '''
+            SELECT public_key, display_name, username, avatar_url, 'all' AS avatar_visibility
+            FROM users
+            WHERE id = ?
+            ''',
+            (user_id,),
+        ).fetchone()
     if row is None:
         return {
             'public_key': '',
@@ -502,7 +539,11 @@ def _get_call_sender_identity(conn, user_id: int) -> dict:
         'public_key': _safe_text(row['public_key']),
         'display_name': _safe_text(row['display_name']),
         'username': _safe_text(row['username']),
-        'avatar_url': _safe_text(row['avatar_url']),
+        'avatar_url': (
+            _safe_text(row['avatar_url'])
+            if _safe_text(row['avatar_visibility']).strip().lower() in {'', 'all'}
+            else ''
+        ),
     }
 
 

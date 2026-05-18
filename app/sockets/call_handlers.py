@@ -17,6 +17,8 @@ from app.services.calls import (
     terminate_call_on_disconnect,
 )
 from app.services.call_feature_access import can_user_use_calls
+from app.services.user import get_safe_avatar_url
+from app.services.user_privacy import can_receive_call
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +94,21 @@ def _emit_call_log_message(conn, call_id: str, emit_func, recipient_user_ids) ->
         emit_func('receive_message', payload, to=f'user_{user_id}')
 
 
-def _user_identity(conn, user_id: int) -> dict:
-    row = conn.execute(
-        'SELECT id, public_key, display_name, username, avatar_url FROM users WHERE id = %s',
-        (int(user_id),),
-    ).fetchone()
+def _user_identity(conn, user_id: int, *, viewer_id: int | None = None) -> dict:
+    try:
+        row = conn.execute(
+            'SELECT id, public_key, display_name, username, avatar_url, avatar_visibility FROM users WHERE id = %s',
+            (int(user_id),),
+        ).fetchone()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        row = conn.execute(
+            "SELECT id, public_key, display_name, username, avatar_url, 'all' AS avatar_visibility FROM users WHERE id = %s",
+            (int(user_id),),
+        ).fetchone()
     if not row:
         return {
             'user_id': int(user_id),
@@ -110,18 +122,18 @@ def _user_identity(conn, user_id: int) -> dict:
         'public_key': str(row['public_key'] or ''),
         'display_name': str(row['display_name'] or ''),
         'username': str(row['username'] or ''),
-        'avatar_url': str(row['avatar_url'] or ''),
+        'avatar_url': str(get_safe_avatar_url(row, viewer_id if viewer_id is not None else user_id) or ''),
     }
 
 
 def _call_partner_identity(conn, call: dict, user_id: int) -> dict:
     initiator_id = int(call.get('initiator_id') or 0)
     if initiator_id and initiator_id != int(user_id):
-        return _user_identity(conn, initiator_id)
+        return _user_identity(conn, initiator_id, viewer_id=user_id)
     for participant_id in _chat_members(conn, str(call.get('chat_id') or ''), user_id):
         if int(participant_id) != int(user_id):
-            return _user_identity(conn, int(participant_id))
-    return _user_identity(conn, initiator_id or user_id)
+            return _user_identity(conn, int(participant_id), viewer_id=user_id)
+    return _user_identity(conn, initiator_id or user_id, viewer_id=user_id)
 
 
 def _serialize_live_call_for_user(conn, call: dict, user_id: int) -> dict:
@@ -222,6 +234,14 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'no_recipients', 'request_id': request_id})
             return
 
+        callee_ids = [
+            int(pid) for pid in callee_ids
+            if can_receive_call(conn, receiver_id=int(pid), caller_id=int(user_id))
+        ]
+        if not callee_ids:
+            emit_func('call_error', {'error': 'call_privacy_restricted', 'request_id': request_id})
+            return
+
         participant_ids = [int(user_id), *callee_ids]
         if not can_user_use_calls(conn, user_id=int(user_id)):
             emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
@@ -249,7 +269,7 @@ def handle_call_initiate(
             })
             return
 
-        initiator_identity = _user_identity(conn, user_id)
+        initiator_identity = _user_identity(conn, user_id, viewer_id=user_id)
         initiator_info = {
             'user_id': initiator_identity['user_id'],
             'display_name': initiator_identity['display_name'],
@@ -266,16 +286,23 @@ def handle_call_initiate(
         for pid in participant_ids:
             if int(pid) == int(user_id):
                 continue
+            receiver_initiator_identity = _user_identity(conn, user_id, viewer_id=pid)
+            receiver_initiator_info = {
+                'user_id': receiver_initiator_identity['user_id'],
+                'display_name': receiver_initiator_identity['display_name'],
+                'username': receiver_initiator_identity['username'],
+                'avatar_url': receiver_initiator_identity['avatar_url'],
+            }
             emit_func('call_incoming', {
                 'call_id': call_id, 'chat_id': chat_id,
-                'call_type': call_type, 'initiator': initiator_info,
+                'call_type': call_type, 'initiator': receiver_initiator_info,
             }, to=f'user_{pid}')
             _send_incoming_call_push_if_needed(
                 conn,
                 call_id=call_id,
                 chat_id=chat_id,
                 call_type=call_type,
-                initiator=initiator_info,
+                initiator=receiver_initiator_info,
                 receiver_user_id=pid,
                 count_active_func=count_active_func,
                 send_call_incoming_push_func=send_call_incoming_push_func,
@@ -318,6 +345,9 @@ def handle_call_accept(
 
         if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
             emit_func('call_error', {'error': 'not_member', 'call_id': call_id, 'request_id': request_id})
+            return
+        if not can_receive_call(conn, receiver_id=int(user_id), caller_id=int(call['initiator_id'])):
+            emit_func('call_error', {'error': 'call_privacy_restricted', 'call_id': call_id, 'request_id': request_id})
             return
 
         mark_missed_calls(conn)

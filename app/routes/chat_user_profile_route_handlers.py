@@ -1,4 +1,4 @@
-from app.services.user_privacy import is_privacy_allowed
+from app.services.user_privacy import PRIVACY_CONTACTS, PRIVACY_NOBODY, is_privacy_allowed, normalize_privacy_choice
 
 
 def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handler contract
@@ -119,17 +119,24 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
         viewer_id=current_user_id,
         policy=user['bio_visibility'] if 'bio_visibility' in user.keys() else None,
     )
-    if is_contact and bool(user['hide_online_status']):
-        online = False
-        last_seen = None
-    elif is_contact:
+    last_seen_policy = normalize_privacy_choice(
+        user['last_seen_visibility'] if 'last_seen_visibility' in user.keys() else None,
+        default=PRIVACY_NOBODY if bool(user['hide_online_status']) else PRIVACY_CONTACTS,
+    )
+    can_view_last_seen = is_privacy_allowed(
+        conn,
+        owner_id=target_user_id,
+        viewer_id=current_user_id,
+        policy=last_seen_policy,
+    )
+    if can_view_last_seen:
         online = is_effectively_online_func(
             user['public_key'],
             persisted=bool(user['is_online']),
         )
         last_seen = user['last_seen']
     else:
-        online = None
+        online = False if is_contact else None
         last_seen = None
 
     spotify_status = None

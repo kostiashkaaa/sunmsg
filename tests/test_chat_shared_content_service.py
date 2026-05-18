@@ -19,7 +19,8 @@ def _prepare_schema(conn):
             public_key TEXT,
             display_name TEXT,
             username TEXT,
-            avatar_url TEXT
+            avatar_url TEXT,
+            avatar_visibility TEXT DEFAULT 'all'
         )
         '''
     )
@@ -75,8 +76,8 @@ def _prepare_schema(conn):
     )
     conn.executemany(
         '''
-        INSERT INTO users (id, public_key, display_name, username, avatar_url)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO users (id, public_key, display_name, username, avatar_url, avatar_visibility)
+        VALUES (?, ?, ?, ?, ?, 'all')
         ''',
         [
             (1, 'pk-1', 'User One', 'one', None),

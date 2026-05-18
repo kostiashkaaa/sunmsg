@@ -847,6 +847,8 @@ def _resolve_sender_identity_for_send(
 ) -> tuple[str, str, str]:
     send_context = context or {}
     sender_id = int(send_context.get('sender_id') or 0)
+    receiver_id = send_context.get('receiver_id')
+    chat_type = str(send_context.get('chat_type') or '')
     sender_display_name = str(send_context.get('sender_display_name') or '')
     sender_username = str(send_context.get('sender_username') or '')
 
@@ -869,7 +871,15 @@ def _resolve_sender_identity_for_send(
         if not sender_username:
             sender_username = str(sender_row['username'] or '').strip()
         try:
-            sender_avatar_url = str(get_safe_avatar_url(sender_row, sender_id) or '').strip()
+            if chat_type == 'group':
+                sender_avatar_url = (
+                    str(sender_row['avatar_url'] or '').strip()
+                    if str(sender_row['avatar_visibility'] or 'all').strip().lower() == 'all'
+                    else ''
+                )
+            else:
+                viewer_id = int(receiver_id) if receiver_id is not None else sender_id
+                sender_avatar_url = str(get_safe_avatar_url(sender_row, viewer_id) or '').strip()
         except Exception:
             sender_avatar_url = str(sender_row.get('avatar_url') or '').strip() if hasattr(sender_row, 'get') else ''
     return sender_display_name, sender_username, sender_avatar_url
@@ -1034,6 +1044,8 @@ def _persist_send_flow(conn, *, context: dict | None = None):
             conn,
             context={
                 'sender_id': sender_id,
+                'receiver_id': receiver_id,
+                'chat_type': chat_type,
                 'sender_display_name': sender_display_name,
                 'sender_username': sender_username,
             },

@@ -11,6 +11,7 @@ from app.services.group_authorization import (
 )
 from app.services.group_permissions import extract_group_permissions_from_chat_row
 from app.services.group_permissions import role_uses_member_permissions
+from app.services.user_privacy import PRIVACY_ALL, PRIVACY_NOBODY, is_privacy_allowed, normalize_privacy_choice
 
 
 def _fetch_chat_row(conn, chat_id: str):
@@ -49,6 +50,7 @@ def _fetch_member_rows(conn, *, chat_id: str):
             u.is_online,
             u.last_seen,
             u.hide_online_status,
+            u.last_seen_visibility,
             cm.role
         FROM chat_members cm
         JOIN users u ON u.id = cm.user_id
@@ -116,11 +118,28 @@ def _resolve_safe_avatar(*, row, viewer_user_id: int, get_safe_avatar_url_func):
         return base_avatar
 
 
-def _resolve_online_state(*, row, is_effectively_online_func):
-    is_hidden = bool(row['hide_online_status'])
+def _resolve_last_seen_policy(row) -> str:
+    return normalize_privacy_choice(
+        row['last_seen_visibility'] if 'last_seen_visibility' in row.keys() else None,
+        default=PRIVACY_NOBODY if bool(row['hide_online_status']) else PRIVACY_ALL,
+    )
+
+
+def _can_view_last_seen(*, conn, row, viewer_user_id: int) -> bool:
+    return is_privacy_allowed(
+        conn,
+        owner_id=int(row['user_id']),
+        viewer_id=int(viewer_user_id),
+        policy=_resolve_last_seen_policy(row),
+    )
+
+
+def _resolve_online_state(*, conn, row, viewer_user_id: int, is_effectively_online_func):
     persisted_online = bool(row['is_online'])
-    if not callable(is_effectively_online_func) or is_hidden:
-        return persisted_online and not is_hidden
+    if not _can_view_last_seen(conn=conn, row=row, viewer_user_id=viewer_user_id):
+        return False
+    if not callable(is_effectively_online_func):
+        return persisted_online
     try:
         return bool(
             is_effectively_online_func(str(row['public_key'] or ''), persisted=persisted_online)
@@ -131,6 +150,7 @@ def _resolve_online_state(*, row, is_effectively_online_func):
 
 def _serialize_members(
     *,
+    conn,
     member_rows,
     viewer_user_id: int,
     sanctions_by_user_id: dict[int, dict],
@@ -154,10 +174,16 @@ def _serialize_members(
                 'online': bool(
                     _resolve_online_state(
                         row=row,
+                        conn=conn,
+                        viewer_user_id=viewer_user_id,
                         is_effectively_online_func=is_effectively_online_func,
                     )
                 ),
-                'last_seen': row['last_seen'],
+                'last_seen': row['last_seen'] if _can_view_last_seen(
+                    conn=conn,
+                    row=row,
+                    viewer_user_id=viewer_user_id,
+                ) else None,
                 'active_sanction': sanctions_by_user_id.get(int(row['user_id'])),
             }
         )
@@ -235,6 +261,7 @@ def build_group_chat_profile_payload(
         member_rows=member_rows,
     )
     members = _serialize_members(
+        conn=conn,
         member_rows=member_rows,
         viewer_user_id=viewer_user_id,
         sanctions_by_user_id=sanctions_by_user_id,

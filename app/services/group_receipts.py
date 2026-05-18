@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from app.services.user_privacy import is_privacy_allowed, normalize_privacy_choice
+
 
 def _normalize_message_ids(message_ids: Iterable[int] | None) -> list[int]:
     if not message_ids:
@@ -42,6 +44,7 @@ def collect_group_read_details_map(
     *,
     chat_id: str,
     message_ids: Iterable[int] | None,
+    viewer_user_id: int | None = None,
 ) -> dict[int, dict]:
     normalized_message_ids = _normalize_message_ids(message_ids)
     if not normalized_message_ids:
@@ -55,6 +58,7 @@ def collect_group_read_details_map(
             mr.user_id AS reader_user_id,
             COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, ''), 'Участник') AS reader_display_name,
             COALESCE(u.username, '') AS reader_username,
+            u.read_receipts_privacy AS reader_privacy,
             mr.read_at,
             m.created_at
         FROM messages m
@@ -84,6 +88,13 @@ def collect_group_read_details_map(
         entry = payload_by_message.get(message_id)
         if entry is None:
             continue
+        if viewer_user_id is not None and not is_privacy_allowed(
+            conn,
+            owner_id=int(row['reader_user_id']),
+            viewer_id=int(viewer_user_id),
+            policy=normalize_privacy_choice(row['reader_privacy']),
+        ):
+            continue
         read_at = str(row['read_at'] or '').strip() or None
         entry['readers'].append(
             {
@@ -107,11 +118,13 @@ def build_group_read_updates(
     *,
     chat_id: str,
     message_ids: Iterable[int] | None,
+    viewer_user_id: int | None = None,
 ) -> list[dict]:
     payload_by_message = collect_group_read_details_map(
         conn,
         chat_id=chat_id,
         message_ids=message_ids,
+        viewer_user_id=viewer_user_id,
     )
     if not payload_by_message:
         return []

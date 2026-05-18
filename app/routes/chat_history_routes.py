@@ -7,6 +7,7 @@ from app.services.chat_history_service import (
     load_chat_history,
     mark_messages_as_read,
 )
+from app.services.user import get_safe_avatar_url
 
 
 def _parse_positive_optional_int(raw_value: str, *, field_name: str):
@@ -232,6 +233,8 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                             NULLIF(u.username, ''),
                             'Chat'
                         ) AS chat_title,
+                        u.id AS chat_avatar_user_id,
+                        u.avatar_visibility AS chat_avatar_visibility,
                         u.avatar_url AS chat_avatar_url
                     FROM contacts c
                     JOIN users u ON u.id = c.contact_id
@@ -241,6 +244,8 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                     SELECT
                         ch.chat_id,
                         COALESCE(NULLIF(ch.chat_name, ''), 'Group chat') AS chat_title,
+                        NULL AS chat_avatar_user_id,
+                        'all' AS chat_avatar_visibility,
                         ch.chat_avatar_url AS chat_avatar_url
                     FROM chat_members cm
                     JOIN chats ch ON ch.chat_id = cm.chat_id
@@ -248,10 +253,10 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                       AND COALESCE(NULLIF(ch.chat_type, ''), 'group') = 'group'
                 ),
                 visible_chats AS (
-                    SELECT chat_id, chat_title, chat_avatar_url, 0 AS is_group
+                    SELECT chat_id, chat_title, chat_avatar_user_id, chat_avatar_visibility, chat_avatar_url, 0 AS is_group
                     FROM direct_chats
                     UNION
-                    SELECT chat_id, chat_title, chat_avatar_url, 1 AS is_group
+                    SELECT chat_id, chat_title, chat_avatar_user_id, chat_avatar_visibility, chat_avatar_url, 1 AS is_group
                     FROM group_chats
                 ),
                 direct_messages AS (
@@ -307,8 +312,12 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                     COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
                     COALESCE(us.username, '') AS sender_username,
                     us.avatar_url AS sender_avatar_url,
+                    us.avatar_visibility AS sender_avatar_visibility,
                     vc.chat_title,
-                    vc.chat_avatar_url
+                    vc.chat_avatar_user_id,
+                    vc.chat_avatar_visibility,
+                    vc.chat_avatar_url,
+                    vc.is_group
                 FROM all_messages am
                 JOIN visible_chats vc ON vc.chat_id = am.chat_id
                 LEFT JOIN users us ON us.id = am.sender_id
@@ -319,6 +328,29 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                 ''',
                 (user_id, user_id, user_id, user_id, user_id, limit),
             ).fetchall()
+
+            def _is_contact_for_avatar(owner_id: int | None) -> bool:
+                if owner_id is None:
+                    return False
+                if int(owner_id) == int(user_id):
+                    return True
+                return conn.execute(
+                    'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
+                    (int(user_id), int(owner_id)),
+                ).fetchone() is not None
+
+            def _safe_user_avatar(owner_id, avatar_url, visibility):
+                if owner_id is None:
+                    return avatar_url
+                return get_safe_avatar_url(
+                    {
+                        'id': int(owner_id),
+                        'avatar_url': avatar_url,
+                        'avatar_visibility': visibility or 'all',
+                        'is_contact': _is_contact_for_avatar(int(owner_id)),
+                    },
+                    user_id,
+                )
 
             messages = [
                 {
@@ -334,9 +366,19 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
                     'sender_public_key': row['sender_public_key'],
                     'sender_display_name': row['sender_display_name'],
                     'sender_username': row['sender_username'],
-                    'sender_avatar_url': row['sender_avatar_url'],
+                    'sender_avatar_url': _safe_user_avatar(
+                        row['sender_user_id'],
+                        row['sender_avatar_url'],
+                        row['sender_avatar_visibility'],
+                    ),
                     'chat_title': row['chat_title'],
-                    'chat_avatar_url': row['chat_avatar_url'],
+                    'chat_avatar_url': (
+                        row['chat_avatar_url'] if row['is_group'] else _safe_user_avatar(
+                            row['chat_avatar_user_id'],
+                            row['chat_avatar_url'],
+                            row['chat_avatar_visibility'],
+                        )
+                    ),
                 }
                 for row in rows
             ]

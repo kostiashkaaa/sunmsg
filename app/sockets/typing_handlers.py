@@ -1,4 +1,5 @@
 from app.services.chat_members import get_chat_type, list_chat_member_public_keys
+from app.services.user_privacy import can_share_typing_signal, is_user_privacy_allowed
 
 ALLOWED_TYPING_KINDS = {
     'text',
@@ -8,6 +9,11 @@ ALLOWED_TYPING_KINDS = {
     'send_file',
     'send_voice',
 }
+
+
+def _typing_message_type(typing_kind: str) -> str:
+    normalized = str(typing_kind or '').strip().lower()
+    return 'voice' if 'voice' in normalized else 'text'
 
 
 def _validate_typing_signal_payload(
@@ -56,6 +62,7 @@ def _resolve_typing_targets(
     typing_context = context or {}
     uid = int(typing_context.get('uid') or 0)
     chat_id = str(typing_context.get('chat_id') or '')
+    typing_kind = str(typing_context.get('typing_kind') or '')
     chat_partner_state_func = typing_context.get('chat_partner_state_func')
 
     partner, block_state = chat_partner_state_func(conn, uid, chat_id)
@@ -64,11 +71,28 @@ def _resolve_typing_targets(
     is_group_chat = get_chat_type(conn, chat_id) == 'group'
     group_member_public_keys = []
     if is_group_chat:
-        group_member_public_keys = list_chat_member_public_keys(
+        group_member_public_keys = [
+            row for row in list_chat_member_public_keys(
+                conn,
+                chat_id,
+                exclude_user_id=uid,
+            )
+            if is_user_privacy_allowed(
+                conn,
+                owner_id=uid,
+                viewer_id=int(row['id']),
+                column_name='typing_privacy',
+            )
+        ]
+    else:
+        partner_contact_id = partner['contact_id'] if partner and partner['contact_id'] is not None else None
+        if not can_share_typing_signal(
             conn,
-            chat_id,
-            exclude_user_id=uid,
-        )
+            sender_id=uid,
+            viewer_id=int(partner_contact_id) if partner_contact_id is not None else None,
+            message_type=_typing_message_type(typing_kind),
+        ):
+            return None
     sender_row = conn.execute(
         '''
         SELECT id, display_name, username
@@ -171,6 +195,7 @@ def _handle_typing_signal_event(  # noqa: PLR0913 - dependency-injected socket h
             context={
                 'uid': uid,
                 'chat_id': chat_id,
+                'typing_kind': normalized_typing_kind,
                 'chat_partner_state_func': chat_partner_state_func,
             },
         )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.chat_members import get_chat_type
+from app.services.user import get_safe_avatar_url
 
 
 SHARED_CONTENT_TYPES = {
@@ -18,7 +19,30 @@ def normalize_shared_content_type(value) -> str:
     return normalized if normalized in SHARED_CONTENT_TYPES else 'all'
 
 
-def _serialize_candidate(row) -> dict:
+def _is_contact_for_avatar(conn, *, viewer_id: int, owner_id: int) -> bool:
+    if int(viewer_id) == int(owner_id):
+        return True
+    row = conn.execute(
+        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
+        (int(viewer_id), int(owner_id)),
+    ).fetchone()
+    return row is not None
+
+
+def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
+    sender_id = int(row['sender_user_id'])
+    return get_safe_avatar_url(
+        {
+            'id': sender_id,
+            'avatar_url': row['sender_avatar_url'],
+            'avatar_visibility': row['sender_avatar_visibility'] if 'sender_avatar_visibility' in row.keys() else 'all',
+            'is_contact': _is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
+        },
+        viewer_id,
+    )
+
+
+def _serialize_candidate(conn, row, *, viewer_id: int) -> dict:
     return {
         'id': int(row['id']),
         'chat_id': row['chat_id'],
@@ -26,7 +50,7 @@ def _serialize_candidate(row) -> dict:
         'sender_public_key': row['sender_public_key'],
         'sender_display_name': str(row['sender_display_name'] or ''),
         'sender_username': str(row['sender_username'] or ''),
-        'sender_avatar_url': row['sender_avatar_url'],
+        'sender_avatar_url': _safe_sender_avatar_url(conn, row=row, viewer_id=viewer_id),
         'message': row['message'],
         'message_type': row['message_type'] or 'text',
         'created_at': row['created_at'],
@@ -76,7 +100,8 @@ def load_shared_content_candidates(
                 us.public_key AS sender_public_key,
                 COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Participant') AS sender_display_name,
                 COALESCE(us.username, '') AS sender_username,
-                us.avatar_url AS sender_avatar_url
+                us.avatar_url AS sender_avatar_url,
+                us.avatar_visibility AS sender_avatar_visibility
             FROM messages m
             JOIN message_receipts mr ON mr.message_id = m.id AND mr.user_id = ?
             LEFT JOIN users us ON us.id = m.sender_id
@@ -106,7 +131,8 @@ def load_shared_content_candidates(
                 us.public_key AS sender_public_key,
                 COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Participant') AS sender_display_name,
                 COALESCE(us.username, '') AS sender_username,
-                us.avatar_url AS sender_avatar_url
+                us.avatar_url AS sender_avatar_url,
+                us.avatar_visibility AS sender_avatar_visibility
             FROM messages m
             LEFT JOIN users us ON us.id = m.sender_id
             WHERE m.chat_id = ?
@@ -132,7 +158,7 @@ def load_shared_content_candidates(
             'success': True,
             'chat_id': chat_id,
             'type': normalized_type,
-            'messages': [_serialize_candidate(row) for row in visible_rows],
+            'messages': [_serialize_candidate(conn, row, viewer_id=user_id) for row in visible_rows],
             'has_more_before': has_more_before,
             'next_before_id': next_before_id,
         },

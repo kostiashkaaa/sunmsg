@@ -6,6 +6,8 @@ from app.services.group_receipts import (
     list_unread_group_receipt_message_ids,
 )
 from app.services.reactions import fetch_reactions_map
+from app.services.user import get_safe_avatar_url
+from app.services.user_privacy import can_share_read_receipt, can_share_voice_listened
 
 
 def _count_visible_messages(conn, *, chat_id: str, user_id: int, is_group_chat: bool) -> int:
@@ -32,6 +34,29 @@ def _count_visible_messages(conn, *, chat_id: str, user_id: int, is_group_chat: 
             (chat_id, user_id, user_id),
         ).fetchone()
     return int(row['total'] or 0) if row else 0
+
+
+def _is_contact_for_avatar(conn, *, viewer_id: int, owner_id: int) -> bool:
+    if int(viewer_id) == int(owner_id):
+        return True
+    row = conn.execute(
+        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
+        (int(viewer_id), int(owner_id)),
+    ).fetchone()
+    return row is not None
+
+
+def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
+    sender_id = int(row['sender_id'])
+    return get_safe_avatar_url(
+        {
+            'id': sender_id,
+            'avatar_url': row['sender_avatar_url'],
+            'avatar_visibility': row['sender_avatar_visibility'] if 'sender_avatar_visibility' in row.keys() else 'all',
+            'is_contact': _is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
+        },
+        viewer_id,
+    )
 
 
 def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected history loader contract
@@ -99,14 +124,19 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 (read_at_value, chat_id, user_id),
             )
         updated_rows = cursor.rowcount
-        if updated_rows > 0 and is_group_chat and affected_message_ids:
+        should_notify_read = can_share_read_receipt(
+            conn,
+            reader_id=user_id,
+            viewer_id=None if is_group_chat else partner_id,
+        )
+        if updated_rows > 0 and should_notify_read and is_group_chat and affected_message_ids:
             group_read_updates = build_group_read_updates(
                 conn,
                 chat_id=chat_id,
                 message_ids=affected_message_ids,
             )
         conn.commit()
-        if updated_rows > 0 and is_group_chat:
+        if updated_rows > 0 and should_notify_read and is_group_chat:
             if group_read_updates:
                 socketio_emit_func(
                     'group_messages_read',
@@ -118,7 +148,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                     room=chat_id,
                 )
             socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': True}, room=chat_id)
-        elif updated_rows > 0 and partner['public_key']:
+        elif updated_rows > 0 and should_notify_read and partner['public_key']:
             socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': False}, room=partner['public_key'])
 
     params = [chat_id]
@@ -164,6 +194,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
                 COALESCE(us.username, '') AS sender_username,
                 us.avatar_url AS sender_avatar_url,
+                us.avatar_visibility AS sender_avatar_visibility,
                 rm.message AS reply_message,
                 ur.public_key AS reply_sender_pub
             FROM messages m
@@ -189,10 +220,11 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                    m.is_read, m.read_at, m.is_delivered, m.voice_listened_by_receiver, m.is_edited, m.created_at, m.reply_to_id,
                    m.forward_from_name, m.forward_from_user_id, m.expires_at, m.album_id,
                    us.public_key as sender_public_key,
-                   COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
-                   COALESCE(us.username, '') AS sender_username,
-                   us.avatar_url AS sender_avatar_url,
-                   rm.message  as reply_message,
+                    COALESCE(NULLIF(us.display_name, ''), NULLIF(us.username, ''), 'Участник') AS sender_display_name,
+                    COALESCE(us.username, '') AS sender_username,
+                    us.avatar_url AS sender_avatar_url,
+                    us.avatar_visibility AS sender_avatar_visibility,
+                    rm.message  as reply_message,
                    ur.public_key as reply_sender_pub
             FROM messages m
             LEFT JOIN users us ON us.id = m.sender_id
@@ -220,6 +252,7 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 conn,
                 chat_id=chat_id,
                 message_ids=own_group_message_ids,
+                viewer_user_id=user_id,
             )
     favorite_message_ids = set()
     if include_favorites and message_ids:
@@ -246,6 +279,14 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
         is_self = int(msg['sender_id']) == int(user_id)
         base_is_read = bool(msg['is_read'])
         base_read_at = msg['read_at']
+        voice_listened_by_partner = bool(msg['voice_listened_by_receiver'])
+        if not is_group_chat and is_self and msg['receiver_id'] is not None:
+            reader_id = int(msg['receiver_id'])
+            if not can_share_read_receipt(conn, reader_id=reader_id, viewer_id=user_id):
+                base_is_read = False
+                base_read_at = None
+            if not can_share_voice_listened(conn, listener_id=reader_id, viewer_id=user_id):
+                voice_listened_by_partner = False
         group_read_payload = {}
         if is_group_chat and is_self:
             read_meta = group_read_map.get(
@@ -271,14 +312,14 @@ def load_chat_history(  # noqa: PLR0913, C901, PLR0915 - dependency-injected his
                 'sender_public_key': msg['sender_public_key'],
                 'sender_display_name': str(msg['sender_display_name'] or ''),
                 'sender_username': str(msg['sender_username'] or ''),
-                'sender_avatar_url': msg['sender_avatar_url'],
+                'sender_avatar_url': _safe_sender_avatar_url(conn, row=msg, viewer_id=user_id),
                 'message': msg['message'],
                 'message_type': msg['message_type'] or 'text',
                 'created_at': msg['created_at'],
                 'is_read': bool(base_is_read),
                 'read_at': base_read_at,
                 'is_delivered': bool(msg['is_delivered']),
-                'voice_listened_by_partner': bool(msg['voice_listened_by_receiver']),
+                'voice_listened_by_partner': voice_listened_by_partner,
                 'is_edited': bool(msg['is_edited']),
                 'is_self': is_self,
                 'reply_to_id': msg['reply_to_id'],
@@ -461,7 +502,12 @@ def mark_messages_as_read(  # noqa: PLR0913 - dependency-injected read-marking c
             (read_at_value, chat_id, user_id),
         )
     updated_rows = cursor.rowcount
-    if updated_rows > 0 and is_group_chat and affected_message_ids:
+    should_notify_read = can_share_read_receipt(
+        conn,
+        reader_id=user_id,
+        viewer_id=None if is_group_chat else partner_id,
+    )
+    if updated_rows > 0 and should_notify_read and is_group_chat and affected_message_ids:
         group_read_updates = build_group_read_updates(
             conn,
             chat_id=chat_id,
@@ -469,7 +515,7 @@ def mark_messages_as_read(  # noqa: PLR0913 - dependency-injected read-marking c
         )
     conn.commit()
 
-    if updated_rows > 0 and is_group_chat:
+    if updated_rows > 0 and should_notify_read and is_group_chat:
         if group_read_updates:
             socketio_emit_func(
                 'group_messages_read',
@@ -481,7 +527,7 @@ def mark_messages_as_read(  # noqa: PLR0913 - dependency-injected read-marking c
                 room=chat_id,
             )
         socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': True}, room=chat_id)
-    elif updated_rows > 0 and partner and partner['public_key']:
+    elif updated_rows > 0 and should_notify_read and partner and partner['public_key']:
         socketio_emit_func('messages_read', {'chat_id': chat_id, 'is_group': False}, room=partner['public_key'])
     return {'status': 'ok'}
 

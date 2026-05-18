@@ -268,6 +268,31 @@
                 <option value="contacts">Мои контакты</option>
                 <option value="nobody">Никто</option>
             </select>
+            <select id="readReceiptsPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="typingPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="voiceListenedPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="callPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
+            <select id="publicKeySearchPrivacySelect" class="settings-hidden" aria-hidden="true" tabindex="-1">
+                <option value="all">Все</option>
+                <option value="contacts">Мои контакты</option>
+                <option value="nobody">Никто</option>
+            </select>
 
             <div class="settings-card settings-privacy-card">
                 <div id="privacyOverviewPanel">
@@ -329,6 +354,46 @@
                             <span class="settings-privacy-item-copy">
                                 <span class="settings-row-label">Кто может отправлять мне сообщения?</span>
                                 <span class="settings-row-desc" data-privacy-summary="message_privacy">Все</span>
+                            </span>
+                            <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="read_receipts_privacy">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-check2-all"></use></svg>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит, что я прочитал(а) сообщения?</span>
+                                <span class="settings-row-desc" data-privacy-summary="read_receipts_privacy">Все</span>
+                            </span>
+                            <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="typing_privacy">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-keyboard"></use></svg>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит, что я печатаю?</span>
+                                <span class="settings-row-desc" data-privacy-summary="typing_privacy">Все</span>
+                            </span>
+                            <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="voice_listened_privacy">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-mic"></use></svg>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто видит, что я прослушал(а) голосовое?</span>
+                                <span class="settings-row-desc" data-privacy-summary="voice_listened_privacy">Все</span>
+                            </span>
+                            <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="call_privacy">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-phone"></use></svg>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может мне звонить?</span>
+                                <span class="settings-row-desc" data-privacy-summary="call_privacy">Все</span>
+                            </span>
+                            <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
+                        </button>
+                        <button type="button" class="settings-privacy-item" data-privacy-open="public_key_search_privacy">
+                            <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-key"></use></svg>
+                            <span class="settings-privacy-item-copy">
+                                <span class="settings-row-label">Кто может найти меня по публичному ключу?</span>
+                                <span class="settings-row-desc" data-privacy-summary="public_key_search_privacy">Все</span>
                             </span>
                             <svg class="sun-icon settings-privacy-chevron" aria-hidden="true"><use href="#sun-i-chevron-right"></use></svg>
                         </button>
