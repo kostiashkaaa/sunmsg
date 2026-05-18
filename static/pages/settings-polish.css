@@ -511,11 +511,11 @@ body.settings-home-open .settings-nav-profile {
     position: relative !important;
     justify-items: center !important;
     align-items: center !important;
-    margin: 20px 0 4px !important;
+    margin: 16px 12px 4px !important;
     padding: 18px 18px 14px !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
+    border-radius: var(--settings-ui-radius-lg) !important;
+    background: var(--sx-bg-elev, var(--paper)) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
     text-align: center !important;
     transition: padding var(--sun-dur) var(--sun-ease) !important;
 }
@@ -579,7 +579,7 @@ body.settings-home-open .settings-nav-profile-rows {
 }
 /* Список настроек — отдельный остров с рамкой */
 body.settings-home-open .settings-nav-list {
-    margin-top: 10px !important;
+    margin: 10px 12px 0 !important;
     border-radius: var(--settings-ui-radius-lg) !important;
     background: var(--sx-bg-elev, var(--paper)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
@@ -616,7 +616,15 @@ body.settings-home-open .settings-logout-form .nav-item {
     height: 52px !important;
 }
 
-/* HOME-вид: контент колонкой по центру, без пустот */
+/* HOME-вид: layout и header прозрачные — два острова на фоне сцены */
+body.settings-home-open .settings-layout {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+body.settings-home-open .settings-panel-head {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+}
 body.settings-home-open .settings-panel-body {
     overflow-y: auto !important;
 }

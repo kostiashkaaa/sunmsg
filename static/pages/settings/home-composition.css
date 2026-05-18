@@ -92,6 +92,18 @@
         width: min(760px, 100%);
     }
 
+    /* Home: layout сам прозрачный — блоки-острова видны на фоне сцены */
+    body.settings-home-open .settings-layout {
+        background: transparent;
+        box-shadow: none;
+    }
+
+    /* Header тоже без фона в home-режиме */
+    body.settings-home-open .settings-panel-head {
+        background: transparent;
+        border-bottom-color: transparent;
+    }
+
     body.settings-home-open .settings-panel-body {
         display: block;
         overflow-y: auto;
@@ -204,7 +216,7 @@
         overflow: visible;
     }
 
-    /* Profile — no background card, centred avatar + text */
+    /* Profile — island card, centred avatar + text */
     body.settings-home-open .settings-nav-profile {
         position: relative;
         display: grid;
@@ -217,12 +229,12 @@
         align-items: center;
         gap: 0;
         margin: 16px 12px 4px;
-        padding: 16px 14px 12px;
+        padding: 16px 14px 14px;
         text-align: center;
-        background: transparent;
-        border-radius: 0;
+        background: var(--sx-bg-elev, var(--paper));
+        border-radius: 18px;
         border: 0;
-        box-shadow: none;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset;
     }
 
     body.settings-home-open .settings-nav-avatar-wrap {
