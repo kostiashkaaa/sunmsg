@@ -1391,6 +1391,12 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     touch-action: pan-y;
     background: var(--bg);
 }
+body.settings-home-open .settings-overlay-panel {
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    box-shadow: none;
+}
 body.settings-home-open .settings-overlay-frame {
     background: transparent;
 }

@@ -616,23 +616,31 @@ body.settings-home-open .settings-logout-form .nav-item {
     height: 52px !important;
 }
 
-/* HOME-вид: layout и header прозрачные — два острова на фоне сцены */
-body.settings-home-open .settings-layout {
+/* HOME: все слои прозрачные — три острова */
+body.settings-home-open .settings-layout,
+body.settings-home-open .settings-overlay-frame,
+body.settings-home-open .settings-scene {
     background: transparent !important;
     box-shadow: none !important;
 }
+/* Блок 1: шапка-остров */
 body.settings-home-open .settings-panel-head {
-    background: transparent !important;
-    border-bottom-color: transparent !important;
+    margin: 10px 12px 0 !important;
+    padding: 6px 10px 6px 6px !important;
+    background: var(--sx-bg-elev, var(--paper)) !important;
+    border-radius: 18px !important;
+    border-bottom: none !important;
+    min-height: 52px !important;
 }
 body.settings-home-open .settings-panel-body {
     overflow-y: auto !important;
+    background: transparent !important;
 }
 body.settings-home-open .settings-nav {
     width: 100% !important;
     max-width: var(--settings-ui-content-max) !important;
     margin: 0 auto !important;
-    padding: 0 clamp(14px, 4vw, 28px) calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 0 calc(20px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 /* ── Вкладка «Конфиденциальность»: ровные строки с SVG-иконками ──────────── */

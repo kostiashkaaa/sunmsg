@@ -323,10 +323,8 @@ body:not(.settings-embed-mode) .settings-scene {
         color-mix(in srgb, var(--sx-bg-soft, #f4ecd9) 94%, transparent) 100%) !important;
 }
 
-/* Home-режим: settings-scene прозрачный — блоки-острова на фоне панели */
-body.settings-home-open .settings-scene {
-    background: transparent !important;
-}
+/* Home-режим: scene прозрачная — три острова поверх стеклянной панели */
+body.settings-home-open .settings-scene,
 body.settings-home-open .settings-overlay-shell {
     background: transparent !important;
 }
