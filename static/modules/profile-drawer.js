@@ -873,6 +873,11 @@ export function renderProfileMeta(profile, { metaUsername, metaCreatedAt, metaUs
 }
 
 let _spotifyActionsInitialized = false;
+let _ownSpotifyConnected = null; // null = unknown, true/false = checked
+
+export function invalidateOwnSpotifyCache() {
+    _ownSpotifyConnected = null;
+}
 
 function _getCsrfToken() {
     try {
@@ -898,6 +903,54 @@ async function _spotifyPost(url, body) {
     return resp;
 }
 
+async function _checkOwnSpotifyConnected() {
+    if (_ownSpotifyConnected !== null) return _ownSpotifyConnected;
+    try {
+        const resp = await fetch('/spotify/status', { credentials: 'same-origin' });
+        if (!resp.ok) { _ownSpotifyConnected = false; return false; }
+        const data = await resp.json();
+        _ownSpotifyConnected = Boolean(data.configured && data.connected);
+    } catch (_) {
+        _ownSpotifyConnected = false;
+    }
+    return _ownSpotifyConnected;
+}
+
+function _showSpotifyConnectToast() {
+    // Ищем существующий toast-контейнер приложения
+    const existingToast = document.getElementById('spotifyConnectToast');
+    if (existingToast) {
+        existingToast.classList.remove('spotify-toast--hidden');
+        clearTimeout(existingToast._hideTimer);
+        existingToast._hideTimer = setTimeout(() => {
+            existingToast.classList.add('spotify-toast--hidden');
+        }, 4000);
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.id = 'spotifyConnectToast';
+    toast.className = 'spotify-connect-toast';
+    toast.innerHTML = `
+        <svg class="spotify-connect-toast-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.208c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.856zm1.223-2.722a.78.78 0 0 1-1.072.257C14.1 12.282 10.539 11.88 7.2 12.84a.781.781 0 0 1-.973-.52.78.78 0 0 1 .52-.973c3.803-1.054 7.73-.604 10.626 1.163a.781.781 0 0 1 .436.192zm.105-2.835C15.199 9.048 10.9 8.9 7.677 9.874a.937.937 0 1 1-.543-1.794c3.727-1.13 9.024-.912 12.584 1.19a.937.937 0 0 1-.804 1.597z"/>
+        </svg>
+        <div class="spotify-connect-toast-text">
+            <span class="spotify-connect-toast-title">Spotify не подключён</span>
+            <span class="spotify-connect-toast-sub">Подключите Spotify в настройках, чтобы сохранять треки</span>
+        </div>
+        <a href="/?settings=integrations" class="spotify-connect-toast-btn">Подключить</a>
+    `;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('spotify-toast--visible'));
+
+    toast._hideTimer = setTimeout(() => {
+        toast.classList.remove('spotify-toast--visible');
+        toast.classList.add('spotify-toast--hidden');
+    }, 4000);
+}
+
 function _initSpotifyActions() {
     if (_spotifyActionsInitialized) return;
     _spotifyActionsInitialized = true;
@@ -914,20 +967,29 @@ function _initSpotifyActions() {
     }
 
     function flashBtn(btn, ok) {
-        const orig = btn.querySelector('span:last-child')?.textContent;
-        if (!orig) return;
-        btn.querySelector('span:last-child').textContent = ok ? '✓' : '✗';
+        const spanEl = btn.querySelector('span:last-child');
+        if (!spanEl) return;
+        const orig = spanEl.textContent;
+        spanEl.textContent = ok ? '✓' : '✗';
         setTimeout(() => {
-            if (btn.querySelector('span:last-child')) {
-                btn.querySelector('span:last-child').textContent = orig;
-            }
+            if (spanEl) spanEl.textContent = orig;
             btn.disabled = false;
         }, 1800);
+    }
+
+    async function guardConnected() {
+        const connected = await _checkOwnSpotifyConnected();
+        if (!connected) {
+            _showSpotifyConnectToast();
+            return false;
+        }
+        return true;
     }
 
     saveBtn?.addEventListener('click', async () => {
         const trackId = getTrackId();
         if (!trackId) return;
+        if (!await guardConnected()) return;
         saveBtn.disabled = true;
         try {
             const resp = await _spotifyPost('/spotify/track/save', { track_id: trackId });
@@ -940,6 +1002,7 @@ function _initSpotifyActions() {
     queueBtn?.addEventListener('click', async () => {
         const trackId = getTrackId();
         if (!trackId) return;
+        if (!await guardConnected()) return;
         queueBtn.disabled = true;
         try {
             const resp = await _spotifyPost('/spotify/track/queue', { track_id: trackId });
@@ -951,6 +1014,8 @@ function _initSpotifyActions() {
 
     playlistBtn?.addEventListener('click', async () => {
         if (!playlistPicker || !playlistList) return;
+        if (!await guardConnected()) return;
+
         playlistPicker.hidden = false;
         playlistList.textContent = '';
         const loadingEl = document.createElement('div');
@@ -1006,6 +1071,16 @@ export function renderProfileSpotifyStatus(profile) {
     const card = document.getElementById('profileSpotifyStatusCard');
     if (!card) return;
 
+    // Never show Spotify card for Saved Messages
+    if (profile?._saved_messages_profile === true) {
+        hideProfileSpotifyCard(card);
+        const actionsEl = document.getElementById('profileSpotifyActions');
+        if (actionsEl) actionsEl.hidden = true;
+        const pickerEl = document.getElementById('profileSpotifyPlaylistPicker');
+        if (pickerEl) pickerEl.hidden = true;
+        return;
+    }
+
     const sp = profile?.spotify_status;
     const isPlaying = sp?.is_playing === true;
 
@@ -1051,11 +1126,11 @@ export function renderProfileSpotifyStatus(profile) {
     card.dataset.spotifyUpdatedAtMs = String(Math.max(0, Number(sp.updated_at) || 0) * 1000);
     card.dataset.spotifyTrackId = String(sp.track_id || '');
 
-    // Show action buttons only if current user has Spotify connected (track_id present)
+    // Always show action buttons when a track is playing; auth is checked on click
     const actionsEl = document.getElementById('profileSpotifyActions');
     if (actionsEl) {
-        actionsEl.hidden = !sp.track_id;
-        if (sp.track_id) _initSpotifyActions();
+        actionsEl.hidden = false;
+        _initSpotifyActions();
     }
 
     showProfileSpotifyCard(card);
