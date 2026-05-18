@@ -12731,7 +12731,7 @@
     letter-spacing: 0.02em;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: opacity 0.15s, transform 0.15s;
+    transition: opacity 0.15s;
     background: color-mix(in srgb, var(--success) 12%, transparent);
     color: var(--success);
     outline: 1.5px solid color-mix(in srgb, var(--success) 25%, transparent);
@@ -12739,8 +12739,7 @@
 }
 
 .e2ee-badge:hover {
-    opacity: 0.82;
-    transform: scale(0.97);
+    opacity: 0.75;
 }
 
 .e2ee-badge--hidden {
