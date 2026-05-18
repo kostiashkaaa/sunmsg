@@ -92,16 +92,16 @@
         width: min(760px, 100%);
     }
 
-    /* Home: layout сам прозрачный — блоки-острова видны на фоне сцены */
+    /* Home: layout прозрачный, без overflow clip — острова на фоне сцены */
     body.settings-home-open .settings-layout {
-        background: transparent;
-        box-shadow: none;
+        background: transparent !important;
+        box-shadow: none !important;
     }
 
     /* Header тоже без фона в home-режиме */
     body.settings-home-open .settings-panel-head {
-        background: transparent;
-        border-bottom-color: transparent;
+        background: transparent !important;
+        border-bottom-color: transparent !important;
     }
 
     body.settings-home-open .settings-panel-body {
