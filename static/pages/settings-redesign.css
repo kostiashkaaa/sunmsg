@@ -312,46 +312,45 @@ body:not(.settings-embed-mode) .settings-scene {
     font-size: 11px !important;
 }
 
-/* ── Side-panel container tuning (when settings is opened as overlay) ─ */
+/* ── Side-panel: ширина ─────────────────────────────────────────────── */
 .settings-overlay-panel {
     width: clamp(380px, 36vw, 480px) !important;
-    background: var(--sx-bg-panel, #fbf7ed) !important;
-}
-.settings-overlay-shell {
-    background: linear-gradient(180deg,
-        color-mix(in srgb, var(--sx-bg-panel, #fbf7ed) 96%, transparent) 0%,
-        color-mix(in srgb, var(--sx-bg-soft, #f4ecd9) 94%, transparent) 100%) !important;
 }
 
-/* ── Home + detail: всё прозрачное, острова поверх frosted-glass панели ── */
-body.settings-home-open .settings-scene,
+/* ── Home + detail: панель полностью прозрачная, острова поверх ─────── */
+body.settings-home-open .settings-overlay-panel,
+body.settings-detail-open .settings-overlay-panel {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
 body.settings-home-open .settings-overlay-shell,
-body.settings-home-open .settings-panel-body,
-body.settings-detail-open .settings-scene,
-body.settings-detail-open .settings-overlay-shell,
-body.settings-detail-open .settings-panel-body {
+body.settings-detail-open .settings-overlay-shell {
     background: transparent !important;
 }
 
-/* panel-head — переопределяем базовый !important из .settings-scene .settings-panel-head */
+body.settings-home-open .settings-scene,
+body.settings-home-open .settings-panel-body,
+body.settings-home-open .settings-layout,
+body.settings-detail-open .settings-scene,
+body.settings-detail-open .settings-panel-body,
+body.settings-detail-open .settings-layout {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* panel-head — остров 1 */
 body.settings-home-open .settings-scene .settings-panel-head,
 body.settings-detail-open .settings-scene .settings-panel-head {
     background: var(--sx-bg-elev, var(--surface)) !important;
     border-bottom: none !important;
+    border: none !important;
 }
 
-/* settings-content (контент вкладок) — убираем белый фон */
+/* settings-content — остров 2 (фон задаётся в home-composition.css) */
 body.settings-detail-open .settings-scene .settings-content {
-    background: transparent !important;
-}
-
-/* overlay-panel: frosted glass вместо сплошного фона */
-body.settings-home-open .settings-overlay-panel,
-body.settings-detail-open .settings-overlay-panel {
-    background: color-mix(in srgb, var(--bg) 60%, transparent) !important;
-    backdrop-filter: blur(24px) saturate(1.3) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
-    box-shadow: none !important;
+    background: var(--sx-bg-elev, var(--surface)) !important;
 }
 
 /* Lighter scrim */

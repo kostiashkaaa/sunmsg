@@ -511,7 +511,7 @@ body.settings-home-open .settings-nav-profile {
     position: relative !important;
     justify-items: center !important;
     align-items: center !important;
-    margin: 10px 12px 0 !important;
+    margin: 0 !important;
     padding: 18px 18px 14px !important;
     border-radius: var(--settings-ui-radius-lg) !important;
     background: var(--sx-bg-elev, var(--paper)) !important;
@@ -579,7 +579,7 @@ body.settings-home-open .settings-nav-profile-rows {
 }
 /* Список настроек — отдельный остров с рамкой */
 body.settings-home-open .settings-nav-list {
-    margin: 10px 12px 0 !important;
+    margin: 0 !important;
     border-radius: var(--settings-ui-radius-lg) !important;
     background: var(--sx-bg-elev, var(--paper)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
@@ -626,11 +626,17 @@ body.settings-detail-open .settings-scene {
     background: transparent !important;
     box-shadow: none !important;
 }
-/* Шапка-остров (home и detail) */
+/* Layout даёт горизонтальный padding — шапка выравнивается с блоками в body */
+body.settings-home-open .settings-layout,
+body.settings-detail-open .settings-layout {
+    padding: 10px 12px 0 !important;
+    box-sizing: border-box !important;
+}
+/* Шапка-остров (home и detail) — ширина 100%, padding на body даёт отступы */
 body.settings-home-open .settings-panel-head,
 body.settings-detail-open .settings-panel-head {
-    width: calc(100% - 24px) !important;
-    margin: 10px 12px 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 4px 8px 4px 4px !important;
     background: var(--sx-bg-elev, var(--surface)) !important;
     border-radius: 18px !important;
@@ -643,12 +649,15 @@ body.settings-home-open .settings-panel-body,
 body.settings-detail-open .settings-panel-body {
     overflow-y: auto !important;
     background: transparent !important;
+    padding: 10px 0 calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
 }
 body.settings-home-open .settings-nav {
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 0 calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0 !important;
+    gap: 10px !important;
 }
 
 /* ── Вкладка «Конфиденциальность»: ровные строки с SVG-иконками ──────────── */

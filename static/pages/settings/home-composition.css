@@ -106,13 +106,19 @@
         background: transparent !important;
         box-shadow: none !important;
     }
+    /* Layout: padding по бокам — шапка и блоки в body выровнены */
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        padding: 10px 12px 0 !important;
+        box-sizing: border-box !important;
+    }
 
-    /* Шапка — остров 1 (одинаково в home и detail) */
+    /* Шапка — остров 1. Горизонтальные отступы через padding на body, ширина 100% */
     body.settings-home-open .settings-panel-head,
     body.settings-detail-open .settings-panel-head {
-        margin: 10px 12px 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
         padding: 4px 8px 4px 4px !important;
-        width: calc(100% - 24px) !important;
         background: var(--sx-bg-elev, var(--surface)) !important;
         border-radius: 18px !important;
         border-bottom: none !important;
@@ -126,13 +132,15 @@
         display: block;
         overflow-y: auto;
         background: transparent !important;
+        padding: 10px 0 calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        box-sizing: border-box !important;
     }
 
-    /* Контент вкладки — остров 2, точно та же ширина что шапка */
+    /* Контент вкладки — остров 2, 100% ширины (padding уже на body) */
     body.settings-detail-open .settings-content {
-        width: calc(100% - 24px);
+        width: 100%;
         box-sizing: border-box;
-        margin: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+        margin: 0;
         padding: 0 20px 20px;
         border-left: 0;
         background: var(--sx-bg-elev, var(--surface)) !important;
@@ -232,9 +240,9 @@
         top: auto;
         z-index: auto;
         width: 100%;
-        margin: 0 auto;
+        margin: 0;
         padding: 0;
-        gap: 0;
+        gap: 10px;
         background: transparent;
         overflow: visible;
     }
@@ -251,10 +259,10 @@
         justify-items: center;
         align-items: center;
         gap: 0;
-        margin: 10px 12px 0;
+        margin: 0 0 10px;
         padding: 16px 14px 14px;
         box-sizing: border-box;
-        width: calc(100% - 24px);
+        width: 100%;
         text-align: center;
         background: var(--sx-bg-elev, var(--paper));
         border-radius: 18px;
@@ -401,7 +409,7 @@
     /* Category list — separate island card */
     body.settings-home-open .settings-nav-list {
         display: block;
-        margin: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+        margin: 0;
         padding: 4px 0;
         gap: 0;
         border-radius: 18px;
@@ -412,7 +420,7 @@
         touch-action: pan-y;
         flex: 0 0 auto;
         box-sizing: border-box;
-        width: calc(100% - 24px);
+        width: 100%;
     }
 
     body.settings-home-open .settings-nav-group {
