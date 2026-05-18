@@ -1480,14 +1480,48 @@
                         </div>
                         <div class="settings-spotify-connected-text">
                             <div class="settings-spotify-connected-label">Spotify подключён</div>
-                            <div class="settings-spotify-connected-sub">Статус «слушает» будет виден другим в вашем профиле</div>
+                            <div class="settings-spotify-connected-sub">Настройте, кто видит статус «слушает»</div>
                         </div>
                     </div>
+
+                    <div class="settings-field-group">
+                        <label class="settings-field-label">Кто видит статус «слушает»</label>
+                        <div class="settings-radio-group" id="spotifyPrivacyGroup">
+                            <label class="settings-radio-option">
+                                <input type="radio" name="spotifyPrivacy" value="all" class="settings-radio-input">
+                                <span class="settings-radio-label">Все</span>
+                            </label>
+                            <label class="settings-radio-option">
+                                <input type="radio" name="spotifyPrivacy" value="contacts" class="settings-radio-input">
+                                <span class="settings-radio-label">Только контакты</span>
+                            </label>
+                            <label class="settings-radio-option">
+                                <input type="radio" name="spotifyPrivacy" value="nobody" class="settings-radio-input">
+                                <span class="settings-radio-label">Никому</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                        <div class="settings-toggle-info">
+                            <span class="settings-toggle-title">Скрывать explicit-треки</span>
+                            <span class="settings-toggle-sub">Треки с маркировкой E не будут отображаться у других</span>
+                        </div>
+                        <label class="settings-toggle" aria-label="Скрывать explicit-треки">
+                            <input type="checkbox" id="spotifyHideExplicit" class="settings-toggle__input">
+                            <span class="settings-toggle__track" aria-hidden="true"></span>
+                        </label>
+                    </div>
+
                     <div class="settings-save-row">
+                        <button type="button" class="btn-settings" id="spotifyPrivacySaveBtn">
+                            Сохранить
+                        </button>
                         <button type="button" class="btn-settings secondary" id="spotifyDisconnectBtn">
                             Отключить Spotify
                         </button>
                     </div>
+                    <p id="spotifyPrivacyStatus" class="settings-body-copy"></p>
                     <p id="spotifyDisconnectStatus" class="settings-body-copy"></p>
                 </div>
             </div>

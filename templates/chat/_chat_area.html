@@ -410,6 +410,27 @@
                                 </div>
                             </div>
                         </a>
+                        <div class="profile-spotify-actions" id="profileSpotifyActions" hidden>
+                            <button type="button" class="profile-spotify-action-btn" id="profileSpotifySaveBtn" title="Сохранить в Spotify" aria-label="Сохранить трек в библиотеку Spotify">
+                                <svg class="profile-spotify-action-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/></svg>
+                                <span>Сохранить</span>
+                            </button>
+                            <button type="button" class="profile-spotify-action-btn" id="profileSpotifyQueueBtn" title="Добавить в очередь" aria-label="Добавить трек в очередь Spotify">
+                                <svg class="profile-spotify-action-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 4a1 1 0 000 2h14a1 1 0 100-2H3zm0 4a1 1 0 000 2h14a1 1 0 100-2H3zm0 4a1 1 0 000 2h8a1 1 0 100-2H3zm12 0a1 1 0 10-2 0v2h-2a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2v-2z"/></svg>
+                                <span>В очередь</span>
+                            </button>
+                            <button type="button" class="profile-spotify-action-btn" id="profileSpotifyPlaylistBtn" title="Добавить в плейлист" aria-label="Добавить трек в плейлист Spotify">
+                                <svg class="profile-spotify-action-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 8a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zm6-6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zm2 8a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z"/></svg>
+                                <span>В плейлист</span>
+                            </button>
+                        </div>
+                        <div class="profile-spotify-playlist-picker" id="profileSpotifyPlaylistPicker" hidden>
+                            <div class="profile-spotify-playlist-header">
+                                <span>Выберите плейлист</span>
+                                <button type="button" class="profile-spotify-playlist-close" id="profileSpotifyPlaylistClose" aria-label="Закрыть">×</button>
+                            </div>
+                            <div class="profile-spotify-playlist-list" id="profileSpotifyPlaylistList"></div>
+                        </div>
                     </div>
 
                     <section class="profile-info-card" aria-label="Данные пользователя">

@@ -118,6 +118,12 @@
                                 {% if unread_count > 0 %}{{ '99+' if unread_count > 99 else unread_count }}{% endif %}
                             </span>
                         </div>
+                        <span class="contact-spotify-indicator" data-contact-spotify hidden>
+                            <svg class="contact-spotify-indicator-icon" viewBox="0 0 24 24" fill="#1DB954" aria-hidden="true">
+                                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.208c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.856zm1.223-2.722a.78.78 0 0 1-1.072.257C14.1 12.282 10.539 11.88 7.2 12.84a.781.781 0 0 1-.973-.52.78.78 0 0 1 .52-.973c3.803-1.054 7.73-.604 10.626 1.163a.781.781 0 0 1 .436.192zm.105-2.835C15.199 9.048 10.9 8.9 7.677 9.874a.937.937 0 1 1-.543-1.794c3.727-1.13 9.024-.912 12.584 1.19a.937.937 0 0 1-.804 1.597z"/>
+                            </svg>
+                            <span class="contact-spotify-indicator-text"></span>
+                        </span>
                     </div>
                 </div>
                 {% endfor %}

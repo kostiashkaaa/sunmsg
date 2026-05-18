@@ -45,6 +45,7 @@ CALL_FEATURE_ACCESS_MIGRATION = (29, 'create_call_feature_access_tables')
 MESSAGES_CALL_ID_MIGRATION = (30, 'add_call_id_to_messages')
 USER_CREATED_AT_MIGRATION = (31, 'add_created_at_to_users')
 CRYPTO_V2_SCHEMA_MIGRATION = (32, 'add_x25519_ed25519_double_ratchet_mls_schema')
+SPOTIFY_PRIVACY_MIGRATION = (33, 'add_spotify_privacy_and_explicit_fields')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -862,6 +863,30 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
     logger.info('Migration: added X25519/Ed25519/Double Ratchet/MLS schema (crypto v2)')
 
 
+def _run_spotify_privacy_migration(conn, cursor) -> None:
+    if migration_applied(cursor, SPOTIFY_PRIVACY_MIGRATION[0]):
+        return
+    add_column_if_missing(
+        conn, cursor, 'spotify_tokens', 'spotify_privacy',
+        "spotify_privacy TEXT NOT NULL DEFAULT 'contacts'",
+    )
+    add_column_if_missing(
+        conn, cursor, 'spotify_tokens', 'hide_explicit',
+        'hide_explicit INTEGER NOT NULL DEFAULT 0',
+    )
+    add_column_if_missing(
+        conn, cursor, 'spotify_now_playing', 'track_id',
+        'track_id TEXT DEFAULT NULL',
+    )
+    add_column_if_missing(
+        conn, cursor, 'spotify_now_playing', 'is_explicit',
+        'is_explicit INTEGER NOT NULL DEFAULT 0',
+    )
+    _record_migration(cursor, SPOTIFY_PRIVACY_MIGRATION)
+    conn.commit()
+    logger.info('Migration: added spotify privacy and explicit fields')
+
+
 def _run_call_feature_access_migration(conn, cursor) -> None:
     if migration_applied(cursor, CALL_FEATURE_ACCESS_MIGRATION[0]):
         return
@@ -932,6 +957,7 @@ def run_migrations() -> None:
         _run_calls_schema_migration(conn, cursor)
         _run_call_feature_access_migration(conn, cursor)
         _run_crypto_v2_schema_migration(conn, cursor)
+        _run_spotify_privacy_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

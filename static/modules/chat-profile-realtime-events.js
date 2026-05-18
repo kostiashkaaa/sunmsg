@@ -206,6 +206,14 @@ export function registerProfileRealtimeSocketHandlers({
         const userId = String(data?.user_id || '').trim();
         if (!publicKey && !userId) return;
 
+        // Update sidebar indicator for any contact
+        if (publicKey) {
+            const contactItem = resolveContactItemByPublicKey(publicKey);
+            if (contactItem) {
+                updateSidebarSpotifyIndicator(contactItem, data.spotify_status);
+            }
+        }
+
         const currentPartnerData = getCurrentPartnerData();
         if (!currentPartnerData) return;
 
@@ -230,4 +238,18 @@ export function registerProfileRealtimeSocketHandlers({
             renderPartnerProfile(nextPartnerData);
         }
     });
+}
+
+export function updateSidebarSpotifyIndicator(contactItem, spotifyStatus) {
+    if (!contactItem) return;
+    const indicator = contactItem.querySelector('[data-contact-spotify]');
+    if (!indicator) return;
+    const sp = spotifyStatus;
+    if (sp && sp.is_playing && sp.track) {
+        const textEl = indicator.querySelector('.contact-spotify-indicator-text');
+        if (textEl) textEl.textContent = sp.track;
+        indicator.hidden = false;
+    } else {
+        indicator.hidden = true;
+    }
 }

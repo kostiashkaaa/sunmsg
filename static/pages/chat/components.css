@@ -7887,6 +7887,129 @@
             transition: none;
         }
 
+        .profile-spotify-actions {
+            display: flex;
+            gap: 6px;
+            padding: 0 14px 12px;
+            flex-wrap: wrap;
+        }
+
+        .profile-spotify-actions[hidden] {
+            display: none;
+        }
+
+        .profile-spotify-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1px solid color-mix(in srgb, #1DB954 50%, transparent);
+            border-radius: 20px;
+            background: color-mix(in srgb, #1DB954 10%, transparent);
+            color: #1DB954;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s ease, opacity 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .profile-spotify-action-btn:hover {
+            background: color-mix(in srgb, #1DB954 20%, transparent);
+        }
+
+        .profile-spotify-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .profile-spotify-action-icon {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
+        .profile-spotify-playlist-picker {
+            padding: 0 14px 12px;
+        }
+
+        .profile-spotify-playlist-picker[hidden] {
+            display: none;
+        }
+
+        .profile-spotify-playlist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--sub-text);
+            margin-bottom: 6px;
+        }
+
+        .profile-spotify-playlist-close {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--sub-text);
+            line-height: 1;
+            padding: 0 2px;
+        }
+
+        .profile-spotify-playlist-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .profile-spotify-playlist-item {
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text);
+            transition: background 0.12s ease;
+        }
+
+        .profile-spotify-playlist-item:hover {
+            background: color-mix(in srgb, #1DB954 12%, transparent);
+        }
+
+        /* Sidebar Spotify indicator */
+        .contact-spotify-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 11px;
+            color: #1DB954;
+            max-width: 140px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .contact-spotify-indicator[hidden] {
+            display: none;
+        }
+
+        .contact-spotify-indicator-icon {
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+        }
+
+        .contact-spotify-indicator-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .profile-info-card,
         .profile-media-section {
             margin-top: 16px;
@@ -11543,6 +11666,14 @@
 #partnerProfileDrawer .profile-spotify-art {
     width: 44px;
     height: 44px;
+}
+
+#partnerProfileDrawer .profile-spotify-actions {
+    padding: 0 var(--profile-panel-x-pad) 12px;
+}
+
+#partnerProfileDrawer .profile-spotify-playlist-picker {
+    padding: 0 var(--profile-panel-x-pad) 12px;
 }
 
 #partnerProfileDrawer .profile-info-card {

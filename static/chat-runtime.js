@@ -104,7 +104,7 @@ import { createChatComposerSendRuntime } from './modules/chat-composer-send-runt
 import { registerMessageStatusSocketHandlers } from './modules/chat-message-status-events.js';
 import { registerIncomingMessageSocketHandlers } from './modules/chat-incoming-message-events.js';
 import { registerRealtimeUiSocketHandlers } from './modules/chat-realtime-ui-events.js';
-import { registerProfileRealtimeSocketHandlers } from './modules/chat-profile-realtime-events.js';
+import { registerProfileRealtimeSocketHandlers, updateSidebarSpotifyIndicator as _updateSidebarSpotifyIndicator } from './modules/chat-profile-realtime-events.js';
 import { registerSystemSocketHandlers } from './modules/chat-system-events.js';
 import {
     createGroupModerationApi,
@@ -2135,6 +2135,13 @@ export const initChatPage = async () => {
             const timerContainer = document.getElementById('disappearingTimerContainer');
             if (timerContainer && disappearingMessagesController && currentChatId) {
                 disappearingMessagesController.renderTimerPickerInContainer(timerContainer, currentChatId);
+            }
+            const publicKey = String(profile?.public_key || getCurrentContactPublicKey() || '');
+            if (publicKey) {
+                const contactItem = resolveContactItemByPublicKey(publicKey);
+                if (contactItem) {
+                    _updateSidebarSpotifyIndicator(contactItem, profile?.spotify_status || null);
+                }
             }
         },
         fetchUserProfile,

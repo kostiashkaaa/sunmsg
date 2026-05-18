@@ -40,7 +40,14 @@ logger = logging.getLogger(__name__)
 SPOTIFY_AUTH_BASE = 'https://accounts.spotify.com'
 SPOTIFY_API_BASE = 'https://api.spotify.com/v1'
 STALE_THRESHOLD_S = 60
-_SCOPES = 'user-read-currently-playing user-read-playback-state'
+_SCOPES = (
+    'user-read-currently-playing user-read-playback-state '
+    'user-library-modify user-library-read '
+    'playlist-read-private playlist-modify-private playlist-modify-public '
+    'user-modify-playback-state'
+)
+
+VALID_PRIVACY_VALUES = frozenset({'all', 'contacts', 'nobody'})
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +173,45 @@ def get_connected_user_ids(conn) -> list[int]:
 
 
 # ---------------------------------------------------------------------------
+# Privacy settings
+# ---------------------------------------------------------------------------
+
+def get_privacy_settings(conn, user_id: int) -> dict:
+    """Return spotify_privacy and hide_explicit for a user."""
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT spotify_privacy, hide_explicit FROM spotify_tokens WHERE user_id = ?',
+        (user_id,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return {'spotify_privacy': 'contacts', 'hide_explicit': False}
+    privacy = str(row['spotify_privacy'] or 'contacts')
+    if privacy not in VALID_PRIVACY_VALUES:
+        privacy = 'contacts'
+    return {
+        'spotify_privacy': privacy,
+        'hide_explicit': bool(int(row['hide_explicit'] or 0)),
+    }
+
+
+def update_privacy_settings(conn, user_id: int, spotify_privacy: str, hide_explicit: bool) -> None:
+    """Persist privacy settings for the Spotify integration."""
+    if spotify_privacy not in VALID_PRIVACY_VALUES:
+        spotify_privacy = 'contacts'
+    cur = conn.cursor()
+    cur.execute(
+        '''
+        UPDATE spotify_tokens
+        SET spotify_privacy = ?, hide_explicit = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+        ''',
+        (spotify_privacy, 1 if hide_explicit else 0, user_id),
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
 # Playback polling
 # ---------------------------------------------------------------------------
 
@@ -240,6 +286,8 @@ def _upsert_now_playing(conn, user_id: int, playback: dict | None) -> None:
 
     item = playback.get('item') or {}
     track_name = str(item.get('name') or '')
+    track_id = str(item.get('id') or '')
+    is_explicit = 1 if item.get('explicit') else 0
     artists = item.get('artists') or []
     artist_name = ', '.join(a.get('name', '') for a in artists if a.get('name'))
     album = item.get('album') or {}
@@ -255,8 +303,9 @@ def _upsert_now_playing(conn, user_id: int, playback: dict | None) -> None:
         '''
         INSERT INTO spotify_now_playing
             (user_id, is_playing, track_name, artist_name, album_name,
-             album_art_url, spotify_track_url, progress_ms, duration_ms, cached_at)
-        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+             album_art_url, spotify_track_url, progress_ms, duration_ms,
+             track_id, is_explicit, cached_at)
+        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (user_id) DO UPDATE SET
             is_playing        = 1,
             track_name        = EXCLUDED.track_name,
@@ -266,11 +315,14 @@ def _upsert_now_playing(conn, user_id: int, playback: dict | None) -> None:
             spotify_track_url = EXCLUDED.spotify_track_url,
             progress_ms       = EXCLUDED.progress_ms,
             duration_ms       = EXCLUDED.duration_ms,
+            track_id          = EXCLUDED.track_id,
+            is_explicit       = EXCLUDED.is_explicit,
             cached_at         = EXCLUDED.cached_at
         ''',
         (
             user_id, track_name, artist_name, album_name,
             album_art_url, spotify_track_url, progress_ms, duration_ms,
+            track_id, is_explicit,
             time.time(),
         ),
     )
@@ -281,26 +333,47 @@ def _upsert_now_playing(conn, user_id: int, playback: dict | None) -> None:
 # Profile-facing status query
 # ---------------------------------------------------------------------------
 
+def _viewer_is_contact(conn, viewer_user_id: int, owner_user_id: int) -> bool:
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
+        (owner_user_id, viewer_user_id),
+    )
+    return cur.fetchone() is not None
+
+
 def get_public_listening_status(conn, viewer_user_id: int, owner_user_id: int) -> dict | None:
     """Return the owner's current Spotify track or None.
 
-    Returns None when Spotify is not connected, nothing is playing, or the
-    cached snapshot is older than STALE_THRESHOLD_S seconds.
+    Respects privacy settings (all / contacts / nobody) and hide_explicit flag.
+    Returns None when Spotify is not connected, nothing is playing, the cached
+    snapshot is older than STALE_THRESHOLD_S, or the viewer is not allowed.
     """
     try:
-        return _query_cached_status(conn, owner_user_id)
+        settings = get_privacy_settings(conn, owner_user_id)
+        privacy = settings['spotify_privacy']
+        hide_explicit = settings['hide_explicit']
+
+        if privacy == 'nobody':
+            return None
+        if privacy == 'contacts' and viewer_user_id != owner_user_id:
+            if not _viewer_is_contact(conn, viewer_user_id, owner_user_id):
+                return None
+
+        return _query_cached_status(conn, owner_user_id, hide_explicit=hide_explicit)
     except Exception:
         logger.debug('spotify status query failed for user %s', owner_user_id, exc_info=True)
         return None
 
 
-def _query_cached_status(conn, owner_user_id: int) -> dict | None:
+def _query_cached_status(conn, owner_user_id: int, *, hide_explicit: bool = False) -> dict | None:
     cur = conn.cursor()
     cur.execute(
         '''
         SELECT track_name, artist_name, album_name,
                album_art_url, spotify_track_url,
-               progress_ms, duration_ms, cached_at
+               progress_ms, duration_ms, cached_at,
+               track_id, is_explicit
         FROM   spotify_now_playing
         WHERE  user_id = ?
           AND  is_playing = 1
@@ -316,6 +389,10 @@ def _query_cached_status(conn, owner_user_id: int) -> dict | None:
     if cached_at is not None and (time.time() - float(cached_at)) > STALE_THRESHOLD_S:
         return None
 
+    is_explicit = bool(int(row['is_explicit'] or 0))
+    if hide_explicit and is_explicit:
+        return None
+
     return {
         'is_playing': True,
         'track': row['track_name'] or '',
@@ -323,10 +400,147 @@ def _query_cached_status(conn, owner_user_id: int) -> dict | None:
         'album': row['album_name'] or '',
         'album_art_url': row['album_art_url'] or '',
         'spotify_url': row['spotify_track_url'] or '',
+        'track_id': row['track_id'] or '',
+        'is_explicit': is_explicit,
         'progress_ms': int(row['progress_ms'] or 0),
         'duration_ms': int(row['duration_ms'] or 1),
         'updated_at': int(float(cached_at)) if cached_at else 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Spotify API user actions (save, queue, playlist)
+# ---------------------------------------------------------------------------
+
+def _get_valid_token(conn, user_id: int, client_id: str, client_secret: str) -> str | None:
+    """Return a fresh access token for user_id, refreshing if needed."""
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT access_token, refresh_token, expires_at FROM spotify_tokens WHERE user_id = ?',
+        (user_id,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    access_token = row['access_token']
+    expires_at = int(row['expires_at'] or 0)
+    if time.time() >= expires_at:
+        try:
+            token_data = _refresh_access_token(client_id, client_secret, row['refresh_token'])
+            save_tokens(conn, user_id, token_data)
+            access_token = token_data['access_token']
+        except Exception:
+            logger.warning('Token refresh failed for user %s', user_id, exc_info=True)
+            return None
+    return access_token
+
+
+def _spotify_api_put(access_token: str, path: str, body: dict | None = None) -> int:
+    import json
+    data = json.dumps(body).encode() if body else b''
+    req = urllib.request.Request(
+        f'{SPOTIFY_API_BASE}{path}',
+        data=data,
+        headers={
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+        },
+        method='PUT',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            return resp.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+
+
+def _spotify_api_post(access_token: str, path: str, body: dict | None = None) -> int:
+    import json
+    data = json.dumps(body).encode() if body else b''
+    req = urllib.request.Request(
+        f'{SPOTIFY_API_BASE}{path}',
+        data=data,
+        headers={
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            return resp.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+
+
+def _spotify_api_get_json(access_token: str, path: str) -> dict | None:
+    import json
+    req = urllib.request.Request(
+        f'{SPOTIFY_API_BASE}{path}',
+        headers={'Authorization': f'Bearer {access_token}'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            return json.loads(resp.read().decode())
+    except Exception:
+        return None
+
+
+def save_track(conn, user_id: int, track_id: str, client_id: str, client_secret: str) -> bool:
+    """Add track_id to the user's Spotify library. Returns True on success."""
+    token = _get_valid_token(conn, user_id, client_id, client_secret)
+    if not token or not track_id:
+        return False
+    status = _spotify_api_put(token, f'/me/tracks?ids={urllib.parse.quote(track_id)}')
+    return status in (200, 201)
+
+
+def add_to_queue(conn, user_id: int, track_id: str, client_id: str, client_secret: str) -> bool:
+    """Add track_id to the user's Spotify playback queue. Returns True on success."""
+    token = _get_valid_token(conn, user_id, client_id, client_secret)
+    if not token or not track_id:
+        return False
+    uri = f'spotify:track:{track_id}'
+    status = _spotify_api_post(token, f'/me/player/queue?uri={urllib.parse.quote(uri)}')
+    return status in (200, 201, 204)
+
+
+def get_user_playlists(conn, user_id: int, client_id: str, client_secret: str) -> list[dict]:
+    """Return list of user's editable playlists [{id, name}]."""
+    token = _get_valid_token(conn, user_id, client_id, client_secret)
+    if not token:
+        return []
+    data = _spotify_api_get_json(token, '/me/playlists?limit=50')
+    if not data:
+        return []
+    items = data.get('items') or []
+    result = []
+    for item in items:
+        if not item:
+            continue
+        playlist_id = str(item.get('id') or '')
+        name = str(item.get('name') or '')
+        if playlist_id and name:
+            result.append({'id': playlist_id, 'name': name})
+    return result
+
+
+def add_track_to_playlist(
+    conn,
+    user_id: int,
+    track_id: str,
+    playlist_id: str,
+    client_id: str,
+    client_secret: str,
+) -> bool:
+    """Add track_id to a playlist. Returns True on success."""
+    token = _get_valid_token(conn, user_id, client_id, client_secret)
+    if not token or not track_id or not playlist_id:
+        return False
+    uri = f'spotify:track:{track_id}'
+    safe_pid = urllib.parse.quote(playlist_id, safe='')
+    status = _spotify_api_post(token, f'/playlists/{safe_pid}/tracks', {'uris': [uri]})
+    return status in (200, 201)
 
 
 # ---------------------------------------------------------------------------

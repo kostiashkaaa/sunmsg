@@ -13,12 +13,18 @@ from flask import Blueprint, current_app, jsonify, redirect, request, session, u
 from app.database import get_db_connection
 from app.extensions import limiter
 from app.services.spotify import (
+    add_to_queue,
+    add_track_to_playlist,
     build_auth_url,
     exchange_code,
     generate_oauth_state,
+    get_privacy_settings,
+    get_user_playlists,
     is_connected,
     revoke_tokens,
     save_tokens,
+    save_track,
+    update_privacy_settings,
     verify_oauth_state,
 )
 
@@ -137,7 +143,9 @@ def spotify_status():
 
     conn = get_db_connection()
     try:
-        connected = is_connected(conn, int(session['user_id']))
+        uid = int(session['user_id'])
+        connected = is_connected(conn, uid)
+        privacy_settings = get_privacy_settings(conn, uid) if connected else {}
     finally:
         conn.close()
 
@@ -145,4 +153,131 @@ def spotify_status():
         'success': True,
         'configured': cfg_ok,
         'connected': connected,
+        **privacy_settings,
     })
+
+
+@spotify_bp.route('/spotify/privacy', methods=['POST'])
+@limiter.limit('20 per minute')
+def spotify_privacy():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    data = request.get_json(silent=True) or {}
+    spotify_privacy = str(data.get('spotify_privacy') or 'contacts').strip()
+    hide_explicit = bool(data.get('hide_explicit', False))
+
+    conn = get_db_connection()
+    try:
+        uid = int(session['user_id'])
+        if not is_connected(conn, uid):
+            return jsonify({'success': False, 'error': 'not_connected'}), 400
+        update_privacy_settings(conn, uid, spotify_privacy, hide_explicit)
+    finally:
+        conn.close()
+
+    return jsonify({'success': True})
+
+
+@spotify_bp.route('/spotify/track/save', methods=['POST'])
+@limiter.limit('30 per minute')
+def spotify_save_track():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    creds = _spotify_configured()
+    if not creds:
+        return jsonify({'success': False, 'error': 'not_configured'}), 400
+
+    data = request.get_json(silent=True) or {}
+    track_id = str(data.get('track_id') or '').strip()
+    if not track_id:
+        return jsonify({'success': False, 'error': 'missing_track_id'}), 400
+
+    client_id, client_secret, _ = creds
+    conn = get_db_connection()
+    try:
+        ok = save_track(conn, int(session['user_id']), track_id, client_id, client_secret)
+    finally:
+        conn.close()
+
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'spotify_api_error'}), 502
+
+
+@spotify_bp.route('/spotify/track/queue', methods=['POST'])
+@limiter.limit('30 per minute')
+def spotify_add_to_queue():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    creds = _spotify_configured()
+    if not creds:
+        return jsonify({'success': False, 'error': 'not_configured'}), 400
+
+    data = request.get_json(silent=True) or {}
+    track_id = str(data.get('track_id') or '').strip()
+    if not track_id:
+        return jsonify({'success': False, 'error': 'missing_track_id'}), 400
+
+    client_id, client_secret, _ = creds
+    conn = get_db_connection()
+    try:
+        ok = add_to_queue(conn, int(session['user_id']), track_id, client_id, client_secret)
+    finally:
+        conn.close()
+
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'spotify_api_error'}), 502
+
+
+@spotify_bp.route('/spotify/playlists')
+@limiter.limit('20 per minute')
+def spotify_playlists():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    creds = _spotify_configured()
+    if not creds:
+        return jsonify({'success': False, 'error': 'not_configured'}), 400
+
+    client_id, client_secret, _ = creds
+    conn = get_db_connection()
+    try:
+        playlists = get_user_playlists(conn, int(session['user_id']), client_id, client_secret)
+    finally:
+        conn.close()
+
+    return jsonify({'success': True, 'playlists': playlists})
+
+
+@spotify_bp.route('/spotify/track/playlist', methods=['POST'])
+@limiter.limit('30 per minute')
+def spotify_add_to_playlist():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    creds = _spotify_configured()
+    if not creds:
+        return jsonify({'success': False, 'error': 'not_configured'}), 400
+
+    data = request.get_json(silent=True) or {}
+    track_id = str(data.get('track_id') or '').strip()
+    playlist_id = str(data.get('playlist_id') or '').strip()
+    if not track_id or not playlist_id:
+        return jsonify({'success': False, 'error': 'missing_params'}), 400
+
+    client_id, client_secret, _ = creds
+    conn = get_db_connection()
+    try:
+        ok = add_track_to_playlist(
+            conn, int(session['user_id']), track_id, playlist_id, client_id, client_secret
+        )
+    finally:
+        conn.close()
+
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'spotify_api_error'}), 502

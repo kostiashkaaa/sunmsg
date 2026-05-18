@@ -872,6 +872,136 @@ export function renderProfileMeta(profile, { metaUsername, metaCreatedAt, metaUs
     refreshProfileLocaleBindings();
 }
 
+let _spotifyActionsInitialized = false;
+
+function _getCsrfToken() {
+    try {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute('content') || '';
+        const el = document.getElementById('csrfToken');
+        return el ? (el.value || el.dataset.csrfToken || '') : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+async function _spotifyPost(url, body) {
+    const resp = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': _getCsrfToken(),
+        },
+        body: JSON.stringify(body),
+    });
+    return resp;
+}
+
+function _initSpotifyActions() {
+    if (_spotifyActionsInitialized) return;
+    _spotifyActionsInitialized = true;
+
+    const saveBtn = document.getElementById('profileSpotifySaveBtn');
+    const queueBtn = document.getElementById('profileSpotifyQueueBtn');
+    const playlistBtn = document.getElementById('profileSpotifyPlaylistBtn');
+    const playlistPicker = document.getElementById('profileSpotifyPlaylistPicker');
+    const playlistList = document.getElementById('profileSpotifyPlaylistList');
+    const playlistClose = document.getElementById('profileSpotifyPlaylistClose');
+
+    function getTrackId() {
+        return document.getElementById('profileSpotifyStatusCard')?.dataset?.spotifyTrackId || '';
+    }
+
+    function flashBtn(btn, ok) {
+        const orig = btn.querySelector('span:last-child')?.textContent;
+        if (!orig) return;
+        btn.querySelector('span:last-child').textContent = ok ? '✓' : '✗';
+        setTimeout(() => {
+            if (btn.querySelector('span:last-child')) {
+                btn.querySelector('span:last-child').textContent = orig;
+            }
+            btn.disabled = false;
+        }, 1800);
+    }
+
+    saveBtn?.addEventListener('click', async () => {
+        const trackId = getTrackId();
+        if (!trackId) return;
+        saveBtn.disabled = true;
+        try {
+            const resp = await _spotifyPost('/spotify/track/save', { track_id: trackId });
+            flashBtn(saveBtn, resp.ok);
+        } catch (_) {
+            flashBtn(saveBtn, false);
+        }
+    });
+
+    queueBtn?.addEventListener('click', async () => {
+        const trackId = getTrackId();
+        if (!trackId) return;
+        queueBtn.disabled = true;
+        try {
+            const resp = await _spotifyPost('/spotify/track/queue', { track_id: trackId });
+            flashBtn(queueBtn, resp.ok);
+        } catch (_) {
+            flashBtn(queueBtn, false);
+        }
+    });
+
+    playlistBtn?.addEventListener('click', async () => {
+        if (!playlistPicker || !playlistList) return;
+        playlistPicker.hidden = false;
+        playlistList.textContent = '';
+        const loadingEl = document.createElement('div');
+        loadingEl.style.cssText = 'padding:8px 10px;color:var(--sub-text);font-size:13px;';
+        loadingEl.textContent = 'Загрузка…';
+        playlistList.appendChild(loadingEl);
+
+        try {
+            const resp = await fetch('/spotify/playlists', { credentials: 'same-origin' });
+            const data = await resp.json();
+            playlistList.textContent = '';
+            const playlists = data.playlists || [];
+            if (!playlists.length) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'padding:8px 10px;color:var(--sub-text);font-size:13px;';
+                empty.textContent = 'Плейлисты не найдены';
+                playlistList.appendChild(empty);
+                return;
+            }
+            playlists.forEach(pl => {
+                const item = document.createElement('div');
+                item.className = 'profile-spotify-playlist-item';
+                item.textContent = pl.name;
+                item.addEventListener('click', async () => {
+                    const trackId = getTrackId();
+                    if (!trackId) return;
+                    item.style.opacity = '0.5';
+                    try {
+                        await _spotifyPost('/spotify/track/playlist', {
+                            track_id: trackId,
+                            playlist_id: pl.id,
+                        });
+                    } catch (_) { /* ignore */ }
+                    playlistPicker.hidden = true;
+                });
+                playlistList.appendChild(item);
+            });
+        } catch (_) {
+            playlistList.textContent = '';
+            const errEl = document.createElement('div');
+            errEl.style.cssText = 'padding:8px 10px;color:var(--sub-text);font-size:13px;';
+            errEl.textContent = 'Ошибка загрузки';
+            playlistList.appendChild(errEl);
+        }
+    });
+
+    playlistClose?.addEventListener('click', () => {
+        if (playlistPicker) playlistPicker.hidden = true;
+    });
+}
+
 export function renderProfileSpotifyStatus(profile) {
     const card = document.getElementById('profileSpotifyStatusCard');
     if (!card) return;
@@ -881,6 +1011,10 @@ export function renderProfileSpotifyStatus(profile) {
 
     if (!isPlaying) {
         hideProfileSpotifyCard(card);
+        const actionsEl = document.getElementById('profileSpotifyActions');
+        if (actionsEl) actionsEl.hidden = true;
+        const pickerEl = document.getElementById('profileSpotifyPlaylistPicker');
+        if (pickerEl) pickerEl.hidden = true;
         return;
     }
 
@@ -895,9 +1029,7 @@ export function renderProfileSpotifyStatus(profile) {
 
     if (artEl) {
         if (sp.album_art_url) {
-            artEl.onerror = () => {
-                artEl.removeAttribute('src');
-            };
+            artEl.onerror = () => { artEl.removeAttribute('src'); };
             artEl.src = sp.album_art_url;
             artEl.alt = '';
         } else {
@@ -917,6 +1049,14 @@ export function renderProfileSpotifyStatus(profile) {
     card.dataset.spotifyProgressMs = String(Math.max(0, Number(sp.progress_ms) || 0));
     card.dataset.spotifyDurationMs = String(Math.max(0, Number(sp.duration_ms) || 0));
     card.dataset.spotifyUpdatedAtMs = String(Math.max(0, Number(sp.updated_at) || 0) * 1000);
+    card.dataset.spotifyTrackId = String(sp.track_id || '');
+
+    // Show action buttons only if current user has Spotify connected (track_id present)
+    const actionsEl = document.getElementById('profileSpotifyActions');
+    if (actionsEl) {
+        actionsEl.hidden = !sp.track_id;
+        if (sp.track_id) _initSpotifyActions();
+    }
 
     showProfileSpotifyCard(card);
     if (fillEl) startProfileSpotifyProgressTimer();
