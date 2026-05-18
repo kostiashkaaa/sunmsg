@@ -217,6 +217,7 @@ _IIFE_MODULES = {
     'device-key.js',              # exposes window.deviceKey
     'private-key-session-bridge.js',  # exposes window.sunPrivateKeySession
     'bi-icon-adapter.js',  # adapts legacy bootstrap icon classes at runtime
+    'e2ee-status-ui.js',  # exposes window.e2eeStatusUI (E2EE badge + verify dialog)
 }
 
 

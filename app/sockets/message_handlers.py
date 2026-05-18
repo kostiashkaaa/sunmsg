@@ -144,6 +144,15 @@ def _is_valid_e2ee_message_payload(raw_message: str, *, chat_type: str) -> bool:
     payload = _load_e2ee_message_payload(raw_message)
     if not payload:
         return False
+
+    version = payload.get('v')
+
+    # v3: X25519/Double Ratchet/MLS payload — валидируется отдельным модулем
+    if version == 3:
+        from app.services.crypto import is_valid_v3_payload
+        return is_valid_v3_payload(raw_message)
+
+    # v2: legacy RSA-OAEP + AES-GCM
     if not _base64_decoded_length_at_least(payload.get('encrypted_message'), 16):
         return False
     if not _base64_decoded_length_at_least(payload.get('iv'), 12):

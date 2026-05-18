@@ -26,6 +26,7 @@ from app.routes.auth import auth_bp
 from app.routes.call_routes import call_bp
 from app.routes.chat import chat_bp
 from app.routes.contacts import contacts_bp
+from app.routes.crypto_v2_routes import crypto_v2_bp
 from app.routes.moderation import moderation_bp
 from app.routes.spotify import spotify_bp
 from app.routes.support import support_bp
@@ -116,6 +117,7 @@ def create_app(config_name=None, overrides=None):
     app.register_blueprint(call_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(contacts_bp)
+    app.register_blueprint(crypto_v2_bp)
     app.register_blueprint(moderation_bp)
     app.register_blueprint(spotify_bp)
     app.register_blueprint(support_bp)

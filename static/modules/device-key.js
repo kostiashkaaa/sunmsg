@@ -301,6 +301,117 @@
         } catch (_) {}
     }
 
+    // ── X25519 + Ed25519 ключи (crypto v2) ──────────────────────────────────────
+    // Приватные ключи хранятся как зашифрованный JSON (те же механизмы обёртки).
+    // Публичные ключи хранятся открыто в localStorage (не секрет).
+
+    const LS_V2_PUBLIC_KEYS = 'sun_v2_public_keys';
+    const SS_V2_PRIVATE_KEYS_SESSION = 'sun_v2_private_keys_session';
+    const LS_V2_PRIVATE_KEYS_PERSISTENT = 'sun_v2_private_keys_persistent';
+
+    async function generateV2KeyPair() {
+        if (!window.cryptoV2) throw new Error('crypto-v2.js not loaded');
+        const cv2 = window.cryptoV2;
+        const x25519 = await cv2.generateX25519KeyPair();
+        const ed25519 = await cv2.generateEd25519KeyPair();
+        return {
+            x25519: {
+                publicKeyB64u: x25519.publicKeyB64u,
+                privateKeyJwk: x25519.privateKeyJwk,
+            },
+            ed25519: {
+                publicKeyB64u: ed25519.publicKeyB64u,
+                privateKeyJwk: ed25519.privateKeyJwk,
+            },
+        };
+    }
+
+    async function storeV2KeyPair(keyPair, options = {}) {
+        const persistent = options?.persistent === true;
+
+        // Публичные ключи в localStorage (не секрет)
+        try {
+            localStorage.setItem(LS_V2_PUBLIC_KEYS, JSON.stringify({
+                x25519: keyPair.x25519.publicKeyB64u,
+                ed25519: keyPair.ed25519.publicKeyB64u,
+            }));
+        } catch (_) {}
+
+        // Приватные ключи зашифрованы через device key
+        const privJson = JSON.stringify({
+            x25519Jwk: keyPair.x25519.privateKeyJwk,
+            ed25519Jwk: keyPair.ed25519.privateKeyJwk,
+        });
+
+        const deviceKey = await getOrCreateDeviceKey();
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const ct = await window.crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            deviceKey,
+            new TextEncoder().encode(privJson)
+        );
+
+        const wrapped = JSON.stringify({
+            v: 1,
+            iv: b64encode(iv.buffer),
+            data: b64encode(ct),
+            persistent,
+            createdAt: nowSeconds(),
+        });
+
+        const storageKey = persistent ? LS_V2_PRIVATE_KEYS_PERSISTENT : SS_V2_PRIVATE_KEYS_SESSION;
+        try {
+            if (persistent) localStorage.setItem(storageKey, wrapped);
+            else (getSessionStorage() || localStorage).setItem(storageKey, wrapped);
+        } catch (_) {}
+    }
+
+    async function loadV2PrivateKeys() {
+        const ssRaw = (() => {
+            try { return (getSessionStorage() || localStorage).getItem(SS_V2_PRIVATE_KEYS_SESSION); }
+            catch (_) { return null; }
+        })();
+        const lsRaw = (() => {
+            try { return localStorage.getItem(LS_V2_PRIVATE_KEYS_PERSISTENT); }
+            catch (_) { return null; }
+        })();
+        const raw = ssRaw || lsRaw;
+        if (!raw) return null;
+
+        try {
+            const payload = JSON.parse(raw);
+            if (!payload?.v || !payload.iv || !payload.data) return null;
+            const deviceKey = await getOrCreateDeviceKey();
+            const pt = await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: b64decode(payload.iv) },
+                deviceKey,
+                b64decode(payload.data)
+            );
+            return JSON.parse(new TextDecoder().decode(pt));
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function loadV2PublicKeys() {
+        try {
+            const raw = localStorage.getItem(LS_V2_PUBLIC_KEYS);
+            return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function clearV2Keys() {
+        try { localStorage.removeItem(LS_V2_PUBLIC_KEYS); } catch (_) {}
+        try { localStorage.removeItem(LS_V2_PRIVATE_KEYS_PERSISTENT); } catch (_) {}
+        try { (getSessionStorage() || localStorage).removeItem(SS_V2_PRIVATE_KEYS_SESSION); } catch (_) {}
+    }
+
+    function hasV2Keys() {
+        return !!loadV2PublicKeys();
+    }
+
     window.deviceKey = {
         wrapPrivateKey,
         unwrapPrivateKey,
@@ -311,6 +422,13 @@
         clearWrappedPersistent,
         clearWrappedSession,
         clear,
+        // crypto v2
+        generateV2KeyPair,
+        storeV2KeyPair,
+        loadV2PrivateKeys,
+        loadV2PublicKeys,
+        clearV2Keys,
+        hasV2Keys,
     };
 })();
 

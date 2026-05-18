@@ -1,10 +1,12 @@
 import os
 import base64
 import hashlib
+import json
 import re
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, ed25519, x25519
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import InvalidSignature
 
 _CHAT_ID_RE = re.compile(r'^[0-9a-f]{64}$')
 
@@ -86,6 +88,94 @@ def is_valid_chat_id(chat_id):
 #  but TweetNaCl boxes are typically 200–50 000 chars encoded).
 _B64_RE = re.compile(r'^[A-Za-z0-9+/\-_]+=*$')
 _CIPHERTEXT_MIN_LEN = 40   # encoded chars; anything shorter is suspicious
+
+# ── Ed25519 / X25519 ключи (crypto v2) ────────────────────────────────────────
+
+_B64U_RE = re.compile(r'^[A-Za-z0-9\-_]+$')
+
+def _b64u_decode(s: str) -> bytes:
+    s = s.replace('-', '+').replace('_', '/')
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += '=' * padding
+    return base64.b64decode(s)
+
+def is_valid_ed25519_public_key(key_b64u: str) -> bool:
+    if not isinstance(key_b64u, str):
+        return False
+    key_b64u = key_b64u.strip()
+    if not _B64U_RE.fullmatch(key_b64u):
+        return False
+    try:
+        raw = _b64u_decode(key_b64u)
+        if len(raw) != 32:
+            return False
+        ed25519.Ed25519PublicKey.from_public_bytes(raw)
+        return True
+    except Exception:
+        return False
+
+def is_valid_x25519_public_key(key_b64u: str) -> bool:
+    if not isinstance(key_b64u, str):
+        return False
+    key_b64u = key_b64u.strip()
+    if not _B64U_RE.fullmatch(key_b64u):
+        return False
+    try:
+        raw = _b64u_decode(key_b64u)
+        return len(raw) == 32
+    except Exception:
+        return False
+
+def verify_ed25519_signature(public_key_b64u: str, message: str | bytes, signature_b64u: str) -> bool:
+    try:
+        raw_key = _b64u_decode(public_key_b64u)
+        pub = ed25519.Ed25519PublicKey.from_public_bytes(raw_key)
+        sig = _b64u_decode(signature_b64u)
+        data = message.encode('utf-8') if isinstance(message, str) else message
+        pub.verify(sig, data)
+        return True
+    except InvalidSignature:
+        return False
+    except Exception:
+        return False
+
+
+# ── Валидация payload v3 (X25519/DR/MLS) ──────────────────────────────────────
+
+_PROTO_VALIDATORS = {
+    'x3dh': {'required': ['sender_ik', 'ephemeral_key', 'spk_id', 'ct', 'iv', 'sig']},
+    'dr':   {'required': ['header', 'ct', 'iv', 'sig']},
+    'mls':  {'required': ['group_id', 'epoch', 'seq', 'ct', 'iv', 'sig']},
+}
+
+_B64U_MIN_CT_BYTES = 16   # AES-GCM tag alone is 16 bytes
+
+def is_valid_v3_payload(raw: str) -> bool:
+    if not isinstance(raw, str) or len(raw) > 256 * 1024:
+        return False
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return False
+    if payload.get('v') != 3:
+        return False
+    proto = payload.get('proto', '')
+    spec = _PROTO_VALIDATORS.get(proto)
+    if spec is None:
+        return False
+    for field in spec['required']:
+        if not payload.get(field):
+            return False
+    # Проверяем размер ciphertext
+    try:
+        ct_bytes = _b64u_decode(payload['ct'])
+        if len(ct_bytes) < _B64U_MIN_CT_BYTES:
+            return False
+    except Exception:
+        return False
+    return True
+
 
 def looks_like_ciphertext(value: str) -> bool:
     """Return True if value looks like a NaCl base64 ciphertext, False otherwise."""

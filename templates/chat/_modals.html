@@ -201,6 +201,47 @@
     </div>
 </div>
 
+<!-- E2EE Key Verification Modal -->
+<dialog id="e2eeVerifyModal" data-animated-dialog aria-labelledby="e2eeVerifyTitle" class="e2ee-verify-modal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content dialog-surface">
+            <div class="modal-header">
+                <h5 class="modal-title" id="e2eeVerifyTitle">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-check"></use></svg>
+                    Верификация ключей
+                </h5>
+                <button type="button" class="btn-icon" id="e2eeVerifyCloseBtn" aria-label="Закрыть">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-x"></use></svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px 20px;">
+                <p class="e2ee-verify-note" id="e2eeVerifyIntro">
+                    Сравните отпечатки ключей с собеседником по другому каналу (голосом, лично).
+                    Совпадение гарантирует отсутствие атаки «человек посередине».
+                </p>
+
+                <div class="e2ee-key-section" style="margin-top: 14px;">
+                    <div class="e2ee-key-section__label">Ваш публичный ключ (Ed25519)</div>
+                    <div class="e2ee-key-fingerprint" id="e2eeMyFingerprint" aria-label="Ваш отпечаток ключа"></div>
+                </div>
+
+                <div class="e2ee-key-section">
+                    <div class="e2ee-key-section__label" id="e2eePeerFingerprintLabel">Ключ собеседника (Ed25519)</div>
+                    <div class="e2ee-key-fingerprint" id="e2eePeerFingerprint" aria-label="Отпечаток ключа собеседника"></div>
+                </div>
+
+                <div class="e2ee-proto-info" id="e2eeProtoInfo">
+                    <svg class="sun-icon" aria-hidden="true"><use href="#sun-i-shield-check"></use></svg>
+                    <span id="e2eeProtoText">Протокол: <strong>—</strong></span>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--border);">
+                <button type="button" class="dialog-surface-btn" id="e2eeVerifyDoneBtn">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</dialog>
+
 <dialog id="keyTransferReceiveModal" class="my-qr-modal key-transfer-dialog" aria-labelledby="keyTransferReceiveTitle">
     <div class="my-qr-modal__head">
         <h5 id="keyTransferReceiveTitle" class="my-qr-modal__title">

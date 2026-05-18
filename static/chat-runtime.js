@@ -952,6 +952,7 @@ export const initChatPage = async () => {
             getPrivateKeyPem,
             getCurrentContactPublicKey,
             getCurrentChatId: () => currentChatId,
+            isCurrentChatGroup,
             getChatState,
             e2ePillWrap,
             e2eIndicator,
