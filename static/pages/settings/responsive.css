@@ -766,11 +766,16 @@
         gap: 2px;
         overflow-y: auto;
         overflow-x: hidden;
+        scrollbar-width: none;
         padding: 8px 8px 12px;
         margin-top: 0;
         border: 0;
         border-radius: 0;
         background: color-mix(in srgb, var(--paper) 38%, transparent);
+    }
+
+    .settings-nav-list::-webkit-scrollbar {
+        display: none;
     }
 
     .settings-nav-list .settings-logout-form {
