@@ -190,6 +190,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             .toUpperCase() || '?';
     }
 
+    let applyFallbackAvatarTint = null;
+
+    function syncSidebarFallbackAvatarTint(label) {
+        if (!avatarCircle || typeof applyFallbackAvatarTint !== 'function') return;
+        applyFallbackAvatarTint(avatarCircle, label);
+    }
+
     function buildCacheBustedAvatarUrl(avatarUrl) {
         const clean = String(avatarUrl || '').trim();
         if (!clean) return '';
@@ -224,8 +231,10 @@ document.addEventListener('DOMContentLoaded', async function () {
                 avatarImg.alt = tr('Ваш аватар');
                 avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
                 avatarCircle.appendChild(avatarImg);
+                avatarCircle.removeAttribute('data-avatar-tint');
             } else {
                 avatarCircle.textContent = buildInitials(nextDisplayName || nextUsername || '?');
+                syncSidebarFallbackAvatarTint(nextDisplayName || nextUsername || '?');
             }
         }
     }
@@ -272,13 +281,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             qrModule,
             themeSyncModule,
             weatherLabelModule,
+            utilsModule,
         ] = await Promise.all([
             import(withAppRoot('/static/pages/chat-shell/sidebar.js')),
             import(withAppRoot('/static/pages/chat-shell/settings-overlay.js')),
             import(withAppRoot('/static/pages/chat-shell/qr.js')),
             import(withAppRoot('/static/pages/chat-shell/theme-sync.js')),
             import(withAppRoot('/static/pages/chat-shell/sidebar-weather-label.js')),
+            import(withAppRoot('/static/modules/utils.js')),
         ]);
+        applyFallbackAvatarTint = utilsModule.applyFallbackAvatarTint;
+        syncSidebarFallbackAvatarTint(dn);
 
         themeSyncApi = themeSyncModule.initChatShellThemeSync({
             interfaceThemeApi: window.InterfaceTheme || null,

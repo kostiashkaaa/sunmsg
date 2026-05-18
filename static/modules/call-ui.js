@@ -3,7 +3,7 @@
  * Telegram-style call UI: incoming banner + active call overlay.
  */
 
-import { escapeHtml } from './utils.js';
+import { applyFallbackAvatarTint, escapeHtml } from './utils.js';
 
 let screenWakeLock = null;
 let callDurationTimer = 0;
@@ -111,6 +111,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     });
 
     document.body.appendChild(banner);
+    applyFallbackAvatarTint(banner.querySelector('.call-ib__avatar'), rawName);
     requestAnimationFrame(() => banner.classList.add('call-ib--visible'));
 }
 
@@ -289,6 +290,7 @@ export function showActiveCallOverlay({
     `;
 
     document.body.appendChild(overlay);
+    applyFallbackAvatarTint(overlay.querySelector('.call-card__avatar'), partnerName);
     requestAnimationFrame(() => {
         if (!overlay.isConnected) return;
         overlay.classList.add('call-overlay--visible');

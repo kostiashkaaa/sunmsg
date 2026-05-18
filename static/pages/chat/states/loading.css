@@ -711,42 +711,50 @@
         /* Hash-based color tints (assigned by JS via [data-avatar-tint]) */
         .contact-avatar[data-avatar-tint="0"],
         .forward-target-avatar[data-avatar-tint="0"],
-        .profile-hero-avatar[data-avatar-tint="0"] { background: oklch(70% 0.10 200); }
+        .profile-hero-avatar[data-avatar-tint="0"],
+        .sidebar-bottom-avatar[data-avatar-tint="0"] { background: oklch(70% 0.10 200); }
 
 
         .contact-avatar[data-avatar-tint="1"],
         .forward-target-avatar[data-avatar-tint="1"],
-        .profile-hero-avatar[data-avatar-tint="1"] { background: oklch(72% 0.09 30); }
+        .profile-hero-avatar[data-avatar-tint="1"],
+        .sidebar-bottom-avatar[data-avatar-tint="1"] { background: oklch(72% 0.09 30); }
 
 
         .contact-avatar[data-avatar-tint="2"],
         .forward-target-avatar[data-avatar-tint="2"],
-        .profile-hero-avatar[data-avatar-tint="2"] { background: oklch(70% 0.08 140); }
+        .profile-hero-avatar[data-avatar-tint="2"],
+        .sidebar-bottom-avatar[data-avatar-tint="2"] { background: oklch(70% 0.08 140); }
 
 
         .contact-avatar[data-avatar-tint="3"],
         .forward-target-avatar[data-avatar-tint="3"],
-        .profile-hero-avatar[data-avatar-tint="3"] { background: oklch(65% 0.10 280); }
+        .profile-hero-avatar[data-avatar-tint="3"],
+        .sidebar-bottom-avatar[data-avatar-tint="3"] { background: oklch(65% 0.10 280); }
 
 
         .contact-avatar[data-avatar-tint="4"],
         .forward-target-avatar[data-avatar-tint="4"],
-        .profile-hero-avatar[data-avatar-tint="4"] { background: oklch(70% 0.06 80); }
+        .profile-hero-avatar[data-avatar-tint="4"],
+        .sidebar-bottom-avatar[data-avatar-tint="4"] { background: oklch(70% 0.06 80); }
 
 
         .contact-avatar[data-avatar-tint="5"],
         .forward-target-avatar[data-avatar-tint="5"],
-        .profile-hero-avatar[data-avatar-tint="5"] { background: oklch(60% 0.09 320); }
+        .profile-hero-avatar[data-avatar-tint="5"],
+        .sidebar-bottom-avatar[data-avatar-tint="5"] { background: oklch(60% 0.09 320); }
 
 
         .contact-avatar[data-avatar-tint="6"],
         .forward-target-avatar[data-avatar-tint="6"],
-        .profile-hero-avatar[data-avatar-tint="6"] { background: oklch(68% 0.11 100); }
+        .profile-hero-avatar[data-avatar-tint="6"],
+        .sidebar-bottom-avatar[data-avatar-tint="6"] { background: oklch(68% 0.11 100); }
 
 
         .contact-avatar[data-avatar-tint="7"],
         .forward-target-avatar[data-avatar-tint="7"],
-        .profile-hero-avatar[data-avatar-tint="7"] { background: oklch(60% 0.08 250); }
+        .profile-hero-avatar[data-avatar-tint="7"],
+        .sidebar-bottom-avatar[data-avatar-tint="7"] { background: oklch(60% 0.08 250); }
 
 
         .contact-item.active .contact-last-msg-loading__bar {
