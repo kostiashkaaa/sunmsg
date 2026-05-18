@@ -2604,6 +2604,18 @@ export const initChatPage = async () => {
 
     function closeChatUI() {
         const closedChatId = currentChatId;
+
+        // Завершить звонок при выходе из чата, только если он не свёрнут.
+        // Свёрнутый звонок пользователь намеренно минимизировал — не прерывать.
+        if (!callManager.isIdle()) {
+            const isMinimized = Boolean(
+                document.querySelector('#call-active-overlay.call-overlay--minimized')
+            );
+            if (!isMinimized) {
+                callManager.endCall();
+            }
+        }
+
         if (closedChatId && messageInput && !isEditingMessageId) {
             void flushDraftSaveForChat(closedChatId, messageInput.value, { force: true });
         }
