@@ -1433,96 +1433,116 @@
         </section>
 
         <section id="section-integrations" class="settings-hidden">
-            <div class="settings-card settings-spotify-card">
-                <div class="settings-card-header">
-                    <svg class="settings-spotify-logo" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M7.2 9.4c3.45-.98 7.18-.55 9.96 1.15" />
-                        <path d="M7.75 12.45c2.64-.72 5.52-.39 7.76.88" />
-                        <path d="M8.2 15.05c2.08-.46 4.28-.22 5.95.7" />
-                    </svg>
-                    <h3>Spotify</h3>
+            <div class="settings-card sp-card">
+
+                <!-- Шапка с брендингом -->
+                <div class="sp-brand">
+                    <div class="sp-brand-logo" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="12" fill="#1DB954"/>
+                            <path d="M7.2 9.4c3.45-.98 7.18-.55 9.96 1.15" stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
+                            <path d="M7.75 12.45c2.64-.72 5.52-.39 7.76.88"  stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
+                            <path d="M8.2 15.05c2.08-.46 4.28-.22 5.95.7"   stroke="#000" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="sp-brand-text">
+                        <span class="sp-brand-name">Spotify</span>
+                        <span class="sp-brand-tagline">Музыка в вашем профиле</span>
+                    </div>
                 </div>
 
+                <!-- Состояние: не настроено -->
                 <div id="spotifyNotConfigured" class="settings-hidden">
-                    <p class="settings-body-copy">
-                        Интеграция со Spotify не настроена администратором.
-                        Для подключения нужно задать <code>SPOTIFY_CLIENT_ID</code> и <code>SPOTIFY_CLIENT_SECRET</code> в конфигурации сервера.
-                    </p>
+                    <div class="sp-notice sp-notice--warn">
+                        <svg class="sp-notice-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                        <p>Интеграция не настроена. Администратору нужно задать <code>SPOTIFY_CLIENT_ID</code> и <code>SPOTIFY_CLIENT_SECRET</code>.</p>
+                    </div>
                 </div>
 
+                <!-- Состояние: не подключено -->
                 <div id="spotifyDisconnected" class="settings-hidden">
-                    <p class="settings-body-copy">
-                        Подключите Spotify — и другие пользователи смогут видеть, что вы слушаете прямо в вашем профиле.
-                    </p>
-                    <div class="settings-save-row">
-                        <a href="/spotify/connect" class="btn-settings settings-spotify-connect-btn" id="spotifyConnectBtn">
-                            <svg class="settings-spotify-btn-logo" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M7.2 9.4c3.45-.98 7.18-.55 9.96 1.15" />
-                                <path d="M7.75 12.45c2.64-.72 5.52-.39 7.76.88" />
-                                <path d="M8.2 15.05c2.08-.46 4.28-.22 5.95.7" />
-                            </svg>
-                            Подключить Spotify
-                        </a>
-                    </div>
+                    <p class="sp-desc">Подключите аккаунт — и ваши контакты смогут видеть, что вы слушаете прямо в профиле.</p>
+                    <a href="/spotify/connect" class="sp-connect-btn" id="spotifyConnectBtn">
+                        <svg class="sp-connect-btn-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" fill="#000" fill-opacity="0.15"/>
+                            <path d="M7.2 9.4c3.45-.98 7.18-.55 9.96 1.15" stroke="#000" stroke-width="1.7" stroke-linecap="round"/>
+                            <path d="M7.75 12.45c2.64-.72 5.52-.39 7.76.88"  stroke="#000" stroke-width="1.7" stroke-linecap="round"/>
+                            <path d="M8.2 15.05c2.08-.46 4.28-.22 5.95.7"   stroke="#000" stroke-width="1.7" stroke-linecap="round"/>
+                        </svg>
+                        Подключить Spotify
+                    </a>
                 </div>
 
+                <!-- Состояние: подключено -->
                 <div id="spotifyConnected" class="settings-hidden">
-                    <div class="settings-spotify-connected-state">
-                        <div class="settings-spotify-connected-icon" aria-hidden="true">
-                            <svg class="settings-spotify-connected-logo" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M7.2 9.4c3.45-.98 7.18-.55 9.96 1.15" />
-                                <path d="M7.75 12.45c2.64-.72 5.52-.39 7.76.88" />
-                                <path d="M8.2 15.05c2.08-.46 4.28-.22 5.95.7" />
-                            </svg>
+
+                    <!-- Статус подключения -->
+                    <div class="sp-status-badge">
+                        <span class="sp-status-dot" aria-hidden="true"></span>
+                        <span class="sp-status-text">Аккаунт подключён</span>
+                    </div>
+
+                    <!-- Секция приватности -->
+                    <div class="sp-section">
+                        <div class="sp-section-header">
+                            <svg class="sp-section-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+                            <span>Кто видит статус «слушает»</span>
                         </div>
-                        <div class="settings-spotify-connected-text">
-                            <div class="settings-spotify-connected-label">Spotify подключён</div>
-                            <div class="settings-spotify-connected-sub">Настройте, кто видит статус «слушает»</div>
+                        <div class="sp-radio-group" id="spotifyPrivacyGroup" role="radiogroup" aria-label="Видимость статуса">
+                            <label class="sp-radio-item">
+                                <input type="radio" name="spotifyPrivacy" value="all" class="sp-radio-input">
+                                <span class="sp-radio-box" aria-hidden="true"></span>
+                                <span class="sp-radio-content">
+                                    <span class="sp-radio-title">Все</span>
+                                    <span class="sp-radio-sub">Любой пользователь платформы</span>
+                                </span>
+                            </label>
+                            <label class="sp-radio-item">
+                                <input type="radio" name="spotifyPrivacy" value="contacts" class="sp-radio-input">
+                                <span class="sp-radio-box" aria-hidden="true"></span>
+                                <span class="sp-radio-content">
+                                    <span class="sp-radio-title">Только контакты</span>
+                                    <span class="sp-radio-sub">Люди из вашего списка контактов</span>
+                                </span>
+                            </label>
+                            <label class="sp-radio-item">
+                                <input type="radio" name="spotifyPrivacy" value="nobody" class="sp-radio-input">
+                                <span class="sp-radio-box" aria-hidden="true"></span>
+                                <span class="sp-radio-content">
+                                    <span class="sp-radio-title">Никому</span>
+                                    <span class="sp-radio-sub">Статус скрыт для всех</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
 
-                    <div class="settings-field-group">
-                        <label class="settings-field-label">Кто видит статус «слушает»</label>
-                        <div class="settings-radio-group" id="spotifyPrivacyGroup">
-                            <label class="settings-radio-option">
-                                <input type="radio" name="spotifyPrivacy" value="all" class="settings-radio-input">
-                                <span class="settings-radio-label">Все</span>
-                            </label>
-                            <label class="settings-radio-option">
-                                <input type="radio" name="spotifyPrivacy" value="contacts" class="settings-radio-input">
-                                <span class="settings-radio-label">Только контакты</span>
-                            </label>
-                            <label class="settings-radio-option">
-                                <input type="radio" name="spotifyPrivacy" value="nobody" class="settings-radio-input">
-                                <span class="settings-radio-label">Никому</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="settings-toggle-row">
-                        <div class="settings-toggle-info">
-                            <span class="settings-toggle-title">Скрывать explicit-треки</span>
-                            <span class="settings-toggle-sub">Треки с маркировкой E не будут отображаться у других</span>
-                        </div>
-                        <label class="settings-toggle" aria-label="Скрывать explicit-треки">
-                            <input type="checkbox" id="spotifyHideExplicit" class="settings-toggle__input">
-                            <span class="settings-toggle__track" aria-hidden="true"></span>
+                    <!-- Секция explicit -->
+                    <div class="sp-section">
+                        <label class="sp-toggle-row">
+                            <div class="sp-toggle-text">
+                                <span class="sp-toggle-title">
+                                    <span class="sp-explicit-badge" aria-label="Explicit">E</span>
+                                    Скрывать explicit-треки
+                                </span>
+                                <span class="sp-toggle-sub">Треки с маркировкой не будут видны другим</span>
+                            </div>
+                            <div class="sp-switch" aria-hidden="true">
+                                <input type="checkbox" id="spotifyHideExplicit" class="sp-switch-input">
+                                <span class="sp-switch-track">
+                                    <span class="sp-switch-thumb"></span>
+                                </span>
+                            </div>
                         </label>
                     </div>
 
-                    <div class="settings-save-row">
-                        <button type="button" class="btn-settings" id="spotifyPrivacySaveBtn">
-                            Сохранить
-                        </button>
-                        <button type="button" class="btn-settings secondary" id="spotifyDisconnectBtn">
-                            Отключить Spotify
-                        </button>
+                    <!-- Кнопки -->
+                    <div class="sp-actions">
+                        <button type="button" class="sp-save-btn" id="spotifyPrivacySaveBtn">Сохранить</button>
+                        <button type="button" class="sp-disconnect-btn" id="spotifyDisconnectBtn">Отключить</button>
                     </div>
-                    <p id="spotifyPrivacyStatus" class="settings-body-copy"></p>
-                    <p id="spotifyDisconnectStatus" class="settings-body-copy"></p>
+                    <p id="spotifyPrivacyStatus"  class="sp-feedback-msg"></p>
+                    <p id="spotifyDisconnectStatus" class="sp-feedback-msg"></p>
+
                 </div>
             </div>
         </section>
