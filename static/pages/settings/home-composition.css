@@ -128,13 +128,14 @@
         background: transparent !important;
     }
 
-    /* Контент вкладки — остров 2 */
+    /* Контент вкладки — остров 2, точно та же ширина что шапка */
     body.settings-detail-open .settings-content {
-        width: auto;
-        margin: 8px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+        width: calc(100% - 24px);
+        box-sizing: border-box;
+        margin: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px));
         padding: 0 20px 20px;
         border-left: 0;
-        background: var(--sx-bg-elev, var(--surface));
+        background: var(--sx-bg-elev, var(--surface)) !important;
         border-radius: 18px;
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset;
     }

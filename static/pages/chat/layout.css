@@ -1009,9 +1009,15 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     font-size: var(--chat-online-status-font-size, 12px);
 }
 
+/* Prevent header height jitter when typing indicator swaps with online status.
+   Reserves space for the two-line state (name + status) even when only name is shown. */
+.chat-partner-info {
+    min-height: 36px;
+}
+
 #toastContainer {
     position: fixed;
-    bottom: calc(var(--floating-composer-reserve, 72px) + env(safe-area-inset-bottom) + 8px);
+    bottom: calc(var(--floating-composer-reserve, 72px) + env(safe-area-inset-bottom, 0px) + 8px);
     right: 16px;
     z-index: var(--z-toast, 9800);
     pointer-events: none;
@@ -1391,14 +1397,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     touch-action: pan-y;
     background: var(--bg);
 }
-body.settings-home-open .settings-overlay-panel,
-body.settings-detail-open .settings-overlay-panel {
-    background: color-mix(in srgb, var(--bg) 55%, transparent);
-    backdrop-filter: blur(24px) saturate(1.4);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    box-shadow: none;
-}
-body.settings-home-open .settings-overlay-frame {
+body.settings-home-open .settings-overlay-frame,
+body.settings-detail-open .settings-overlay-frame {
     background: transparent;
 }
 

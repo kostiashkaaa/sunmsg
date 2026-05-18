@@ -323,14 +323,38 @@ body:not(.settings-embed-mode) .settings-scene {
         color-mix(in srgb, var(--sx-bg-soft, #f4ecd9) 94%, transparent) 100%) !important;
 }
 
-/* Home + detail: scene прозрачная — острова поверх стеклянной панели */
+/* ── Home + detail: всё прозрачное, острова поверх frosted-glass панели ── */
 body.settings-home-open .settings-scene,
 body.settings-home-open .settings-overlay-shell,
+body.settings-home-open .settings-panel-body,
 body.settings-detail-open .settings-scene,
-body.settings-detail-open .settings-overlay-shell {
+body.settings-detail-open .settings-overlay-shell,
+body.settings-detail-open .settings-panel-body {
     background: transparent !important;
 }
-/* Lighter scrim — design uses just a 30px gradient hint */
+
+/* panel-head — переопределяем базовый !important из .settings-scene .settings-panel-head */
+body.settings-home-open .settings-scene .settings-panel-head,
+body.settings-detail-open .settings-scene .settings-panel-head {
+    background: var(--sx-bg-elev, var(--surface)) !important;
+    border-bottom: none !important;
+}
+
+/* settings-content (контент вкладок) — убираем белый фон */
+body.settings-detail-open .settings-scene .settings-content {
+    background: transparent !important;
+}
+
+/* overlay-panel: frosted glass вместо сплошного фона */
+body.settings-home-open .settings-overlay-panel,
+body.settings-detail-open .settings-overlay-panel {
+    background: color-mix(in srgb, var(--bg) 60%, transparent) !important;
+    backdrop-filter: blur(24px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
+    box-shadow: none !important;
+}
+
+/* Lighter scrim */
 .settings-overlay-backdrop {
     background:
         radial-gradient(circle at 74px 36px, color-mix(in srgb, #d9a637 14%, transparent) 0%, transparent 42%),
