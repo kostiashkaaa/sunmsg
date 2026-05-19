@@ -3594,17 +3594,21 @@ body.auth-page-body--sunrise-v3 #registerStep2Block {
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-private-key-group {
+    flex: 1 1 auto;
+    min-height: 0;
     margin-bottom: 0;
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap {
     position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
     margin-top: 6px;
     height: auto;
     padding: 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--sun-rule) 20%, #fff);
-    overflow: hidden;
+    overflow: auto;
 }
 
 html.dark-mode body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-words-wrap,
@@ -3642,11 +3646,13 @@ body.auth-page-body--sunrise-v3 #registerStep2Block .auth-register-reveal-btn {
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block #copyPrivateKeyBtn {
+    flex: 0 0 auto;
     margin-top: 10px;
     margin-bottom: 0;
 }
 
 body.auth-page-body--sunrise-v3 #registerStep2Block #registerStep2NextBtn {
+    flex: 0 0 auto;
     margin-top: 8px;
 }
 
