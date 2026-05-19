@@ -130,7 +130,8 @@
 
 
         @media (prefers-reduced-motion: reduce) {
-            html[data-motion-level="lite"] .contact-last-msg-loading__bar::after {
+            html[data-motion-level="lite"] .contact-last-msg-loading__line::after,
+            html[data-motion-level="lite"] .contact-avatar-loading::after {
                 animation: none;
                 transform: none;
                 opacity: 0;

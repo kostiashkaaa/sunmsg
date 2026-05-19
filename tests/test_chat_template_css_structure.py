@@ -155,3 +155,18 @@ def test_chat_stage_loader_is_wired_to_thread_shell() -> None:
     assert "chatStageLoader: byId('chatStageLoader')" in dom_refs_src
     assert 'chatStageLoader,' in runtime_src
     assert 'setLoadingElementActive(chatStageLoader, shouldShow)' in thread_shell_src
+
+
+def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
+    contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
+    sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
+    sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
+    components_css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
+
+    assert 'contact-last-msg-loading__lines' in contacts_src
+    assert 'contact-last-msg-loading__lines' in sidebar_template_src
+    assert 'contact-avatar-loading__bar' not in contacts_src
+    assert 'contact-avatar-loading__bar' not in sidebar_runtime_src
+    assert 'contact-avatar-loading__bar' not in sidebar_template_src
+    assert '.contact-avatar-loading::after' in components_css
+    assert '.contact-last-msg-loading__line' in components_css

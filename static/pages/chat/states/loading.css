@@ -757,8 +757,8 @@
         .sidebar-bottom-avatar[data-avatar-tint="7"] { background: oklch(60% 0.08 250); }
 
 
-        .contact-item.active .contact-last-msg-loading__bar {
-            background: color-mix(in srgb, var(--text) 25%, transparent);
+        .contact-item.active .contact-last-msg-loading__line {
+            background: color-mix(in srgb, var(--text) 28%, transparent);
         }
 
 

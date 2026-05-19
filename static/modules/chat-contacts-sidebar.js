@@ -47,10 +47,7 @@ export function initChatContactsSidebar({
     const CONTACTS_LOADING_EVENT = 'sun-contacts-loading';
     const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';
     const AVATAR_LOADING_BARS_HTML = `
-        <span class="contact-avatar-loading" aria-hidden="true">
-            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
-            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
-        </span>
+        <span class="contact-avatar-loading" aria-hidden="true"></span>
     `.trim();
 
     function isStatusTrueFlag(value) {

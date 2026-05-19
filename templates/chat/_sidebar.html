@@ -79,10 +79,7 @@
                     <div class="contact-avatar{% if contact.avatar_url %} avatar-loading{% endif %}">
                         {% if contact.avatar_url %}
                         <img class="contact-avatar__img" src="{{ contact.avatar_url|e }}" alt="{{ (display_name or ('Avatar' if ui_lang == 'en' else 'Аватар'))|e }}" loading="lazy" decoding="async" fetchpriority="low">
-                        <span class="contact-avatar-loading" aria-hidden="true">
-                            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
-                            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
-                        </span>
+                        <span class="contact-avatar-loading" aria-hidden="true"></span>
                         {% else %}
                         {{ initials }}
                         {% endif %}
@@ -104,10 +101,9 @@
                                 <span class="contact-draft-preview">{{ '🔒 Зашифрованное сообщение' if draft_is_encrypted else draft_text }}</span>
                                 {% elif contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
                                 <span class="contact-last-msg-loading" role="status" aria-live="polite" aria-label="Расшифровка сообщения">
-                                    <i class="bi bi-lock-fill contact-last-msg-loading__lock" aria-hidden="true"></i>
-                                    <span class="contact-last-msg-loading__bars" aria-hidden="true">
-                                        <span class="contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
-                                        <span class="contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
+                                    <span class="contact-last-msg-loading__lines" aria-hidden="true">
+                                        <span class="contact-last-msg-loading__line contact-last-msg-loading__line--main"></span>
+                                        <span class="contact-last-msg-loading__line contact-last-msg-loading__line--tail"></span>
                                     </span>
                                 </span>
                                 {% else %}

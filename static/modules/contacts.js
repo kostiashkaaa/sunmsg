@@ -78,10 +78,9 @@ function resolveDraftLabelText(explicitLabel) {
 function buildEncryptedPreviewLoadingHtml() {
     return `
         <span class="contact-last-msg-loading" role="status" aria-live="polite" aria-label="Decrypting message">
-            <i class="bi bi-lock-fill contact-last-msg-loading__lock" aria-hidden="true"></i>
-            <span class="contact-last-msg-loading__bars" aria-hidden="true">
-                <span class="contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
-                <span class="contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
+            <span class="contact-last-msg-loading__lines" aria-hidden="true">
+                <span class="contact-last-msg-loading__line contact-last-msg-loading__line--main"></span>
+                <span class="contact-last-msg-loading__line contact-last-msg-loading__line--tail"></span>
             </span>
         </span>
     `.trim();
@@ -115,10 +114,7 @@ function renderSidebarLastMessageHtml(messageText, { isSelf, maxLen = 68, isDraf
 
 function buildAvatarLoadingBarsHtml() {
     return `
-        <span class="contact-avatar-loading" aria-hidden="true">
-            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--main"></span>
-            <span class="contact-avatar-loading__bar contact-last-msg-loading__bar contact-last-msg-loading__bar--tail"></span>
-        </span>
+        <span class="contact-avatar-loading" aria-hidden="true"></span>
     `.trim();
 }
 
