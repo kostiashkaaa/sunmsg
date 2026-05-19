@@ -6,21 +6,22 @@
 
 /* ── tokens ──────────────────────────────────────────────────── */
 html[data-interface-surface="glass"] {
-    --sun-glass-sidebar-pill-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 44%, transparent) 0%, color-mix(in srgb, #ffffff 18%, transparent) 48%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
-    --sun-glass-sidebar-pill-bg-hi: linear-gradient(135deg, color-mix(in srgb, #ffffff 54%, transparent) 0%, color-mix(in srgb, #ffffff 24%, transparent) 48%, color-mix(in srgb, var(--accent) 14%, transparent) 100%);
-    --sun-glass-sidebar-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 38%, transparent) 0%, color-mix(in srgb, #ffffff 16%, transparent) 52%, color-mix(in srgb, var(--accent) 9%, transparent) 100%);
-    --sun-glass-sidebar-card-bg-hi: linear-gradient(135deg, color-mix(in srgb, #ffffff 48%, transparent) 0%, color-mix(in srgb, #ffffff 22%, transparent) 52%, color-mix(in srgb, var(--accent) 12%, transparent) 100%);
-    --sun-glass-chat-pill-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 34%, transparent) 0%, color-mix(in srgb, #ffffff 12%, transparent) 48%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
-    --sun-glass-chat-pill-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 44%, transparent) 0%, color-mix(in srgb, #ffffff 18%, transparent) 48%, color-mix(in srgb, var(--accent) 12%, transparent) 100%);
-    --sun-glass-chat-card-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 30%, transparent) 0%, color-mix(in srgb, #ffffff 10%, transparent) 52%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
-    --sun-glass-chat-card-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 40%, transparent) 0%, color-mix(in srgb, #ffffff 16%, transparent) 52%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
-    --sun-glass-header-bg:          linear-gradient(135deg, color-mix(in srgb, #ffffff 16%, transparent) 0%, color-mix(in srgb, #ffffff 5%, transparent) 48%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
-    --sun-glass-header-bg-hi:       linear-gradient(135deg, color-mix(in srgb, #ffffff 22%, transparent) 0%, color-mix(in srgb, #ffffff 8%, transparent) 48%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
-    --sun-glass-top-pill-bg:        linear-gradient(135deg, color-mix(in srgb, #ffffff 22%, transparent) 0%, color-mix(in srgb, #ffffff 7%, transparent) 52%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
-    --sun-glass-top-pill-bg-hi:     linear-gradient(135deg, color-mix(in srgb, #ffffff 28%, transparent) 0%, color-mix(in srgb, #ffffff 10%, transparent) 52%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
+    --sun-glass-profile-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 30%, transparent) 0%, color-mix(in srgb, #ffffff 10%, transparent) 52%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
+    --sun-glass-sidebar-pill-bg:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-pill-bg-hi: var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-card-bg:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-card-bg-hi: var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-pill-bg:       var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-pill-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-card-bg:       var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-card-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-header-bg:          var(--sun-glass-profile-card-bg);
+    --sun-glass-header-bg-hi:       var(--sun-glass-profile-card-bg);
+    --sun-glass-top-pill-bg:        var(--sun-glass-profile-card-bg);
+    --sun-glass-top-pill-bg-hi:     var(--sun-glass-profile-card-bg);
     --sun-glass-top-shadow:         0 12px 28px color-mix(in srgb, #000000 12%, transparent), inset 0 1px 0 color-mix(in srgb, #ffffff 20%, transparent);
-    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 48%, transparent);
-    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 62%, transparent);
+    --sun-glass-settings-card-bg:   var(--sun-glass-profile-card-bg);
+    --sun-glass-settings-card-hi:   var(--sun-glass-profile-card-bg);
     --sun-glass-border:       color-mix(in srgb, #ffffff 30%, var(--border) 70%);
     --sun-glass-border-hi:    color-mix(in srgb, var(--accent) 36%, var(--border) 64%);
     --sun-glass-rim:          color-mix(in srgb, #ffffff 58%, transparent);
@@ -33,21 +34,22 @@ html[data-interface-surface="glass"] {
 
 html[data-interface-surface="glass"].dark-mode,
 html[data-interface-surface="glass"] body.dark-mode {
-    --sun-glass-sidebar-pill-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 14%, transparent) 0%, color-mix(in srgb, #ffffff 5%, transparent) 48%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
-    --sun-glass-sidebar-pill-bg-hi: linear-gradient(135deg, color-mix(in srgb, #ffffff 20%, transparent) 0%, color-mix(in srgb, #ffffff 8%, transparent) 48%, color-mix(in srgb, var(--accent) 12%, transparent) 100%);
-    --sun-glass-sidebar-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 12%, transparent) 0%, color-mix(in srgb, #ffffff 4%, transparent) 52%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
-    --sun-glass-sidebar-card-bg-hi: linear-gradient(135deg, color-mix(in srgb, #ffffff 18%, transparent) 0%, color-mix(in srgb, #ffffff 7%, transparent) 52%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
-    --sun-glass-chat-pill-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 12%, transparent) 0%, color-mix(in srgb, #ffffff 4%, transparent) 48%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
-    --sun-glass-chat-pill-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 18%, transparent) 0%, color-mix(in srgb, #ffffff 7%, transparent) 48%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
-    --sun-glass-chat-card-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 10%, transparent) 0%, color-mix(in srgb, #ffffff 3%, transparent) 52%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
-    --sun-glass-chat-card-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 16%, transparent) 0%, color-mix(in srgb, #ffffff 6%, transparent) 52%, color-mix(in srgb, var(--accent) 9%, transparent) 100%);
-    --sun-glass-header-bg:          linear-gradient(135deg, color-mix(in srgb, #ffffff 3.5%, transparent) 0%, color-mix(in srgb, #ffffff 1%, transparent) 48%, color-mix(in srgb, var(--accent) 1.5%, transparent) 100%);
-    --sun-glass-header-bg-hi:       linear-gradient(135deg, color-mix(in srgb, #ffffff 5.5%, transparent) 0%, color-mix(in srgb, #ffffff 2%, transparent) 48%, color-mix(in srgb, var(--accent) 3%, transparent) 100%);
-    --sun-glass-top-pill-bg:        linear-gradient(135deg, color-mix(in srgb, #ffffff 7%, transparent) 0%, color-mix(in srgb, #ffffff 2%, transparent) 52%, color-mix(in srgb, var(--accent) 2%, transparent) 100%);
-    --sun-glass-top-pill-bg-hi:     linear-gradient(135deg, color-mix(in srgb, #ffffff 10%, transparent) 0%, color-mix(in srgb, #ffffff 3.5%, transparent) 52%, color-mix(in srgb, var(--accent) 3.5%, transparent) 100%);
+    --sun-glass-profile-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 10%, transparent) 0%, color-mix(in srgb, #ffffff 3%, transparent) 52%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
+    --sun-glass-sidebar-pill-bg:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-pill-bg-hi: var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-card-bg:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-card-bg-hi: var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-pill-bg:       var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-pill-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-card-bg:       var(--sun-glass-profile-card-bg);
+    --sun-glass-chat-card-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-header-bg:          var(--sun-glass-profile-card-bg);
+    --sun-glass-header-bg-hi:       var(--sun-glass-profile-card-bg);
+    --sun-glass-top-pill-bg:        var(--sun-glass-profile-card-bg);
+    --sun-glass-top-pill-bg-hi:     var(--sun-glass-profile-card-bg);
     --sun-glass-top-shadow:         0 14px 34px color-mix(in srgb, #000000 32%, transparent), inset 0 1px 0 color-mix(in srgb, #ffffff 8%, transparent);
-    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 42%, transparent);
-    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 56%, transparent);
+    --sun-glass-settings-card-bg:   var(--sun-glass-profile-card-bg);
+    --sun-glass-settings-card-hi:   var(--sun-glass-profile-card-bg);
     --sun-glass-border:             color-mix(in srgb, #ffffff 16%, var(--border) 84%);
     --sun-glass-rim:                color-mix(in srgb, #ffffff 26%, transparent);
     --sun-glass-shadow:             0 16px 38px color-mix(in srgb, #000000 42%, transparent), inset 0 1px 0 var(--sun-glass-rim), inset 0 -1px 0 color-mix(in srgb, #000000 30%, transparent);
@@ -671,7 +673,7 @@ html[data-interface-surface="glass"] .search-overlay__tabs {
     padding: 4px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 86%, transparent) 0%, color-mix(in srgb, var(--surface-2) 78%, transparent) 58%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
+    background: var(--sun-glass-profile-card-bg);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -698,7 +700,7 @@ html[data-interface-surface="glass"] .search-overlay__body {
     min-height: 0;
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 86%, transparent) 0%, color-mix(in srgb, var(--surface-2) 78%, transparent) 58%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
+    background: var(--sun-glass-profile-card-bg);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -712,14 +714,14 @@ html[data-interface-surface="glass"] .command-palette-result,
 html[data-interface-surface="glass"] .user-search-panel__qr,
 html[data-interface-surface="glass"] .user-search-state {
     border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 76%, transparent) 0%, color-mix(in srgb, var(--surface-2) 70%, transparent) 62%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
+    background: var(--sun-glass-profile-card-bg);
     box-shadow: inset 0 1px 0 var(--sun-glass-rim);
     -webkit-backdrop-filter: var(--sun-glass-blur-sm);
     backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .search-global-media-card {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 76%, transparent) 0%, color-mix(in srgb, var(--surface-2) 70%, transparent) 62%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
+    background: var(--sun-glass-profile-card-bg);
     box-shadow: inset 0 1px 0 var(--sun-glass-rim);
 }
 
@@ -765,7 +767,7 @@ html[data-interface-surface="glass"] body.settings-detail-open .settings-card {
 }
 
 html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
-    background: color-mix(in srgb, var(--surface-2) 46%, transparent) !important;
+    background: var(--sun-glass-profile-card-bg) !important;
 }
 
 /* ================================================================
