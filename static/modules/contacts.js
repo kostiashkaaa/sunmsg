@@ -329,6 +329,14 @@ export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, 
         });
         applyEmojiGraphics(lastMsgEl);
     }
+    try {
+        el.dispatchEvent(new CustomEvent('sun-sidebar-preview-loading-change', {
+            bubbles: true,
+            detail: { loading: isPreviewLoading },
+        }));
+    } catch (_) {
+        // no-op: loading shell sync is visual only
+    }
 
     const timeMetaEl = el.querySelector('.contact-time-meta');
     if (!timeMetaEl) return;

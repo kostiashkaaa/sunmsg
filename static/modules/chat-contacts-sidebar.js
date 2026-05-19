@@ -45,6 +45,7 @@ export function initChatContactsSidebar({
     const CONTACTS_MAX_LIMIT = 200;
     const CONTACTS_IMMEDIATE_MIN_INTERVAL_MS = 220;
     const CONTACTS_LOADING_EVENT = 'sun-contacts-loading';
+    const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change';
     const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';
     const AVATAR_LOADING_BARS_HTML = `
         <span class="contact-avatar-loading" aria-hidden="true"></span>
@@ -78,8 +79,12 @@ export function initChatContactsSidebar({
         if (!contactsList) return;
         const sidebar = contactsList.closest('.sidebar');
         if (!sidebar) return;
-        const shouldShowShellLoading = contactsList.dataset.contactsLoading === '1'
+        const isFullContactsLoading = contactsList.dataset.contactsLoading === '1'
             && contactsList.dataset.contactsLoadingPartial !== '1';
+        const hasPreviewLoading = Boolean(
+            contactsList.querySelector('.contact-item--preview-loading, .contact-last-msg-loading'),
+        );
+        const shouldShowShellLoading = isFullContactsLoading || hasPreviewLoading;
         sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading);
         sidebar.setAttribute('data-sidebar-loading', shouldShowShellLoading ? '1' : '0');
     }
@@ -104,6 +109,7 @@ export function initChatContactsSidebar({
         }
     }
 
+    contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT, syncSidebarLoadingShellState);
     syncSidebarLoadingShellState();
 
     function animateContactEntry(item, renderIndex = 0) {
@@ -474,11 +480,6 @@ export function initChatContactsSidebar({
         const limit = normalizedOptions.limit;
         const attemptInitialChatRestore = normalizedOptions.attemptInitialChatRestore;
         const isPartialLoad = Number.isFinite(limit) && limit > 0;
-        const hasRenderedContactsBeforeLoad = Boolean(
-            contactsList?.querySelector('.contact-item[data-chat-id]'),
-        );
-        const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad;
-        const isNonBlockingLoad = isPartialLoad || !shouldShowBlockingShell;
 
         if (contactsLoadInFlight) {
             queuedContactsReloadOptions = normalizedOptions;
@@ -486,7 +487,7 @@ export function initChatContactsSidebar({
         }
 
         contactsLoadInFlight = new Promise((resolve) => {
-            setContactsLoadingState(true, { partial: isNonBlockingLoad });
+            setContactsLoadingState(true, { partial: isPartialLoad });
             const shouldBatchHydrate = !isPartialLoad;
             const previousScrollTop = contactsList?.scrollTop || 0;
             const previousScrollHeight = contactsList?.scrollHeight || 0;
@@ -570,7 +571,7 @@ export function initChatContactsSidebar({
                     resolve();
                 })
                 .finally(() => {
-                    setContactsLoadingState(false, { partial: isNonBlockingLoad });
+                    setContactsLoadingState(false, { partial: isPartialLoad });
                 });
         });
 

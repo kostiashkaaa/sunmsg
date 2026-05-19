@@ -172,7 +172,7 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert '.contact-last-msg-loading__line' in components_css
 
 
-def test_sidebar_loading_preview_stays_local_after_contacts_render() -> None:
+def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
     sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
     sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
@@ -183,16 +183,18 @@ def test_sidebar_loading_preview_stays_local_after_contacts_render() -> None:
 
     assert 'contact-item--preview-loading' in contacts_src
     assert 'data-preview-loading="${isPreviewLoading ? \'1\' : \'0\'}"' in contacts_src
-    assert "CustomEvent('sun-sidebar-preview-loading-change'" not in contacts_src
+    assert "CustomEvent('sun-sidebar-preview-loading-change'" in contacts_src
     assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
-    assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src
-    assert "const hasRenderedContactsBeforeLoad = Boolean(" in sidebar_runtime_src
-    assert 'const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad' in sidebar_runtime_src
+    assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" in sidebar_runtime_src
+    assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" in sidebar_runtime_src
+    assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" in sidebar_runtime_src
+    assert "const hasRenderedContactsBeforeLoad = Boolean(" not in sidebar_runtime_src
+    assert 'const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad' not in sidebar_runtime_src
     assert 'contact-item--preview-loading' in sidebar_template_src
-    assert 'sidebar_loading' not in sidebar_template_src
-    assert 'data-sidebar-loading="0"' in sidebar_template_src
+    assert 'sidebar_loading' in sidebar_template_src
+    assert 'data-sidebar-loading="{{ \'1\' if sidebar_loading.active else \'0\' }}"' in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"
@@ -225,22 +227,18 @@ def test_sidebar_loading_preview_stays_local_after_contacts_render() -> None:
 def test_liquid_glass_does_not_override_sidebar_loading_shell() -> None:
     liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
 
-    assert 'html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading)' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar .search-input-wrapper' not in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar .sidebar-profile-card' not in liquid_glass_css
 
 
-def test_call_surfaces_reveal_without_waiting_for_animation_frame() -> None:
-    call_ui_src = (STATIC / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
+def test_liquid_glass_does_not_override_call_surfaces() -> None:
+    liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
 
-    assert 'function revealCallSurface(element, visibleClass, afterReveal, { pinOpacity = false } = {})' in call_ui_src
-    assert 'void element.offsetWidth;' in call_ui_src
-    assert "revealCallSurface(banner, 'call-ib--visible');" in call_ui_src
-    assert "revealCallSurface(overlay, 'call-overlay--visible'" in call_ui_src
-    assert '{ pinOpacity: true }' in call_ui_src
-    assert "el.style.removeProperty('opacity');" in call_ui_src
-    assert "el.style.removeProperty('transition');" in call_ui_src
-    assert "requestAnimationFrame(() => banner.classList.add('call-ib--visible'))" not in call_ui_src
-    assert "overlay.classList.add('call-overlay--visible')" not in call_ui_src
+    assert 'Calls are never touched.' in liquid_glass_css
+    assert '.call-ib' not in liquid_glass_css
+    assert '.call-card' not in liquid_glass_css
+    assert '.call-overlay' not in liquid_glass_css

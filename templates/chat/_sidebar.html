@@ -1,4 +1,12 @@
-    <aside class="sidebar" id="sidebar" data-sidebar-loading="0">
+    {% set sidebar_loading = namespace(active=false) %}
+    {% for contact in initial_contacts %}
+        {% set draft_text_probe = contact.draft_text or '' %}
+        {% set has_draft_probe = contact.has_draft and draft_text_probe.strip() %}
+        {% if (not has_draft_probe) and contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
+            {% set sidebar_loading.active = true %}
+        {% endif %}
+    {% endfor %}
+    <aside class="sidebar{% if sidebar_loading.active %} sidebar--loading{% endif %}" id="sidebar" data-sidebar-loading="{{ '1' if sidebar_loading.active else '0' }}">
         <div class="side-resizer" id="sideResizer"></div>
 
         <div class="sidebar-top-card">
