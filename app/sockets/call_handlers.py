@@ -276,7 +276,7 @@ def handle_call_initiate(
             return
 
         participant_ids = [int(user_id), *callee_ids]
-        if any(not can_user_use_calls(conn, user_id=pid) for pid in participant_ids):
+        if not can_user_use_calls(conn, user_id=int(user_id)):
             emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
@@ -386,9 +386,6 @@ def handle_call_accept(
             return
         if not can_receive_call(conn, receiver_id=int(user_id), caller_id=int(call['initiator_id'])):
             emit_func('call_error', {'error': 'call_privacy_restricted', 'call_id': call_id, 'request_id': request_id})
-            return
-        if not can_user_use_calls(conn, user_id=int(user_id)):
-            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
         mark_missed_calls(conn)
