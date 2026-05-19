@@ -34,6 +34,8 @@ export function createChatMobileViewportRuntime({
     updateJumpToNewMessagesButton,
 } = {}) {
     let bottomInsetFrame = 0;
+    let viewportSyncFrame = 0;
+    let pendingViewportSyncOptions = null;
     let viewportEventsBound = false;
     let chatInputResizeObserver = null;
 
@@ -217,6 +219,34 @@ export function createChatMobileViewportRuntime({
         updateChatMessagesBottomInset(options);
     }
 
+    function mergeViewportSyncOptions(base = null, incoming = null) {
+        return {
+            ...(base || {}),
+            ...(incoming || {}),
+            immediate: Boolean(base?.immediate || incoming?.immediate),
+        };
+    }
+
+    function scheduleViewportAndInsets(options = {}) {
+        if (options.immediate) {
+            if (viewportSyncFrame) {
+                cancelAnimationFrameFn(viewportSyncFrame);
+                viewportSyncFrame = 0;
+            }
+            pendingViewportSyncOptions = null;
+            syncViewportAndInsets(options);
+            return;
+        }
+        pendingViewportSyncOptions = mergeViewportSyncOptions(pendingViewportSyncOptions, options);
+        if (viewportSyncFrame) return;
+        viewportSyncFrame = requestAnimationFrameFn(() => {
+            viewportSyncFrame = 0;
+            const nextOptions = pendingViewportSyncOptions || {};
+            pendingViewportSyncOptions = null;
+            syncViewportAndInsets(nextOptions);
+        });
+    }
+
     function updateChatMessagesBottomInset(options = {}) {
         if (!chatArea) return;
         if (options.immediate) {
@@ -264,22 +294,22 @@ export function createChatMobileViewportRuntime({
             chatInputResizeObserver.observe(chatInputArea);
         }
 
-        windowRef.addEventListener('resize', syncViewportAndInsets);
+        windowRef.addEventListener('resize', scheduleViewportAndInsets);
         if (windowRef.visualViewport) {
-            windowRef.visualViewport.addEventListener('resize', syncViewportAndInsets);
-            windowRef.visualViewport.addEventListener('scroll', syncViewportAndInsets);
+            windowRef.visualViewport.addEventListener('resize', scheduleViewportAndInsets);
+            windowRef.visualViewport.addEventListener('scroll', scheduleViewportAndInsets);
         }
         documentRef.addEventListener('focusin', (event) => {
             if (event.target?.closest?.('#messageForm, #composerRow')) {
-                syncViewportAndInsets({ immediate: true });
+                scheduleViewportAndInsets({ immediate: true });
             }
         });
         documentRef.addEventListener('focusout', (event) => {
             if (event.target?.closest?.('#messageForm, #composerRow')) {
                 // First sync catches the initial keyboard-dismiss frame.
                 // Second sync covers the full iOS keyboard dismiss animation.
-                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 80);
-                setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 350);
+                setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 80);
+                setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 350);
             }
         });
 
@@ -289,9 +319,9 @@ export function createChatMobileViewportRuntime({
         // the composer. Re-sync once the chat is open and again after the
         // mobile reveal animation settles so the composer is measured for real.
         documentRef.addEventListener('sun:chat:opened', () => {
-            syncViewportAndInsets({ immediate: true });
-            requestAnimationFrameFn(() => syncViewportAndInsets({ immediate: true }));
-            setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 420);
+            scheduleViewportAndInsets({ immediate: true });
+            requestAnimationFrameFn(() => scheduleViewportAndInsets({ immediate: true }));
+            setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 420);
         });
 
         // The emoji sheet changes chat flex rows via a CSS class toggle.
@@ -302,7 +332,7 @@ export function createChatMobileViewportRuntime({
             requestAnimationFrameFn(() => updateChatMessagesBottomInset({ immediate: true }));
         });
 
-        syncViewportAndInsets({ immediate: true });
+        scheduleViewportAndInsets({ immediate: true });
     }
 
     return {
@@ -318,6 +348,7 @@ export function createChatMobileViewportRuntime({
         applyChatMessagesBottomInset,
         syncVisualViewportCssVars,
         syncViewportAndInsets,
+        scheduleViewportAndInsets,
         updateChatMessagesBottomInset,
         bindViewportEvents,
         getMobileBackSwipeController: () => mobileBackSwipeController,

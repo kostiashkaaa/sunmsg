@@ -251,6 +251,7 @@ function processAlbumGroup(group) {
     // Remove bubble--image/bubble--video classes, add album class
     bubble.classList.remove('bubble--image', 'bubble--video', 'bubble--image-has-caption', 'bubble--video-has-caption');
     bubble.classList.add('bubble--album');
+    bubble.classList.toggle('bubble--album-has-caption', Boolean(captionHtml));
 
     // Insert grid before message-footer
     const footer = bubble.querySelector('.message-footer');

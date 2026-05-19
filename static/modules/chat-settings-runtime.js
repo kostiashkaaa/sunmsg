@@ -80,6 +80,8 @@ export function createChatSettingsRuntime({
             chatState.messageHeights = new Map();
             chatState.averageMessageHeight = chatDefaultMessageHeight;
             chatState.lastRenderRange = null;
+            chatState.heightIndex = null;
+            chatState.heightIndexRevision = (Number(chatState.heightIndexRevision) || 0) + 1;
         });
 
         if (persist) {

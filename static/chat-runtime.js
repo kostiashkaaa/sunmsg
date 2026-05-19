@@ -2886,6 +2886,7 @@ export const initChatPage = async () => {
         messageGroup: (messages, index) => MessageGroup(messages, index),
         messageItem: (msg, layout) => MessageItem(msg, layout),
         syncReusedMessageNodeState,
+        syncMessageBubbleLayoutClasses,
         isMobileViewport,
         isSelectionMode: () => messageSelectionController.isSelectionMode(),
         isChatNearBottom,

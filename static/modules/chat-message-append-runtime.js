@@ -13,6 +13,7 @@ export function createChatMessageAppendRuntime({
     messageGroup,
     messageItem,
     syncReusedMessageNodeState,
+    syncMessageBubbleLayoutClasses,
     isMobileViewport,
     isSelectionMode,
     isChatNearBottom,
@@ -113,6 +114,7 @@ export function createChatMessageAppendRuntime({
                 const node = messageItem?.(inserted, groupLayout);
                 applyMessageEnterAnimation(node, inserted);
                 if (isSelectionMode?.()) node.classList.add('selecting');
+                syncMessageBubbleLayoutClasses?.(node);
 
                 const prev = lastIdx > 0 ? state.messages[lastIdx - 1] : null;
                 const prevDayKey = prev ? getMessageDayKey(prev.created_at) : '';
@@ -132,7 +134,13 @@ export function createChatMessageAppendRuntime({
                 requestAnimationFrameFn(() => {
                     if (!chatMessages.contains(node)) return;
                     const h = Math.ceil(node.getBoundingClientRect().height);
-                    if (Number.isFinite(h) && h > 0) state.messageHeights.set(msgKey, h);
+                    if (Number.isFinite(h) && h > 0) {
+                        if (state.messageHeights.get(msgKey) !== h) {
+                            state.heightIndex = null;
+                            state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
+                        }
+                        state.messageHeights.set(msgKey, h);
+                    }
                 });
 
                 if (renderOptions.scrollToBottom) {

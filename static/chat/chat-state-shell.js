@@ -41,9 +41,17 @@ export function createChatStateShell(options = {}) {
             lastRenderRange: null,
             messageHeights: new Map(),
             averageMessageHeight: chatDefaultMessageHeight,
+            heightIndex: null,
+            heightIndexRevision: 0,
             renderedKeys: new Set(),
             domSnapshot: null,
         };
+    }
+
+    function invalidateHeightIndex(state) {
+        if (!state) return;
+        state.heightIndex = null;
+        state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
     }
 
     function getChatState(chatId) {
@@ -269,6 +277,7 @@ export function createChatStateShell(options = {}) {
                 return a.index - b.index;
             })
             .map((entry) => entry.msg);
+        invalidateHeightIndex(state);
     }
 
     function upsertChatMessage(chatId, message, { append = true } = {}) {
@@ -314,6 +323,7 @@ export function createChatStateShell(options = {}) {
             state.averageMessageHeight = chatDefaultMessageHeight;
             state.renderedKeys = new Set();
         }
+        invalidateHeightIndex(state);
         state.lastRenderRange = null;
         invalidateChatDomSnapshot(chatId);
         scheduleProfileMediaPanelRefresh(chatId);
@@ -325,6 +335,53 @@ export function createChatStateShell(options = {}) {
         return state.averageMessageHeight || chatDefaultMessageHeight;
     }
 
+    function getHeightIndex(state) {
+        if (!state?.messages) return null;
+        const total = state.messages.length;
+        const revision = Number(state.heightIndexRevision) || 0;
+        const cached = state.heightIndex;
+        if (
+            cached
+            && cached.total === total
+            && cached.revision === revision
+            && Array.isArray(cached.offsets)
+        ) {
+            return cached;
+        }
+
+        const offsets = new Array(total + 1);
+        offsets[0] = 0;
+        let previousDayKey = '';
+        for (let i = 0; i < total; i += 1) {
+            const msg = state.messages[i];
+            const dayKey = getMessageDayKey(msg?.created_at);
+            let nextOffset = offsets[i];
+            if (dayKey && dayKey !== previousDayKey) {
+                nextOffset += chatDaySeparatorHeight;
+            }
+            nextOffset += estimateMessageHeight(state, msg);
+            offsets[i + 1] = nextOffset;
+            previousDayKey = dayKey;
+        }
+        state.heightIndex = { offsets, revision, total };
+        return state.heightIndex;
+    }
+
+    function lowerBoundOffset(offsets, targetPx) {
+        const target = Math.max(0, Number(targetPx) || 0);
+        let left = 0;
+        let right = Math.max(0, offsets.length - 1);
+        while (left < right) {
+            const mid = Math.floor((left + right) / 2);
+            if (offsets[mid] < target) {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+        return left;
+    }
+
     function removeChatMessages(chatId, msgIds) {
         const ids = new Set((Array.isArray(msgIds) ? msgIds : [msgIds]).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0));
         if (!ids.size) return;
@@ -334,6 +391,7 @@ export function createChatStateShell(options = {}) {
             clearPendingReactionOpByMessage(chatId, msgId);
             onRemoveMessageId?.(chatId, msgId, getReactionMessageKey(chatId, msgId));
         });
+        invalidateHeightIndex(state);
         invalidateChatDomSnapshot(chatId);
         scheduleProfileMediaPanelRefresh(chatId);
         syncDeletedMessagesToCache(chatId, Array.from(ids));
@@ -352,20 +410,12 @@ export function createChatStateShell(options = {}) {
     }
 
     function sumEstimatedHeights(state, startIndex, endIndex) {
-        let total = 0;
-        let previousDayKey = startIndex > 0
-            ? getMessageDayKey(state.messages[startIndex - 1]?.created_at)
-            : '';
-        for (let i = startIndex; i < endIndex; i += 1) {
-            const msg = state.messages[i];
-            const dayKey = getMessageDayKey(msg?.created_at);
-            if (dayKey && dayKey !== previousDayKey) {
-                total += chatDaySeparatorHeight;
-            }
-            total += estimateMessageHeight(state, msg);
-            previousDayKey = dayKey;
-        }
-        return total;
+        const index = getHeightIndex(state);
+        const offsets = index?.offsets;
+        if (!offsets?.length) return 0;
+        const start = Math.max(0, Math.min(Number(startIndex) || 0, offsets.length - 1));
+        const end = Math.max(start, Math.min(Number(endIndex) || 0, offsets.length - 1));
+        return Math.max(0, offsets[end] - offsets[start]);
     }
 
     function getDesiredRenderRange(state, scrollTop = 0) {
@@ -376,12 +426,26 @@ export function createChatStateShell(options = {}) {
 
         const avgHeight = Math.max(48, state.averageMessageHeight || chatDefaultMessageHeight);
         const viewportHeight = Math.max(Number(getChatMessagesClientHeight?.() || 0), avgHeight * 4);
-        const approxVisibleCount = Math.max(10, Math.ceil(viewportHeight / avgHeight));
-        const windowSize = Math.max(chatVirtualWindowSize, approxVisibleCount + (chatVirtualBuffer * 2));
+        const overscanPx = Math.max(avgHeight * chatVirtualBuffer, viewportHeight * 0.75);
+        const index = getHeightIndex(state);
+        const offsets = index?.offsets;
+        if (!offsets?.length) {
+            return { start: 0, end: Math.min(total, chatVirtualWindowSize) };
+        }
 
-        let start = Math.max(0, Math.floor(scrollTop / avgHeight) - chatVirtualBuffer);
-        let end = Math.min(total, start + windowSize);
-        start = Math.max(0, end - windowSize);
+        const topPx = Math.max(0, Number(scrollTop) || 0);
+        let start = Math.max(0, lowerBoundOffset(offsets, topPx - overscanPx) - 1);
+        let end = Math.min(total, lowerBoundOffset(offsets, topPx + viewportHeight + overscanPx) + 1);
+        const minWindowSize = Math.min(total, Math.max(24, Math.ceil(viewportHeight / avgHeight) + (chatVirtualBuffer * 2)));
+        if (end - start < minWindowSize) {
+            const missing = minWindowSize - (end - start);
+            const growBefore = Math.min(start, Math.floor(missing / 2));
+            start -= growBefore;
+            end = Math.min(total, end + (missing - growBefore));
+            if (end - start < minWindowSize) {
+                start = Math.max(0, end - minWindowSize);
+            }
+        }
         return { start, end };
     }
 
@@ -415,6 +479,7 @@ export function createChatStateShell(options = {}) {
         prependChatMessages,
         setChatMessages,
         estimateMessageHeight,
+        invalidateHeightIndex,
         removeChatMessages,
         createDaySeparatorNode,
         sumEstimatedHeights,

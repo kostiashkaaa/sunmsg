@@ -1698,7 +1698,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        .message .bubble:has(> .message-text):has(> .message-reactions.has-items) {
+        .message .bubble.bubble--text-has-reactions {
             display: inline-grid;
             grid-template-columns: minmax(0, auto) auto;
             grid-template-areas:
@@ -1712,13 +1712,13 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-text {
+        .message .bubble.bubble--text-has-reactions > .message-text {
             grid-area: text;
             padding-right: 0;
         }
 
 
-        .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-reactions {
+        .message .bubble.bubble--text-has-reactions > .message-reactions {
             grid-area: reactions;
             align-self: end;
             justify-self: start;
@@ -1727,8 +1727,8 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-text + .msg-meta,
-        .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-text + .message-meta {
+        .message .bubble.bubble--text-has-reactions > .message-text + .msg-meta,
+        .message .bubble.bubble--text-has-reactions > .message-text + .message-meta {
             position: static;
             grid-area: meta;
             align-self: end;
@@ -1773,18 +1773,18 @@ body.dark-mode #messageForwardModal .forward-target-status {
 
 
         @media (max-width: 768px) {
-            .message .bubble:has(> .message-text):has(> .message-reactions.has-items) {
+            .message .bubble.bubble--text-has-reactions {
                 column-gap: 6px;
                 row-gap: 5px;
                 align-items: center;
             }
 
-            .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-reactions {
+            .message .bubble.bubble--text-has-reactions > .message-reactions {
                 align-self: center;
             }
 
-            .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-text + .msg-meta,
-            .message .bubble:has(> .message-text):has(> .message-reactions.has-items) > .message-text + .message-meta {
+            .message .bubble.bubble--text-has-reactions > .message-text + .msg-meta,
+            .message .bubble.bubble--text-has-reactions > .message-text + .message-meta {
                 align-self: center;
             }
         }

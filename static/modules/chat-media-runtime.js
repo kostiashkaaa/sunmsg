@@ -1444,6 +1444,10 @@ export function initChatMediaRuntime(deps = {}) {
             requestAnimationFrame(() => {
                 const height = Math.ceil(messageEl.getBoundingClientRect().height);
                 if (key && Number.isFinite(height) && height > 0) {
+                    if (state.messageHeights.get(key) !== height) {
+                        state.heightIndex = null;
+                        state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
+                    }
                     state.messageHeights.set(key, height);
                 }
                 if (getKeepChatPinnedToBottomSafe()) {

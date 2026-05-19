@@ -219,12 +219,44 @@ export function createChatMessageVisualRuntime({
 
         footer.classList.toggle('has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems));
         bubble.classList.toggle('bubble--text', Boolean(messageText) && !isMediaBubble);
+        bubble.classList.toggle('bubble--has-message-text', Boolean(messageText));
         bubble.classList.toggle('bubble--text-has-reactions', Boolean(!useOutsidePlacementFinal && hasReactionItems && messageText));
-        bubble.classList.remove('bubble--text-meta-edited');
+        const hasPinMeta = Boolean(footer.querySelector('.msg-pin'));
+        const hasEditedMeta = Boolean(footer.querySelector('.msg-edited'));
+        const hasGroupReadersMeta = Boolean(footer.querySelector('.msg-group-readers'));
+        const hasDecorativeTextChild = Boolean(
+            directChildren.some((child) => (
+                child !== messageText
+                && child !== footer
+                && (
+                    child.classList?.contains('message-link-preview')
+                    || child.classList?.contains('message-sender-label')
+                    || child.classList?.contains('reply-quote')
+                    || child.classList?.contains('forward-quote')
+                )
+            )),
+        );
+        bubble.classList.toggle('bubble--simple-text', Boolean(
+            messageText
+            && !isMediaBubble
+            && !hasReactionItems
+            && !messageEl.classList.contains('message-emoji-only')
+            && !hasDecorativeTextChild
+        ));
+        bubble.classList.toggle('bubble--text-meta-pinned', hasPinMeta);
+        bubble.classList.toggle('bubble--text-meta-edited', hasEditedMeta);
+        bubble.classList.toggle('bubble--text-meta-readers', hasGroupReadersMeta);
         bubble.classList.toggle('bubble--audio-footer-meta', Boolean(isAudioBubble));
         bubble.classList.toggle('bubble--has-footer', Boolean(meta));
+        stack.classList.toggle('message-stack--audio', Boolean(isAudioBubble));
         messageEl.classList.toggle('message-reactions-outside', useOutsidePlacementFinal);
         messageEl.classList.toggle('message-reactions-inside', !useOutsidePlacementFinal);
+    }
+
+    function invalidateStateHeightIndex(state) {
+        if (!state) return;
+        state.heightIndex = null;
+        state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
     }
 
     function refreshMessageHeightCache(messageEl, options = {}) {
@@ -240,6 +272,9 @@ export function createChatMessageVisualRuntime({
             const state = getChatState?.(currentChatId);
             const height = Math.ceil(messageEl.getBoundingClientRect().height);
             if (!state || !Number.isFinite(height) || height <= 0) return;
+            if (state.messageHeights.get(key) !== height) {
+                invalidateStateHeightIndex(state);
+            }
             state.messageHeights.set(key, height);
             if (shouldPinToBottom) {
                 setChatScrollTop?.(chatMessages.scrollHeight);

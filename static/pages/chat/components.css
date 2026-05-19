@@ -2081,6 +2081,8 @@
             box-shadow: inset 0 0 0 1px transparent;
             isolation: isolate;
             -webkit-tap-highlight-color: transparent;
+            content-visibility: auto;
+            contain-intrinsic-size: 62px;
         }
 
 
@@ -6138,7 +6140,7 @@
         }
 
         /* When album has a caption — footer is static below caption */
-        .bubble--album:has(.album-caption) > .message-footer {
+        .bubble--album.bubble--album-has-caption > .message-footer {
             position: static;
             display: flex;
             align-items: center;
@@ -6150,13 +6152,13 @@
             border-bottom-right-radius: 14px;
         }
 
-        .message.self .bubble--album:has(.album-caption) > .message-footer {
+        .message.self .bubble--album.bubble--album-has-caption > .message-footer {
             background: var(--chat-bubble-out-bg);
             color: var(--chat-bubble-out-text);
         }
 
-        .bubble--album:has(.album-caption) > .message-footer > .msg-meta,
-        .bubble--album:has(.album-caption) > .message-footer > .message-meta {
+        .bubble--album.bubble--album-has-caption > .message-footer > .msg-meta,
+        .bubble--album.bubble--album-has-caption > .message-footer > .message-meta {
             position: static;
             background: transparent;
             color: inherit;
@@ -6164,10 +6166,10 @@
             opacity: 0.8;
         }
 
-        .bubble--album:has(.album-caption) > .message-footer > .msg-meta .msg-time,
-        .bubble--album:has(.album-caption) > .message-footer > .msg-meta .msg-tick,
-        .bubble--album:has(.album-caption) > .message-footer > .message-meta .msg-time,
-        .bubble--album:has(.album-caption) > .message-footer > .message-meta .msg-tick {
+        .bubble--album.bubble--album-has-caption > .message-footer > .msg-meta .msg-time,
+        .bubble--album.bubble--album-has-caption > .message-footer > .msg-meta .msg-tick,
+        .bubble--album.bubble--album-has-caption > .message-footer > .message-meta .msg-time,
+        .bubble--album.bubble--album-has-caption > .message-footer > .message-meta .msg-tick {
             color: inherit;
         }
 
@@ -9670,7 +9672,7 @@
 
 
         .message .bubble.bubble--text,
-        .message .bubble:has(> .message-text) {
+        .message .bubble.bubble--has-message-text {
             position: relative;
             --text-meta-reserve: calc(74px * var(--chat-message-scale));
             /* минимальная ширина пузыря = резерв метаданных + паддинги,
@@ -9741,15 +9743,12 @@
         }
 
 
-        .message .bubble:has(> .msg-meta .msg-pin),
-        .message .bubble:has(> .message-meta .msg-pin),
-        .message .bubble:has(> .msg-meta .msg-edited),
-        .message .bubble:has(> .message-meta .msg-edited) {
+        .message .bubble.bubble--text-meta-pinned,
+        .message .bubble.bubble--text-meta-edited {
             --text-meta-reserve: calc(132px * var(--chat-message-scale));
         }
 
-        .message .bubble:has(> .msg-meta .msg-group-readers),
-        .message .bubble:has(> .message-meta .msg-group-readers) {
+        .message .bubble.bubble--text-meta-readers {
             --text-meta-reserve: calc(196px * var(--chat-message-scale));
         }
 
@@ -9766,7 +9765,7 @@
         }
 
 
-        .message .bubble:has(> .message-footer) > .message-text,
+        .message .bubble.bubble--has-footer > .message-text,
         .message .bubble > .message-footer + .message-text,
         .message .bubble.bubble--text-has-reactions > .message-text {
             padding-right: 0;
@@ -10065,8 +10064,7 @@
             margin-left: 0 !important;
         }
 
-        .message .bubble.bubble--text-has-reactions:has(> .reply-quote),
-        .message .bubble.bubble--text-has-reactions:has(> .forward-quote) {
+        .message .bubble.bubble--text-has-reactions.bubble--has-message-text:not(.bubble--simple-text) {
             display: inline-flex;
             flex-direction: column;
             align-items: stretch;
@@ -10107,7 +10105,7 @@
         }
 
 
-        .message .bubble:has(> .message-text) > .message-reactions {
+        .message .bubble.bubble--has-message-text > .message-reactions {
             margin-top: 8px;
             padding-right: var(--text-meta-reserve);
             box-sizing: border-box;
@@ -10138,8 +10136,8 @@
         }
 
 
-        .bubble--image:not(.bubble--image-has-caption):has(> .message-reactions) .image-wrapper,
-        .bubble--video:not(.bubble--video-has-caption):has(> .message-reactions) .video-preview {
+        .bubble--image:not(.bubble--image-has-caption).bubble--text-has-reactions .image-wrapper,
+        .bubble--video:not(.bubble--video-has-caption).bubble--text-has-reactions .video-preview {
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 0;
         }
@@ -10282,7 +10280,7 @@
                 position: relative;
             }
 
-            .message.message-reactions-outside .message-stack:has(> .message-reactions.has-items) {
+            .message.message-reactions-outside .message-stack {
                 padding-bottom: 0;
             }
 
@@ -11716,7 +11714,7 @@
     /* ─── Компактные аудио-баблы ─── */
     /* Жёстко ограничиваем размер контейнера, иначе .message-stack
        (--chat-bubble-max-width = 448px) распирает бабл на всю ширину. */
-    .message-stack:has(.bubble--audio) {
+    .message-stack.message-stack--audio {
         max-width: min(var(--chat-bubble-max-width), 520px) !important;
     }
     .bubble--audio {
@@ -11757,7 +11755,7 @@
     }
     /* На совсем узких экранах ужмём ещё */
     @media (max-width: 380px) {
-        .message-stack:has(.bubble--audio) {
+        .message-stack.message-stack--audio {
             max-width: min(var(--chat-bubble-max-width), 520px) !important;
         }
     }
@@ -12365,7 +12363,7 @@
 }
 
 .message .bubble.bubble--text,
-.message .bubble:has(> .message-text) {
+.message .bubble.bubble--has-message-text {
     --text-meta-reserve: 0px;
     min-width: 0;
     width: fit-content;
@@ -12377,19 +12375,19 @@
     min-height: 0;
 }
 
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-text {
+.message:not(.message-emoji-only) .bubble.bubble--simple-text > .message-text {
     display: block;
     min-width: 0;
 }
 
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) {
+.message:not(.message-emoji-only) .bubble.bubble--simple-text {
     display: inline-flex;
     flex-direction: row;
     align-items: flex-end;
     --inline-meta-slot-width: calc(74px * var(--chat-message-scale));
 }
 
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-footer {
+.message:not(.message-emoji-only) .bubble.bubble--simple-text > .message-footer {
     display: inline-flex !important;
     align-self: flex-end;
     margin-top: 0;
@@ -12399,12 +12397,12 @@
     min-height: 0;
 }
 
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-footer:has(.msg-pin),
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-footer:has(.msg-edited) {
+.message:not(.message-emoji-only) .bubble.bubble--simple-text.bubble--text-meta-pinned > .message-footer,
+.message:not(.message-emoji-only) .bubble.bubble--simple-text.bubble--text-meta-edited > .message-footer {
     --inline-meta-slot-width: calc(132px * var(--chat-message-scale));
 }
 
-.message:not(.message-emoji-only) .bubble.bubble--text:not(.bubble--text-has-reactions):not(:has(> .message-link-preview)):not(:has(> .message-sender-label)):not(:has(> .reply-quote)):not(:has(> .forward-quote)) > .message-footer:has(.msg-group-readers) {
+.message:not(.message-emoji-only) .bubble.bubble--simple-text.bubble--text-meta-readers > .message-footer {
     --inline-meta-slot-width: calc(196px * var(--chat-message-scale));
 }
 
@@ -12738,7 +12736,7 @@
     }
 
     .message .bubble.bubble--text,
-    .message .bubble:has(> .message-text) {
+    .message .bubble.bubble--has-message-text {
         min-width: 0 !important;
     }
 
@@ -12806,6 +12804,11 @@
 
 /* GPU-слой для message-stack во время свайп-анимации и реакций */
 .message-stack {
+    will-change: auto;
+}
+
+.message-stack.swipe-reply-dragging,
+.message-stack.message-action-motion {
     will-change: transform;
 }
 
@@ -13184,6 +13187,15 @@
     padding-bottom: 12px;
 }
 
+.e2ee-verify-modal .modal-body {
+    padding: 16px 20px 20px;
+}
+
+.e2ee-verify-modal .modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+}
+
 .e2ee-verify-modal .modal-title {
     display: flex;
     align-items: center;
@@ -13200,6 +13212,10 @@
 
 .e2ee-key-section {
     margin-bottom: 16px;
+}
+
+.e2ee-verify-modal .e2ee-key-section:first-of-type {
+    margin-top: 14px;
 }
 
 .e2ee-key-section__label {

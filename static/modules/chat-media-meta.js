@@ -7,6 +7,7 @@ import { mapWithConcurrency } from './chat-history-runtime.js';
 
 const CHAT_MEDIA_META_PROBE_CONCURRENCY = 4;
 const CHAT_MEDIA_META_PROBE_TIMEOUT_MS = 1800;
+const CHAT_MEDIA_META_RENDER_BUDGET_MS = 96;
 
 export function createChatMediaMetaController(deps = {}) {
     const {
@@ -157,14 +158,21 @@ export function createChatMediaMetaController(deps = {}) {
     async function enrichDecodedMessagesVisualMeta(messages) {
         const list = Array.isArray(messages) ? messages : [];
         if (!list.length) return [];
-        return mapWithConcurrency(list, CHAT_MEDIA_META_PROBE_CONCURRENCY, async (messageState) => {
+        const enrichmentPromise = mapWithConcurrency(list, CHAT_MEDIA_META_PROBE_CONCURRENCY, async (messageState) => {
             const nextMessage = await enrichVisualMediaMessageText(messageState?.message);
             if (nextMessage === messageState?.message) return messageState;
             return {
                 ...messageState,
                 message: nextMessage,
             };
-        });
+        }).catch(() => list);
+
+        return Promise.race([
+            enrichmentPromise,
+            new Promise((resolve) => {
+                window.setTimeout(() => resolve(list), CHAT_MEDIA_META_RENDER_BUDGET_MS);
+            }),
+        ]);
     }
 
     return {

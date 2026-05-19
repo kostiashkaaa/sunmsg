@@ -799,10 +799,7 @@ def test_mobile_inline_message_meta_uses_shared_flex_layout() -> None:
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     _COMPACT_BUBBLE_CORE = (
         r'\.message:not\(\.message-emoji-only\)\s+'
-        r'\.bubble\.bubble--text:not\(\.bubble--text-has-reactions\)'
-        r':not\(:has\(>\s+\.message-link-preview\)\)'
-        r':not\(:has\(>\s+\.message-sender-label\)\)'
-        r'(?::not\(:has\(>\s+\.[^)]+\)\))*'
+        r'\.bubble\.bubble--simple-text'
     )
     footer_blocks = list(re.finditer(
         _COMPACT_BUBBLE_CORE + r'\s+>\s+\.message-footer\s*\{([^}]*)\}',
@@ -831,6 +828,40 @@ def test_mobile_inline_message_meta_uses_shared_flex_layout() -> None:
     assert footer_body, 'chat.css: mobile compact text footer must neutralize legacy float placement'
     assert 'padding-top: 0' in footer_body, (
         'chat.css: mobile compact text footer must not add a mobile-only vertical offset.'
+    )
+
+
+def test_message_hot_path_avoids_has_selectors() -> None:
+    """Message list hot-path selectors should use runtime classes instead of :has()."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    visual_runtime = (STATIC / 'modules' / 'chat-message-visual-runtime.js').read_text(encoding='utf-8')
+    render_runtime = (STATIC / 'modules' / 'chat-message-render-runtime.js').read_text(encoding='utf-8')
+    media_meta = (STATIC / 'modules' / 'chat-media-meta.js').read_text(encoding='utf-8')
+
+    for forbidden in (
+        '.message .bubble:has(> .message-text)',
+        '.message-stack:has(.bubble--audio)',
+        ':not(:has(> .message-link-preview))',
+        '> .message-footer:has(.msg-pin)',
+        '.bubble--album:has(.album-caption)',
+    ):
+        assert forbidden not in css, f'chat.css: hot-path selector still uses {forbidden}'
+
+    for token in (
+        'bubble--has-message-text',
+        'bubble--simple-text',
+        'bubble--text-meta-pinned',
+        'bubble--text-meta-edited',
+        'bubble--text-meta-readers',
+        'message-stack--audio',
+    ):
+        assert token in visual_runtime, f'chat-message-visual-runtime.js: missing {token}'
+
+    assert 'void container.offsetWidth' not in render_runtime, (
+        'chat-message-render-runtime.js: reveal animation must not force synchronous layout.'
+    )
+    assert 'CHAT_MEDIA_META_RENDER_BUDGET_MS = 96' in media_meta, (
+        'chat-media-meta.js: metadata probing must have a short render budget.'
     )
 
 
@@ -1357,11 +1388,11 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     assert 'requestAnimationFrameFn(resetHorizontalViewportDrift)' in runtime, (
         'chat-mobile-viewport-runtime.js: drift reset should run after focus/keyboard layout settles'
     )
-    assert 'windowRef.visualViewport.addEventListener(\'resize\', syncViewportAndInsets)' in runtime, (
-        'chat-mobile-viewport-runtime.js: visualViewport resize should use syncViewportAndInsets'
+    assert 'windowRef.visualViewport.addEventListener(\'resize\', scheduleViewportAndInsets)' in runtime, (
+        'chat-mobile-viewport-runtime.js: visualViewport resize should use RAF-scheduled sync'
     )
-    assert 'windowRef.visualViewport.addEventListener(\'scroll\', syncViewportAndInsets)' in runtime, (
-        'chat-mobile-viewport-runtime.js: visualViewport scroll should use syncViewportAndInsets'
+    assert 'windowRef.visualViewport.addEventListener(\'scroll\', scheduleViewportAndInsets)' in runtime, (
+        'chat-mobile-viewport-runtime.js: visualViewport scroll should use RAF-scheduled sync'
     )
 
 

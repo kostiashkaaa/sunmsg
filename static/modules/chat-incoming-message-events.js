@@ -251,6 +251,8 @@ export function registerIncomingMessageSocketHandlers({
                         if (Number.isFinite(cachedHeight) && cachedHeight > 0) {
                             state.messageHeights.delete(previousKey);
                             state.messageHeights.set(nextKey, cachedHeight);
+                            state.heightIndex = null;
+                            state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
                         }
                         if (state.renderedKeys?.has(previousKey)) {
                             state.renderedKeys.delete(previousKey);

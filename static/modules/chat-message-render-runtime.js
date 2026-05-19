@@ -198,6 +198,12 @@ export function createChatMessageRenderRuntime({
         return true;
     }
 
+    function invalidateStateHeightIndex(state) {
+        if (!state) return;
+        state.heightIndex = null;
+        state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
+    }
+
     function measureRenderedMessageHeights(state) {
         const chatMessages = getCurrentMessagesElement();
         if (!chatMessages) return;
@@ -222,17 +228,28 @@ export function createChatMessageRenderRuntime({
 
         let totalHeight = 0;
         let count = 0;
+        let changed = false;
         sampleIndexes.forEach((index) => {
             const node = rendered[index];
             const key = node.getAttribute('data-message-key');
             const height = Math.ceil(node.offsetHeight || node.getBoundingClientRect().height);
             if (!key || !Number.isFinite(height) || height <= 0) return;
+            if (state.messageHeights.get(key) !== height) {
+                changed = true;
+            }
             state.messageHeights.set(key, height);
             totalHeight += height;
             count += 1;
         });
         if (count > 0) {
-            state.averageMessageHeight = Math.max(48, Math.round(totalHeight / count));
+            const nextAverage = Math.max(48, Math.round(totalHeight / count));
+            if (state.averageMessageHeight !== nextAverage) {
+                changed = true;
+            }
+            state.averageMessageHeight = nextAverage;
+        }
+        if (changed) {
+            invalidateStateHeightIndex(state);
         }
     }
 
@@ -458,7 +475,6 @@ export function createChatMessageRenderRuntime({
             node.classList.remove('message-block-load-visible');
             delete node.dataset.messageBlockLoadAnimationSeq;
         });
-        void container.offsetWidth;
 
         messageNodes.forEach((node) => {
             const bubble = node.querySelector('.message-stack > .bubble') || node.querySelector('.bubble');
@@ -510,10 +526,14 @@ export function createChatMessageRenderRuntime({
         if (String(chatId) !== String(currentChatId)) return;
 
         const suppressHydrationMask = Boolean(options?.suppressHydrationMask);
+        const shouldMaskHydration = Boolean(
+            !suppressHydrationMask
+            && !chatMessages.querySelector('.message[data-message-key]'),
+        );
         resizeComposerInput?.();
         updateChatMessagesBottomInset?.({ immediate: true });
         chatMessages.classList.add('is-hydrating');
-        if (!suppressHydrationMask) {
+        if (shouldMaskHydration) {
             chatMessages.style.visibility = 'hidden';
         }
 
@@ -537,10 +557,10 @@ export function createChatMessageRenderRuntime({
         } finally {
             const currentMessages = getCurrentMessagesElement();
             if (!currentMessages) return;
-            const preparedMessageBlockAnimations = options?.animateReveal && !suppressHydrationMask
+            const preparedMessageBlockAnimations = options?.animateReveal && shouldMaskHydration
                 ? prepareLoadedMessageBlockAnimations(currentMessages)
                 : null;
-            if (!suppressHydrationMask) {
+            if (shouldMaskHydration) {
                 currentMessages.style.visibility = '';
             }
             currentMessages.classList.remove('is-hydrating');
