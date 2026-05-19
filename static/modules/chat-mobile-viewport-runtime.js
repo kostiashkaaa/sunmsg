@@ -338,6 +338,7 @@ export function createChatMobileViewportRuntime({
                 // Second sync covers the full iOS keyboard dismiss animation.
                 setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 80);
                 setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 350);
+                setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 520);
             }
         });
 

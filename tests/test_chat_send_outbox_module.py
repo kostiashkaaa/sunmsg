@@ -214,6 +214,94 @@ if (!calls.some((call) => call[0] === 'toast' && call[2] === 'warning')) {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_file_send_keeps_mobile_composer_enabled_during_upload():
+    module_path = ROOT / 'static' / 'modules' / 'chat-file-send.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-media-upload\\.js';/,
+  `const detectFileCategory = () => 'file';
+const getMessageTypeByCategory = () => 'file';
+const optimizeFileForAttachMode = async (file) => ({{ file }});
+const uploadChatMedia = async (file) => ({{ name: file.name, mime: file.type, url: '/media/test.txt', size: file.size }});
+const isUploadAbortedError = () => false;
+const probeAudioDurationSeconds = async () => null;
+const buildAudioWaveformPeaks = async () => null;
+const probeVisualMediaMetadata = async () => null;`,
+);
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-media-e2ee\\.js';/,
+  `const appendEncryptedMediaFragment = (url) => url;
+const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: null }});`,
+);
+source = source.replace(
+  "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
+  "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ generateRequestId }} from './utils.js';",
+  "const generateRequestId = () => crypto.randomUUID();",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ sendFileMessageFlow }} = await import(moduleUrl);
+const calls = [];
+
+Object.defineProperty(globalThis, 'crypto', {{ value: {{ randomUUID: () => 'client-file-mobile' }}, configurable: true }});
+Object.defineProperty(globalThis, 'URL', {{
+  value: {{ createObjectURL: () => 'blob:preview', revokeObjectURL: () => {{}} }},
+  configurable: true,
+}});
+Object.defineProperty(globalThis, 'window', {{
+  value: {{
+    matchMedia: () => ({{ matches: true }}),
+    setTimeout: () => 0,
+  }},
+  configurable: true,
+}});
+
+await sendFileMessageFlow({{
+  file: {{ name: 'mobile.txt', type: 'text/plain', size: 5 }},
+  caption: '',
+  options: {{}},
+  isChatBlocked: () => false,
+  getBlockedNoticeText: () => '',
+  currentBlockState: null,
+  showToast: (...args) => calls.push(['toast', ...args]),
+  maxChatMediaSize: 1024,
+  currentChatId: 'chat-1',
+  getCsrfToken: () => 'csrf',
+  setSendingState: (value) => calls.push(['sending', value]),
+  getReplyState: () => ({{}}),
+  cancelReply: () => calls.push(['cancelReply']),
+  encryptForCurrentChat: async (message) => `enc:${{message}}`,
+  isRealtimeConnected: () => true,
+  emitSocket: () => true,
+  appendMessage: () => calls.push(['append']),
+  setKeepChatPinnedToBottom: () => {{}},
+  updateActiveContactLastMessage: () => {{}},
+  schedulePendingTimeout: () => calls.push(['timeout']),
+  updatePendingFileUploadProgress: () => {{}},
+  commitPendingFileUpload: () => calls.push(['commitUpload']),
+  failPendingMessage: (clientId) => calls.push(['fail', clientId]),
+  setActiveComposerUpload: () => calls.push(['activeUpload']),
+  updateActiveComposerUploadProgress: () => {{}},
+  clearActiveComposerUpload: () => calls.push(['clearUpload']),
+  enqueueOutbox: async () => true,
+}});
+
+if (calls.some((call) => call[0] === 'sending')) {{
+  throw new Error(`Mobile file send must not disable composer: ${{JSON.stringify(calls)}}`);
+}}
+if (!calls.some((call) => call[0] === 'append')) {{
+  throw new Error(`Expected optimistic append: ${{JSON.stringify(calls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_link_preview_scroll_stabilization_skips_detached_nodes():
     module_path = ROOT / 'static' / 'modules' / 'message-link-preview.js'
     source = module_path.read_text(encoding='utf-8')

@@ -6,6 +6,8 @@ function isCoarsePointer() {
     return Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
 }
 
+const KEYBOARD_RELEASE_LOCK_MS = 420;
+
 /**
  * Keyboard / viewport syncer.
  *
@@ -17,6 +19,7 @@ function isCoarsePointer() {
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
+    let keyboardReleaseUntil = 0;
 
     return function syncVisualViewportCssVars() {
         const root = document.documentElement;
@@ -50,9 +53,16 @@ export function createVisualViewportCssSyncer(_options = {}) {
             keyboardInset = keyboardActive ? keyboardInsetCandidate : 0;
             const keyboardHandoffActive = root.classList.contains('mobile-emoji-keyboard-handoff');
             const wasKeyboardActive = root.classList.contains('mobile-keyboard-active');
+            const now = Date.now();
+            if (keyboardActive) {
+                keyboardReleaseUntil = 0;
+            } else if (wasKeyboardActive || lastKeyboardActive === true) {
+                keyboardReleaseUntil = Math.max(keyboardReleaseUntil, now + KEYBOARD_RELEASE_LOCK_MS);
+            }
+            const keyboardReleaseActive = keyboardReleaseUntil > now;
             const shouldUseVisualViewportHeight = Boolean(
                 vvHeight > 0
-                && (composerFocused || keyboardActive || keyboardHandoffActive || wasKeyboardActive)
+                && (keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive)
             );
             if (shouldUseVisualViewportHeight) {
                 nextAppVh = `${vvHeight}px`;

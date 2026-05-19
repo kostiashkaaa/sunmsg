@@ -4119,6 +4119,7 @@
             align-self: center;
             margin-bottom: 0;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
             /* Fast in (press feels instant), gentle out (no abrupt flash). */
             transition:
                 color 90ms var(--ease-quick),
@@ -4271,6 +4272,7 @@
             justify-content: center;
             flex-shrink: 0;
             cursor: pointer;
+            touch-action: none;
             overflow: hidden;
             transition:
                 transform var(--dur-quick) var(--ease-quick),
@@ -4531,6 +4533,7 @@
             justify-content: center;
             flex-shrink: 0;
             cursor: pointer;
+            touch-action: manipulation;
             transition: transform var(--dur-quick) var(--ease-quick), filter var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), box-shadow var(--dur-quick) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
             box-shadow: var(--shadow-1);
             font-size: 18px;

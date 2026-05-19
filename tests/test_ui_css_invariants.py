@@ -1396,6 +1396,15 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     assert 'const shouldUseVisualViewportHeight = Boolean(' in viewport, (
         'mobile-viewport.js: visualViewport height must be gated to keyboard/composer states.'
     )
+    assert 'const KEYBOARD_RELEASE_LOCK_MS = 420;' in viewport, (
+        'mobile-viewport.js: keyboard dismiss must keep app height locked through the release animation.'
+    )
+    assert 'let keyboardReleaseUntil = 0;' in viewport, (
+        'mobile-viewport.js: keyboard release state must persist across visualViewport frames.'
+    )
+    assert 'keyboardReleaseActive' in viewport, (
+        'mobile-viewport.js: app height must remain visualViewport-bound while the keyboard is releasing.'
+    )
     assert "root.classList.contains('mobile-emoji-keyboard-handoff')" in viewport, (
         'mobile-viewport.js: emoji-to-keyboard handoff must keep visual viewport height locked.'
     )
@@ -1423,6 +1432,7 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     """Mobile keyboard layout should use visualViewport height, not composer paint offsets."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     viewport = (STATIC / 'modules' / 'mobile-viewport.js').read_text(encoding='utf-8')
+    runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')
     head = (ROOT / 'templates' / 'chat' / '_head.html').read_text(encoding='utf-8')
 
     assert 'interactive-widget=resizes-content' in head
@@ -1439,7 +1449,9 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert 'const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
     assert 'keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset' in viewport
     assert 'keyboardInset = keyboardActive ? keyboardInsetCandidate : 0' in viewport
+    assert 'keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
+    assert "setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 520)" in runtime
 
     app_blocks = re.findall(r'\.app\s*\{([^}]*)\}', css, re.DOTALL)
     assert any('top: var(--vv-top-offset, 0px)' in block for block in app_blocks), (
