@@ -7,7 +7,7 @@
     <h5 id="newChatModalTitle" class="visually-hidden">Поиск</h5>
     <div class="search-overlay__tabs" role="tablist" aria-label="Категории поиска">
         <button type="button" class="search-overlay__tab is-active" role="tab" data-search-tab="chats" aria-selected="true">Чаты</button>
-        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="contacts" aria-selected="false">Контакты</button>
+        <button type="button" class="search-overlay__tab" role="tab" data-search-tab="contacts" aria-selected="false">Люди</button>
         <button type="button" class="search-overlay__tab" role="tab" data-search-tab="actions" aria-selected="false">Действия</button>
         <button type="button" class="search-overlay__tab" role="tab" data-search-tab="media" aria-selected="false">Медиа</button>
         <button type="button" class="search-overlay__tab" role="tab" data-search-tab="links" aria-selected="false">Ссылки</button>
@@ -61,8 +61,17 @@
         </section>
 
         <section class="search-overlay__panel" data-search-panel="contacts" hidden>
-            <div class="command-palette-section">
-                <div class="command-palette-section-title">Публичный каталог</div>
+            <div class="command-palette-section user-search-panel">
+                <div class="user-search-panel__head">
+                    <div>
+                        <div class="command-palette-section-title">Найти человека</div>
+                        <div class="user-search-panel__hint">Имя, @username или публичный ключ</div>
+                    </div>
+                    <button type="button" class="user-search-panel__qr" data-palette-action="qr">
+                        <i class="bi bi-qr-code"></i>
+                        <span>Мой QR</span>
+                    </button>
+                </div>
                 <div id="searchUserResults" aria-live="polite" aria-atomic="false"></div>
             </div>
         </section>

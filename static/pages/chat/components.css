@@ -1226,6 +1226,169 @@
             cursor: pointer;
         }
 
+        .command-palette-result-btn:disabled {
+            cursor: default;
+            opacity: 0.72;
+        }
+
+        .user-search-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .user-search-panel__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .user-search-panel__hint {
+            margin-top: 3px;
+            color: var(--sub-text);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .user-search-panel__qr {
+            min-height: 34px;
+            padding: 0 10px;
+            border: 1px solid var(--rule-soft);
+            border-radius: var(--radius-sm);
+            background: var(--paper);
+            color: var(--text);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .user-search-results {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .user-search-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .user-search-section__title {
+            padding: 0 2px;
+            color: var(--sub-text);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .user-search-section__list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .user-search-section__list .command-palette-result + .command-palette-result {
+            margin-top: 0;
+        }
+
+        .user-search-card {
+            align-items: stretch;
+            min-height: 64px;
+        }
+
+        .user-search-card__meta {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .user-search-card__copy {
+            min-width: 0;
+            align-self: center;
+        }
+
+        .user-search-card__actions {
+            display: flex;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+
+        .user-search-action {
+            min-width: 94px;
+            min-height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .user-search-action--muted {
+            background: color-mix(in srgb, var(--text) 10%, var(--paper) 90%);
+            color: var(--sub-text);
+        }
+
+        .user-search-state {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr);
+            gap: 4px 10px;
+            align-items: center;
+            padding: 14px 12px;
+            border: 1px solid var(--rule-soft);
+            border-radius: var(--radius-sm);
+            background: color-mix(in srgb, var(--paper) 88%, var(--surface) 12%);
+        }
+
+        .user-search-state__icon {
+            grid-row: span 2;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--accent) 16%, var(--paper) 84%);
+            color: var(--accent);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-search-state strong {
+            min-width: 0;
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.25;
+        }
+
+        .user-search-state span:last-child {
+            min-width: 0;
+            color: var(--sub-text);
+            font-size: 12px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 560px) {
+            .user-search-card {
+                align-items: flex-start;
+            }
+
+            .user-search-action {
+                min-width: 82px;
+                padding-inline: 10px;
+            }
+
+            .user-search-panel__qr span {
+                display: none;
+            }
+        }
+
 
 
         .profile-loading-mask {

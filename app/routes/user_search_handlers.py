@@ -15,6 +15,40 @@ def _coerce_bool_flag(value, *, default: bool = True) -> bool:
     return bool(default)
 
 
+def _build_relationship_status(user) -> str:
+    if _coerce_bool_flag(user['is_contact'], default=False):
+        return 'contact'
+    if _coerce_bool_flag(user['has_pending_incoming_request'], default=False):
+        return 'incoming_request'
+    if _coerce_bool_flag(user['has_pending_outgoing_request'], default=False):
+        return 'outgoing_request'
+    return 'none'
+
+
+def _build_search_result(user, *, viewer_id: int, get_safe_avatar_url_func, include_public_key: bool = False) -> dict:
+    is_contact = _coerce_bool_flag(user['is_contact'], default=False)
+    pending_incoming = _coerce_bool_flag(user['has_pending_incoming_request'], default=False)
+    pending_outgoing = _coerce_bool_flag(user['has_pending_outgoing_request'], default=False)
+    contact_chat_id = str(user['contact_chat_id'] or '').strip()
+    result = {
+        'userId': user['id'],
+        'user_id': user['id'],
+        'username': user['username'],
+        'display_name': user['display_name'],
+        'avatar_url': get_safe_avatar_url_func(user, viewer_id),
+        'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
+        'is_contact': is_contact,
+        'pending_incoming_request': pending_incoming,
+        'pending_outgoing_request': pending_outgoing,
+        'relationship_status': _build_relationship_status(user),
+    }
+    if contact_chat_id:
+        result['chat_id'] = contact_chat_id
+    if include_public_key or pending_incoming:
+        result['public_key'] = user['public_key']
+    return result
+
+
 def fetch_public_search_results(conn, *, user_id: int, query: str):
     normalized_query = str(query or '').strip().lower()
     escaped_query = normalized_query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -115,7 +149,23 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             f'''
             SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
                    public_key_search_privacy,
+                   (SELECT contact_chat.chat_id
+                    FROM contacts contact_chat
+                    WHERE contact_chat.user_id = ? AND contact_chat.contact_id = users.id
+                    LIMIT 1) as contact_chat_id,
                    EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
+                   EXISTS(
+                       SELECT 1 FROM dialog_requests outgoing_requests
+                       WHERE outgoing_requests.sender_id = ?
+                         AND outgoing_requests.receiver_id = users.id
+                         AND outgoing_requests.status = 'pending'
+                   ) as has_pending_outgoing_request,
+                   EXISTS(
+                       SELECT 1 FROM dialog_requests incoming_requests
+                       WHERE incoming_requests.sender_id = users.id
+                         AND incoming_requests.receiver_id = ?
+                         AND incoming_requests.status = 'pending'
+                   ) as has_pending_incoming_request,
                    {group_add_direct_select_sql}
             FROM users
             WHERE (
@@ -135,6 +185,9 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             (
                 user_id,
                 user_id,
+                user_id,
+                user_id,
+                user_id,
                 key_pattern,
                 clean_key_pattern,
                 user_id,
@@ -149,15 +202,12 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
             if not can_find_by_public_key(conn, owner_id=int(user['id']), viewer_id=user_id):
                 continue
             results.append(
-                {
-                    'userId': user['id'],
-                    'user_id': user['id'],
-                    'username': user['username'],
-                    'display_name': user['display_name'],
-                    'public_key': user['public_key'],
-                    'avatar_url': get_safe_avatar_url_func(user, user_id),
-                    'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
-                }
+                _build_search_result(
+                    user,
+                    viewer_id=user_id,
+                    get_safe_avatar_url_func=get_safe_avatar_url_func,
+                    include_public_key=True,
+                )
             )
 
         return {
@@ -186,8 +236,24 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
     prefix_pattern = broad_pattern[1:] if broad_pattern.startswith('%') else broad_pattern
     users = conn.execute(
         f'''
-        SELECT id, username, display_name, avatar_url, avatar_visibility,
+        SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
+               (SELECT contact_chat.chat_id
+                FROM contacts contact_chat
+                WHERE contact_chat.user_id = ? AND contact_chat.contact_id = users.id
+                LIMIT 1) as contact_chat_id,
                EXISTS(SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = users.id) as is_contact,
+               EXISTS(
+                   SELECT 1 FROM dialog_requests outgoing_requests
+                   WHERE outgoing_requests.sender_id = ?
+                     AND outgoing_requests.receiver_id = users.id
+                     AND outgoing_requests.status = 'pending'
+               ) as has_pending_outgoing_request,
+               EXISTS(
+                   SELECT 1 FROM dialog_requests incoming_requests
+                   WHERE incoming_requests.sender_id = users.id
+                     AND incoming_requests.receiver_id = ?
+                     AND incoming_requests.status = 'pending'
+               ) as has_pending_incoming_request,
                {group_add_direct_select_sql}
         FROM users
         WHERE (LOWER(username) LIKE ? ESCAPE '\\' OR LOWER(display_name) LIKE ? ESCAPE '\\')
@@ -213,6 +279,9 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
         (
             user_id,
             user_id,
+            user_id,
+            user_id,
+            user_id,
             broad_pattern,
             broad_pattern,
             user_id,
@@ -228,14 +297,11 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
 
     for user in users[:limit]:
         results.append(
-            {
-                'userId': user['id'],
-                'user_id': user['id'],
-                'username': user['username'],
-                'display_name': user['display_name'],
-                'avatar_url': get_safe_avatar_url_func(user, user_id),
-                'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
-            }
+            _build_search_result(
+                user,
+                viewer_id=user_id,
+                get_safe_avatar_url_func=get_safe_avatar_url_func,
+            )
         )
 
     return {

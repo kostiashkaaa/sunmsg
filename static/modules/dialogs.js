@@ -135,22 +135,36 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
 
 // normalized: removed mojibake comment
 
-export function sendDialogRequest(userId, displayName) {
-    if (confirm(`\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044E ${displayName}?`)) {
-        fetch(withAppRoot('/send_request'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-            body: JSON.stringify({ contact_user_id: userId }),
-        }).then(r => r.json()).then(function(data) {
-            if (data.success) {
+export function sendDialogRequest(userId, displayName, options = {}) {
+    const {
+        confirmBeforeSend = true,
+        updateButton = true,
+    } = options || {};
+    if (
+        confirmBeforeSend
+        && !confirm(`\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044E ${displayName}?`)
+    ) {
+        return Promise.resolve({ success: false, cancelled: true });
+    }
+    return fetch(withAppRoot('/send_request'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ contact_user_id: userId }),
+    }).then(r => r.json()).then(function(data) {
+        if (data.success) {
+            if (updateButton) {
                 const button = document.querySelector(`.send-request-btn[data-user-id="${userId}"]`);
                 if (button) {
                     button.disabled = true;
                     button.innerHTML = `${STANDARD_SINGLE_CHECK_UI_HTML} \u041E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E`;
                 }
-            } else {
-                console.warn('[DialogRequests] send failed', getErrorMessage(data.error));
             }
-        }).catch((err) => console.warn('[DialogRequests] send request failed', err));
-    }
+        } else {
+            console.warn('[DialogRequests] send failed', getErrorMessage(data.error));
+        }
+        return data;
+    }).catch((err) => {
+        console.warn('[DialogRequests] send request failed', err);
+        return { success: false, error: err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0435 \u0437\u0430\u043F\u0440\u043E\u0441\u0430.' };
+    });
 }

@@ -1,5 +1,6 @@
 import { initSearchOverlayGlobalContent } from './search-overlay-global-content.js';
-import { renderContactsDirectoryList } from './chat-contacts-directory.js';
+import { createUserSearchResultsRuntime } from './user-search-results.js';
+import { getCsrfToken } from './csrf.js';
 
 const RECENT_SEARCHES_KEY = 'sun_recent_searches';
 const RECENT_SEARCHES_MAX = 8;
@@ -400,6 +401,13 @@ export function createChatSearchRuntime({
         documentRef.getElementById('searchInput')?.focus();
     });
 
+    modalEl?.addEventListener('click', (event) => {
+        const qrBtn = event.target.closest('.user-search-panel__qr[data-palette-action="qr"]');
+        if (!qrBtn) return;
+        windowRef.closeCommandPalette?.() || closeAnimatedDialog?.(documentRef.getElementById('newChatModal'));
+        windowRef.openMyQrModal?.();
+    });
+
     paletteLocalResults?.addEventListener('click', (event) => {
         const openBtn = event.target.closest('.open-chat-btn');
         if (!openBtn) return;
@@ -425,38 +433,120 @@ export function createChatSearchRuntime({
         return String(value ?? '');
     }
 
-    function renderLocalContactsDirectory(query) {
-        return renderContactsDirectoryList({
-            contactsRoot: contactsList,
-            resultsRoot: modalSearchResults,
-            query,
-            escapeHtml,
-            applyFallbackAvatarTint,
-            formatLastSeenText,
-            labels: {
-                open: translateSearchLabel('\u041E\u0442\u043A\u0440\u044B\u0442\u044C'),
-                online: translateSearchLabel('\u0432 \u0441\u0435\u0442\u0438'),
-                offline: translateSearchLabel('\u043D\u0435 \u0432 \u0441\u0435\u0442\u0438'),
-                recently: translateSearchLabel('\u0431\u044B\u043B(\u0430) \u043D\u0435\u0434\u0430\u0432\u043D\u043E'),
-                empty: translateSearchLabel('\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.'),
-            },
-        });
+    function isRemoteUserSearchReady(query) {
+        return query.length >= 3 || query.length > 40 || query.includes('BEGIN') || query.includes('PUBLIC');
+    }
+
+    async function acceptSearchDialogRequest(senderPublicKey) {
+        const normalizedKey = String(senderPublicKey || '').trim();
+        if (!normalizedKey) {
+            return { success: false, error: translateSearchLabel('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043D\u044F\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441.') };
+        }
+        try {
+            const response = await fetchImpl(withAppRoot('/accept_request'), {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ sender_public_key: normalizedKey }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload?.success) {
+                return {
+                    success: false,
+                    error: payload?.error || translateSearchLabel('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043D\u044F\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441.'),
+                };
+            }
+            await loadContacts?.({ immediate: true, attemptInitialChatRestore: false });
+            if (payload.chat_id) {
+                await openChatByIdWhenReady(payload.chat_id);
+            }
+            return payload;
+        } catch (err) {
+            console.warn('[UserSearch] accept request failed', err);
+            return { success: false, error: translateSearchLabel('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043D\u044F\u0442\u044C \u0437\u0430\u043F\u0440\u043E\u0441.') };
+        }
+    }
+
+    const userSearchResultsRuntime = createUserSearchResultsRuntime({
+        contactsRoot: contactsList,
+        resultsRoot: modalSearchResults,
+        escapeHtml,
+        applyFallbackAvatarTint,
+        translateLabel: translateSearchLabel,
+        resolveContactItemByUserId,
+        openChatById: openPaletteChat,
+        sendDialogRequest,
+        acceptDialogRequest: acceptSearchDialogRequest,
+        showToast,
+    });
+
+    let remoteUserSearchTimer = 0;
+    let remoteUserSearchSeq = 0;
+    let remoteUserSearchAbortController = null;
+
+    function cancelRemoteUserSearch() {
+        remoteUserSearchSeq += 1;
+        if (remoteUserSearchTimer) {
+            windowRef.clearTimeout(remoteUserSearchTimer);
+            remoteUserSearchTimer = 0;
+        }
+        if (remoteUserSearchAbortController) {
+            remoteUserSearchAbortController.abort();
+            remoteUserSearchAbortController = null;
+        }
     }
 
     function runRemoteContactsSearch(query) {
         if (!modalSearchResults) return;
-        modalSearchResults.innerHTML = buildSearchResultsLoaderHtml();
-        fetchImpl(withAppRoot(`/search_users?q=${encodeURIComponent(query)}&limit=20`))
+        const requestSeq = ++remoteUserSearchSeq;
+        if (remoteUserSearchAbortController) {
+            remoteUserSearchAbortController.abort();
+            remoteUserSearchAbortController = null;
+        }
+        const AbortControllerCtor = windowRef.AbortController;
+        remoteUserSearchAbortController = typeof AbortControllerCtor === 'function'
+            ? new AbortControllerCtor()
+            : null;
+        const fetchOptions = remoteUserSearchAbortController
+            ? { signal: remoteUserSearchAbortController.signal }
+            : undefined;
+
+        fetchImpl(withAppRoot(`/search_users?q=${encodeURIComponent(query)}&limit=20`), fetchOptions)
             .then(r => r.json())
             .then(response => {
+                if (requestSeq !== remoteUserSearchSeq) return;
                 const results = response.results || response.users || [];
-                if (response.success && results) {
-                    displaySearchResults(results);
-                } else {
-                    modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
-                }
+                userSearchResultsRuntime.render({
+                    query,
+                    remoteResults: response.success && results ? results : [],
+                    remoteState: response.success ? 'loaded' : 'error',
+                    minQueryLength: response.min_query_length || 3,
+                });
             })
-            .catch(() => showToast?.('\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u0438\u0441\u043A\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439.', 'danger'));
+            .catch((err) => {
+                if (err?.name === 'AbortError' || requestSeq !== remoteUserSearchSeq) return;
+                userSearchResultsRuntime.render({ query, remoteState: 'error' });
+            });
+    }
+
+    function scheduleRemoteContactsSearch(query) {
+        remoteUserSearchSeq += 1;
+        if (remoteUserSearchTimer) {
+            windowRef.clearTimeout(remoteUserSearchTimer);
+            remoteUserSearchTimer = 0;
+        }
+        if (remoteUserSearchAbortController) {
+            remoteUserSearchAbortController.abort();
+            remoteUserSearchAbortController = null;
+        }
+        userSearchResultsRuntime.render({ query, remoteState: 'loading' });
+        remoteUserSearchTimer = windowRef.setTimeout(() => {
+            remoteUserSearchTimer = 0;
+            runRemoteContactsSearch(query);
+        }, 220);
     }
 
     if (modalSearchInput) {
@@ -464,91 +554,28 @@ export function createChatSearchRuntime({
             const query = modalSearchInput.value.trim();
             renderPaletteLocalMatches(query);
             const contactsTabActive = isContactsSearchTabActive();
-            if (contactsTabActive) {
-                const localCount = renderLocalContactsDirectory(query);
-                if (query.length === 0 || localCount > 0 || query.length < 3) {
-                    return;
-                }
-            }
-            if (query.length === 0) {
-                modalSearchResults.innerHTML = '';
+            if (!contactsTabActive) {
+                cancelRemoteUserSearch();
                 return;
             }
-            if (query.length < 3) {
-                modalSearchResults.innerHTML = '<p class="text-center">\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043C\u0438\u043D\u0438\u043C\u0443\u043C 3 \u0441\u0438\u043C\u0432\u043E\u043B\u0430.</p>';
+            if (!query || !isRemoteUserSearchReady(query)) {
+                cancelRemoteUserSearch();
+                userSearchResultsRuntime.render({ query, remoteState: 'idle' });
                 return;
             }
-
-            runRemoteContactsSearch(query);
-        });
-    }
-
-    function displaySearchResults(results) {
-        if (!modalSearchResults) return;
-        if (results.length === 0) {
-            modalSearchResults.innerHTML = '<p class="text-center">\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.</p>';
-            return;
-        }
-
-        const list = documentRef.createElement('div');
-
-        results.forEach(function(user) {
-            const listItem = documentRef.createElement('div');
-            const existingContact = resolveContactItemByUserId?.(user.userId || user.user_id);
-            const existingChatId = existingContact?.getAttribute('data-chat-id') || '';
-
-            const initials = (user.display_name || user.username || '?')
-                .trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-
-            const avatarHtml = user.avatar_url
-                ? `<div class="contact-avatar command-palette-result-avatar"><img class="contact-avatar__img" src="${escapeHtml(user.avatar_url)}"></div>`
-                : `<div class="contact-avatar command-palette-result-avatar">${escapeHtml(initials)}</div>`;
-
-            listItem.className = 'command-palette-result';
-            listItem.innerHTML = `
-                <div class="command-palette-result-meta">
-                    ${avatarHtml}
-                    <div class="command-palette-result-copy">
-                        <strong>${escapeHtml(user.display_name)}</strong>
-                        <span>@${escapeHtml(user.username)}</span>
-                    </div>
-                </div>
-                ${existingChatId
-                    ? `<button type="button" class="command-palette-result-btn open-chat-btn" data-chat-id="${escapeHtml(existingChatId)}">\u041E\u0442\u043A\u0440\u044B\u0442\u044C</button>`
-                    : `<button class="command-palette-result-btn send-request-btn" data-user-id="${user.userId || user.user_id}" data-display-name="${escapeHtml(user.display_name)}">\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C</button>`
-                }
-            `;
-            list.appendChild(listItem);
-        });
-
-        modalSearchResults.innerHTML = '';
-        modalSearchResults.appendChild(list);
-        modalSearchResults.querySelectorAll('.command-palette-result .contact-avatar').forEach((avatarEl) => {
-            if (avatarEl.querySelector('img')) return;
-            const label = String(
-                avatarEl.closest('.command-palette-result')?.querySelector('.command-palette-result-copy strong')?.textContent
-                || '',
-            ).trim();
-            applyFallbackAvatarTint(avatarEl, label);
+            scheduleRemoteContactsSearch(query);
         });
     }
 
     if (modalSearchResults) {
         modalSearchResults.addEventListener('click', function(e) {
-            const target = e.target;
-            const openBtn = target.closest('.open-chat-btn');
-            if (openBtn) {
-                openPaletteChat(openBtn.getAttribute('data-chat-id'));
-                return;
-            }
-            const button = target.closest('.send-request-btn');
-            if (button) {
-                const userId = button.getAttribute('data-user-id');
-                const displayName = button.getAttribute('data-display-name');
-                const visibleInput = documentRef.getElementById('searchInput');
-                const currentQuery = String(visibleInput?.value || '').trim();
-                if (currentQuery.length >= 2) addRecentSearch(currentQuery);
-                sendDialogRequest?.(userId, displayName);
+            if (userSearchResultsRuntime.handleClick(e)) {
+                const button = e.target instanceof Element ? e.target.closest('.send-request-btn') : null;
+                if (button) {
+                    const visibleInput = documentRef.getElementById('searchInput');
+                    const currentQuery = String(visibleInput?.value || '').trim();
+                    if (currentQuery.length >= 2) addRecentSearch(currentQuery);
+                }
             }
         });
     }

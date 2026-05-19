@@ -1298,5 +1298,17 @@
   "обратная связь": "feedback",
   "Что-то непонятно? Напишите нам — мы читаем каждое сообщение.": "Something unclear? Write to us — we read every message.",
   "Написать →": "Send feedback →",
-  "тихая сеть для своих": "a quiet network for your own"
+  "тихая сеть для своих": "a quiet network for your own",
+  "Люди в SUN": "People in SUN",
+  "Ваши контакты": "Your contacts",
+  "Найти человека": "Find a person",
+  "Имя, @username или публичный ключ": "Name, @username, or public key",
+  "Проверьте @username или попросите собеседника показать QR.": "Check the @username or ask the person to show their QR.",
+  "Ищем людей...": "Searching people...",
+  "Принять": "Accept",
+  "Принимаем...": "Accepting...",
+  "Уже в контактах": "Already in contacts",
+  "Входящий запрос": "Incoming request",
+  "Можно отправить запрос": "Can send request",
+  "Не удалось принять запрос.": "Failed to accept request."
 }

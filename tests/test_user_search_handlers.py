@@ -44,6 +44,16 @@ def _prepare_schema(conn):
         )
         '''
     )
+    conn.execute(
+        '''
+        CREATE TABLE dialog_requests (
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
     conn.commit()
 
 
@@ -220,3 +230,59 @@ def test_build_search_users_payload_sets_group_add_direct_flag(tmp_path):
         )
     by_username_contacts = {str(item['username']): item for item in payload_contacts['results']}
     assert by_username_contacts['needs_contact']['can_group_add_direct'] is True
+
+
+def test_build_search_users_payload_includes_relationship_status(tmp_path):
+    db_path = tmp_path / 'user-search-relationship.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, is_public)
+            VALUES
+                (1, 'pk-1', 'owner', 'Owner', 1),
+                (2, 'pk-2', 'alpha_contact', 'Alpha Contact', 1),
+                (3, 'pk-3', 'alpha_outgoing', 'Alpha Outgoing', 1),
+                (4, 'pk-4', 'alpha_incoming', 'Alpha Incoming', 1),
+                (5, 'pk-5', 'alpha_none', 'Alpha None', 1)
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO contacts (user_id, contact_id, chat_id)
+            VALUES (1, 2, 'chat-12')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO dialog_requests (sender_id, receiver_id, status)
+            VALUES
+                (1, 3, 'pending'),
+                (4, 1, 'pending'),
+                (5, 1, 'declined')
+            '''
+        )
+        conn.commit()
+
+        payload = build_search_users_payload(
+            conn,
+            user_id=1,
+            query='alpha',
+            limit=20,
+            offset=0,
+            min_query_length=3,
+            like_pattern_func=_like_pattern,
+            get_safe_avatar_url_func=lambda row, viewer_id: dict(row).get('avatar_url'),
+        )
+
+    by_username = {str(item['username']): item for item in payload['results']}
+    assert by_username['alpha_contact']['relationship_status'] == 'contact'
+    assert by_username['alpha_contact']['is_contact'] is True
+    assert by_username['alpha_contact']['chat_id'] == 'chat-12'
+    assert by_username['alpha_outgoing']['relationship_status'] == 'outgoing_request'
+    assert by_username['alpha_outgoing']['pending_outgoing_request'] is True
+    assert by_username['alpha_incoming']['relationship_status'] == 'incoming_request'
+    assert by_username['alpha_incoming']['pending_incoming_request'] is True
+    assert by_username['alpha_incoming']['public_key'] == 'pk-4'
+    assert by_username['alpha_none']['relationship_status'] == 'none'
+    assert 'public_key' not in by_username['alpha_none']
