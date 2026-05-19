@@ -503,7 +503,6 @@ export function createChatHistoryRuntime(ctx = {}) {
         if (String(chatId) === String(ctx.getCurrentChatId())) {
             if (shouldShowNetworkLoading) {
                 ctx.setChatStageLoading(true);
-                ctx.setHistoryLoading(true);
             }
         }
         try {

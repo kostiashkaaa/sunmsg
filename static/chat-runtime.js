@@ -497,6 +497,7 @@ export const initChatPage = async () => {
         chatOnlineStatus,
         chatPartnerAvatar,
         historyLoadingIndicator,
+        chatStageLoader,
         chatPlaceholder,
         chatInputArea,
         chatBlockNotice,
@@ -1252,6 +1253,7 @@ export const initChatPage = async () => {
     const appBootStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const threadShell = createThreadShell({
         historyLoadingIndicator,
+        chatStageLoader,
         getCurrentChatId: () => currentChatId,
         getChatMessagesElement: () => chatMessages,
     });

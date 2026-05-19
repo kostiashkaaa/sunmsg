@@ -143,3 +143,15 @@ def test_chat_template_contains_message_forward_ui_hooks() -> None:
     assert 'id="messageForwardModal"' in modals_src
     assert 'id="messageForwardSelectedInfo"' in modals_src
     assert 'id="messageForwardSubmitBtn"' in modals_src
+
+
+def test_chat_stage_loader_is_wired_to_thread_shell() -> None:
+    chat_area_src = (ROOT / 'templates' / 'chat' / '_chat_area.html').read_text(encoding='utf-8')
+    dom_refs_src = (STATIC / 'modules' / 'chat-dom-refs.js').read_text(encoding='utf-8')
+    runtime_src = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
+    thread_shell_src = (STATIC / 'chat' / 'thread-shell.js').read_text(encoding='utf-8')
+
+    assert 'id="chatStageLoader"' in chat_area_src
+    assert "chatStageLoader: byId('chatStageLoader')" in dom_refs_src
+    assert 'chatStageLoader,' in runtime_src
+    assert 'setLoadingElementActive(chatStageLoader, shouldShow)' in thread_shell_src

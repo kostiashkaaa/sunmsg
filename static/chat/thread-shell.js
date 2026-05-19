@@ -2,21 +2,53 @@ import { waitForMotionEnd } from '../modules/motion.js';
 
 export function createThreadShell({
     historyLoadingIndicator,
+    chatStageLoader = null,
     getCurrentChatId,
     getChatMessagesElement,
 }) {
+    function isChatSurfaceVisible(chatMessages = getChatMessagesElement()) {
+        return Boolean(
+            getCurrentChatId()
+            && chatMessages
+            && chatMessages.style.display !== 'none'
+            && !chatMessages.classList.contains('chat-messages--hidden')
+        );
+    }
+
+    function setLoadingElementActive(element, isActive) {
+        if (!element) return;
+        element.classList.toggle('active', Boolean(isActive));
+        element.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    }
+
     function setHistoryLoading(isLoading) {
         const chatMessages = getChatMessagesElement();
         if (!historyLoadingIndicator) return;
-        if (!getCurrentChatId() || !chatMessages || chatMessages.style.display === 'none') {
-            historyLoadingIndicator.classList.remove('active');
+        if (!isChatSurfaceVisible(chatMessages)) {
+            setLoadingElementActive(historyLoadingIndicator, false);
             return;
         }
-        historyLoadingIndicator.classList.toggle('active', Boolean(isLoading));
+        setLoadingElementActive(historyLoadingIndicator, Boolean(isLoading));
     }
 
     function setChatStageLoading(isLoading) {
-        setHistoryLoading(isLoading);
+        const chatMessages = getChatMessagesElement();
+        const shouldShow = Boolean(isLoading) && isChatSurfaceVisible(chatMessages);
+        if (!chatStageLoader) {
+            setHistoryLoading(shouldShow);
+            return;
+        }
+        setLoadingElementActive(chatStageLoader, shouldShow);
+        if (chatMessages) {
+            if (shouldShow) {
+                chatMessages.setAttribute('aria-busy', 'true');
+            } else {
+                chatMessages.removeAttribute('aria-busy');
+            }
+        }
+        if (shouldShow) {
+            setLoadingElementActive(historyLoadingIndicator, false);
+        }
     }
 
     return {

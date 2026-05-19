@@ -110,6 +110,8 @@ const state = {{
 }};
 const renderCalls = [];
 const keepPinnedCalls = [];
+const stageLoadingCalls = [];
+const historyLoadingCalls = [];
 
 const runtime = createChatHistoryRuntime({{
   chatHistoryPageSize: 50,
@@ -144,8 +146,8 @@ const runtime = createChatHistoryRuntime({{
   historyInitialAbortControllers: new Map(),
   applyChatBlockState: () => {{}},
   resetOpenChatUnreadCounter: () => {{}},
-  setChatStageLoading: () => {{}},
-  setHistoryLoading: () => {{}},
+  setChatStageLoading: (value) => stageLoadingCalls.push(value),
+  setHistoryLoading: (value) => historyLoadingCalls.push(value),
   hidePinnedBar: () => {{}},
   hideFavoriteBar: () => {{}},
   setChatPinnedMessages: () => {{}},
@@ -183,6 +185,12 @@ if (renderCalls[0].chatId !== 'chat-empty' || renderCalls[0].options.scrollToBot
 }}
 if (keepPinnedCalls.length !== 1 || keepPinnedCalls[0] !== true) {{
   throw new Error(`Expected bottom pin after empty render: ${{JSON.stringify(keepPinnedCalls)}}`);
+}}
+if (stageLoadingCalls[0] !== true || stageLoadingCalls[stageLoadingCalls.length - 1] !== false) {{
+  throw new Error(`Expected stage loader around initial fetch: ${{JSON.stringify(stageLoadingCalls)}}`);
+}}
+if (historyLoadingCalls.includes(true)) {{
+  throw new Error(`Initial fetch must not show older-history loader: ${{JSON.stringify(historyLoadingCalls)}}`);
 }}
 """
     result = _run_node_harness(node_harness)

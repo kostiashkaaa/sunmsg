@@ -537,6 +537,36 @@
         </div>
 
         <div class="chat-messages chat-messages--hidden" id="chatMessages"></div>
+        <div
+            class="chat-stage-loader"
+            id="chatStageLoader"
+            role="status"
+            aria-live="polite"
+            aria-label="{{ 'Loading chat history' if ui_lang == 'en' else 'Загрузка истории чата' }}"
+            aria-hidden="true"
+        >
+            <div class="chat-stage-loader-head" aria-hidden="true">
+                <div class="chat-stage-loader-copy">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                </div>
+                <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
+            </div>
+            <div class="chat-stage-loader-body" aria-hidden="true">
+                <div class="chat-stage-loader-bubble sun-skeleton-block">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                </div>
+                <div class="chat-stage-loader-bubble self sun-skeleton-block">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                </div>
+                <div class="chat-stage-loader-bubble sun-skeleton-block">
+                    <div class="sun-skeleton-line"></div>
+                    <div class="sun-skeleton-line"></div>
+                </div>
+            </div>
+        </div>
         <div class="history-loading" id="historyLoading" role="status" aria-live="polite">
             <div class="sun-dot-loader" aria-hidden="true"><span></span><span></span><span></span></div>
             <span>Загрузка истории...</span>

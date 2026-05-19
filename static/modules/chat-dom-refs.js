@@ -31,6 +31,7 @@ export function resolveChatDomRefs(documentRef = document) {
         chatOnlineStatus,
         chatPartnerAvatar,
         historyLoadingIndicator: byId('historyLoading'),
+        chatStageLoader: byId('chatStageLoader'),
         chatPlaceholder: byId('chatPlaceholder'),
         chatInputArea: byId('chatInputArea'),
         chatBlockNotice: byId('chatBlockNotice'),
