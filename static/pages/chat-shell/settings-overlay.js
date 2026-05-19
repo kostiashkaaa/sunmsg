@@ -22,6 +22,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
     const SETTINGS_BRAND_DOT_ACTIVE_CLASS = 'sidebar-brand-dot--settings-active';
+    const SETTINGS_HOME_TARGETS = new Set(['settings', 'home', 'menu']);
 
     function prefersReducedMotion() {
         if (document.documentElement.classList.contains('perf-lite')) {
@@ -201,6 +202,26 @@ export function initChatShellSettingsOverlay(options = {}) {
         sidebarBrandDot?.classList.toggle(SETTINGS_BRAND_DOT_ACTIVE_CLASS, Boolean(active));
     }
 
+    function isSettingsHomeTarget(section) {
+        return SETTINGS_HOME_TARGETS.has(String(section || '').trim().toLowerCase());
+    }
+
+    function primeSettingsSurfaceState(section) {
+        const isHome = isSettingsHomeTarget(section);
+        document.body.classList.toggle('settings-home-open', isHome);
+        document.body.classList.toggle('settings-detail-open', !isHome);
+        if (settingsOverlay) {
+            settingsOverlay.dataset.settingsView = isHome ? 'home' : 'detail';
+        }
+    }
+
+    function clearSettingsSurfaceState() {
+        document.body.classList.remove('settings-home-open', 'settings-detail-open');
+        if (settingsOverlay) {
+            delete settingsOverlay.dataset.settingsView;
+        }
+    }
+
     function initSettingsPanelOnce() {
         if (settingsPanelInitialized && settingsPanelInitPromise) return settingsPanelInitPromise;
         settingsPanelInitialized = true;
@@ -286,6 +307,7 @@ export function initChatShellSettingsOverlay(options = {}) {
             if (closeSeq !== settingsOverlayTransitionSeq) return;
             settingsOverlay.classList.remove('active', 'is-closing', 'is-opening');
             settingsOverlayPhase = 'closed';
+            clearSettingsSurfaceState();
             unlockSettingsOverlayScroll();
         });
     }
@@ -304,6 +326,7 @@ export function initChatShellSettingsOverlay(options = {}) {
 
         if (settingsOverlay.classList.contains('active')) {
             setSettingsBrandGlow(true);
+            primeSettingsSurfaceState(targetSection);
             navigateSettingsPanelToSection(targetSection);
             markFirstRunCompleted();
             return;
@@ -311,6 +334,7 @@ export function initChatShellSettingsOverlay(options = {}) {
 
         settingsOverlayPhase = 'opening';
         lockSettingsOverlayScroll();
+        primeSettingsSurfaceState(targetSection);
         settingsOverlay.setAttribute('aria-hidden', 'false');
         settingsOverlay.classList.remove('is-closing');
         settingsOverlay.classList.add('is-opening');

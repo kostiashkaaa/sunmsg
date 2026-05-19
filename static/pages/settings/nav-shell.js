@@ -60,9 +60,14 @@ export function initSettingsNavShell({
     };
 
     const sectionIdSet = new Set(Object.keys(sectionTitles));
+    const homeSectionSet = new Set(['settings', 'home', 'menu']);
     const sectionAliases = {
         appearance: 'language',
     };
+
+    function isHomeSection(value) {
+        return homeSectionSet.has(String(value || '').trim().toLowerCase());
+    }
 
     function isCompactNav() {
         return compactNavMedia.matches;
@@ -425,6 +430,10 @@ export function initSettingsNavShell({
         const detail = event?.detail || {};
         const section = String(detail.section || '').trim();
         if (!section) return;
+        if (isHomeSection(section)) {
+            showHome(true);
+            return;
+        }
         openSection(section, {
             immediate: Boolean(detail.immediate),
             navKey: String(detail.navKey || section),

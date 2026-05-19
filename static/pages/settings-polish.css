@@ -24,6 +24,59 @@
     --sun-dur:            0.22s;
 }
 
+/* ── Overlay shell: один размер и одна траектория открытия ───────────────── */
+.settings-overlay {
+    --sun-ease:        cubic-bezier(0.25, 0.1, 0.25, 1);
+    --sun-ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+    --sun-dur:         0.22s;
+}
+
+.settings-overlay-panel {
+    width: min(820px, calc(100vw - 24px)) !important;
+    max-width: 100% !important;
+    height: var(--app-vh, 100dvh) !important;
+    transform: translate3d(32px, 0, 0) scale(0.992) !important;
+    transform-origin: right center !important;
+    opacity: 0 !important;
+    transition:
+        transform var(--sun-dur) var(--sun-ease-spring),
+        opacity 0.16s var(--sun-ease) !important;
+}
+
+.settings-overlay.active .settings-overlay-panel {
+    transform: translate3d(0, 0, 0) scale(1) !important;
+    opacity: 1 !important;
+}
+
+.settings-overlay.is-closing .settings-overlay-panel {
+    transform: translate3d(24px, 0, 0) scale(0.992) !important;
+    opacity: 0 !important;
+}
+
+.settings-overlay-frame,
+.settings-overlay-frame .settings-scene,
+.settings-overlay-frame .settings-layout {
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+.settings-overlay-frame {
+    overflow: hidden !important;
+}
+
+@media (max-width: 768px) {
+    .settings-overlay-panel {
+        width: 100% !important;
+        height: var(--app-vh, 100dvh) !important;
+        transform: translate3d(0, 22px, 0) scale(0.992) !important;
+        transform-origin: center bottom !important;
+    }
+
+    .settings-overlay.is-closing .settings-overlay-panel {
+        transform: translate3d(0, 18px, 0) scale(0.996) !important;
+    }
+}
+
 /* ── Layout: ровная панель, без скачка ширины при home ↔ detail ──────────── */
 .settings-scene .settings-layout,
 body.settings-home-open .settings-layout,
@@ -475,13 +528,13 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
 
 /* ── Анимация входа секций — плавная, без скачка высоты ──────────────────── */
 .settings-scene .settings-section {
-    transform: none !important;
+    transform: translate3d(0, 0, 0);
 }
 .settings-scene .settings-section.section-active {
-    opacity: 1 !important;
+    opacity: 1;
 }
 .settings-scene .settings-section.section-entering {
-    animation: settings-section-in var(--sun-dur) var(--sun-ease) both !important;
+    animation: none !important;
 }
 /* Уходящую секцию накладываем абсолютом поверх (crossfade, как в мессенджере).
    Контейнер во время перехода держит max-высоту (minHeight ставит JS),
@@ -491,7 +544,7 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
     inset: 6px clamp(14px, 4vw, 28px) auto !important;
     pointer-events: none !important;
     z-index: 0 !important;
-    animation: settings-section-out 0.16s var(--sun-ease) both !important;
+    animation: none !important;
 }
 /* Плавный возврат высоты контейнера после перехода — без резкого «щелчка». */
 .settings-scene .settings-content {
