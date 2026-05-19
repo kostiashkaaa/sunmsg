@@ -127,7 +127,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-cle
 /* ── profile card (bottom) ───────────────────────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
-    background: var(--sun-glass-sidebar-card-bg);
+    background: var(--sun-glass-chat-card-bg);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -166,19 +166,19 @@ html[data-interface-surface="glass"] .chat-area::before {
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     min-height: 54px;
     padding: 7px 12px 7px 8px;
-    border: 1px solid transparent;
+    border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
-    background: var(--sun-glass-header-bg);
-    box-shadow: var(--sun-glass-top-shadow);
+    background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:hover,
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:focus-visible {
-    border-color: transparent;
-    background: var(--sun-glass-header-bg-hi);
-    box-shadow: var(--sun-glass-top-shadow);
+    border-color: var(--sun-glass-border-hi);
+    background: var(--sun-glass-chat-card-bg-hi);
+    box-shadow: var(--sun-glass-shadow);
 }
 
 html[data-interface-surface="glass"] .chat-header .header-actions-group {
@@ -215,9 +215,9 @@ html[data-interface-surface="glass"] .chat-header.chat-header--search-active .he
 }
 
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-search-wrap {
-    border: 1px solid transparent;
-    background: var(--sun-glass-header-bg);
-    box-shadow: var(--sun-glass-top-shadow);
+    border: 1px solid var(--sun-glass-border);
+    background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
 }
@@ -274,6 +274,18 @@ html[data-interface-surface="glass"] #voiceRecordBtn:hover,
 html[data-interface-surface="glass"] #voiceRecordBtn:focus-visible {
     border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-chat-pill-bg-hi);
+}
+
+@media (min-width: 769px) {
+    html[data-interface-surface="glass"] .chat-messages {
+        margin-top: calc(-1 * var(--header-h));
+        padding-top: calc(var(--header-h) + 8px + var(--disappearing-pill-space, 0px));
+        scroll-padding-top: calc(var(--header-h) + 10px);
+    }
+
+    html[data-interface-surface="glass"] #sidebarScrollArea {
+        padding-bottom: 12px;
+    }
 }
 
 /* ================================================================
