@@ -606,7 +606,7 @@ def test_emoji_picker_hidden_by_default() -> None:
 
 
 def test_mobile_emoji_picker_uses_css_bottom_sheet_without_js_positioning() -> None:
-    """Mobile emoji picker is a CSS bottom sheet; JS positioning stays desktop-only."""
+    """Mobile emoji picker is a CSS-docked row; JS positioning stays desktop-only."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     position_start = emoji.find('function positionEmojiPicker')
     assert position_start >= 0, 'emoji.js: positionEmojiPicker not found'
@@ -621,15 +621,19 @@ def test_mobile_emoji_picker_uses_css_bottom_sheet_without_js_positioning() -> N
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     emoji_picker_blocks = re.findall(r'\.emoji-picker\s*\{([^}]*)\}', css, re.DOTALL)
     assert any(
-        'position: absolute !important' in block
-        and 'bottom: 0 !important' in block
-        and 'height: var(--emoji-sheet-height) !important' in block
-        and 'transform: translate3d(0, 110%, 0)' in block
+        'position: relative !important' in block
+        and 'bottom: auto !important' in block
+        and 'height: 0 !important' in block
+        and 'transform: translate3d(0, 10px, 0)' in block
         for block in emoji_picker_blocks
-    ), 'chat.css: mobile emoji picker should be a hidden bottom sheet by default.'
-    active_block = re.search(r'\.emoji-picker\.active\s*\{([^}]*)\}', css, re.DOTALL)
-    assert active_block, 'chat.css: .emoji-picker.active block not found'
-    assert 'transform: translate3d(0, 0, 0)' in active_block.group(1)
+    ), 'chat.css: mobile emoji picker should be a hidden flow row by default.'
+    active_blocks = re.findall(r'\.emoji-picker\.active\s*\{([^}]*)\}', css, re.DOTALL)
+    assert active_blocks, 'chat.css: .emoji-picker.active block not found'
+    assert any(
+        'height: var(--emoji-sheet-height) !important' in block
+        and 'transform: translate3d(0, 0, 0)' in block
+        for block in active_blocks
+    ), 'chat.css: mobile .emoji-picker.active block should expand the flow row.'
 
 
 def test_mobile_emoji_open_locks_composer_before_blur() -> None:
@@ -647,17 +651,17 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     composer_transition = re.search(r'\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
     assert composer_transition, 'chat.css: .chat-input-area block not found'
-    assert 'transition: transform var(--emoji-sheet-motion-duration' in css
     block = re.search(
         r'\.chat-area\.emoji-sheet-open\s+\.chat-input-area\s*\{([^}]*)\}',
         css,
         re.DOTALL,
     )
     assert block, 'chat.css: mobile .emoji-sheet-open .chat-input-area block not found'
-    assert 'transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0)' in block.group(1)
+    assert 'transform: none' in block.group(1)
     instant_block = re.search(r'\.emoji-picker\.is-closing-instant\s*\{([^}]*)\}', css, re.DOTALL)
     assert instant_block, 'chat.css: instant emoji close block not found'
     assert 'transition: none !important' in instant_block.group(1)
+    assert 'height: 0 !important' in instant_block.group(1)
 
 
 def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
@@ -706,8 +710,8 @@ def test_mobile_emoji_keyboard_handoff_uses_visual_viewport_release() -> None:
     assert "document.addEventListener('sun-open-emoji-picker'" in emoji
 
 
-def test_mobile_chat_uses_css_emoji_sheet_transform() -> None:
-    """Mobile composer rides above the CSS emoji sheet; visualViewport still owns keyboard size."""
+def test_mobile_chat_uses_css_emoji_sheet_flow_row() -> None:
+    """Mobile emoji sheet is a flow row; visualViewport still owns keyboard size."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     chat_area_blocks = re.findall(r'\.chat-area\s*\{([^}]*)\}', css, re.DOTALL)
     assert any('--emoji-sheet-motion-duration: 220ms' in block for block in chat_area_blocks), (
@@ -719,19 +723,37 @@ def test_mobile_chat_uses_css_emoji_sheet_transform() -> None:
     assert 'height: var(--app-vh, 100dvh)' in css
     assert 'bottom: var(--mobile-composer-bottom-inset' not in css
 
-    input_blocks = re.findall(r'\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
-    assert any('transition: transform var(--emoji-sheet-motion-duration' in block for block in input_blocks), (
-        'chat.css: mobile composer should animate with transform while the emoji sheet opens.'
-    )
-
     emoji_open_block = re.search(r'\.chat-area\.emoji-sheet-open\s+\.chat-input-area\s*\{([^}]*)\}', css, re.DOTALL)
     assert emoji_open_block, 'chat.css: .chat-area.emoji-sheet-open .chat-input-area block not found'
-    assert 'transform: translate3d(0, calc(-1 * var(--emoji-sheet-height)), 0)' in emoji_open_block.group(1)
+    assert 'transform: none' in emoji_open_block.group(1)
 
     emoji_picker_blocks = re.findall(r'\.emoji-picker\s*\{([^}]*)\}', css, re.DOTALL)
-    assert any('bottom: 0 !important' in block and 'top: auto !important' in block for block in emoji_picker_blocks), (
-        'chat.css: mobile emoji picker should be an absolute bottom sheet.'
+    assert any('position: relative !important' in block and 'height: 0 !important' in block for block in emoji_picker_blocks), (
+        'chat.css: mobile emoji picker should be a collapsed flow row when closed.'
     )
+
+
+def test_input_bar_panels_close_each_other() -> None:
+    """Emoji and attach panels must not stack over the mobile input bar."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    attach_menu = (STATIC / 'modules' / 'chat-attach-menu.js').read_text(encoding='utf-8')
+
+    open_start = emoji.find('const openPicker = async (options = {}) => {')
+    active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
+    close_attach_idx = emoji.find("document.dispatchEvent(new Event('sun-close-attach-menu'));", active_idx)
+    mobile_idx = emoji.find('if (shouldOpenMobile)', close_attach_idx)
+    assert open_start < active_idx < close_attach_idx < mobile_idx, (
+        'emoji.js: opening emoji must close the attach menu before mobile layout handoff.'
+    )
+
+    open_attach_idx = attach_menu.find('function openAttachMenu()')
+    close_emoji_idx = attach_menu.find("document.dispatchEvent(new Event('sun-close-emoji-picker'));", open_attach_idx)
+    set_open_idx = attach_menu.find('setAttachMenuOpen(true);', close_emoji_idx)
+    listener_idx = attach_menu.find("document.addEventListener('sun-close-attach-menu', closeAttachMenu);")
+    assert open_attach_idx < close_emoji_idx < set_open_idx, (
+        'chat-attach-menu.js: opening attach menu must close the emoji picker first.'
+    )
+    assert listener_idx >= 0, 'chat-attach-menu.js: attach menu must listen for emoji-side close requests.'
 
 
 def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:

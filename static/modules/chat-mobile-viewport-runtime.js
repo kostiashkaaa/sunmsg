@@ -294,7 +294,7 @@ export function createChatMobileViewportRuntime({
             setTimeoutFn(() => syncViewportAndInsets({ immediate: true }), 420);
         });
 
-        // The emoji sheet changes the composer height via a CSS class toggle.
+        // The emoji sheet changes chat flex rows via a CSS class toggle.
         // Recompute the insets explicitly rather than waiting for a viewport
         // event that may not arrive when the sheet opens without a keyboard.
         documentRef.addEventListener('sun:emoji-sheet-toggled', () => {

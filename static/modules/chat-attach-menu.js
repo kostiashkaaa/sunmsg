@@ -70,6 +70,7 @@ export function createChatAttachMenuController(deps = {}) {
     function openAttachMenu() {
         if (!attachMenu || !attachBtn || isChatBlocked?.()) return;
         if (attachBtn.classList.contains('disabled') || attachBtn.disabled) return;
+        document.dispatchEvent(new Event('sun-close-emoji-picker'));
         setAttachMenuOpen(true);
     }
 
@@ -183,6 +184,7 @@ export function createChatAttachMenuController(deps = {}) {
         if (event.target.closest('#attachMenu') || event.target.closest('#attachBtn')) return;
         closeAttachMenu();
     });
+    document.addEventListener('sun-close-attach-menu', closeAttachMenu);
 
     if (fileAttachInput) {
         applyAttachInputMode(ATTACH_MODE_FILE);

@@ -160,15 +160,15 @@ function setMobileEmojiSheetState(emojiPicker, isOpen) {
         && isMobileEmojiChatPinnedToBottom(chatArea),
     );
 
-    // The emoji sheet has a fixed CSS height (--mobile-emoji-sheet-height set in
-    // the stylesheet) — JS only toggles the open class. No height measuring.
+    // The mobile emoji row owns its own fixed CSS height; JS only toggles the
+    // open class. No height measuring.
     chatArea.classList.toggle('emoji-sheet-open', Boolean(isOpen));
     document.documentElement.classList.toggle('mobile-emoji-sheet-open', Boolean(isOpen));
     if (isOpen && shouldPinChatToBottom) {
         pinMobileEmojiChatToBottom(chatArea);
     }
-    // Toggling the sheet class changes the composer height. Notify the viewport
-    // runtime so it recomputes the message-list insets explicitly instead of
+    // Toggling the sheet class changes the chat flex rows. Notify the viewport
+    // runtime so it recomputes message-list insets explicitly instead of
     // relying on a visualViewport resize event that may never fire (e.g. when
     // the sheet opens without a keyboard hand-off).
     document.dispatchEvent(new CustomEvent('sun:emoji-sheet-toggled', {
@@ -527,7 +527,7 @@ function renderCategoryButtons(emojiCategories, activeCategory, localeCode) {
 function positionEmojiPicker(emojiPicker, emojiBtn, options = {}) {
     if (!emojiPicker || !emojiBtn) return;
 
-    // Mobile picker is a pure-CSS bottom sheet — no JS positioning needed.
+    // Mobile picker is a pure-CSS docked row; no JS positioning needed.
     if (isMobileEmojiViewport()) {
         emojiPicker.dataset.side = 'mobile-sheet';
         return;
@@ -878,9 +878,10 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.add('active');
         emojiPicker.setAttribute('aria-hidden', 'false');
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
+        document.dispatchEvent(new Event('sun-close-attach-menu'));
 
         if (shouldOpenMobile) {
-            // Mark the chat-area first so CSS docks the composer before the
+            // Mark the chat-area first so CSS docks the emoji row before the
             // native keyboard blur starts resizing the viewport.
             setMobileEmojiSheetState(emojiPicker, true);
             if (document.activeElement === messageInput) {
