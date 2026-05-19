@@ -1106,6 +1106,42 @@ def test_theme_toggle_syncs_chat_and_settings_surfaces() -> None:
     assert "notifyParent('sun-settings-theme-updated', { dark })" in settings
 
 
+def test_liquid_glass_uses_zone_theme_backgrounds() -> None:
+    """Liquid Glass should not tint the whole sidebar with a generic surface."""
+    css = _strip_comments((STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8'))
+
+    assert '--sun-glass-sidebar-bg' not in css
+
+    for token, theme_var in (
+        ('--sun-glass-sidebar-pill-bg', 'var(--sidebar-bg)'),
+        ('--sun-glass-sidebar-card-bg', 'var(--sidebar-bg)'),
+        ('--sun-glass-chat-pill-bg', 'var(--chat-hdr)'),
+        ('--sun-glass-chat-card-bg', 'var(--chat-hdr)'),
+    ):
+        token_rule = re.search(rf'{re.escape(token)}:\s*[^;]+;', css)
+        assert token_rule, f'liquid-glass.css: missing {token}'
+        assert theme_var in token_rule.group(0), (
+            f'liquid-glass.css: {token} must inherit the local theme background {theme_var}'
+        )
+
+    sidebar_block = re.search(
+        r'html\[data-interface-surface="glass"\]\s+\.sidebar:not\(\.sidebar--loading\)\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert sidebar_block, 'liquid-glass.css: glass sidebar block not found'
+    sidebar_body = sidebar_block.group(1)
+    assert 'background: transparent' in sidebar_body
+    assert 'var(--surface)' not in sidebar_body
+    assert 'backdrop-filter: var(--sun-glass-blur)' not in sidebar_body
+
+    active_contact_block = re.search(r'\.contact-item\.active[^{]*\{([^}]*)\}', css, re.DOTALL)
+    assert active_contact_block, 'liquid-glass.css: glass active contact block not found'
+    active_contact_body = active_contact_block.group(1)
+    assert 'var(--sidebar-bg)' in active_contact_body
+    assert 'var(--surface)' not in active_contact_body
+
+
 def test_chat_theme_boot_does_not_override_early_boot_without_explicit_theme() -> None:
     """Legacy chat boot must not turn auto/unified dark mode into light mode."""
     theme_boot = (STATIC / 'pages' / 'chat-theme-boot.js').read_text(encoding='utf-8')

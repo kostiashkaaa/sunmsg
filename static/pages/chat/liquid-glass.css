@@ -6,27 +6,32 @@
 
 /* ── tokens ──────────────────────────────────────────────────── */
 html[data-interface-surface="glass"] {
-    --sun-glass-pill-bg:      color-mix(in srgb, var(--surface-2) 72%, transparent);
-    --sun-glass-pill-bg-hi:   color-mix(in srgb, var(--surface-2) 84%, transparent);
-    --sun-glass-card-bg:      color-mix(in srgb, var(--surface) 78%, transparent);
-    --sun-glass-card-bg-hi:   color-mix(in srgb, var(--surface) 88%, transparent);
-    --sun-glass-sidebar-bg:   color-mix(in srgb, var(--surface) 55%, transparent);
-    --sun-glass-border:       color-mix(in srgb, var(--border) 90%, rgba(255,255,255,.18));
+    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--sidebar-bg) 58%, transparent);
+    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--sidebar-bg) 70%, transparent);
+    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--sidebar-bg) 64%, transparent);
+    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--sidebar-bg) 76%, transparent);
+    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 58%, transparent);
+    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 70%, transparent);
+    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 64%, transparent);
+    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 76%, transparent);
+    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 64%, transparent);
+    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 76%, transparent);
+    --sun-glass-border:       color-mix(in srgb, var(--border) 82%, rgba(255,255,255,.18));
     --sun-glass-border-hi:    color-mix(in srgb, var(--accent) 36%, var(--border) 64%);
     --sun-glass-blur:         blur(20px) saturate(140%);
     --sun-glass-blur-sm:      blur(14px) saturate(130%);
 }
 
 /* ================================================================
-   SIDEBAR — light translucent background so pills have something
-   to blur against. Loading skeleton is NEVER touched.
+   SIDEBAR - no full-panel tint; only child pills carry glass.
+   Loading skeleton is NEVER touched.
    ================================================================ */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) {
-    background: var(--sun-glass-sidebar-bg);
+    background: transparent;
     box-shadow: none;
     border-right-color: color-mix(in srgb, var(--border) 60%, transparent);
-    -webkit-backdrop-filter: var(--sun-glass-blur);
-    backdrop-filter: var(--sun-glass-blur);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 /* sidebar-top-card: transparent wrapper, pill children carry the glass */
@@ -59,7 +64,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-br
     padding: 0 14px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
-    background: var(--sun-glass-pill-bg);
+    background: var(--sun-glass-sidebar-pill-bg);
     box-shadow: none;
 }
 
@@ -68,14 +73,14 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
     padding: 0 14px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
-    background: var(--sun-glass-pill-bg);
+    background: var(--sun-glass-sidebar-pill-bg);
     box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:hover,
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:focus-within {
     border-color: var(--sun-glass-border-hi);
-    background: var(--sun-glass-pill-bg-hi);
+    background: var(--sun-glass-sidebar-pill-bg-hi);
     box-shadow: none;
 }
 
@@ -86,26 +91,37 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-clear-btn {
     border: 1px solid color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
-    background: var(--sun-glass-pill-bg-hi);
+    background: var(--sun-glass-sidebar-pill-bg-hi);
     box-shadow: none;
 }
 
 /* ── profile card (bottom) ───────────────────────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
-    background: var(--sun-glass-card-bg);
+    background: var(--sun-glass-sidebar-card-bg);
     box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-bar {
     border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
-    background: var(--sun-glass-pill-bg);
+    background: var(--sun-glass-sidebar-pill-bg);
     box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-chip--inline {
     border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
-    background: var(--sun-glass-pill-bg);
+    background: var(--sun-glass-sidebar-pill-bg);
+}
+
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .contact-item:hover {
+    background: color-mix(in srgb, var(--sidebar-bg) 58%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 56%, transparent);
+}
+
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .contact-item.active,
+html[data-interface-surface="glass"] body.dark-mode .sidebar:not(.sidebar--loading) .contact-item.active {
+    background: color-mix(in srgb, var(--accent) 24%, var(--sidebar-bg) 76%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border) 72%);
 }
 
 /* ================================================================
@@ -128,14 +144,14 @@ html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     padding: 7px 12px 7px 8px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
-    background: var(--sun-glass-card-bg);
+    background: var(--sun-glass-chat-card-bg);
     box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:hover,
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:focus-visible {
     border-color: var(--sun-glass-border-hi);
-    background: var(--sun-glass-card-bg-hi);
+    background: var(--sun-glass-chat-card-bg-hi);
     box-shadow: none;
 }
 
@@ -148,7 +164,7 @@ html[data-interface-surface="glass"] .chat-header .header-actions-group .btn-ico
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon {
     border: 1px solid var(--sun-glass-border);
     border-radius: 14px;
-    background: var(--sun-glass-pill-bg);
+    background: var(--sun-glass-chat-pill-bg);
     color: var(--sub-text);
     box-shadow: none;
 }
@@ -159,7 +175,7 @@ html[data-interface-surface="glass"] .chat-header .header-actions-group .btn-ico
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon:hover,
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon:focus-visible {
     border-color: var(--sun-glass-border-hi);
-    background: var(--sun-glass-pill-bg-hi);
+    background: var(--sun-glass-chat-pill-bg-hi);
     color: var(--text);
     box-shadow: none;
 }
@@ -172,7 +188,7 @@ html[data-interface-surface="glass"] .chat-header.chat-header--search-active .he
 
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-search-wrap {
     border: 1px solid var(--sun-glass-border);
-    background: var(--sun-glass-card-bg);
+    background: var(--sun-glass-chat-card-bg);
 }
 
 html[data-interface-surface="glass"] .header-search-icon {
@@ -192,7 +208,7 @@ html[data-interface-surface="glass"] .chat-input-wrapper {
 
 html[data-interface-surface="glass"] #messageForm {
     border-color: var(--sun-glass-border);
-    background: var(--sun-glass-card-bg);
+    background: var(--sun-glass-chat-card-bg);
     box-shadow: none;
 }
 
@@ -222,7 +238,7 @@ html[data-interface-surface="glass"] .settings-overlay-backdrop {
 
 html[data-interface-surface="glass"] .settings-overlay-panel {
     border-left: 1px solid var(--sun-glass-border);
-    background: var(--sun-glass-card-bg-hi);
+    background: var(--sun-glass-settings-card-hi);
     box-shadow: none;
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -237,7 +253,7 @@ html[data-interface-surface="glass"] .settings-overlay-frame .settings-layout {
 html[data-interface-surface="glass"] .settings-scene .settings-card,
 html[data-interface-surface="glass"] body.settings-detail-open .settings-card {
     border: 1px solid var(--sun-glass-border) !important;
-    background: var(--sun-glass-card-bg) !important;
+    background: var(--sun-glass-settings-card-bg) !important;
     box-shadow: none !important;
 }
 
