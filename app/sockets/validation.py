@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import Any
 
+from app.sockets.error_messages import socket_error_payload
+
 
 def clear_invalid_session_user(session_store: Any) -> None:
     session_store.pop('user_id', None)
@@ -44,25 +46,19 @@ def socket_csrf_ok(  # noqa: PLR0913 - validation helper contract
         token = str(data.get('csrf_token') or '').strip()
         request_id = str(data.get('request_id') or '').strip()
 
-    def error_payload(message: str) -> dict:
-        payload = {'message': message}
-        if request_id:
-            payload['request_id'] = request_id
-        return payload
-
     if not token:
-        emit_func('error', error_payload('CSRF token is required.'))
+        emit_func('error', socket_error_payload('CSRF token is required.', request_id=request_id))
         return False
 
     try:
         validate_csrf_func(token)
     except validation_error_cls:
         logger.warning('Socket CSRF validation failed for user_id=%s', user_id)
-        emit_func('error', error_payload('Invalid CSRF token.'))
+        emit_func('error', socket_error_payload('Invalid CSRF token.', request_id=request_id))
         return False
     except Exception as exc:
         logger.error('Socket CSRF validation error for user_id=%s: %s', user_id, exc)
-        emit_func('error', error_payload('CSRF validation failed.'))
+        emit_func('error', socket_error_payload('CSRF validation failed.', request_id=request_id))
         return False
 
     return True
@@ -113,7 +109,7 @@ def socket_connect_csrf_ok(  # noqa: PLR0913 - validation helper contract
 def require_payload_dict(data, *, emit_func):
     if isinstance(data, dict):
         return data
-    emit_func('error', {'message': 'Invalid socket payload.'})
+    emit_func('error', socket_error_payload('Invalid socket payload.'))
     return None
 
 

@@ -1,3 +1,6 @@
+from app.sockets.error_messages import socket_error_payload
+
+
 def handle_favorite_message_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
@@ -26,13 +29,13 @@ def handle_favorite_message_event(  # noqa: PLR0913 - dependency-injected socket
     if not chat_id or message_id is None:
         return
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', socket_error_payload('Invalid chat ID.'))
         return
 
     uid = session_store['user_id']
     sender_pub = session_store.get('public_key_pem')
     if not socket_rate_ok_func(uid, 'favorite_message'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', socket_error_payload('Too many messages. Please wait a little.'))
         return
 
     conn = get_db_connection_func()
@@ -112,13 +115,13 @@ def handle_unfavorite_message_event(  # noqa: PLR0913 - dependency-injected sock
     if not chat_id or message_id is None:
         return
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', socket_error_payload('Invalid chat ID.'))
         return
 
     uid = session_store['user_id']
     sender_pub = session_store.get('public_key_pem')
     if not socket_rate_ok_func(uid, 'unfavorite_message'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', socket_error_payload('Too many messages. Please wait a little.'))
         return
 
     conn = get_db_connection_func()

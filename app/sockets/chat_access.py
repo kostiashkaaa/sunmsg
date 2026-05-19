@@ -1,3 +1,6 @@
+from app.sockets.error_messages import localize_socket_error_message
+
+
 def emit_blocked_error(  # noqa: PLR0913 - dependency-injected helper contract
     message: str,
     *,
@@ -11,7 +14,7 @@ def emit_blocked_error(  # noqa: PLR0913 - dependency-injected helper contract
     err = payload.get('error') or {}
     response = {
         'code': err.get('code'),
-        'message': err.get('message', message),
+        'message': localize_socket_error_message(err.get('message', message)),
         'blocked_by_me': bool(err.get('blocked_by_me')),
         'blocked_me': bool(err.get('blocked_me')),
     }

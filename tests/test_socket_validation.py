@@ -50,7 +50,7 @@ def test_payload_and_scalar_helpers():
 
     assert require_payload_dict({'ok': True}, emit_func=lambda *_args, **_kwargs: emitted.append('x')) == {'ok': True}
     assert require_payload_dict('bad', emit_func=lambda name, payload: emitted.append((name, payload))) is None
-    assert emitted == [('error', {'message': 'Invalid socket payload.'})]
+    assert emitted == [('error', {'message': 'Некорректные данные socket-события.'})]
 
     assert positive_int('12') == 12
     assert positive_int('0') is None
@@ -80,7 +80,7 @@ def test_socket_csrf_ok_handles_missing_invalid_and_valid_tokens():
         user_id=1,
         validation_error_cls=ValidationError,
     ) is False
-    assert emitted.pop() == ('error', {'message': 'CSRF token is required.'})
+    assert emitted.pop() == ('error', {'message': 'Требуется CSRF-токен.'})
 
     assert socket_csrf_ok(
         {'csrf_token': 'bad'},
@@ -90,7 +90,7 @@ def test_socket_csrf_ok_handles_missing_invalid_and_valid_tokens():
         user_id=1,
         validation_error_cls=ValidationError,
     ) is False
-    assert emitted.pop() == ('error', {'message': 'Invalid CSRF token.'})
+    assert emitted.pop() == ('error', {'message': 'Недействительный CSRF-токен.'})
 
     assert socket_csrf_ok(
         {'csrf_token': 'boom'},
@@ -100,7 +100,7 @@ def test_socket_csrf_ok_handles_missing_invalid_and_valid_tokens():
         user_id=1,
         validation_error_cls=ValidationError,
     ) is False
-    assert emitted.pop() == ('error', {'message': 'CSRF validation failed.'})
+    assert emitted.pop() == ('error', {'message': 'Не удалось проверить CSRF-токен.'})
 
     assert socket_csrf_ok(
         {'csrf_token': 'ok'},
@@ -129,7 +129,7 @@ def test_socket_csrf_ok_preserves_request_id_on_error():
         (
             'error',
             {
-                'message': 'CSRF token is required.',
+                'message': 'Требуется CSRF-токен.',
                 'request_id': 'client-123',
             },
         ),

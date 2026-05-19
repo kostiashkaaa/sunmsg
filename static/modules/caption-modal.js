@@ -19,6 +19,13 @@ function isVisualMediaFile(file) {
     return /\.(png|jpe?g|webp|gif|bmp|svg|heic|heif|avif|mp4|mov|m4v|avi|mkv|webm|ogv)$/i.test(name);
 }
 
+function isAudioFile(file) {
+    const mime = String(file?.type || '').toLowerCase();
+    if (mime.startsWith('audio/')) return true;
+    const name = String(file?.name || '').toLowerCase();
+    return /\.(webm|ogg|wav|mp3|m4a|aac|opus)$/i.test(name);
+}
+
 function normalizeIncomingFiles(value, fallbackFile) {
     if (Array.isArray(value)) {
         return value.filter((item) => item instanceof File);
@@ -161,19 +168,26 @@ export function initCaptionModal({
         const count = files.length;
         if (count <= 0) return 'Отправить файл';
         if (count === 1) {
+            if (isAudioFile(files[0])) return 'Отправить аудио';
             return attachMode === ATTACH_MODE_MEDIA && isVisualMediaFile(files[0])
                 ? 'Отправить фото или видео'
                 : 'Отправить файл';
         }
 
         const allVisual = files.every((item) => isVisualMediaFile(item));
+        const allAudio = files.every((item) => isAudioFile(item));
         if (attachMode === ATTACH_MODE_MEDIA && allVisual) {
             return `Отправить ${count} ${formatPlural(count, ['фото', 'фото', 'фото'])}`;
+        }
+        if (allAudio) {
+            return `Отправить ${count} аудио`;
         }
         return `Отправить ${count} ${formatPlural(count, ['файл', 'файла', 'файлов'])}`;
     }
 
-    function resolveModalHint(attachMode) {
+    function resolveModalHint(attachMode, files = []) {
+        const allAudio = files.length > 0 && files.every((item) => isAudioFile(item));
+        if (allAudio) return 'Аудио будет отправлено без сжатия';
         return attachMode === ATTACH_MODE_MEDIA
             ? 'Файл будет оптимизирован перед отправкой'
             : 'Отправка оригинала без сжатия';
@@ -181,7 +195,9 @@ export function initCaptionModal({
 
     function renderModalMeta(file, attachMode, totalFiles) {
         if (!metaEl) return;
-        const modeText = attachMode === ATTACH_MODE_MEDIA
+        const modeText = isAudioFile(file)
+            ? 'Аудио (без сжатия)'
+            : attachMode === ATTACH_MODE_MEDIA
             ? 'Фото/видео (оптимизировано)'
             : 'Документ (без сжатия)';
         const countChip = totalFiles > 1
@@ -368,7 +384,7 @@ export function initCaptionModal({
         renderPreview(primaryFile, files.length, files);
         renderModalMeta(primaryFile, attachMode, files.length);
         if (titleEl) titleEl.textContent = resolveModalTitle(files, attachMode);
-        if (hintEl) hintEl.textContent = resolveModalHint(attachMode);
+        if (hintEl) hintEl.textContent = resolveModalHint(attachMode, files);
         syncCompressionMenuLabel(attachMode);
     }
 

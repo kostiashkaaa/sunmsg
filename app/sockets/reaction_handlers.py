@@ -1,11 +1,9 @@
 from app.services.chat_members import get_chat_type
+from app.sockets.error_messages import socket_error_payload
 
 
 def _emit_error_with_request(emit_func, message: str, request_id: str = '') -> None:
-    payload = {'message': message}
-    if request_id:
-        payload['request_id'] = request_id
-    emit_func('error', payload)
+    emit_func('error', socket_error_payload(message, request_id=request_id))
 
 
 def _validate_toggle_reaction_payload(

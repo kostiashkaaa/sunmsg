@@ -297,7 +297,7 @@ def test_handle_pin_message_event_group_member_without_admin_role_is_rejected(tm
         ).fetchone()
 
     assert int(row['cnt']) == 0
-    assert emitted == [('error', {'message': 'Only group admins can pin messages.'}, {})]
+    assert emitted == [('error', {'message': 'Только администраторы группы могут закреплять сообщения.'}, {})]
 
 
 def test_handle_unpin_message_event_group_member_without_admin_role_is_rejected(tmp_path):
@@ -338,4 +338,4 @@ def test_handle_unpin_message_event_group_member_without_admin_role_is_rejected(
         ).fetchone()
 
     assert int(row['cnt']) == 1
-    assert emitted == [('error', {'message': 'Only group admins can unpin messages.'}, {})]
+    assert emitted == [('error', {'message': 'Только администраторы группы могут откреплять сообщения.'}, {})]

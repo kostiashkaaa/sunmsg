@@ -5,8 +5,10 @@ import { initAttachMenuPortal } from './attach-menu-portal.js';
 
 const ATTACH_MODE_MEDIA = 'media';
 const ATTACH_MODE_FILE = 'file';
+const ATTACH_INPUT_MODE_AUDIO = 'audio';
 
 const FILE_ATTACH_ACCEPT_MEDIA = 'image/*,video/*';
+const FILE_ATTACH_ACCEPT_AUDIO = 'audio/*,.ogg,.wav,.mp3,.m4a,.aac,.opus';
 
 export function createChatAttachMenuController(deps = {}) {
     const {
@@ -27,6 +29,12 @@ export function createChatAttachMenuController(deps = {}) {
 
     function resolveAttachMode(value) {
         return value === ATTACH_MODE_MEDIA ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
+    }
+
+    function resolveAttachInputMode(value) {
+        if (value === ATTACH_MODE_MEDIA) return ATTACH_MODE_MEDIA;
+        if (value === ATTACH_INPUT_MODE_AUDIO) return ATTACH_INPUT_MODE_AUDIO;
+        return ATTACH_MODE_FILE;
     }
 
     function isVisualAttachCandidate(file) {
@@ -59,12 +67,12 @@ export function createChatAttachMenuController(deps = {}) {
 
     function applyAttachInputMode(mode) {
         if (!fileAttachInput) return;
-        const normalizedMode = resolveAttachMode(mode);
-        fileAttachInput.dataset.attachMode = normalizedMode;
-        fileAttachInput.setAttribute(
-            'accept',
-            normalizedMode === ATTACH_MODE_MEDIA ? FILE_ATTACH_ACCEPT_MEDIA : FILE_ATTACH_ACCEPT_ALL,
-        );
+        const inputMode = resolveAttachInputMode(mode);
+        fileAttachInput.dataset.attachMode = inputMode;
+        let accept = FILE_ATTACH_ACCEPT_ALL;
+        if (inputMode === ATTACH_MODE_MEDIA) accept = FILE_ATTACH_ACCEPT_MEDIA;
+        if (inputMode === ATTACH_INPUT_MODE_AUDIO) accept = FILE_ATTACH_ACCEPT_AUDIO;
+        fileAttachInput.setAttribute('accept', accept);
     }
 
     function openAttachMenu() {

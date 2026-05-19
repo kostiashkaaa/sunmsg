@@ -1,3 +1,6 @@
+from app.sockets.error_messages import socket_error_payload
+
+
 def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     data,
     *,
@@ -24,15 +27,15 @@ def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler con
     if not chat_id:
         return
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', socket_error_payload('Invalid chat ID.'))
         return
 
     user_id = session_store.get('user_id')
     if not user_id:
-        emit_func('error', {'message': unauthorized_error_message})
+        emit_func('error', socket_error_payload(unauthorized_error_message))
         return
     if not socket_rate_ok_func(user_id, 'join'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', socket_error_payload('Too many messages. Please wait a little.'))
         return
     conn = get_db_connection_func()
     try:
@@ -55,7 +58,7 @@ def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler con
         emit_blocked_error_func(blocked_error_message, block_state)
     else:
         logger.warning('User %s attempted to join UNAUTHORIZED room: %s', user_id, chat_id)
-        emit_func('error', {'message': unauthorized_error_message})
+        emit_func('error', socket_error_payload(unauthorized_error_message))
 
 
 def handle_leave_event(  # noqa: PLR0913 - dependency-injected socket handler contract

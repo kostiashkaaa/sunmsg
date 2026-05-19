@@ -25,6 +25,7 @@ from app.sockets.idempotency import (
     release_request,
     reserve_request,
 )
+from app.sockets.error_messages import localize_socket_error_message as _localize_socket_error_message
 
 
 def _resolve_socket_request_handlers(
@@ -60,7 +61,7 @@ def _reserve_socket_request_or_emit_duplicate(
         emit_func(
             'error',
             {
-                'message': 'Duplicate request ignored.',
+                'message': _localize_socket_error_message('Duplicate request ignored.'),
                 'code': 'duplicate_request',
                 'request_id': request_id,
             },
@@ -77,7 +78,7 @@ def _normalize_socket_request_id(data, normalize_request_id_func=None) -> str:
 
 
 def _send_error_payload(message: str, *, request_id: str | None = None, **extra) -> dict:
-    payload = {'message': message}
+    payload = {'message': _localize_socket_error_message(message)}
     normalized_request_id = str(request_id or '').strip()
     if normalized_request_id:
         payload['request_id'] = normalized_request_id
@@ -564,12 +565,15 @@ def _resolve_send_delivery_context(conn, *, context: dict | None = None) -> dict
             emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': receiver_id, **block_state})
             try:
                 emit_blocked_error_func(
-                    'Messaging is unavailable because the user is blocked.',
+                    _localize_socket_error_message('Messaging is unavailable because the user is blocked.'),
                     block_state,
                     request_id=request_id,
                 )
             except TypeError:
-                emit_blocked_error_func('Messaging is unavailable because the user is blocked.', block_state)
+                emit_blocked_error_func(
+                    _localize_socket_error_message('Messaging is unavailable because the user is blocked.'),
+                    block_state,
+                )
             return None
         if not can_send_direct_message(
             conn,
@@ -1154,10 +1158,10 @@ def _validate_delete_request(data, *, context: dict | None = None) -> dict | Non
     pub = session_store['public_key_pem']
 
     if not socket_rate_ok_func(uid, 'delete_messages'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', _send_error_payload('Too many messages. Please wait a little.'))
         return None
     if len(msg_ids) > 100:
-        emit_func('error', {'message': 'Too many messages selected. Maximum is 100.'})
+        emit_func('error', _send_error_payload('Too many messages selected. Maximum is 100.'))
         return None
     if not msg_ids or not chat_id:
         return None
@@ -1191,7 +1195,10 @@ def _resolve_delete_partner_access(conn, *, context: dict | None = None):
         return partner
 
     emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
-    emit_blocked_error_func('Deletion is unavailable because the user is blocked.', block_state)
+    emit_blocked_error_func(
+        _localize_socket_error_message('Deletion is unavailable because the user is blocked.'),
+        block_state,
+    )
     return None
 
 
@@ -1391,17 +1398,17 @@ def _validate_edit_payload(
     if not msg_id or not new_content or not chat_id:
         return None
     if not isinstance(new_content, str):
-        emit_func('error', {'message': 'Invalid payload.'})
+        emit_func('error', _send_error_payload('Invalid payload.'))
         return None
     new_content = new_content.strip()
     if not new_content:
-        emit_func('error', {'message': 'Invalid payload.'})
+        emit_func('error', _send_error_payload('Invalid payload.'))
         return None
     if len(new_content) > 64000:
-        emit_func('error', {'message': 'Message is too long (max 64000 characters).'})
+        emit_func('error', _send_error_payload('Message is too long (max 64000 characters).'))
         return None
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', _send_error_payload('Invalid chat ID.'))
         return None
     return {'msg_id': msg_id, 'new_content': new_content, 'chat_id': chat_id}
 
@@ -1424,7 +1431,10 @@ def _is_edit_chat_access_allowed(
     if not block_state or not block_state['is_blocked']:
         return True
     emit_func('chat_block_state', {'chat_id': chat_id, 'partner_user_id': partner['contact_id'], **block_state})
-    emit_blocked_error_func('Editing is unavailable because the user is blocked.', block_state)
+    emit_blocked_error_func(
+        _localize_socket_error_message('Editing is unavailable because the user is blocked.'),
+        block_state,
+    )
     return False
 
 
@@ -1445,18 +1455,18 @@ def _validate_edit_target(msg, *, context: dict | None = None) -> dict | None:
     msg_sender_id = positive_int_func(msg['sender_id']) if callable(positive_int_func) else None
     current_user_id = positive_int_func(uid) if callable(positive_int_func) else None
     if not msg_sender_id or not current_user_id or msg_sender_id != current_user_id:
-        emit_func('error', {'message': 'You can only edit your own messages.'})
+        emit_func('error', _send_error_payload('You can only edit your own messages.'))
         return None
 
     created_at = parse_db_utc_timestamp_func(msg['created_at']) if callable(parse_db_utc_timestamp_func) else None
     if created_at and callable(utc_now_func):
         if (utc_now_func() - created_at).total_seconds() > message_edit_window_seconds:
-            emit_func('error', {'message': 'Editing window expired for this message.'})
+            emit_func('error', _send_error_payload('Editing window expired for this message.'))
             return None
 
     edit_count = int(msg['edit_count'] or 0)
     if edit_count >= max_message_edits:
-        emit_func('error', {'message': 'Edit limit reached for this message.'})
+        emit_func('error', _send_error_payload('Edit limit reached for this message.'))
         return None
 
     return {
@@ -1504,7 +1514,7 @@ def _apply_edit_message_update(conn, *, context: dict | None = None) -> bool:
         )
         if int(getattr(update_result, 'rowcount', 0) or 0) != 1:
             release_fn(reservation)
-            emit_func('error', {'message': 'You can only edit your own messages.'})
+            emit_func('error', _send_error_payload('You can only edit your own messages.'))
             return False
         conn.commit()
     except Exception:
@@ -1627,7 +1637,7 @@ def handle_edit_message_event(  # noqa: PLR0913 - dependency-injected socket han
     uid = session_store['user_id']
 
     if not socket_rate_ok_func(uid, 'edit_message'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', _send_error_payload('Too many messages. Please wait a little.'))
         return
 
     message_type = sanitize_message_type_func(data.get('message_type', 'text'))

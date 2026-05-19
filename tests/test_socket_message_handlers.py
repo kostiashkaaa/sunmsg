@@ -70,7 +70,7 @@ def test_validate_send_payload_preserves_request_id_on_rate_limit_error():
         (
             'error',
             {
-                'message': 'Too many messages. Please wait a little.',
+                'message': 'Слишком много сообщений. Подождите немного.',
                 'request_id': 'client-123',
             },
         ),
@@ -351,7 +351,7 @@ def test_handle_edit_message_event_rejects_foreign_message_edit(tmp_path):
     assert int(row['is_edited']) == 0
     assert int(row['edit_count']) == 0
     assert any(
-        event[0] == 'error' and event[1].get('message') == 'You can only edit your own messages.'
+        event[0] == 'error' and event[1].get('message') == 'Можно редактировать только свои сообщения.'
         for event in emitted
     )
     assert not any(event[0] == 'message_edited' for event in emitted)
@@ -596,7 +596,7 @@ def test_handle_send_message_event_blocked_emits_state_and_error(tmp_path):
 
     assert row['cnt'] == 0
     assert any(event[0] == 'chat_block_state' and event[1]['chat_id'] == 'chat-a' for event in emitted)
-    assert blocked_errors and blocked_errors[0][0] == 'Messaging is unavailable because the user is blocked.'
+    assert blocked_errors and blocked_errors[0][0] == 'Отправка недоступна, потому что пользователь заблокирован.'
 
 
 def test_handle_send_message_event_triggers_web_push_when_receiver_offline(tmp_path):

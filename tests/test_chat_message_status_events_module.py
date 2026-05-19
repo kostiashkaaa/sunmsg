@@ -72,7 +72,7 @@ moduleApi.registerMessageStatusSocketHandlers({
 });
 
 handlers.get('error')({
-  message: 'Too many messages. Please wait a little.',
+  message: 'Слишком много сообщений. Подождите немного.',
   request_id: 'client-123',
 });
 
@@ -82,7 +82,7 @@ if (canceled.join(',') !== 'client-123') {
 if (failed.join(',') !== 'client-123') {
   throw new Error(`Expected failed client-123, got ${failed.join(',')}`);
 }
-if (toasts.length !== 1 || toasts[0].message !== 'Too many messages. Please wait a little.' || toasts[0].type !== 'warning') {
+if (toasts.length !== 1 || toasts[0].message !== 'Слишком много сообщений. Подождите немного.' || toasts[0].type !== 'warning') {
   throw new Error(`Unexpected toast payload ${JSON.stringify(toasts)}`);
 }
 """

@@ -1,8 +1,9 @@
 from app.services.group_permissions import load_group_permissions, role_uses_member_permissions
+from app.sockets.error_messages import socket_error_payload
 
 
 def _emit_error(emit_func, message: str) -> None:
-    emit_func('error', {'message': message})
+    emit_func('error', socket_error_payload(message))
 
 
 def _validate_pin_payload(

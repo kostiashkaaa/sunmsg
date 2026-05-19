@@ -129,7 +129,7 @@ if (!(pinAt > -1 && pinAt < clearAt && clearAt < resizeAt && resizeAt < appendAt
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_file_send_marks_queued_outbox_message_failed_without_pending_timeout():
+def test_file_send_uploads_and_queues_when_socket_is_disconnected():
     module_path = ROOT / 'static' / 'modules' / 'chat-file-send.js'
     node_harness = f"""
 import {{ readFile }} from 'node:fs/promises';
@@ -185,7 +185,7 @@ await sendFileMessageFlow({{
   getReplyState: () => ({{}}),
   cancelReply: () => calls.push(['cancelReply']),
   encryptForCurrentChat: async (message) => `enc:${{message}}`,
-  isRealtimeConnected: () => true,
+  isRealtimeConnected: () => false,
   emitSocket: () => false,
   appendMessage: () => calls.push(['append']),
   setKeepChatPinnedToBottom: () => {{}},

@@ -115,7 +115,7 @@ def test_handle_join_event_invalid_chat_id_emits_error():
         logger=_logger(),
     )
 
-    assert emitted == [('error', {'message': 'Invalid chat ID.'}, {})]
+    assert emitted == [('error', {'message': 'Некорректный ID чата.'}, {})]
 
 
 def test_handle_leave_event_leaves_room_when_chat_id_valid():

@@ -82,17 +82,17 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setAttr('reg_username', 'placeholder', isEn ? 'your_username' : 'ваш_username');
     setAttr('reg_display_name', 'placeholder', isEn ? 'Your name' : 'Ваше имя');
 
-    setText('registerBtnText', isEn ? 'Continue' : 'Продолжить');
+    setText('registerBtnText', isEn ? 'Show recovery phrase' : 'Показать фразу');
     setHtml('loginOtherBackBtn', isEn ? '&larr; Back' : '&larr; Назад');
     setHtml('registerStep2BackBtn', isEn ? '&larr; Back' : '&larr; Назад');
     setHtml('registerStep3BackBtn', isEn ? '&larr; Back' : '&larr; Назад');
 
-    setText('registerStep2Title', isEn ? 'Your house key' : 'Ваш ключ от дома');
+    setText('registerStep2Title', isEn ? 'Recovery phrase, 24 words' : 'Фраза восстановления, 24 слова');
     setText(
         'registerStep2Sub',
         isEn
-            ? '24 words. Write them on paper — everything you need to sign in from any device.'
-            : '24 слова. Запишите на бумаге — это всё, что нужно для входа с любого устройства.',
+            ? 'Write the words on paper. The account will be created only after this phrase is checked.'
+            : 'Запишите слова на бумаге. Аккаунт будет создан только после проверки этой фразы.',
     );
     setText('registerMnemonicRevealText', isEn ? 'Reveal' : 'Показать');
     setText('copyPrivateKeyBtnLabel', isEn ? 'Copy' : 'Скопировать');
@@ -177,8 +177,8 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     const progressTextNode = document.getElementById('registerFlowProgressText');
     if (progressTextNode) {
         const step = Number(document.querySelector('.auth-register-progress')?.dataset.step || '1');
-        const ru = { 1: 'Данные аккаунта', 2: 'Сохранение 24 слов', 3: 'Маленькая проверка', 4: 'Готово' };
-        const en = { 1: 'Account details', 2: 'Save 24 words', 3: 'Quick check', 4: 'Done' };
+        const ru = { 1: 'Данные аккаунта', 2: 'Фраза восстановления', 3: 'Маленькая проверка', 4: 'Готово' };
+        const en = { 1: 'Account details', 2: 'Recovery phrase', 3: 'Quick check', 4: 'Done' };
         const safeStep = Math.min(4, Math.max(1, Number.isFinite(step) ? step : 1));
         progressTextNode.textContent = isEn
             ? `Step ${safeStep} of 4 — ${en[safeStep]}`

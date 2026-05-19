@@ -3051,15 +3051,15 @@ body.auth-page-body--sunrise-v3 .auth-wrapper {
     max-width: 1460px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 430px;
+    grid-template-columns: minmax(0, 0.92fr) minmax(430px, 500px);
     align-items: stretch;
-    gap: 48px;
+    gap: 28px;
 }
 
 body.auth-page-body--sunrise-v3 .auth-hero-panel {
     position: relative;
-    height: min(760px, calc(100dvh - 64px));
-    min-height: 700px;
+    height: min(680px, calc(100dvh - 64px));
+    min-height: min(620px, calc(100dvh - 64px));
     border-radius: 24px;
     overflow: hidden;
     padding: 36px 36px 34px;
@@ -3224,9 +3224,9 @@ body.auth-page-body--sunrise-v3 .auth-hero-hint-dot {
 body.auth-page-body--sunrise-v3 .auth-card,
 body.auth-page-body--sunrise-v3 #keyResultBox {
     width: 100%;
-    max-width: 430px;
-    height: min(760px, calc(100dvh - 64px));
-    min-height: 700px;
+    max-width: 500px;
+    height: min(680px, calc(100dvh - 64px));
+    min-height: min(620px, calc(100dvh - 64px));
     border: 1px solid color-mix(in srgb, var(--sun-rule) 98%, transparent);
     border-radius: 16px;
     background: var(--sun-card);
@@ -3902,10 +3902,16 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn {
     }
 
     body.auth-page-body--sunrise-v3 .auth-hero-panel {
+        order: 2;
         height: auto;
-        min-height: 250px;
+        min-height: 170px;
         border-radius: 18px;
         padding: 22px 20px;
+    }
+
+    body.auth-page-body--sunrise-v3 .auth-card,
+    body.auth-page-body--sunrise-v3 #keyResultBox {
+        order: 1;
     }
 
     body.auth-page-body--sunrise-v3 .auth-hero-panel::before {
@@ -3936,7 +3942,7 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn {
     body.auth-page-body--sunrise-v3 #keyResultBox {
         max-width: none;
         width: 100%;
-        min-height: 640px;
+        min-height: 620px;
         height: auto;
         padding: 22px 18px 18px;
         border-radius: 14px;

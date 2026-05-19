@@ -239,5 +239,5 @@ def test_handle_toggle_reaction_event_invalid_payload_includes_request_id():
     )
 
     assert emitted == [
-        ('error', {'message': 'Invalid reaction payload.', 'request_id': 'req-x'}, {})
+        ('error', {'message': 'Некорректные данные реакции.', 'request_id': 'req-x'}, {})
     ]

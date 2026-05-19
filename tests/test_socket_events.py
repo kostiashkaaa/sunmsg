@@ -1157,19 +1157,19 @@ def test_socket_helpers_cover_payload_parsing_csrf_and_rate_limit(monkeypatch, t
 
         assert socket_events._require_payload_dict({'ok': True}) == {'ok': True}
         assert socket_events._require_payload_dict('bad-payload') is None
-        assert emitted.pop()['payload'] == {'message': 'Invalid socket payload.'}
+        assert emitted.pop()['payload'] == {'message': 'Некорректные данные socket-события.'}
 
         assert socket_events._socket_csrf_ok({}) is False
-        assert emitted.pop()['payload'] == {'message': 'CSRF token is required.'}
+        assert emitted.pop()['payload'] == {'message': 'Требуется CSRF-токен.'}
 
         monkeypatch.setattr(socket_events, 'validate_csrf', lambda token: (_ for _ in ()).throw(ValidationError('bad')))
         session['user_id'] = 1
         assert socket_events._socket_csrf_ok({'csrf_token': 'bad'}) is False
-        assert emitted.pop()['payload'] == {'message': 'Invalid CSRF token.'}
+        assert emitted.pop()['payload'] == {'message': 'Недействительный CSRF-токен.'}
 
         monkeypatch.setattr(socket_events, 'validate_csrf', lambda token: (_ for _ in ()).throw(RuntimeError('boom')))
         assert socket_events._socket_csrf_ok({'csrf_token': 'boom'}) is False
-        assert emitted.pop()['payload'] == {'message': 'CSRF validation failed.'}
+        assert emitted.pop()['payload'] == {'message': 'Не удалось проверить CSRF-токен.'}
 
         monkeypatch.setattr(socket_events, 'validate_csrf', lambda token: None)
         assert socket_events._socket_csrf_ok({'csrf_token': 'ok'}) is True
@@ -1293,7 +1293,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
 
         alice_socket.emit('join', {'chat_id': 'bad-chat', 'csrf_token': alice_csrf})
         join_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Invalid chat ID.' for payload in join_errors)
+        assert any(payload['message'] == 'Некорректный ID чата.' for payload in join_errors)
 
         alice_socket.emit('stop_typing', {'chat_id': chat_id, 'csrf_token': alice_csrf})
         bob_stop_typing = _wait_for_event_payloads(bob_socket, 'partner_stop_typing')
@@ -1301,18 +1301,18 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
 
         alice_socket.emit('send_message', 'bad-payload')
         payload_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Invalid socket payload.' for payload in payload_errors)
+        assert any(payload['message'] == 'Некорректные данные socket-события.' for payload in payload_errors)
 
         alice_socket.emit('send_message', {'chat_id': chat_id, 'message': '', 'csrf_token': alice_csrf})
         invalid_payload_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Invalid payload.' for payload in invalid_payload_errors)
+        assert any(payload['message'] == 'Некорректные данные сообщения.' for payload in invalid_payload_errors)
 
         alice_socket.emit(
             'send_message',
             {'chat_id': 'bad-chat', 'message': 'hello', 'csrf_token': alice_csrf},
         )
         invalid_chat_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Invalid chat ID.' for payload in invalid_chat_errors)
+        assert any(payload['message'] == 'Некорректный ID чата.' for payload in invalid_chat_errors)
 
         monkeypatch.setattr(socket_events, '_socket_rate_ok', lambda uid, event_name=None: False)
         alice_socket.emit(
@@ -1320,7 +1320,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             {'chat_id': chat_id, 'message': 'rate limited', 'csrf_token': alice_csrf},
         )
         rate_limit_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Too many messages. Please wait a little.' for payload in rate_limit_errors)
+        assert any(payload['message'] == 'Слишком много сообщений. Подождите немного.' for payload in rate_limit_errors)
 
         bob_socket.emit(
             'toggle_reaction',
@@ -1333,7 +1333,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             },
         )
         reaction_rate_limit_errors = _wait_for_event_payloads(bob_socket, 'error')
-        assert any(payload['message'] == 'Too many messages. Please wait a little.' for payload in reaction_rate_limit_errors)
+        assert any(payload['message'] == 'Слишком много сообщений. Подождите немного.' for payload in reaction_rate_limit_errors)
 
         bob_socket.emit(
             'messages_seen',
@@ -1343,7 +1343,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             },
         )
         seen_rate_limit_errors = _wait_for_event_payloads(bob_socket, 'error')
-        assert any(payload['message'] == 'Too many messages. Please wait a little.' for payload in seen_rate_limit_errors)
+        assert any(payload['message'] == 'Слишком много сообщений. Подождите немного.' for payload in seen_rate_limit_errors)
 
         monkeypatch.setattr(socket_events, '_socket_rate_ok', lambda uid, event_name=None: True)
         monkeypatch.setattr(socket_events, '_socket_signal_interval_ok', lambda uid, event_name: False)
@@ -1386,7 +1386,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             },
         )
         expired_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Editing window expired for this message.' for payload in expired_errors)
+        assert any(payload['message'] == 'Время редактирования этого сообщения истекло.' for payload in expired_errors)
 
         alice_socket.emit(
             'edit_message',
@@ -1398,7 +1398,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             },
         )
         edit_limit_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Edit limit reached for this message.' for payload in edit_limit_errors)
+        assert any(payload['message'] == 'Лимит редактирования этого сообщения исчерпан.' for payload in edit_limit_errors)
 
         bob_socket.emit(
             'toggle_reaction',
@@ -1412,7 +1412,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
         )
         missing_message_errors = _wait_for_event_payloads(bob_socket, 'error')
         assert any(
-            payload['message'] == 'Message not found.' and payload['request_id'] == 'missing-msg'
+            payload['message'] == 'Сообщение не найдено.' and payload['request_id'] == 'missing-msg'
             for payload in missing_message_errors
         )
 
@@ -1464,7 +1464,7 @@ def test_socket_negative_paths_cover_invalid_payloads_and_reply_preview(monkeypa
             },
         )
         delete_limit_errors = _wait_for_event_payloads(alice_socket, 'error')
-        assert any(payload['message'] == 'Too many messages selected. Maximum is 100.' for payload in delete_limit_errors)
+        assert any(payload['message'] == 'Выбрано слишком много сообщений. Максимум 100.' for payload in delete_limit_errors)
     finally:
         if alice_socket.is_connected():
             alice_socket.disconnect()

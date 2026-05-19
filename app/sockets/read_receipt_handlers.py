@@ -4,6 +4,7 @@ from app.services.group_receipts import (
     list_unread_group_receipt_message_ids,
 )
 from app.services.user_privacy import can_share_read_receipt, can_share_voice_listened
+from app.sockets.error_messages import socket_error_payload
 
 
 def _is_missing_read_at_column_error(exc: Exception) -> bool:
@@ -35,7 +36,7 @@ def _validate_messages_seen_payload(
     if not chat_id:
         return None
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', socket_error_payload('Invalid chat ID.'))
         return None
     return chat_id
 
@@ -55,7 +56,7 @@ def _validate_voice_listened_payload(
     if not chat_id or message_id is None:
         return None
     if not is_valid_chat_id_func(chat_id):
-        emit_func('error', {'message': 'Invalid chat ID.'})
+        emit_func('error', socket_error_payload('Invalid chat ID.'))
         return None
     return {'chat_id': chat_id, 'message_id': int(message_id)}
 
@@ -339,7 +340,7 @@ def handle_messages_seen_event(  # noqa: PLR0913 - dependency-injected socket ha
 
     user_id = session_store['user_id']
     if not socket_rate_ok_func(user_id, 'messages_seen'):
-        emit_func('error', {'message': 'Too many messages. Please wait a little.'})
+        emit_func('error', socket_error_payload('Too many messages. Please wait a little.'))
         return
 
     conn = get_db_connection_func()

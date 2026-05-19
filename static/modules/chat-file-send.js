@@ -83,10 +83,6 @@ export async function sendFileMessageFlow({
         return;
     }
     if (!file) return;
-    if (typeof isRealtimeConnected === 'function' && !isRealtimeConnected()) {
-        showToast(OFFLINE_RETRY_MESSAGE, 'warning');
-        return;
-    }
     const attachMode = options?.attachMode === 'media' ? 'media' : 'file';
     const optimizationResult = await optimizeFileForAttachMode(file, { attachMode });
     const uploadFile = optimizationResult?.file || file;

@@ -37,6 +37,7 @@ from app.sockets.favorite_handlers import (
     handle_favorite_message_event,
     handle_unfavorite_message_event,
 )
+from app.sockets.error_messages import socket_error_payload
 from app.sockets.reaction_handlers import handle_toggle_reaction_event
 from app.services.disappearing_messages import (
     set_chat_auto_delete,
@@ -285,18 +286,18 @@ def handle_set_chat_auto_delete(data):
     user_id = int(session.get('user_id', 0))
     chat_id = str(data.get('chat_id') or '').strip()
     if not chat_id or not is_valid_chat_id(chat_id):
-        ctx._emit_socket_event('error', {'message': 'Invalid chat_id.'})
+        ctx._emit_socket_event('error', socket_error_payload('Invalid chat_id.'))
         return
 
     seconds = normalize_auto_delete_seconds(data.get('seconds'))
     if seconds is None:
-        ctx._emit_socket_event('error', {'message': 'Invalid timer value.'})
+        ctx._emit_socket_event('error', socket_error_payload('Invalid timer value.'))
         return
 
     conn = get_db_connection()
     try:
         if not is_chat_member(conn, user_id, chat_id):
-            ctx._emit_socket_event('error', {'message': 'Not a member.'})
+            ctx._emit_socket_event('error', socket_error_payload('Not a member.'))
             return
         chat = conn.execute(
             'SELECT chat_type, created_by_user_id FROM chats WHERE chat_id = ?', (chat_id,)
@@ -306,7 +307,7 @@ def handle_set_chat_auto_delete(data):
         if str(chat['chat_type'] or '') == 'group':
             decision = authorize_group_action(conn, actor_user_id=user_id, chat_id=chat_id, action='change_settings')
             if not decision.allowed:
-                ctx._emit_socket_event('error', {'message': 'No permission.'})
+                ctx._emit_socket_event('error', socket_error_payload('No permission.'))
                 return
         set_chat_auto_delete(conn, chat_id, seconds)
         conn.commit()

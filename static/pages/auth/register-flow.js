@@ -41,6 +41,7 @@ export function initRegisterFlow({
     const registerMnemonicConfirmB = document.getElementById('registerMnemonicConfirmB');
     const registerMnemonicConfirmError = document.getElementById('registerMnemonicConfirmError');
     const registerMnemonicConfirmBtn = document.getElementById('registerMnemonicConfirmBtn');
+    const registerStep3ContinueLabel = document.getElementById('registerStep3ContinueLabel');
     const registerStep3ShowWordsBtn = document.getElementById('registerStep3ShowWordsBtn');
 
     const registerDoneLoginBtn = document.getElementById('registerDoneLoginBtn');
@@ -62,7 +63,9 @@ export function initRegisterFlow({
             displayName: '',
             avatarUrl: '',
         },
+        publicKeyPem: '',
         privateKeyPem: '',
+        loginVault: '',
         sessionAutoLogoutSeconds: 0,
         sessionExpiresAt: 0,
     };
@@ -99,6 +102,127 @@ export function initRegisterFlow({
             return Boolean(staged);
         } catch (_) {
             return false;
+        }
+    }
+
+    function setRegisterConfirmState(isLoading) {
+        if (!registerMnemonicConfirmBtn) return;
+        const loading = Boolean(isLoading);
+        registerMnemonicConfirmBtn.disabled = loading;
+        setSubmitButtonState(registerMnemonicConfirmBtn, loading);
+        if (registerStep3ContinueLabel) {
+            registerStep3ContinueLabel.textContent = loading
+                ? tr(isEnglish() ? 'Creating account...' : 'Создаём аккаунт...')
+                : tr(isEnglish() ? 'Continue' : 'Продолжить');
+        }
+    }
+
+    function hasLocalRegistrationDraft() {
+        return Boolean(
+            flowState.mnemonic
+            && flowState.publicKeyPem
+            && flowState.privateKeyPem
+            && flowState.loginVault
+        );
+    }
+
+    async function prepareLocalRegistrationDraft(username, displayName) {
+        assertWebCryptoSupport();
+
+        flowState.profile = {
+            username,
+            displayName,
+            avatarUrl: '',
+        };
+
+        if (hasLocalRegistrationDraft()) {
+            resetMnemonicPhase(flowState.mnemonic);
+            return;
+        }
+
+        const mnemonic = await window.mnemonic.generateMnemonic();
+        const keyPair = await window.crypto.subtle.generateKey(
+            {
+                name: 'RSA-OAEP',
+                modulusLength: 2048,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: 'SHA-256',
+            },
+            true,
+            ['encrypt', 'decrypt'],
+        );
+        const pubKeyArr = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+        const privKeyArr = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+        const pubKeyPem = window.e2e.arrayBufferToBase64(pubKeyArr);
+        const privKeyPem = window.e2e.arrayBufferToBase64(privKeyArr);
+        const loginVault = await window.mnemonic.createVault(mnemonic, privKeyPem);
+
+        flowState.publicKeyPem = pubKeyPem;
+        flowState.privateKeyPem = privKeyPem;
+        flowState.loginVault = loginVault;
+        flowState.sessionAutoLogoutSeconds = 0;
+        flowState.sessionExpiresAt = 0;
+
+        resetMnemonicPhase(mnemonic);
+    }
+
+    async function createAccountAfterRecoveryCheck() {
+        const username = String(flowState.profile.username || '').trim();
+        const displayName = String(flowState.profile.displayName || '').trim();
+        if (!username || !displayName || !hasLocalRegistrationDraft()) {
+            throw new Error(isEnglish()
+                ? 'Return to account details and fill in the required fields.'
+                : 'Вернитесь к данным аккаунта и заполните обязательные поля.');
+        }
+
+        const challengeRes = await fetch(withAppRoot('/api/get_register_challenge'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({}),
+        });
+        const challengeData = await challengeRes.json().catch(() => ({}));
+        if (!challengeRes.ok || !challengeData.success || !challengeData.challenge) {
+            throw new Error(tr(challengeData.error || 'Не удалось получить challenge для регистрации'));
+        }
+        const registerSignature = await window.e2e.signChallenge(flowState.privateKeyPem, challengeData.challenge);
+
+        const registerRes = await fetch(withAppRoot('/api/register_client'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({
+                username,
+                display_name: displayName,
+                public_key: flowState.publicKeyPem,
+                login_vault: flowState.loginVault,
+                register_challenge: challengeData.challenge,
+                register_signature: registerSignature,
+                language: activeLanguage(),
+            }),
+        });
+        const data = await registerRes.json().catch(() => ({}));
+        if (!registerRes.ok || !data.success) {
+            throw new Error(tr(data.error || 'Ошибка регистрации'));
+        }
+
+        if (typeof data.csrf_token === 'string' && data.csrf_token.trim()) {
+            setCsrfToken(data.csrf_token.trim());
+        }
+
+        flowState.sessionAutoLogoutSeconds = Number(data.session_auto_logout_seconds || 0) || 0;
+        flowState.sessionExpiresAt = Number(data.session_expires_at || 0) || 0;
+        setMnemonicToGrid(flowState.mnemonic);
+
+        const loginUsernameInput = document.getElementById('login_username');
+        if (loginUsernameInput) {
+            loginUsernameInput.value = username;
         }
     }
 
@@ -158,13 +282,13 @@ export function initRegisterFlow({
     function updateProgress(step) {
         const ru = {
             1: 'Данные аккаунта',
-            2: 'Сохранение 24 слов',
+            2: 'Фраза восстановления',
             3: 'Маленькая проверка',
             4: 'Готово',
         };
         const en = {
             1: 'Account details',
-            2: 'Save 24 words',
+            2: 'Recovery phrase',
             3: 'Quick check',
             4: 'Done',
         };
@@ -323,7 +447,7 @@ export function initRegisterFlow({
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    registerMnemonicConfirmBtn?.addEventListener('click', () => {
+    registerMnemonicConfirmBtn?.addEventListener('click', async () => {
         const firstIndex = flowState.confirmIndexes[0];
         const secondIndex = flowState.confirmIndexes[1];
         const expectedA = flowState.words[firstIndex] || '';
@@ -347,8 +471,28 @@ export function initRegisterFlow({
         }
 
         setConfirmError('');
-        setRegisterStep(4);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setRegisterConfirmState(true);
+        try {
+            await createAccountAfterRecoveryCheck();
+            setRegisterStep(4);
+            showToast(
+                isEnglish()
+                    ? 'Account created. You can open the messenger.'
+                    : 'Аккаунт создан. Можно открыть мессенджер.',
+                'success',
+            );
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            const message = tr(err?.message || 'Ошибка регистрации');
+            setConfirmError(message);
+            showToast(message, 'error');
+            if (/username|display|ник|имя/i.test(message)) {
+                setRegisterStep(1);
+                regUsernameInput?.focus();
+            }
+        } finally {
+            setRegisterConfirmState(false);
+        }
     });
 
     registerDoneLoginBtn?.addEventListener('click', async () => {
@@ -386,116 +530,20 @@ export function initRegisterFlow({
         if (!registerSubmitBtn || !registerBtnText) return;
 
         registerSubmitBtn.disabled = true;
-        registerBtnText.textContent = tr('Генерация ключей...');
+        registerBtnText.textContent = tr('Генерация фразы...');
         setSubmitButtonState(registerSubmitBtn, true);
 
         try {
             const username = document.getElementById('reg_username')?.value.trim() || '';
             const displayName = document.getElementById('reg_display_name')?.value.trim() || '';
-            const hasCachedRegistration = Boolean(
-                flowState.mnemonic
-                && flowState.privateKeyPem
-                && flowState.profile.username
-                && flowState.profile.username === username,
-            );
-
-            if (hasCachedRegistration) {
-                resetMnemonicPhase(flowState.mnemonic);
-                setRegisterStep(2);
-                showToast(
-                    isEnglish()
-                        ? 'Continuing with your existing 24-word recovery phrase.'
-                        : 'Продолжаем с уже созданной 24-словной фразой восстановления.',
-                    'info',
-                );
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                return;
-            }
-
-            assertWebCryptoSupport();
-            const mnemonic = await window.mnemonic.generateMnemonic();
-
-            const keyPair = await window.crypto.subtle.generateKey(
-                {
-                    name: 'RSA-OAEP',
-                    modulusLength: 2048,
-                    publicExponent: new Uint8Array([1, 0, 1]),
-                    hash: 'SHA-256',
-                },
-                true,
-                ['encrypt', 'decrypt'],
-            );
-            const pubKeyArr = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
-            const privKeyArr = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
-            const pubKeyPem = window.e2e.arrayBufferToBase64(pubKeyArr);
-            const privKeyPem = window.e2e.arrayBufferToBase64(privKeyArr);
-            const loginVault = await window.mnemonic.createVault(mnemonic, privKeyPem);
-
-            registerBtnText.textContent = tr('Проверка владения ключом...');
-            const challengeRes = await fetch(withAppRoot('/api/get_register_challenge'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({}),
-            });
-            const challengeData = await challengeRes.json();
-            if (!challengeData.success || !challengeData.challenge) {
-                throw new Error(tr(challengeData.error || 'Не удалось получить challenge для регистрации'));
-            }
-            const registerSignature = await window.e2e.signChallenge(privKeyPem, challengeData.challenge);
-
-            const registerRes = await fetch(withAppRoot('/api/register_client'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
-                },
-                body: JSON.stringify({
-                    username,
-                    display_name: displayName,
-                    public_key: pubKeyPem,
-                    login_vault: loginVault,
-                    register_challenge: challengeData.challenge,
-                    register_signature: registerSignature,
-                    language: activeLanguage(),
-                }),
-            });
-            const data = await registerRes.json().catch(() => ({}));
-            if (!registerRes.ok || !data.success) {
-                showToast(data.error || 'Ошибка регистрации', 'error');
-                return;
-            }
-
-            if (typeof data.csrf_token === 'string' && data.csrf_token.trim()) {
-                setCsrfToken(data.csrf_token.trim());
-            }
-
-            flowState.profile = {
-                username,
-                displayName,
-                avatarUrl: '',
-            };
-            flowState.privateKeyPem = privKeyPem;
-            flowState.sessionAutoLogoutSeconds = Number(data.session_auto_logout_seconds || 0) || 0;
-            flowState.sessionExpiresAt = Number(data.session_expires_at || 0) || 0;
-
-            setMnemonicToGrid(mnemonic);
-            const loginUsernameInput = document.getElementById('login_username');
-            if (loginUsernameInput) {
-                loginUsernameInput.value = username;
-            }
-
-            resetMnemonicPhase(mnemonic);
+            await prepareLocalRegistrationDraft(username, displayName);
             setRegisterStep(2);
 
             showToast(
                 isEnglish()
-                    ? 'Account created. Save all 24 words and continue.'
-                    : 'Аккаунт создан. Сохраните 24 слова и продолжите.',
-                'success',
+                    ? 'Save the recovery phrase first. The account will be created after the word check.'
+                    : 'Сначала сохраните фразу восстановления. Аккаунт создадим после проверки слов.',
+                'info',
             );
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
@@ -503,7 +551,7 @@ export function initRegisterFlow({
         } finally {
             registerSubmitBtn.disabled = false;
             setSubmitButtonState(registerSubmitBtn, false);
-            registerBtnText.textContent = tr('Продолжить');
+            registerBtnText.textContent = tr(isEnglish() ? 'Show recovery phrase' : 'Показать фразу');
         }
     });
 
