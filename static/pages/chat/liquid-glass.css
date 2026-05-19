@@ -248,7 +248,26 @@ html[data-interface-surface="glass"] #messageInput.editing-active {
 }
 
 html[data-interface-surface="glass"] .settings-overlay-backdrop {
-    background: rgba(0, 0, 0, 0.14);
+    background: transparent !important;
+}
+
+@keyframes sunBrandSettingsGlowReplay {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-glow) 0%, transparent);
+        filter: saturate(1);
+    }
+    55% {
+        box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-glow) 68%, transparent);
+        filter: saturate(1.14);
+    }
+    100% {
+        box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-glow) 56%, transparent);
+        filter: saturate(1.06);
+    }
+}
+
+html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--settings-glow-replay {
+    animation: sunBrandSettingsGlowReplay 520ms var(--ease-quick) both;
 }
 
 html[data-interface-surface="glass"] .settings-overlay-panel {

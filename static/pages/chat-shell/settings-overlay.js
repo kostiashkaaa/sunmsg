@@ -22,6 +22,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let commandPaletteOpenPromise = null;
     const dialogTransitionState = new WeakMap();
     const SETTINGS_BRAND_DOT_ACTIVE_CLASS = 'sidebar-brand-dot--settings-active';
+    const SETTINGS_BRAND_DOT_REPLAY_CLASS = 'sidebar-brand-dot--settings-glow-replay';
     const SETTINGS_HOME_TARGETS = new Set(['settings', 'home', 'menu']);
 
     function prefersReducedMotion() {
@@ -199,7 +200,15 @@ export function initChatShellSettingsOverlay(options = {}) {
     }
 
     function setSettingsBrandGlow(active) {
-        sidebarBrandDot?.classList.toggle(SETTINGS_BRAND_DOT_ACTIVE_CLASS, Boolean(active));
+        if (!sidebarBrandDot) return;
+        if (!active) {
+            sidebarBrandDot.classList.remove(SETTINGS_BRAND_DOT_ACTIVE_CLASS, SETTINGS_BRAND_DOT_REPLAY_CLASS);
+            return;
+        }
+        sidebarBrandDot.classList.add(SETTINGS_BRAND_DOT_ACTIVE_CLASS);
+        sidebarBrandDot.classList.remove(SETTINGS_BRAND_DOT_REPLAY_CLASS);
+        void sidebarBrandDot.offsetWidth;
+        sidebarBrandDot.classList.add(SETTINGS_BRAND_DOT_REPLAY_CLASS);
     }
 
     function isSettingsHomeTarget(section) {
