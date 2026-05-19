@@ -108,6 +108,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-to
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     overflow: visible;
+    z-index: 6;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-row {
@@ -116,8 +117,18 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-to
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-tabs {
-    padding: 0 4px;
+    position: relative;
+    z-index: 1;
+    gap: 4px;
+    margin: 0;
+    padding: 4px;
     border-bottom: 0;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 16px;
+    background: var(--sun-glass-top-pill-bg);
+    box-shadow: var(--sun-glass-top-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 /* ── brand pill ──────────────────────────────────────────────── */
@@ -164,6 +175,29 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-cle
     backdrop-filter: var(--sun-glass-blur-sm);
 }
 
+html[data-interface-surface="glass"] .sidebar .sidebar-tab {
+    min-height: 30px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-bottom-color: transparent;
+    border-radius: 12px;
+    color: var(--sub-text);
+    background: transparent;
+    transition:
+        color var(--dur-quick) var(--ease-quick),
+        background var(--dur-quick) var(--ease-quick),
+        border-color var(--dur-quick) var(--ease-quick);
+}
+
+html[data-interface-surface="glass"] .sidebar .sidebar-tab.active,
+html[data-interface-surface="glass"] .sidebar .sidebar-tab:hover:not(.active) {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    background: var(--sun-glass-top-pill-bg-hi);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+}
+
 /* ── profile card (bottom) ───────────────────────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
@@ -207,6 +241,7 @@ html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-card
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     overflow: visible;
+    z-index: 6;
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-row {
@@ -215,8 +250,18 @@ html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-row 
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-tabs {
-    padding: 0 4px;
+    position: relative;
+    z-index: 1;
+    gap: 4px;
+    margin: 0;
+    padding: 4px;
     border-bottom: 0;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 16px;
+    background: var(--sun-glass-top-pill-bg);
+    box-shadow: var(--sun-glass-top-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-brand,
@@ -601,7 +646,12 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today {
     }
 
     html[data-interface-surface="glass"] #sidebarScrollArea {
+        position: relative;
+        z-index: 1;
+        margin-top: calc(-1 * var(--sidebar-top-card-height, 54px));
+        padding-top: calc(var(--sidebar-top-card-height, 54px) + 12px);
         padding-bottom: 12px;
+        scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + 12px);
     }
 }
 
