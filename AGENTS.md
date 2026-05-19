@@ -86,7 +86,7 @@ Environment variables are loaded via `.env` (see `.env.example`). Key groups:
 - `VAPID_*` — Web push notification keys
 
 ### Deployment
-- **Staging**: auto-deploys on push to `main` via GitHub Actions (`.github/workflows/deploy.yml`)
+- **Staging**: deploys manually via the `Deploy` GitHub Actions workflow with `environment=staging`
 - **Production**: deploys on `v*` git tags
 - The deploy script builds `release.tar.gz` and runs it on the server over SSH; migrations run as part of the deploy
 - Required secrets: `SSH_HOST`, `SSH_USER`, `SSH_KEY`

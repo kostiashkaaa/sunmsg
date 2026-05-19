@@ -8,6 +8,13 @@ fi
 
 SHA="$1"
 TARGET_ENV="${2:-production}"
+case "$TARGET_ENV" in
+  staging|production) ;;
+  *)
+    echo "Invalid environment: $TARGET_ENV (expected staging or production)" >&2
+    exit 2
+    ;;
+esac
 
 BASE_DIR="/srv/sunmessenger"
 RELEASES_DIR="$BASE_DIR/releases"
@@ -72,6 +79,39 @@ restart_web_service() {
   # The release symlink changes before this call; restart is required so
   # gunicorn's master process gets the new WorkingDirectory target.
   run_systemctl restart sunmessenger-web.service
+}
+
+systemd_unit_exists() {
+  run_systemctl cat "$1" >/dev/null 2>&1
+}
+
+install_mediasoup_dependencies_if_enabled() {
+  if [[ ! -d "$RELEASE_DIR/server-mediasoup" ]]; then
+    return 0
+  fi
+
+  if ! systemd_unit_exists sun-mediasoup.service; then
+    echo "Skipping mediasoup dependency install: sun-mediasoup.service is not installed."
+    return 0
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm is required because sun-mediasoup.service is installed." >&2
+    echo "Install Node.js 18+ and npm on the server, then retry deploy." >&2
+    exit 8
+  fi
+
+  if [[ -f "$RELEASE_DIR/server-mediasoup/package-lock.json" ]]; then
+    npm --prefix "$RELEASE_DIR/server-mediasoup" ci --omit=dev --no-audit --no-fund
+  else
+    npm --prefix "$RELEASE_DIR/server-mediasoup" install --omit=dev --no-audit --no-fund
+  fi
+}
+
+restart_mediasoup_service_if_present() {
+  if systemd_unit_exists sun-mediasoup.service; then
+    run_systemctl restart sun-mediasoup.service
+  fi
 }
 
 reset_presence_state() {
@@ -242,6 +282,7 @@ rollback() {
     ln -sfn "$old_target" "$CURRENT_LINK"
     restart_web_service || true
     run_systemctl restart sunmessenger-scheduler.service || true
+    restart_mediasoup_service_if_present || true
   fi
 }
 trap rollback ERR
@@ -264,6 +305,7 @@ ln -sfn "$ENV_FILE" "$RELEASE_DIR/.env"
 
 cd "$RELEASE_DIR"
 "$VENV_BIN/python" -m pip install -r requirements-production.txt
+install_mediasoup_dependencies_if_enabled
 "$VENV_BIN/python" manage.py production-config-check --env production
 "$VENV_BIN/python" manage.py security-check --env production
 "$VENV_BIN/python" manage.py maintenance --env production --backup-dir "$BACKUP_DIR"
@@ -276,6 +318,7 @@ ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 reset_presence_state
 restart_web_service
 run_systemctl restart sunmessenger-scheduler.service
+restart_mediasoup_service_if_present
 
 health_ok=0
 for _ in $(seq 1 30); do

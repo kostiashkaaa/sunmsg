@@ -1,0 +1,36 @@
+[Unit]
+Description=SUNmessenger mediasoup SFU server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=sunmessenger
+Group=sunmessenger
+WorkingDirectory=/srv/sunmessenger/current/server-mediasoup
+
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+KillSignal=SIGINT
+TimeoutStopSec=10
+LimitNOFILE=1048576
+
+# Environment
+Environment=NODE_ENV=production
+Environment=MEDIASOUP_API_PORT=3000
+EnvironmentFile=/srv/sunmessenger/shared/.env.mediasoup
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sun-mediasoup
+
+[Install]
+WantedBy=multi-user.target

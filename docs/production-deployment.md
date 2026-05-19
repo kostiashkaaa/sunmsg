@@ -12,6 +12,7 @@ Reference production layout for `SUN Messenger`:
   - `web`
   - `scheduler`
   - `maintenance`
+  - `sun-mediasoup` (optional SFU for server-routed calls)
 
 ## Environment
 
@@ -89,6 +90,18 @@ python manage.py maintenance --env production --restore-from /srv/sunmessenger/s
 
 `security-check` validates production fail-fast constraints, Redis-backed realtime settings, AV command availability, and PostgreSQL backup tooling when `DATABASE_BACKUP_DIR` is configured.
 
+## Optional mediasoup SFU
+
+The mediasoup Node service runs from the same release symlink as the Flask app:
+
+1. Install Node.js 18+ and npm on the server.
+2. Copy `deploy/env.mediasoup.example` to `/srv/sunmessenger/shared/.env.mediasoup`.
+3. Set a strong `MEDIASOUP_API_SECRET` and the public `MEDIASOUP_ANNOUNCED_IP`.
+4. Open the configured UDP RTP range, default `40000-49999`.
+5. Install and enable `deploy/systemd/sun-mediasoup.service`.
+
+When `sun-mediasoup.service` is installed, `deploy_release.sh` installs `server-mediasoup` npm dependencies for the new release and restarts the service after the `current` symlink is switched.
+
 ## Reference Files
 
 Sample deployment files:
@@ -97,4 +110,5 @@ Sample deployment files:
 - [web systemd unit](../deploy/systemd/sunmessenger-web.service)
 - [scheduler systemd unit](../deploy/systemd/sunmessenger-scheduler.service)
 - [maintenance systemd unit](../deploy/systemd/sunmessenger-maintenance.service)
+- [mediasoup systemd unit](../deploy/systemd/sun-mediasoup.service)
 - [PostgreSQL migration plan](./postgresql-migration-plan.md)

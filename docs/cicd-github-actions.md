@@ -18,9 +18,8 @@ CI runs on pull requests and pushes to `main`:
 
 Deploy runs on:
 
-- push to `main` (staging)
 - tag `v*` (production)
-- manual `workflow_dispatch`
+- manual `workflow_dispatch` with `environment=staging` or `environment=production`
 
 The workflow:
 
@@ -51,20 +50,18 @@ Ensure services exist and are enabled:
 
 - `sunmessenger-web.service`
 - `sunmessenger-scheduler.service`
+- `sun-mediasoup.service` (optional, only when the mediasoup SFU is enabled)
 
 Ensure production dependencies are installed and available in `PATH`:
 
 - `pg_dump`
 - `pg_restore`
 - `clamdscan` (preferred), with `clamscan` as fallback
+- `node` and `npm` 18+ (only when `sun-mediasoup.service` is installed)
 
 ## Release flow
 
-For regular updates:
-
-```bash
-git push origin main
-```
+For staging, run the `Deploy` workflow manually and choose `staging`.
 
 For production release:
 
