@@ -666,6 +666,16 @@
             color: transparent !important;
         }
 
+        .sidebar.sidebar--loading .contact-item.active .contact-name,
+        .sidebar.sidebar--loading .contact-item.active .contact-time,
+        .sidebar.sidebar--loading .contact-item.active .contact-time-meta,
+        .sidebar.sidebar--loading .contact-item.active .contact-last-msg,
+        .sidebar.sidebar--loading .contact-item.active .pin-icon,
+        .sidebar.sidebar--loading .contact-item.active .mute-icon,
+        .sidebar.sidebar--loading .contact-item.active .favorite-icon {
+            color: transparent !important;
+        }
+
         .contact-item.active .contact-last-msg .typing-indicator-inline {
             color: var(--accent) !important;
         }

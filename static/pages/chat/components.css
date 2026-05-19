@@ -2457,6 +2457,192 @@
             opacity: 0 !important;
         }
 
+        .sidebar.sidebar--loading {
+            --sidebar-loading-line:
+                linear-gradient(180deg, color-mix(in srgb, var(--text) 15%, transparent) 0%, color-mix(in srgb, var(--sub-text) 22%, transparent) 100%);
+            --sidebar-loading-sweep:
+                linear-gradient(110deg, transparent 0%, color-mix(in srgb, #ffffff 30%, transparent) 48%, transparent 72%);
+        }
+
+        .sidebar.sidebar--loading .search-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            pointer-events: none;
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, var(--text) 8%) 0%, color-mix(in srgb, var(--surface-2) 86%, transparent) 100%);
+            box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent);
+        }
+
+        .sidebar.sidebar--loading .search-input-wrapper::before {
+            content: "";
+            position: absolute;
+            left: 48px;
+            right: 22px;
+            top: 50%;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--sidebar-loading-line);
+            transform: translateY(-50%);
+            opacity: 0.9;
+        }
+
+        .sidebar.sidebar--loading .search-input-wrapper::after,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar::after,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-name::after,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta::after,
+        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg::after,
+        .sidebar.sidebar--loading .sidebar-bottom-avatar::after,
+        .sidebar.sidebar--loading .sidebar-bottom-name::after,
+        .sidebar.sidebar--loading .sidebar-username::after,
+        .sidebar.sidebar--loading .sidebar-status-chip--inline::after,
+        .sidebar.sidebar--loading .sidebar-status-bar--compact::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: var(--sidebar-loading-sweep);
+            transform: translateX(-120%);
+            animation: contactPreviewLoadingSweep 1.18s linear infinite;
+            pointer-events: none;
+        }
+
+        .sidebar.sidebar--loading .search-input-wrapper::after {
+            inset: -18%;
+        }
+
+        .sidebar.sidebar--loading .search-input-wrapper i,
+        .sidebar.sidebar--loading .search-input-wrapper input,
+        .sidebar.sidebar--loading .search-clear-btn {
+            opacity: 0 !important;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item {
+            pointer-events: none;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar {
+            overflow: hidden;
+            color: transparent !important;
+            background:
+                radial-gradient(circle at 34% 32%, color-mix(in srgb, #ffffff 13%, transparent) 0, transparent 34%),
+                color-mix(in srgb, var(--sub-text) 18%, transparent) !important;
+            box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 8%, transparent);
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar::after,
+        .sidebar.sidebar--loading .sidebar-bottom-avatar::after {
+            inset: -18%;
+            border-radius: inherit;
+            z-index: 1;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar-loading {
+            display: none;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar__img,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar .status-dot {
+            opacity: 0 !important;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-name,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta,
+        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg,
+        .sidebar.sidebar--loading .sidebar-bottom-name,
+        .sidebar.sidebar--loading .sidebar-username,
+        .sidebar.sidebar--loading .sidebar-status-chip--inline,
+        .sidebar.sidebar--loading .sidebar-status-bar--compact {
+            position: relative;
+            overflow: hidden;
+            color: transparent !important;
+            border-radius: 999px;
+            background: var(--sidebar-loading-line);
+            box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 7%, transparent);
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-name {
+            width: min(132px, 72%);
+            height: 16px;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta {
+            width: 42px;
+            height: 10px;
+            flex: 0 0 42px;
+            padding: 0;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg {
+            width: min(122px, 64%) !important;
+            max-width: min(122px, 64%) !important;
+            min-width: 92px;
+            flex: 0 1 122px !important;
+            height: 8px;
+            margin-top: 3px;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta > *,
+        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg > *,
+        .sidebar.sidebar--loading #contactsList .pin-icon,
+        .sidebar.sidebar--loading #contactsList .mute-icon,
+        .sidebar.sidebar--loading #contactsList .favorite-icon,
+        .sidebar.sidebar--loading #contactsList .unread-badge,
+        .sidebar.sidebar--loading #contactsList .contact-spotify-indicator {
+            opacity: 0 !important;
+        }
+
+        .sidebar.sidebar--loading .sidebar-bottom-user {
+            pointer-events: none;
+        }
+
+        .sidebar.sidebar--loading .sidebar-profile-card {
+            background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
+            border-color: color-mix(in srgb, var(--border) 70%, transparent);
+        }
+
+        .sidebar.sidebar--loading .sidebar-bottom-avatar {
+            position: relative;
+            overflow: hidden;
+            color: transparent !important;
+            background:
+                radial-gradient(circle at 34% 32%, color-mix(in srgb, #ffffff 13%, transparent) 0, transparent 34%),
+                color-mix(in srgb, var(--sub-text) 18%, transparent) !important;
+        }
+
+        .sidebar.sidebar--loading .sidebar-bottom-avatar-image,
+        .sidebar.sidebar--loading .sidebar-bottom-identity-chevron,
+        .sidebar.sidebar--loading .sidebar-status-bar-qr,
+        .sidebar.sidebar--loading .sidebar-status-bar-chevron,
+        .sidebar.sidebar--loading .sidebar-status-chip-dot {
+            opacity: 0 !important;
+        }
+
+        .sidebar.sidebar--loading .sidebar-bottom-name {
+            width: min(112px, 82%);
+            height: 13px;
+        }
+
+        .sidebar.sidebar--loading .sidebar-username {
+            width: 58px;
+            height: 9px;
+            flex: 0 0 58px;
+        }
+
+        .sidebar.sidebar--loading .sidebar-status-chip--inline {
+            width: 44px;
+            height: 14px;
+            padding: 0;
+            border-color: transparent;
+        }
+
+        .sidebar.sidebar--loading .sidebar-status-chip--inline > * {
+            opacity: 0 !important;
+        }
+
+        .sidebar.sidebar--loading .sidebar-status-bar--compact {
+            color: transparent !important;
+            border-color: transparent;
+        }
+
 
         .msg-preview-inline {
             display: inline-flex;

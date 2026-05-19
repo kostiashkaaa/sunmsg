@@ -174,6 +174,7 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
 
 def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
+    sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
     sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
     components_css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
     responsive_css = (STATIC / 'pages' / 'chat' / 'responsive.css').read_text(encoding='utf-8')
@@ -182,7 +183,12 @@ def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
 
     assert 'contact-item--preview-loading' in contacts_src
     assert 'data-preview-loading="${isPreviewLoading ? \'1\' : \'0\'}"' in contacts_src
+    assert "CustomEvent('sun-sidebar-preview-loading-change'" in contacts_src
+    assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
+    assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
+    assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
     assert 'contact-item--preview-loading' in sidebar_template_src
+    assert 'data-sidebar-loading="{{ \'1\' if sidebar_loading.active else \'0\' }}"' in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"
@@ -191,6 +197,13 @@ def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
     assert '.contact-item.contact-item--preview-loading .contact-avatar::after' in components_css
     assert '.contact-item.contact-item--preview-loading .contact-name' in components_css
     assert '.contact-item.contact-item--preview-loading .contact-time-meta' in components_css
+    assert '.sidebar.sidebar--loading .search-input-wrapper::before' in components_css
+    assert '.sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg' in components_css
+    assert '.sidebar.sidebar--loading .sidebar-bottom-avatar::after' in components_css
+    assert '.sidebar.sidebar--loading .sidebar-status-chip--inline' in components_css
     assert '.contact-item.contact-item--preview-loading.active .contact-name' in states_css
     assert '.contact-item.contact-item--preview-loading.active .contact-name' in loading_states_css
+    assert '.sidebar.sidebar--loading .contact-item.active .contact-last-msg' in states_css
+    assert '.sidebar.sidebar--loading .contact-item.active .contact-last-msg' in loading_states_css
     assert 'html[data-motion-level="lite"] .contact-item--preview-loading .contact-avatar::after' in responsive_css
+    assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::after' in responsive_css

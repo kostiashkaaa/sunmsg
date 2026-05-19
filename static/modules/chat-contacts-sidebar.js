@@ -45,6 +45,7 @@ export function initChatContactsSidebar({
     const CONTACTS_MAX_LIMIT = 200;
     const CONTACTS_IMMEDIATE_MIN_INTERVAL_MS = 220;
     const CONTACTS_LOADING_EVENT = 'sun-contacts-loading';
+    const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change';
     const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';
     const AVATAR_LOADING_BARS_HTML = `
         <span class="contact-avatar-loading" aria-hidden="true"></span>
@@ -74,10 +75,28 @@ export function initChatContactsSidebar({
         }
     }
 
+    function syncSidebarLoadingShellState() {
+        if (!contactsList) return;
+        const sidebar = contactsList.closest('.sidebar');
+        if (!sidebar) return;
+        const isFullContactsLoading = contactsList.dataset.contactsLoading === '1'
+            && contactsList.dataset.contactsLoadingPartial !== '1';
+        const hasPreviewLoading = Boolean(
+            contactsList.querySelector('.contact-item--preview-loading, .contact-last-msg-loading'),
+        );
+        const shouldShowShellLoading = isFullContactsLoading || hasPreviewLoading;
+        sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading);
+        sidebar.setAttribute('data-sidebar-loading', shouldShowShellLoading ? '1' : '0');
+    }
+
     function setContactsLoadingState(isLoading, { partial = false } = {}) {
         if (!contactsList) return;
+        const isFullLoading = Boolean(isLoading) && !partial;
         contactsList.dataset.contactsLoading = isLoading ? '1' : '0';
+        contactsList.dataset.contactsLoadingPartial = partial ? '1' : '0';
         contactsList.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        contactsList.classList.toggle('contacts-list--loading', isFullLoading);
+        syncSidebarLoadingShellState();
         try {
             contactsList.dispatchEvent(new CustomEvent(CONTACTS_LOADING_EVENT, {
                 detail: {
@@ -89,6 +108,9 @@ export function initChatContactsSidebar({
             // no-op: CustomEvent is best-effort for legacy WebViews
         }
     }
+
+    contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT, syncSidebarLoadingShellState);
+    syncSidebarLoadingShellState();
 
     function animateContactEntry(item, renderIndex = 0) {
         if (!item || prefersReducedMotion()) return;
