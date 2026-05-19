@@ -220,3 +220,27 @@ def test_sidebar_loading_preview_stays_local_after_contacts_render() -> None:
     assert 'html[data-motion-level="lite"] .contact-last-msg-loading__line' in responsive_css
     assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::after' in responsive_css
     assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::before' in responsive_css
+
+
+def test_liquid_glass_does_not_override_sidebar_loading_shell() -> None:
+    liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
+
+    assert 'html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar .search-input-wrapper' not in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar .sidebar-profile-card' not in liquid_glass_css
+
+
+def test_call_surfaces_reveal_without_waiting_for_animation_frame() -> None:
+    call_ui_src = (STATIC / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
+
+    assert 'function revealCallSurface(element, visibleClass, afterReveal, { pinOpacity = false } = {})' in call_ui_src
+    assert 'void element.offsetWidth;' in call_ui_src
+    assert "revealCallSurface(banner, 'call-ib--visible');" in call_ui_src
+    assert "revealCallSurface(overlay, 'call-overlay--visible'" in call_ui_src
+    assert '{ pinOpacity: true }' in call_ui_src
+    assert "el.style.removeProperty('opacity');" in call_ui_src
+    assert "el.style.removeProperty('transition');" in call_ui_src
+    assert "requestAnimationFrame(() => banner.classList.add('call-ib--visible'))" not in call_ui_src
+    assert "overlay.classList.add('call-overlay--visible')" not in call_ui_src

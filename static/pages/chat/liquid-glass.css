@@ -1,27 +1,40 @@
+/* ============================================================
+   LIQUID GLASS — поверхностный режим интерфейса
+   Применяется только при html[data-interface-surface="glass"]
+   Solid-режим не затрагивается совсем.
+   ============================================================ */
+
+/* ── CSS-токены стекла ──────────────────────────────────────── */
 html[data-interface-surface="glass"] {
-    --sun-glass-bg: color-mix(in srgb, var(--surface) 56%, transparent 44%);
-    --sun-glass-bg-strong: color-mix(in srgb, var(--surface) 68%, transparent 32%);
-    --sun-glass-bg-soft: color-mix(in srgb, var(--surface-2) 42%, transparent 58%);
-    --sun-glass-control-bg: color-mix(in srgb, var(--surface-2) 36%, transparent 64%);
-    --sun-glass-border: color-mix(in srgb, var(--border) 64%, rgba(255, 255, 255, 0.28));
-    --sun-glass-border-strong: color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
-    --sun-glass-filter: blur(22px) saturate(145%);
-    --sun-glass-transition:
+    --sun-glass-bg:         color-mix(in srgb, var(--surface) 56%, transparent);
+    --sun-glass-bg-strong:  color-mix(in srgb, var(--surface) 68%, transparent);
+    --sun-glass-bg-soft:    color-mix(in srgb, var(--surface-2) 42%, transparent);
+    --sun-glass-ctrl:       color-mix(in srgb, var(--surface-2) 36%, transparent);
+    --sun-glass-border:     color-mix(in srgb, var(--border) 64%, rgba(255,255,255,.28));
+    --sun-glass-border-hi:  color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
+    --sun-glass-blur:       blur(22px) saturate(145%);
+    --sun-glass-blur-sm:    blur(16px) saturate(135%);
+    --sun-glass-dur:
         background-color 280ms var(--ease-quick),
-        background 280ms var(--ease-quick),
-        border-color 280ms var(--ease-quick),
-        backdrop-filter 280ms var(--ease-quick),
+        background       280ms var(--ease-quick),
+        border-color     280ms var(--ease-quick),
+        backdrop-filter  280ms var(--ease-quick),
         -webkit-backdrop-filter 280ms var(--ease-quick);
 }
 
+/* ── Переходы на всех glass-поверхностях ───────────────────── */
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-top-card,
+html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-brand,
+html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-profile-card,
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-status-bar,
-html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
 html[data-interface-surface] .chat-header,
 html[data-interface-surface] .chat-header .header-partner-clickable,
 html[data-interface-surface] .chat-header .btn-icon:not(.call-header-btn-trigger),
 html[data-interface-surface] .header-search-wrap,
+html[data-interface-surface] .chat-input,
+html[data-interface-surface] .chat-input-area,
+html[data-interface-surface] .chat-input-wrapper,
 html[data-interface-surface] #messageForm,
 html[data-interface-surface] .call-ib,
 html[data-interface-surface] .call-card,
@@ -30,64 +43,83 @@ html[data-interface-surface] .call-overlay__controls,
 html[data-interface-surface] .call-device-panel,
 html[data-interface-surface] .settings-overlay-panel,
 html[data-interface-surface] .settings-card {
-    transition: var(--sun-glass-transition, background 180ms var(--ease-quick), border-color 180ms var(--ease-quick));
+    transition: var(--sun-glass-dur,
+        background 180ms var(--ease-quick),
+        border-color 180ms var(--ease-quick));
 }
 
+/* ════════════════════════════════════════════════════════════
+   SIDEBAR — корень: убираем полный фон
+   ════════════════════════════════════════════════════════════ */
+html[data-interface-surface="glass"] .sidebar {
+    background: transparent;
+    box-shadow: none;
+    /* isolation: isolate ломает backdrop-filter у детей — снимаем */
+    isolation: auto;
+    /* Тонкая разделительная полоса */
+    border-right-color: color-mix(in srgb, var(--border) 38%, transparent);
+}
+
+/* ── sidebar-top-card: контейнер прозрачный, отступы для pill-блоков */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
-    margin: 10px 12px 0;
+    margin: 10px 10px 0;
+    padding: 0;
     border: 0;
-    border-radius: 18px;
+    border-bottom: 0;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    overflow: visible;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-row {
-    padding: 10px 10px 6px;
+    gap: 8px;
+    padding: 0 0 8px;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-tabs {
-    padding: 0 10px;
+    padding: 0 2px;
     border-bottom: 0;
 }
 
+/* ── sidebar-brand: стеклянный pill ────────────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand {
+    flex: 0 0 auto;
     box-sizing: border-box;
     min-height: 44px;
     padding: 0 12px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
-    background: var(--sun-glass-control-bg);
+    background: var(--sun-glass-ctrl);
     box-shadow: none;
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
+/* ── search-input-wrapper: стеклянный pill ─────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0,1fr) auto;
+    padding: 0 12px;
     border: 1px solid var(--sun-glass-border);
-    background: var(--sun-glass-control-bg);
+    border-radius: 16px;
+    background: var(--sun-glass-ctrl);
     box-shadow: none;
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:hover,
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:focus-within {
-    border-color: var(--sun-glass-border-strong);
+    border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-bg-soft);
     box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper > i {
-    width: 28px;
-    height: 28px;
-    border: 1px solid color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
-    border-radius: 999px;
-    background: var(--sun-glass-bg-soft);
     color: var(--sub-text);
-    opacity: 0.95;
+    opacity: 0.9;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-clear-btn {
@@ -96,21 +128,29 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-cle
     box-shadow: none;
 }
 
+/* ── sidebar-profile-card: стеклянный блок внизу ──────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-bg);
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
-html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-bar,
-html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-chip--inline {
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-bar {
     border-color: color-mix(in srgb, var(--sun-glass-border) 76%, transparent);
     background: var(--sun-glass-bg-soft);
     box-shadow: none;
 }
 
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-chip--inline {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 76%, transparent);
+    background: var(--sun-glass-bg-soft);
+}
+
+/* ════════════════════════════════════════════════════════════
+   CHAT HEADER — прозрачный контейнер, стекло на элементах
+   ════════════════════════════════════════════════════════════ */
 html[data-interface-surface="glass"] .chat-header {
     border-bottom: 0;
     background: transparent;
@@ -119,10 +159,12 @@ html[data-interface-surface="glass"] .chat-header {
     backdrop-filter: none;
 }
 
+/* Убираем верхний градиент-оверлей над чатом */
 html[data-interface-surface="glass"] .chat-area::before {
     background: transparent;
 }
 
+/* ── header-partner-clickable ──────────────────────────────── */
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     min-height: 54px;
     padding: 7px 12px 7px 8px;
@@ -130,13 +172,13 @@ html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     border-radius: 18px;
     background: var(--sun-glass-bg);
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:hover,
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:focus-visible {
-    border-color: var(--sun-glass-border-strong);
+    border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-bg-strong);
     box-shadow: none;
 }
@@ -145,16 +187,17 @@ html[data-interface-surface="glass"] .chat-header .header-actions-group {
     gap: 8px;
 }
 
+/* ── header кнопки ─────────────────────────────────────────── */
 html[data-interface-surface="glass"] .chat-header .back-btn,
 html[data-interface-surface="glass"] .chat-header .header-actions-group .btn-icon:not(.call-header-btn-trigger),
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon {
     border: 1px solid var(--sun-glass-border);
     border-radius: 14px;
-    background: var(--sun-glass-control-bg);
+    background: var(--sun-glass-ctrl);
     color: var(--sub-text);
     box-shadow: none;
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .chat-header .back-btn:hover,
@@ -162,12 +205,13 @@ html[data-interface-surface="glass"] .chat-header .header-actions-group .btn-ico
 html[data-interface-surface="glass"] .chat-header .header-actions-group .btn-icon:not(.call-header-btn-trigger):focus-visible,
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon:hover,
 html[data-interface-surface="glass"] .header-search-wrap .btn-icon:focus-visible {
-    border-color: var(--sun-glass-border-strong);
+    border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-bg-soft);
     color: var(--text);
     box-shadow: none;
 }
 
+/* ── поиск в хедере ────────────────────────────────────────── */
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-partner-clickable {
     min-height: 44px;
     padding: 5px;
@@ -177,8 +221,8 @@ html[data-interface-surface="glass"] .chat-header.chat-header--search-active .he
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-search-wrap {
     border: 1px solid var(--sun-glass-border);
     background: var(--sun-glass-bg);
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .header-search-icon {
@@ -186,52 +230,26 @@ html[data-interface-surface="glass"] .header-search-icon {
     opacity: 0.95;
 }
 
-html[data-interface-surface="glass"] .call-ib,
-html[data-interface-surface="glass"] .call-card,
-html[data-interface-surface="glass"] .call-topbar {
-    border-color: var(--sun-glass-border);
-    background: var(--sun-glass-bg-strong);
-    box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
-}
-
-html[data-interface-surface="glass"] .call-overlay__controls,
-html[data-interface-surface="glass"] .call-device-panel {
-    border-top-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
-    background: var(--sun-glass-control-bg);
-    box-shadow: none;
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
-}
-
-html[data-interface-surface="glass"] .call-ib__chrome,
-html[data-interface-surface="glass"] .call-card__minimize,
-html[data-interface-surface="glass"] .call-card__fullscreen,
-html[data-interface-surface="glass"] .call-topbar__end,
-html[data-interface-surface="glass"] .call-overlay__ctrl-group {
-    border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
-    background: var(--sun-glass-control-bg);
-    box-shadow: none;
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
-    backdrop-filter: blur(16px) saturate(135%);
-}
-
-html[data-interface-surface="glass"] .call-card__stage,
-html[data-interface-surface="glass"] .call-card__audio-bg {
+/* ════════════════════════════════════════════════════════════
+   COMPOSER — прозрачный контейнер, стекло на #messageForm
+   ════════════════════════════════════════════════════════════ */
+html[data-interface-surface="glass"] .chat-input,
+html[data-interface-surface="glass"] .chat-input-area,
+html[data-interface-surface="glass"] .chat-input-wrapper {
     background: transparent;
+    border-top-color: transparent;
 }
 
 html[data-interface-surface="glass"] #messageForm {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-bg-strong);
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] #messageForm:focus-within {
-    border-color: var(--sun-glass-border-strong);
+    border-color: var(--sun-glass-border-hi);
     box-shadow: none;
 }
 
@@ -247,35 +265,58 @@ html[data-interface-surface="glass"] #messageInput.editing-active {
     box-shadow: none;
 }
 
+/* ════════════════════════════════════════════════════════════
+   CALL UI
+   ════════════════════════════════════════════════════════════ */
+html[data-interface-surface="glass"] .call-ib,
+html[data-interface-surface="glass"] .call-card,
+html[data-interface-surface="glass"] .call-topbar {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-bg-strong);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .call-overlay__controls,
+html[data-interface-surface="glass"] .call-device-panel {
+    border-top-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
+    background: var(--sun-glass-ctrl);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .call-ib__chrome,
+html[data-interface-surface="glass"] .call-card__minimize,
+html[data-interface-surface="glass"] .call-card__fullscreen,
+html[data-interface-surface="glass"] .call-topbar__end,
+html[data-interface-surface="glass"] .call-overlay__ctrl-group {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
+    background: var(--sun-glass-ctrl);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .call-card__stage,
+html[data-interface-surface="glass"] .call-card__audio-bg {
+    background: transparent;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SETTINGS OVERLAY
+   ════════════════════════════════════════════════════════════ */
 html[data-interface-surface="glass"] .settings-overlay-backdrop {
     background: transparent !important;
-}
-
-@keyframes sunBrandSettingsGlowReplay {
-    0% {
-        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-glow) 0%, transparent);
-        filter: saturate(1);
-    }
-    55% {
-        box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-glow) 68%, transparent);
-        filter: saturate(1.14);
-    }
-    100% {
-        box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-glow) 56%, transparent);
-        filter: saturate(1.06);
-    }
-}
-
-html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--settings-glow-replay {
-    animation: sunBrandSettingsGlowReplay 520ms var(--ease-quick) both;
 }
 
 html[data-interface-surface="glass"] .settings-overlay-panel {
     border-left: 1px solid var(--sun-glass-border);
     background: var(--sun-glass-bg-strong);
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .settings-overlay-frame,
@@ -297,10 +338,25 @@ html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
     background: color-mix(in srgb, var(--surface-2) 42%, transparent) !important;
 }
 
+/* ════════════════════════════════════════════════════════════
+   SUN BRAND GLOW — replay при каждом открытии настроек
+   ════════════════════════════════════════════════════════════ */
+@keyframes sunBrandSettingsGlowReplay {
+    0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent-glow) 0%,  transparent); filter: saturate(1);    }
+    55%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-glow) 68%, transparent); filter: saturate(1.14); }
+    100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-glow) 56%, transparent); filter: saturate(1.06); }
+}
+
+html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--settings-glow-replay {
+    animation: sunBrandSettingsGlowReplay 520ms var(--ease-quick) both;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MOBILE (≤768px)
+   ════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
         margin: calc(8px + env(safe-area-inset-top, 0px)) 8px 0;
-        border-radius: 18px;
     }
 
     html[data-interface-surface="glass"] .chat-header {
@@ -318,15 +374,22 @@ html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
     }
 }
 
+/* ════════════════════════════════════════════════════════════
+   REDUCED MOTION — отключаем transition
+   ════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
     html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-top-card,
+    html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-brand,
+    html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
     html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-profile-card,
     html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-status-bar,
-    html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
     html[data-interface-surface] .chat-header,
     html[data-interface-surface] .chat-header .header-partner-clickable,
     html[data-interface-surface] .chat-header .btn-icon:not(.call-header-btn-trigger),
     html[data-interface-surface] .header-search-wrap,
+    html[data-interface-surface] .chat-input,
+    html[data-interface-surface] .chat-input-area,
+    html[data-interface-surface] .chat-input-wrapper,
     html[data-interface-surface] #messageForm,
     html[data-interface-surface] .call-ib,
     html[data-interface-surface] .call-card,
@@ -340,13 +403,17 @@ html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
 }
 
 html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-top-card,
+html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-brand,
+html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
 html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-profile-card,
 html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-status-bar,
-html[data-motion-level="lite"][data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
 html[data-motion-level="lite"][data-interface-surface] .chat-header,
 html[data-motion-level="lite"][data-interface-surface] .chat-header .header-partner-clickable,
 html[data-motion-level="lite"][data-interface-surface] .chat-header .btn-icon:not(.call-header-btn-trigger),
 html[data-motion-level="lite"][data-interface-surface] .header-search-wrap,
+html[data-motion-level="lite"][data-interface-surface] .chat-input,
+html[data-motion-level="lite"][data-interface-surface] .chat-input-area,
+html[data-motion-level="lite"][data-interface-surface] .chat-input-wrapper,
 html[data-motion-level="lite"][data-interface-surface] #messageForm,
 html[data-motion-level="lite"][data-interface-surface] .call-ib,
 html[data-motion-level="lite"][data-interface-surface] .call-card,
