@@ -37,6 +37,7 @@ export function createChatMessageRenderRuntime({
     prefersReducedMotionSetting,
     scrollToBottom,
     syncSavedMessagesMeta,
+    syncSelectedMessageAdjacency = () => {},
 } = {}) {
     let pendingForcedChatRerenderFrame = 0;
     let pendingForcedChatRerenderChatId = '';
@@ -350,6 +351,7 @@ export function createChatMessageRenderRuntime({
         fragment.appendChild(createVirtualSpacer?.(bottomSpacerHeight));
         state.lastRenderRange = range;
         chatMessages.replaceChildren(fragment);
+        syncSelectedMessageAdjacency(chatMessages);
         disconnectLazyMediaHydrationObserver?.();
         registerMediaElementsForLazyHydration?.(chatMessages);
         measureRenderedMessageHeights(state);

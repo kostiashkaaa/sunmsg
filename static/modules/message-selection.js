@@ -1,6 +1,21 @@
 import { runMessageSelectionMotion } from './message-action-motion.js';
 import { withStableChatScroll } from './chat-scroll-stability.js';
 
+const SELECTED_FOLLOWED_BY_SELECTED_CLASS = 'selected-followed-by-selected';
+
+export function syncSelectedMessageAdjacency(chatMessages) {
+    if (!chatMessages) return;
+    chatMessages.querySelectorAll('.message').forEach((message) => {
+        const nextElement = message.nextElementSibling;
+        const isFollowedBySelected = Boolean(
+            message.classList.contains('selected')
+            && nextElement?.classList.contains('message')
+            && nextElement.classList.contains('selected')
+        );
+        message.classList.toggle(SELECTED_FOLLOWED_BY_SELECTED_CLASS, isFollowedBySelected);
+    });
+}
+
 export function initMessageSelection({
     chatMessages,
     headerSelectionWrap,
@@ -49,14 +64,17 @@ export function initMessageSelection({
                 selectedMsgIds.clear();
                 getMessageElements().forEach((message) => {
                     message.classList.remove('selected');
+                    message.classList.remove(SELECTED_FOLLOWED_BY_SELECTED_CLASS);
                     message.classList.add('selecting');
                 });
+                syncSelectedMessageAdjacency(chatMessages);
                 onEnterSelectionMode?.();
             } else {
                 selectedMsgIds.clear();
                 getMessageElements().forEach((message) => {
                     message.classList.remove('selecting');
                     message.classList.remove('selected');
+                    message.classList.remove(SELECTED_FOLLOWED_BY_SELECTED_CLASS);
                 });
                 onExitSelectionMode?.();
             }
@@ -70,13 +88,19 @@ export function initMessageSelection({
         if (!normalizedId) return;
 
         if (selectedMsgIds.has(normalizedId)) {
-            selectedMsgIds.delete(normalizedId);
-            element?.classList.remove('selected');
-            runMessageSelectionMotion(element, false);
+            withStableChatScroll(element || chatMessages, () => {
+                selectedMsgIds.delete(normalizedId);
+                element?.classList.remove('selected');
+                syncSelectedMessageAdjacency(chatMessages);
+                runMessageSelectionMotion(element, false);
+            });
         } else {
-            selectedMsgIds.add(normalizedId);
-            element?.classList.add('selected');
-            runMessageSelectionMotion(element, true);
+            withStableChatScroll(element || chatMessages, () => {
+                selectedMsgIds.add(normalizedId);
+                element?.classList.add('selected');
+                syncSelectedMessageAdjacency(chatMessages);
+                runMessageSelectionMotion(element, true);
+            });
         }
 
         updateSelectionUI();

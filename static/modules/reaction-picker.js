@@ -506,10 +506,10 @@ export function initReactionPickerController({
     }, { passive: true });
     window.visualViewport?.addEventListener('resize', () => {
         schedulePositionReactionPicker();
-    });
+    }, { passive: true });
     window.visualViewport?.addEventListener('scroll', () => {
         schedulePositionReactionPicker();
-    });
+    }, { passive: true });
 
     return {
         closeReactionPicker,

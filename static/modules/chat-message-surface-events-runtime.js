@@ -23,7 +23,11 @@ export function bindChatMessageSurfaceEventsRuntime({
     resetOpenChatUnreadCounter = () => {},
     updateJumpToNewMessagesButton = () => {},
     cancelActiveUpload = null,
+    requestAnimationFrameFn = requestAnimationFrame,
 } = {}) {
+    let scrollWorkFrame = 0;
+    let pendingScrollChatId = '';
+
     jumpToNewMessagesBtn?.addEventListener('click', () => {
         if (isProfileDrawerOpen()) {
             closePartnerProfileDrawer();
@@ -72,11 +76,12 @@ export function bindChatMessageSurfaceEventsRuntime({
         handleMessageProfileTrigger(event);
     });
 
-    chatMessages?.addEventListener('scroll', () => {
-        const currentChatId = getCurrentChatId();
+    function runMessageScrollWork() {
+        scrollWorkFrame = 0;
+        const currentChatId = pendingScrollChatId || getCurrentChatId();
+        pendingScrollChatId = '';
         if (!currentChatId) return;
         if (getSuppressChatScrollHandling()) return;
-        if (isReactionPickerOpen()) closeReactionPicker();
 
         saveChatScrollPosition(currentChatId);
         scheduleVirtualChatRender(currentChatId);
@@ -92,5 +97,15 @@ export function bindChatMessageSurfaceEventsRuntime({
             resetOpenChatUnreadCounter({ markSeen: true });
         }
         updateJumpToNewMessagesButton();
+    }
+
+    chatMessages?.addEventListener('scroll', () => {
+        const currentChatId = getCurrentChatId();
+        if (!currentChatId) return;
+        if (getSuppressChatScrollHandling()) return;
+        if (isReactionPickerOpen()) closeReactionPicker();
+        pendingScrollChatId = currentChatId;
+        if (scrollWorkFrame) return;
+        scrollWorkFrame = requestAnimationFrameFn(runMessageScrollWork);
     }, { passive: true });
 }

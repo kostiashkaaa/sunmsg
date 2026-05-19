@@ -18,6 +18,8 @@ export function initMobileBackSwipe(options = {}) {
     const MOBILE_BACK_SWIPE_MAX_SHIFT_PX = 180;
     const MOBILE_BACK_SWIPE_MAX_VERTICAL_PX = 76;
     let mobileBackSwipeGesture = null;
+    let mobileBackSwipeTrackingMoveBound = false;
+    let mobileBackSwipeBlockingMoveBound = false;
 
     function canStartMobileBackSwipe(target) {
         if (!isMobileViewport()) return false;
@@ -33,6 +35,7 @@ export function initMobileBackSwipe(options = {}) {
 
     function resetMobileBackSwipe({ keepSidebarVisible = false, immediate = false } = {}) {
         mobileBackSwipeGesture = null;
+        unbindMobileBackSwipeMove();
         if (immediate) chatArea.classList.add('mobile-swipe-back-reset-immediate');
         chatArea.classList.remove('mobile-swipe-back-dragging');
         chatArea.style.removeProperty('--mobile-exit-swipe-shift');
@@ -60,11 +63,45 @@ export function initMobileBackSwipe(options = {}) {
             currentY: touch.clientY,
             dragging: false,
         };
+        bindMobileBackSwipeTrackingMove();
         sidebar.style.display = '';
         sidebar.classList.add('mobile-returning');
     }
 
-    function handleMobileBackSwipeMove(event) {
+    function bindMobileBackSwipeTrackingMove() {
+        if (mobileBackSwipeTrackingMoveBound) return;
+        mobileBackSwipeTrackingMoveBound = true;
+        chatArea.addEventListener('touchmove', handleMobileBackSwipePassiveMove, { passive: true });
+        chatArea.addEventListener('touchend', handleMobileBackSwipeEnd, { passive: true });
+        chatArea.addEventListener('touchcancel', handleMobileBackSwipeEnd, { passive: true });
+    }
+
+    function unbindMobileBackSwipeTrackingMove() {
+        if (!mobileBackSwipeTrackingMoveBound) return;
+        mobileBackSwipeTrackingMoveBound = false;
+        chatArea.removeEventListener('touchmove', handleMobileBackSwipePassiveMove);
+        chatArea.removeEventListener('touchend', handleMobileBackSwipeEnd);
+        chatArea.removeEventListener('touchcancel', handleMobileBackSwipeEnd);
+    }
+
+    function bindMobileBackSwipeBlockingMove() {
+        if (mobileBackSwipeBlockingMoveBound) return;
+        mobileBackSwipeBlockingMoveBound = true;
+        chatArea.addEventListener('touchmove', handleMobileBackSwipeBlockingMove, { passive: false });
+    }
+
+    function unbindMobileBackSwipeBlockingMove() {
+        if (!mobileBackSwipeBlockingMoveBound) return;
+        mobileBackSwipeBlockingMoveBound = false;
+        chatArea.removeEventListener('touchmove', handleMobileBackSwipeBlockingMove);
+    }
+
+    function unbindMobileBackSwipeMove() {
+        unbindMobileBackSwipeTrackingMove();
+        unbindMobileBackSwipeBlockingMove();
+    }
+
+    function handleMobileBackSwipeMove(event, { allowPreventDefault = false } = {}) {
         const gesture = mobileBackSwipeGesture;
         if (!gesture) return;
         const touch = event.changedTouches?.[0];
@@ -82,6 +119,7 @@ export function initMobileBackSwipe(options = {}) {
                 return;
             }
             gesture.dragging = true;
+            bindMobileBackSwipeBlockingMove();
         }
 
         if (dy > MOBILE_BACK_SWIPE_MAX_VERTICAL_PX) {
@@ -92,7 +130,16 @@ export function initMobileBackSwipe(options = {}) {
         const shift = Math.max(0, Math.min(MOBILE_BACK_SWIPE_MAX_SHIFT_PX, dx));
         chatArea.classList.add('mobile-swipe-back-dragging');
         chatArea.style.setProperty('--mobile-exit-swipe-shift', `${shift}px`);
-        if (event.cancelable) event.preventDefault();
+        if (allowPreventDefault && event.cancelable) event.preventDefault();
+    }
+
+    function handleMobileBackSwipePassiveMove(event) {
+        if (mobileBackSwipeBlockingMoveBound) return;
+        handleMobileBackSwipeMove(event, { allowPreventDefault: false });
+    }
+
+    function handleMobileBackSwipeBlockingMove(event) {
+        handleMobileBackSwipeMove(event, { allowPreventDefault: true });
     }
 
     function handleMobileBackSwipeEnd() {
@@ -102,6 +149,7 @@ export function initMobileBackSwipe(options = {}) {
         const shouldClose = gesture.dragging && shift >= MOBILE_BACK_SWIPE_TRIGGER_PX;
         if (shouldClose) {
             mobileBackSwipeGesture = null;
+            unbindMobileBackSwipeMove();
             if (getCurrentChatId()) {
                 closeChatUI();
                 return;
@@ -113,16 +161,11 @@ export function initMobileBackSwipe(options = {}) {
     }
 
     chatArea.addEventListener('touchstart', handleMobileBackSwipeStart, { passive: true });
-    chatArea.addEventListener('touchmove', handleMobileBackSwipeMove, { passive: false });
-    chatArea.addEventListener('touchend', handleMobileBackSwipeEnd);
-    chatArea.addEventListener('touchcancel', handleMobileBackSwipeEnd);
 
     return {
         dispose() {
             chatArea.removeEventListener('touchstart', handleMobileBackSwipeStart);
-            chatArea.removeEventListener('touchmove', handleMobileBackSwipeMove);
-            chatArea.removeEventListener('touchend', handleMobileBackSwipeEnd);
-            chatArea.removeEventListener('touchcancel', handleMobileBackSwipeEnd);
+            unbindMobileBackSwipeMove();
         },
     };
 }

@@ -3405,7 +3405,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
             background-color: transparent;
         }
 
-        .chat-messages.selecting .message.selected:has(+ .message.selected) {
+        .chat-messages.selecting .message.selected-followed-by-selected {
             margin-bottom: 0;
             padding-bottom: var(--message-row-gap, var(--chat-message-gap, 4px));
         }
@@ -4089,7 +4089,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
     background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.2 5.2L4 8L8.8 2.2' fill='none' stroke='%23ffffff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
 }
 
-.delete-confirm-modal .delete-checkbox-row:has(input[type="checkbox"]:checked) {
+.delete-confirm-modal .delete-checkbox-row.is-checked {
     border-color: transparent;
     background: transparent;
 }

@@ -44,6 +44,7 @@ export function initMessageTouchContext(options = {}) {
     let suppressMessageTapUntil = 0;
     let desktopContextHoverCloseTimer = 0;
     let desktopContextHoverCloseArmed = false;
+    let swipeReplyBlockingMoveBound = false;
 
     function prefersTouchMessageGestures() {
         try {
@@ -176,6 +177,7 @@ export function initMessageTouchContext(options = {}) {
         }
         resetMessageSwipeState(activeMessageTouchGesture.messageEl, immediateReset);
         activeMessageTouchGesture = null;
+        unbindSwipeReplyBlockingMove();
     }
 
     function openMessageContextMenuFor(
@@ -335,7 +337,19 @@ export function initMessageTouchContext(options = {}) {
         };
     }
 
-    function handleMessageTouchMove(event) {
+    function bindSwipeReplyBlockingMove() {
+        if (swipeReplyBlockingMoveBound) return;
+        swipeReplyBlockingMoveBound = true;
+        chatMessages.addEventListener('touchmove', handleBlockingMessageTouchMove, { passive: false });
+    }
+
+    function unbindSwipeReplyBlockingMove() {
+        if (!swipeReplyBlockingMoveBound) return;
+        swipeReplyBlockingMoveBound = false;
+        chatMessages.removeEventListener('touchmove', handleBlockingMessageTouchMove);
+    }
+
+    function handleMessageTouchMove(event, { allowPreventDefault = false } = {}) {
         if (!activeMessageTouchGesture) return;
         if (!prefersTouchMessageGestures()) {
             clearActiveMessageTouchGesture({ immediateReset: true });
@@ -371,12 +385,24 @@ export function initMessageTouchContext(options = {}) {
             gesture.longPressTimer = null;
         }
 
+        if (!gesture.dragging) {
+            bindSwipeReplyBlockingMove();
+        }
         gesture.dragging = true;
         const shift = Math.max(0, Math.min(SWIPE_REPLY_MAX_SHIFT_PX, dx * 0.82));
         gesture.messageEl.style.setProperty('--swipe-reply-shift', `${shift.toFixed(1)}px`);
         gesture.messageEl.classList.add('swipe-reply-dragging');
         gesture.messageEl.classList.toggle('swipe-reply-ready', shift >= SWIPE_REPLY_TRIGGER_PX);
-        event.preventDefault();
+        if (allowPreventDefault && event.cancelable) event.preventDefault();
+    }
+
+    function handlePassiveMessageTouchMove(event) {
+        if (swipeReplyBlockingMoveBound) return;
+        handleMessageTouchMove(event, { allowPreventDefault: false });
+    }
+
+    function handleBlockingMessageTouchMove(event) {
+        handleMessageTouchMove(event, { allowPreventDefault: true });
     }
 
     function handleMessageTouchEnd(event) {
@@ -402,6 +428,7 @@ export function initMessageTouchContext(options = {}) {
 
         resetMessageSwipeState(gesture.messageEl);
         activeMessageTouchGesture = null;
+        unbindSwipeReplyBlockingMove();
 
         if (gesture.longPressTriggered) {
             if (event && typeof event.preventDefault === 'function') {
@@ -482,7 +509,7 @@ export function initMessageTouchContext(options = {}) {
     }
 
     chatMessages.addEventListener('touchstart', handleMessageTouchStart, { passive: true });
-    chatMessages.addEventListener('touchmove', handleMessageTouchMove, { passive: false });
+    chatMessages.addEventListener('touchmove', handlePassiveMessageTouchMove, { passive: true });
     chatMessages.addEventListener('touchend', handleMessageTouchEnd, { passive: false });
     chatMessages.addEventListener('touchcancel', handleMessageTouchCancel, { passive: true });
     chatMessages.addEventListener('contextmenu', handleContextMenu);
@@ -495,7 +522,8 @@ export function initMessageTouchContext(options = {}) {
     return {
         dispose() {
             chatMessages.removeEventListener('touchstart', handleMessageTouchStart);
-            chatMessages.removeEventListener('touchmove', handleMessageTouchMove);
+            chatMessages.removeEventListener('touchmove', handlePassiveMessageTouchMove);
+            unbindSwipeReplyBlockingMove();
             chatMessages.removeEventListener('touchend', handleMessageTouchEnd);
             chatMessages.removeEventListener('touchcancel', handleMessageTouchCancel);
             chatMessages.removeEventListener('contextmenu', handleContextMenu);

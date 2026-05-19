@@ -145,7 +145,7 @@ export function initVoiceRecorder({
         for (let i = 0; i < WAVE_BARS; i += 1) {
             const bar = document.createElement('span');
             bar.className = 'voice-record-wave-bar';
-            bar.style.height = '3px';
+            bar.style.setProperty('--voice-wave-scale', '0.125');
             voiceRecordWaveLive.appendChild(bar);
             waveBarElements.push(bar);
         }
@@ -167,7 +167,7 @@ export function initVoiceRecorder({
         waveAnalyserNode = null;
         waveSmoothValues.fill(0);
         if (waveBarElements) {
-            waveBarElements.forEach((bar) => { bar.style.height = '3px'; });
+            waveBarElements.forEach((bar) => { bar.style.setProperty('--voice-wave-scale', '0.125'); });
         }
     }
 
@@ -209,7 +209,8 @@ export function initVoiceRecorder({
                         minBarHeight,
                         Math.round(waveSmoothValues[i] * maxBarHeight),
                     );
-                    waveBarElements[i].style.height = `${height}px`;
+                    const scale = Math.max(minBarHeight / maxBarHeight, height / maxBarHeight);
+                    waveBarElements[i].style.setProperty('--voice-wave-scale', scale.toFixed(3));
                 }
                 waveAnimFrameId = requestAnimationFrame(tick);
             };

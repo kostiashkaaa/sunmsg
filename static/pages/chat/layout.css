@@ -103,7 +103,7 @@
     transform-origin: center;
     pointer-events: none;
     z-index: 0;
-    will-change: transform, filter;
+    will-change: auto;
 }
 
 .chat-wallpaper-layer::after {

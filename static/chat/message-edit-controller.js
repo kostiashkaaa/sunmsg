@@ -16,6 +16,7 @@ export function createMessageEditController(options = {}) {
         getIsEditingMessageId,
         setIsEditingMessageId,
         messageInput,
+        messageForm,
         resizeComposerInput,
         resetHorizontalViewportDrift,
         updateVoiceRecordButtonState,
@@ -342,6 +343,7 @@ export function createMessageEditController(options = {}) {
         messageInput.focus({ preventScroll: true });
         resetHorizontalViewportDrift();
         messageInput.classList.add('editing-active');
+        messageForm?.classList.add('editing-active');
         if (editBanner) {
             const seq = Number(editBanner.dataset.motionSeq || '0') + 1;
             editBanner.dataset.motionSeq = String(seq);
@@ -364,6 +366,7 @@ export function createMessageEditController(options = {}) {
         messageInput.dispatchEvent(new Event('sun-composer-sync-visual'));
         resizeComposerInput();
         messageInput.classList.remove('editing-active');
+        messageForm?.classList.remove('editing-active');
         const editBanner = document.getElementById('editMessageBanner');
         if (editBanner) {
             const seq = Number(editBanner.dataset.motionSeq || '0') + 1;

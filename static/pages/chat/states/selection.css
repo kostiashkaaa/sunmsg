@@ -5,7 +5,7 @@
             background-color: transparent;
         }
 
-        .chat-messages.selecting .message.selected:has(+ .message.selected) {
+        .chat-messages.selecting .message.selected-followed-by-selected {
             margin-bottom: 0;
             padding-bottom: var(--message-row-gap, var(--chat-message-gap, 4px));
         }

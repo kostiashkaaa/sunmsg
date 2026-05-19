@@ -94,7 +94,7 @@ import { applyPinnedState as _applyPinnedState } from './modules/pinned-contacts
 import { createChatPinRuntime } from './modules/chat-pin-runtime.js';
 import { initChatCaptionModalRuntime } from './modules/chat-caption-modal-runtime.js';
 import { initMessageActionsBar } from './modules/message-actions-bar.js';
-import { initMessageSelection } from './modules/message-selection.js';
+import { initMessageSelection, syncSelectedMessageAdjacency } from './modules/message-selection.js';
 import { initChatMessageContextRuntime } from './modules/chat-message-context-runtime.js';
 import { scheduleMessageLinkPreviewPrewarm } from './modules/link-preview-prewarm.js';
 import { initChatThreadBarsRuntime } from './modules/chat-thread-bars-runtime.js';
@@ -1478,6 +1478,7 @@ export const initChatPage = async () => {
         prefersReducedMotionSetting: () => prefersReducedMotionSetting(),
         scrollToBottom: (options) => scrollToBottom(options),
         syncSavedMessagesMeta: (payload) => savedMessagesUi?.syncCurrentChatMeta?.(payload),
+        syncSelectedMessageAdjacency,
     });
 
     chatDomSnapshotRuntime = createChatDomSnapshotRuntime({
@@ -2446,6 +2447,7 @@ export const initChatPage = async () => {
         resetOpenChatUnreadCounter,
         updateJumpToNewMessagesButton,
         cancelActiveUpload: () => cancelActiveComposerUpload(),
+        requestAnimationFrameFn: requestAnimationFrame,
     });
 
     bindMobileViewportEvents();
@@ -3929,6 +3931,7 @@ export const initChatPage = async () => {
         getIsEditingMessageId: () => isEditingMessageId,
         setIsEditingMessageId: (value) => { isEditingMessageId = value; },
         messageInput,
+        messageForm,
         resizeComposerInput,
         resetHorizontalViewportDrift,
         updateVoiceRecordButtonState,

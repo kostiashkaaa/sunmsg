@@ -1431,3 +1431,104 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert 'html.mobile-keyboard-active:not(.mobile-emoji-sheet-open) .chat-area:not(.emoji-sheet-open) .chat-input-area' not in css
     assert 'transform: translate3d(0, calc(-1 * var(--vv-keyboard-inset' not in css
     assert '.chat-area.emoji-sheet-keyboard-handoff .chat-input-area' in css
+
+
+def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:
+    """Mobile scroll surfaces should keep touchmove passive until a horizontal drag is confirmed."""
+    touch_context = (STATIC / 'chat' / 'message-touch-context.js').read_text(encoding='utf-8')
+    back_swipe = (STATIC / 'chat' / 'mobile-back-swipe.js').read_text(encoding='utf-8')
+    profile_drawer = (STATIC / 'modules' / 'profile-drawer.js').read_text(encoding='utf-8')
+    surface_events = (STATIC / 'modules' / 'chat-message-surface-events-runtime.js').read_text(encoding='utf-8')
+
+    assert "chatMessages.addEventListener('touchmove', handlePassiveMessageTouchMove, { passive: true });" in touch_context
+    assert "chatMessages.addEventListener('touchmove', handleBlockingMessageTouchMove, { passive: false });" in touch_context
+    assert "chatMessages.addEventListener('touchmove', handleMessageTouchMove, { passive: false });" not in touch_context
+
+    bind_idx = back_swipe.find('function bindMobileBackSwipeTrackingMove()')
+    tracking_idx = back_swipe.find("chatArea.addEventListener('touchmove', handleMobileBackSwipePassiveMove, { passive: true });")
+    blocking_idx = back_swipe.find("chatArea.addEventListener('touchmove', handleMobileBackSwipeBlockingMove, { passive: false });")
+    permanent_start_idx = back_swipe.find("chatArea.addEventListener('touchstart', handleMobileBackSwipeStart, { passive: true });")
+    assert 0 <= bind_idx < tracking_idx < blocking_idx < permanent_start_idx, (
+        'mobile-back-swipe.js: touchmove must track passively before binding a blocking drag listener.'
+    )
+    assert 'bindMobileBackSwipeBlockingMove();' in back_swipe
+
+    assert "sheet.addEventListener('touchmove', moveSwipePassive, { passive: true });" in profile_drawer
+    assert "sheet.addEventListener('touchmove', moveSwipeBlocking, { passive: false });" in profile_drawer
+    assert "sheet.addEventListener('touchmove', moveSwipe, { passive: false });" not in profile_drawer
+    assert 'bindTouchBlocker: true' in profile_drawer
+
+    assert 'scrollWorkFrame = requestAnimationFrameFn(runMessageScrollWork)' in surface_events
+    assert "chatMessages?.addEventListener('scroll', () => {" in surface_events
+
+
+def test_message_selection_adjacency_does_not_use_hot_has_selector() -> None:
+    """Selection adjacency should be a JS-synced class, not a message-list :has() selector."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    selection_runtime = (STATIC / 'modules' / 'message-selection.js').read_text(encoding='utf-8')
+    render_runtime = (STATIC / 'modules' / 'chat-message-render-runtime.js').read_text(encoding='utf-8')
+
+    assert '.chat-messages.selecting .message.selected:has(+ .message.selected)' not in css
+    assert '.chat-messages.selecting .message.selected-followed-by-selected' in css
+    assert 'export function syncSelectedMessageAdjacency(chatMessages)' in selection_runtime
+    assert "message.classList.toggle(SELECTED_FOLLOWED_BY_SELECTED_CLASS, isFollowedBySelected)" in selection_runtime
+    assert 'withStableChatScroll(element || chatMessages' in selection_runtime
+    assert 'syncSelectedMessageAdjacency = () => {}' in render_runtime
+    assert 'syncSelectedMessageAdjacency(chatMessages);' in render_runtime
+
+
+def test_voice_wave_and_static_media_layers_avoid_layout_animation() -> None:
+    """Voice waveform should animate transforms, and static blur layers should not reserve compositor hints."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    voice_runtime = (STATIC / 'modules' / 'voice-recorder.js').read_text(encoding='utf-8')
+
+    assert 'bar.style.height = \'3px\'' not in voice_runtime
+    assert 'waveBarElements[i].style.height' not in voice_runtime
+    assert "bar.style.setProperty('--voice-wave-scale', '0.125')" in voice_runtime
+    assert "waveBarElements[i].style.setProperty('--voice-wave-scale', scale.toFixed(3))" in voice_runtime
+
+    assert '.voice-record-wave-bar' in css
+    assert 'transform: scaleY(var(--voice-wave-scale, 0.125));' in css
+    assert 'transition: transform 0.04s linear;' in css
+    assert '#composerRow.is-voice-recording .voice-record-wave-bar' in css
+    assert 'will-change: height;' not in css
+
+    assert 'will-change: transform, filter;' not in css
+
+
+def test_profile_spotify_progress_uses_transform_not_width_animation() -> None:
+    """Profile Spotify progress is RAF-updated, so it must avoid width layout writes."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    profile_runtime = (STATIC / 'modules' / 'profile-drawer.js').read_text(encoding='utf-8')
+
+    assert "fillEl.style.width = '0%'" not in profile_runtime
+    assert 'fillEl.style.width = `${progressPct.toFixed(3)}%`' not in profile_runtime
+    assert "fillEl.style.setProperty('--spotify-progress-scale', '0')" in profile_runtime
+    assert "fillEl.style.setProperty('--spotify-progress-scale', (progressPct / 100).toFixed(4))" in profile_runtime
+    assert 'transform: scaleX(var(--spotify-progress-scale, 0));' in css
+    assert 'transform-origin: left center;' in css
+    assert '.profile-spotify-card--revealing' in css
+
+
+def test_composer_edit_state_uses_form_class_instead_of_has_selector() -> None:
+    """Composer edit state changes during typing/editing, so avoid dynamic :has()."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    edit_controller = (STATIC / 'chat' / 'message-edit-controller.js').read_text(encoding='utf-8')
+    runtime = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
+
+    assert '#messageForm:has(#messageInput.editing-active)' not in css
+    assert '#messageForm.editing-active' in css
+    assert 'messageForm?.classList.add(\'editing-active\')' in edit_controller
+    assert 'messageForm?.classList.remove(\'editing-active\')' in edit_controller
+    assert 'messageForm,' in runtime
+
+
+def test_delete_modal_checkbox_state_uses_row_class_instead_of_has_selector() -> None:
+    """Delete modal checkbox row state is JS-known, so keep CSS off parent :has()."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    overlays = (STATIC / 'modules' / 'chat-overlays.js').read_text(encoding='utf-8')
+
+    assert '.delete-checkbox-row:has(input[type="checkbox"]:checked)' not in css
+    assert '.delete-checkbox-row.is-checked' in css
+    assert ".classList.toggle('is-checked', deleteForBothCheckEl.checked)" in overlays
+    assert ".classList.remove('is-checked')" in overlays

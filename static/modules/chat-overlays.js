@@ -423,6 +423,7 @@ export function initDeleteMessagesModal({
         }
         if (deleteForBothCheckEl) {
             deleteForBothCheckEl.checked = false;
+            deleteForBothCheckEl.closest?.('.delete-checkbox-row')?.classList.remove('is-checked');
         }
 
         openDialog(modalEl, { focusTarget: modalEl });
@@ -445,6 +446,10 @@ export function initDeleteMessagesModal({
         deleteForBothCheckEl.checked = !deleteForBothCheckEl.checked;
         const EventCtor = deleteForBothCheckEl.ownerDocument?.defaultView?.Event || Event;
         deleteForBothCheckEl.dispatchEvent(new EventCtor('change', { bubbles: true }));
+    });
+
+    deleteForBothCheckEl?.addEventListener('change', () => {
+        deleteForBothCheckEl.closest?.('.delete-checkbox-row')?.classList.toggle('is-checked', deleteForBothCheckEl.checked);
     });
 
     confirmButtonEl?.addEventListener('click', () => {

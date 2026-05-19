@@ -58,14 +58,14 @@ function updateProfileSpotifyProgress() {
     const progressMs = Number(card.dataset.spotifyProgressMs || 0);
     const updatedAtMs = Number(card.dataset.spotifyUpdatedAtMs || 0);
     if (!Number.isFinite(durationMs) || durationMs <= 0) {
-        fillEl.style.width = '0%';
+        fillEl.style.setProperty('--spotify-progress-scale', '0');
         return;
     }
 
     const elapsedMs = updatedAtMs > 0 ? Math.max(0, Date.now() - updatedAtMs) : 0;
     const liveProgressMs = Math.min(durationMs, Math.max(0, progressMs + elapsedMs));
     const progressPct = Math.min(100, (liveProgressMs / durationMs) * 100);
-    fillEl.style.width = `${progressPct.toFixed(3)}%`;
+    fillEl.style.setProperty('--spotify-progress-scale', (progressPct / 100).toFixed(4));
     profileSpotifyProgressFrame = window.requestAnimationFrame(updateProfileSpotifyProgress);
 }
 
@@ -519,6 +519,7 @@ export function initProfileDrawer({
         let isTracking = false;
         let isDragging = false;
         let activePointerId = null;
+        let touchSwipeBlockingMoveBound = false;
 
         const dragBlockedTargetSelector = [
             'a',
@@ -567,7 +568,19 @@ export function initProfileDrawer({
             isDragging = false;
         };
 
-        const moveDragTo = (clientX, clientY, event) => {
+        const bindTouchSwipeBlockingMove = () => {
+            if (touchSwipeBlockingMoveBound) return;
+            touchSwipeBlockingMoveBound = true;
+            sheet.addEventListener('touchmove', moveSwipeBlocking, { passive: false });
+        };
+
+        const unbindTouchSwipeBlockingMove = () => {
+            if (!touchSwipeBlockingMoveBound) return;
+            touchSwipeBlockingMoveBound = false;
+            sheet.removeEventListener('touchmove', moveSwipeBlocking);
+        };
+
+        const moveDragTo = (clientX, clientY, event, { allowPreventDefault = false, bindTouchBlocker = false } = {}) => {
             if (!isTracking) return false;
             currentX = clientX;
             currentY = clientY;
@@ -583,6 +596,7 @@ export function initProfileDrawer({
                     return false;
                 }
                 isDragging = true;
+                if (bindTouchBlocker) bindTouchSwipeBlockingMove();
                 sheet.classList.add('is-dragging');
                 chatArea?.classList.add('is-profile-drawer-dragging');
                 captureActivePointer(event);
@@ -591,7 +605,7 @@ export function initProfileDrawer({
             const dragX = Math.max(0, deltaX);
             sheet.style.setProperty('--profile-drag-x', `${dragX}px`);
             chatArea?.style.setProperty('--profile-drag-x', `${dragX}px`);
-            if (dragX > 0 && event.cancelable) event.preventDefault();
+            if (allowPreventDefault && dragX > 0 && event.cancelable) event.preventDefault();
             return true;
         };
 
@@ -602,13 +616,21 @@ export function initProfileDrawer({
             beginDrag(touch.clientX, touch.clientY);
         };
 
-        const moveSwipe = (event) => {
+        const moveSwipePassive = (event) => {
+            if (touchSwipeBlockingMoveBound) return;
             const touch = event.changedTouches?.[0];
             if (!touch) return;
-            moveDragTo(touch.clientX, touch.clientY, event);
+            moveDragTo(touch.clientX, touch.clientY, event, { allowPreventDefault: false, bindTouchBlocker: true });
+        };
+
+        const moveSwipeBlocking = (event) => {
+            const touch = event.changedTouches?.[0];
+            if (!touch) return;
+            moveDragTo(touch.clientX, touch.clientY, event, { allowPreventDefault: true, bindTouchBlocker: true });
         };
 
         const endSwipe = () => {
+            unbindTouchSwipeBlockingMove();
             if (!isTracking) return;
             const dragDistanceX = Math.max(0, currentX - startX);
             const wasDragging = isDragging;
@@ -637,7 +659,7 @@ export function initProfileDrawer({
 
         const movePointerDrag = (event) => {
             if (activePointerId !== event.pointerId) return;
-            const stillTracking = moveDragTo(event.clientX, event.clientY, event);
+            const stillTracking = moveDragTo(event.clientX, event.clientY, event, { allowPreventDefault: true });
             if (!stillTracking) {
                 activePointerId = null;
                 try { sheet.releasePointerCapture(event.pointerId); } catch (_) {}
@@ -652,7 +674,7 @@ export function initProfileDrawer({
         };
 
         sheet.addEventListener('touchstart', startSwipe, { passive: true });
-        sheet.addEventListener('touchmove', moveSwipe, { passive: false });
+        sheet.addEventListener('touchmove', moveSwipePassive, { passive: true });
         sheet.addEventListener('touchend', endSwipe);
         sheet.addEventListener('touchcancel', endSwipe);
         sheet.addEventListener('pointerdown', startPointerDrag);

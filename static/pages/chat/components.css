@@ -411,7 +411,7 @@
             transform: scale(0.92);
         }
 
-        .delete-checkbox-row:has(input[type="checkbox"]:checked) {
+        .delete-checkbox-row.is-checked {
             border-color: color-mix(in srgb, var(--accent) 44%, var(--border) 56%);
             background: color-mix(in srgb, var(--accent-light) 58%, var(--surface-2) 42%);
         }
@@ -4158,13 +4158,18 @@
         .voice-record-wave-bar {
             flex-shrink: 0;
             width: 3px;
+            height: 24px;
             border-radius: 2px;
             background: var(--accent, #5b8af5);
             opacity: 0.85;
-            min-height: 3px;
-            max-height: 24px;
-            will-change: height;
-            transition: height 0.04s linear;
+            transform: scaleY(var(--voice-wave-scale, 0.125));
+            transform-origin: center bottom;
+            will-change: auto;
+            transition: transform 0.04s linear;
+        }
+
+        #composerRow.is-voice-recording .voice-record-wave-bar {
+            will-change: transform;
         }
 
 
@@ -4333,7 +4338,7 @@
         }
 
 
-        #messageForm:has(#messageInput.editing-active) {
+        #messageForm.editing-active {
             border-color: rgba(245, 158, 11, 0.45);
             box-shadow: none;
         }
@@ -5590,7 +5595,7 @@
             transform-origin: center;
             pointer-events: none;
             opacity: 0.92;
-            will-change: transform, filter;
+            will-change: auto;
         }
 
 
@@ -7948,7 +7953,7 @@
                 height 0.24s var(--ease-quick),
                 opacity 0.2s var(--ease-quick),
                 transform 0.24s var(--ease-quick);
-            will-change: height, opacity, transform;
+            will-change: auto;
         }
 
         .profile-spotify-card[hidden] {
@@ -7958,6 +7963,7 @@
         .profile-spotify-card--hiding,
         .profile-spotify-card--revealing {
             pointer-events: none;
+            will-change: height, opacity, transform;
         }
 
         .profile-spotify-label {
@@ -8048,9 +8054,13 @@
         }
 
         .profile-spotify-bar-fill {
+            width: 100%;
             height: 100%;
             border-radius: 2px;
             background: #1DB954;
+            transform: scaleX(var(--spotify-progress-scale, 0));
+            transform-origin: left center;
+            will-change: transform;
             transition: none;
         }
 

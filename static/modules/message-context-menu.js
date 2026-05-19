@@ -327,8 +327,8 @@ export function initMessageContextMenu({
     });
     window.addEventListener('resize', scheduleReposition, { passive: true });
     window.addEventListener('scroll', scheduleReposition, { passive: true });
-    window.visualViewport?.addEventListener('resize', scheduleReposition);
-    window.visualViewport?.addEventListener('scroll', scheduleReposition);
+    window.visualViewport?.addEventListener('resize', scheduleReposition, { passive: true });
+    window.visualViewport?.addEventListener('scroll', scheduleReposition, { passive: true });
 
     replyItemEl?.addEventListener('click', () => {
         if (isChatBlocked()) return;
