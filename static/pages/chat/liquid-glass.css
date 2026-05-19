@@ -471,6 +471,59 @@ html[data-interface-surface="glass"] #messageInput.editing-active {
     box-shadow: none;
 }
 
+html[data-interface-surface="glass"] .attach-menu,
+html[data-interface-surface="glass"] .emoji-picker {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .emoji-picker::before {
+    background:
+        radial-gradient(120% 120% at 10% 0%, color-mix(in srgb, var(--accent-glow) 24%, transparent) 0%, transparent 54%),
+        linear-gradient(180deg, color-mix(in srgb, #ffffff 8%, transparent) 0%, transparent 28%);
+}
+
+html[data-interface-surface="glass"] .emoji-picker-topbar {
+    background: transparent;
+}
+
+html[data-interface-surface="glass"] .emoji-picker-header::after {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--sun-glass-border) 84%, transparent) 12%,
+        color-mix(in srgb, var(--sun-glass-border) 84%, transparent) 88%,
+        transparent 100%
+    );
+}
+
+html[data-interface-surface="glass"] .attach-menu-item__icon,
+html[data-interface-surface="glass"] .emoji-picker-search,
+html[data-interface-surface="glass"] .emoji-category-btn,
+html[data-interface-surface="glass"] .emoji-list-status {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    background: var(--sun-glass-chat-pill-bg);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .attach-menu-item:hover,
+html[data-interface-surface="glass"] .attach-menu-item:focus-visible,
+html[data-interface-surface="glass"] .emoji-picker-search-clear:hover,
+html[data-interface-surface="glass"] .emoji-picker-search-clear:focus-visible,
+html[data-interface-surface="glass"] .emoji-category-btn:hover,
+html[data-interface-surface="glass"] .emoji-category-btn.active,
+html[data-interface-surface="glass"] .emoji-item:hover,
+html[data-interface-surface="glass"] .emoji-item:focus-visible {
+    border-color: color-mix(in srgb, var(--sun-glass-border-hi) 78%, transparent);
+    background: var(--sun-glass-chat-pill-bg-hi);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+}
+
 html[data-interface-surface="glass"] #voiceRecordBtn {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-chat-pill-bg);
