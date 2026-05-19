@@ -6,20 +6,39 @@
 
 /* ── tokens ──────────────────────────────────────────────────── */
 html[data-interface-surface="glass"] {
-    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--sidebar-bg) 58%, transparent);
-    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--sidebar-bg) 70%, transparent);
-    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--sidebar-bg) 64%, transparent);
-    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--sidebar-bg) 76%, transparent);
-    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 58%, transparent);
-    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 70%, transparent);
-    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 64%, transparent);
-    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 76%, transparent);
-    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 64%, transparent);
-    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 76%, transparent);
-    --sun-glass-border:       color-mix(in srgb, var(--border) 82%, rgba(255,255,255,.18));
+    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--surface) 42%, transparent);
+    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--surface) 56%, transparent);
+    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--surface) 46%, transparent);
+    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--surface) 60%, transparent);
+    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 42%, transparent);
+    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 56%, transparent);
+    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 46%, transparent);
+    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 60%, transparent);
+    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 48%, transparent);
+    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 62%, transparent);
+    --sun-glass-border:       color-mix(in srgb, var(--border) 64%, rgba(255,255,255,.24));
     --sun-glass-border-hi:    color-mix(in srgb, var(--accent) 36%, var(--border) 64%);
+    --sun-glass-rim:          color-mix(in srgb, #ffffff 34%, transparent);
+    --sun-glass-shadow:       0 12px 30px color-mix(in srgb, #000000 14%, transparent), inset 0 1px 0 var(--sun-glass-rim);
     --sun-glass-blur:         blur(20px) saturate(140%);
     --sun-glass-blur-sm:      blur(14px) saturate(130%);
+}
+
+html[data-interface-surface="glass"].dark-mode,
+html[data-interface-surface="glass"] body.dark-mode {
+    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--surface) 34%, transparent);
+    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--surface) 48%, transparent);
+    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--surface) 40%, transparent);
+    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--surface) 54%, transparent);
+    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 34%, transparent);
+    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 48%, transparent);
+    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 40%, transparent);
+    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 54%, transparent);
+    --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 42%, transparent);
+    --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 56%, transparent);
+    --sun-glass-border:             color-mix(in srgb, var(--border) 72%, rgba(255,255,255,.14));
+    --sun-glass-rim:                color-mix(in srgb, #ffffff 14%, transparent);
+    --sun-glass-shadow:             0 14px 34px color-mix(in srgb, #000000 36%, transparent), inset 0 1px 0 var(--sun-glass-rim);
 }
 
 /* ================================================================
@@ -65,7 +84,9 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-br
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
     background: var(--sun-glass-sidebar-pill-bg);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 /* ── search pill ─────────────────────────────────────────────── */
@@ -74,14 +95,16 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
     background: var(--sun-glass-sidebar-pill-bg);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:hover,
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:focus-within {
     border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-sidebar-pill-bg-hi);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper > i {
@@ -92,36 +115,61 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-clear-btn {
     border: 1px solid color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
     background: var(--sun-glass-sidebar-pill-bg-hi);
-    box-shadow: none;
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 /* ── profile card (bottom) ───────────────────────────────────── */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-sidebar-card-bg);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-bar {
     border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
     background: var(--sun-glass-sidebar-pill-bg);
-    box-shadow: none;
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-chip--inline {
     border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
     background: var(--sun-glass-sidebar-pill-bg);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand-quick-actions {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-sidebar-card-bg-hi);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand-quick-action {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    background: var(--sun-glass-sidebar-pill-bg);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .contact-item:hover {
-    background: color-mix(in srgb, var(--sidebar-bg) 58%, transparent);
+    background: var(--sun-glass-sidebar-pill-bg);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 56%, transparent);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .contact-item.active,
 html[data-interface-surface="glass"] body.dark-mode .sidebar:not(.sidebar--loading) .contact-item.active {
-    background: color-mix(in srgb, var(--accent) 24%, var(--sidebar-bg) 76%);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border) 72%);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 /* ================================================================
@@ -135,8 +183,21 @@ html[data-interface-surface="glass"] .chat-header {
     backdrop-filter: none;
 }
 
+html[data-interface-surface="glass"] .chat-area {
+    background: var(--chat-bg);
+}
+
 html[data-interface-surface="glass"] .chat-area::before {
     background: transparent;
+}
+
+html[data-interface-surface="glass"] .chat-wallpaper-layer {
+    background: transparent;
+}
+
+html[data-interface-surface="glass"] .chat-wallpaper-layer::before,
+html[data-interface-surface="glass"] .chat-wallpaper-layer::after {
+    content: none;
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
@@ -145,14 +206,16 @@ html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
     background: var(--sun-glass-chat-card-bg);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:hover,
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:focus-visible {
     border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-chat-card-bg-hi);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
 }
 
 html[data-interface-surface="glass"] .chat-header .header-actions-group {
@@ -166,7 +229,9 @@ html[data-interface-surface="glass"] .header-search-wrap .btn-icon {
     border-radius: 14px;
     background: var(--sun-glass-chat-pill-bg);
     color: var(--sub-text);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .chat-header .back-btn:hover,
@@ -177,7 +242,7 @@ html[data-interface-surface="glass"] .header-search-wrap .btn-icon:focus-visible
     border-color: var(--sun-glass-border-hi);
     background: var(--sun-glass-chat-pill-bg-hi);
     color: var(--text);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
 }
 
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-partner-clickable {
@@ -189,6 +254,9 @@ html[data-interface-surface="glass"] .chat-header.chat-header--search-active .he
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-search-wrap {
     border: 1px solid var(--sun-glass-border);
     background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .header-search-icon {
@@ -209,12 +277,14 @@ html[data-interface-surface="glass"] .chat-input-wrapper {
 html[data-interface-surface="glass"] #messageForm {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-chat-card-bg);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] #messageForm:focus-within {
     border-color: var(--sun-glass-border-hi);
-    box-shadow: none;
+    box-shadow: var(--sun-glass-shadow);
 }
 
 html[data-interface-surface="glass"] #messageInput {
@@ -227,6 +297,113 @@ html[data-interface-surface="glass"] #messageInput:focus,
 html[data-interface-surface="glass"] #messageInput.editing-active {
     border-color: transparent;
     box-shadow: none;
+}
+
+html[data-interface-surface="glass"] #voiceRecordBtn {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-chat-pill-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] #voiceRecordBtn:hover,
+html[data-interface-surface="glass"] #voiceRecordBtn:focus-visible {
+    border-color: var(--sun-glass-border-hi);
+    background: var(--sun-glass-chat-pill-bg-hi);
+}
+
+html[data-interface-surface="glass"] .attach-menu {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-chat-card-bg-hi);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+/* ================================================================
+   SEARCH OVERLAY
+   ================================================================ */
+html[data-interface-surface="glass"] .search-overlay {
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-interface-surface="glass"] .sidebar.has-search-overlay #sidebarScrollArea,
+html[data-interface-surface="glass"] .sidebar.has-search-overlay .dialog-requests-section,
+html[data-interface-surface="glass"] .sidebar.has-search-overlay .e2e-lock-alert {
+    opacity: 0.44;
+    filter: none;
+}
+
+html[data-interface-surface="glass"] .search-overlay__tabs {
+    gap: 4px;
+    margin: 6px 12px 0;
+    padding: 4px;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 16px;
+    background: var(--sun-glass-sidebar-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .search-overlay__tab {
+    min-height: 32px;
+    margin-bottom: 0;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+}
+
+html[data-interface-surface="glass"] .search-overlay__tab.is-active {
+    border-color: color-mix(in srgb, var(--sun-glass-border-hi) 72%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--sun-glass-border-hi) 72%, transparent);
+    background: var(--sun-glass-sidebar-pill-bg-hi);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+}
+
+html[data-interface-surface="glass"] .search-overlay__body {
+    margin: 8px 12px 12px;
+    padding: 10px;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 18px;
+    background: var(--sun-glass-sidebar-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .command-palette-action,
+html[data-interface-surface="glass"] .palette-recent-item,
+html[data-interface-surface="glass"] .search-global-state,
+html[data-interface-surface="glass"] .search-global-row,
+html[data-interface-surface="glass"] .command-palette-result,
+html[data-interface-surface="glass"] .user-search-panel__qr,
+html[data-interface-surface="glass"] .user-search-state {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
+    background: var(--sun-glass-sidebar-pill-bg);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .search-global-media-card {
+    background: var(--sun-glass-sidebar-pill-bg);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+}
+
+html[data-interface-surface="glass"] .command-palette-result-btn,
+html[data-interface-surface="glass"] .user-search-action {
+    border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+    background: color-mix(in srgb, var(--accent) 72%, var(--surface) 28%);
+    color: var(--text-inv);
+}
+
+html[data-interface-surface="glass"] .user-search-action--muted {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
+    background: var(--sun-glass-sidebar-pill-bg-hi);
+    color: var(--sub-text);
 }
 
 /* ================================================================
