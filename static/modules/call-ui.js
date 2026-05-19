@@ -19,28 +19,6 @@ const CALL_CARD_MIN_HEIGHT = 430;
 const CALL_CARD_MAX_WIDTH = 820;
 const CALL_CARD_MAX_HEIGHT = 760;
 
-function revealCallSurface(element, visibleClass, afterReveal, { pinOpacity = false } = {}) {
-    if (!element || !visibleClass) return;
-    if (element.classList.contains(visibleClass)) {
-        afterReveal?.();
-        return;
-    }
-    try {
-        void element.offsetWidth;
-    } catch (_) {}
-    if (!element.isConnected) return;
-    element.classList.add(visibleClass);
-    if (pinOpacity) {
-        element.style.setProperty('transition', 'none');
-        element.style.setProperty('opacity', '1');
-        requestAnimationFrame(() => {
-            if (!element.isConnected || !element.classList.contains(visibleClass)) return;
-            element.style.removeProperty('transition');
-        });
-    }
-    afterReveal?.();
-}
-
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
 export function showIncomingCallBanner({ callId, callType, initiator, onAccept, onReject }) {
@@ -134,7 +112,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
 
     document.body.appendChild(banner);
     applyFallbackAvatarTint(banner.querySelector('.call-ib__avatar'), rawName);
-    revealCallSurface(banner, 'call-ib--visible');
+    requestAnimationFrame(() => banner.classList.add('call-ib--visible'));
 }
 
 export function removeIncomingCallBanner() {
@@ -313,9 +291,11 @@ export function showActiveCallOverlay({
 
     document.body.appendChild(overlay);
     applyFallbackAvatarTint(overlay.querySelector('.call-card__avatar'), partnerName);
-    revealCallSurface(overlay, 'call-overlay--visible', () => {
+    requestAnimationFrame(() => {
+        if (!overlay.isConnected) return;
+        overlay.classList.add('call-overlay--visible');
         _setCallTopbarActive(true, overlay);
-    }, { pinOpacity: true });
+    });
 
     _syncLocalVideo(overlay, activeLocalStream, isVideo);
     _bindCallInfoVisibility(overlay);
@@ -495,8 +475,6 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
             el.remove();
             return;
         }
-        el.style.removeProperty('opacity');
-        el.style.removeProperty('transition');
         el.classList.remove('call-overlay--visible');
         setTimeout(() => el.remove(), 250);
     });

@@ -1,19 +1,19 @@
-/* ============================================================
-   LIQUID GLASS — поверхностный режим интерфейса
-   Применяется только при html[data-interface-surface="glass"]
-   Solid-режим не затрагивается совсем.
-   ============================================================ */
+/* =================================================================
+   LIQUID GLASS — surface mode overlay
+   Only active when html[data-interface-surface="glass"].
+   Solid mode is never touched.
+   ================================================================= */
 
-/* ── CSS-токены стекла ──────────────────────────────────────── */
+/* ── tokens ──────────────────────────────────────────────────── */
 html[data-interface-surface="glass"] {
-    --sun-glass-bg:         color-mix(in srgb, var(--surface) 56%, transparent);
-    --sun-glass-bg-strong:  color-mix(in srgb, var(--surface) 68%, transparent);
-    --sun-glass-bg-soft:    color-mix(in srgb, var(--surface-2) 42%, transparent);
-    --sun-glass-ctrl:       color-mix(in srgb, var(--surface-2) 36%, transparent);
-    --sun-glass-border:     color-mix(in srgb, var(--border) 64%, rgba(255,255,255,.28));
-    --sun-glass-border-hi:  color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
-    --sun-glass-blur:       blur(22px) saturate(145%);
-    --sun-glass-blur-sm:    blur(16px) saturate(135%);
+    --sun-glass-bg:        color-mix(in srgb, var(--surface) 56%, transparent);
+    --sun-glass-bg-strong: color-mix(in srgb, var(--surface) 68%, transparent);
+    --sun-glass-bg-soft:   color-mix(in srgb, var(--surface-2) 42%, transparent);
+    --sun-glass-ctrl:      color-mix(in srgb, var(--surface-2) 36%, transparent);
+    --sun-glass-border:    color-mix(in srgb, var(--border) 64%, rgba(255,255,255,.28));
+    --sun-glass-border-hi: color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
+    --sun-glass-blur:      blur(22px) saturate(145%);
+    --sun-glass-blur-sm:   blur(16px) saturate(135%);
     --sun-glass-dur:
         background-color 280ms var(--ease-quick),
         background       280ms var(--ease-quick),
@@ -22,7 +22,13 @@ html[data-interface-surface="glass"] {
         -webkit-backdrop-filter 280ms var(--ease-quick);
 }
 
-/* ── Переходы ───────────────────────────────────────────────── */
+/* ── .app: overflow:hidden kills backdrop-filter in Chrome/Safari.
+      Replace with overflow:clip which clips without creating scroll context. ── */
+html[data-interface-surface="glass"] .app {
+    overflow: clip;
+}
+
+/* ── transitions ─────────────────────────────────────────────── */
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-top-card,
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-brand,
 html[data-interface-surface] .sidebar:not(.sidebar--loading) .search-input-wrapper,
@@ -43,18 +49,19 @@ html[data-interface-surface] .settings-card {
         border-color 180ms var(--ease-quick));
 }
 
-/* ════════════════════════════════════════════════════════════
-   SIDEBAR — убираем фон только когда НЕ в loading
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   SIDEBAR
+   ================================================================ */
+
+/* Transparent sidebar — only when NOT in loading state */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) {
     background: transparent;
     box-shadow: none;
-    /* isolation: isolate ломает backdrop-filter у детей */
-    isolation: auto;
+    isolation: auto;          /* isolation:isolate breaks backdrop-filter on children */
     border-right-color: color-mix(in srgb, var(--border) 40%, transparent);
 }
 
-/* ── sidebar-top-card: прозрачный контейнер ────────────────── */
+/* sidebar-top-card: transparent wrapper, pill children handle glass */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
     margin: 10px 10px 0;
     padding: 0;
@@ -77,7 +84,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-ta
     border-bottom: 0;
 }
 
-/* ── sidebar-brand: стеклянный pill ────────────────────────── */
+/* sidebar-brand pill */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand {
     flex: 0 0 auto;
     min-height: 44px;
@@ -90,7 +97,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-br
     backdrop-filter: var(--sun-glass-blur-sm);
 }
 
-/* ── search-input-wrapper: стеклянный pill ─────────────────── */
+/* search-input-wrapper pill */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper {
     grid-template-columns: 24px minmax(0,1fr) auto;
     padding: 0 12px;
@@ -98,10 +105,9 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
     border-radius: 16px;
     background: var(--sun-glass-ctrl);
     box-shadow: none;
+    transform: none !important;   /* cancel hover translateY from base css */
     -webkit-backdrop-filter: var(--sun-glass-blur-sm);
     backdrop-filter: var(--sun-glass-blur-sm);
-    /* сбрасываем transform из hover-стейтов базового CSS */
-    transform: none !important;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:hover,
@@ -123,7 +129,7 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-cle
     box-shadow: none;
 }
 
-/* ── sidebar-profile-card ───────────────────────────────────── */
+/* profile card */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card {
     border-color: var(--sun-glass-border);
     background: var(--sun-glass-bg);
@@ -143,9 +149,9 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-st
     background: var(--sun-glass-bg-soft);
 }
 
-/* ════════════════════════════════════════════════════════════
-   CHAT HEADER — прозрачный контейнер, стекло на элементах
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   CHAT HEADER
+   ================================================================ */
 html[data-interface-surface="glass"] .chat-header {
     border-bottom: 0;
     background: transparent;
@@ -221,9 +227,9 @@ html[data-interface-surface="glass"] .header-search-icon {
     opacity: 0.95;
 }
 
-/* ════════════════════════════════════════════════════════════
-   COMPOSER — прозрачный враппер, стекло только на #messageForm
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   COMPOSER
+   ================================================================ */
 html[data-interface-surface="glass"] .chat-input,
 html[data-interface-surface="glass"] .chat-input-area,
 html[data-interface-surface="glass"] .chat-input-wrapper {
@@ -256,10 +262,9 @@ html[data-interface-surface="glass"] #messageInput.editing-active {
     box-shadow: none;
 }
 
-/* ════════════════════════════════════════════════════════════
-   CALL UI — только border-цвет, фон не трогаем
-   (call-ib/call-card имеют свой radial-gradient с акцентом)
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   CALL UI — border only, keep original radial-gradient backgrounds
+   ================================================================ */
 html[data-interface-surface="glass"] .call-ib,
 html[data-interface-surface="glass"] .call-card,
 html[data-interface-surface="glass"] .call-topbar {
@@ -282,9 +287,9 @@ html[data-interface-surface="glass"] .call-overlay__ctrl-group {
     box-shadow: none;
 }
 
-/* ════════════════════════════════════════════════════════════
+/* ================================================================
    SETTINGS OVERLAY
-   ════════════════════════════════════════════════════════════ */
+   ================================================================ */
 html[data-interface-surface="glass"] .settings-overlay-backdrop {
     background: transparent !important;
 }
@@ -316,9 +321,9 @@ html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
     background: color-mix(in srgb, var(--surface-2) 42%, transparent) !important;
 }
 
-/* ════════════════════════════════════════════════════════════
-   SUN BRAND GLOW — replay при каждом открытии настроек
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   SUN BRAND GLOW REPLAY
+   ================================================================ */
 @keyframes sunBrandSettingsGlowReplay {
     0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent-glow) 0%,  transparent); filter: saturate(1);    }
     55%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-glow) 68%, transparent); filter: saturate(1.14); }
@@ -329,9 +334,9 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
     animation: sunBrandSettingsGlowReplay 520ms var(--ease-quick) both;
 }
 
-/* ════════════════════════════════════════════════════════════
-   MOBILE (≤768px)
-   ════════════════════════════════════════════════════════════ */
+/* ================================================================
+   MOBILE ≤768px
+   ================================================================ */
 @media (max-width: 768px) {
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
         margin: calc(8px + env(safe-area-inset-top, 0px)) 8px 0;
@@ -352,9 +357,9 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
     }
 }
 
-/* ════════════════════════════════════════════════════════════
+/* ================================================================
    REDUCED MOTION
-   ════════════════════════════════════════════════════════════ */
+   ================================================================ */
 @media (prefers-reduced-motion: reduce) {
     html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-top-card,
     html[data-interface-surface] .sidebar:not(.sidebar--loading) .sidebar-brand,
