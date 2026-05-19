@@ -11,9 +11,9 @@ function isCoarsePointer() {
  *
  * Keyboard state syncer.
  *
- * Layout height follows the real visual viewport on touch devices. This keeps
- * the chat flex column tied to the visible area whether the browser resizes
- * content for the keyboard or overlays the keyboard above the layout viewport.
+ * Layout height follows the real visual viewport only while the composer is
+ * interacting with the native keyboard. Passive browser chrome resize events
+ * keep the 100dvh fallback so ordinary scrolling cannot resize the chat shell.
  */
 export function createVisualViewportCssSyncer(_options = {}) {
     let lastKeyboardActive = null;
@@ -40,9 +40,6 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const layoutHeight = roundedPx(window.innerHeight) || vvHeight;
             const vvTop = roundedPx(vv.offsetTop);
             const vvLeft = roundedPx(vv.offsetLeft);
-            if (vvHeight > 0) {
-                nextAppVh = `${vvHeight}px`;
-            }
             nextViewportTop = `${vvTop}px`;
             nextViewportLeft = `${vvLeft}px`;
             const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop);
@@ -51,6 +48,15 @@ export function createVisualViewportCssSyncer(_options = {}) {
             // Safari browser chrome can also shrink visualViewport; require the larger real-keyboard inset.
             keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset;
             keyboardInset = keyboardActive ? keyboardInsetCandidate : 0;
+            const keyboardHandoffActive = root.classList.contains('mobile-emoji-keyboard-handoff');
+            const wasKeyboardActive = root.classList.contains('mobile-keyboard-active');
+            const shouldUseVisualViewportHeight = Boolean(
+                vvHeight > 0
+                && (composerFocused || keyboardActive || keyboardHandoffActive || wasKeyboardActive)
+            );
+            if (shouldUseVisualViewportHeight) {
+                nextAppVh = `${vvHeight}px`;
+            }
         }
         if (root.style.getPropertyValue('--app-vh') !== nextAppVh) {
             root.style.setProperty('--app-vh', nextAppVh);

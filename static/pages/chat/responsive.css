@@ -1271,8 +1271,9 @@
 
             /* ===== Mobile emoji picker =====
                The picker is a normal flex row after .chat-input-area. Open/close
-               is owned by the picker height, so a stale state class cannot leave
-               the composer translated above an empty bottom strip. */
+               is owned by an atomic row height. The row reserves/release space
+               once while transform/opacity handle the visual motion, so the
+               message list does not reflow on every animation frame. */
             .emoji-picker-handle {
                 width: 36px;
                 height: 4px;
@@ -1315,7 +1316,6 @@
                 pointer-events: none;
                 contain: layout paint;
                 transition:
-                    height var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     opacity var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     transform var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     visibility 0s linear var(--emoji-sheet-motion-duration, 220ms);
@@ -1328,20 +1328,18 @@
                 visibility: visible;
                 pointer-events: auto;
                 transition:
-                    height var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     opacity var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     transform var(--emoji-sheet-motion-duration, 220ms) var(--m-decel),
                     visibility 0s linear 0s;
             }
 
             .emoji-picker.is-closing {
-                height: 0 !important;
+                height: var(--emoji-sheet-height) !important;
                 transform: translate3d(0, 10px, 0);
                 opacity: 0;
                 visibility: visible;
                 pointer-events: none;
                 transition:
-                    height var(--emoji-sheet-motion-duration, 220ms) var(--m-accel),
                     opacity var(--emoji-sheet-motion-duration, 220ms) var(--m-accel),
                     transform var(--emoji-sheet-motion-duration, 220ms) var(--m-accel),
                     visibility 0s linear var(--emoji-sheet-motion-duration, 220ms);
@@ -1364,11 +1362,29 @@
                 will-change: auto;
             }
             /* During emoji -> keyboard handoff, keep the composer in normal
-               flow; --app-vh already follows visualViewport.height. */
+               flow while JS locks --app-vh to the focused visual viewport. */
             .chat-area.emoji-sheet-keyboard-handoff .chat-input-area {
                 transition: none !important;
                 transform: none !important;
                 will-change: auto;
+            }
+
+            @media (pointer: coarse) {
+                .disappearing-pill {
+                    backdrop-filter: none;
+                    -webkit-backdrop-filter: none;
+                    will-change: auto;
+                }
+
+                .bubble--image .background-layer {
+                    display: none;
+                }
+
+                .bubble--image .image-wrapper::before,
+                .video-preview::before {
+                    animation: none;
+                    background: color-mix(in srgb, var(--surface-2) 86%, var(--paper) 14%);
+                }
             }
 
             .emoji-picker-topbar {

@@ -5,6 +5,7 @@ export function createMediaHydrationController(options = {}) {
     const albumImgSelector = '.album-cell-img[data-src]';
     const albumVideoSelector = '.album-cell-video[data-src]';
     let lazyHydrationObserver = null;
+    const observedLazyMedia = new Set();
 
     // iOS WebKit (all browsers on iOS use WKWebView) has a known bug where
     // IntersectionObserver with a custom root fires unreliably.
@@ -159,7 +160,7 @@ export function createMediaHydrationController(options = {}) {
         lazyHydrationObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach((entry) => {
                 const target = entry.target;
-                if (!(target instanceof HTMLElement)) { observer.unobserve(target); return; }
+                if (!(target instanceof HTMLElement)) { observer.unobserve(target); observedLazyMedia.delete(target); return; }
                 if (!entry.isIntersecting && entry.intersectionRatio <= 0) return;
                 if (target.matches(`${imageSelector}, ${albumImgSelector}`)) {
                     hydrateImage(target);
@@ -167,6 +168,7 @@ export function createMediaHydrationController(options = {}) {
                     hydrateVideo(target);
                 }
                 observer.unobserve(target);
+                observedLazyMedia.delete(target);
             });
         }, {
             root: observerRoot,
@@ -180,36 +182,58 @@ export function createMediaHydrationController(options = {}) {
         if (!lazyHydrationObserver) return;
         lazyHydrationObserver.disconnect();
         lazyHydrationObserver = null;
+        observedLazyMedia.clear();
+    }
+
+    function observeLazyMediaElement(observer, element) {
+        if (!observer || !(element instanceof HTMLElement)) return false;
+        if (observedLazyMedia.has(element)) return true;
+        observer.observe(element);
+        observedLazyMedia.add(element);
+        return true;
+    }
+
+    function unobserveLazyMediaElement(element) {
+        if (!(element instanceof HTMLElement)) return;
+        if (lazyHydrationObserver && observedLazyMedia.has(element)) {
+            lazyHydrationObserver.unobserve(element);
+        }
+        observedLazyMedia.delete(element);
+    }
+
+    function collectLazyMediaElements(root = rootElement) {
+        const allImgSel = `${imageSelector}, ${albumImgSelector}`;
+        const allVidSel = `${videoSelector}, ${albumVideoSelector}`;
+        const images = [];
+        const videos = [];
+
+        if (typeof root?.matches === 'function') {
+            if (root.matches(allImgSel)) images.push(root);
+            if (root.matches(allVidSel)) videos.push(root);
+        }
+        if (typeof root?.querySelectorAll === 'function') {
+            root.querySelectorAll(allImgSel).forEach((el) => images.push(el));
+            root.querySelectorAll(allVidSel).forEach((el) => videos.push(el));
+        }
+
+        return { images, videos };
     }
 
     function registerMediaElementsForLazyHydration(root = rootElement) {
         if (!root) return;
 
-        const allImgSel = `${imageSelector}, ${albumImgSelector}`;
-        const allVidSel = `${videoSelector}, ${albumVideoSelector}`;
-
-        const images = [];
-        const videos = [];
-
-        if (typeof root.matches === 'function') {
-            if (root.matches(allImgSel)) images.push(root);
-            if (root.matches(allVidSel)) videos.push(root);
-        }
-        if (typeof root.querySelectorAll === 'function') {
-            root.querySelectorAll(allImgSel).forEach((el) => images.push(el));
-            root.querySelectorAll(allVidSel).forEach((el) => videos.push(el));
-        }
-
+        const { images, videos } = collectLazyMediaElements(root);
         const observer = getLazyHydrationObserver();
 
         images.forEach((imageEl) => {
             if (!(imageEl instanceof HTMLImageElement)) return;
-            if (imageEl.getAttribute('src')) return;
+            if (imageEl.getAttribute('src')) { unobserveLazyMediaElement(imageEl); return; }
             // Hydrate immediately if near viewport; otherwise observe
             if (isNearViewport(imageEl, 600)) {
+                unobserveLazyMediaElement(imageEl);
                 hydrateImage(imageEl);
             } else if (observer) {
-                observer.observe(imageEl);
+                observeLazyMediaElement(observer, imageEl);
             } else {
                 hydrateImage(imageEl);
             }
@@ -217,20 +241,29 @@ export function createMediaHydrationController(options = {}) {
 
         videos.forEach((videoEl) => {
             if (!(videoEl instanceof HTMLMediaElement)) return;
-            if (videoEl.getAttribute('src')) return;
+            if (videoEl.getAttribute('src')) { unobserveLazyMediaElement(videoEl); return; }
             if (isNearViewport(videoEl, 600)) {
+                unobserveLazyMediaElement(videoEl);
                 hydrateVideo(videoEl);
             } else if (observer) {
-                observer.observe(videoEl);
+                observeLazyMediaElement(observer, videoEl);
             } else {
                 hydrateVideo(videoEl, true);
             }
         });
     }
 
+    function unregisterMediaElementsForLazyHydration(root = rootElement) {
+        if (!root) return;
+        const { images, videos } = collectLazyMediaElements(root);
+        images.forEach(unobserveLazyMediaElement);
+        videos.forEach(unobserveLazyMediaElement);
+    }
+
     return {
         ensureMediaElementHydrated,
         disconnectLazyMediaHydrationObserver,
         registerMediaElementsForLazyHydration,
+        unregisterMediaElementsForLazyHydration,
     };
 }

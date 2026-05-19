@@ -35,9 +35,12 @@ export function createChatMobileViewportRuntime({
 } = {}) {
     let bottomInsetFrame = 0;
     let viewportSyncFrame = 0;
+    let composerResizeFrame = 0;
     let pendingViewportSyncOptions = null;
     let viewportEventsBound = false;
     let chatInputResizeObserver = null;
+    let lastInputHeightCss = '';
+    let lastComposerReserveCss = '';
 
     const mobileThreadShell = createMobileThreadShell({
         chatArea,
@@ -67,7 +70,7 @@ export function createChatMobileViewportRuntime({
         composerBottomInsetVar: '--mobile-composer-bottom-inset',
     });
 
-    function resizeComposerInput() {
+    function applyComposerInputSize() {
         if (!messageInput) return;
         messageInput.style.height = '0px';
         const computed = windowRef.getComputedStyle(messageInput);
@@ -77,6 +80,23 @@ export function createChatMobileViewportRuntime({
         messageInput.style.height = `${Math.max(targetHeight, minHeight)}px`;
         messageInput.classList.toggle('composer-scroll', messageInput.scrollHeight > maxHeight + 1);
         updateChatMessagesBottomInset();
+    }
+
+    function resizeComposerInput(options = {}) {
+        if (!messageInput) return;
+        if (options?.defer) {
+            if (composerResizeFrame) return;
+            composerResizeFrame = requestAnimationFrameFn(() => {
+                composerResizeFrame = 0;
+                applyComposerInputSize();
+            });
+            return;
+        }
+        if (composerResizeFrame) {
+            cancelAnimationFrameFn(composerResizeFrame);
+            composerResizeFrame = 0;
+        }
+        applyComposerInputSize();
     }
 
     function openChat() {
@@ -205,8 +225,16 @@ export function createChatMobileViewportRuntime({
                 if (inputHeight > 0) reserve = inputHeight + floatingGap + messageToComposerGap;
             }
         }
-        chatArea.style.setProperty('--input-height', `${Math.max(0, inputHeight)}px`);
-        chatArea.style.setProperty('--floating-composer-reserve', `${reserve}px`);
+        const nextInputHeightCss = `${Math.max(0, inputHeight)}px`;
+        const nextReserveCss = `${reserve}px`;
+        if (nextInputHeightCss !== lastInputHeightCss) {
+            chatArea.style.setProperty('--input-height', nextInputHeightCss);
+            lastInputHeightCss = nextInputHeightCss;
+        }
+        if (nextReserveCss !== lastComposerReserveCss) {
+            chatArea.style.setProperty('--floating-composer-reserve', nextReserveCss);
+            lastComposerReserveCss = nextReserveCss;
+        }
         syncChatViewportToBottomIfNeeded(shouldPinToBottom);
     }
 

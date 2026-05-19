@@ -274,7 +274,7 @@ export function initComposer(opts = {}) {
 
     messageForm.addEventListener('submit', handleComposerSubmit);
     messageInput.addEventListener('input', () => {
-        resizeComposerInput?.();
+        resizeComposerInput?.({ defer: true });
         syncComposerEmojiVisual(true);
         if (!resolveChatId() || resolveEditing() || resolveBlocked()) return;
         onTyping?.();

@@ -632,8 +632,9 @@ def test_mobile_emoji_picker_uses_css_bottom_sheet_without_js_positioning() -> N
     assert any(
         'height: var(--emoji-sheet-height) !important' in block
         and 'transform: translate3d(0, 0, 0)' in block
+        and 'height var(--emoji-sheet-motion-duration' not in block
         for block in active_blocks
-    ), 'chat.css: mobile .emoji-picker.active block should expand the flow row.'
+    ), 'chat.css: mobile .emoji-picker.active should reserve height without animating layout.'
 
 
 def test_mobile_emoji_open_locks_composer_before_blur() -> None:
@@ -859,6 +860,18 @@ def test_message_hot_path_avoids_has_selectors() -> None:
 
     assert 'void container.offsetWidth' not in render_runtime, (
         'chat-message-render-runtime.js: reveal animation must not force synchronous layout.'
+    )
+    assert 'function patchChatMessageChildren(container, desiredNodes)' in render_runtime, (
+        'chat-message-render-runtime.js: virtual list must patch child nodes instead of full hot-path replacement.'
+    )
+    assert 'unregisterMediaElementsForLazyHydration?.(node);' in render_runtime, (
+        'chat-message-render-runtime.js: removed virtual rows must unregister lazy media observers.'
+    )
+    assert 'disconnectLazyMediaHydrationObserver?.();' not in render_runtime, (
+        'chat-message-render-runtime.js: virtual render loop must not reconnect the lazy media observer.'
+    )
+    assert 'new globalThis.ResizeObserver' in render_runtime, (
+        'chat-message-render-runtime.js: rendered message heights must stay synced after media/reaction resize.'
     )
     assert 'CHAT_MEDIA_META_RENDER_BUDGET_MS = 96' in media_meta, (
         'chat-media-meta.js: metadata probing must have a short render budget.'
@@ -1323,6 +1336,10 @@ def test_hydrated_chat_images_bypass_native_lazy_loading() -> None:
     assert force_call_idx < src_guard_idx, (
         'media-hydration.js: eager loading must be applied even when src is already present'
     )
+    assert 'const observedLazyMedia = new Set();' in hydration
+    assert 'function unregisterMediaElementsForLazyHydration(root = rootElement)' in hydration
+    assert 'observeLazyMediaElement(observer, imageEl)' in hydration
+    assert 'observeLazyMediaElement(observer, videoEl)' in hydration
 
 
 def test_portrait_chat_media_keeps_ratio_aware_bubble_width() -> None:
@@ -1375,6 +1392,12 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     )
     assert 'nextAppVh = `${vvHeight}px`' in viewport, (
         'mobile-viewport.js: mobile app height must bind to visualViewport.height'
+    )
+    assert 'const shouldUseVisualViewportHeight = Boolean(' in viewport, (
+        'mobile-viewport.js: visualViewport height must be gated to keyboard/composer states.'
+    )
+    assert "root.classList.contains('mobile-emoji-keyboard-handoff')" in viewport, (
+        'mobile-viewport.js: emoji-to-keyboard handoff must keep visual viewport height locked.'
     )
     assert "root.style.setProperty('--app-vh', nextAppVh)" in viewport, (
         'mobile-viewport.js: measured app height must be written through --app-vh'

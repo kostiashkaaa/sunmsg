@@ -26,8 +26,8 @@ export function createChatMessageRenderRuntime({
     syncMessageBubbleLayoutClasses,
     isSelectionMode,
     hasSelectedMessage,
-    disconnectLazyMediaHydrationObserver,
     registerMediaElementsForLazyHydration,
+    unregisterMediaElementsForLazyHydration,
     schedulePostRenderUiRefresh,
     saveChatScrollPosition,
     resizeComposerInput,
@@ -52,6 +52,10 @@ export function createChatMessageRenderRuntime({
     let bottomInertiaToken = 0;
     let keepChatPinnedToBottom = false;
     let loadedMessageBlockAnimationSeq = 0;
+    let messageHeightObserver = null;
+    let messageHeightObserverFrame = 0;
+    const observedMessageNodes = new Set();
+    const observedMessageMeta = new WeakMap();
 
     function getCurrentMessagesElement() {
         return getChatMessages?.() || null;
@@ -205,33 +209,117 @@ export function createChatMessageRenderRuntime({
         state.heightIndexRevision = (Number(state.heightIndexRevision) || 0) + 1;
     }
 
-    function measureRenderedMessageHeights(state) {
+    function readSpacerHeight(node) {
+        const styleHeight = Number.parseFloat(node?.style?.height || '');
+        if (Number.isFinite(styleHeight)) return styleHeight;
+        const rectHeight = Number(node?.getBoundingClientRect?.().height);
+        return Number.isFinite(rectHeight) ? rectHeight : 0;
+    }
+
+    function updateVirtualSpacerHeights(state, { preserveScrollAnchor = true } = {}) {
+        const chatMessages = getCurrentMessagesElement();
+        const range = state?.lastRenderRange;
+        if (!chatMessages || !range) return;
+        const spacers = chatMessages.querySelectorAll?.('.chat-virtual-spacer') || [];
+        const topSpacer = spacers[0] || null;
+        const bottomSpacer = spacers[spacers.length - 1] || null;
+        const previousTopHeight = readSpacerHeight(topSpacer);
+        const previousScrollTop = chatMessages.scrollTop;
+        const nextTopHeight = Math.max(0, Math.round(sumEstimatedHeights?.(state, 0, range.start) || 0));
+        if (topSpacer?.style) {
+            topSpacer.style.height = `${nextTopHeight}px`;
+        }
+        if (bottomSpacer?.style) {
+            bottomSpacer.style.height = `${Math.max(0, Math.round(sumEstimatedHeights?.(state, range.end, state.messages.length) || 0))}px`;
+        }
+        const topDelta = nextTopHeight - previousTopHeight;
+        if (preserveScrollAnchor && Number.isFinite(previousScrollTop) && Math.abs(topDelta) > 0.5) {
+            chatMessages.scrollTop = previousScrollTop + topDelta;
+        }
+    }
+
+    function scheduleObservedHeightRefresh(chatId) {
+        if (messageHeightObserverFrame) return;
+        messageHeightObserverFrame = requestAnimationFrameFn(() => {
+            messageHeightObserverFrame = 0;
+            if (!chatId || String(chatId) !== String(getCurrentChatId?.())) return;
+            const state = getChatState?.(chatId);
+            updateVirtualSpacerHeights(state);
+            if (keepChatPinnedToBottom) {
+                setElementScrollToBottom(getCurrentMessagesElement());
+            }
+            schedulePostRenderUiRefresh?.({ jumpButton: true });
+        });
+    }
+
+    function ensureMessageHeightObserver() {
+        if (messageHeightObserver) return messageHeightObserver;
+        if (typeof globalThis.ResizeObserver !== 'function') return null;
+        messageHeightObserver = new globalThis.ResizeObserver((entries) => {
+            const changedChatIds = new Set();
+            entries.forEach((entry) => {
+                const meta = observedMessageMeta.get(entry.target);
+                if (!meta?.chatId || !meta?.key) return;
+                const state = getChatState?.(meta.chatId);
+                if (!state) return;
+                const rectHeight = Number(entry.contentRect?.height);
+                const fallbackHeight = Number(entry.target?.getBoundingClientRect?.().height);
+                const height = Math.ceil(rectHeight || fallbackHeight || 0);
+                if (!Number.isFinite(height) || height <= 0) return;
+                if (state.messageHeights.get(meta.key) === height) return;
+                state.messageHeights.set(meta.key, height);
+                invalidateStateHeightIndex(state);
+                changedChatIds.add(String(meta.chatId));
+            });
+            changedChatIds.forEach((chatId) => scheduleObservedHeightRefresh(chatId));
+        });
+        return messageHeightObserver;
+    }
+
+    function syncObservedMessageHeights(chatId, state) {
+        const chatMessages = getCurrentMessagesElement();
+        const observer = ensureMessageHeightObserver();
+        if (!chatMessages || !observer || !state) return;
+        const rendered = Array.from(chatMessages.querySelectorAll?.('.message[data-message-key]') || []);
+        const renderedSet = new Set(rendered);
+
+        observedMessageNodes.forEach((node) => {
+            if (renderedSet.has(node) && chatMessages.contains?.(node)) return;
+            observer.unobserve(node);
+            observedMessageNodes.delete(node);
+            observedMessageMeta.delete(node);
+        });
+
+        rendered.forEach((node) => {
+            const key = String(node.getAttribute?.('data-message-key') || '');
+            if (!key) return;
+            observedMessageMeta.set(node, { chatId: String(chatId), key });
+            if (observedMessageNodes.has(node)) return;
+            observer.observe(node);
+            observedMessageNodes.add(node);
+        });
+    }
+
+    function unobserveRemovedMessageNodes(nodes = []) {
+        if (!messageHeightObserver || !nodes?.length) return;
+        nodes.forEach((node) => {
+            if (!observedMessageNodes.has(node)) return;
+            messageHeightObserver.unobserve(node);
+            observedMessageNodes.delete(node);
+            observedMessageMeta.delete(node);
+        });
+    }
+
+    function measureRenderedMessageHeights(state, renderedNodes = null) {
         const chatMessages = getCurrentMessagesElement();
         if (!chatMessages) return;
-        const rendered = chatMessages.querySelectorAll('.message[data-message-key]');
+        const rendered = renderedNodes || chatMessages.querySelectorAll('.message[data-message-key]');
         if (!rendered.length) return;
-
-        const totalRendered = rendered.length;
-        const sampleLimit = Math.max(4, Math.min(chatHeightMeasureSampleLimit, totalRendered));
-        const sampleIndexes = [];
-        if (totalRendered <= sampleLimit) {
-            for (let index = 0; index < totalRendered; index += 1) {
-                sampleIndexes.push(index);
-            }
-        } else {
-            const seen = new Set([0, totalRendered - 1]);
-            const step = (totalRendered - 1) / Math.max(1, sampleLimit - 1);
-            for (let slot = 1; slot < sampleLimit - 1; slot += 1) {
-                seen.add(Math.round(slot * step));
-            }
-            sampleIndexes.push(...Array.from(seen).sort((left, right) => left - right));
-        }
 
         let totalHeight = 0;
         let count = 0;
         let changed = false;
-        sampleIndexes.forEach((index) => {
-            const node = rendered[index];
+        rendered.forEach((node) => {
             const key = node.getAttribute('data-message-key');
             const height = Math.ceil(node.offsetHeight || node.getBoundingClientRect().height);
             if (!key || !Number.isFinite(height) || height <= 0) return;
@@ -251,7 +339,59 @@ export function createChatMessageRenderRuntime({
         }
         if (changed) {
             invalidateStateHeightIndex(state);
+            updateVirtualSpacerHeights(state);
         }
+    }
+
+    function isVirtualSpacerNode(node) {
+        return Boolean(node?.classList?.contains?.('chat-virtual-spacer'));
+    }
+
+    function updateVirtualSpacerNode(node, height) {
+        const spacer = isVirtualSpacerNode(node) ? node : createVirtualSpacer?.(height);
+        if (spacer?.style) {
+            spacer.style.height = `${Math.max(0, Math.round(height || 0))}px`;
+        }
+        return spacer;
+    }
+
+    function replaceChatMessageChildren(container, desiredNodes) {
+        if (!container) return [];
+        const previousNodes = Array.from(container.childNodes || []);
+        const desiredSet = new Set(desiredNodes);
+        const removedNodes = previousNodes.filter((node) => !desiredSet.has(node));
+        const fragment = documentRef.createDocumentFragment();
+        desiredNodes.forEach((node) => { if (node) fragment.appendChild(node); });
+        container.replaceChildren(fragment);
+        return removedNodes;
+    }
+
+    function patchChatMessageChildren(container, desiredNodes) {
+        if (
+            !container
+            || typeof container.insertBefore !== 'function'
+            || typeof container.removeChild !== 'function'
+            || !container.childNodes
+        ) {
+            return replaceChatMessageChildren(container, desiredNodes);
+        }
+
+        const desiredSet = new Set(desiredNodes);
+        const removedNodes = [];
+        Array.from(container.childNodes).forEach((node) => {
+            if (desiredSet.has(node)) return;
+            removedNodes.push(node);
+            container.removeChild(node);
+        });
+
+        desiredNodes.forEach((node, index) => {
+            if (!node) return;
+            const currentNode = container.childNodes[index] || null;
+            if (currentNode === node) return;
+            container.insertBefore(node, currentNode);
+        });
+
+        return removedNodes;
     }
 
     function syncReusedMessageNodeState(node, msg, layout = {}) {
@@ -312,20 +452,30 @@ export function createChatMessageRenderRuntime({
             reusableMessageNodesByKey.set(activeVoiceMessageKey, activeVoiceMessageEl);
         }
 
-        const fragment = documentRef.createDocumentFragment();
+        const desiredNodes = [];
+        const reusableSeparatorNodesByKey = new Map();
+        chatMessages.querySelectorAll?.('.chat-day-separator[data-day-key], .day-separator[data-day-key]')?.forEach((node) => {
+            const key = String(node.getAttribute('data-day-key') || '');
+            if (!key || reusableSeparatorNodesByKey.has(key)) return;
+            reusableSeparatorNodesByKey.set(key, node);
+        });
+        const existingTopSpacer = isVirtualSpacerNode(chatMessages.firstElementChild) ? chatMessages.firstElementChild : null;
+        const existingBottomSpacer = isVirtualSpacerNode(chatMessages.lastElementChild) ? chatMessages.lastElementChild : null;
         const topSpacerHeight = sumEstimatedHeights?.(state, 0, range.start);
         const bottomSpacerHeight = sumEstimatedHeights?.(state, range.end, state.messages.length);
-        fragment.appendChild(createVirtualSpacer?.(topSpacerHeight));
+        desiredNodes.push(updateVirtualSpacerNode(existingTopSpacer, topSpacerHeight));
 
         let previousDayKey = range.start > 0
             ? getMessageDayKey?.(state.messages[range.start - 1]?.created_at)
             : '';
         const suppressEnterAnimation = chatMessages.classList.contains('is-loading-history');
+        const renderedMessageNodes = [];
         state.messages.slice(range.start, range.end).forEach((msg, localIndex) => {
             const absoluteIndex = range.start + localIndex;
             const dayKey = getMessageDayKey?.(msg?.created_at);
             if (dayKey && dayKey !== previousDayKey) {
-                fragment.appendChild(createDaySeparatorNode?.(msg.created_at, dayKey));
+                const separatorNode = reusableSeparatorNodesByKey.get(dayKey) || createDaySeparatorNode?.(msg.created_at, dayKey);
+                if (separatorNode) desiredNodes.push(separatorNode);
             }
             previousDayKey = dayKey;
 
@@ -345,21 +495,21 @@ export function createChatMessageRenderRuntime({
             }
             syncMessageBubbleLayoutClasses?.(messageNode);
             state.renderedKeys.add(msgKey);
-            fragment.appendChild(messageNode);
+            renderedMessageNodes.push(messageNode);
+            desiredNodes.push(messageNode);
         });
 
-        fragment.appendChild(createVirtualSpacer?.(bottomSpacerHeight));
+        desiredNodes.push(updateVirtualSpacerNode(existingBottomSpacer, bottomSpacerHeight));
         state.lastRenderRange = range;
-        chatMessages.replaceChildren(fragment);
-        syncSelectedMessageAdjacency(chatMessages);
-        disconnectLazyMediaHydrationObserver?.();
-        registerMediaElementsForLazyHydration?.(chatMessages);
-        measureRenderedMessageHeights(state);
-        // Re-hydrate after scroll is restored (positions change after scrollTop is set)
-        requestAnimationFrameFn(() => {
-            const el = getChatMessages?.();
-            if (el) registerMediaElementsForLazyHydration?.(el);
+        const removedNodes = patchChatMessageChildren(chatMessages, desiredNodes);
+        unobserveRemovedMessageNodes(removedNodes);
+        removedNodes.forEach((node) => {
+            unregisterMediaElementsForLazyHydration?.(node);
         });
+        syncSelectedMessageAdjacency(chatMessages);
+        registerMediaElementsForLazyHydration?.(chatMessages);
+        measureRenderedMessageHeights(state, renderedMessageNodes);
+        syncObservedMessageHeights(chatId, state);
 
         if (hasScrollAnchor) {
             const resolveAnchorEl = () => (

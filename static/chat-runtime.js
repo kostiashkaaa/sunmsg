@@ -945,7 +945,11 @@ export const initChatPage = async () => {
         showToast,
         documentRef: document,
     });
-    const { ensureMediaElementHydrated, disconnectLazyMediaHydrationObserver, registerMediaElementsForLazyHydration } = createMediaHydrationController({ root: chatMessages });
+    const {
+        ensureMediaElementHydrated,
+        registerMediaElementsForLazyHydration,
+        unregisterMediaElementsForLazyHydration,
+    } = createMediaHydrationController({ root: chatMessages });
 
     function syncE2EPillState() {
         syncE2EPillStateFlow({
@@ -1469,6 +1473,7 @@ export const initChatPage = async () => {
         hasSelectedMessage: (messageId) => messageSelectionController.hasSelectedMessage(messageId),
         disconnectLazyMediaHydrationObserver,
         registerMediaElementsForLazyHydration,
+        unregisterMediaElementsForLazyHydration,
         schedulePostRenderUiRefresh,
         saveChatScrollPosition: (chatId) => saveChatScrollPosition(chatId),
         resizeComposerInput: () => resizeComposerInput(),
