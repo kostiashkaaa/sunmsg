@@ -131,7 +131,10 @@
 
         @media (prefers-reduced-motion: reduce) {
             html[data-motion-level="lite"] .contact-last-msg-loading__line::after,
-            html[data-motion-level="lite"] .contact-avatar-loading::after {
+            html[data-motion-level="lite"] .contact-avatar-loading::after,
+            html[data-motion-level="lite"] .contact-item--preview-loading .contact-avatar::after,
+            html[data-motion-level="lite"] .contact-item--preview-loading .contact-name::after,
+            html[data-motion-level="lite"] .contact-item--preview-loading .contact-time-meta::after {
                 animation: none;
                 transform: none;
                 opacity: 0;

@@ -170,3 +170,27 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert 'contact-avatar-loading__bar' not in sidebar_template_src
     assert '.contact-avatar-loading::after' in components_css
     assert '.contact-last-msg-loading__line' in components_css
+
+
+def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
+    contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
+    sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
+    components_css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
+    responsive_css = (STATIC / 'pages' / 'chat' / 'responsive.css').read_text(encoding='utf-8')
+    states_css = (STATIC / 'pages' / 'chat' / 'states.css').read_text(encoding='utf-8')
+    loading_states_css = (STATIC / 'pages' / 'chat' / 'states' / 'loading.css').read_text(encoding='utf-8')
+
+    assert 'contact-item--preview-loading' in contacts_src
+    assert 'data-preview-loading="${isPreviewLoading ? \'1\' : \'0\'}"' in contacts_src
+    assert 'contact-item--preview-loading' in sidebar_template_src
+    assert (
+        "{% set preview_loading = (not has_draft) and "
+        "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"
+    ) in sidebar_template_src
+    assert 'data-preview-loading="{{ \'1\' if preview_loading else \'0\' }}"' in sidebar_template_src
+    assert '.contact-item.contact-item--preview-loading .contact-avatar::after' in components_css
+    assert '.contact-item.contact-item--preview-loading .contact-name' in components_css
+    assert '.contact-item.contact-item--preview-loading .contact-time-meta' in components_css
+    assert '.contact-item.contact-item--preview-loading.active .contact-name' in states_css
+    assert '.contact-item.contact-item--preview-loading.active .contact-name' in loading_states_css
+    assert 'html[data-motion-level="lite"] .contact-item--preview-loading .contact-avatar::after' in responsive_css

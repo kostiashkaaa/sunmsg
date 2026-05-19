@@ -667,6 +667,12 @@
             opacity: 0.94;
         }
 
+        .contact-item.contact-item--preview-loading.active .contact-name,
+        .contact-item.contact-item--preview-loading.active .contact-time,
+        .contact-item.contact-item--preview-loading.active .contact-time-meta {
+            color: transparent !important;
+        }
+
         .contact-item.active .contact-last-msg .typing-indicator-inline {
             color: rgba(255, 255, 255, 0.98) !important;
         }

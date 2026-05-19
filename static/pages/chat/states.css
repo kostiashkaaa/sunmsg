@@ -660,6 +660,12 @@
             opacity: 0.98;
         }
 
+        .contact-item.contact-item--preview-loading.active .contact-name,
+        .contact-item.contact-item--preview-loading.active .contact-time,
+        .contact-item.contact-item--preview-loading.active .contact-time-meta {
+            color: transparent !important;
+        }
+
         .contact-item.active .contact-last-msg .typing-indicator-inline {
             color: var(--accent) !important;
         }

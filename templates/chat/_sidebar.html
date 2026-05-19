@@ -50,7 +50,8 @@
                 {% set draft_is_encrypted = draft_text.strip().startswith('{') and 'encrypted' in draft_text %}
                 {% set draft_label = 'Черновик:' %}
                 {% set preview_time = contact.draft_updated_at if has_draft else (contact.last_message_time or '') %}
-                <div class="contact-item ripple-target"
+                {% set preview_loading = (not has_draft) and contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
+                <div class="contact-item ripple-target{% if preview_loading %} contact-item--preview-loading{% endif %}"
                      data-chat-id="{{ contact.chatId }}"
                      data-contact-id="{{ contact.userId or '' }}"
                      data-display-name="{{ (contact.display_name or '')|e }}"
@@ -69,6 +70,7 @@
                      data-saved-messages="{{ '1' if contact.is_saved_messages else '0' }}"
                      data-message-count="{{ contact.message_count or 0 }}"
                      data-pinned="{{ '1' if contact.is_pinned else '0' }}"
+                     data-preview-loading="{{ '1' if preview_loading else '0' }}"
                      data-has-draft="{{ '1' if has_draft else '0' }}"
                      data-draft-text="{{ draft_text|e }}"
                      data-draft-updated-at="{{ contact.draft_updated_at or '' }}"
