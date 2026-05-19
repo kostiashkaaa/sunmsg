@@ -172,7 +172,7 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert '.contact-last-msg-loading__line' in components_css
 
 
-def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
+def test_sidebar_loading_preview_stays_local_after_contacts_render() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
     sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
     sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
@@ -183,12 +183,16 @@ def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
 
     assert 'contact-item--preview-loading' in contacts_src
     assert 'data-preview-loading="${isPreviewLoading ? \'1\' : \'0\'}"' in contacts_src
-    assert "CustomEvent('sun-sidebar-preview-loading-change'" in contacts_src
+    assert "CustomEvent('sun-sidebar-preview-loading-change'" not in contacts_src
     assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
+    assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src
+    assert "const hasRenderedContactsBeforeLoad = Boolean(" in sidebar_runtime_src
+    assert 'const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad' in sidebar_runtime_src
     assert 'contact-item--preview-loading' in sidebar_template_src
-    assert 'data-sidebar-loading="{{ \'1\' if sidebar_loading.active else \'0\' }}"' in sidebar_template_src
+    assert 'sidebar_loading' not in sidebar_template_src
+    assert 'data-sidebar-loading="0"' in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"
