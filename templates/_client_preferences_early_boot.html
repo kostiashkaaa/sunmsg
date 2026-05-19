@@ -7,6 +7,7 @@
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
     const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
     const CHAT_APPEARANCE_STORAGE_KEY = 'sun.chatAppearance.v2';
+    const INTERFACE_SURFACE_MODE_STORAGE_KEY = 'sun_interface_surface_mode_v1';
     const SIDEBAR_WIDTH_STORAGE_KEY = 'sidebarWidth';
     const SIDEBAR_WIDTH_MIN = 132;
     const SIDEBAR_WIDTH_MAX = 700;
@@ -390,6 +391,10 @@
         return value === 'dark' ? 'dark' : 'light';
     }
 
+    function asInterfaceSurfaceMode(value) {
+        return String(value || '').trim().toLowerCase() === 'solid' ? 'solid' : 'glass';
+    }
+
     function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
     }
@@ -459,6 +464,24 @@
             root.style.setProperty('--sidebar-width', `${safe}px`);
         } catch (_error) {
             // Ignore storage read errors.
+        }
+    }
+
+    function applyInterfaceSurfaceMode(root, preferences = {}) {
+        const targetRoot = root || document.documentElement;
+        if (!targetRoot) return;
+        let storedMode = '';
+        try {
+            storedMode = String(localStorage.getItem(INTERFACE_SURFACE_MODE_STORAGE_KEY) || '').trim().toLowerCase();
+        } catch (_error) {
+            storedMode = '';
+        }
+        const mode = storedMode === 'glass' || storedMode === 'solid'
+            ? storedMode
+            : asInterfaceSurfaceMode(asObject(preferences).interfaceSurfaceMode);
+        targetRoot.setAttribute('data-interface-surface', mode);
+        if (document.body) {
+            document.body.setAttribute('data-interface-surface', mode);
         }
     }
 
@@ -772,6 +795,7 @@
         if (!root) return;
 
         applyStoredSidebarWidth(root);
+        applyInterfaceSurfaceMode(root, preferences);
 
         const storedDarkMode = readStoredDarkModeFlag();
         const bootDarkMode = typeof boot.darkMode === 'boolean' ? boot.darkMode : null;
@@ -823,6 +847,7 @@
         const root = document.documentElement;
         if (!root) return;
         applyStoredSidebarWidth(root);
+        applyInterfaceSurfaceMode(root, {});
         try {
             const storedDark = localStorage.getItem('darkMode');
             if (storedDark === 'true') root.classList.add('dark-mode');
@@ -878,6 +903,14 @@
             if (Object.prototype.hasOwnProperty.call(server, 'language') && !localIsFresher) {
                 const language = asLanguage(server.language);
                 localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+                touched = true;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(server, 'interfaceSurfaceMode') && !localIsFresher) {
+                localStorage.setItem(
+                    INTERFACE_SURFACE_MODE_STORAGE_KEY,
+                    asInterfaceSurfaceMode(server.interfaceSurfaceMode),
+                );
                 touched = true;
             }
 

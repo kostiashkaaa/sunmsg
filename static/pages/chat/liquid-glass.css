@@ -1,0 +1,166 @@
+html[data-interface-surface="glass"] {
+    --sun-glass-bg: color-mix(in srgb, var(--surface) 66%, transparent 34%);
+    --sun-glass-bg-strong: color-mix(in srgb, var(--surface) 78%, transparent 22%);
+    --sun-glass-bg-soft: color-mix(in srgb, var(--surface-2) 58%, transparent 42%);
+    --sun-glass-border: color-mix(in srgb, var(--border) 58%, rgba(255, 255, 255, 0.22));
+    --sun-glass-border-strong: color-mix(in srgb, var(--accent) 30%, var(--border) 70%);
+    --sun-glass-filter: blur(22px) saturate(145%);
+    --sun-glass-transition:
+        background-color 280ms var(--ease-quick),
+        background 280ms var(--ease-quick),
+        border-color 280ms var(--ease-quick),
+        backdrop-filter 280ms var(--ease-quick),
+        -webkit-backdrop-filter 280ms var(--ease-quick);
+}
+
+html[data-interface-surface] .sidebar-top-card,
+html[data-interface-surface] .sidebar-profile-card,
+html[data-interface-surface] .sidebar-status-bar,
+html[data-interface-surface] .search-input-wrapper,
+html[data-interface-surface] .chat-header,
+html[data-interface-surface] #messageForm,
+html[data-interface-surface] .settings-overlay-panel,
+html[data-interface-surface] .settings-card {
+    transition: var(--sun-glass-transition, background 180ms var(--ease-quick), border-color 180ms var(--ease-quick));
+}
+
+html[data-interface-surface="glass"] .sidebar-top-card {
+    margin: 10px 12px 0;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 18px;
+    background: var(--sun-glass-bg);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-filter);
+    backdrop-filter: var(--sun-glass-filter);
+}
+
+html[data-interface-surface="glass"] .sidebar-top-row {
+    padding: 10px 10px 6px;
+}
+
+html[data-interface-surface="glass"] .sidebar-tabs {
+    padding: 0 10px;
+    border-bottom: 0;
+}
+
+html[data-interface-surface="glass"] .search-input-wrapper {
+    border: 1px solid color-mix(in srgb, var(--sun-glass-border) 76%, transparent);
+    background: var(--sun-glass-bg-soft);
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    backdrop-filter: blur(16px) saturate(135%);
+}
+
+html[data-interface-surface="glass"] .sidebar-profile-card {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-bg);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-filter);
+    backdrop-filter: var(--sun-glass-filter);
+}
+
+html[data-interface-surface="glass"] .sidebar-status-bar,
+html[data-interface-surface="glass"] .sidebar-status-chip--inline {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 76%, transparent);
+    background: var(--sun-glass-bg-soft);
+    box-shadow: none;
+}
+
+html[data-interface-surface="glass"] .chat-header {
+    border-bottom: 1px solid var(--sun-glass-border);
+    background: var(--sun-glass-bg-strong);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-filter);
+    backdrop-filter: var(--sun-glass-filter);
+}
+
+html[data-interface-surface="glass"] #messageForm {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-bg-strong);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-filter);
+    backdrop-filter: var(--sun-glass-filter);
+}
+
+html[data-interface-surface="glass"] #messageForm:focus-within {
+    border-color: var(--sun-glass-border-strong);
+    box-shadow: none;
+}
+
+html[data-interface-surface="glass"] #messageInput {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-interface-surface="glass"] #messageInput:focus,
+html[data-interface-surface="glass"] #messageInput.editing-active {
+    border-color: transparent;
+    box-shadow: none;
+}
+
+html[data-interface-surface="glass"] .settings-overlay-backdrop {
+    background: rgba(0, 0, 0, 0.14);
+}
+
+html[data-interface-surface="glass"] .settings-overlay-panel {
+    border-left: 1px solid var(--sun-glass-border);
+    background: var(--sun-glass-bg-strong);
+    box-shadow: none;
+    -webkit-backdrop-filter: var(--sun-glass-filter);
+    backdrop-filter: var(--sun-glass-filter);
+}
+
+html[data-interface-surface="glass"] .settings-overlay-frame,
+html[data-interface-surface="glass"] .settings-overlay-frame .settings-scene,
+html[data-interface-surface="glass"] .settings-overlay-frame .settings-layout {
+    background: transparent;
+}
+
+html[data-interface-surface="glass"] .settings-scene .settings-card,
+html[data-interface-surface="glass"] body.settings-detail-open .settings-card {
+    border: 1px solid var(--sun-glass-border) !important;
+    background: var(--sun-glass-bg) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: blur(18px) saturate(138%);
+    backdrop-filter: blur(18px) saturate(138%);
+}
+
+html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
+    background: color-mix(in srgb, var(--surface-2) 42%, transparent) !important;
+}
+
+@media (max-width: 768px) {
+    html[data-interface-surface="glass"] .sidebar-top-card {
+        margin: calc(8px + env(safe-area-inset-top, 0px)) 8px 0;
+        border-radius: 18px;
+    }
+
+    html[data-interface-surface="glass"] .chat-header {
+        border-bottom-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-interface-surface] .sidebar-top-card,
+    html[data-interface-surface] .sidebar-profile-card,
+    html[data-interface-surface] .sidebar-status-bar,
+    html[data-interface-surface] .search-input-wrapper,
+    html[data-interface-surface] .chat-header,
+    html[data-interface-surface] #messageForm,
+    html[data-interface-surface] .settings-overlay-panel,
+    html[data-interface-surface] .settings-card {
+        transition: none;
+    }
+}
+
+html[data-motion-level="lite"][data-interface-surface] .sidebar-top-card,
+html[data-motion-level="lite"][data-interface-surface] .sidebar-profile-card,
+html[data-motion-level="lite"][data-interface-surface] .sidebar-status-bar,
+html[data-motion-level="lite"][data-interface-surface] .search-input-wrapper,
+html[data-motion-level="lite"][data-interface-surface] .chat-header,
+html[data-motion-level="lite"][data-interface-surface] #messageForm,
+html[data-motion-level="lite"][data-interface-surface] .settings-overlay-panel,
+html[data-motion-level="lite"][data-interface-surface] .settings-card {
+    transition: none !important;
+}

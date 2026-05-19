@@ -1,4 +1,9 @@
 import { readAppliedDarkMode } from '../../modules/theme-state.js';
+import {
+    INTERFACE_SURFACE_MODE_GLASS,
+    applyInterfaceSurfaceMode,
+    resolveInterfaceSurfaceMode,
+} from '../../modules/interface-surface-mode.js';
 
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
@@ -232,6 +237,7 @@ export function initPrivacySection({
     const timeFormat12hSampleEl = document.getElementById('timeFormat12hSample');
     const timeFormat24hSampleEl = document.getElementById('timeFormat24hSample');
     const animationsEnabledSwitchEl = document.getElementById('animationsEnabledSwitch');
+    const interfaceSurfaceGlassSwitchEl = document.getElementById('interfaceSurfaceGlassSwitch');
     const sidebarWeatherEnabledSwitchEl = document.getElementById('sidebarWeatherEnabledSwitch');
     const sidebarWeatherSourceRowEl = document.getElementById('sidebarWeatherSourceRow');
     const sidebarWeatherSourceSelectEl = document.getElementById('sidebarWeatherSourceSelect');
@@ -820,6 +826,9 @@ export function initPrivacySection({
         const messageScale = clampMessageScale(readStorageValue(MESSAGE_SCALE_STORAGE_KEY, base.messageScale || '1'));
         const performanceMode = normalizePerformanceMode(readStorageValue('sun_performance_mode', base.performanceMode || 'auto'));
         const motionLevel = normalizeMotionLevel(readStorageValue('sun_motion_level', base.motionLevel || 'auto'));
+        const interfaceSurfaceMode = interfaceSurfaceGlassSwitchEl instanceof HTMLInputElement
+            ? (interfaceSurfaceGlassSwitchEl.checked ? 'glass' : 'solid')
+            : resolveInterfaceSurfaceMode(base);
 
         return {
             darkMode,
@@ -828,6 +837,7 @@ export function initPrivacySection({
             messageScale,
             performanceMode,
             motionLevel,
+            interfaceSurfaceMode,
             sendShortcut: getSendShortcutSelection(),
             timeFormat: getTimeFormatSelection(),
             ...getSidebarWeatherPreferencesFromControls(),
@@ -1007,6 +1017,11 @@ export function initPrivacySection({
             { performanceMode: nextPerformanceMode, motionLevel: nextMotionLevel },
             { persist: true, notify: true, syncToggle: true },
         );
+        const nextInterfaceSurfaceMode = resolveInterfaceSurfaceMode(weatherClientPreferences);
+        applyInterfaceSurfaceMode(nextInterfaceSurfaceMode, { persist: true });
+        if (interfaceSurfaceGlassSwitchEl instanceof HTMLInputElement) {
+            interfaceSurfaceGlassSwitchEl.checked = nextInterfaceSurfaceMode === INTERFACE_SURFACE_MODE_GLASS;
+        }
         syncClientPreferencesLocal(false);
 
         if (bioEl && bioCounterEl) {

@@ -4,9 +4,19 @@ import subprocess
 
 def _privacy_section_test_source(module_path: Path) -> str:
     source = module_path.read_text(encoding='utf-8')
-    return source.replace(
+    source = source.replace(
         "import { readAppliedDarkMode } from '../../modules/theme-state.js';",
         'const readAppliedDarkMode = () => false;',
+    )
+    return source.replace(
+        """import {
+    INTERFACE_SURFACE_MODE_GLASS,
+    applyInterfaceSurfaceMode,
+    resolveInterfaceSurfaceMode,
+} from '../../modules/interface-surface-mode.js';""",
+        """const INTERFACE_SURFACE_MODE_GLASS = 'glass';
+const applyInterfaceSurfaceMode = (mode) => String(mode || '').trim().toLowerCase() === 'solid' ? 'solid' : 'glass';
+const resolveInterfaceSurfaceMode = (preferences = {}) => String(preferences.interfaceSurfaceMode || '').trim().toLowerCase() === 'solid' ? 'solid' : 'glass';""",
     )
 
 

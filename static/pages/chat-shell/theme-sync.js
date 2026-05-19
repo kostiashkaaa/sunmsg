@@ -1,4 +1,5 @@
 import { readAppliedDarkMode } from '../../modules/theme-state.js';
+import { resolveInterfaceSurfaceMode } from '../../modules/interface-surface-mode.js';
 
 export function initChatShellThemeSync(options = {}) {
     const interfaceThemeApi = options.interfaceThemeApi || window.InterfaceTheme || null;
@@ -86,6 +87,7 @@ export function initChatShellThemeSync(options = {}) {
             motionLevel,
             sendShortcut,
             timeFormat,
+            interfaceSurfaceMode: resolveInterfaceSurfaceMode(window.SUN_CLIENT_PREFERENCES?.read?.() || {}),
             interfaceThemeStore: interfaceThemeApi?.readStore?.() || {},
             chatAppearanceStore: chatAppearanceApi?.readStore?.() || {},
         };

@@ -1,4 +1,9 @@
 import { readAppliedDarkMode } from '../../modules/theme-state.js';
+import {
+    applyInterfaceSurfaceMode,
+    normalizeInterfaceSurfaceMode,
+    resolveInterfaceSurfaceMode,
+} from '../../modules/interface-surface-mode.js';
 
 const MESSAGE_SCALE_STORAGE_KEY = 'sun_chat_message_scale_v1';
 const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
@@ -113,6 +118,7 @@ export function initSettingsTransferSection({
             chatAppearanceStore,
             darkMode,
             messageScale,
+            interfaceSurfaceMode: resolveInterfaceSurfaceMode(unifiedPrefs || {}),
             language: normalizeLanguage(unifiedPrefs?.language || document.documentElement?.lang || 'ru'),
             updatedAt: String(unifiedPrefs?.updatedAt || '').trim() || null,
         };
@@ -170,6 +176,7 @@ export function initSettingsTransferSection({
             sidebarWeatherCity,
             sidebarWeatherRotateSeconds,
             sidebarWeatherMetrics,
+            interfaceSurfaceMode: normalizeInterfaceSurfaceMode(localAppearance.interfaceSurfaceMode),
             interfaceThemeStore: localAppearance.interfaceThemeStore || {},
             chatAppearanceStore: localAppearance.chatAppearanceStore || {},
             updatedAt: String(localAppearance.updatedAt || '').trim() || undefined,
@@ -194,6 +201,7 @@ export function initSettingsTransferSection({
                 language: normalizeLanguage(direct.language || document.documentElement?.lang || 'ru'),
                 sendShortcut: normalizeSendShortcut(direct.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
                 timeFormat: normalizeTimeFormat(direct.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
+                interfaceSurfaceMode: normalizeInterfaceSurfaceMode(direct.interfaceSurfaceMode),
                 sidebarWeatherEnabled: direct.sidebarWeatherEnabled === true,
                 sidebarWeatherSource: normalizeSidebarWeatherSource(direct.sidebarWeatherSource),
                 sidebarWeatherCity: normalizeSidebarWeatherCity(direct.sidebarWeatherCity),
@@ -222,6 +230,7 @@ export function initSettingsTransferSection({
             language: normalizeLanguage(localAppearance.language || document.documentElement?.lang || 'ru'),
             sendShortcut: normalizeSendShortcut(payload?.sendShortcut || readLocalPreference(SEND_SHORTCUT_STORAGE_KEY, 'enter')),
             timeFormat: normalizeTimeFormat(payload?.timeFormat || readLocalPreference(TIME_FORMAT_STORAGE_KEY, '24h')),
+            interfaceSurfaceMode: normalizeInterfaceSurfaceMode(localAppearance.interfaceSurfaceMode),
             sidebarWeatherEnabled: false,
             sidebarWeatherSource: 'auto',
             sidebarWeatherCity: '',
@@ -255,6 +264,7 @@ export function initSettingsTransferSection({
         localStorage.setItem('sun_motion_level', clientPreferences.motionLevel || 'auto');
         localStorage.setItem(SEND_SHORTCUT_STORAGE_KEY, normalizeSendShortcut(clientPreferences.sendShortcut));
         localStorage.setItem(TIME_FORMAT_STORAGE_KEY, normalizeTimeFormat(clientPreferences.timeFormat));
+        applyInterfaceSurfaceMode(clientPreferences.interfaceSurfaceMode, { persist: true });
         localStorage.setItem('sun_ui_language', normalizeLanguage(clientPreferences.language || document.documentElement?.lang || 'ru'));
         window.InterfaceTheme?.applyCurrentTheme?.();
         window.ChatAppearance?.applyCurrentTheme?.();

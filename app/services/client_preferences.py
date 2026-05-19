@@ -11,6 +11,7 @@ _PERFORMANCE_MODES = {'auto', 'full', 'lite'}
 _MOTION_LEVELS = {'auto', 'full', 'balanced', 'lite'}
 _SEND_SHORTCUT_MODES = {'enter', 'ctrl_enter'}
 _TIME_FORMATS = {'24h', '12h'}
+_INTERFACE_SURFACE_MODES = {'glass', 'solid'}
 _SIDEBAR_WEATHER_SOURCES = {'auto', 'city'}
 _SIDEBAR_WEATHER_ROTATE_SECONDS = {30, 60}
 _SIDEBAR_WEATHER_METRICS = {
@@ -177,6 +178,14 @@ def _normalize_base_preferences(src: dict) -> dict:
     time_format = _normalize_choice_value(src, key='timeFormat', allowed=_TIME_FORMATS)
     if time_format is not None:
         normalized['timeFormat'] = time_format
+
+    interface_surface_mode = _normalize_choice_value(
+        src,
+        key='interfaceSurfaceMode',
+        allowed=_INTERFACE_SURFACE_MODES,
+    )
+    if interface_surface_mode is not None:
+        normalized['interfaceSurfaceMode'] = interface_surface_mode
 
     language = _normalize_language(src)
     if language is not None:

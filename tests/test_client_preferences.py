@@ -20,6 +20,7 @@ def test_normalize_client_preferences_base_fields():
             'motionLevel': 'Balanced',
             'sendShortcut': 'CTRL_ENTER',
             'timeFormat': '24H',
+            'interfaceSurfaceMode': ' SOLID ',
             'language': ' EN ',
         }
     )
@@ -30,6 +31,7 @@ def test_normalize_client_preferences_base_fields():
     assert normalized['motionLevel'] == 'balanced'
     assert normalized['sendShortcut'] == 'ctrl_enter'
     assert normalized['timeFormat'] == '24h'
+    assert normalized['interfaceSurfaceMode'] == 'solid'
     assert normalized['language'] == 'en'
 
 
@@ -72,6 +74,7 @@ def test_client_preferences_json_round_trip():
         'darkMode': False,
         'messageScale': 1.1,
         'language': 'ru',
+        'interfaceSurfaceMode': 'glass',
         'sidebarWeatherRotateSeconds': 30,
     }
     packed = client_preferences_to_json(source)

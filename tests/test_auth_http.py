@@ -906,6 +906,7 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
                 'motionLevel': 'balanced',
                 'sendShortcut': 'ctrl_enter',
                 'timeFormat': '12h',
+                'interfaceSurfaceMode': 'solid',
                 'sidebarWeatherEnabled': True,
                 'sidebarWeatherSource': 'city',
                 'sidebarWeatherCity': 'Москва',
@@ -942,6 +943,7 @@ def test_api_save_settings_persists_client_preferences(monkeypatch, tmp_path):
     assert stored_preferences['motionLevel'] == 'balanced'
     assert stored_preferences['sendShortcut'] == 'ctrl_enter'
     assert stored_preferences['timeFormat'] == '12h'
+    assert stored_preferences['interfaceSurfaceMode'] == 'solid'
     assert stored_preferences['sidebarWeatherEnabled'] is True
     assert stored_preferences['sidebarWeatherSource'] == 'city'
     assert stored_preferences['sidebarWeatherCity'] == 'Москва'

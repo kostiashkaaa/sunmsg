@@ -1,5 +1,11 @@
 import { prepareWallpaperDataUrl } from './wallpaper-image.js';
 import { readAppliedDarkMode } from '../../modules/theme-state.js';
+import {
+    INTERFACE_SURFACE_MODE_GLASS,
+    INTERFACE_SURFACE_MODE_SOLID,
+    applyInterfaceSurfaceMode,
+    resolveInterfaceSurfaceMode,
+} from '../../modules/interface-surface-mode.js';
 
 export function initThemeSection({
     tr,
@@ -14,6 +20,7 @@ export function initThemeSection({
     const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
     const themePresetEls = Array.from(document.querySelectorAll('.theme-preview[data-theme-preset]'));
+    const interfaceSurfaceGlassSwitch = document.getElementById('interfaceSurfaceGlassSwitch');
 
     const isDark = () => readAppliedDarkMode();
     const activeThemeKey = () => (isDark() ? 'dark' : 'light');
@@ -94,6 +101,23 @@ export function initThemeSection({
         return String(value || '').trim().toLowerCase() === '12h' ? '12h' : '24h';
     }
 
+    function getInterfaceSurfaceModeSelection() {
+        if (interfaceSurfaceGlassSwitch instanceof HTMLInputElement) {
+            return interfaceSurfaceGlassSwitch.checked
+                ? INTERFACE_SURFACE_MODE_GLASS
+                : INTERFACE_SURFACE_MODE_SOLID;
+        }
+        return resolveInterfaceSurfaceMode(window.SUN_CLIENT_PREFERENCES?.read?.() || {});
+    }
+
+    function syncInterfaceSurfaceModeControl() {
+        const mode = resolveInterfaceSurfaceMode(window.SUN_CLIENT_PREFERENCES?.read?.() || {});
+        applyInterfaceSurfaceMode(mode, { persist: true });
+        if (interfaceSurfaceGlassSwitch instanceof HTMLInputElement) {
+            interfaceSurfaceGlassSwitch.checked = mode === INTERFACE_SURFACE_MODE_GLASS;
+        }
+    }
+
     function collectClientPreferences() {
         let messageScale = 1;
         let performanceMode = 'auto';
@@ -124,6 +148,7 @@ export function initThemeSection({
             motionLevel,
             sendShortcut,
             timeFormat,
+            interfaceSurfaceMode: getInterfaceSurfaceModeSelection(),
             interfaceThemeStore: interfaceThemeApi?.readStore?.() || {},
             chatAppearanceStore: chatAppearanceApi?.readStore?.() || {},
         };
@@ -209,6 +234,14 @@ export function initThemeSection({
         applyTheme(!!dark);
         scheduleClientPreferencesPersist();
     }
+
+    syncInterfaceSurfaceModeControl();
+
+    interfaceSurfaceGlassSwitch?.addEventListener('change', () => {
+        const nextMode = getInterfaceSurfaceModeSelection();
+        applyInterfaceSurfaceMode(nextMode, { persist: true, notify: true });
+        scheduleClientPreferencesPersist(160);
+    });
 
     function setThemePreset(presetId) {
         if (interfaceThemeApi && typeof interfaceThemeApi.setActivePreset === 'function') {

@@ -13,6 +13,7 @@
     const MOTION_LEVEL_STORAGE_KEY = 'sun_motion_level';
     const SEND_SHORTCUT_STORAGE_KEY = 'sun_send_shortcut_mode_v1';
     const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
+    const INTERFACE_SURFACE_MODE_STORAGE_KEY = 'sun_interface_surface_mode_v1';
     const MESSAGE_SCALE_MIN = 0.9;
     const MESSAGE_SCALE_MAX = 1.3;
     const AUTO_DARK_START_HOUR = 20;
@@ -21,6 +22,7 @@
     const MOTION_LEVELS = new Set(['auto', 'full', 'balanced', 'lite']);
     const SEND_SHORTCUT_MODES = new Set(['enter', 'ctrl_enter']);
     const TIME_FORMAT_MODES = new Set(['24h', '12h']);
+    const INTERFACE_SURFACE_MODES = new Set(['glass', 'solid']);
     const SIDEBAR_WEATHER_SOURCES = new Set(['auto', 'city']);
     const SIDEBAR_WEATHER_ROTATE_SECONDS = new Set([30, 60]);
     const SIDEBAR_WEATHER_METRICS = new Set([
@@ -586,6 +588,11 @@
             out.timeFormat = timeFormat;
         }
 
+        const interfaceSurfaceMode = asString(raw.interfaceSurfaceMode).toLowerCase();
+        if (INTERFACE_SURFACE_MODES.has(interfaceSurfaceMode)) {
+            out.interfaceSurfaceMode = interfaceSurfaceMode;
+        }
+
         const sidebarWeatherEnabled = raw.sidebarWeatherEnabled;
         if (typeof sidebarWeatherEnabled === 'boolean') {
             out.sidebarWeatherEnabled = sidebarWeatherEnabled;
@@ -1030,6 +1037,9 @@
             const storedTimeFormat = asString(localStorage.getItem(TIME_FORMAT_STORAGE_KEY)).toLowerCase();
             if (TIME_FORMAT_MODES.has(storedTimeFormat)) snapshot.timeFormat = storedTimeFormat;
 
+            const storedSurfaceMode = asString(localStorage.getItem(INTERFACE_SURFACE_MODE_STORAGE_KEY)).toLowerCase();
+            if (INTERFACE_SURFACE_MODES.has(storedSurfaceMode)) snapshot.interfaceSurfaceMode = storedSurfaceMode;
+
             const storedLang = asString(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY));
             if (storedLang) snapshot.language = asLanguage(storedLang);
 
@@ -1076,6 +1086,15 @@
             }
             if (typeof normalized.timeFormat === 'string' && TIME_FORMAT_MODES.has(normalized.timeFormat)) {
                 localStorage.setItem(TIME_FORMAT_STORAGE_KEY, normalized.timeFormat);
+            }
+            if (typeof normalized.interfaceSurfaceMode === 'string' && INTERFACE_SURFACE_MODES.has(normalized.interfaceSurfaceMode)) {
+                localStorage.setItem(INTERFACE_SURFACE_MODE_STORAGE_KEY, normalized.interfaceSurfaceMode);
+                if (document.documentElement && typeof document.documentElement.setAttribute === 'function') {
+                    document.documentElement.setAttribute('data-interface-surface', normalized.interfaceSurfaceMode);
+                }
+                if (document.body && typeof document.body.setAttribute === 'function') {
+                    document.body.setAttribute('data-interface-surface', normalized.interfaceSurfaceMode);
+                }
             }
             if (normalized.interfaceThemeStore) {
                 localStorage.setItem(INTERFACE_THEME_STORAGE_KEY, JSON.stringify(normalized.interfaceThemeStore));
