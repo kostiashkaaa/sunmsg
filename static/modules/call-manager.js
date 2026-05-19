@@ -427,14 +427,7 @@ export class CallManager {
                 const ttlMs = (result.ttlSeconds || 3300) * 1000;
                 this._iceServersExpiresAt = Date.now() + ttlMs;
             } catch (err) {
-                console.warn('[CallManager] ICE config fetch failed', err);
-                if (!this._allowStunFallback()) {
-                    const message = 'Не удалось получить настройки звонка';
-                    setCallStatusText(message);
-                    showToast(message, 'error');
-                    this.endCall();
-                    return;
-                }
+                console.warn('[CallManager] ICE config fetch failed, using STUN fallback', err);
                 if (!this._iceServers) {
                     this._iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
                     this._iceServersExpiresAt = Date.now() + 55 * 60 * 1000;
@@ -639,9 +632,6 @@ export class CallManager {
             turn_credential_ttl_seconds,
             ice_transport_policy,
         } = await resp.json();
-        if (!turn_configured && !this._allowStunFallback()) {
-            throw new Error('TURN is not configured');
-        }
         if (!turn_configured) {
             console.warn('[CallManager] TURN is not configured; calls outside the same network may fail');
         }
@@ -704,14 +694,6 @@ export class CallManager {
         const expectedUserId = this._partner?.user_id;
         if (!expectedUserId || !fromUserId) return true;
         return String(expectedUserId) === String(fromUserId);
-    }
-
-    _allowStunFallback() {
-        const hostname = String(window.location.hostname || '').toLowerCase();
-        return hostname === 'localhost'
-            || hostname === '127.0.0.1'
-            || hostname === '::1'
-            || hostname.endsWith('.local');
     }
 
     _onLocalTrackEnded(kind) {
