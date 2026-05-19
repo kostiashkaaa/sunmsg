@@ -40,7 +40,6 @@ const STATES = {
 // How long to wait in 'disconnected' state before giving up
 const DISCONNECT_TIMEOUT_MS = 15_000;
 const RING_TIMEOUT_MS = 60_000;
-const MAX_PENDING_SIGNAL_QUEUE = 128;
 
 function _normalizeIceTransportPolicy(value) {
     return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
@@ -79,45 +78,31 @@ export class CallManager {
         this._ringTimeout = null;
         this._disconnectTimeout = null;
         this._iceRestarting = false;
-        this._lastConnectionState = '';
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
         this._pendingSignals = [];
 
         this._bindSocketEvents();
         this._bindUnloadHandler();
-        this._bindDeviceChangeHandler();
     }
 
     // Tell the server the call is over when the tab is closing. 'pagehide'
     // fires reliably on mobile (unlike 'beforeunload'); the emit is best-effort
     // but the server-side disconnect cleanup is the real safety net.
     _bindUnloadHandler() {
-        this._onPageHide = (event) => {
+        this._onPageHide = () => {
             if (this._state === STATES.IDLE || !this._callId) return;
-            if (event?.persisted || this._state === STATES.ACTIVE) return;
-            const socketEvent = this._state === STATES.RINGING_OUT ? 'call_cancel'
+            const event = this._state === STATES.RINGING_OUT ? 'call_cancel'
                 : this._state === STATES.RINGING_IN ? 'call_reject'
-                : '';
-            if (!socketEvent) return;
+                : 'call_end';
             try {
-                this._socket.emit(socketEvent, {
+                this._socket.emit(event, {
                     call_id: this._callId,
                     csrf_token: this._getCsrfToken(),
                 });
             } catch (_) { /* tab is closing — best effort */ }
         };
         window.addEventListener('pagehide', this._onPageHide);
-    }
-
-    _bindDeviceChangeHandler() {
-        if (!navigator.mediaDevices?.addEventListener) return;
-        this._onDeviceChange = () => {
-            void this._media.refreshAvailableDevices().catch((err) => {
-                console.warn('[CallManager] device refresh failed', err);
-            });
-        };
-        navigator.mediaDevices.addEventListener('devicechange', this._onDeviceChange);
     }
 
     // ── Socket event bindings ────────────────────────────────────────────────
@@ -356,9 +341,9 @@ export class CallManager {
 
     async _onOffer({ call_id, sdp, from_user_id }) {
         if (call_id !== this._callId) return;
-        if (!this._isExpectedPeer(from_user_id)) return;
         if (!this._webrtc) {
-            this._queuePendingSignal({ type: 'offer', sdp, from_user_id });
+            // Queue until _webrtc is ready
+            this._pendingSignals.push({ type: 'offer', sdp, from_user_id });
             return;
         }
         try {
@@ -370,9 +355,8 @@ export class CallManager {
 
     async _onAnswer({ call_id, sdp, from_user_id }) {
         if (call_id !== this._callId) return;
-        if (!this._isExpectedPeer(from_user_id)) return;
         if (!this._webrtc) {
-            this._queuePendingSignal({ type: 'answer', sdp, from_user_id });
+            this._pendingSignals.push({ type: 'answer', sdp, from_user_id });
             return;
         }
         try {
@@ -384,9 +368,8 @@ export class CallManager {
 
     async _onIceCandidate({ call_id, candidate, from_user_id }) {
         if (call_id !== this._callId) return;
-        if (!this._isExpectedPeer(from_user_id)) return;
         if (!this._webrtc) {
-            this._queuePendingSignal({ type: 'ice', candidate, from_user_id });
+            this._pendingSignals.push({ type: 'ice', candidate, from_user_id });
             return;
         }
         try {
@@ -401,14 +384,9 @@ export class CallManager {
         const queue = this._pendingSignals.splice(0);
         for (const sig of queue) {
             if (!this._webrtc) break;
-            if (!this._isExpectedPeer(sig.from_user_id)) continue;
-            try {
-                if (sig.type === 'offer')  await this._webrtc.handleOffer({ sdp: sig.sdp });
-                if (sig.type === 'answer') await this._webrtc.handleAnswer({ sdp: sig.sdp });
-                if (sig.type === 'ice')    await this._webrtc.handleIceCandidate({ candidate: sig.candidate });
-            } catch (err) {
-                console.warn('[CallManager] queued WebRTC signal dropped', err);
-            }
+            if (sig.type === 'offer')  await this._webrtc.handleOffer({ sdp: sig.sdp });
+            if (sig.type === 'answer') await this._webrtc.handleAnswer({ sdp: sig.sdp });
+            if (sig.type === 'ice')    await this._webrtc.handleIceCandidate({ candidate: sig.candidate });
         }
     }
 
@@ -427,7 +405,7 @@ export class CallManager {
                 const ttlMs = (result.ttlSeconds || 3300) * 1000;
                 this._iceServersExpiresAt = Date.now() + ttlMs;
             } catch (err) {
-                console.warn('[CallManager] ICE config fetch failed, using STUN fallback', err);
+                console.warn('[CallManager] ICE config fetch failed, using STUN only', err);
                 if (!this._iceServers) {
                     this._iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
                     this._iceServersExpiresAt = Date.now() + 55 * 60 * 1000;
@@ -619,7 +597,6 @@ export class CallManager {
     // ── ICE server config ────────────────────────────────────────────────────
 
     async _fetchIceServers() {
-        if (!this._callId) throw new Error('ICE config requires call_id');
         const url = new URL(this._iceConfigUrl, window.location.origin);
         if (this._callId) url.searchParams.set('call_id', this._callId);
         const resp = await fetch(url.toString(), {
@@ -645,14 +622,12 @@ export class CallManager {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     _onConnectionState(state) {
-        const previousState = this._lastConnectionState;
-        this._lastConnectionState = state;
         if (state === 'connected') {
             clearTimeout(this._disconnectTimeout);
             this._disconnectTimeout = null;
             setCallStatusText('Соединено');
             startCallDurationTimer();
-            if (previousState !== 'connected') playConnectedSound();
+            playConnectedSound();
             return;
         }
         if (state === 'disconnected' || state === 'failed') {
@@ -680,20 +655,6 @@ export class CallManager {
             audio_muted:   this._media.isAudioMuted(),
             video_enabled: this._media.isVideoEnabled(),
         });
-    }
-
-    _queuePendingSignal(signal) {
-        if (this._pendingSignals.length >= MAX_PENDING_SIGNAL_QUEUE) {
-            console.warn('[CallManager] pending WebRTC signal queue full, dropping signal');
-            return;
-        }
-        this._pendingSignals.push(signal);
-    }
-
-    _isExpectedPeer(fromUserId) {
-        const expectedUserId = this._partner?.user_id;
-        if (!expectedUserId || !fromUserId) return true;
-        return String(expectedUserId) === String(fromUserId);
     }
 
     _onLocalTrackEnded(kind) {
@@ -739,7 +700,7 @@ export class CallManager {
             } catch (err) {
                 console.warn('[CallManager] ICE config refresh failed before restart', err);
             }
-            await this._webrtc?.restartIce();
+            this._webrtc?.restartIce();
         } finally {
             this._iceRestarting = false;
         }
@@ -780,7 +741,6 @@ export class CallManager {
         this._media.release();
         this._pendingSignals = [];
         this._iceRestarting = false;
-        this._lastConnectionState = '';
         this._iceServers  = null;
         this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;

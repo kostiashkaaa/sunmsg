@@ -116,15 +116,6 @@ export class CallWebRTC {
             this._onConnectionState(this._pc.connectionState);
         };
 
-        this._pc.oniceconnectionstatechange = () => {
-            const iceState = this._pc.iceConnectionState;
-            if (iceState === 'completed') {
-                this._onConnectionState('connected');
-            } else if (['connected', 'disconnected', 'failed', 'closed'].includes(iceState)) {
-                this._onConnectionState(iceState);
-            }
-        };
-
         // Perfect negotiation: re-offer on negotiation needed
         this._pc.onnegotiationneeded = async () => {
             try {
@@ -221,24 +212,15 @@ export class CallWebRTC {
         }
     }
 
-    // ICE restart uses an explicit iceRestart offer. Some mobile browsers do
-    // not reliably fire negotiationneeded after network/background transitions.
-    async restartIce() {
+    // ICE restart uses normal perfect-negotiation signalling. If both sides
+    // restart at once, the polite/impolite collision handling above resolves it.
+    restartIce() {
         if (!this._pc) return;
         if (this._pc.signalingState !== 'stable') return;
         try {
-            this._makingOffer = true;
-            const offer = await this._pc.createOffer({ iceRestart: true });
-            await this._pc.setLocalDescription(offer);
-            await this._updateVerificationCode();
-            this._onSignal('call_offer', {
-                call_id: this._callId,
-                sdp: this._pc.localDescription,
-            });
+            this._pc.restartIce();
         } catch (err) {
             console.warn('[CallWebRTC] restartIce failed', err);
-        } finally {
-            this._makingOffer = false;
         }
     }
 
