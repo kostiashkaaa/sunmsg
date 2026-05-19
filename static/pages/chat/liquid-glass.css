@@ -446,7 +446,7 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today {
    SEARCH OVERLAY
    ================================================================ */
 html[data-interface-surface="glass"] .search-overlay {
-    background: transparent;
+    background: color-mix(in srgb, var(--sidebar-bg, var(--bg)) 88%, transparent);
     box-shadow: none;
     top: calc(var(--sidebar-top-card-height, 124px) + var(--sun-glass-overlay-top-gap));
     bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + var(--sun-glass-overlay-bottom-gap));
@@ -458,7 +458,7 @@ html[data-interface-surface="glass"] .search-overlay__tabs {
     padding: 4px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 16px;
-    background: var(--sun-glass-sidebar-card-bg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 86%, transparent) 0%, color-mix(in srgb, var(--surface-2) 78%, transparent) 58%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -485,7 +485,7 @@ html[data-interface-surface="glass"] .search-overlay__body {
     min-height: 0;
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
-    background: var(--sun-glass-sidebar-card-bg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 86%, transparent) 0%, color-mix(in srgb, var(--surface-2) 78%, transparent) 58%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -499,14 +499,14 @@ html[data-interface-surface="glass"] .command-palette-result,
 html[data-interface-surface="glass"] .user-search-panel__qr,
 html[data-interface-surface="glass"] .user-search-state {
     border-color: color-mix(in srgb, var(--sun-glass-border) 82%, transparent);
-    background: var(--sun-glass-sidebar-pill-bg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 76%, transparent) 0%, color-mix(in srgb, var(--surface-2) 70%, transparent) 62%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
     box-shadow: inset 0 1px 0 var(--sun-glass-rim);
     -webkit-backdrop-filter: var(--sun-glass-blur-sm);
     backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 html[data-interface-surface="glass"] .search-global-media-card {
-    background: var(--sun-glass-sidebar-pill-bg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 76%, transparent) 0%, color-mix(in srgb, var(--surface-2) 70%, transparent) 62%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
     box-shadow: inset 0 1px 0 var(--sun-glass-rim);
 }
 
