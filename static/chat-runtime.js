@@ -947,6 +947,7 @@ export const initChatPage = async () => {
     });
     const {
         ensureMediaElementHydrated,
+        disconnectLazyMediaHydrationObserver,
         registerMediaElementsForLazyHydration,
         unregisterMediaElementsForLazyHydration,
     } = createMediaHydrationController({ root: chatMessages });
