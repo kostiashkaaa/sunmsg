@@ -35,12 +35,12 @@ html[data-interface-surface] .settings-card {
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
     margin: 10px 12px 0;
-    border: 1px solid var(--sun-glass-border);
+    border: 0;
     border-radius: 18px;
-    background: var(--sun-glass-bg);
+    background: transparent;
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-row {
@@ -50,6 +50,18 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-to
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-tabs {
     padding: 0 10px;
     border-bottom: 0;
+}
+
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-brand {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 16px;
+    background: var(--sun-glass-control-bg);
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    backdrop-filter: blur(16px) saturate(135%);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper {
@@ -100,11 +112,15 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-st
 }
 
 html[data-interface-surface="glass"] .chat-header {
-    border-bottom: 1px solid var(--sun-glass-border);
-    background: color-mix(in srgb, var(--chat-hdr) 70%, transparent 30%);
+    border-bottom: 0;
+    background: transparent;
     box-shadow: none;
-    -webkit-backdrop-filter: var(--sun-glass-filter);
-    backdrop-filter: var(--sun-glass-filter);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+html[data-interface-surface="glass"] .chat-area::before {
+    background: transparent;
 }
 
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
