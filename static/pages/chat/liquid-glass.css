@@ -14,6 +14,8 @@ html[data-interface-surface="glass"] {
     --sun-glass-chat-pill-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 44%, transparent) 0%, color-mix(in srgb, #ffffff 18%, transparent) 48%, color-mix(in srgb, var(--accent) 12%, transparent) 100%);
     --sun-glass-chat-card-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 30%, transparent) 0%, color-mix(in srgb, #ffffff 10%, transparent) 52%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
     --sun-glass-chat-card-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 40%, transparent) 0%, color-mix(in srgb, #ffffff 16%, transparent) 52%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
+    --sun-glass-header-bg:          linear-gradient(135deg, color-mix(in srgb, #ffffff 16%, transparent) 0%, color-mix(in srgb, #ffffff 5%, transparent) 48%, color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+    --sun-glass-header-bg-hi:       linear-gradient(135deg, color-mix(in srgb, #ffffff 22%, transparent) 0%, color-mix(in srgb, #ffffff 8%, transparent) 48%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
     --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 48%, transparent);
     --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 62%, transparent);
     --sun-glass-border:       color-mix(in srgb, #ffffff 30%, var(--border) 70%);
@@ -22,6 +24,8 @@ html[data-interface-surface="glass"] {
     --sun-glass-shadow:       0 14px 34px color-mix(in srgb, #000000 16%, transparent), inset 0 1px 0 var(--sun-glass-rim), inset 0 -1px 0 color-mix(in srgb, #000000 8%, transparent);
     --sun-glass-blur:         blur(28px) saturate(180%) brightness(1.06);
     --sun-glass-blur-sm:      blur(22px) saturate(170%) brightness(1.05);
+    --sun-glass-overlay-top-gap: 10px;
+    --sun-glass-overlay-bottom-gap: 12px;
 }
 
 html[data-interface-surface="glass"].dark-mode,
@@ -34,6 +38,8 @@ html[data-interface-surface="glass"] body.dark-mode {
     --sun-glass-chat-pill-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 18%, transparent) 0%, color-mix(in srgb, #ffffff 7%, transparent) 48%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
     --sun-glass-chat-card-bg:       linear-gradient(135deg, color-mix(in srgb, #ffffff 10%, transparent) 0%, color-mix(in srgb, #ffffff 3%, transparent) 52%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
     --sun-glass-chat-card-bg-hi:    linear-gradient(135deg, color-mix(in srgb, #ffffff 16%, transparent) 0%, color-mix(in srgb, #ffffff 6%, transparent) 52%, color-mix(in srgb, var(--accent) 9%, transparent) 100%);
+    --sun-glass-header-bg:          linear-gradient(135deg, color-mix(in srgb, #ffffff 5%, transparent) 0%, color-mix(in srgb, #ffffff 1.5%, transparent) 48%, color-mix(in srgb, var(--accent) 3%, transparent) 100%);
+    --sun-glass-header-bg-hi:       linear-gradient(135deg, color-mix(in srgb, #ffffff 8%, transparent) 0%, color-mix(in srgb, #ffffff 3%, transparent) 48%, color-mix(in srgb, var(--accent) 5%, transparent) 100%);
     --sun-glass-settings-card-bg:   color-mix(in srgb, var(--surface) 42%, transparent);
     --sun-glass-settings-card-hi:   color-mix(in srgb, var(--surface) 56%, transparent);
     --sun-glass-border:             color-mix(in srgb, #ffffff 16%, var(--border) 84%);
@@ -156,7 +162,7 @@ html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
     padding: 7px 12px 7px 8px;
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
-    background: var(--sun-glass-chat-card-bg);
+    background: var(--sun-glass-header-bg);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -165,7 +171,7 @@ html[data-interface-surface="glass"] .chat-header .header-partner-clickable {
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:hover,
 html[data-interface-surface="glass"] .chat-header .header-partner-clickable:focus-visible {
     border-color: var(--sun-glass-border-hi);
-    background: var(--sun-glass-chat-card-bg-hi);
+    background: var(--sun-glass-header-bg-hi);
     box-shadow: var(--sun-glass-shadow);
 }
 
@@ -204,7 +210,7 @@ html[data-interface-surface="glass"] .chat-header.chat-header--search-active .he
 
 html[data-interface-surface="glass"] .chat-header.chat-header--search-active .header-search-wrap {
     border: 1px solid var(--sun-glass-border);
-    background: var(--sun-glass-chat-card-bg);
+    background: var(--sun-glass-header-bg);
     box-shadow: var(--sun-glass-shadow);
     -webkit-backdrop-filter: var(--sun-glass-blur);
     backdrop-filter: var(--sun-glass-blur);
@@ -270,6 +276,8 @@ html[data-interface-surface="glass"] #voiceRecordBtn:focus-visible {
 html[data-interface-surface="glass"] .search-overlay {
     background: transparent;
     box-shadow: none;
+    top: calc(var(--sidebar-top-card-height, 124px) + var(--sun-glass-overlay-top-gap));
+    bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + var(--sun-glass-overlay-bottom-gap));
 }
 
 html[data-interface-surface="glass"] .search-overlay__tabs {
@@ -302,6 +310,7 @@ html[data-interface-surface="glass"] .search-overlay__tab.is-active {
 html[data-interface-surface="glass"] .search-overlay__body {
     margin: 8px 12px 12px;
     padding: 10px;
+    min-height: 0;
     border: 1px solid var(--sun-glass-border);
     border-radius: 18px;
     background: var(--sun-glass-sidebar-card-bg);
@@ -391,6 +400,11 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
    MOBILE ≤768px
    ================================================================ */
 @media (max-width: 768px) {
+    html[data-interface-surface="glass"] {
+        --sun-glass-overlay-top-gap: calc(8px + env(safe-area-inset-top, 0px));
+        --sun-glass-overlay-bottom-gap: calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
         margin: calc(8px + env(safe-area-inset-top, 0px)) 10px 0;
     }
