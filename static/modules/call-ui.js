@@ -613,8 +613,19 @@ export function attachRemoteTrack(track) {
         overlay?.classList.add('call-overlay--has-remote-video');
         _syncVideoLayout(overlay);
     }
-    track.onunmute = () => _playMedia(media);
+    track.addEventListener('unmute', () => {
+        if (track.kind === 'video') setRemoteVideoEnabled(true);
+        _playMedia(media);
+    });
+    track.addEventListener('mute', () => {
+        if (track.kind === 'video') setRemoteVideoEnabled(false);
+    });
+    track.addEventListener('ended', () => removeRemoteTrack(track.kind), { once: true });
     _playMedia(media);
+}
+
+export function setLocalVideoEnabled(stream, enabled) {
+    _syncLocalVideo(_currentOverlay(), stream, enabled);
 }
 
 export function setRemoteVideoEnabled(enabled) {
@@ -767,6 +778,7 @@ function _syncLocalVideo(overlay, stream, enabled) {
         return;
     }
     localVideo.classList.add('call-overlay__local-video--hidden');
+    localVideo.srcObject = null;
     overlay?.classList.remove('call-overlay--self-view-primary');
     _syncVideoLayout(overlay);
 }

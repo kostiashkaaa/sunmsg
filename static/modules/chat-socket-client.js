@@ -311,7 +311,7 @@ export function createChatSocketClient(socketClientConfig = {}) {
 
     const socket = io({
         path: socketPath,
-        transports: transports.length > 0 ? transports : ['polling', 'websocket'],
+        transports: transports.length > 0 ? transports : ['websocket', 'polling'],
         upgrade: socketClientConfig.upgrade !== false,
         withCredentials: true,
         reconnection: true,

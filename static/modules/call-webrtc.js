@@ -57,6 +57,8 @@ export class CallWebRTC {
 
         this._pc = null;
         this._localStream = null;
+        this._audioSender = null;
+        this._videoSender = null;
         this._makingOffer = false;
         this._ignoreOffer = false;
         this._polite = false;   // set by caller: caller=impolite(false), callee=polite(true)
@@ -88,11 +90,6 @@ export class CallWebRTC {
             rtcpMuxPolicy: 'require',
         });
 
-        // Add local tracks
-        for (const track of localStream.getTracks()) {
-            this._pc.addTrack(track, localStream);
-        }
-
         // Remote tracks → caller's callback
         this._pc.ontrack = ({ track, streams }) => {
             this._onRemoteTrack(track);
@@ -100,12 +97,18 @@ export class CallWebRTC {
 
         // ICE trickle
         this._pc.onicecandidate = ({ candidate }) => {
-            if (candidate) {
-                this._onSignal('call_ice_candidate', {
-                    call_id: this._callId,
-                    candidate: candidate.toJSON(),
-                });
-            }
+            this._onSignal('call_ice_candidate', {
+                call_id: this._callId,
+                candidate: candidate ? candidate.toJSON() : null,
+            });
+        };
+
+        this._pc.onicecandidateerror = (event) => {
+            console.warn('[CallWebRTC] ICE candidate error', {
+                url: event.url,
+                errorCode: event.errorCode,
+                errorText: event.errorText,
+            });
         };
 
         // Connection state
@@ -129,6 +132,14 @@ export class CallWebRTC {
                 this._makingOffer = false;
             }
         };
+
+        // Add tracks after handlers are attached, so negotiation cannot race
+        // peer connection setup.
+        for (const track of localStream?.getTracks?.() || []) {
+            const sender = this._pc.addTrack(track, localStream);
+            if (track.kind === 'audio') this._audioSender = sender;
+            if (track.kind === 'video') this._videoSender = sender;
+        }
 
         this._startStatsMonitor();
     }
@@ -201,9 +212,10 @@ export class CallWebRTC {
         }
     }
 
-    // Only the impolite peer initiates ICE restart; the offer uses normal signalling.
+    // ICE restart uses normal perfect-negotiation signalling. If both sides
+    // restart at once, the polite/impolite collision handling above resolves it.
     restartIce() {
-        if (!this._pc || this._polite) return;
+        if (!this._pc) return;
         if (this._pc.signalingState !== 'stable') return;
         try {
             this._pc.restartIce();
@@ -240,28 +252,33 @@ export class CallWebRTC {
     }
 
     async replaceVideoTrack(newTrack) {
-        const sender = this._pc?.getSenders().find(s => s.track?.kind === 'video');
+        const sender = this._videoSender || this._pc?.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
-            await sender.replaceTrack(newTrack);
-            this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
+            await sender.replaceTrack(newTrack || null);
+            this._videoSender = sender;
+            if (newTrack) this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
         }
     }
 
     async replaceAudioTrack(newTrack) {
-        const sender = this._pc?.getSenders().find(s => s.track?.kind === 'audio');
-        if (sender) await sender.replaceTrack(newTrack);
+        const sender = this._audioSender || this._pc?.getSenders().find(s => s.track?.kind === 'audio');
+        if (sender) {
+            await sender.replaceTrack(newTrack || null);
+            this._audioSender = sender;
+        }
     }
 
     async addVideoTrack(newTrack, stream = this._localStream) {
         if (!this._pc || !newTrack) return;
-        const sender = this._pc.getSenders().find(s => s.track?.kind === 'video');
+        const sender = this._videoSender || this._pc.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
             await sender.replaceTrack(newTrack);
+            this._videoSender = sender;
             this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
             return;
         }
         const targetStream = stream || this._localStream || new MediaStream([newTrack]);
-        this._pc.addTrack(newTrack, targetStream);
+        this._videoSender = this._pc.addTrack(newTrack, targetStream);
         this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
     }
 
@@ -419,6 +436,8 @@ export class CallWebRTC {
         this._pc?.close();
         this._pc = null;
         this._localStream = null;
+        this._audioSender = null;
+        this._videoSender = null;
         this._pendingIceCandidates = [];
         this._lastInboundStats.clear();
         this._sendQualityLevel = '';

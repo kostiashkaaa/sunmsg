@@ -340,6 +340,8 @@ def test_signal_payload_rejects_malformed_sdp_shape():
     assert _signal_payload_ok('call_offer', {'sdp': 'not-a-dict'}) is False
     assert _signal_payload_ok('call_offer', {'sdp': {'type': 'bogus', 'sdp': 'x'}}) is False
     assert _signal_payload_ok('call_offer', {'sdp': {'type': 'offer'}}) is False
+    assert _signal_payload_ok('call_offer', {'sdp': {'type': 'answer', 'sdp': 'x'}}) is False
+    assert _signal_payload_ok('call_answer', {'sdp': {'type': 'offer', 'sdp': 'x'}}) is False
 
 
 def test_signal_payload_allows_end_of_candidates():

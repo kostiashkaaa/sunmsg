@@ -77,8 +77,8 @@ def test_socketio_uses_threading_mode(monkeypatch, tmp_path):
     app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
 
     assert socketio.server.async_mode == 'threading'
-    assert app.config['SOCKETIO_CLIENT_TRANSPORTS'] == 'polling,websocket'
-    assert app.config['SOCKETIO_CLIENT_UPGRADE'] is False
+    assert app.config['SOCKETIO_CLIENT_TRANSPORTS'] == 'websocket,polling'
+    assert app.config['SOCKETIO_CLIENT_UPGRADE'] is True
 
 
 def test_chat_page_uses_safe_socketio_client_config(monkeypatch, tmp_path):
@@ -107,8 +107,8 @@ def test_chat_page_uses_safe_socketio_client_config(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert bootstrap_payload['page'] == 'chat'
-    assert bootstrap_payload['socketio']['transports'] == ['polling', 'websocket']
-    assert bootstrap_payload['socketio']['upgrade'] is False
+    assert bootstrap_payload['socketio']['transports'] == ['websocket', 'polling']
+    assert bootstrap_payload['socketio']['upgrade'] is True
     assert bootstrap_payload['user']['currentUsername'] == 'alice'
     assert isinstance(bootstrap_payload['user']['clientPreferences'], dict)
     assert bootstrap_payload['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
@@ -154,8 +154,8 @@ def test_auth_page_and_embedded_chat_settings_bootstrap(monkeypatch, tmp_path):
     assert chat_response.status_code == 200
     assert chat_bootstrap['page'] == 'chat'
     assert chat_bootstrap['user']['currentUsername'] == 'alice'
-    assert chat_bootstrap['socketio']['transports'] == ['polling', 'websocket']
-    assert chat_bootstrap['socketio']['upgrade'] is False
+    assert chat_bootstrap['socketio']['transports'] == ['websocket', 'polling']
+    assert chat_bootstrap['socketio']['upgrade'] is True
     assert isinstance(chat_bootstrap['user']['clientPreferences'], dict)
     assert chat_bootstrap['assets']['qrcodeSrc'].startswith('/static/vendor/js/qrcode.min.js')
     assert 'window.SUN_QRCODE_SRC' not in chat_html

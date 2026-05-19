@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import request, session
+from flask import current_app, request, session
 
 from app.db_backend import DatabaseError
 from app.extensions import socketio
@@ -67,4 +67,7 @@ def handle_disconnect():
             emit_func=ctx._emit_socket_event,
             logger=ctx.logger,
         ),
+        terminate_calls_grace_seconds=current_app.config.get('CALL_DISCONNECT_GRACE_SECONDS', 45),
+        start_background_task_func=socketio.start_background_task,
+        sleep_func=socketio.sleep,
     )

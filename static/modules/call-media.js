@@ -1,7 +1,6 @@
 /**
  * call-media.js
- * Manages access to microphone and camera (getUserMedia).
- * Handles device switching and mute/unmute without re-negotiating WebRTC.
+ * Manages microphone/camera access, local track lifecycle, and device swaps.
  */
 
 export class CallMedia {
@@ -14,14 +13,27 @@ export class CallMedia {
         this._audioDeviceId = '';
         this._videoDeviceId = '';
         this._videoFacingMode = 'user';
+        this._trackHandlers = {};
+        this._boundTracks = new WeakSet();
+    }
+
+    setTrackLifecycleHandlers(handlers = {}) {
+        this._trackHandlers = handlers || {};
     }
 
     async acquireAudio() {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: this._audioConstraints(), video: false });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: this._audioConstraints(),
+            video: false,
+        });
+        this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
+        this._videoTrack = null;
         this._rememberAudioTrack(this._audioTrack);
+        this._bindTrackLifecycle(this._audioTrack);
         this._audioMuted = false;
+        this._videoEnabled = false;
         return stream;
     }
 
@@ -30,13 +42,16 @@ export class CallMedia {
             audio: this._audioConstraints(),
             video: this._videoConstraints(),
         });
+        this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
         this._videoTrack = stream.getVideoTracks()[0] || null;
         this._rememberAudioTrack(this._audioTrack);
         this._rememberVideoTrack(this._videoTrack);
+        this._bindTrackLifecycle(this._audioTrack);
+        this._bindTrackLifecycle(this._videoTrack);
         this._audioMuted = false;
-        this._videoEnabled = true;
+        this._videoEnabled = Boolean(this._videoTrack);
         return stream;
     }
 
@@ -58,9 +73,13 @@ export class CallMedia {
 
     toggleVideo() {
         if (!this._videoTrack) return this._videoEnabled;
-        this._videoEnabled = !this._videoEnabled;
-        this._videoTrack.enabled = this._videoEnabled;
-        return this._videoEnabled;
+        if (this._videoEnabled) {
+            this.disableVideo();
+            return false;
+        }
+        this._videoEnabled = true;
+        this._videoTrack.enabled = true;
+        return true;
     }
 
     async enableVideo() {
@@ -69,46 +88,80 @@ export class CallMedia {
             this._videoTrack.enabled = true;
             return this._videoTrack;
         }
+        const prepared = await this.prepareVideoInput('');
+        return this.commitPreparedVideoTrack(prepared.track, prepared);
+    }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: this._videoConstraints(),
-        });
-        const newTrack = stream.getVideoTracks()[0] || null;
-        stream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
-        if (!newTrack) return null;
-
-        if (!this._localStream) {
-            this._localStream = new MediaStream();
+    disableVideo() {
+        const oldTrack = this._videoTrack;
+        this._videoTrack = null;
+        this._videoEnabled = false;
+        if (oldTrack && this._localStream) {
+            this._localStream.removeTrack(oldTrack);
         }
-        this._localStream.addTrack(newTrack);
-        this._videoTrack = newTrack;
-        this._rememberVideoTrack(newTrack);
-        this._videoEnabled = true;
-        return newTrack;
+        oldTrack?.stop();
+        return oldTrack || null;
+    }
+
+    async prepareAudioInput(deviceId) {
+        const nextDeviceId = String(deviceId || '');
+        const track = await this._newAudioTrack(
+            this._audioConstraints({ deviceId: nextDeviceId, allowStoredDevice: false }),
+        );
+        return { track, deviceId: nextDeviceId };
+    }
+
+    commitPreparedAudioTrack(track, { deviceId = '' } = {}) {
+        if (!track) throw new Error('No replacement audio track');
+        const oldTrack = this._audioTrack;
+        this._audioTrack = track;
+        this._audioDeviceId = String(deviceId || '');
+        this._ensureLocalStream();
+        this._localStream.getAudioTracks().forEach(t => this._localStream.removeTrack(t));
+        this._localStream.addTrack(track);
+        this._rememberAudioTrack(track);
+        this._bindTrackLifecycle(track);
+        track.enabled = !this._audioMuted;
+        if (oldTrack && oldTrack !== track) oldTrack.stop();
+        return track;
+    }
+
+    discardTrack(track) {
+        track?.stop();
     }
 
     async selectAudioInput(deviceId) {
+        const prepared = await this.prepareAudioInput(deviceId);
+        return this.commitPreparedAudioTrack(prepared.track, prepared);
+    }
+
+    async prepareVideoInput(deviceId) {
         const nextDeviceId = String(deviceId || '');
-        const track = await this._replaceAudioTrack({
-            audio: this._audioConstraints({ deviceId: nextDeviceId, allowStoredDevice: false }),
-            video: false,
-        });
-        this._audioDeviceId = nextDeviceId;
-        this._rememberAudioTrack(track);
+        const track = await this._newVideoTrack(
+            this._videoConstraints({ deviceId: nextDeviceId, allowStoredDevice: false }),
+        );
+        return { track, deviceId: nextDeviceId, facingMode: '' };
+    }
+
+    commitPreparedVideoTrack(track, { deviceId = '', facingMode = '' } = {}) {
+        if (!track) throw new Error('No replacement video track');
+        const oldTrack = this._videoTrack;
+        this._videoTrack = track;
+        this._videoDeviceId = String(deviceId || '');
+        this._videoEnabled = true;
+        this._ensureLocalStream();
+        this._localStream.getVideoTracks().forEach(t => this._localStream.removeTrack(t));
+        this._localStream.addTrack(track);
+        this._rememberVideoTrack(track, facingMode);
+        this._bindTrackLifecycle(track);
+        track.enabled = true;
+        if (oldTrack && oldTrack !== track) oldTrack.stop();
         return track;
     }
 
     async selectVideoInput(deviceId) {
-        const nextDeviceId = String(deviceId || '');
-        const track = await this._replaceVideoTrack({
-            video: this._videoConstraints({ deviceId: nextDeviceId, allowStoredDevice: false }),
-        });
-        this._videoDeviceId = nextDeviceId;
-        this._rememberVideoTrack(track);
-        this._videoEnabled = true;
-        track.enabled = true;
-        return track;
+        const prepared = await this.prepareVideoInput(deviceId);
+        return this.commitPreparedVideoTrack(prepared.track, prepared);
     }
 
     async listDevices() {
@@ -132,7 +185,7 @@ export class CallMedia {
         };
     }
 
-    async switchCamera() {
+    async prepareCameraSwitch() {
         if (!this._videoTrack) return null;
 
         const currentSettings = this._videoTrack.getSettings?.() || {};
@@ -147,11 +200,14 @@ export class CallMedia {
             if (cameras.length > 1) {
                 const next = this._pickNextCamera(cameras, currentId, nextFacing);
                 if (next?.deviceId) {
-                    const track = await this._replaceVideoTrack({
-                        video: this._videoConstraints({ deviceId: next.deviceId }),
-                    });
-                    this._rememberVideoTrack(track, this._inferFacingMode(next, nextFacing));
-                    return track;
+                    const track = await this._newVideoTrack(
+                        this._videoConstraints({ deviceId: next.deviceId }),
+                    );
+                    return {
+                        track,
+                        deviceId: next.deviceId,
+                        facingMode: this._inferFacingMode(next, nextFacing),
+                    };
                 }
             }
         } catch (err) {
@@ -160,11 +216,10 @@ export class CallMedia {
 
         for (const exact of (nextFacing === 'environment' ? ['environment', 'user'] : ['user', 'environment'])) {
             try {
-                const track = await this._replaceVideoTrack({
-                    video: this._videoConstraints({ facingMode: exact }),
-                });
-                this._rememberVideoTrack(track, exact);
-                return track;
+                const track = await this._newVideoTrack(
+                    this._videoConstraints({ facingMode: exact }),
+                );
+                return { track, deviceId: '', facingMode: exact };
             } catch (err) {
                 lastError = err;
             }
@@ -174,11 +229,14 @@ export class CallMedia {
         return null;
     }
 
+    async switchCamera() {
+        const prepared = await this.prepareCameraSwitch();
+        if (!prepared) return null;
+        return this.commitPreparedVideoTrack(prepared.track, prepared);
+    }
+
     release() {
-        if (this._localStream) {
-            this._localStream.getTracks().forEach(t => t.stop());
-            this._localStream = null;
-        }
+        this._releaseStream();
         this._audioTrack = null;
         this._videoTrack = null;
         this._audioMuted = false;
@@ -188,40 +246,61 @@ export class CallMedia {
         this._videoFacingMode = 'user';
     }
 
-    async _replaceAudioTrack(constraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+    async _newAudioTrack(audioConstraints) {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: audioConstraints,
+            video: false,
+        });
         const newTrack = newStream.getAudioTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement audio track');
-
-        const oldTrack = this._audioTrack;
-        this._audioTrack = newTrack;
-        if (!this._localStream) {
-            this._localStream = new MediaStream();
-        }
-        this._localStream.getAudioTracks().forEach(t => this._localStream.removeTrack(t));
-        this._localStream.addTrack(newTrack);
-        oldTrack?.stop();
-        newTrack.enabled = !this._audioMuted;
+        try { newTrack.contentHint = 'speech'; } catch (_) { /* optional browser hint */ }
         return newTrack;
     }
 
-    async _replaceVideoTrack(constraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+    async _newVideoTrack(videoConstraints) {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: videoConstraints,
+        });
         const newTrack = newStream.getVideoTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement video track');
+        try { newTrack.contentHint = 'motion'; } catch (_) { /* optional browser hint */ }
+        return newTrack;
+    }
 
-        const oldTrack = this._videoTrack;
-        this._videoTrack = newTrack;
+    _handleLocalTrackEnded(track) {
+        if (track.kind === 'audio' && track === this._audioTrack) {
+            this._audioTrack = null;
+            this._audioMuted = true;
+            this._localStream?.removeTrack(track);
+        } else if (track.kind === 'video' && track === this._videoTrack) {
+            this._videoTrack = null;
+            this._videoEnabled = false;
+            this._localStream?.removeTrack(track);
+        }
+        this._trackHandlers.onEnded?.(track.kind, track);
+    }
+
+    _bindTrackLifecycle(track) {
+        if (!track || this._boundTracks.has(track)) return;
+        this._boundTracks.add(track);
+        track.addEventListener('ended', () => this._handleLocalTrackEnded(track), { once: true });
+        track.addEventListener('mute', () => this._trackHandlers.onMuted?.(track.kind, track));
+        track.addEventListener('unmute', () => this._trackHandlers.onUnmuted?.(track.kind, track));
+    }
+
+    _ensureLocalStream() {
         if (!this._localStream) {
             this._localStream = new MediaStream();
         }
-        this._localStream.getVideoTracks().forEach(t => this._localStream.removeTrack(t));
-        this._localStream.addTrack(newTrack);
-        oldTrack?.stop();
-        newTrack.enabled = this._videoEnabled;
-        return newTrack;
+    }
+
+    _releaseStream() {
+        if (!this._localStream) return;
+        this._localStream.getTracks().forEach(t => t.stop());
+        this._localStream = null;
     }
 
     _pickNextCamera(cameras, currentId, nextFacing) {
@@ -251,16 +330,25 @@ export class CallMedia {
     }
 
     _audioConstraints({ deviceId = '', allowStoredDevice = true } = {}) {
-        if (deviceId) return { deviceId: { exact: deviceId } };
-        if (allowStoredDevice && this._audioDeviceId) return { deviceId: { exact: this._audioDeviceId } };
-        return true;
+        const constraints = {
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true },
+            channelCount: { ideal: 1 },
+        };
+        if (deviceId) {
+            constraints.deviceId = { exact: deviceId };
+        } else if (allowStoredDevice && this._audioDeviceId) {
+            constraints.deviceId = { exact: this._audioDeviceId };
+        }
+        return constraints;
     }
 
     _videoConstraints({ deviceId = '', facingMode = '', allowStoredDevice = true } = {}) {
         const constraints = {
             width: { ideal: 640 },
             height: { ideal: 360 },
-            frameRate: { ideal: 15 },
+            frameRate: { ideal: 15, max: 24 },
         };
         if (deviceId) {
             constraints.deviceId = { exact: deviceId };
@@ -275,9 +363,9 @@ export class CallMedia {
     }
 
     _fallbackDeviceLabel(kind, index) {
-        if (kind === 'audioinput') return `Микрофон ${index}`;
-        if (kind === 'videoinput') return `Камера ${index}`;
-        if (kind === 'audiooutput') return `Динамик ${index}`;
-        return `Устройство ${index}`;
+        if (kind === 'audioinput') return `\u041c\u0438\u043a\u0440\u043e\u0444\u043e\u043d ${index}`;
+        if (kind === 'videoinput') return `\u041a\u0430\u043c\u0435\u0440\u0430 ${index}`;
+        if (kind === 'audiooutput') return `\u0414\u0438\u043d\u0430\u043c\u0438\u043a ${index}`;
+        return `\u0423\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u043e ${index}`;
     }
 }

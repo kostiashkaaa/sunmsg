@@ -21,6 +21,7 @@ import {
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
+    setLocalVideoEnabled,
     setRemoteAudioMuted, startCallDurationTimer, setCallQualityIndicator,
 } from './call-ui.js';
 import {
@@ -65,6 +66,11 @@ export class CallManager {
         this._isPolite = false;  // true = callee
 
         this._media      = new CallMedia();
+        this._media.setTrackLifecycleHandlers({
+            onEnded: (kind) => this._onLocalTrackEnded(kind),
+            onMuted: (kind) => this._onLocalTrackMuted(kind),
+            onUnmuted: (kind) => this._onLocalTrackUnmuted(kind),
+        });
         this._webrtc     = null;
         this._iceServers = null;          // cached for the session
         this._iceTransportPolicy = 'all';
@@ -274,6 +280,8 @@ export class CallManager {
         const MESSAGES = {
             call_already_active:      'В этом чате уже есть звонок',
             user_busy:                'Вы уже в звонке',
+            callee_busy:              '\u0421\u043e\u0431\u0435\u0441\u0435\u0434\u043d\u0438\u043a \u0443\u0436\u0435 \u0432 \u0437\u0432\u043e\u043d\u043a\u0435',
+            unsupported_call_topology:'\u0417\u0432\u043e\u043d\u043a\u0438 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b \u0442\u043e\u043b\u044c\u043a\u043e \u043e\u0434\u0438\u043d \u043d\u0430 \u043e\u0434\u0438\u043d',
             not_member:               'Нет доступа к чату',
             call_not_found_or_expired:'Звонок не найден или истёк',
             calls_feature_disabled:    'Звонки доступны только тестовой группе',
@@ -338,7 +346,11 @@ export class CallManager {
             this._pendingSignals.push({ type: 'offer', sdp, from_user_id });
             return;
         }
-        await this._webrtc.handleOffer({ sdp });
+        try {
+            await this._webrtc.handleOffer({ sdp });
+        } catch (err) {
+            console.warn('[CallManager] offer handling failed', err);
+        }
     }
 
     async _onAnswer({ call_id, sdp, from_user_id }) {
@@ -347,7 +359,11 @@ export class CallManager {
             this._pendingSignals.push({ type: 'answer', sdp, from_user_id });
             return;
         }
-        await this._webrtc.handleAnswer({ sdp });
+        try {
+            await this._webrtc.handleAnswer({ sdp });
+        } catch (err) {
+            console.warn('[CallManager] answer handling failed', err);
+        }
     }
 
     async _onIceCandidate({ call_id, candidate, from_user_id }) {
@@ -356,7 +372,11 @@ export class CallManager {
             this._pendingSignals.push({ type: 'ice', candidate, from_user_id });
             return;
         }
-        await this._webrtc.handleIceCandidate({ candidate });
+        try {
+            await this._webrtc.handleIceCandidate({ candidate });
+        } catch (err) {
+            console.warn('[CallManager] ICE candidate handling failed', err);
+        }
     }
 
     // Drain any signals that arrived before _webrtc was ready
@@ -381,7 +401,7 @@ export class CallManager {
                 const result = await this._fetchIceServers();
                 this._iceServers = result.iceServers;
                 this._iceTransportPolicy = result.iceTransportPolicy;
-                // Server TTL is TURN_CREDENTIAL_TTL_SECONDS (default 3600 s). Use that if returned, else 55 min.
+                // Server TTL is TURN_CREDENTIAL_TTL_SECONDS. Use that if returned, else 55 min.
                 const ttlMs = (result.ttlSeconds || 3300) * 1000;
                 this._iceServersExpiresAt = Date.now() + ttlMs;
             } catch (err) {
@@ -423,33 +443,34 @@ export class CallManager {
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
                 this._webrtc?.setAudioEnabled(!muted);
-                this._emit('call_media_state', {
-                    call_id:       this._callId,
-                    audio_muted:   muted,
-                    video_enabled: this._media.isVideoEnabled(),
-                });
+                this._notifyMediaState();
                 return muted;
             },
             onToggleVideo: async () => {
                 const enabled = await this._toggleVideo();
-                this._emit('call_media_state', {
-                    call_id:       this._callId,
-                    audio_muted:   this._media.isAudioMuted(),
-                    video_enabled: enabled,
-                });
+                this._notifyMediaState();
                 return { enabled, localStream: this._media.getLocalStream() };
             },
             onSwitchCamera: async () => {
-                let newTrack = null;
+                let prepared = null;
+                const oldTrack = this._media.getVideoTrack();
                 try {
-                    newTrack = await this._media.switchCamera();
+                    prepared = await this._media.prepareCameraSwitch();
+                    if (prepared?.track) {
+                        await this._webrtc?.replaceVideoTrack(prepared.track);
+                        this._media.commitPreparedVideoTrack(prepared.track, prepared);
+                    }
                 } catch (err) {
+                    if (oldTrack) {
+                        try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                    }
+                    this._media.discardTrack(prepared?.track);
+                    prepared = null;
                     console.warn('[CallManager] camera switch failed', err);
                     setCallStatusText('Камера недоступна');
                 }
-                if (newTrack) await this._webrtc?.replaceVideoTrack(newTrack);
                 return {
-                    switched: Boolean(newTrack),
+                    switched: Boolean(prepared?.track),
                     localStream: this._media.getLocalStream(),
                     facingMode: this._media.getVideoFacingMode(),
                 };
@@ -465,11 +486,20 @@ export class CallManager {
                 };
             },
             onSelectMicrophone: async (deviceId) => {
+                let prepared = null;
+                const oldTrack = this._media.getAudioTrack();
                 try {
-                    const newTrack = await this._media.selectAudioInput(deviceId);
-                    await this._webrtc?.replaceAudioTrack(newTrack);
+                    prepared = await this._media.prepareAudioInput(deviceId);
+                    await this._webrtc?.replaceAudioTrack(prepared.track);
+                    this._media.commitPreparedAudioTrack(prepared.track, prepared);
                     this._webrtc?.setAudioEnabled(!this._media.isAudioMuted());
                 } catch (err) {
+                    if (oldTrack) {
+                        try { await this._webrtc?.replaceAudioTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                    } else {
+                        try { await this._webrtc?.replaceAudioTrack(null); } catch (_) { /* keep current sender best-effort */ }
+                    }
+                    this._media.discardTrack(prepared?.track);
                     const message = _mediaAccessMessage(err, 'audio');
                     setCallStatusText(message);
                     showToast(message, 'error');
@@ -477,16 +507,21 @@ export class CallManager {
                 return { localStream: this._media.getLocalStream() };
             },
             onSelectCamera: async (deviceId) => {
+                let prepared = null;
+                const oldTrack = this._media.getVideoTrack();
                 try {
-                    const newTrack = await this._media.selectVideoInput(deviceId);
+                    prepared = await this._media.prepareVideoInput(deviceId);
                     this._callType = 'video';
-                    await this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
-                    this._emit('call_media_state', {
-                        call_id:       this._callId,
-                        audio_muted:   this._media.isAudioMuted(),
-                        video_enabled: this._media.isVideoEnabled(),
-                    });
+                    await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+                    this._media.commitPreparedVideoTrack(prepared.track, prepared);
+                    this._notifyMediaState();
                 } catch (err) {
+                    if (oldTrack) {
+                        try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                    } else {
+                        try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
+                    }
+                    this._media.discardTrack(prepared?.track);
                     const message = _mediaAccessMessage(err, 'video');
                     setCallStatusText(message);
                     showToast(message, 'error');
@@ -496,71 +531,63 @@ export class CallManager {
             onEnd: () => this.endCall(),
         });
 
-        // 4. Create RTCPeerConnection and wire callbacks
-        this._webrtc = new CallWebRTC({
-            callId:  this._callId,
-            iceServers: this._iceServers,
-            iceTransportPolicy: this._iceTransportPolicy,
-            onSignal: (event, payload) => this._emit(event, payload),
-            onRemoteTrack: (track) => {
-                attachRemoteTrack(track);
-                setCallStatusText('Соединено');
-                startCallDurationTimer();
-            },
-            onVerificationCode: (code) => setCallVerificationCode(code),
-            onQualityStats: (stats) => setCallQualityIndicator(stats),
-            onConnectionState: (state) => {
-                if (state === 'connected') {
-                    clearTimeout(this._disconnectTimeout);
-                    this._disconnectTimeout = null;
+        try {
+            // 4. Create RTCPeerConnection and wire callbacks
+            this._webrtc = new CallWebRTC({
+                callId:  this._callId,
+                iceServers: this._iceServers,
+                iceTransportPolicy: this._iceTransportPolicy,
+                onSignal: (event, payload) => this._emit(event, payload),
+                onRemoteTrack: (track) => {
+                    attachRemoteTrack(track);
                     setCallStatusText('Соединено');
                     startCallDurationTimer();
-                    playConnectedSound();
-                } else if (state === 'disconnected') {
-                    setCallStatusText('Переподключение...');
-                    // Try to recover the connection in place via ICE restart
-                    // (handles Wi-Fi ↔ cellular switches) before giving up.
-                    void this._restartIceWithFreshConfig();
-                    // End the call only if it has not recovered by the timeout.
-                    clearTimeout(this._disconnectTimeout);
-                    this._disconnectTimeout = setTimeout(() => {
-                        if (this._state === STATES.ACTIVE) {
-                            showToast('Соединение потеряно', 'error');
-                            this.endCall();
-                        }
-                    }, DISCONNECT_TIMEOUT_MS);
-                } else if (state === 'failed') {
-                    clearTimeout(this._disconnectTimeout);
-                    this._disconnectTimeout = null;
-                    showToast('Соединение потеряно', 'error');
-                    this.endCall();
-                } else if (state === 'closed') {
-                    // handled by endCall/cleanup
-                }
-            },
-        });
+                },
+                onVerificationCode: (code) => setCallVerificationCode(code),
+                onQualityStats: (stats) => setCallQualityIndicator(stats),
+                onConnectionState: (state) => this._onConnectionState(state),
+            });
 
-        // polite = callee (acceptCall sets _isPolite=true), impolite = caller
-        this._webrtc.init(this._media.getLocalStream(), { polite: this._isPolite });
+            // polite = callee (acceptCall sets _isPolite=true), impolite = caller
+            this._webrtc.init(this._media.getLocalStream(), { polite: this._isPolite });
 
-        // 5. Drain signals queued before _webrtc was ready
-        await this._drainPendingSignals();
+            // 5. Drain signals queued before _webrtc was ready
+            await this._drainPendingSignals();
+        } catch (err) {
+            console.error('[CallManager] WebRTC setup failed', err);
+            showToast('Не удалось установить звонок', 'error');
+            this.endCall();
+        }
     }
 
     async _toggleVideo() {
         if (this._media.getVideoTrack()) {
-            const enabled = this._media.toggleVideo();
-            this._webrtc?.setVideoEnabled(enabled);
-            return enabled;
+            if (this._media.isVideoEnabled()) {
+                try {
+                    await this._webrtc?.replaceVideoTrack(null);
+                    this._media.disableVideo();
+                    return false;
+                } catch (err) {
+                    console.warn('[CallManager] video disable failed', err);
+                    return true;
+                }
+            }
+            this._media.toggleVideo();
+            this._webrtc?.setVideoEnabled(true);
+            return true;
         }
 
+        let prepared = null;
         try {
-            const newTrack = await this._media.enableVideo();
-            if (!newTrack) return false;
+            prepared = await this._media.prepareVideoInput('');
+            if (!prepared?.track) return false;
             this._callType = 'video';
-            await this._webrtc?.addVideoTrack(newTrack, this._media.getLocalStream());
+            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+            this._media.commitPreparedVideoTrack(prepared.track, prepared);
             return true;
         } catch (err) {
+            try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
+            this._media.discardTrack(prepared?.track);
             console.warn('[CallManager] video enable failed', err);
             setCallStatusText('Камера недоступна');
             return false;
@@ -593,6 +620,71 @@ export class CallManager {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    _onConnectionState(state) {
+        if (state === 'connected') {
+            clearTimeout(this._disconnectTimeout);
+            this._disconnectTimeout = null;
+            setCallStatusText('Соединено');
+            startCallDurationTimer();
+            playConnectedSound();
+            return;
+        }
+        if (state === 'disconnected' || state === 'failed') {
+            this._handleRecoverableDisconnect();
+        }
+    }
+
+    _handleRecoverableDisconnect() {
+        if (this._state !== STATES.ACTIVE) return;
+        setCallStatusText('Переподключение...');
+        void this._restartIceWithFreshConfig();
+        clearTimeout(this._disconnectTimeout);
+        this._disconnectTimeout = setTimeout(() => {
+            if (this._state === STATES.ACTIVE) {
+                showToast('Соединение потеряно', 'error');
+                this.endCall();
+            }
+        }, DISCONNECT_TIMEOUT_MS);
+    }
+
+    _notifyMediaState() {
+        if (!this._callId) return;
+        this._emit('call_media_state', {
+            call_id:       this._callId,
+            audio_muted:   this._media.isAudioMuted(),
+            video_enabled: this._media.isVideoEnabled(),
+        });
+    }
+
+    _onLocalTrackEnded(kind) {
+        if (this._state !== STATES.ACTIVE) return;
+        if (kind === 'audio') {
+            this._webrtc?.replaceAudioTrack(null)?.catch?.((err) => {
+                console.warn('[CallManager] audio sender detach failed after track ended', err);
+            });
+            setCallStatusText('Микрофон отключён');
+        } else if (kind === 'video') {
+            this._webrtc?.replaceVideoTrack(null)?.catch?.((err) => {
+                console.warn('[CallManager] video sender detach failed after track ended', err);
+            });
+            setLocalVideoEnabled(this._media.getLocalStream(), false);
+            setCallStatusText('Камера отключена');
+        }
+        this._notifyMediaState();
+    }
+
+    _onLocalTrackMuted(kind) {
+        if (kind === 'video') {
+            setLocalVideoEnabled(this._media.getLocalStream(), false);
+        }
+    }
+
+    _onLocalTrackUnmuted(kind) {
+        if (kind === 'video') {
+            setLocalVideoEnabled(this._media.getLocalStream(), this._media.isVideoEnabled());
+        }
+    }
 
     async _restartIceWithFreshConfig() {
         if (this._iceRestarting) return;

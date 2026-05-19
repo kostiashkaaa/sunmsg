@@ -132,8 +132,9 @@ class BaseConfig:
     TURN_SERVER_URLS = ''
     TURN_SERVER_POOL = ''
     TURN_SERVER_POOL_LIMIT = 2
-    TURN_CREDENTIAL_TTL_SECONDS = 3600
+    TURN_CREDENTIAL_TTL_SECONDS = 600
     CALL_ICE_TRANSPORT_POLICY = 'all'
+    CALL_DISCONNECT_GRACE_SECONDS = 45
     MODERATION_HIGH_RISK_IP_CIDRS = ''
     MODERATION_AUTO_ACTION_THRESHOLD = 0.85
     MODERATION_AUTO_ACTION_TYPE = 'mute_temp'
@@ -170,11 +171,7 @@ class BaseConfig:
         )
         socketio_client_transports = os.environ.get('SOCKETIO_CLIENT_TRANSPORTS')
         if socketio_client_transports is None:
-            socketio_client_transports = (
-                'polling,websocket'
-                if socketio_async_mode == 'threading'
-                else 'websocket,polling'
-            )
+            socketio_client_transports = 'websocket,polling'
         redis_url = str(os.environ.get('REDIS_URL') or '').strip()
         ratelimit_storage_uri = str(os.environ.get('RATELIMIT_STORAGE_URI') or '').strip()
         if not ratelimit_storage_uri:
@@ -257,7 +254,7 @@ class BaseConfig:
             'SOCKETIO_CLIENT_TRANSPORTS': socketio_client_transports,
             'SOCKETIO_CLIENT_UPGRADE': _env_bool(
                 'SOCKETIO_CLIENT_UPGRADE',
-                socketio_async_mode != 'threading',
+                True,
             ),
             'SOCKETIO_PING_TIMEOUT': _env_int('SOCKETIO_PING_TIMEOUT', 30),
             'SOCKETIO_PING_INTERVAL': _env_int('SOCKETIO_PING_INTERVAL', 15),
@@ -610,6 +607,10 @@ class BaseConfig:
             'CALL_ICE_TRANSPORT_POLICY': str(
                 os.environ.get('CALL_ICE_TRANSPORT_POLICY', cls.CALL_ICE_TRANSPORT_POLICY) or 'all'
             ).strip().lower(),
+            'CALL_DISCONNECT_GRACE_SECONDS': max(
+                0,
+                _env_int('CALL_DISCONNECT_GRACE_SECONDS', cls.CALL_DISCONNECT_GRACE_SECONDS),
+            ),
             'HOST': os.environ.get('HOST', '127.0.0.1'),
             'PORT': _env_int('PORT', 5000),
             'TLS_PORT': _env_int('TLS_PORT', 443),

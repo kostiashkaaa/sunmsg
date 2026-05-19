@@ -92,6 +92,25 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
         conn.close()
 
 
+def _terminate_calls_after_disconnect_grace(
+    *,
+    uid,
+    pub,
+    count_connected_func,
+    terminate_calls_func,
+    sleep_func,
+    grace_seconds,
+    logger,
+):
+    try:
+        sleep_func(grace_seconds)
+        if int(count_connected_func(pub) or 0) > 0:
+            return
+        terminate_calls_func(uid)
+    except Exception:  # noqa: BLE001
+        logger.exception('Call cleanup on delayed disconnect failed for user_id=%s', uid)
+
+
 def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handler contract
     *,
     session_store,
@@ -106,6 +125,9 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
     utc_now_text_func,
     logger,
     terminate_calls_func=None,
+    terminate_calls_grace_seconds=0,
+    start_background_task_func=None,
+    sleep_func=None,
 ):
     if 'public_key_pem' not in session_store or 'user_id' not in session_store:
         return
@@ -125,10 +147,23 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
     # When the user's very last tab/device closes, end any call they are still
     # in — otherwise an 'active' call hangs forever and blocks the chat.
     if terminate_calls_func is not None and int(count_connected_func(pub) or 0) <= 0:
-        try:
-            terminate_calls_func(uid)
-        except Exception:  # noqa: BLE001
-            logger.exception('Call cleanup on disconnect failed for user_id=%s', uid)
+        grace_seconds = max(0, int(terminate_calls_grace_seconds or 0))
+        if grace_seconds > 0 and callable(start_background_task_func) and callable(sleep_func):
+            start_background_task_func(
+                _terminate_calls_after_disconnect_grace,
+                uid=uid,
+                pub=pub,
+                count_connected_func=count_connected_func,
+                terminate_calls_func=terminate_calls_func,
+                sleep_func=sleep_func,
+                grace_seconds=grace_seconds,
+                logger=logger,
+            )
+        else:
+            try:
+                terminate_calls_func(uid)
+            except Exception:  # noqa: BLE001
+                logger.exception('Call cleanup on disconnect failed for user_id=%s', uid)
 
     if was_active and not still_active:
         now = utc_now_text_func()

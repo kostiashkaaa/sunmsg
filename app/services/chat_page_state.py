@@ -11,7 +11,7 @@ def build_socketio_client_config(config) -> dict:
     raw_transports = str(config.get('SOCKETIO_CLIENT_TRANSPORTS', '') or '')
     transports = [item.strip() for item in raw_transports.split(',') if item.strip()]
     if not transports:
-        transports = ['polling', 'websocket']
+        transports = ['websocket', 'polling']
 
     return {
         'transports': transports,

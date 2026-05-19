@@ -628,6 +628,8 @@ def test_csp_in_production_disables_plain_ws_and_enforces_upgrade(monkeypatch):
             'REDIS_URL': 'redis://127.0.0.1:6379/0',
             'RATELIMIT_STORAGE_URI': 'redis://127.0.0.1:6379/1',
             'SOCKETIO_MESSAGE_QUEUE': 'redis://127.0.0.1:6379/2',
+            'TURN_SECRET': 'turn-secret-at-least-32-bytes-long',
+            'TURN_SERVER_URLS': 'turn:turn.example.com:3478?transport=udp',
         },
     )
 
@@ -673,6 +675,8 @@ def test_production_config_check_reports_failed_and_ok():
             'REDIS_URL': 'redis://127.0.0.1:6379/0',
             'RATELIMIT_STORAGE_URI': 'redis://127.0.0.1:6379/1',
             'SOCKETIO_MESSAGE_QUEUE': 'redis://127.0.0.1:6379/2',
+            'TURN_SECRET': 'turn-secret-at-least-32-bytes-long',
+            'TURN_SERVER_URLS': 'turn:turn.example.com:3478?transport=udp',
         },
     )
     assert ok['status'] == 'ok'

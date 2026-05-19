@@ -257,6 +257,47 @@ def test_handle_disconnect_event_updates_offline_and_emits_status(tmp_path):
     ]
 
 
+def test_handle_disconnect_event_delays_call_cleanup_until_grace_expires():
+    connected_tabs = {'pk-1': {'sid-1'}}
+    cleanup_calls = []
+    scheduled = []
+
+    def _remove_connected(pub, sid):
+        connected_tabs.setdefault(pub, set()).discard(sid)
+
+    def _count_connected(pub):
+        return len(connected_tabs.get(pub, set()))
+
+    def _start_background_task(func, **kwargs):
+        scheduled.append((func, kwargs))
+
+    handle_disconnect_event(
+        session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
+        request_sid='sid-1',
+        leave_room_func=lambda room: None,
+        count_active_func=lambda pub: 0,
+        remove_connected_func=_remove_connected,
+        remove_active_func=lambda pub, sid: None,
+        count_connected_func=_count_connected,
+        get_db_connection_func=lambda: None,
+        emit_chat_status_for_user_func=lambda conn, uid, payload: None,
+        utc_now_text_func=lambda: '2026-03-03 03:03:03',
+        logger=_logger(),
+        terminate_calls_func=lambda uid: cleanup_calls.append(uid),
+        terminate_calls_grace_seconds=45,
+        start_background_task_func=_start_background_task,
+        sleep_func=lambda seconds: None,
+    )
+
+    assert cleanup_calls == []
+    assert len(scheduled) == 1
+
+    connected_tabs['pk-1'].add('sid-2')
+    func, kwargs = scheduled[0]
+    func(**kwargs)
+    assert cleanup_calls == []
+
+
 def test_handle_disconnect_event_skips_when_session_missing():
     left_rooms = []
 

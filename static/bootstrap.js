@@ -514,13 +514,13 @@
 
     function asTransports(value) {
         if (!Array.isArray(value)) {
-            return ['polling', 'websocket'];
+            return ['websocket', 'polling'];
         }
         const transports = value
             .filter((item) => typeof item === 'string')
             .map((item) => item.trim())
             .filter(Boolean);
-        return transports.length > 0 ? transports : ['polling', 'websocket'];
+        return transports.length > 0 ? transports : ['websocket', 'polling'];
     }
 
     function asAppRoot(value) {

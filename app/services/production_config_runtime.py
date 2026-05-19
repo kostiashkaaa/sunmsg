@@ -4,6 +4,7 @@ import os
 
 from app.bootstrap.security import _is_default_or_weak_production_secret, _is_redis_like_uri
 from app.config import get_config_class, load_environment
+from app.services.turn_pool import select_turn_relays
 
 
 def _check(name: str, ok: bool, detail: str) -> dict:
@@ -53,6 +54,17 @@ def run_production_config_check(config_name=None, overrides=None):
     redis_url = str(config.get('REDIS_URL') or '').strip()
     ratelimit_storage_uri = str(config.get('RATELIMIT_STORAGE_URI') or '').strip()
     socketio_message_queue = str(config.get('SOCKETIO_MESSAGE_QUEUE') or '').strip()
+    turn_secret = str(config.get('TURN_SECRET') or '').strip()
+    turn_urls_raw = str(config.get('TURN_SERVER_URLS') or config.get('TURN_SERVER_URL') or '').strip()
+    try:
+        turn_credential_ttl_seconds = int(config.get('TURN_CREDENTIAL_TTL_SECONDS') or 0)
+    except (TypeError, ValueError):
+        turn_credential_ttl_seconds = 0
+    turn_selection = select_turn_relays(
+        pool_raw=str(config.get('TURN_SERVER_POOL') or '').strip(),
+        legacy_urls_raw=turn_urls_raw,
+        limit=int(config.get('TURN_SERVER_POOL_LIMIT') or 2),
+    )
 
     checks = [
         _check('env_is_production', env_name == 'production', f'ENV_NAME={env_name or "-"}'),
@@ -84,6 +96,19 @@ def run_production_config_check(config_name=None, overrides=None):
             'socketio_message_queue_valid',
             bool(socketio_message_queue) and _is_redis_like_uri(socketio_message_queue),
             f'SOCKETIO_MESSAGE_QUEUE={"set" if socketio_message_queue else "missing"}',
+        ),
+        _check(
+            'turn_configured_for_calls',
+            bool(turn_secret and turn_selection.relays),
+            (
+                'TURN_SECRET and at least one healthy TURN relay are required '
+                f'for production calls; relays={len(turn_selection.relays)}'
+            ),
+        ),
+        _check(
+            'turn_credential_ttl_short',
+            60 <= turn_credential_ttl_seconds <= 3600,
+            f'TURN_CREDENTIAL_TTL_SECONDS={turn_credential_ttl_seconds}',
         ),
     ]
 

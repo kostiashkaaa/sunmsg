@@ -3,7 +3,7 @@ Flask blueprint: /call — voice/video call REST endpoints.
 
 Only endpoint: GET /call/ice-config
 Returns short-lived TURN credentials using coturn's HMAC static-auth-secret mechanism.
-Credentials expire in TURN_CREDENTIAL_TTL_SECONDS (default 3600 s).
+Credentials expire in TURN_CREDENTIAL_TTL_SECONDS (default 600 s).
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from app.services.turn_pool import select_turn_relays
 
 call_bp = Blueprint('call', __name__, url_prefix='/call')
 
-_DEFAULT_TTL = 3600
+_DEFAULT_TTL = 600
 _DEFAULT_STUN = 'stun:stun.l.google.com:19302'
 _ICE_TRANSPORT_POLICIES = {'all', 'relay'}
 

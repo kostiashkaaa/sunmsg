@@ -71,6 +71,26 @@ def _is_call_participant(conn, call_id: str, user_id: int) -> bool:
     return row is not None
 
 
+def _call_participant_ids(conn, call_id: str, *, exclude_user_id: int | None = None) -> list[int]:
+    rows = conn.execute(
+        '''
+        SELECT user_id
+        FROM call_participants
+        WHERE call_id = %s AND left_at IS NULL
+        ORDER BY joined_at, user_id
+        ''',
+        (call_id,),
+    ).fetchall()
+    exclude = int(exclude_user_id) if exclude_user_id is not None else None
+    ids = []
+    for row in rows:
+        participant_id = int(row['user_id'])
+        if exclude is not None and participant_id == exclude:
+            continue
+        ids.append(participant_id)
+    return ids
+
+
 def _refresh_stale_ringing_call(conn, call: dict | None) -> dict | None:
     if call is None or call['status'] != 'ringing':
         return call
@@ -130,7 +150,14 @@ def _call_partner_identity(conn, call: dict, user_id: int) -> dict:
     initiator_id = int(call.get('initiator_id') or 0)
     if initiator_id and initiator_id != int(user_id):
         return _user_identity(conn, initiator_id, viewer_id=user_id)
-    for participant_id in _chat_members(conn, str(call.get('chat_id') or ''), user_id):
+    participant_ids = _call_participant_ids(
+        conn,
+        str(call.get('call_id') or ''),
+        exclude_user_id=int(user_id),
+    )
+    if not participant_ids:
+        participant_ids = _chat_members(conn, str(call.get('chat_id') or ''), user_id)
+    for participant_id in participant_ids:
         if int(participant_id) != int(user_id):
             return _user_identity(conn, int(participant_id), viewer_id=user_id)
     return _user_identity(conn, initiator_id or user_id, viewer_id=user_id)
@@ -152,11 +179,11 @@ def _serialize_live_call_for_user(conn, call: dict, user_id: int) -> dict:
 def _emit_active_call_ended(conn, call: dict, call_id: str, user_id: int, request_id: str | None, emit_func) -> bool:
     if not _is_call_participant(conn, call_id, user_id):
         return False
+    other_user_ids = _call_participant_ids(conn, call_id, exclude_user_id=user_id)
     if not end_call(conn, call_id, user_id, final_status='ended'):
         return False
     updated = get_call_session(conn, call_id)
     duration = updated['duration_sec'] if updated else None
-    other_user_ids = _chat_members(conn, call['chat_id'], user_id)
     recipient_ids = [user_id, *other_user_ids]
     _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
 
@@ -228,8 +255,10 @@ def handle_call_initiate(
         # stores a self-referential contact row, so _chat_members can echo the
         # caller back — drop it. With no real callee the call would ring nobody
         # for 60 s, so reject it up front.
-        callee_ids = [int(p) for p in _chat_members(conn, chat_id, user_id)
-                      if int(p) != int(user_id)]
+        callee_ids = list(dict.fromkeys(
+            int(p) for p in _chat_members(conn, chat_id, user_id)
+            if int(p) != int(user_id)
+        ))
         if not callee_ids:
             emit_func('call_error', {'error': 'no_recipients', 'request_id': request_id})
             return
@@ -242,8 +271,12 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'call_privacy_restricted', 'request_id': request_id})
             return
 
+        if len(callee_ids) != 1:
+            emit_func('call_error', {'error': 'unsupported_call_topology', 'request_id': request_id})
+            return
+
         participant_ids = [int(user_id), *callee_ids]
-        if not can_user_use_calls(conn, user_id=int(user_id)):
+        if any(not can_user_use_calls(conn, user_id=pid) for pid in participant_ids):
             emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
@@ -253,6 +286,11 @@ def handle_call_initiate(
 
         if get_user_active_call(conn, user_id):
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
+            return
+
+        callee_id = callee_ids[0]
+        if get_user_active_call(conn, callee_id):
+            emit_func('call_error', {'error': 'callee_busy', 'request_id': request_id})
             return
 
         # Per-chat advisory lock makes the "no live call" check + INSERT atomic,
@@ -348,6 +386,9 @@ def handle_call_accept(
             return
         if not can_receive_call(conn, receiver_id=int(user_id), caller_id=int(call['initiator_id'])):
             emit_func('call_error', {'error': 'call_privacy_restricted', 'call_id': call_id, 'request_id': request_id})
+            return
+        if not can_user_use_calls(conn, user_id=int(user_id)):
+            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
         mark_missed_calls(conn)
@@ -545,7 +586,7 @@ def handle_call_media_state(
             (1 if audio_muted else 0, 1 if video_enabled else 0, call_id, user_id),
         )
         conn.commit()
-        for pid in _chat_members(conn, call['chat_id'], user_id):
+        for pid in _call_participant_ids(conn, call_id, exclude_user_id=user_id):
             emit_func('call_media_state', {
                 'call_id': call_id, 'user_id': user_id,
                 'audio_muted': audio_muted, 'video_enabled': video_enabled,
@@ -571,7 +612,8 @@ def _signal_payload_ok(event_name: str, data: dict) -> bool:
         if not isinstance(sdp, dict):
             return False
         sdp_type = sdp.get('type')
-        if sdp_type not in ('offer', 'answer', 'pranswer', 'rollback'):
+        expected_sdp_type = 'offer' if event_name == 'call_offer' else 'answer'
+        if sdp_type != expected_sdp_type:
             return False
         sdp_text = sdp.get('sdp')
         if not isinstance(sdp_text, str):
@@ -631,10 +673,9 @@ def handle_call_webrtc_signal(
         payload = {k: v for k, v in data.items() if k not in ('csrf_token', '_csrf_token')}
         payload['from_user_id'] = user_id
 
-        # Relay to the other participant only
-        for pid in _chat_members(conn, call['chat_id'], user_id):
-            if _is_call_participant(conn, call_id, pid):
-                emit_func(event_name, payload, to=f'user_{pid}')
+        # Relay only to current call participants, not every chat member.
+        for pid in _call_participant_ids(conn, call_id, exclude_user_id=user_id):
+            emit_func(event_name, payload, to=f'user_{pid}')
     except Exception:
         logger.exception('Error in handle_call_webrtc_signal event=%s', event_name)
     finally:
@@ -664,11 +705,12 @@ def handle_call_disconnect_cleanup(
         for call in get_user_live_calls(conn, user_id):
             call_id = str(call.get('call_id') or '')
             chat_id = str(call.get('chat_id') or '')
+            participant_other_ids = _call_participant_ids(conn, call_id, exclude_user_id=user_id)
             final_status = terminate_call_on_disconnect(conn, call, user_id)
             if not final_status:
                 continue
 
-            other_ids = _chat_members(conn, chat_id, user_id)
+            other_ids = participant_other_ids or _chat_members(conn, chat_id, user_id)
             _emit_call_log_message(conn, call_id, emit_func, [user_id, *other_ids])
 
             if final_status == 'ended':
