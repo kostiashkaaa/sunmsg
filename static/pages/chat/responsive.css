@@ -136,10 +136,12 @@
             html[data-motion-level="lite"] .contact-item--preview-loading .contact-name::after,
             html[data-motion-level="lite"] .contact-item--preview-loading .contact-time-meta::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::after,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item .contact-name::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg::after,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-profile-card::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-bottom-avatar::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-bottom-name::after,
             html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-username::after,
@@ -148,6 +150,21 @@
                 animation: none;
                 transform: none;
                 opacity: 0;
+            }
+
+            html[data-motion-level="lite"] .contact-last-msg-loading__line,
+            html[data-motion-level="lite"] .contact-item--preview-loading .contact-name,
+            html[data-motion-level="lite"] .contact-item--preview-loading .contact-time-meta,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::before,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item .contact-name,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-bottom-name,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-username,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-status-chip--inline,
+            html[data-motion-level="lite"] .sidebar.sidebar--loading .sidebar-status-bar--compact {
+                animation: none;
+                background-position: 0 0;
             }
         }
 

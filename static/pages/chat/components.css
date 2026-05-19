@@ -2333,7 +2333,16 @@
             border-radius: 999px;
             height: 7px;
             background:
-                linear-gradient(180deg, color-mix(in srgb, var(--text) 18%, transparent) 0%, color-mix(in srgb, var(--sub-text) 24%, transparent) 100%);
+                linear-gradient(
+                    90deg,
+                    color-mix(in srgb, var(--text) 18%, transparent) 0%,
+                    color-mix(in srgb, var(--sub-text) 24%, transparent) 34%,
+                    color-mix(in srgb, #ffffff 24%, transparent) 50%,
+                    color-mix(in srgb, var(--sub-text) 24%, transparent) 66%,
+                    color-mix(in srgb, var(--text) 18%, transparent) 100%
+                );
+            background-size: 220% 100%;
+            animation: contactPreviewLoadingSurfaceSweep 1.18s linear infinite;
             box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 9%, transparent);
             opacity: 0.82;
         }
@@ -2367,6 +2376,11 @@
 
         @keyframes contactPreviewLoadingSweep {
             to { transform: translateX(120%); }
+        }
+
+        @keyframes contactPreviewLoadingSurfaceSweep {
+            from { background-position: 180% 0; }
+            to { background-position: -180% 0; }
         }
 
         .contact-item.contact-item--preview-loading .contact-avatar {
@@ -2414,7 +2428,16 @@
             color: transparent !important;
             border-radius: 999px;
             background:
-                linear-gradient(180deg, color-mix(in srgb, var(--text) 16%, transparent) 0%, color-mix(in srgb, var(--sub-text) 22%, transparent) 100%);
+                linear-gradient(
+                    90deg,
+                    color-mix(in srgb, var(--text) 16%, transparent) 0%,
+                    color-mix(in srgb, var(--sub-text) 22%, transparent) 34%,
+                    color-mix(in srgb, #ffffff 24%, transparent) 50%,
+                    color-mix(in srgb, var(--sub-text) 22%, transparent) 66%,
+                    color-mix(in srgb, var(--text) 16%, transparent) 100%
+                );
+            background-size: 220% 100%;
+            animation: contactPreviewLoadingSurfaceSweep 1.18s linear infinite;
             box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 8%, transparent);
         }
 
@@ -2458,8 +2481,18 @@
         }
 
         .sidebar.sidebar--loading {
+            --sidebar-loading-line-base: color-mix(in srgb, var(--text) 15%, transparent);
+            --sidebar-loading-line-edge: color-mix(in srgb, var(--sub-text) 22%, transparent);
+            --sidebar-loading-line-glint: color-mix(in srgb, #ffffff 24%, transparent);
             --sidebar-loading-line:
-                linear-gradient(180deg, color-mix(in srgb, var(--text) 15%, transparent) 0%, color-mix(in srgb, var(--sub-text) 22%, transparent) 100%);
+                linear-gradient(
+                    90deg,
+                    var(--sidebar-loading-line-base) 0%,
+                    var(--sidebar-loading-line-edge) 34%,
+                    var(--sidebar-loading-line-glint) 50%,
+                    var(--sidebar-loading-line-edge) 66%,
+                    var(--sidebar-loading-line-base) 100%
+                );
             --sidebar-loading-sweep:
                 linear-gradient(110deg, transparent 0%, color-mix(in srgb, #ffffff 30%, transparent) 48%, transparent 72%);
         }
@@ -2487,10 +2520,12 @@
         }
 
         .sidebar.sidebar--loading .search-input-wrapper::after,
+        .sidebar.sidebar--loading #contactsList .contact-item::after,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar::after,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-name::after,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta::after,
         .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg::after,
+        .sidebar.sidebar--loading .sidebar-profile-card::after,
         .sidebar.sidebar--loading .sidebar-bottom-avatar::after,
         .sidebar.sidebar--loading .sidebar-bottom-name::after,
         .sidebar.sidebar--loading .sidebar-username::after,
@@ -2503,6 +2538,16 @@
             transform: translateX(-120%);
             animation: contactPreviewLoadingSweep 1.18s linear infinite;
             pointer-events: none;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item::after,
+        .sidebar.sidebar--loading .sidebar-profile-card::after {
+            opacity: 0.18;
+            z-index: 1;
+        }
+
+        .sidebar.sidebar--loading #contactsList .contact-item::before {
+            opacity: 0 !important;
         }
 
         .sidebar.sidebar--loading .search-input-wrapper::after {
@@ -2559,6 +2604,23 @@
             box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 7%, transparent);
         }
 
+        .sidebar.sidebar--loading .search-input-wrapper::before,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-name,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta,
+        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg,
+        .sidebar.sidebar--loading .sidebar-bottom-name,
+        .sidebar.sidebar--loading .sidebar-username,
+        .sidebar.sidebar--loading .sidebar-status-chip--inline,
+        .sidebar.sidebar--loading .sidebar-status-bar--compact {
+            background-size: 220% 100%;
+            animation: sidebarLoadingSurfaceSweep 1.18s linear infinite;
+        }
+
+        @keyframes sidebarLoadingSurfaceSweep {
+            from { background-position: 180% 0; }
+            to { background-position: -180% 0; }
+        }
+
         .sidebar.sidebar--loading #contactsList .contact-item .contact-name {
             width: min(132px, 72%);
             height: 16px;
@@ -2595,8 +2657,15 @@
         }
 
         .sidebar.sidebar--loading .sidebar-profile-card {
+            position: relative;
+            overflow: hidden;
             background: color-mix(in srgb, var(--surface) 94%, transparent 6%);
             border-color: color-mix(in srgb, var(--border) 70%, transparent);
+        }
+
+        .sidebar.sidebar--loading .sidebar-profile-card > * {
+            position: relative;
+            z-index: 2;
         }
 
         .sidebar.sidebar--loading .sidebar-bottom-avatar {

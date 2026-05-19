@@ -197,13 +197,22 @@ def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
     assert '.contact-item.contact-item--preview-loading .contact-avatar::after' in components_css
     assert '.contact-item.contact-item--preview-loading .contact-name' in components_css
     assert '.contact-item.contact-item--preview-loading .contact-time-meta' in components_css
+    assert '@keyframes contactPreviewLoadingSurfaceSweep' in components_css
+    assert 'animation: contactPreviewLoadingSurfaceSweep 1.18s linear infinite' in components_css
     assert '.sidebar.sidebar--loading .search-input-wrapper::before' in components_css
+    assert '@keyframes sidebarLoadingSurfaceSweep' in components_css
+    assert '.sidebar.sidebar--loading #contactsList .contact-item::after' in components_css
     assert '.sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg' in components_css
+    assert '.sidebar.sidebar--loading .sidebar-profile-card::after' in components_css
     assert '.sidebar.sidebar--loading .sidebar-bottom-avatar::after' in components_css
     assert '.sidebar.sidebar--loading .sidebar-status-chip--inline' in components_css
     assert '.contact-item.contact-item--preview-loading.active .contact-name' in states_css
     assert '.contact-item.contact-item--preview-loading.active .contact-name' in loading_states_css
     assert '.sidebar.sidebar--loading .contact-item.active .contact-last-msg' in states_css
     assert '.sidebar.sidebar--loading .contact-item.active .contact-last-msg' in loading_states_css
+    assert 'color-mix(in srgb, #ffffff 26%, transparent)' in states_css
+    assert 'color-mix(in srgb, #ffffff 26%, transparent)' in loading_states_css
     assert 'html[data-motion-level="lite"] .contact-item--preview-loading .contact-avatar::after' in responsive_css
+    assert 'html[data-motion-level="lite"] .contact-last-msg-loading__line' in responsive_css
     assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::after' in responsive_css
+    assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::before' in responsive_css

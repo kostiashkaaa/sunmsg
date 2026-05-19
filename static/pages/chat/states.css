@@ -770,7 +770,16 @@
 
 
         .contact-item.active .contact-last-msg-loading__line {
-            background: color-mix(in srgb, var(--text) 28%, transparent);
+            background:
+                linear-gradient(
+                    90deg,
+                    color-mix(in srgb, var(--text) 22%, transparent) 0%,
+                    color-mix(in srgb, var(--text) 30%, transparent) 34%,
+                    color-mix(in srgb, #ffffff 26%, transparent) 50%,
+                    color-mix(in srgb, var(--text) 30%, transparent) 66%,
+                    color-mix(in srgb, var(--text) 22%, transparent) 100%
+                );
+            background-size: 220% 100%;
         }
 
 
