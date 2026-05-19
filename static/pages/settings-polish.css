@@ -163,6 +163,11 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 55%, transparent) !important;
     border-top: 0 !important;
 }
+/* Явный разделитель сверху — чуть заметнее чем межстрочный */
+.settings-scene .settings-row-divider-top {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 80%, transparent) !important;
+    margin-top: 4px !important;
+}
 .settings-scene .settings-row:hover {
     background: color-mix(in srgb, var(--sx-bg-soft, var(--paper-alt)) 60%, transparent) !important;
 }
@@ -187,6 +192,15 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
 .settings-scene .settings-row-actions {
     flex-wrap: wrap !important;
     justify-content: flex-end !important;
+}
+/* Строка цветов пузырей — управляющий блок выше одной строки, выравниваем по верху */
+.settings-scene .settings-row-chat-bubble-colors {
+    align-items: flex-start !important;
+}
+.settings-scene .settings-row-chat-bubble-colors > .chat-bubble-color-controls {
+    width: 100% !important;
+    max-width: none !important;
+    justify-self: stretch !important;
 }
 
 /* ── Контролы фиксированной высоты — не сдвигают строку ──────────────────── */
@@ -641,6 +655,7 @@ body.settings-detail-open .settings-panel-head {
     background: var(--sx-bg-elev, var(--surface)) !important;
     border-radius: 18px !important;
     border-bottom: none !important;
+    height: auto !important;
     min-height: 52px !important;
     box-sizing: border-box !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 70%, transparent) inset !important;
@@ -792,6 +807,7 @@ body.settings-home-open .settings-nav {
     width: 100% !important;       /* было фикс. 128px — теперь резиновое */
     height: 78px !important;
     border-radius: 12px !important;
+    margin: 0 0 6px !important;   /* сброс auto-margin из базового слоя */
 }
 .settings-scene .theme-preview-label {
     font-size: 12px !important;
@@ -805,6 +821,12 @@ body.settings-home-open .settings-nav {
     justify-content: flex-end !important;
     gap: 10px !important;
     flex-wrap: wrap !important;
+}
+@media (max-width: 600px) {
+    .settings-scene .interface-accent-controls {
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
 }
 
 /* Кнопки режимов фона чата — ровный ряд «таблеток» */
