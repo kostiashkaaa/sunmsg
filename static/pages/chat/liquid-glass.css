@@ -54,8 +54,48 @@ html[data-interface-surface="glass"] body.dark-mode {
 }
 
 /* ================================================================
-   SIDEBAR - no full-panel tint; only child pills carry glass.
-   Loading skeleton is NEVER touched.
+   BOOT / PRELOAD
+   ================================================================ */
+html[data-interface-surface="glass"] .app-boot-overlay {
+    background: color-mix(in srgb, var(--chat-bg, var(--bg)) 88%, transparent);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .app-boot-shell,
+html[data-interface-surface="glass"] .app-boot-preview {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
+}
+
+html[data-interface-surface="glass"] .app-boot-status,
+html[data-interface-surface="glass"] .app-boot-kicker,
+html[data-interface-surface="glass"] .app-boot-preview-chip,
+html[data-interface-surface="glass"] .app-boot-meta-item,
+html[data-interface-surface="glass"] .app-boot-bubble {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
+    background: var(--sun-glass-chat-pill-bg);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .app-boot-shell .sun-skeleton-line,
+html[data-interface-surface="glass"] .app-boot-shell .sun-skeleton-block {
+    border-color: color-mix(in srgb, var(--sun-glass-border) 72%, transparent);
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--text) 12%, transparent) 0%,
+        color-mix(in srgb, var(--sub-text) 18%, transparent) 48%,
+        color-mix(in srgb, var(--text) 12%, transparent) 100%
+    );
+}
+
+/* ================================================================
+   SIDEBAR - no full-panel tint; child pills carry glass.
    ================================================================ */
 /* sidebar-top-card: transparent wrapper, pill children carry the glass */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
@@ -146,6 +186,76 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-st
     background: var(--sun-glass-sidebar-pill-bg);
     -webkit-backdrop-filter: var(--sun-glass-blur-sm);
     backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+/* Loading state must match glass mode before contacts are decrypted/hydrated. */
+html[data-interface-surface="glass"] .sidebar.sidebar--loading {
+    --sidebar-loading-line-base: color-mix(in srgb, var(--text) 12%, transparent);
+    --sidebar-loading-line-edge: color-mix(in srgb, var(--sub-text) 18%, transparent);
+    --sidebar-loading-line-glint: color-mix(in srgb, #ffffff 28%, transparent);
+    --sidebar-loading-sweep:
+        linear-gradient(110deg, transparent 0%, color-mix(in srgb, #ffffff 26%, transparent) 48%, transparent 72%);
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-card {
+    margin: 10px 12px 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    overflow: visible;
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-row {
+    gap: 8px;
+    padding: 0 0 10px;
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-tabs {
+    padding: 0 4px;
+    border-bottom: 0;
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-brand,
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .search-input-wrapper {
+    border: 1px solid transparent;
+    border-radius: 16px;
+    background: var(--sun-glass-top-pill-bg);
+    box-shadow: var(--sun-glass-top-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-brand {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 14px;
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .search-input-wrapper {
+    padding: 0 14px;
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar,
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-bottom-avatar {
+    border: 1px solid color-mix(in srgb, var(--sun-glass-border) 62%, transparent);
+    background:
+        radial-gradient(circle at 34% 32%, color-mix(in srgb, #ffffff 18%, transparent) 0, transparent 34%),
+        var(--sun-glass-sidebar-pill-bg) !important;
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
+}
+
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-profile-card {
+    border-color: var(--sun-glass-border);
+    background: var(--sun-glass-chat-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 /* ================================================================
