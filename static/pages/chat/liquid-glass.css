@@ -30,6 +30,7 @@ html[data-interface-surface="glass"] {
     --sun-glass-blur-sm:      blur(22px) saturate(170%) brightness(1.05);
     --sun-glass-overlay-top-gap: 10px;
     --sun-glass-overlay-bottom-gap: 12px;
+    --sun-glass-sidebar-tabs-cover: 46px;
 }
 
 html[data-interface-surface="glass"].dark-mode,
@@ -114,15 +115,23 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-to
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-row {
+    position: relative;
+    z-index: 2;
     gap: 8px;
-    padding: 0 0 10px;
+    padding: 4px;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 18px;
+    background: var(--sun-glass-profile-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-tabs {
     position: relative;
     z-index: 1;
     gap: 4px;
-    margin: 0;
+    margin: 6px 0 0;
     padding: 4px;
     border-bottom: 0;
     border: 1px solid var(--sun-glass-border);
@@ -140,10 +149,10 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-br
     padding: 0 14px;
     border: 1px solid transparent;
     border-radius: 16px;
-    background: var(--sun-glass-top-pill-bg);
-    box-shadow: var(--sun-glass-top-shadow);
-    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
-    backdrop-filter: var(--sun-glass-blur-sm);
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 /* ── search pill ─────────────────────────────────────────────── */
@@ -151,17 +160,17 @@ html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-inp
     padding: 0 14px;
     border: 1px solid transparent;
     border-radius: 16px;
-    background: var(--sun-glass-top-pill-bg);
-    box-shadow: var(--sun-glass-top-shadow);
-    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
-    backdrop-filter: var(--sun-glass-blur-sm);
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:hover,
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper:focus-within {
     border-color: transparent;
-    background: var(--sun-glass-top-pill-bg-hi);
-    box-shadow: var(--sun-glass-top-shadow);
+    background: transparent;
+    box-shadow: none;
 }
 
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .search-input-wrapper > i {
@@ -247,15 +256,23 @@ html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-card
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-row {
+    position: relative;
+    z-index: 2;
     gap: 8px;
-    padding: 0 0 10px;
+    padding: 4px;
+    border: 1px solid var(--sun-glass-border);
+    border-radius: 18px;
+    background: var(--sun-glass-profile-card-bg);
+    box-shadow: var(--sun-glass-shadow);
+    -webkit-backdrop-filter: var(--sun-glass-blur);
+    backdrop-filter: var(--sun-glass-blur);
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-tabs {
     position: relative;
     z-index: 1;
     gap: 4px;
-    margin: 0;
+    margin: 6px 0 0;
     padding: 4px;
     border-bottom: 0;
     border: 1px solid var(--sun-glass-border);
@@ -270,10 +287,10 @@ html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-brand,
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .search-input-wrapper {
     border: 1px solid transparent;
     border-radius: 16px;
-    background: var(--sun-glass-top-pill-bg);
-    box-shadow: var(--sun-glass-top-shadow);
-    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
-    backdrop-filter: var(--sun-glass-blur-sm);
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-brand {
@@ -650,10 +667,10 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today {
     html[data-interface-surface="glass"] #sidebarScrollArea {
         position: relative;
         z-index: 1;
-        margin-top: calc(-1 * var(--sidebar-top-card-height, 54px));
-        padding-top: calc(var(--sidebar-top-card-height, 54px) + 12px);
+        margin-top: calc(0px - var(--sidebar-top-card-height, 54px) - var(--sun-glass-sidebar-tabs-cover));
+        padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
         padding-bottom: 12px;
-        scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + 12px);
+        scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
     }
 }
 
@@ -663,7 +680,7 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today {
 html[data-interface-surface="glass"] .search-overlay {
     background: color-mix(in srgb, var(--sidebar-bg, var(--bg)) 88%, transparent);
     box-shadow: none;
-    top: calc(var(--sidebar-top-card-height, 124px) + var(--sun-glass-overlay-top-gap));
+    top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-overlay-top-gap));
     bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + var(--sun-glass-overlay-bottom-gap));
 }
 
@@ -680,9 +697,9 @@ html[data-interface-surface="glass"] .search-overlay__tabs {
 }
 
 html[data-interface-surface="glass"] .search-overlay__tab {
-    min-height: 32px;
+    min-height: 30px;
     margin-bottom: 0;
-    padding: 0 10px;
+    padding: 0 12px;
     border: 1px solid transparent;
     border-radius: 12px;
 }
