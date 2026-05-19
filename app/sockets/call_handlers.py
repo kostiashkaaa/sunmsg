@@ -276,7 +276,7 @@ def handle_call_initiate(
             return
 
         participant_ids = [int(user_id), *callee_ids]
-        if not can_user_use_calls(conn, user_id=int(user_id)):
+        if any(not can_user_use_calls(conn, user_id=pid) for pid in participant_ids):
             emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
             return
 
@@ -293,12 +293,21 @@ def handle_call_initiate(
             emit_func('call_error', {'error': 'callee_busy', 'request_id': request_id})
             return
 
-        # Per-chat advisory lock makes the "no live call" check + INSERT atomic,
-        # so two concurrent call_initiate requests cannot both create a session.
+        # Per-user + per-chat advisory locks make the "no live call" check and
+        # INSERT atomic across both peers, including cross-chat callee races.
         call_id = create_call_session_locked(
             conn, chat_id=chat_id, initiator_id=user_id, call_type=call_type,
+            participant_ids=participant_ids,
         )
         if call_id is None:
+            caller_active = get_user_active_call(conn, user_id)
+            if caller_active is not None:
+                emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
+                return
+            callee_active = get_user_active_call(conn, callee_id)
+            if callee_active is not None:
+                emit_func('call_error', {'error': 'callee_busy', 'request_id': request_id})
+                return
             existing = get_active_call_in_chat(conn, chat_id)
             emit_func('call_error', {
                 'error': 'call_already_active',
@@ -381,16 +390,20 @@ def handle_call_accept(
             emit_func('call_error', {'error': 'call_not_found_or_expired', 'call_id': call_id, 'request_id': request_id})
             return
 
-        if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
+        if int(call['initiator_id']) == int(user_id) or not _is_call_participant(conn, call_id, user_id):
             emit_func('call_error', {'error': 'not_member', 'call_id': call_id, 'request_id': request_id})
             return
         if not can_receive_call(conn, receiver_id=int(user_id), caller_id=int(call['initiator_id'])):
             emit_func('call_error', {'error': 'call_privacy_restricted', 'call_id': call_id, 'request_id': request_id})
             return
+        if not can_user_use_calls(conn, user_id=int(user_id)):
+            emit_func('call_error', {'error': 'calls_feature_disabled', 'request_id': request_id})
+            return
 
         mark_missed_calls(conn)
 
-        if get_user_active_call(conn, user_id):
+        active_call = get_user_active_call(conn, user_id)
+        if active_call and str(active_call.get('call_id') or '') != call_id:
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
             return
 
@@ -436,7 +449,7 @@ def handle_call_reject(
         call = _refresh_stale_ringing_call(conn, get_call_session(conn, call_id))
         if call is None or call['status'] != 'ringing':
             return
-        if int(call['initiator_id']) == int(user_id) or not _is_chat_member(conn, call['chat_id'], user_id):
+        if int(call['initiator_id']) == int(user_id) or not _is_call_participant(conn, call_id, user_id):
             return
         if not reject_call(conn, call_id):
             return

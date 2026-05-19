@@ -92,7 +92,8 @@ def _init_schema(conn) -> None:
     # Direct chat between alice (1) and bob (2): a row per direction.
     conn.execute(
         "INSERT INTO contacts (user_id, contact_id, chat_id) VALUES"
-        " (1, 2, 'chat-ab'), (2, 1, 'chat-ab')"
+        " (1, 2, 'chat-ab'), (2, 1, 'chat-ab'),"
+        " (3, 2, 'chat-cb'), (2, 3, 'chat-cb')"
     )
     conn.commit()
 
@@ -223,6 +224,21 @@ def test_concurrent_initiate_creates_single_call(conn):
         " WHERE chat_id = 'chat-ab' AND status IN ('ringing', 'active')",
     ).fetchone()
     assert rows['n'] == 1
+
+
+def test_ringing_call_reserves_callee_when_participants_are_known(conn):
+    first = create_call_session_locked(
+        conn, chat_id='chat-ab', initiator_id=1, call_type='audio',
+        participant_ids=[1, 2],
+    )
+    assert first is not None
+    assert get_user_active_call(conn, 2)['call_id'] == first
+
+    second = create_call_session_locked(
+        conn, chat_id='chat-cb', initiator_id=3, call_type='audio',
+        participant_ids=[3, 2],
+    )
+    assert second is None
 
 
 def test_initiate_allowed_after_previous_call_ends(conn):
@@ -385,13 +401,15 @@ def test_saved_messages_chat_yields_only_self_member(conn):
 
 def test_create_call_session_low_level_inserts_participant(conn):
     create_call_session(
-        conn, call_id='c-1', chat_id='chat-ab', initiator_id=1, call_type='video')
+        conn, call_id='c-1', chat_id='chat-ab', initiator_id=1, call_type='video',
+        participant_ids=[1, 2],
+    )
     row = conn.execute(
         'SELECT call_type, status FROM call_sessions WHERE call_id = ?', ('c-1',),
     ).fetchone()
     assert row['call_type'] == 'video' and row['status'] == 'ringing'
     part = conn.execute(
-        'SELECT COUNT(*) AS n FROM call_participants WHERE call_id = ? AND user_id = 1',
+        'SELECT COUNT(*) AS n FROM call_participants WHERE call_id = ?',
         ('c-1',),
     ).fetchone()
-    assert part['n'] == 1
+    assert part['n'] == 2

@@ -12,7 +12,7 @@ import hmac
 import time
 from base64 import b64encode
 
-from flask import Blueprint, current_app, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, make_response, request, session
 
 from app.database import get_db_connection
 from app.extensions import limiter
@@ -39,31 +39,18 @@ def _normalize_ice_transport_policy(raw_value: str) -> str:
 def _user_belongs_to_call_chat(conn, *, call_id: str, user_id: int) -> bool:
     if not call_id:
         return False
-    call = conn.execute(
+    row = conn.execute(
         '''
-        SELECT chat_id, initiator_id, status
-        FROM call_sessions
-        WHERE call_id = ?
+        SELECT 1
+        FROM call_sessions cs
+        JOIN call_participants cp ON cp.call_id = cs.call_id
+        WHERE cs.call_id = ?
+          AND cp.user_id = ?
+          AND cp.left_at IS NULL
+          AND cs.status IN ('ringing', 'active')
         LIMIT 1
         ''',
-        (call_id,),
-    ).fetchone()
-    if call is None or call['status'] not in ('ringing', 'active'):
-        return False
-    if int(call['initiator_id']) == int(user_id):
-        return True
-
-    chat_id = str(call['chat_id'] or '')
-    row = conn.execute(
-        'SELECT 1 FROM contacts WHERE chat_id = ? AND user_id = ? LIMIT 1',
-        (chat_id, user_id),
-    ).fetchone()
-    if row:
-        return True
-
-    row = conn.execute(
-        'SELECT 1 FROM chat_members WHERE chat_id = ? AND user_id = ? LIMIT 1',
-        (chat_id, user_id),
+        (call_id, user_id),
     ).fetchone()
     return row is not None
 
@@ -76,13 +63,15 @@ def ice_config():
 
     user_id    = session['user_id']
     call_id = str(request.args.get('call_id') or '').strip()
+    if not call_id:
+        return jsonify({'error': 'missing_call_id'}), 400
+
     conn = get_db_connection()
     try:
-        if (
-            not can_user_use_calls(conn, user_id=int(user_id))
-            and not _user_belongs_to_call_chat(conn, call_id=call_id, user_id=int(user_id))
-        ):
+        if not can_user_use_calls(conn, user_id=int(user_id)):
             return jsonify({'error': 'calls_feature_disabled'}), 403
+        if not _user_belongs_to_call_chat(conn, call_id=call_id, user_id=int(user_id)):
+            return jsonify({'error': 'call_not_found_or_expired'}), 404
     finally:
         conn.close()
 
@@ -121,7 +110,7 @@ def ice_config():
                 'credential': credential,
             })
 
-    return jsonify({
+    response = make_response(jsonify({
         'ice_servers': ice_servers,
         'turn_configured': turn_configured,
         'turn_urls_count': turn_selection.urls_count,
@@ -131,7 +120,10 @@ def ice_config():
         'turn_pool_selected_ids': turn_selection.selected_ids,
         'turn_credential_ttl_seconds': ttl,
         'ice_transport_policy': ice_transport_policy,
-    })
+    }))
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 
 @call_bp.route('/feature-access', methods=['GET'])

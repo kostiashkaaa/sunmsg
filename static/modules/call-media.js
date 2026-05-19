@@ -22,10 +22,10 @@ export class CallMedia {
     }
 
     async acquireAudio() {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await this._getUserMediaWithStoredDeviceFallback({
             audio: this._audioConstraints(),
             video: false,
-        });
+        }, { audio: true });
         this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
@@ -38,10 +38,10 @@ export class CallMedia {
     }
 
     async acquireVideo() {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await this._getUserMediaWithStoredDeviceFallback({
             audio: this._audioConstraints(),
             video: this._videoConstraints(),
-        });
+        }, { audio: true, video: true });
         this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
@@ -185,6 +185,19 @@ export class CallMedia {
         };
     }
 
+    async refreshAvailableDevices() {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioIds = new Set(devices.filter(d => d.kind === 'audioinput').map(d => d.deviceId).filter(Boolean));
+        const videoIds = new Set(devices.filter(d => d.kind === 'videoinput').map(d => d.deviceId).filter(Boolean));
+        if (this._audioDeviceId && !audioIds.has(this._audioDeviceId)) {
+            this._audioDeviceId = '';
+        }
+        if (this._videoDeviceId && !videoIds.has(this._videoDeviceId)) {
+            this._videoDeviceId = '';
+        }
+    }
+
     async prepareCameraSwitch() {
         if (!this._videoTrack) return null;
 
@@ -247,10 +260,10 @@ export class CallMedia {
     }
 
     async _newAudioTrack(audioConstraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia({
+        const newStream = await this._getUserMediaWithStoredDeviceFallback({
             audio: audioConstraints,
             video: false,
-        });
+        }, { audio: true });
         const newTrack = newStream.getAudioTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement audio track');
@@ -259,10 +272,10 @@ export class CallMedia {
     }
 
     async _newVideoTrack(videoConstraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia({
+        const newStream = await this._getUserMediaWithStoredDeviceFallback({
             audio: false,
             video: videoConstraints,
-        });
+        }, { video: true });
         const newTrack = newStream.getVideoTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement video track');
@@ -301,6 +314,40 @@ export class CallMedia {
         if (!this._localStream) return;
         this._localStream.getTracks().forEach(t => t.stop());
         this._localStream = null;
+    }
+
+    async _getUserMediaWithStoredDeviceFallback(constraints, { audio = false, video = false } = {}) {
+        try {
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+            if (!this._canRetryWithoutStoredDevice(err, constraints, { audio, video })) {
+                throw err;
+            }
+            const retryConstraints = { ...constraints };
+            if (audio && this._audioDeviceId && constraints.audio && typeof constraints.audio === 'object') {
+                this._audioDeviceId = '';
+                retryConstraints.audio = this._audioConstraints({ allowStoredDevice: false });
+            }
+            if (video && this._videoDeviceId && constraints.video && typeof constraints.video === 'object') {
+                this._videoDeviceId = '';
+                retryConstraints.video = this._videoConstraints({ allowStoredDevice: false });
+            }
+            return navigator.mediaDevices.getUserMedia(retryConstraints);
+        }
+    }
+
+    _canRetryWithoutStoredDevice(error, constraints, { audio = false, video = false } = {}) {
+        const name = String(error?.name || '');
+        if (!['OverconstrainedError', 'ConstraintNotSatisfiedError', 'NotFoundError', 'DevicesNotFoundError'].includes(name)) {
+            return false;
+        }
+        const audioUsesStoredDevice = Boolean(
+            audio && this._audioDeviceId && constraints.audio?.deviceId?.exact === this._audioDeviceId,
+        );
+        const videoUsesStoredDevice = Boolean(
+            video && this._videoDeviceId && constraints.video?.deviceId?.exact === this._videoDeviceId,
+        );
+        return audioUsesStoredDevice || videoUsesStoredDevice;
     }
 
     _pickNextCamera(cameras, currentId, nextFacing) {

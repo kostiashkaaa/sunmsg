@@ -55,27 +55,52 @@ def _lock_chat_for_calls(conn, chat_id: str) -> None:
     )
 
 
+def _lock_users_for_calls(conn, user_ids) -> None:
+    """Serialize live-call creation for every user in a 1:1 call.
+
+    Locks are taken in numeric order to avoid deadlocks when two users call
+    each other at the same time from different tabs/devices.
+    """
+    unique_ids = sorted({int(user_id) for user_id in user_ids if int(user_id) > 0})
+    for user_id in unique_ids:
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('suncall:user:' || ?))",
+            (str(user_id),),
+        )
+
+
 def create_call_session_locked(
-    conn, *, chat_id: str, initiator_id: int, call_type: str,
+    conn, *, chat_id: str, initiator_id: int, call_type: str, participant_ids=None,
 ) -> str | None:
     """Atomically reap stale calls, verify no live call exists, and create a new
-    'ringing' session — all under a per-chat advisory lock held until commit.
+    'ringing' session under per-user and per-chat advisory locks.
 
     Returns the new call_id, or None if a live call already exists in the chat.
     The caller MUST treat a non-None return as committed."""
-    _lock_chat_for_calls(conn, chat_id)
     mark_missed_calls(conn, chat_id)
     _reap_stale_active_calls(conn, chat_id)
+    participants = [int(initiator_id), *(int(pid) for pid in (participant_ids or []))]
+    participants = list(dict.fromkeys(pid for pid in participants if pid > 0))
+    _lock_users_for_calls(conn, participants)
+    _lock_chat_for_calls(conn, chat_id)
     if get_active_call_in_chat(conn, chat_id) is not None:
         conn.commit()
         return None
+    for participant_id in participants:
+        if get_user_active_call(conn, participant_id) is not None:
+            conn.commit()
+            return None
     call_id = generate_call_id()
     create_call_session(conn, call_id=call_id, chat_id=chat_id,
-                         initiator_id=initiator_id, call_type=call_type)
+                         initiator_id=initiator_id, call_type=call_type,
+                         participant_ids=participants)
     return call_id
 
 
-def create_call_session(conn, *, call_id: str, chat_id: str, initiator_id: int, call_type: str) -> None:
+def create_call_session(
+    conn, *, call_id: str, chat_id: str, initiator_id: int, call_type: str,
+    participant_ids=None,
+) -> None:
     conn.execute(
         '''
         INSERT INTO call_sessions (call_id, chat_id, initiator_id, call_type, status, started_at)
@@ -83,13 +108,15 @@ def create_call_session(conn, *, call_id: str, chat_id: str, initiator_id: int, 
         ''',
         (call_id, chat_id, initiator_id, call_type),
     )
-    conn.execute(
-        '''
-        INSERT INTO call_participants (call_id, user_id, joined_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ''',
-        (call_id, initiator_id),
-    )
+    participants = [int(initiator_id), *(int(pid) for pid in (participant_ids or []))]
+    for participant_id in dict.fromkeys(pid for pid in participants if pid > 0):
+        conn.execute(
+            '''
+            INSERT INTO call_participants (call_id, user_id, joined_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''',
+            (call_id, participant_id),
+        )
     conn.commit()
 
 
@@ -201,6 +228,15 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
         ''',
         (final_status, now, duration_sec, call_id),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = ?
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (now, call_id),
+        )
     conn.commit()
     return updated.rowcount > 0
 
@@ -214,6 +250,15 @@ def reject_call(conn, call_id: str) -> bool:
         ''',
         (call_id,),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (call_id,),
+        )
     conn.commit()
     return updated.rowcount > 0
 
@@ -227,6 +272,15 @@ def cancel_call(conn, call_id: str) -> bool:
         ''',
         (call_id,),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (call_id,),
+        )
     conn.commit()
     return updated.rowcount > 0
 
@@ -271,6 +325,14 @@ def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
         if updated.rowcount <= 0:
             continue
         affected.append(call_id)
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (call_id,),
+        )
         call = get_call_session(conn, call_id)
         if call:
             _create_call_log_message_for_call(conn, call, commit=False)

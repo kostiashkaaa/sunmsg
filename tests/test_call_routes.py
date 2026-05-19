@@ -99,7 +99,7 @@ def test_select_turn_relays_does_not_return_unhealthy_pool_relays():
     assert selection.urls_count == 0
 
 
-def test_user_belongs_to_call_chat_allows_incoming_callee_before_accept():
+def test_user_belongs_to_call_chat_allows_only_live_call_participants():
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
     conn.executescript(
@@ -119,12 +119,23 @@ def test_user_belongs_to_call_chat_allows_incoming_callee_before_accept():
             chat_id TEXT NOT NULL,
             user_id INTEGER NOT NULL
         );
+        CREATE TABLE call_participants (
+            call_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            left_at TIMESTAMP DEFAULT NULL
+        );
         INSERT INTO call_sessions (call_id, chat_id, initiator_id, status)
         VALUES ('call-1', 'chat-1', 1, 'ringing');
+        INSERT INTO call_sessions (call_id, chat_id, initiator_id, status)
+        VALUES ('call-2', 'chat-1', 1, 'ended');
         INSERT INTO contacts (user_id, contact_id, chat_id)
         VALUES (1, 2, 'chat-1'), (2, 1, 'chat-1');
+        INSERT INTO call_participants (call_id, user_id, left_at)
+        VALUES ('call-1', 1, NULL), ('call-1', 2, NULL), ('call-2', 2, NULL);
         '''
     )
 
+    assert _user_belongs_to_call_chat(conn, call_id='call-1', user_id=1) is True
     assert _user_belongs_to_call_chat(conn, call_id='call-1', user_id=2) is True
     assert _user_belongs_to_call_chat(conn, call_id='call-1', user_id=3) is False
+    assert _user_belongs_to_call_chat(conn, call_id='call-2', user_id=2) is False
