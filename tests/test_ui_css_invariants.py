@@ -1403,8 +1403,23 @@ def test_portrait_chat_media_keeps_ratio_aware_bubble_width() -> None:
     assert 'Math.max(0.46, Math.min(1.91, ratio))' in rendering, (
         'message-rendering.js: initial media aspect ratio must allow phone-portrait photos'
     )
+    assert 'data-media-aspect-ratio-source="${aspectRatio.source}"' in rendering, (
+        'message-rendering.js: fallback media ratios must be marked so reload hydration cannot resize the bubble'
+    )
+    assert "source = 'fallback'" in rendering, (
+        'message-rendering.js: media aspect-ratio resolver must distinguish real metadata from fallback'
+    )
     assert 'Math.max(0.46, Math.min(1.91, naturalWidth / naturalHeight))' in media_runtime, (
         'chat-media-runtime.js: loaded image dimensions must preserve phone-portrait aspect ratio'
+    )
+    assert "getAttribute('data-media-aspect-ratio-source') || '') === 'fallback'" in media_runtime, (
+        'chat-media-runtime.js: loaded media must not replace fallback ratio after first paint'
+    )
+    assert 'applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight)' in media_runtime, (
+        'chat-media-runtime.js: image load path must use the guarded aspect-ratio updater'
+    )
+    assert 'applyLoadedMediaAspectRatio(preview, videoWidth, videoHeight)' in media_runtime, (
+        'chat-media-runtime.js: video metadata path must use the guarded aspect-ratio updater'
     )
     assert 'Math.max(0.46, Math.min(1.91, aspectRatio))' in mutations, (
         'chat-message-mutations.js: pending upload commit must preserve phone-portrait aspect ratio'

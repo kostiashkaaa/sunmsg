@@ -119,19 +119,29 @@ function clampUploadProgress(value) {
 }
 
 function resolveMediaAspectRatio(filePayload, fallbackRatio = 4 / 3) {
+    return resolveMediaAspectRatioInfo(filePayload, fallbackRatio).value;
+}
+
+function resolveMediaAspectRatioInfo(filePayload, fallbackRatio = 4 / 3) {
     const rawWidth = Number(filePayload?.preview_width);
     const rawHeight = Number(filePayload?.preview_height);
     let ratio = Number(filePayload?.preview_aspect_ratio);
+    let source = 'payload';
 
     if (Number.isFinite(rawWidth) && rawWidth > 0 && Number.isFinite(rawHeight) && rawHeight > 0) {
         ratio = rawWidth / rawHeight;
+        source = 'dimensions';
     }
 
     if (!Number.isFinite(ratio) || ratio <= 0) {
         ratio = fallbackRatio;
+        source = 'fallback';
     }
 
-    return Math.max(0.46, Math.min(1.91, ratio)).toFixed(4);
+    return {
+        value: Math.max(0.46, Math.min(1.91, ratio)).toFixed(4),
+        source,
+    };
 }
 
 function buildMediaStatusOverlay(filePayload) {
@@ -640,13 +650,14 @@ function buildFileBubble(filePayload) {
     if (isImage) {
         const imgSrc = sanitizeFileUri(filePayload.data, { imageOnlyData: true });
         const safeImg = escapeHtml(imgSrc);
-        const aspectRatio = resolveMediaAspectRatio(filePayload, 1);
+        const aspectRatio = resolveMediaAspectRatioInfo(filePayload, 1);
         bubbleClass += ' bubble--image';
         if (caption) bubbleClass += ' bubble--image-has-caption';
         content = `
             <div class="background-layer"></div>
             <div class="image-wrapper file-msg-media-trigger"
-                 data-media-aspect-ratio="${aspectRatio}"
+                 data-media-aspect-ratio="${aspectRatio.value}"
+                 data-media-aspect-ratio-source="${aspectRatio.source}"
                  data-media-kind="image"
                  data-media-src="${safeImg}"
                  data-caption="${escapeHtml(caption)}">
@@ -657,12 +668,13 @@ function buildFileBubble(filePayload) {
             </div>
             ${captionHtml}`;
     } else if (isVideo) {
-        const aspectRatio = resolveMediaAspectRatio(filePayload, 1);
+        const aspectRatio = resolveMediaAspectRatioInfo(filePayload, 1);
         bubbleClass += ' bubble--video';
         if (caption) bubbleClass += ' bubble--video-has-caption';
         content = `
             <div class="video-preview file-msg-media-trigger"
-                 data-media-aspect-ratio="${aspectRatio}"
+                 data-media-aspect-ratio="${aspectRatio.value}"
+                 data-media-aspect-ratio-source="${aspectRatio.source}"
                  data-media-kind="video"
                  data-media-src="${escapeHtml(safeUri)}"
                  data-caption="${escapeHtml(caption)}">

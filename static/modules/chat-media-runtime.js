@@ -78,6 +78,27 @@ export function initChatMediaRuntime(deps = {}) {
     const focusMessageByIdSafe = typeof focusMessageById === 'function'
         ? focusMessageById
         : null;
+
+    function applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight) {
+        if (!mediaWrap) return null;
+        if (
+            !Number.isFinite(naturalWidth)
+            || naturalWidth <= 0
+            || !Number.isFinite(naturalHeight)
+            || naturalHeight <= 0
+        ) {
+            return null;
+        }
+
+        const ratio = String(Math.max(0.46, Math.min(1.91, naturalWidth / naturalHeight)));
+        if (String(mediaWrap.getAttribute('data-media-aspect-ratio-source') || '') === 'fallback') {
+            return ratio;
+        }
+
+        mediaWrap.style.setProperty('--media-aspect-ratio', ratio);
+        mediaWrap.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);
+        return ratio;
+    }
     const previewThumbMediaSelector = [
         '.msg-preview-thumb img[data-src]',
         '.file-card-thumb-image[data-src]',
@@ -232,9 +253,7 @@ export function initChatMediaRuntime(deps = {}) {
         const videoWidth = Number(videoEl.videoWidth);
         const videoHeight = Number(videoEl.videoHeight);
         if (preview && Number.isFinite(videoWidth) && videoWidth > 0 && Number.isFinite(videoHeight) && videoHeight > 0) {
-            const ratio = String(Math.max(0.46, Math.min(1.91, videoWidth / videoHeight)));
-            preview.style.setProperty('--media-aspect-ratio', ratio);
-            preview.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);
+            applyLoadedMediaAspectRatio(preview, videoWidth, videoHeight);
             persistPendingMediaDimensions(videoEl.closest('.message'), videoWidth, videoHeight);
         }
         videoEl.currentTime = 0;
@@ -1556,9 +1575,7 @@ export function initChatMediaRuntime(deps = {}) {
         const naturalWidth = Number(mediaEl.naturalWidth || mediaEl.videoWidth);
         const naturalHeight = Number(mediaEl.naturalHeight || mediaEl.videoHeight);
         if (mediaWrap && Number.isFinite(naturalWidth) && naturalWidth > 0 && Number.isFinite(naturalHeight) && naturalHeight > 0) {
-            const ratio = String(Math.max(0.46, Math.min(1.91, naturalWidth / naturalHeight)));
-            mediaWrap.style.setProperty('--media-aspect-ratio', ratio);
-            mediaWrap.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);
+            applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight);
             persistPendingMediaDimensions(mediaEl.closest('.message'), naturalWidth, naturalHeight);
         }
 
