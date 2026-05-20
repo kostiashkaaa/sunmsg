@@ -2,6 +2,30 @@ export function getLightboxPartnerName() {
     return (window.currentPartnerData?.display_name || document.getElementById('chatTitle')?.textContent || 'Собеседник').trim();
 }
 
+function getElementSource(mediaEl) {
+    if (!mediaEl) return '';
+    return String(mediaEl.currentSrc || mediaEl.getAttribute?.('src') || '').trim();
+}
+
+function getElementRawSource(mediaEl) {
+    if (!mediaEl) return '';
+    return String(mediaEl.getAttribute?.('data-src') || '').trim();
+}
+
+export function resolveLightboxTriggerSource(trigger) {
+    const kind = trigger?.getAttribute?.('data-media-kind') === 'video' ? 'video' : 'image';
+    const mediaEl = kind === 'video'
+        ? trigger?.querySelector?.('.file-msg-video-preview, .album-cell-video')
+        : trigger?.querySelector?.('.file-msg-img, .album-cell-img');
+    const loadedSrc = getElementSource(mediaEl);
+    const rawSrc = String(trigger?.getAttribute?.('data-media-src') || getElementRawSource(mediaEl) || loadedSrc || '').trim();
+    return {
+        kind,
+        src: loadedSrc || rawSrc,
+        rawSrc,
+    };
+}
+
 export function buildLightboxMediaItems({ formatFullTimestamp }) {
     const partnerName = getLightboxPartnerName();
 
@@ -39,15 +63,11 @@ export function buildLightboxMediaItems({ formatFullTimestamp }) {
                 tick = (tickEl.textContent || '').trim();
             }
         }
-        const kind = trigger.getAttribute('data-media-kind') === 'video' ? 'video' : 'image';
-        const src = trigger.getAttribute('data-media-src')
-            || trigger.querySelector('.file-msg-img, .file-msg-video-preview')?.getAttribute('src')
-            || trigger.querySelector('.file-msg-img')?.getAttribute('data-src')
-            || '';
+        const { kind, src, rawSrc } = resolveLightboxTriggerSource(trigger);
         // Thumbnail: the already-loaded small img in the bubble (for instant preview in lightbox)
         const thumbImg = trigger.querySelector('.file-msg-img, .album-cell-img');
         const thumbnail = (thumbImg?.currentSrc || thumbImg?.getAttribute('src') || '').trim();
-        return { kind, src, caption: trigger.getAttribute('data-caption') || '', sender, datetime, time, tick, thumbnail };
+        return { kind, src, rawSrc, caption: trigger.getAttribute('data-caption') || '', sender, datetime, time, tick, thumbnail };
     });
 }
 

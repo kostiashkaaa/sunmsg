@@ -2,6 +2,7 @@ import { escapeHtml, formatFullTimestamp, formatMediaDuration } from '../utils.j
 import { afterNextFrame, waitForMotionEnd } from '../motion.js';
 import {
     buildLightboxMediaItems,
+    resolveLightboxTriggerSource,
     syncLightboxVideoUi,
     toggleLightboxVideoPlay,
 } from './media-renderers.js';
@@ -198,6 +199,50 @@ function _buildLightboxMediaItems() {
     return buildLightboxMediaItems({ formatFullTimestamp });
 }
 
+function _isEncryptedLightboxSource(source) {
+    return String(source || '').includes('sun_media_e2ee=');
+}
+
+function _normalizeLightboxSource(source) {
+    return String(source || '').trim();
+}
+
+function _resolveLightboxDisplaySource(item) {
+    const src = _normalizeLightboxSource(item?.src);
+    if (src && !_isEncryptedLightboxSource(src)) {
+        return Promise.resolve(src);
+    }
+
+    const rawSrc = _normalizeLightboxSource(item?.rawSrc || src);
+    if (!rawSrc) return Promise.resolve('');
+
+    const resolver = window.__sunMediaCacheResolveSource;
+    if (typeof resolver !== 'function') {
+        return Promise.resolve(_isEncryptedLightboxSource(rawSrc) ? '' : rawSrc);
+    }
+
+    const kind = item?.kind === 'video' ? 'video' : 'image';
+    return Promise.resolve(resolver(rawSrc, { kind }))
+        .then((resolvedSrc) => (
+            _normalizeLightboxSource(resolvedSrc)
+            || (_isEncryptedLightboxSource(rawSrc) ? '' : rawSrc)
+        ))
+        .catch(() => (_isEncryptedLightboxSource(rawSrc) ? '' : rawSrc));
+}
+
+function _lightboxItemMatchesTarget(item, targetSource) {
+    if (!item || !targetSource || item.kind !== targetSource.kind) return false;
+    const itemSources = [
+        _normalizeLightboxSource(item.src),
+        _normalizeLightboxSource(item.rawSrc),
+    ].filter(Boolean);
+    const targetSources = [
+        _normalizeLightboxSource(targetSource.src),
+        _normalizeLightboxSource(targetSource.rawSrc),
+    ].filter(Boolean);
+    return itemSources.some((source) => targetSources.includes(source));
+}
+
 function _clampLightboxPan() {
     if (!_isImageLightboxActive()) return;
     const els = _getLightboxEls();
@@ -333,12 +378,14 @@ function _resetLightboxView() {
 
 function _goPrevLightbox() {
     if (lightboxIndex <= 0) return;
+    lightboxTransitionSeq += 1;
     lightboxIndex -= 1;
     _renderLightbox();
 }
 
 function _goNextLightbox() {
     if (lightboxIndex >= lightboxImages.length - 1) return;
+    lightboxTransitionSeq += 1;
     lightboxIndex += 1;
     _renderLightbox();
 }
@@ -383,6 +430,7 @@ function _preloadLightboxNeighbors() {
         if (!item || item.kind === 'video') return;
         const url = item.src;
         if (!url || _preloadCache.has(url)) return;
+        if (_isEncryptedLightboxSource(url)) return;
         const img = new window.Image();
         img.src = url;
         _preloadCache.set(url, img);
@@ -411,30 +459,70 @@ function _renderLightbox() {
     if (!isVideo) {
         if (els.video) els.video.pause();
         _clearVideoControlsHideTimer();
-        // Show thumbnail instantly, then swap in full-res once loaded
         const targetSeq = lightboxTransitionSeq;
-        if (cur.thumbnail && cur.thumbnail !== cur.src && !cur.thumbnail.startsWith('data:')) {
-            els.img.src = cur.thumbnail;
+        const immediateSrc = _normalizeLightboxSource(cur.src);
+        const thumbnailSrc = _normalizeLightboxSource(cur.thumbnail);
+        const canUseImmediateSrc = immediateSrc && !_isEncryptedLightboxSource(immediateSrc);
+        const showThumbnail = thumbnailSrc && thumbnailSrc !== immediateSrc && !thumbnailSrc.startsWith('data:');
+
+        els.imageWrap?.classList.remove('is-loading-full');
+        if (showThumbnail) {
+            els.img.src = thumbnailSrc;
             els.imageWrap?.classList.add('is-loading-full');
-            const fullImg = new window.Image();
-            fullImg.onload = () => {
-                if (lightboxTransitionSeq !== targetSeq) return;
-                els.img.src = cur.src;
-                els.imageWrap?.classList.remove('is-loading-full');
-            };
-            fullImg.onerror = () => {
-                if (lightboxTransitionSeq !== targetSeq) return;
-                els.imageWrap?.classList.remove('is-loading-full');
-            };
-            fullImg.src = cur.src;
+        } else if (canUseImmediateSrc) {
+            els.img.src = immediateSrc;
         } else {
-            els.img.src = cur.src;
+            els.img.removeAttribute('src');
+            els.imageWrap?.classList.add('is-loading-full');
         }
+
+        _resolveLightboxDisplaySource(cur).then((resolvedSrc) => {
+            if (lightboxTransitionSeq !== targetSeq) return;
+            const safeSrc = _normalizeLightboxSource(resolvedSrc);
+            if (!safeSrc) {
+                els.imageWrap?.classList.remove('is-loading-full');
+                return;
+            }
+            if (els.img.getAttribute('src') === safeSrc) {
+                els.imageWrap?.classList.remove('is-loading-full');
+                return;
+            }
+            if (showThumbnail && !safeSrc.startsWith('data:')) {
+                const fullImg = new window.Image();
+                fullImg.onload = () => {
+                    if (lightboxTransitionSeq !== targetSeq) return;
+                    els.img.src = safeSrc;
+                    els.imageWrap?.classList.remove('is-loading-full');
+                };
+                fullImg.onerror = () => {
+                    if (lightboxTransitionSeq !== targetSeq) return;
+                    els.imageWrap?.classList.remove('is-loading-full');
+                };
+                fullImg.src = safeSrc;
+                return;
+            }
+            els.img.src = safeSrc;
+            els.imageWrap?.classList.remove('is-loading-full');
+        });
         _preloadLightboxNeighbors();
     } else if (els.video) {
+        const targetSeq = lightboxTransitionSeq;
+        const immediateSrc = _normalizeLightboxSource(cur.src);
         els.video.pause();
-        els.video.src = cur.src;
-        els.video.currentTime = 0;
+        if (immediateSrc && !_isEncryptedLightboxSource(immediateSrc)) {
+            els.video.src = immediateSrc;
+        } else {
+            els.video.removeAttribute('src');
+            els.video.load();
+        }
+        try { els.video.currentTime = 0; } catch (_) {}
+        _resolveLightboxDisplaySource(cur).then((resolvedSrc) => {
+            if (lightboxTransitionSeq !== targetSeq || lightboxState.mediaKind !== 'video') return;
+            const safeSrc = _normalizeLightboxSource(resolvedSrc);
+            if (!safeSrc || els.video.getAttribute('src') === safeSrc) return;
+            els.video.src = safeSrc;
+            els.video.load();
+        });
         _setVideoControlsVisible(true);
         _syncLightboxVideoUi();
         _scheduleVideoControlsHide();
@@ -610,14 +698,16 @@ export function initLightbox() {
         els.root.setAttribute('aria-hidden', 'false');
         lightboxImages = _buildLightboxMediaItems();
         if (target instanceof HTMLElement) {
-            const src = target.getAttribute('data-media-src')
-                || target.querySelector('.file-msg-img, .file-msg-video-preview')?.getAttribute('src')
-                || '';
+            const targetSource = resolveLightboxTriggerSource(target);
             lightboxIndex = lightboxImages.findIndex(
-                (item) => item.src === src && item.kind === (target.getAttribute('data-media-kind') || 'image'),
+                (item) => _lightboxItemMatchesTarget(item, targetSource),
             );
         } else {
-            lightboxIndex = lightboxImages.findIndex((item) => item.src === String(target || ''));
+            const targetSrc = _normalizeLightboxSource(target);
+            lightboxIndex = lightboxImages.findIndex((item) => (
+                _normalizeLightboxSource(item.src) === targetSrc
+                || _normalizeLightboxSource(item.rawSrc) === targetSrc
+            ));
         }
         if (lightboxIndex === -1) lightboxIndex = 0;
         _renderLightbox();
