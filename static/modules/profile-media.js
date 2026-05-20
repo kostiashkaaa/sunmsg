@@ -1,7 +1,7 @@
 // Media tabs renderer for the partner profile drawer.
 // Source of truth: already decrypted chat messages from local chat state.
 
-import { parseSunFilePayload, sanitizeFileUri, tr, activeLocale, escapeHtml } from './utils.js';
+import { parseSunCallPayload, parseSunFilePayload, sanitizeFileUri, tr, activeLocale, escapeHtml } from './utils.js';
 import { getMotionDurationTokenMs, waitForMotionEnd } from './motion.js';
 
 const URL_REGEX = /\bhttps?:\/\/[^\s<>"'`]+/gi;
@@ -11,6 +11,7 @@ const TAB_DEFINITIONS = [
     { key: 'files', label: '\u0424\u0430\u0439\u043B\u044B' },
     { key: 'audio', label: '\u0410\u0443\u0434\u0438\u043E' },
     { key: 'voices', label: '\u0413\u043E\u043B\u043E\u0441\u043E\u0432\u044B\u0435' },
+    { key: 'calls', label: '\u0417\u0432\u043E\u043D\u043A\u0438' },
     { key: 'links', label: '\u0421\u0441\u044B\u043B\u043A\u0438' },
 ];
 
@@ -244,7 +245,7 @@ function buildWaveBarsHtml(rawWaveform, maxBars = 28) {
 }
 
 export function collectMediaFromMessages(messages) {
-    const result = { media: [], files: [], audio: [], voices: [], links: [] };
+    const result = { media: [], files: [], audio: [], voices: [], calls: [], links: [] };
     if (!Array.isArray(messages)) return result;
 
     for (const msg of messages) {
@@ -252,6 +253,18 @@ export function collectMediaFromMessages(messages) {
 
         const text = typeof msg.message === 'string' ? msg.message : '';
         if (!text) continue;
+
+        const callPayload = parseSunCallPayload(text);
+        if (callPayload) {
+            result.calls.push({
+                msgId: msg.id,
+                payload: callPayload,
+                createdAt: msg.created_at,
+                sender: msg.sender,
+                messageType: msg.message_type || 'call',
+            });
+            continue;
+        }
 
         const filePayload = parseSunFilePayload(text);
         if (filePayload) {
@@ -357,6 +370,8 @@ function renderTabContent(contentEl, key, items, onItemClick) {
         renderFileList(contentEl, items, onItemClick);
     } else if (key === 'audio' || key === 'voices') {
         renderAudioList(contentEl, items, key === 'voices', onItemClick);
+    } else if (key === 'calls') {
+        renderCallList(contentEl, items, onItemClick);
     } else if (key === 'links') {
         renderLinkList(contentEl, items, onItemClick);
     }
@@ -522,6 +537,60 @@ function renderAudioList(contentEl, items, isVoice, onItemClick) {
                 return;
             }
             if (isVoice) togglePlayback(event);
+        });
+
+        list.appendChild(row);
+    });
+}
+
+function callStatusLabel(status, durationSec) {
+    const normalized = String(status || '').trim();
+    if (normalized === 'ended') return formatDuration(durationSec) || tr('\u0417\u0430\u0432\u0435\u0440\u0448\u0451\u043D');
+    if (normalized === 'cancelled') return tr('\u041E\u0442\u043C\u0435\u043D\u0451\u043D');
+    if (normalized === 'rejected') return tr('\u041E\u0442\u043A\u043B\u043E\u043D\u0451\u043D');
+    if (normalized === 'failed') return tr('\u0421\u0431\u043E\u0439 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F');
+    return tr('\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D');
+}
+
+function renderCallList(contentEl, items, onItemClick) {
+    contentEl.innerHTML = '<div class="profile-call-list"></div>';
+    const list = contentEl.firstElementChild;
+
+    items.forEach((entry) => {
+        const payload = entry.payload || {};
+        const callType = String(payload.call_type || '').trim() === 'video' ? 'video' : 'audio';
+        const isVideo = callType === 'video';
+        const status = String(payload.status || '').trim();
+        const dateText = formatShortDate(entry.createdAt);
+        const title = isVideo ? tr('\u0412\u0438\u0434\u0435\u043E\u0437\u0432\u043E\u043D\u043E\u043A') : tr('\u0417\u0432\u043E\u043D\u043E\u043A');
+        const sub = [callStatusLabel(status, payload.duration_sec), dateText].filter(Boolean).join(' \u2022 ');
+        const icon = isVideo ? 'bi-camera-video-fill' : 'bi-telephone-fill';
+        const row = document.createElement('div');
+        row.className = `profile-call-row${status && status !== 'ended' ? ' profile-call-row--missed' : ''}`;
+        row.setAttribute('data-msg-id', String(entry.msgId || ''));
+        row.innerHTML = `
+            <div class="profile-call-icon" aria-hidden="true">
+                <i class="bi ${icon}"></i>
+            </div>
+            <div class="profile-call-meta">
+                <div class="profile-call-title">${escapeHtml(title)}</div>
+                <div class="profile-call-sub">${escapeHtml(sub)}</div>
+            </div>
+            <div class="profile-call-actions">
+                <button type="button" class="profile-call-action-btn profile-call-action-btn--repeat" data-action="call" aria-label="${escapeHtml(tr('\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u0437\u0432\u043E\u043D\u043E\u043A'))}">
+                    <i class="bi ${isVideo ? 'bi-camera-video' : 'bi-telephone'}"></i>
+                </button>
+                <button type="button" class="profile-call-action-btn" data-action="jump" aria-label="${escapeHtml(tr('\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044E'))}">
+                    <i class="bi bi-arrow-up-right-square"></i>
+                </button>
+            </div>
+        `;
+
+        row.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-action]');
+            const action = actionBtn?.getAttribute('data-action') || 'jump';
+            event.stopPropagation();
+            onItemClick?.({ kind: 'call', entry, action });
         });
 
         list.appendChild(row);

@@ -17,12 +17,14 @@
 import { CallMedia } from './call-media.js';
 import { CallWebRTC } from './call-webrtc.js';
 import {
+    showPreCallScreen, removePreCallScreen,
     showIncomingCallBanner, removeIncomingCallBanner,
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
     setLocalVideoEnabled,
     setRemoteAudioMuted, startCallDurationTimer, setCallQualityIndicator,
+    minimizeActiveCallOverlay, restoreActiveCallOverlay, setCallScreenShareActive,
 } from './call-ui.js';
 import {
     startRingtone, stopRingtone,
@@ -32,6 +34,7 @@ import { showToast } from './dialogs.js';
 
 const STATES = {
     IDLE:        'idle',
+    PRECALL:     'precall',
     RINGING_OUT: 'ringing_out',
     RINGING_IN:  'ringing_in',
     ACTIVE:      'active',
@@ -81,9 +84,13 @@ export class CallManager {
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
         this._pendingSignals = [];
+        this._pendingMediaOptions = null;
+        this._selectedSpeakerDeviceId = '';
+        this._screenSharing = false;
 
         this._bindSocketEvents();
         this._bindUnloadHandler();
+        this._bindChatNavigationMinimize();
     }
 
     // Tell the server the call is over when the tab is closing. 'pagehide'
@@ -91,7 +98,7 @@ export class CallManager {
     // but the server-side disconnect cleanup is the real safety net.
     _bindUnloadHandler() {
         this._onPageHide = () => {
-            if (this._state === STATES.IDLE || !this._callId) return;
+            if (this._state === STATES.IDLE || this._state === STATES.PRECALL || !this._callId) return;
             const event = this._state === STATES.RINGING_OUT ? 'call_cancel'
                 : this._state === STATES.RINGING_IN ? 'call_reject'
                 : 'call_end';
@@ -103,6 +110,18 @@ export class CallManager {
             } catch (_) { /* tab is closing — best effort */ }
         };
         window.addEventListener('pagehide', this._onPageHide);
+    }
+
+    _bindChatNavigationMinimize() {
+        document.addEventListener('sun:chat:opened', (event) => {
+            if (this._state !== STATES.ACTIVE || !this._chatId) return;
+            const nextChatId = String(event?.detail?.chatId || '').trim();
+            if (nextChatId && String(nextChatId) === String(this._chatId)) {
+                restoreActiveCallOverlay();
+                return;
+            }
+            minimizeActiveCallOverlay();
+        });
     }
 
     // ── Socket event bindings ────────────────────────────────────────────────
@@ -136,10 +155,156 @@ export class CallManager {
             return;
         }
         this._chatId   = chatId;
-        this._callType = callType;
-        this._state    = STATES.RINGING_OUT;
+        this._callType = callType === 'video' ? 'video' : 'audio';
+        this._state    = STATES.PRECALL;
         this._isPolite = false;  // caller is impolite
         this._partner  = this._resolvePartner(partnerInfo);  // set from DOM before server confirms
+        this._pendingMediaOptions = {
+            audioMuted: false,
+            videoEnabled: this._callType === 'video',
+            speakerDeviceId: this._selectedSpeakerDeviceId,
+        };
+        this._showPreCallSetup();
+    }
+
+    _showPreCallSetup() {
+        const partner = this._resolvePartner(this._partner);
+        this._partner = partner;
+        const partnerName = partner.display_name || partner.username || 'Собеседник';
+        showPreCallScreen({
+            callType: this._callType,
+            partnerName,
+            partnerAvatar: partner.avatar_url || '',
+            onPrepare: (options) => this._preparePreCallMedia(options),
+            onToggleAudio: () => this._togglePreCallAudio(),
+            onToggleVideo: (enabled) => this._togglePreCallVideo(enabled),
+            onSwitchCamera: () => this._switchPreCallCamera(),
+            onListDevices: async () => {
+                const devices = await this._media.listDevices();
+                return {
+                    ...devices,
+                    selected: {
+                        audioInputId: this._media.getAudioDeviceId(),
+                        videoInputId: this._media.getVideoDeviceId(),
+                    },
+                };
+            },
+            onSelectMicrophone: (deviceId) => this._selectPreCallMicrophone(deviceId),
+            onSelectCamera: (deviceId) => this._selectPreCallCamera(deviceId),
+            onSelectSpeaker: (deviceId) => {
+                this._selectedSpeakerDeviceId = String(deviceId || '');
+                this._pendingMediaOptions = {
+                    ...(this._pendingMediaOptions || {}),
+                    speakerDeviceId: this._selectedSpeakerDeviceId,
+                };
+            },
+            onStart: (options) => {
+                void this._beginOutgoingCall(options);
+            },
+            onCancel: () => this._cleanup(),
+        });
+    }
+
+    async _preparePreCallMedia(options = {}) {
+        const normalized = this._normalizeMediaOptions(options, this._callType);
+        this._callType = normalized.callType;
+        this._pendingMediaOptions = normalized;
+        await this._ensureLocalMediaForOptions(normalized);
+        return {
+            localStream: this._media.getLocalStream(),
+            audioMuted: this._media.isAudioMuted(),
+            videoEnabled: this._media.isVideoEnabled(),
+            callType: this._callType,
+        };
+    }
+
+    async _togglePreCallAudio() {
+        if (!this._media.getAudioTrack()) {
+            const prepared = await this._media.prepareAudioInput('');
+            this._media.commitPreparedAudioTrack(prepared.track, prepared);
+        }
+        const muted = this._media.toggleAudio();
+        this._pendingMediaOptions = {
+            ...(this._pendingMediaOptions || {}),
+            audioMuted: muted,
+        };
+        return muted;
+    }
+
+    async _togglePreCallVideo(enabled) {
+        const shouldEnable = Boolean(enabled);
+        if (!shouldEnable) {
+            this._media.disableVideo();
+            this._pendingMediaOptions = {
+                ...(this._pendingMediaOptions || {}),
+                videoEnabled: false,
+            };
+            return { enabled: false, localStream: this._media.getLocalStream(), callType: this._callType };
+        }
+
+        if (!this._media.getVideoTrack()) {
+            const prepared = await this._media.prepareVideoInput('');
+            this._media.commitPreparedVideoTrack(prepared.track, prepared);
+        } else {
+            this._media.toggleVideo();
+        }
+        this._callType = 'video';
+        this._pendingMediaOptions = {
+            ...(this._pendingMediaOptions || {}),
+            callType: 'video',
+            videoEnabled: true,
+        };
+        return { enabled: true, localStream: this._media.getLocalStream(), callType: 'video' };
+    }
+
+    async _switchPreCallCamera() {
+        const prepared = await this._media.prepareCameraSwitch();
+        if (!prepared?.track) return { localStream: this._media.getLocalStream() };
+        this._media.commitPreparedVideoTrack(prepared.track, prepared);
+        this._callType = 'video';
+        this._pendingMediaOptions = {
+            ...(this._pendingMediaOptions || {}),
+            callType: 'video',
+            videoEnabled: true,
+        };
+        return { localStream: this._media.getLocalStream(), facingMode: this._media.getVideoFacingMode() };
+    }
+
+    async _selectPreCallMicrophone(deviceId) {
+        const prepared = await this._media.prepareAudioInput(deviceId);
+        this._media.commitPreparedAudioTrack(prepared.track, prepared);
+        return { localStream: this._media.getLocalStream() };
+    }
+
+    async _selectPreCallCamera(deviceId) {
+        const prepared = await this._media.prepareVideoInput(deviceId);
+        this._media.commitPreparedVideoTrack(prepared.track, prepared);
+        this._callType = 'video';
+        this._pendingMediaOptions = {
+            ...(this._pendingMediaOptions || {}),
+            callType: 'video',
+            videoEnabled: true,
+        };
+        return { enabled: true, localStream: this._media.getLocalStream(), callType: 'video' };
+    }
+
+    async _beginOutgoingCall(options = {}) {
+        if (this._state !== STATES.PRECALL) return;
+        const normalized = this._normalizeMediaOptions(options, this._callType);
+        this._pendingMediaOptions = normalized;
+        this._callType = normalized.callType;
+        this._selectedSpeakerDeviceId = normalized.speakerDeviceId;
+        try {
+            await this._ensureLocalMediaForOptions(normalized);
+        } catch (err) {
+            console.warn('[CallManager] pre-call media access failed', err);
+            const message = _mediaAccessMessage(err, normalized.videoEnabled ? 'video' : 'audio');
+            showToast(message, 'error');
+            this._cleanup();
+            return;
+        }
+
+        this._state = STATES.RINGING_OUT;
         startRingtone('outgoing');
         this._ringTimeout = setTimeout(() => {
             if (this._state !== STATES.RINGING_OUT) return;
@@ -147,11 +312,15 @@ export class CallManager {
             showToast('Звонок не принят', 'info');
             this._cleanup();
         }, RING_TIMEOUT_MS);
-        this._emit('call_initiate', { chat_id: chatId, call_type: callType });
+        this._emit('call_initiate', { chat_id: this._chatId, call_type: this._callType });
     }
 
     endCall() {
         if (this._state === STATES.IDLE) return;
+        if (this._state === STATES.PRECALL) {
+            this._cleanup();
+            return;
+        }
         if (this._state === STATES.RINGING_OUT) {
             this._emit('call_cancel', { call_id: this._callId });
         } else if (this._state === STATES.RINGING_IN) {
@@ -167,17 +336,18 @@ export class CallManager {
         this._cleanup();
     }
 
-    async acceptCall(callId, callType) {
+    async acceptCall(callId, callType, mediaOptions = {}) {
         this._callId   = callId;
         this._callType = callType;
         this._state    = STATES.ACTIVE;
         this._isPolite = true;   // callee is polite
+        this._pendingMediaOptions = this._normalizeMediaOptions(mediaOptions, callType);
         stopRingtone();
         clearTimeout(this._ringTimeout);
         this._ringTimeout = null;
         removeIncomingCallBanner();
         this._emit('call_accept', { call_id: callId });
-        await this._startMedia();
+        await this._startMedia(this._pendingMediaOptions);
     }
 
     // ── Signalling: lifecycle ────────────────────────────────────────────────
@@ -207,7 +377,7 @@ export class CallManager {
             callId:    call_id,
             callType:  call_type,
             initiator: this._partner,
-            onAccept:  (id, type) => this.acceptCall(id, type),
+            onAccept:  (id, type, options) => this.acceptCall(id, type, options),
             onReject:  (id)       => this.rejectCall(id),
         });
     }
@@ -226,10 +396,13 @@ export class CallManager {
             callId:    call_id,
             callType:  this._callType,
             callRole: 'caller',
+            mode: 'ringing',
             partnerName,
             partnerAvatar: partner.avatar_url || '',
-            localStream: null,  // media not yet acquired — will be set on accept
-            onToggleAudio: () => false,
+            localStream: null,
+            initialAudioMuted: Boolean(this._pendingMediaOptions?.audioMuted),
+            initialVideoEnabled: false,
+            onToggleAudio: () => this._media.isAudioMuted(),
             onToggleVideo: () => false,
             onSwitchCamera: () => {},
             onListDevices: async () => ({}),
@@ -250,7 +423,7 @@ export class CallManager {
         setCallStatusText('Соединение...');
         // Remove placeholder overlay and build real one with media
         removeActiveCallOverlay();
-        await this._startMedia();
+        await this._startMedia(this._pendingMediaOptions);
     }
 
     _onRejected({ call_id }) {
@@ -392,7 +565,44 @@ export class CallManager {
 
     // ── Media & WebRTC setup ─────────────────────────────────────────────────
 
-    async _startMedia() {
+    _normalizeMediaOptions(options = {}, fallbackCallType = this._callType) {
+        const normalizedCallType = options.callType === 'video' || fallbackCallType === 'video' ? 'video' : 'audio';
+        const hasVideoFlag = Object.prototype.hasOwnProperty.call(options || {}, 'videoEnabled');
+        return {
+            callType: normalizedCallType,
+            audioMuted: Boolean(options.audioMuted),
+            videoEnabled: hasVideoFlag ? Boolean(options.videoEnabled) : normalizedCallType === 'video',
+            speakerDeviceId: String(options.speakerDeviceId || this._selectedSpeakerDeviceId || ''),
+        };
+    }
+
+    async _ensureLocalMediaForOptions(options = this._pendingMediaOptions || {}) {
+        const normalized = this._normalizeMediaOptions(options, this._callType);
+        const wantsVideo = normalized.callType === 'video' && normalized.videoEnabled;
+
+        if (!this._media.getAudioTrack()) {
+            if (wantsVideo) {
+                await this._media.acquireVideo();
+            } else {
+                await this._media.acquireAudio();
+            }
+        } else if (wantsVideo && !this._media.getVideoTrack()) {
+            const prepared = await this._media.prepareVideoInput('');
+            this._media.commitPreparedVideoTrack(prepared.track, prepared);
+        }
+
+        if (!wantsVideo && this._media.getVideoTrack()) {
+            this._media.disableVideo();
+        }
+
+        this._media.setAudioMuted(normalized.audioMuted);
+        normalized.videoEnabled = this._media.isVideoEnabled();
+        normalized.audioMuted = this._media.isAudioMuted();
+        this._pendingMediaOptions = normalized;
+        return normalized;
+    }
+
+    async _startMedia(mediaOptions = this._pendingMediaOptions || {}) {
         // 1. Get ICE server config from Flask (includes TURN credentials).
         // Re-fetch if credentials are within 5 minutes of expiry to avoid stale TURN creds on reconnect.
         const needsRefresh = !this._iceServers || Date.now() > this._iceServersExpiresAt - 5 * 60 * 1000;
@@ -413,13 +623,12 @@ export class CallManager {
             }
         }
 
-        // 2. Acquire local media
+        // 2. Acquire or reuse local media
+        let normalizedMediaOptions = this._normalizeMediaOptions(mediaOptions, this._callType);
         try {
-            if (this._callType === 'video') {
-                await this._media.acquireVideo();
-            } else {
-                await this._media.acquireAudio();
-            }
+            normalizedMediaOptions = await this._ensureLocalMediaForOptions(normalizedMediaOptions);
+            this._callType = normalizedMediaOptions.callType;
+            this._selectedSpeakerDeviceId = normalizedMediaOptions.speakerDeviceId;
         } catch (err) {
             console.warn('[CallManager] local media access failed', err);
             const message = _mediaAccessMessage(err, this._callType);
@@ -440,6 +649,9 @@ export class CallManager {
             partnerName,
             partnerAvatar: partner.avatar_url || '',
             localStream: this._media.getLocalStream(),
+            initialAudioMuted: normalizedMediaOptions.audioMuted,
+            initialVideoEnabled: normalizedMediaOptions.videoEnabled,
+            initialSpeakerDeviceId: normalizedMediaOptions.speakerDeviceId,
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
                 this._webrtc?.setAudioEnabled(!muted);
@@ -459,6 +671,8 @@ export class CallManager {
                     if (prepared?.track) {
                         await this._webrtc?.replaceVideoTrack(prepared.track);
                         this._media.commitPreparedVideoTrack(prepared.track, prepared);
+                        this._screenSharing = false;
+                        setCallScreenShareActive(false);
                     }
                 } catch (err) {
                     if (oldTrack) {
@@ -514,6 +728,8 @@ export class CallManager {
                     this._callType = 'video';
                     await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
                     this._media.commitPreparedVideoTrack(prepared.track, prepared);
+                    this._screenSharing = false;
+                    setCallScreenShareActive(false);
                     this._notifyMediaState();
                 } catch (err) {
                     if (oldTrack) {
@@ -527,6 +743,11 @@ export class CallManager {
                     showToast(message, 'error');
                 }
                 return { localStream: this._media.getLocalStream() };
+            },
+            onToggleScreenShare: async () => {
+                const result = await this._toggleScreenShare();
+                this._notifyMediaState();
+                return result;
             },
             onEnd: () => this.endCall(),
         });
@@ -550,6 +771,7 @@ export class CallManager {
 
             // polite = callee (acceptCall sets _isPolite=true), impolite = caller
             this._webrtc.init(this._media.getLocalStream(), { polite: this._isPolite });
+            this._notifyMediaState();
 
             // 5. Drain signals queued before _webrtc was ready
             await this._drainPendingSignals();
@@ -566,6 +788,8 @@ export class CallManager {
                 try {
                     await this._webrtc?.replaceVideoTrack(null);
                     this._media.disableVideo();
+                    this._screenSharing = false;
+                    setCallScreenShareActive(false);
                     return false;
                 } catch (err) {
                     console.warn('[CallManager] video disable failed', err);
@@ -574,6 +798,8 @@ export class CallManager {
             }
             this._media.toggleVideo();
             this._webrtc?.setVideoEnabled(true);
+            this._screenSharing = false;
+            setCallScreenShareActive(false);
             return true;
         }
 
@@ -584,6 +810,8 @@ export class CallManager {
             this._callType = 'video';
             await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
             this._media.commitPreparedVideoTrack(prepared.track, prepared);
+            this._screenSharing = false;
+            setCallScreenShareActive(false);
             return true;
         } catch (err) {
             try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
@@ -595,6 +823,43 @@ export class CallManager {
     }
 
     // ── ICE server config ────────────────────────────────────────────────────
+
+    async _toggleScreenShare() {
+        if (this._media.isScreenSharing()) {
+            try {
+                await this._webrtc?.replaceVideoTrack(null);
+                this._media.disableVideo();
+            } finally {
+                this._screenSharing = false;
+                setCallScreenShareActive(false);
+            }
+            return { enabled: false, localStream: this._media.getLocalStream() };
+        }
+
+        let prepared = null;
+        const oldTrack = this._media.getVideoTrack();
+        try {
+            prepared = await this._media.prepareDisplayMedia();
+            this._callType = 'video';
+            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+            this._media.commitPreparedVideoTrack(prepared.track, prepared);
+            this._screenSharing = true;
+            setCallScreenShareActive(true);
+            return { enabled: true, localStream: this._media.getLocalStream() };
+        } catch (err) {
+            if (oldTrack) {
+                try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+            } else {
+                try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
+            }
+            this._media.discardTrack(prepared?.track);
+            this._screenSharing = false;
+            setCallScreenShareActive(false);
+            console.warn('[CallManager] screen share failed', err);
+            setCallStatusText('Демонстрация экрана недоступна');
+            return { enabled: false, localStream: this._media.getLocalStream() };
+        }
+    }
 
     async _fetchIceServers() {
         const url = new URL(this._iceConfigUrl, window.location.origin);
@@ -668,8 +933,11 @@ export class CallManager {
             this._webrtc?.replaceVideoTrack(null)?.catch?.((err) => {
                 console.warn('[CallManager] video sender detach failed after track ended', err);
             });
+            const wasScreenSharing = this._screenSharing;
+            this._screenSharing = false;
+            setCallScreenShareActive(false);
             setLocalVideoEnabled(this._media.getLocalStream(), false);
-            setCallStatusText('Камера отключена');
+            setCallStatusText(wasScreenSharing ? 'Демонстрация экрана остановлена' : 'Камера отключена');
         }
         this._notifyMediaState();
     }
@@ -731,6 +999,7 @@ export class CallManager {
         if (this._ringTimeout)       { clearTimeout(this._ringTimeout);       this._ringTimeout = null; }
         if (this._disconnectTimeout) { clearTimeout(this._disconnectTimeout); this._disconnectTimeout = null; }
         stopRingtone();
+        removePreCallScreen();
         removeIncomingCallBanner();
         removeActiveCallOverlay();
         // Release remote tracks before closing peer connection
@@ -740,6 +1009,9 @@ export class CallManager {
         this._webrtc = null;
         this._media.release();
         this._pendingSignals = [];
+        this._pendingMediaOptions = null;
+        this._selectedSpeakerDeviceId = '';
+        this._screenSharing = false;
         this._iceRestarting = false;
         this._iceServers  = null;
         this._iceTransportPolicy = 'all';

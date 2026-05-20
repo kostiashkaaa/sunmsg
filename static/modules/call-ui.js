@@ -29,6 +29,9 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     const name = escapeHtml(rawName);
     const initial = (rawName || '?')[0].toUpperCase();
     const typeLabel = callType === 'video' ? 'звонит по видео...' : 'звонит вам...';
+    const canAnswerWithVideo = callType === 'video';
+    let answerAudioMuted = false;
+    let answerVideoEnabled = canAnswerWithVideo;
     const avatarHtml = caller.avatar_url
         ? `<img src="${escapeHtml(caller.avatar_url)}" class="call-ib__avatar-img" alt="">`
         : `<div class="call-ib__avatar-fallback">${escapeHtml(initial)}</div>`;
@@ -51,7 +54,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
             <div class="call-ib__avatar">${avatarHtml}</div>
         </div>
         <div class="call-ib__actions">
-            <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Микрофон">
+            <button class="call-ib__btn" type="button" data-call-answer-audio aria-label="Микрофон включён" aria-pressed="false">
                 <span class="call-ib__btn-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
@@ -62,7 +65,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
                 </span>
                 <span class="call-ib__btn-label">Звук</span>
             </button>
-            <button class="call-ib__btn call-ib__btn--muted" type="button" disabled aria-label="Камера">
+            <button class="call-ib__btn${canAnswerWithVideo ? '' : ' call-ib__btn--muted'}" type="button" data-call-answer-video aria-label="${canAnswerWithVideo ? 'Камера включена' : 'Камера недоступна'}" aria-pressed="${canAnswerWithVideo ? 'false' : 'true'}"${canAnswerWithVideo ? '' : ' disabled'}>
                 <span class="call-ib__btn-icon">
                     ${callType === 'video'
                         ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -104,10 +107,32 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     }));
     banner.querySelector('[data-call-accept]').addEventListener('click', () => {
         removeIncomingCallBanner();
-        onAccept(callId, callType);
+        onAccept(callId, callType, {
+            audioMuted: answerAudioMuted,
+            videoEnabled: answerVideoEnabled,
+        });
     });
     banner.querySelector('[data-call-fullscreen]')?.addEventListener('click', () => {
         _toggleElementFullscreen(banner);
+    });
+    banner.querySelector('[data-call-answer-audio]')?.addEventListener('click', (event) => {
+        const button = event.currentTarget;
+        answerAudioMuted = !answerAudioMuted;
+        button.classList.toggle('call-ib__btn--active', answerAudioMuted);
+        button.setAttribute('aria-pressed', String(answerAudioMuted));
+        button.setAttribute('aria-label', answerAudioMuted ? 'Ответить с выключенным микрофоном' : 'Микрофон включён');
+        const label = button.querySelector('.call-ib__btn-label');
+        if (label) label.textContent = answerAudioMuted ? 'Без звука' : 'Звук';
+    });
+    banner.querySelector('[data-call-answer-video]')?.addEventListener('click', (event) => {
+        if (!canAnswerWithVideo) return;
+        const button = event.currentTarget;
+        answerVideoEnabled = !answerVideoEnabled;
+        button.classList.toggle('call-ib__btn--active', !answerVideoEnabled);
+        button.setAttribute('aria-pressed', String(!answerVideoEnabled));
+        button.setAttribute('aria-label', answerVideoEnabled ? 'Ответить с камерой' : 'Ответить без видео');
+        const label = button.querySelector('.call-ib__btn-label');
+        if (label) label.textContent = answerVideoEnabled ? 'Камера' : 'Без видео';
     });
 
     document.body.appendChild(banner);
@@ -123,29 +148,352 @@ export function removeIncomingCallBanner() {
     }
 }
 
+// ── Pre-call setup ───────────────────────────────────────────────────────────
+
+export function showPreCallScreen({
+    callType = 'audio',
+    partnerName,
+    partnerAvatar,
+    onPrepare,
+    onToggleAudio,
+    onToggleVideo,
+    onSwitchCamera,
+    onListDevices,
+    onSelectMicrophone,
+    onSelectCamera,
+    onSelectSpeaker,
+    onStart,
+    onCancel,
+}) {
+    removePreCallScreen();
+
+    const name = escapeHtml(partnerName || 'Собеседник');
+    const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
+    const state = {
+        callType: callType === 'video' ? 'video' : 'audio',
+        audioMuted: false,
+        videoEnabled: callType === 'video',
+        speakerDeviceId: '',
+        busy: false,
+    };
+    let activeLocalStream = null;
+    const avatarHtml = partnerAvatar
+        ? `<img src="${escapeHtml(partnerAvatar)}" class="call-preflight__avatar-img" alt="">`
+        : `<span class="call-preflight__avatar-fallback">${initial}</span>`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'call-preflight';
+    overlay.className = `call-preflight call-preflight--${state.callType}`;
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Подготовка звонка');
+    overlay.innerHTML = `
+        <section class="call-preflight__card">
+            <div class="call-preflight__preview">
+                <video class="call-preflight__video" id="call-preflight-video" autoplay playsinline muted></video>
+                <div class="call-preflight__avatar">${avatarHtml}</div>
+                <div class="call-preflight__shade" aria-hidden="true"></div>
+                <div class="call-preflight__headline">
+                    <div class="call-preflight__name">${name}</div>
+                    <div class="call-preflight__status" data-precall-status>Подготовка...</div>
+                </div>
+            </div>
+
+            <div class="call-preflight__panel">
+                <div class="call-preflight__devices">
+                    <label class="call-device-field">
+                        <span>Микрофон</span>
+                        <select id="precall-select-microphone"></select>
+                    </label>
+                    <label class="call-device-field">
+                        <span>Камера</span>
+                        <select id="precall-select-camera"></select>
+                    </label>
+                    <label class="call-device-field">
+                        <span>Динамик</span>
+                        <select id="precall-select-speaker"></select>
+                    </label>
+                </div>
+
+                <div class="call-preflight__controls">
+                    <button class="call-ctrl" id="precall-btn-audio" type="button" aria-label="Микрофон включён" aria-pressed="false">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                                <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Звук</span>
+                    </button>
+                    <button class="call-ctrl" id="precall-btn-video" type="button" aria-label="Камера" aria-pressed="false">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/>
+                                <rect x="1" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Камера</span>
+                    </button>
+                    <button class="call-ctrl call-ctrl--switch-camera" id="precall-btn-switch-camera" type="button" aria-label="Сменить камеру">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 7h3l2-2h6l2 2h3v11H4z"/>
+                                <path d="M9 13a3 3 0 105.8-1"/>
+                                <path d="M15 10v3h3"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Сменить</span>
+                    </button>
+                </div>
+
+                <div class="call-preflight__actions">
+                    <button class="call-preflight__cancel" id="precall-cancel" type="button">Отмена</button>
+                    <button class="call-preflight__start" id="precall-start" type="button">
+                        <span>Начать</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    `;
+
+    const statusEl = overlay.querySelector('[data-precall-status]');
+    const videoEl = overlay.querySelector('#call-preflight-video');
+    const microphoneSelect = overlay.querySelector('#precall-select-microphone');
+    const cameraSelect = overlay.querySelector('#precall-select-camera');
+    const speakerSelect = overlay.querySelector('#precall-select-speaker');
+    const audioBtn = overlay.querySelector('#precall-btn-audio');
+    const videoBtn = overlay.querySelector('#precall-btn-video');
+    const switchCameraBtn = overlay.querySelector('#precall-btn-switch-camera');
+    const startBtn = overlay.querySelector('#precall-start');
+    const cancelBtn = overlay.querySelector('#precall-cancel');
+
+    const setStatus = (text) => {
+        if (statusEl) statusEl.textContent = String(text || '');
+    };
+    const setBusy = (busy) => {
+        state.busy = Boolean(busy);
+        overlay.classList.toggle('call-preflight--busy', state.busy);
+        [audioBtn, videoBtn, switchCameraBtn, startBtn, microphoneSelect, cameraSelect, speakerSelect]
+            .filter(Boolean)
+            .forEach((el) => { el.disabled = state.busy; });
+        if (speakerSelect && !_supportsAudioOutputSelection()) {
+            speakerSelect.disabled = true;
+        }
+    };
+    const syncAudioButton = () => {
+        audioBtn?.classList.toggle('call-ctrl--active', state.audioMuted);
+        audioBtn?.setAttribute('aria-pressed', String(state.audioMuted));
+        audioBtn?.setAttribute('aria-label', state.audioMuted ? 'Микрофон выключен' : 'Микрофон включён');
+        const label = audioBtn?.querySelector('.call-ctrl__label');
+        if (label) label.textContent = state.audioMuted ? 'Без звука' : 'Звук';
+    };
+    const syncVideoButton = () => {
+        videoBtn?.classList.toggle('call-ctrl--active', !state.videoEnabled);
+        videoBtn?.setAttribute('aria-pressed', String(!state.videoEnabled));
+        videoBtn?.setAttribute('aria-label', state.videoEnabled ? 'Камера включена' : 'Камера выключена');
+        const label = videoBtn?.querySelector('.call-ctrl__label');
+        if (label) label.textContent = state.videoEnabled ? 'Камера' : 'Без камеры';
+        switchCameraBtn?.classList.toggle('call-ctrl--hidden', !state.videoEnabled);
+        overlay.classList.toggle('call-preflight--video-on', state.videoEnabled);
+        overlay.classList.toggle('call-preflight--video-off', !state.videoEnabled);
+    };
+    const syncPreview = (stream = activeLocalStream) => {
+        activeLocalStream = stream || activeLocalStream;
+        const hasVideo = Boolean(state.videoEnabled && activeLocalStream?.getVideoTracks?.().length);
+        overlay.classList.toggle('call-preflight--has-video', hasVideo);
+        if (videoEl) {
+            videoEl.srcObject = hasVideo ? activeLocalStream : null;
+            if (hasVideo) _playMedia(videoEl);
+        }
+        syncVideoButton();
+        syncAudioButton();
+    };
+    const refreshDevices = async () => {
+        let devices = {};
+        try {
+            devices = typeof onListDevices === 'function' ? await onListDevices() : {};
+        } catch (err) {
+            console.warn('[CallUI] pre-call device list failed', err);
+        }
+        _syncDeviceSelect(microphoneSelect, devices.audioInputs || [], devices.selected?.audioInputId || '', 'Микрофон по умолчанию');
+        _syncDeviceSelect(cameraSelect, devices.videoInputs || [], devices.selected?.videoInputId || '', 'Камера по умолчанию');
+        _syncDeviceSelect(speakerSelect, devices.audioOutputs || [], state.speakerDeviceId, 'Системный вывод');
+        if (speakerSelect && !_supportsAudioOutputSelection()) {
+            speakerSelect.disabled = true;
+        }
+    };
+
+    audioBtn?.addEventListener('click', async () => {
+        setBusy(true);
+        try {
+            const muted = await onToggleAudio?.();
+            state.audioMuted = Boolean(muted);
+            setStatus(state.audioMuted ? 'Микрофон будет выключен' : 'Микрофон включён');
+        } finally {
+            setBusy(false);
+            syncAudioButton();
+        }
+    });
+    videoBtn?.addEventListener('click', async () => {
+        setBusy(true);
+        try {
+            const result = await onToggleVideo?.(!state.videoEnabled);
+            state.videoEnabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
+            state.callType = state.callType === 'video' || state.videoEnabled ? 'video' : 'audio';
+            if (result?.localStream) activeLocalStream = result.localStream;
+            setStatus(state.videoEnabled ? 'Камера включена' : 'Камера будет выключена');
+        } finally {
+            setBusy(false);
+            syncPreview(activeLocalStream);
+            await refreshDevices();
+        }
+    });
+    switchCameraBtn?.addEventListener('click', async () => {
+        if (!state.videoEnabled) return;
+        setBusy(true);
+        try {
+            const result = await onSwitchCamera?.();
+            if (result?.localStream) activeLocalStream = result.localStream;
+            setStatus('Камера переключена');
+        } catch (err) {
+            console.warn('[CallUI] pre-call camera switch failed', err);
+            setStatus('Камера недоступна');
+        } finally {
+            setBusy(false);
+            syncPreview(activeLocalStream);
+            await refreshDevices();
+        }
+    });
+    microphoneSelect?.addEventListener('change', async () => {
+        setBusy(true);
+        try {
+            const result = await onSelectMicrophone?.(microphoneSelect.value);
+            if (result?.localStream) activeLocalStream = result.localStream;
+            setStatus('Микрофон выбран');
+        } finally {
+            setBusy(false);
+            await refreshDevices();
+        }
+    });
+    cameraSelect?.addEventListener('change', async () => {
+        setBusy(true);
+        try {
+            const result = await onSelectCamera?.(cameraSelect.value);
+            state.videoEnabled = Boolean(result?.enabled ?? true);
+            state.callType = 'video';
+            if (result?.localStream) activeLocalStream = result.localStream;
+            setStatus('Камера выбрана');
+        } finally {
+            setBusy(false);
+            syncPreview(activeLocalStream);
+            await refreshDevices();
+        }
+    });
+    speakerSelect?.addEventListener('change', async () => {
+        state.speakerDeviceId = String(speakerSelect.value || '');
+        await onSelectSpeaker?.(state.speakerDeviceId);
+    });
+    cancelBtn?.addEventListener('click', () => {
+        removePreCallScreen();
+        onCancel?.();
+    });
+    startBtn?.addEventListener('click', () => {
+        removePreCallScreen();
+        onStart?.({
+            callType: state.callType,
+            audioMuted: state.audioMuted,
+            videoEnabled: state.videoEnabled,
+            speakerDeviceId: state.speakerDeviceId,
+        });
+    });
+    overlay.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        removePreCallScreen();
+        onCancel?.();
+    });
+
+    document.body.appendChild(overlay);
+    applyFallbackAvatarTint(overlay.querySelector('.call-preflight__avatar'), partnerName);
+    syncAudioButton();
+    syncVideoButton();
+    requestAnimationFrame(() => {
+        overlay.classList.add('call-preflight--visible');
+        startBtn?.focus?.({ preventScroll: true });
+    });
+
+    (async () => {
+        setBusy(true);
+        try {
+            const prepared = await onPrepare?.({
+                callType: state.callType,
+                audioMuted: state.audioMuted,
+                videoEnabled: state.videoEnabled,
+            });
+            if (prepared?.localStream) activeLocalStream = prepared.localStream;
+            if (Object.prototype.hasOwnProperty.call(prepared || {}, 'audioMuted')) {
+                state.audioMuted = Boolean(prepared.audioMuted);
+            }
+            if (Object.prototype.hasOwnProperty.call(prepared || {}, 'videoEnabled')) {
+                state.videoEnabled = Boolean(prepared.videoEnabled);
+            }
+            if (prepared?.callType) {
+                state.callType = prepared.callType === 'video' ? 'video' : 'audio';
+            }
+            setStatus(state.videoEnabled ? 'Проверьте камеру и звук' : 'Проверьте микрофон');
+        } catch (err) {
+            console.warn('[CallUI] pre-call media preparation failed', err);
+            setStatus('Нет доступа к устройствам');
+        } finally {
+            setBusy(false);
+            syncPreview(activeLocalStream);
+            await refreshDevices();
+        }
+    })();
+}
+
+export function removePreCallScreen() {
+    const el = document.getElementById('call-preflight');
+    if (!el) return;
+    el.classList.remove('call-preflight--visible');
+    window.setTimeout(() => el.remove(), 180);
+}
+
 // ── Active call overlay ──────────────────────────────────────────────────────
 
 export function showActiveCallOverlay({
     callId, callType, partnerName, partnerAvatar, localStream,
     onToggleAudio, onToggleVideo, onSwitchCamera, onSelectMicrophone, onSelectCamera,
-    onListDevices, onEnd, callRole = 'participant',
+    onListDevices, onEnd, onToggleScreenShare,
+    callRole = 'participant', mode = 'active',
+    initialAudioMuted = false, initialVideoEnabled = null, initialSpeakerDeviceId = '',
 }) {
     removeActiveCallOverlay({ immediate: true });
 
     const name = escapeHtml(partnerName || 'Собеседник');
     const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
     const isVideo = callType === 'video';
+    const isRinging = mode === 'ringing';
+    const endActionLabel = isRinging ? '\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C' : '\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C';
     const isMobile = _isMobileCallUi();
     const supportsSpeakerToggle = isMobile && _supportsAudioOutputSelection();
+    const supportsScreenShare = !isMobile
+        && typeof navigator !== 'undefined'
+        && typeof navigator.mediaDevices?.getDisplayMedia === 'function'
+        && typeof onToggleScreenShare === 'function';
     const safeRole = callRole === 'caller' || callRole === 'callee' ? callRole : 'participant';
     let activeLocalStream = localStream || null;
+    let localAudioMuted = Boolean(initialAudioMuted);
+    let localVideoEnabled = initialVideoEnabled == null ? isVideo : Boolean(initialVideoEnabled);
     const avatarHtml = partnerAvatar
         ? `<img src="${escapeHtml(partnerAvatar)}" class="call-card__avatar-img" alt="">`
         : `<span class="call-card__avatar-fallback">${initial}</span>`;
 
     const overlay = document.createElement('div');
     overlay.id = 'call-active-overlay';
-    overlay.className = `call-overlay call-overlay--${safeRole}${isVideo ? ' call-overlay--video-active' : ' call-overlay--audio-only'}`;
+    overlay.className = `call-overlay call-overlay--${safeRole}${isRinging ? ' call-overlay--ringing' : ''}${isVideo ? ' call-overlay--video-active' : ' call-overlay--audio-only'}`;
     overlay.innerHTML = `
         <div class="call-topbar" id="call-topbar">
             <div class="call-topbar__state">
@@ -156,10 +504,36 @@ export function showActiveCallOverlay({
                     <line x1="8" y1="23" x2="16" y2="23"/>
                 </svg>
                 <span data-call-status>Соединение...</span>
+                <span class="call-topbar__duration" data-call-duration hidden>00:00</span>
             </div>
             <div class="call-topbar__name">${name}</div>
-            <button class="call-topbar__end" type="button" aria-label="Завершить звонок">
+            <button class="call-topbar__end" type="button" aria-label="${escapeHtml(endActionLabel)}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6.54 5c.06.89.21 1.76.45 2.59l-1.2 1.2c-.41-1.2-.67-2.47-.76-3.79h1.51m9.86 12.02c.85.24 1.72.39 2.6.45v1.49c-1.32-.09-2.59-.35-3.8-.75l1.2-1.19M7.5 3H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.49c0-.55-.45-1-1-1-1.24 0-2.45-.2-3.57-.57a.84.84 0 00-.31-.05c-.26 0-.51.1-.71.29l-2.2 2.2a15.149 15.149 0 01-6.59-6.59l2.2-2.2c.28-.28.36-.67.25-1.02A11.36 11.36 0 018.5 4c0-.55-.45-1-1-1z" fill="currentColor"/>
+                    <line x1="20" y1="4" x2="4" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="call-mini" id="call-mini" role="button" tabindex="0" aria-label="Вернуться к звонку">
+            <span class="call-mini__avatar">${avatarHtml}</span>
+            <span class="call-mini__meta">
+                <span class="call-mini__name">${name}</span>
+                <span class="call-mini__sub">
+                    <span data-call-status>Соединение...</span>
+                    <span data-call-duration hidden>00:00</span>
+                </span>
+            </span>
+            <button class="call-mini__mute" id="call-mini-mute" type="button" aria-label="Микрофон включён" aria-pressed="false">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+            </button>
+            <button class="call-mini__end" id="call-mini-end" type="button" aria-label="${escapeHtml(endActionLabel)}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M6.54 5c.06.89.21 1.76.45 2.59l-1.2 1.2c-.41-1.2-.67-2.47-.76-3.79h1.51m9.86 12.02c.85.24 1.72.39 2.6.45v1.49c-1.32-.09-2.59-.35-3.8-.75l1.2-1.19M7.5 3H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.49c0-.55-.45-1-1-1-1.24 0-2.45-.2-3.57-.57a.84.84 0 00-.31-.05c-.26 0-.51.1-.71.29l-2.2 2.2a15.149 15.149 0 01-6.59-6.59l2.2-2.2c.28-.28.36-.67.25-1.02A11.36 11.36 0 018.5 4c0-.55-.45-1-1-1z" fill="currentColor"/>
                     <line x1="20" y1="4" x2="4" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
                 </svg>
@@ -241,6 +615,16 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Сменить</span>
                     </button>
+                    <button class="call-ctrl call-ctrl--screen" id="call-btn-screen" aria-label="Демонстрация экрана" aria-pressed="false">
+                        <span class="call-ctrl__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="12" rx="2"/>
+                                <path d="M8 20h8"/>
+                                <path d="M12 16v4"/>
+                            </svg>
+                        </span>
+                        <span class="call-ctrl__label">Экран</span>
+                    </button>
                     <button class="call-ctrl" id="call-btn-audio" aria-label="Микрофон">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -275,14 +659,14 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Динамик</span>
                     </button>
-                    <button class="call-ctrl call-ctrl--end" id="call-btn-end" aria-label="Завершить">
+                    <button class="call-ctrl call-ctrl--end" id="call-btn-end" aria-label="${escapeHtml(endActionLabel)}">
                         <span class="call-ctrl__icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M6.54 5c.06.89.21 1.76.45 2.59l-1.2 1.2c-.41-1.2-.67-2.47-.76-3.79h1.51m9.86 12.02c.85.24 1.72.39 2.6.45v1.49c-1.32-.09-2.59-.35-3.8-.75l1.2-1.19M7.5 3H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.49c0-.55-.45-1-1-1-1.24 0-2.45-.2-3.57-.57a.84.84 0 00-.31-.05c-.26 0-.51.1-.71.29l-2.2 2.2a15.149 15.149 0 01-6.59-6.59l2.2-2.2c.28-.28.36-.67.25-1.02A11.36 11.36 0 018.5 4c0-.55-.45-1-1-1z" fill="white"/>
                                 <line x1="20" y1="4" x2="4" y2="20" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
                             </svg>
                         </span>
-                        <span class="call-ctrl__label">Завершить</span>
+                        <span class="call-ctrl__label">${escapeHtml(endActionLabel)}</span>
                     </button>
                 </div>
             </div>
@@ -291,13 +675,49 @@ export function showActiveCallOverlay({
 
     document.body.appendChild(overlay);
     applyFallbackAvatarTint(overlay.querySelector('.call-card__avatar'), partnerName);
+    applyFallbackAvatarTint(overlay.querySelector('.call-mini__avatar'), partnerName);
     requestAnimationFrame(() => {
         if (!overlay.isConnected) return;
         overlay.classList.add('call-overlay--visible');
-        _setCallTopbarActive(true, overlay);
+        _setCallTopbarActive(!isRinging, overlay);
     });
 
-    _syncLocalVideo(overlay, activeLocalStream, isVideo);
+    const syncAudioControlState = (muted) => {
+        localAudioMuted = Boolean(muted);
+        const btn = overlay.querySelector('#call-btn-audio');
+        btn?.setAttribute('aria-pressed', String(localAudioMuted));
+        btn?.setAttribute('aria-label', localAudioMuted ? 'Микрофон выключен' : 'Микрофон включён');
+        btn?.classList.toggle('call-ctrl--active', localAudioMuted);
+        const label = btn?.querySelector('.call-ctrl__label');
+        if (label) label.textContent = localAudioMuted ? 'Без звука' : 'Звук';
+        const miniBtn = overlay.querySelector('#call-mini-mute');
+        miniBtn?.setAttribute('aria-pressed', String(localAudioMuted));
+        miniBtn?.setAttribute('aria-label', localAudioMuted ? 'Микрофон выключен' : 'Микрофон включён');
+        miniBtn?.classList.toggle('call-mini__mute--active', localAudioMuted);
+    };
+    const syncVideoControlState = (enabled) => {
+        localVideoEnabled = Boolean(enabled);
+        const btn = overlay.querySelector('#call-btn-video');
+        btn?.setAttribute('aria-pressed', String(!localVideoEnabled));
+        btn?.setAttribute('aria-label', localVideoEnabled ? 'Камера включена' : 'Камера выключена');
+        btn?.classList.toggle('call-ctrl--active', !localVideoEnabled);
+        const label = btn?.querySelector('.call-ctrl__label');
+        if (label) label.textContent = localVideoEnabled ? 'Камера' : 'Без камеры';
+        if (!localVideoEnabled) overlay.classList.remove('call-overlay--self-view-primary');
+    };
+    const syncScreenShareState = (enabled) => {
+        const btn = overlay.querySelector('#call-btn-screen');
+        btn?.setAttribute('aria-pressed', String(Boolean(enabled)));
+        btn?.setAttribute('aria-label', enabled ? 'Остановить демонстрацию экрана' : 'Демонстрация экрана');
+        btn?.classList.toggle('call-ctrl--active-positive', Boolean(enabled));
+        const label = btn?.querySelector('.call-ctrl__label');
+        if (label) label.textContent = enabled ? 'Стоп' : 'Экран';
+        overlay.classList.toggle('call-overlay--screen-sharing', Boolean(enabled));
+    };
+
+    syncAudioControlState(localAudioMuted);
+    syncVideoControlState(localVideoEnabled);
+    _syncLocalVideo(overlay, activeLocalStream, localVideoEnabled && !isRinging);
     _bindCallInfoVisibility(overlay);
     if (!isMobile) {
         const card = overlay.querySelector('#call-card');
@@ -311,13 +731,28 @@ export function showActiveCallOverlay({
         overlay.querySelector('#call-fullscreen-btn')?.remove();
     }
 
+    const screenBtn = overlay.querySelector('#call-btn-screen');
+    if (!supportsScreenShare) {
+        screenBtn?.remove();
+    } else {
+        screenBtn?.addEventListener('click', async () => {
+            screenBtn.disabled = true;
+            try {
+                const result = await onToggleScreenShare?.();
+                const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
+                if (result?.localStream) activeLocalStream = result.localStream;
+                syncScreenShareState(enabled);
+                syncVideoControlState(Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled)));
+                _syncLocalVideo(overlay, activeLocalStream, enabled || localVideoEnabled);
+            } finally {
+                screenBtn.disabled = false;
+            }
+        });
+    }
+
     overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
         const muted = onToggleAudio();
-        const btn = overlay.querySelector('#call-btn-audio');
-        btn.setAttribute('aria-pressed', String(muted));
-        btn.setAttribute('aria-label', muted ? 'Микрофон выключен' : 'Микрофон включён');
-        btn.classList.toggle('call-ctrl--active', muted);
-        btn.querySelector('.call-ctrl__label').textContent = muted ? 'Без звука' : 'Звук';
+        syncAudioControlState(muted);
     });
 
     overlay.querySelector('#call-btn-video').addEventListener('click', async () => {
@@ -325,12 +760,8 @@ export function showActiveCallOverlay({
         const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
         const stream = typeof result === 'object' ? result?.localStream : activeLocalStream;
         activeLocalStream = stream || activeLocalStream;
-        const btn = overlay.querySelector('#call-btn-video');
-        btn.setAttribute('aria-pressed', String(!enabled));
-        btn.setAttribute('aria-label', enabled ? 'Камера включена' : 'Камера выключена');
-        btn.classList.toggle('call-ctrl--active', !enabled);
-        btn.querySelector('.call-ctrl__label').textContent = enabled ? 'Камера' : 'Без камеры';
-        if (!enabled) overlay.classList.remove('call-overlay--self-view-primary');
+        syncScreenShareState(false);
+        syncVideoControlState(enabled);
         _syncLocalVideo(overlay, activeLocalStream, enabled);
     });
 
@@ -341,6 +772,8 @@ export function showActiveCallOverlay({
             const result = await onSwitchCamera();
             if (result?.localStream) activeLocalStream = result.localStream;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
+            syncScreenShareState(false);
+            syncVideoControlState(enabled);
             _syncLocalVideo(overlay, activeLocalStream, enabled);
         } finally {
             btn.disabled = false;
@@ -400,6 +833,8 @@ export function showActiveCallOverlay({
             const result = await onSelectCamera?.(cameraSelect.value);
             if (result?.localStream) activeLocalStream = result.localStream;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
+            syncScreenShareState(false);
+            syncVideoControlState(enabled);
             _syncLocalVideo(overlay, activeLocalStream, enabled);
             await refreshDevicePanel();
         } catch (err) {
@@ -417,6 +852,9 @@ export function showActiveCallOverlay({
             speakerSelect.disabled = false;
         }
     });
+    if (initialSpeakerDeviceId && _supportsAudioOutputSelection()) {
+        void _selectAudioOutputById(overlay.querySelector('#call-remote-audio'), initialSpeakerDeviceId);
+    }
 
     const toggleViewSwap = (event) => {
         if (event?.target?.closest?.('button')) return;
@@ -450,16 +888,52 @@ export function showActiveCallOverlay({
 
     overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
     overlay.querySelector('.call-topbar__end').addEventListener('click', () => onEnd(callId));
+    overlay.querySelector('#call-mini-end')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onEnd(callId);
+    });
+    overlay.querySelector('#call-mini-mute')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const muted = onToggleAudio();
+        syncAudioControlState(muted);
+    });
+    overlay.querySelector('#call-mini')?.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        _restoreCallOverlay(overlay);
+    });
+    overlay.querySelector('#call-mini')?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        _restoreCallOverlay(overlay);
+    });
     overlay.querySelector('#call-minimize-btn')?.addEventListener('click', (event) => {
         event.stopPropagation();
-        overlay.classList.add('call-overlay--minimized');
-        _setCallMobileTopbarReserve(true, overlay);
+        _minimizeCallOverlay(overlay);
     });
     overlay.querySelector('#call-topbar')?.addEventListener('click', (event) => {
         if (event.target.closest('.call-topbar__end')) return;
-        overlay.classList.remove('call-overlay--minimized');
-        _setCallMobileTopbarReserve(false, overlay);
+        _restoreCallOverlay(overlay);
     });
+}
+
+export function minimizeActiveCallOverlay() {
+    _minimizeCallOverlay(_currentOverlay());
+}
+
+export function restoreActiveCallOverlay() {
+    _restoreCallOverlay(_currentOverlay());
+}
+
+export function setCallScreenShareActive(enabled) {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    const btn = overlay.querySelector('#call-btn-screen');
+    btn?.setAttribute('aria-pressed', String(Boolean(enabled)));
+    btn?.setAttribute('aria-label', enabled ? 'Остановить демонстрацию экрана' : 'Демонстрация экрана');
+    btn?.classList.toggle('call-ctrl--active-positive', Boolean(enabled));
+    const label = btn?.querySelector('.call-ctrl__label');
+    if (label) label.textContent = enabled ? 'Стоп' : 'Экран';
+    overlay.classList.toggle('call-overlay--screen-sharing', Boolean(enabled));
 }
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
@@ -656,6 +1130,27 @@ export function removeRemoteTrack(kind) {
 function _currentOverlay() {
     const overlays = document.querySelectorAll('#call-active-overlay');
     return overlays[overlays.length - 1] || null;
+}
+
+function _minimizeCallOverlay(overlay) {
+    if (!overlay) return;
+    if (_isMobileCallUi()) {
+        overlay.classList.add('call-overlay--minimized');
+        overlay.classList.remove('call-overlay--desktop-minimized');
+        _setCallMobileTopbarReserve(true, overlay);
+        return;
+    }
+    overlay.classList.add('call-overlay--desktop-minimized');
+    overlay.classList.remove('call-overlay--minimized');
+    _setCallMobileTopbarReserve(false, overlay);
+    _setCallTopbarActive(false, overlay);
+}
+
+function _restoreCallOverlay(overlay) {
+    if (!overlay) return;
+    overlay.classList.remove('call-overlay--minimized', 'call-overlay--desktop-minimized');
+    _setCallMobileTopbarReserve(false, overlay);
+    _setCallTopbarActive(!_isMobileCallUi() && !overlay.classList.contains('call-overlay--ringing'), overlay);
 }
 
 function _clearCallInfoVisibilityTimer() {

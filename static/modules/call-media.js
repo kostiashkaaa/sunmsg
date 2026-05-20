@@ -13,6 +13,7 @@ export class CallMedia {
         this._audioDeviceId = '';
         this._videoDeviceId = '';
         this._videoFacingMode = 'user';
+        this._videoSource = 'camera';
         this._trackHandlers = {};
         this._boundTracks = new WeakSet();
     }
@@ -34,6 +35,7 @@ export class CallMedia {
         this._bindTrackLifecycle(this._audioTrack);
         this._audioMuted = false;
         this._videoEnabled = false;
+        this._videoSource = 'camera';
         return stream;
     }
 
@@ -52,6 +54,7 @@ export class CallMedia {
         this._bindTrackLifecycle(this._videoTrack);
         this._audioMuted = false;
         this._videoEnabled = Boolean(this._videoTrack);
+        this._videoSource = 'camera';
         return stream;
     }
 
@@ -60,15 +63,22 @@ export class CallMedia {
     getLocalStream() { return this._localStream; }
     isAudioMuted() { return this._audioMuted; }
     isVideoEnabled() { return this._videoEnabled; }
+    isScreenSharing() { return this._videoSource === 'screen'; }
+    getVideoSource() { return this._videoSource; }
     getVideoFacingMode() { return this._videoFacingMode; }
     getAudioDeviceId() { return this._audioDeviceId; }
     getVideoDeviceId() { return this._videoDeviceId; }
 
-    toggleAudio() {
-        if (!this._audioTrack) return this._audioMuted;
-        this._audioMuted = !this._audioMuted;
-        this._audioTrack.enabled = !this._audioMuted;
+    setAudioMuted(muted) {
+        this._audioMuted = Boolean(muted);
+        if (this._audioTrack) {
+            this._audioTrack.enabled = !this._audioMuted;
+        }
         return this._audioMuted;
+    }
+
+    toggleAudio() {
+        return this.setAudioMuted(!this._audioMuted);
     }
 
     toggleVideo() {
@@ -96,6 +106,7 @@ export class CallMedia {
         const oldTrack = this._videoTrack;
         this._videoTrack = null;
         this._videoEnabled = false;
+        this._videoSource = 'camera';
         if (oldTrack && this._localStream) {
             this._localStream.removeTrack(oldTrack);
         }
@@ -140,15 +151,35 @@ export class CallMedia {
         const track = await this._newVideoTrack(
             this._videoConstraints({ deviceId: nextDeviceId, allowStoredDevice: false }),
         );
-        return { track, deviceId: nextDeviceId, facingMode: '' };
+        return { track, deviceId: nextDeviceId, facingMode: '', source: 'camera' };
     }
 
-    commitPreparedVideoTrack(track, { deviceId = '', facingMode = '' } = {}) {
+    async prepareDisplayMedia() {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+            const err = new Error('Screen sharing is not supported');
+            err.name = 'NotSupportedError';
+            throw err;
+        }
+        const newStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                frameRate: { ideal: 15, max: 24 },
+            },
+            audio: false,
+        });
+        const track = newStream.getVideoTracks()[0] || null;
+        newStream.getTracks().filter(t => t !== track).forEach(t => t.stop());
+        if (!track) throw new Error('No screen share track');
+        try { track.contentHint = 'detail'; } catch (_) { /* optional browser hint */ }
+        return { track, deviceId: 'screen', facingMode: 'screen', source: 'screen' };
+    }
+
+    commitPreparedVideoTrack(track, { deviceId = '', facingMode = '', source = 'camera' } = {}) {
         if (!track) throw new Error('No replacement video track');
         const oldTrack = this._videoTrack;
         this._videoTrack = track;
         this._videoDeviceId = String(deviceId || '');
         this._videoEnabled = true;
+        this._videoSource = source === 'screen' ? 'screen' : 'camera';
         this._ensureLocalStream();
         this._localStream.getVideoTracks().forEach(t => this._localStream.removeTrack(t));
         this._localStream.addTrack(track);
@@ -207,6 +238,7 @@ export class CallMedia {
                         track,
                         deviceId: next.deviceId,
                         facingMode: this._inferFacingMode(next, nextFacing),
+                        source: 'camera',
                     };
                 }
             }
@@ -219,7 +251,7 @@ export class CallMedia {
                 const track = await this._newVideoTrack(
                     this._videoConstraints({ facingMode: exact }),
                 );
-                return { track, deviceId: '', facingMode: exact };
+                return { track, deviceId: '', facingMode: exact, source: 'camera' };
             } catch (err) {
                 lastError = err;
             }
@@ -244,6 +276,7 @@ export class CallMedia {
         this._audioDeviceId = '';
         this._videoDeviceId = '';
         this._videoFacingMode = 'user';
+        this._videoSource = 'camera';
     }
 
     async _newAudioTrack(audioConstraints) {
@@ -278,6 +311,7 @@ export class CallMedia {
         } else if (track.kind === 'video' && track === this._videoTrack) {
             this._videoTrack = null;
             this._videoEnabled = false;
+            this._videoSource = 'camera';
             this._localStream?.removeTrack(track);
         }
         this._trackHandlers.onEnded?.(track.kind, track);

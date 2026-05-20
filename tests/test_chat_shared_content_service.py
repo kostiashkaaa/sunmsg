@@ -108,6 +108,7 @@ def test_direct_shared_content_candidates_filter_types_and_soft_delete(tmp_path)
                 (4, 1, 2, 'photo-4', 'photo', '2026-05-01T10:03:00Z', 0, 0),
                 (5, 2, 1, 'link-5-hidden', 'link', '2026-05-01T10:04:00Z', 0, 1),
                 (6, 1, 2, 'video-6', 'video', '2026-05-01T10:05:00Z', 0, 0),
+                (7, 1, 2, '{"__suncall":true,"call_type":"audio","status":"ended"}', 'call', '2026-05-01T10:06:00Z', 0, 0),
             ],
         )
         conn.commit()
@@ -124,7 +125,7 @@ def test_direct_shared_content_candidates_filter_types_and_soft_delete(tmp_path)
 
         assert result['status'] == 'ok'
         messages = result['payload']['messages']
-        assert [row['id'] for row in messages] == [6, 4, 3, 1]
+        assert [row['id'] for row in messages] == [7, 6, 4, 3, 1]
         assert all(row['message_type'] != 'text' for row in messages)
 
         links = load_shared_content_candidates(
@@ -138,6 +139,17 @@ def test_direct_shared_content_candidates_filter_types_and_soft_delete(tmp_path)
         )['payload']['messages']
         assert [row['id'] for row in links] == [1]
 
+        calls = load_shared_content_candidates(
+            conn,
+            user_id=1,
+            chat_id='chat-a',
+            content_type='calls',
+            limit=10,
+            before_id=None,
+            get_chat_partner_func=get_chat_partner,
+        )['payload']['messages']
+        assert [row['id'] for row in calls] == [7]
+
         first_page = load_shared_content_candidates(
             conn,
             user_id=1,
@@ -147,9 +159,9 @@ def test_direct_shared_content_candidates_filter_types_and_soft_delete(tmp_path)
             before_id=None,
             get_chat_partner_func=get_chat_partner,
         )['payload']
-        assert [row['id'] for row in first_page['messages']] == [6, 4]
+        assert [row['id'] for row in first_page['messages']] == [7, 6]
         assert first_page['has_more_before'] is True
-        assert first_page['next_before_id'] == 4
+        assert first_page['next_before_id'] == 6
 
         second_page = load_shared_content_candidates(
             conn,
@@ -160,7 +172,7 @@ def test_direct_shared_content_candidates_filter_types_and_soft_delete(tmp_path)
             before_id=first_page['next_before_id'],
             get_chat_partner_func=get_chat_partner,
         )['payload']
-        assert [row['id'] for row in second_page['messages']] == [3, 1]
+        assert [row['id'] for row in second_page['messages']] == [4, 3]
 
 
 def test_group_shared_content_candidates_respect_deleted_receipts(tmp_path):

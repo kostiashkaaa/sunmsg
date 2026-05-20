@@ -145,6 +145,37 @@ def test_profile_media_grid_no_longer_writes_payload_data_directly_to_src():
     assert '<video src="${escapeHtml(url)}"' not in source
 
 
+def test_profile_media_collects_call_messages_into_calls_tab():
+    harness_body = """
+const media = moduleApi.collectMediaFromMessages([
+  {
+    id: 41,
+    message: '{"__suncall":true,"version":1,"call_type":"video","status":"ended","duration_sec":25}',
+    message_type: 'call',
+    created_at: '2026-05-01T10:00:00Z',
+  },
+  {
+    id: 40,
+    message: 'plain text',
+    message_type: 'text',
+    created_at: '2026-05-01T09:59:00Z',
+  },
+]);
+
+if (media.calls.length !== 1) {
+  throw new Error(`expected one call entry, got ${JSON.stringify(media)}`);
+}
+if (media.calls[0].msgId !== 41 || media.calls[0].payload.call_type !== 'video') {
+  throw new Error(`unexpected call entry ${JSON.stringify(media.calls[0])}`);
+}
+if (media.links.length || media.files.length || media.media.length) {
+  throw new Error(`call payload leaked into another tab ${JSON.stringify(media)}`);
+}
+"""
+    result = _run_profile_media_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_profile_lightbox_proxy_uses_resolved_media_source():
     source = (ROOT / 'static' / 'modules' / 'chat-profile-media-panel.js').read_text(encoding='utf-8')
 

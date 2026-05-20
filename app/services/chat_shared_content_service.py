@@ -5,11 +5,12 @@ from app.services.user import get_safe_avatar_url
 
 
 SHARED_CONTENT_TYPES = {
-    'all': ('photo', 'video', 'audio', 'voice', 'file', 'link'),
+    'all': ('photo', 'video', 'audio', 'voice', 'file', 'link', 'call'),
     'media': ('photo', 'video'),
     'files': ('file',),
     'audio': ('audio',),
     'voices': ('voice',),
+    'calls': ('call',),
     'links': ('link',),
 }
 

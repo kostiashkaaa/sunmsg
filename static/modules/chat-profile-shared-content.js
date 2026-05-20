@@ -1,10 +1,10 @@
 import { collectMediaFromMessages } from './profile-media.js';
 
 const DEFAULT_PAGE_LIMIT = 80;
-const COLLECTION_KEYS = ['media', 'files', 'audio', 'voices', 'links'];
+const COLLECTION_KEYS = ['media', 'files', 'audio', 'voices', 'calls', 'links'];
 
 function createEmptyCollections() {
-    return { media: [], files: [], audio: [], voices: [], links: [] };
+    return { media: [], files: [], audio: [], voices: [], calls: [], links: [] };
 }
 
 function normalizeMessageId(value) {

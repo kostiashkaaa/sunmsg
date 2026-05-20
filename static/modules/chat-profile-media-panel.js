@@ -2,7 +2,7 @@ import { collectMediaFromMessages, renderMediaTabs, resolveProfileMediaSource } 
 import { createProfileSharedContentIndex, mergeMediaCollections } from './chat-profile-shared-content.js';
 
 function createEmptyMediaCollections() {
-    return { media: [], files: [], audio: [], voices: [], links: [] };
+    return { media: [], files: [], audio: [], voices: [], calls: [], links: [] };
 }
 
 export function createProfileMediaPanelController({
@@ -129,6 +129,21 @@ export function createProfileMediaPanelController({
             if (action === 'jump') {
                 jumpToProfileMessage(entry.msgId);
             }
+            return;
+        }
+
+        if (kind === 'call') {
+            if (action === 'call') {
+                closePartnerProfileDrawer();
+                document.dispatchEvent(new CustomEvent('sun:call-message-start', {
+                    detail: {
+                        callType: String(entry.payload?.call_type || '').trim() === 'video' ? 'video' : 'audio',
+                    },
+                    bubbles: true,
+                }));
+                return;
+            }
+            jumpToProfileMessage(entry.msgId);
             return;
         }
 
