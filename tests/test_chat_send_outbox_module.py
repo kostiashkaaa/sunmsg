@@ -302,6 +302,67 @@ if (!calls.some((call) => call[0] === 'append')) {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_file_send_rejects_oversized_files_before_client_side_optimization():
+    module_path = ROOT / 'static' / 'modules' / 'chat-file-send.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-media-upload\\.js';/,
+  `const detectFileCategory = () => 'image';
+const getMessageTypeByCategory = () => 'photo';
+let optimizeCalls = 0;
+const optimizeFileForAttachMode = async () => {{ optimizeCalls += 1; throw new Error('optimize should not run'); }};
+const uploadChatMedia = async () => {{}};
+const isUploadAbortedError = () => false;
+const probeAudioDurationSeconds = async () => null;
+const buildAudioWaveformPeaks = async () => null;
+const probeVisualMediaMetadata = async () => null;
+globalThis.__optimizeCalls = () => optimizeCalls;`,
+);
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-media-e2ee\\.js';/,
+  `const appendEncryptedMediaFragment = (url) => url;
+const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: null }});`,
+);
+source = source.replace(
+  "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
+  "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ generateRequestId }} from './utils.js';",
+  "const generateRequestId = () => 'client-oversized';",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ sendFileMessageFlow }} = await import(moduleUrl);
+
+let rejected = false;
+try {{
+  await sendFileMessageFlow({{
+    file: {{ name: 'huge.jpg', type: 'image/jpeg', size: 2048 }},
+    options: {{ attachMode: 'media' }},
+    isChatBlocked: () => false,
+    getBlockedNoticeText: () => '',
+    currentBlockState: null,
+    showToast: () => {{}},
+    maxChatMediaSize: 1024,
+  }});
+}} catch (error) {{
+  rejected = /Максимум|\\u041C\\u0430\\u043A\\u0441\\u0438\\u043C\\u0443\\u043C/.test(error.message);
+}}
+
+if (!rejected) {{
+  throw new Error('Expected oversized file to be rejected');
+}}
+if (globalThis.__optimizeCalls() !== 0) {{
+  throw new Error(`Oversized file must not enter optimization; calls=${{globalThis.__optimizeCalls()}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_link_preview_scroll_stabilization_skips_detached_nodes():
     module_path = ROOT / 'static' / 'modules' / 'message-link-preview.js'
     source = module_path.read_text(encoding='utf-8')

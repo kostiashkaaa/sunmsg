@@ -52,6 +52,15 @@ function resolveTransferPresenceKinds(options = {}) {
     };
 }
 
+function normalizeMaxChatMediaSize(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function createFileTooLargeError(maxSizeBytes) {
+    return new Error(`\u0424\u0430\u0439\u043B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C ${Math.round(maxSizeBytes / (1024 * 1024))} \u041C\u0411.`);
+}
+
 export async function sendFileMessageFlow({
     file,
     caption = '',
@@ -88,12 +97,16 @@ export async function sendFileMessageFlow({
         return;
     }
     if (!file) return;
+    const maxChatMediaSizeBytes = normalizeMaxChatMediaSize(maxChatMediaSize);
+    if (maxChatMediaSizeBytes !== null && Number(file.size) > maxChatMediaSizeBytes) {
+        throw createFileTooLargeError(maxChatMediaSizeBytes);
+    }
     const attachMode = options?.attachMode === 'media' ? 'media' : 'file';
     const optimizationResult = await optimizeFileForAttachMode(file, { attachMode });
     const uploadFile = optimizationResult?.file || file;
 
-    if (uploadFile.size > maxChatMediaSize) {
-        throw new Error(`\u0424\u0430\u0439\u043B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439. \u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C ${Math.round(maxChatMediaSize / (1024 * 1024))} \u041C\u0411.`);
+    if (maxChatMediaSizeBytes !== null && Number(uploadFile.size) > maxChatMediaSizeBytes) {
+        throw createFileTooLargeError(maxChatMediaSizeBytes);
     }
 
     const sourceCategory = detectFileCategory(uploadFile);

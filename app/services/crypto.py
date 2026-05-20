@@ -3,7 +3,7 @@ import base64
 import hashlib
 import json
 import re
-from cryptography.hazmat.primitives.asymmetric import rsa, ed25519, x25519
+from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature

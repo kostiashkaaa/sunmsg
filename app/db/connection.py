@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from pathlib import Path
 
 from flask import current_app, g, has_app_context
 
 from app.db_backend import (
     PostgresConnectionAdapter,
-    connect_postgres,
     connect_postgres_raw,
     testing_schema_from_identifier,
 )
@@ -17,6 +17,7 @@ _REQUEST_CONNECTION_KEY = '_sun_request_db_connection'
 _POOL_REGISTRY_LOCK = threading.Lock()
 _POOL_REGISTRY: dict[tuple[str, str], '_PostgresAdapterPool'] = {}
 _DEFAULT_DB_POOL_MAX_SIZE = 12
+_DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS = 5.0
 
 
 def database_url() -> str:
@@ -67,6 +68,17 @@ def _resolve_db_pool_max_size() -> int:
     return max(1, parsed)
 
 
+def _resolve_db_pool_acquire_timeout_seconds() -> float:
+    raw_value = str(os.environ.get('DB_POOL_ACQUIRE_TIMEOUT_SECONDS') or '').strip()
+    if not raw_value:
+        return _DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS
+    try:
+        parsed = float(raw_value)
+    except (TypeError, ValueError):
+        return _DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS
+    return max(0.0, parsed)
+
+
 class _PooledConnection:
     def __init__(self, pool: '_PostgresAdapterPool | None', adapter: PostgresConnectionAdapter) -> None:
         self._pool = pool
@@ -97,28 +109,52 @@ class _PooledConnection:
 
 
 class _PostgresAdapterPool:
-    def __init__(self, *, database_url: str, schema_name: str, max_size: int) -> None:
+    def __init__(
+        self,
+        *,
+        database_url: str,
+        schema_name: str,
+        max_size: int,
+        acquire_timeout_seconds: float | None = None,
+    ) -> None:
         self._database_url = database_url
         self._schema_name = schema_name
         self._max_size = max(1, int(max_size))
         self._lock = threading.Lock()
+        self._condition = threading.Condition(self._lock)
         self._idle_raw_connections: list[object] = []
         self._total_connections = 0
         self._disposed = False
+        if acquire_timeout_seconds is None:
+            acquire_timeout_seconds = _DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS
+        self._acquire_timeout_seconds = max(0.0, float(acquire_timeout_seconds))
 
     def acquire(self) -> _PooledConnection:
-        with self._lock:
-            while self._idle_raw_connections:
-                raw_connection = self._idle_raw_connections.pop()
-                if _is_raw_connection_open(raw_connection):
-                    return _PooledConnection(self, PostgresConnectionAdapter(raw_connection))
-                self._total_connections = max(0, self._total_connections - 1)
+        deadline = time.monotonic() + self._acquire_timeout_seconds
+        with self._condition:
+            while True:
+                if self._disposed:
+                    raise RuntimeError('Database connection pool is disposed')
 
-            if self._total_connections < self._max_size:
-                self._total_connections += 1
-                should_create_new = True
-            else:
-                should_create_new = False
+                while self._idle_raw_connections:
+                    raw_connection = self._idle_raw_connections.pop()
+                    if _is_raw_connection_open(raw_connection):
+                        return _PooledConnection(self, PostgresConnectionAdapter(raw_connection))
+                    self._decrement_total_connections_locked()
+
+                if self._total_connections < self._max_size:
+                    self._total_connections += 1
+                    should_create_new = True
+                    break
+
+                remaining_seconds = deadline - time.monotonic()
+                if remaining_seconds <= 0:
+                    raise TimeoutError(
+                        f'Database connection pool exhausted after '
+                        f'{self._acquire_timeout_seconds:.3f}s '
+                        f'(max_size={self._max_size})'
+                    )
+                self._condition.wait(timeout=remaining_seconds)
 
         if should_create_new:
             try:
@@ -127,22 +163,14 @@ class _PostgresAdapterPool:
                     schema_name=self._schema_name or None,
                 )
             except Exception:  # noqa: BLE001
-                with self._lock:
-                    self._total_connections = max(0, self._total_connections - 1)
+                with self._condition:
+                    self._decrement_total_connections_locked()
                 raise
             return _PooledConnection(self, PostgresConnectionAdapter(raw_connection))
 
-        # Pool is saturated: fall back to one-off direct connection.
-        return _PooledConnection(
-            None,
-            connect_postgres(
-                self._database_url,
-                schema_name=self._schema_name or None,
-            ),
-        )
-
     def _decrement_total_connections_locked(self) -> None:
         self._total_connections = max(0, self._total_connections - 1)
+        self._condition.notify()
 
     def _rollback_raw_connection(self, raw_connection) -> bool:
         try:
@@ -158,12 +186,13 @@ class _PostgresAdapterPool:
             pass
 
     def _return_raw_connection_to_idle_pool(self, raw_connection) -> bool:
-        with self._lock:
+        with self._condition:
             if self._disposed:
                 self._decrement_total_connections_locked()
                 return False
             if len(self._idle_raw_connections) < self._max_size and _is_raw_connection_open(raw_connection):
                 self._idle_raw_connections.append(raw_connection)
+                self._condition.notify()
                 return True
             self._decrement_total_connections_locked()
             return False
@@ -174,13 +203,13 @@ class _PostgresAdapterPool:
             return
 
         if not _is_raw_connection_open(raw_connection):
-            with self._lock:
+            with self._condition:
                 self._decrement_total_connections_locked()
             return
 
         if not self._rollback_raw_connection(raw_connection):
             self._close_raw_connection_quietly(raw_connection)
-            with self._lock:
+            with self._condition:
                 self._decrement_total_connections_locked()
             return
 
@@ -189,13 +218,14 @@ class _PostgresAdapterPool:
         self._close_raw_connection_quietly(raw_connection)
 
     def dispose(self) -> None:
-        with self._lock:
+        with self._condition:
             if self._disposed:
                 return
             self._disposed = True
             idle_connections = self._idle_raw_connections
             self._idle_raw_connections = []
             self._total_connections = max(0, self._total_connections - len(idle_connections))
+            self._condition.notify_all()
 
         for raw_connection in idle_connections:
             try:
@@ -213,6 +243,7 @@ def _pool_for(database_url_value: str, schema_name: str) -> _PostgresAdapterPool
                 database_url=database_url_value,
                 schema_name=schema_name,
                 max_size=_resolve_db_pool_max_size(),
+                acquire_timeout_seconds=_resolve_db_pool_acquire_timeout_seconds(),
             )
             _POOL_REGISTRY[pool_key] = pool
     return pool

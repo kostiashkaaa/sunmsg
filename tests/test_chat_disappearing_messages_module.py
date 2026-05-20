@@ -22,7 +22,11 @@ def test_disappearing_timer_labels_and_visible_copy():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile('{module_path}', 'utf8');
-const mod = await import(`data:text/javascript;charset=utf-8,${{encodeURIComponent(source)}}`);
+const patchedSource = source.replace(
+  "import {{ tr }} from './utils.js';",
+  "const tr = (value) => value;",
+);
+const mod = await import(`data:text/javascript;charset=utf-8,${{encodeURIComponent(patchedSource)}}`);
 
 const checks = [
   [mod.formatTimerLabel(0), 'Выкл.'],
@@ -56,7 +60,11 @@ def test_disappearing_pill_marks_chat_area_enabled_state():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile('{module_path}', 'utf8');
-const mod = await import(`data:text/javascript;charset=utf-8,${{encodeURIComponent(source)}}`);
+const patchedSource = source.replace(
+  "import {{ tr }} from './utils.js';",
+  "const tr = (value) => value;",
+);
+const mod = await import(`data:text/javascript;charset=utf-8,${{encodeURIComponent(patchedSource)}}`);
 
 function makeElement() {{
   const classes = new Set();

@@ -177,6 +177,7 @@ html[data-interface-surface="glass"] .app-boot-shell .sun-skeleton-block {
    SIDEBAR - opaque theme background; child pills carry glass.
    ================================================================ */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) {
+    background: transparent;
     box-shadow: none;
 }
 

@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 import psycopg
+import pytest
 from psycopg.rows import dict_row
 
 from app.db_backend import (
@@ -23,6 +24,8 @@ from app.db.schema import ensure_base_schema
 
 
 _SCHEMA_BY_KEY: dict[str, str] = {}
+_TEST_DB_AVAILABILITY_CHECKED = False
+_TEST_DB_UNAVAILABLE_REASON = ''
 
 
 def _base_database_url() -> str:
@@ -31,6 +34,54 @@ def _base_database_url() -> str:
         or os.environ.get('DATABASE_URL')
         or ''
     ).strip()
+
+
+def _env_truthy(name: str) -> bool:
+    return str(os.environ.get(name) or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def should_require_test_database() -> bool:
+    return _env_truthy('CI') or _env_truthy('GITHUB_ACTIONS') or _env_truthy('PYTEST_REQUIRE_TEST_DATABASE')
+
+
+def test_database_unavailable_reason() -> str:
+    global _TEST_DB_AVAILABILITY_CHECKED, _TEST_DB_UNAVAILABLE_REASON
+
+    if _TEST_DB_AVAILABILITY_CHECKED:
+        return _TEST_DB_UNAVAILABLE_REASON
+
+    database_url = _base_database_url()
+    if not database_url:
+        _TEST_DB_UNAVAILABLE_REASON = 'TEST_DATABASE_URL or DATABASE_URL is not configured for PostgreSQL-backed tests.'
+        _TEST_DB_AVAILABILITY_CHECKED = True
+        return _TEST_DB_UNAVAILABLE_REASON
+
+    try:
+        with psycopg.connect(
+            database_url,
+            autocommit=True,
+            row_factory=dict_row,
+            options='-c timezone=UTC',
+            connect_timeout=1,
+        ):
+            pass
+    except Exception as exc:  # noqa: BLE001
+        _TEST_DB_UNAVAILABLE_REASON = f'PostgreSQL test database is unavailable: {exc}'
+    else:
+        _TEST_DB_UNAVAILABLE_REASON = ''
+
+    _TEST_DB_AVAILABILITY_CHECKED = True
+    return _TEST_DB_UNAVAILABLE_REASON
+
+
+def skip_if_test_database_unavailable() -> None:
+    reason = test_database_unavailable_reason()
+    if not reason:
+        return
+    if should_require_test_database():
+        raise RuntimeError(reason)
+    pytest.skip(reason)
+
 
 _AUTOINCREMENT_PK_RE = re.compile(
     r'(?P<prefix>\b[\w"]+\b\s+)INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b',
@@ -306,9 +357,8 @@ def connect_test_db(database):
     gets its own isolated namespace; ':memory:' is treated as a single shared
     in-process schema.
     """
+    skip_if_test_database_unavailable()
     database_url = _base_database_url()
-    if not database_url:
-        raise RuntimeError('DATABASE_URL is not configured for tests')
 
     db_key = _as_db_key(database)
     if db_key != ':memory:':

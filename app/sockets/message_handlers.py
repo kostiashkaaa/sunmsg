@@ -24,6 +24,7 @@ from app.sockets.idempotency import (
     mark_request_completed,
     release_request,
     reserve_request,
+    SocketIdempotencyUnavailable,
 )
 from app.sockets.error_messages import localize_socket_error_message as _localize_socket_error_message
 
@@ -52,11 +53,22 @@ def _reserve_socket_request_or_emit_duplicate(
     event_name: str,
     request_id: str,
 ):
-    allowed, reservation = reserve_fn(
-        user_id=user_id,
-        event_name=event_name,
-        request_id=request_id,
-    )
+    try:
+        allowed, reservation = reserve_fn(
+            user_id=user_id,
+            event_name=event_name,
+            request_id=request_id,
+        )
+    except SocketIdempotencyUnavailable:
+        emit_func(
+            'error',
+            {
+                'message': _localize_socket_error_message('Message delivery is temporarily unavailable. Please try again.'),
+                'code': 'idempotency_unavailable',
+                'request_id': request_id,
+            },
+        )
+        return False, None
     if not allowed:
         emit_func(
             'error',

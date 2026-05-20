@@ -42,6 +42,27 @@ def _normalize_media_extension(ext: str, uploaded_mime: str | None) -> str:
     return normalized_ext
 
 
+def _close_connection_quietly(conn) -> None:
+    try:
+        conn.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _close_connection_and_return(conn, result, should_close: bool):
+    if should_close:
+        _close_connection_quietly(conn)
+    return result
+
+
+def _voice_upload_forbidden_result():
+    return {
+        'status': 'forbidden',
+        'error': '???????????? ???????? ????????? ?????????.',
+        'code': 403,
+    }
+
+
 def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload contract
     conn,
     *,
@@ -110,7 +131,7 @@ def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload
 
 
 def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected media upload contract
-    conn,
+    conn=None,
     *,
     user_id: int,
     chat_id: str,
@@ -132,37 +153,57 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     av_timeout_seconds: int,
     av_scan_extensions,
     media_hint: str = '',
+    get_db_connection_func=None,
 ):
-    partner = get_chat_partner_func(conn, user_id, chat_id)
+    owns_connections = callable(get_db_connection_func)
+    active_conn = get_db_connection_func() if owns_connections else conn
+    if active_conn is None:
+        raise RuntimeError('Database connection is required for chat media upload.')
+
+    partner = get_chat_partner_func(active_conn, user_id, chat_id)
     if not partner:
-        return {'status': 'forbidden', 'error': 'Доступ к чату запрещен.', 'code': 403}
-    block_state = serialize_block_state_func(build_block_state_func(conn, user_id, partner['contact_id']))
+        return _close_connection_and_return(
+            active_conn,
+            {'status': 'forbidden', 'error': 'Доступ к чату запрещен.', 'code': 403},
+            owns_connections,
+        )
+    block_state = serialize_block_state_func(build_block_state_func(active_conn, user_id, partner['contact_id']))
     if block_state['is_blocked']:
-        return {
-            'status': 'blocked',
-            'error': 'Нельзя загружать медиа: пользователь заблокирован.',
-            'block_state': block_state,
-        }
+        return _close_connection_and_return(
+            active_conn,
+            {
+                'status': 'blocked',
+                'error': 'Нельзя загружать медиа: пользователь заблокирован.',
+                'block_state': block_state,
+            },
+            owns_connections,
+        )
     if not uploaded_file or not uploaded_file.filename:
-        return {'status': 'invalid', 'error': 'Файл не найден.', 'code': 400}
+        return _close_connection_and_return(
+            active_conn,
+            {'status': 'invalid', 'error': 'Файл не найден.', 'code': 400},
+            owns_connections,
+        )
 
     raw_filename = str(uploaded_file.filename or '').strip().replace('\x00', '')
     filename = os.path.basename(raw_filename.replace('\\', '/'))
     if not filename or '.' not in filename:
-        return {'status': 'invalid', 'error': 'Неподдерживаемое имя файла.', 'code': 400}
+        return _close_connection_and_return(
+            active_conn,
+            {'status': 'invalid', 'error': 'Неподдерживаемое имя файла.', 'code': 400},
+            owns_connections,
+        )
     normalized_media_hint = str(media_hint or '').strip().lower()
     is_voice_upload = normalized_media_hint in {'voice', 'voice_message'} or filename.lower().startswith('voice-')
     if is_voice_upload and not can_send_direct_message(
-        conn,
+        active_conn,
         receiver_id=partner['contact_id'],
         sender_id=user_id,
         message_type='voice',
     ):
-        return {
-            'status': 'forbidden',
-            'error': 'Пользователь запретил голосовые сообщения.',
-            'code': 403,
-        }
+        return _close_connection_and_return(active_conn, _voice_upload_forbidden_result(), owns_connections)
+    if owns_connections:
+        _close_connection_quietly(active_conn)
 
     ext = _normalize_media_extension(
         filename.rsplit('.', 1)[1],
@@ -180,7 +221,6 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     if not validate_chat_media_content_func(uploaded_file, ext):
         return {'status': 'invalid', 'error': 'Файл не прошёл проверку содержимого.', 'code': 400}
 
-    ensure_chat_exists_func(conn, chat_id)
     safe_name = f"{uuid.uuid4().hex}.{ext}"
     path = os.path.join(chat_media_folder, safe_name)
     uploaded_file.save(path)
@@ -213,8 +253,13 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
                 }
 
     mime = normalize_chat_media_mime_func(uploaded_file.mimetype, filename, ext)
+    insert_conn = get_db_connection_func() if owns_connections else conn
+    if insert_conn is None:
+        delete_file_quietly(path)
+        raise RuntimeError('Database connection is required for chat media upload.')
     try:
-        cur = conn.execute(
+        ensure_chat_exists_func(insert_conn, chat_id)
+        cur = insert_conn.execute(
             '''
             INSERT INTO chat_media (chat_id, uploader_id, storage_name, original_name, mime_type, size)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -226,10 +271,13 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
         media_id = inserted_row['id'] if inserted_row else None
         if media_id is None:
             raise DatabaseError('Failed to resolve inserted media id')
-        conn.commit()
+        insert_conn.commit()
     except DatabaseError:
         delete_file_quietly(path)
         raise
+    finally:
+        if owns_connections:
+            _close_connection_quietly(insert_conn)
 
     return {
         'status': 'ok',

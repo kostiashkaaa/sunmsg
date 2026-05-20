@@ -47,7 +47,7 @@ def _upload_chat_media_success_response(*, result: dict):
 
 def _process_upload_chat_media(  # noqa: PLR0913
     *,
-    conn,
+    get_db_connection_func,
     user_id,
     chat_id: str,
     uploaded,
@@ -64,8 +64,14 @@ def _process_upload_chat_media(  # noqa: PLR0913
     scan_file_func,
     media_hint='',
 ):
+    def open_upload_db_connection():
+        try:
+            return get_db_connection_func(request_scoped=False)
+        except TypeError:
+            return get_db_connection_func()
+
     return upload_chat_media_for_user(
-        conn,
+        None,
         user_id=user_id,
         chat_id=chat_id,
         uploaded_file=uploaded,
@@ -86,6 +92,7 @@ def _process_upload_chat_media(  # noqa: PLR0913
         av_timeout_seconds=int(current_app.config.get('CHAT_MEDIA_AV_TIMEOUT_SECONDS', 20) or 20),
         av_scan_extensions=current_app.config.get('CHAT_MEDIA_AV_SCAN_EXTENSIONS') or (),
         media_hint=media_hint,
+        get_db_connection_func=open_upload_db_connection,
     )
 
 
@@ -181,10 +188,9 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
             return jsonify({'success': False, 'error': 'Invalid chat ID.'}), 400
 
         user_id = session['user_id']
-        conn = get_db_connection_func()
         try:
             result = _process_upload_chat_media(
-                conn=conn,
+                get_db_connection_func=get_db_connection_func,
                 user_id=user_id,
                 chat_id=chat_id,
                 uploaded=uploaded,
@@ -212,8 +218,6 @@ def register_chat_media_routes(  # noqa: C901,PLR0913,PLR0915
             return _upload_chat_media_success_response(result=result)
         except DatabaseError:
             return jsonify({'success': False, 'error': 'Ошибка сохранения файла.'}), 500
-        finally:
-            conn.close()
 
     @chat_bp.route('/chat_media/<int:media_id>', methods=['GET'])
     @limiter.limit("10000 per hour", key_func=chat_media_rate_limit_key_func)

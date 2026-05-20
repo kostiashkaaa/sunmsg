@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 
 from flask import Blueprint, jsonify, request, session
 
@@ -28,7 +27,6 @@ from app.extensions import limiter
 from app.services.crypto import (
     is_valid_ed25519_public_key,
     is_valid_x25519_public_key,
-    is_valid_v3_payload,
     verify_ed25519_signature,
 )
 

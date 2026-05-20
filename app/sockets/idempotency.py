@@ -33,6 +33,10 @@ _REDIS_URL = ''
 _REDIS_LAST_ERROR_URL = ''
 
 
+class SocketIdempotencyUnavailable(RuntimeError):
+    pass
+
+
 def _now() -> float:
     return time.monotonic()
 
@@ -41,6 +45,17 @@ def _resolve_redis_url() -> str:
     if has_app_context():
         return str(current_app.config.get('REDIS_URL') or '').strip()
     return str(os.environ.get('REDIS_URL') or '').strip()
+
+
+def _requires_shared_idempotency() -> bool:
+    if has_app_context():
+        return str(current_app.config.get('ENV_NAME') or '').strip().lower() == 'production'
+    env_name = (
+        os.environ.get('APP_ENV')
+        or os.environ.get('FLASK_ENV')
+        or ''
+    )
+    return str(env_name).strip().lower() == 'production'
 
 
 def _get_redis_client():
@@ -118,7 +133,11 @@ def reserve_request(
                 return False, None
             return True, Reservation(key[0], key[1], key[2], backend='redis')
         except Exception as exc:  # noqa: BLE001
+            if _requires_shared_idempotency():
+                raise SocketIdempotencyUnavailable('Socket idempotency Redis reserve failed') from exc
             logger.warning('Socket idempotency Redis reserve failed, using memory fallback: %s', exc)
+    elif _requires_shared_idempotency():
+        raise SocketIdempotencyUnavailable('Socket idempotency Redis is unavailable')
 
     now_ts = _now()
     with _LOCK:

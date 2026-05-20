@@ -50,6 +50,7 @@ const lightboxCaptionState = {
 let lightboxImages = [];
 let lightboxIndex = 0;
 let lightboxTransitionSeq = 0;
+let lightboxInitialized = false;
 
 function _getLightboxEls() {
     return {
@@ -563,6 +564,8 @@ function _renderLightbox() {
 
 export function initLightbox() {
     const els = _getLightboxEls();
+    if (!els.root || lightboxInitialized) return;
+    lightboxInitialized = true;
 
     els.prev?.addEventListener('click', (e) => { e.stopPropagation(); _goPrevLightbox(); });
     els.next?.addEventListener('click', (e) => { e.stopPropagation(); _goNextLightbox(); });

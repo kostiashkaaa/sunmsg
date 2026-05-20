@@ -41,3 +41,20 @@ def test_socket_idempotency_uses_shared_redis_reservation(monkeypatch):
     completed_record = next(iter(fake_redis.values.values()))
     assert completed_record['value'] == 'completed'
     assert completed_record['ex'] == 180
+
+
+def test_socket_idempotency_fails_closed_in_production_without_redis(monkeypatch):
+    monkeypatch.setenv('APP_ENV', 'production')
+    monkeypatch.setenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+    monkeypatch.setattr(idempotency, '_get_redis_client', lambda: None)
+
+    try:
+        idempotency.reserve_request(
+            user_id=1,
+            event_name='send_message',
+            request_id='req-production',
+        )
+    except idempotency.SocketIdempotencyUnavailable:
+        return
+
+    raise AssertionError('production idempotency must not fall back to process memory')

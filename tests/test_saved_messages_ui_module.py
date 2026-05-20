@@ -11,7 +11,11 @@ globalThis.window = globalThis.window || {{}};
 globalThis.document = globalThis.document || {{ documentElement: {{ lang: 'ru' }} }};
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const patchedSource = source.replace(
+  "import {{ tr }} from './utils.js';",
+  "const tr = (value) => value;",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(patchedSource, 'utf8').toString('base64');
 const moduleApi = await import(moduleUrl);
 
 {harness_body}

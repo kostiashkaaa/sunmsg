@@ -145,6 +145,13 @@ def test_chat_template_contains_message_forward_ui_hooks() -> None:
     assert 'id="messageForwardSubmitBtn"' in modals_src
 
 
+def test_chat_icon_only_modal_buttons_have_accessible_names() -> None:
+    modals_src = (ROOT / 'templates' / 'chat' / '_modals.html').read_text(encoding='utf-8')
+
+    assert 'id="keyRestoreCloseBtn" aria-label=' in modals_src
+    assert 'id="captionSendBtn" aria-label=' in modals_src
+
+
 def test_chat_stage_loader_is_wired_to_thread_shell() -> None:
     chat_area_src = (ROOT / 'templates' / 'chat' / '_chat_area.html').read_text(encoding='utf-8')
     dom_refs_src = (STATIC / 'modules' / 'chat-dom-refs.js').read_text(encoding='utf-8')

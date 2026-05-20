@@ -1,4 +1,5 @@
 from io import BytesIO
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 from app.routes import chat as chat_routes
@@ -15,6 +16,7 @@ from app.routes.chat_media_utils import (
     validate_openxml_package,
     validate_text_like_payload,
 )
+from app.services.chat_media_service import upload_chat_media_for_user
 
 
 _MAGIC_BYTES = {
@@ -34,6 +36,41 @@ _CHAT_MEDIA_MAGIC_RULES = {
 class _Upload:
     def __init__(self, raw: bytes):
         self.stream = BytesIO(raw)
+
+
+class _UploadFile:
+    filename = 'note.txt'
+    mimetype = 'text/plain'
+
+    def __init__(self, raw: bytes):
+        self.stream = BytesIO(raw)
+
+    def save(self, path: str) -> None:
+        with open(path, 'wb') as output:
+            output.write(self.stream.getvalue())
+
+
+class _InsertCursor:
+    def fetchone(self):
+        return {'id': 42}
+
+
+class _FakeMediaConnection:
+    def __init__(self, name: str):
+        self.name = name
+        self.closed = False
+        self.commits = 0
+
+    def execute(self, query, params=()):
+        assert self.name == 'insert'
+        assert 'INSERT INTO chat_media' in query
+        return _InsertCursor()
+
+    def commit(self):
+        self.commits += 1
+
+    def close(self):
+        self.closed = True
 
 
 def _build_openxml_bytes(prefix: str) -> bytes:
@@ -140,3 +177,52 @@ def test_detect_media_type_normalize_mime_and_block_state():
         'blocked_by_me': False,
         'blocked_me': False,
     }
+
+
+def test_upload_chat_media_releases_auth_db_connection_before_av_scan(tmp_path):
+    media_dir = tmp_path / 'media'
+    media_dir.mkdir()
+    auth_conn = _FakeMediaConnection('auth')
+    insert_conn = _FakeMediaConnection('insert')
+    opened_connections = []
+    scan_seen = {}
+
+    def _open_connection():
+        conn = auth_conn if not opened_connections else insert_conn
+        opened_connections.append(conn)
+        return conn
+
+    def _scan_file(path, **kwargs):
+        scan_seen['auth_closed'] = auth_conn.closed
+        scan_seen['opened_count'] = len(opened_connections)
+        return SimpleNamespace(infected=False, signature='', output='')
+
+    result = upload_chat_media_for_user(
+        None,
+        user_id=1,
+        chat_id='chat-1',
+        uploaded_file=_UploadFile(b'hello media'),
+        chat_media_folder=str(media_dir),
+        allowed_extensions={'txt'},
+        max_chat_media_size=1024,
+        validate_chat_media_content_func=lambda uploaded, ext: True,
+        get_chat_partner_func=lambda conn, user_id, chat_id: {'contact_id': 2},
+        build_block_state_func=lambda conn, user_id, contact_id: {'blocked_by_me': False, 'blocked_me': False},
+        serialize_block_state_func=serialize_block_state,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        normalize_chat_media_mime_func=lambda mimetype, filename, ext: 'text/plain',
+        detect_chat_media_type_func=lambda mime: 'file',
+        scan_file_func=_scan_file,
+        av_scan_enabled=True,
+        av_fail_closed=True,
+        av_command_template='scanner --scan {path}',
+        av_timeout_seconds=20,
+        av_scan_extensions={'txt'},
+        get_db_connection_func=_open_connection,
+    )
+
+    assert result['status'] == 'ok'
+    assert scan_seen == {'auth_closed': True, 'opened_count': 1}
+    assert opened_connections == [auth_conn, insert_conn]
+    assert insert_conn.closed is True
+    assert insert_conn.commits == 1

@@ -103,6 +103,9 @@ if (items[0].thumbnail !== blobSrc) throw new Error(`expected blob thumbnail, go
 def test_lightbox_core_resolves_encrypted_sources_and_invalidates_navigation_races():
     source = (ROOT / 'static' / 'modules' / 'lightbox' / 'core.js').read_text(encoding='utf-8')
 
+    assert 'let lightboxInitialized = false;' in source
+    assert 'if (!els.root || lightboxInitialized) return;' in source
+    assert 'lightboxInitialized = true;' in source
     assert "window.__sunMediaCacheResolveSource" in source
     assert "sun_media_e2ee=" in source
     assert "els.img.removeAttribute('src')" in source

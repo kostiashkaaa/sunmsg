@@ -7,6 +7,7 @@ import {
 
 const ATTACH_MODE_FILE = 'file';
 const ATTACH_MODE_MEDIA = 'media';
+const MAX_CAPTION_ATTACHMENTS = 20;
 
 function resolveAttachMode(value) {
     return value === ATTACH_MODE_MEDIA ? ATTACH_MODE_MEDIA : ATTACH_MODE_FILE;
@@ -107,6 +108,17 @@ export function initCaptionModal({
             ? i18nApi.getLanguage()
             : (window.SUN_BOOTSTRAP?.user?.uiLanguage || document.documentElement.lang || 'ru');
         return String(raw || '').toLowerCase().startsWith('en') ? 'en' : 'ru';
+    }
+
+    function formatAttachmentLimitMessage(limit) {
+        const lang = getLanguage();
+        return lang === 'en'
+            ? `Attach up to ${limit} files at once.`
+            : `\u041C\u043E\u0436\u043D\u043E \u043F\u0440\u0438\u043A\u0440\u0435\u043F\u0438\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 ${limit} \u0444\u0430\u0439\u043B\u043E\u0432 \u0437\u0430 \u0440\u0430\u0437.`;
+    }
+
+    function reportAttachmentLimit() {
+        onError?.(new Error(formatAttachmentLimitMessage(MAX_CAPTION_ATTACHMENTS)));
     }
 
     function setOptionsMenuOpen(open) {
@@ -392,6 +404,11 @@ export function initCaptionModal({
         const nextFiles = normalizeIncomingFiles(filesToAdd);
         if (!nextFiles.length) return false;
 
+        if (getPendingFiles().length + nextFiles.length > MAX_CAPTION_ATTACHMENTS) {
+            reportAttachmentLimit();
+            return false;
+        }
+
         if (!pendingPayload) {
             const attachMode = resolveDefaultAttachMode(nextFiles, null);
             pendingPayload = {
@@ -417,6 +434,10 @@ export function initCaptionModal({
     function showCaptionModal(file, options = {}) {
         const files = normalizeIncomingFiles(options?.files, file);
         if (!files.length) return;
+        if (files.length > MAX_CAPTION_ATTACHMENTS) {
+            reportAttachmentLimit();
+            return;
+        }
 
         previewSlideIndex = 0;
         pendingPayload = {
