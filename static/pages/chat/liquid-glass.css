@@ -954,7 +954,8 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
         --sun-glass-overlay-bottom-gap: calc(18px + env(safe-area-inset-bottom, 0px));
     }
 
-    html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
+    html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card,
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-card {
         margin: calc(8px + env(safe-area-inset-top, 0px)) 10px 0;
     }
 
@@ -972,5 +973,28 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
 
     html[data-interface-surface="glass"] .chat-header .header-actions-group {
         gap: 6px;
+    }
+
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .chat-partner-avatar--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+    }
+
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .header-actions-group--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
+        min-width: 44px;
+        justify-content: flex-end;
+    }
+
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .chat-input-area.chat-input-area--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
     }
 }
