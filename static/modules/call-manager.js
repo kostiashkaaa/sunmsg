@@ -69,9 +69,9 @@ export class CallManager {
 
         this._media      = new CallMedia();
         this._media.setTrackLifecycleHandlers({
-            onEnded: (kind) => this._onLocalTrackEnded(kind),
-            onMuted: (kind) => this._onLocalTrackMuted(kind),
-            onUnmuted: (kind) => this._onLocalTrackUnmuted(kind),
+            onEnded: (kind, track) => this._onLocalTrackEnded(kind, track),
+            onMuted: (kind, track) => this._onLocalTrackMuted(kind, track),
+            onUnmuted: (kind, track) => this._onLocalTrackUnmuted(kind, track),
         });
         this._webrtc     = null;
         this._iceServers = null;          // cached for the session
@@ -86,6 +86,7 @@ export class CallManager {
         this._pendingMediaOptions = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
+        this._cameraSwitchInProgress = false;
 
         this._bindSocketEvents();
         this._bindUnloadHandler();
@@ -541,6 +542,7 @@ export class CallManager {
             onSwitchCamera: async () => {
                 let prepared = null;
                 const oldTrack = this._media.getVideoTrack();
+                this._cameraSwitchInProgress = true;
                 try {
                     prepared = await this._media.prepareCameraSwitch();
                     if (prepared?.track) {
@@ -548,15 +550,21 @@ export class CallManager {
                         this._media.commitPreparedVideoTrack(prepared.track, prepared);
                         this._screenSharing = false;
                         setCallScreenShareActive(false);
+                        this._notifyMediaState();
                     }
                 } catch (err) {
-                    if (oldTrack) {
+                    if (oldTrack && oldTrack.readyState !== 'ended') {
                         try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                    } else {
+                        try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
                     }
                     this._media.discardTrack(prepared?.track);
                     prepared = null;
                     console.warn('[CallManager] camera switch failed', err);
                     setCallStatusText('Камера недоступна');
+                    this._notifyMediaState();
+                } finally {
+                    this._cameraSwitchInProgress = false;
                 }
                 return {
                     switched: Boolean(prepared?.track),
@@ -797,7 +805,7 @@ export class CallManager {
         });
     }
 
-    _onLocalTrackEnded(kind) {
+    _onLocalTrackEnded(kind, track = null) {
         if (this._state !== STATES.ACTIVE) return;
         if (kind === 'audio') {
             this._webrtc?.replaceAudioTrack(null)?.catch?.((err) => {
@@ -805,6 +813,9 @@ export class CallManager {
             });
             setCallStatusText('Микрофон отключён');
         } else if (kind === 'video') {
+            if (this._cameraSwitchInProgress) {
+                return;
+            }
             this._webrtc?.replaceVideoTrack(null)?.catch?.((err) => {
                 console.warn('[CallManager] video sender detach failed after track ended', err);
             });
@@ -817,14 +828,14 @@ export class CallManager {
         this._notifyMediaState();
     }
 
-    _onLocalTrackMuted(kind) {
-        if (kind === 'video') {
+    _onLocalTrackMuted(kind, track = null) {
+        if (kind === 'video' && !this._cameraSwitchInProgress && (!track || track === this._media.getVideoTrack())) {
             setLocalVideoEnabled(this._media.getLocalStream(), false);
         }
     }
 
-    _onLocalTrackUnmuted(kind) {
-        if (kind === 'video') {
+    _onLocalTrackUnmuted(kind, track = null) {
+        if (kind === 'video' && (!track || track === this._media.getVideoTrack())) {
             setLocalVideoEnabled(this._media.getLocalStream(), this._media.isVideoEnabled());
         }
     }
@@ -887,6 +898,7 @@ export class CallManager {
         this._pendingMediaOptions = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
+        this._cameraSwitchInProgress = false;
         this._iceRestarting = false;
         this._iceServers  = null;
         this._iceTransportPolicy = 'all';
