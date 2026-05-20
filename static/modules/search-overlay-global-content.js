@@ -1,4 +1,5 @@
 import { collectMediaFromMessages } from './profile-media.js';
+import { tr, escapeHtml, buildAvatarInitials } from './utils.js';
 
 const TAB_TO_MEDIA_KEY = {
     media: 'media',
@@ -15,23 +16,6 @@ const TAB_RESULT_LIMIT = {
     audio: 220,
     voices: 220,
 };
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function escapeHtml(value) {
-    return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 function isEncryptedMediaReference(src) {
     return String(src || '').includes('sun_media_e2ee=');
@@ -120,16 +104,7 @@ function fileIconClass(payload) {
     return 'icon-default';
 }
 
-function pickInitials(value) {
-    const text = String(value || '').trim();
-    if (!text) return '?';
-    return text
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((word) => word[0])
-        .join('')
-        .toUpperCase();
-}
+const pickInitials = buildAvatarInitials;
 
 function readContactAvatarSnapshot(item, chatName) {
     const avatarEl = item?.querySelector?.('.contact-avatar');

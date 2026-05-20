@@ -10,6 +10,8 @@ import {
     parseSunFilePayload,
     parseSunCallPayload,
     resolveMessageDisplayText,
+    tr,
+    activeLocale,
 } from './utils.js';
 import { renderMessageLinkPreview } from './message-link-preview.js';
 import {
@@ -55,22 +57,6 @@ function isWaveformInformative(values) {
         if (value > max) max = value;
     }
     return unique.size >= 10 && (max - min) >= 18;
-}
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function activeLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? api.getLanguage()
-        : (document.documentElement.lang === 'en' ? 'en' : 'ru');
-    return language === 'en' ? 'en-US' : 'ru-RU';
 }
 
 function normalizeWaveform(rawWaveform) {

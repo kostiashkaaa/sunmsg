@@ -1,4 +1,5 @@
 // presence.js - typing indicators and online status display
+import { tr, activeLocale, escapeHtml } from './utils.js';
 
 const sidebarTypingSnapshotByChat = {};
 const typingEntriesByChat = new Map();
@@ -6,33 +7,8 @@ const typingTimersByKey = new Map();
 let lastSeenIntervalId = 0;
 let languageListenerBound = false;
 
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function activeLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? api.getLanguage()
-        : (document.documentElement.lang || 'ru');
-    return String(language || '').toLowerCase() === 'en' ? 'en-US' : 'ru-RU';
-}
-
 function sanitizeTypingLabel(value) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 64);
-}
-
-function escapeHtml(value) {
-    return String(value || '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
 }
 
 function resolveTypingName(entry) {

@@ -6,8 +6,8 @@
 }
 
 .sidebar-header {
-    background: var(--sidebar-hdr) !important;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%) !important;
+    background: var(--sidebar-hdr);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
     /* normalized: removed mojibake comment */
     min-height: var(--header-h);
     box-sizing: border-box;
@@ -25,8 +25,8 @@
     margin-bottom: 6px;
     width: 100%;
     position: relative;
-    background: transparent !important;
-    border: none !important;
+    background: transparent;
+    border: none;
 }
 .message.self { justify-content: flex-end; align-items: flex-end; align-self: flex-end; transform-origin: right bottom; padding-left: 18%; }
 .message.other { justify-content: flex-start; align-items: flex-start; align-self: flex-start; transform-origin: left bottom; padding-right: 18%; }
@@ -75,8 +75,8 @@
 }
 
 .chat-messages {
-    background: transparent !important;
-    border: none !important;
+    background: transparent;
+    border: none;
     overflow-x: hidden;
 }
 
@@ -262,16 +262,19 @@
     border: 1px solid var(--border);
     box-shadow: var(--shadow-md);
 }
+.chat-area .search-results .list-group-item,
 .search-results .list-group-item {
-    background: transparent !important;
-    color: var(--text) !important;
-    border-color: var(--border) !important;
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
 }
 
+.chat-area .profile-menu,
+.chat-area .settings-menu,
 .profile-menu,
 .settings-menu {
-    background: var(--overlay-bg) !important;
-    border-bottom: 1px solid var(--border) !important;
+    background: var(--overlay-bg);
+    border-bottom: 1px solid var(--border);
 }
 
 .message-lock { font-size: 10px; margin-left: 5px; opacity: 0.7; }
@@ -3674,7 +3677,7 @@ body.settings-detail-open .settings-overlay-frame {
             position: relative;
             z-index: 2;
             container-type: inline-size;
-            background: transparent !important;
+            background: transparent;
             overscroll-behavior-y: contain;
             scroll-padding-top: 10px;
             scroll-padding-bottom: calc(
@@ -3742,8 +3745,8 @@ body.settings-detail-open .settings-overlay-frame {
                 + env(safe-area-inset-bottom, 0px)
             );
             padding: 0 22px 10px 22px;
-            background: transparent !important;
-            border-top: none !important;
+            background: transparent;
+            border-top: none;
             display: flex;
             flex-direction: column;
             gap: 10px;

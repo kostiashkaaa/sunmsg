@@ -1,3 +1,5 @@
+import { tr } from './utils.js';
+
 export const DISAPPEARING_TIMERS = [
     { value: 0,       label: 'Выкл.' },
     { value: 30,      label: '30 сек' },
@@ -7,14 +9,6 @@ export const DISAPPEARING_TIMERS = [
     { value: 604800,  label: '7 дней' },
     { value: 2592000, label: '30 дней' },
 ];
-
-function tr(value) {
-    const api = globalThis?.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
 
 function nextFrame(callback) {
     const raf = globalThis?.requestAnimationFrame;

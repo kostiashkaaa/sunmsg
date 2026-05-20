@@ -1,4 +1,5 @@
 import { waitForMotionEnd } from './motion.js';
+import { tr, activeLocale } from './utils.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_OLDER_BATCH_LOADS = 180;
@@ -12,22 +13,6 @@ const UI_TEXT = {
     chooseDate: '\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u0443',
     jumping: '\u041F\u0435\u0440\u0435\u0445\u043E\u0434...',
 };
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function activeLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? api.getLanguage()
-        : (document.documentElement.lang === 'en' ? 'en' : 'ru');
-    return language === 'en' ? 'en-US' : 'ru-RU';
-}
 
 function normalizeDayKey(rawValue) {
     const raw = String(rawValue || '').trim();

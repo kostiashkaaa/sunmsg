@@ -1,20 +1,4 @@
-import { applyFallbackAvatarTint, buildAvatarInitials } from './utils.js';
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function activeLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? api.getLanguage()
-        : (document.documentElement.lang === 'en' ? 'en' : 'ru');
-    return language === 'en' ? 'en-US' : 'ru-RU';
-}
+import { applyFallbackAvatarTint, buildAvatarInitials, tr, activeLocale } from './utils.js';
 
 const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
 

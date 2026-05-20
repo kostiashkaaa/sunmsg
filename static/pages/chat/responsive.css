@@ -1769,31 +1769,40 @@
         min-width: 0;
     }
 
+    .message .message-stack > .bubble.bubble--text,
+    .message .message-stack > .bubble.bubble--has-message-text,
     .message .bubble.bubble--text,
     .message .bubble.bubble--has-message-text {
-        --text-meta-reserve: 0px !important;
-        min-width: 0 !important;
+        --text-meta-reserve: 0px;
+        min-width: 0;
         width: fit-content;
         max-width: 100%;
     }
 
+    .message .message-stack > .bubble > .message-text,
+    .message .message-stack > .bubble.bubble--text > .message-text,
     .message .bubble > .message-text,
     .message .bubble.bubble--text > .message-text {
-        padding-right: 0 !important;
+        padding-right: 0;
     }
 
+    .message .message-stack > .bubble.bubble--text > .message-text ~ .msg-meta,
+    .message .message-stack > .bubble.bubble--text > .message-text ~ .message-meta,
+    .message .message-stack > .bubble > .message-text ~ .msg-meta,
+    .message .message-stack > .bubble > .message-text ~ .message-meta,
     .message .bubble.bubble--text > .message-text ~ .msg-meta,
     .message .bubble.bubble--text > .message-text ~ .message-meta,
     .message .bubble > .message-text ~ .msg-meta,
     .message .bubble > .message-text ~ .message-meta {
-        position: static !important;
-        right: auto !important;
-        bottom: auto !important;
+        position: static;
+        right: auto;
+        bottom: auto;
         pointer-events: auto;
     }
 
+    .message .message-stack > .bubble > .message-footer,
     .message .bubble > .message-footer {
-        display: flex !important;
+        display: flex;
     }
 
     .message:not(.message-emoji-only) .bubble.bubble--simple-text {
@@ -1806,29 +1815,30 @@
         display: block;
     }
 
+    .message:not(.message-emoji-only) .message-stack > .bubble.bubble--simple-text > .message-footer,
     .message:not(.message-emoji-only) .bubble.bubble--simple-text > .message-footer {
-        display: inline-flex !important;
+        display: inline-flex;
         float: none;
         margin-left: calc(4px * var(--chat-message-scale));
         padding-top: 0;
     }
 
     .message.message-reactions-outside .message-stack > .message-reactions {
-        margin: calc(var(--sun-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0 !important;
+        margin: calc(var(--sun-reaction-overlap, 4px) * var(--chat-message-scale, 1)) 0 0;
         max-width: 100%;
         padding: 0;
     }
 
     .message.other.message-reactions-outside .message-stack > .message-reactions {
-        align-self: flex-start !important;
-        justify-content: flex-start !important;
-        margin-left: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
+        align-self: flex-start;
+        justify-content: flex-start;
+        margin-left: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1));
     }
 
     .message.self.message-reactions-outside .message-stack > .message-reactions {
-        align-self: flex-end !important;
-        justify-content: flex-end !important;
-        margin-right: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1)) !important;
+        align-self: flex-end;
+        justify-content: flex-end;
+        margin-right: calc(var(--sun-reaction-inline-inset, 0px) * var(--chat-message-scale, 1));
     }
 
     .reaction-pill {

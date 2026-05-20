@@ -1,10 +1,4 @@
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
+import { tr } from './utils.js';
 
 function currentLang() {
     const api = window.SUN_I18N;

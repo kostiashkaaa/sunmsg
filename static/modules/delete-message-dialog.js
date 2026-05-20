@@ -1,3 +1,5 @@
+import { buildAvatarInitials } from './utils.js';
+
 const DEFAULT_PEER_NAME = '\u0421\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A';
 const DEFAULT_MEMBER_NAME = '\u0423\u0447\u0430\u0441\u0442\u043D\u0438\u043A';
 
@@ -5,15 +7,7 @@ function cleanText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-function getInitials(value) {
-    const initials = cleanText(value)
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0] || '')
-        .join('')
-        .toUpperCase();
-    return initials || '?';
-}
+const getInitials = buildAvatarInitials;
 
 function getWindowRef(messageEl) {
     return messageEl?.ownerDocument?.defaultView

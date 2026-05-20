@@ -1,4 +1,4 @@
-import { escapeHtml } from './utils.js';
+import { escapeHtml, tr } from './utils.js';
 
 const GROUP_MEMBER_LIMIT = 200000;
 
@@ -16,14 +16,6 @@ function readBooleanFlag(value, fallback = true) {
         if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
     }
     return Boolean(fallback);
-}
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return value;
 }
 
 function buildFallbackUserName(userId) {

@@ -6314,13 +6314,14 @@
 
         /* ===== ALBUM GRID ===================================================== */
 
+        .message .message-stack > .bubble.bubble--album,
         .message .bubble.bubble--album {
             position: relative;
-            padding: 0 !important;
-            border-radius: 14px !important;
+            padding: 0;
+            border-radius: 14px;
             overflow: hidden;
-            background: transparent !important;
-            box-shadow: none !important;
+            background: transparent;
+            box-shadow: none;
             width: clamp(220px, 44vw, 420px);
             max-width: min(76vw, 420px);
             min-width: 180px;
@@ -6329,8 +6330,9 @@
             isolation: isolate;
         }
 
+        .message.self .message-stack > .bubble.bubble--album,
         .message.self .bubble.bubble--album {
-            box-shadow: none !important;
+            box-shadow: none;
         }
 
         .message-album-grid {
@@ -6546,12 +6548,13 @@
         /* ===== END ALBUM GRID ================================================= */
 
 
+        .message .message-stack > .bubble.bubble--file,
         .message .bubble.bubble--file {
             width: clamp(220px, 36vw, 300px);
             max-width: min(340px, 72vw);
             min-width: 220px;
-            border-radius: 14px !important;
-            padding: 10px 12px 8px !important;
+            border-radius: 14px;
+            padding: 10px 12px 8px;
             display: inline-flex;
             flex-direction: column;
             gap: 0;
@@ -6826,6 +6829,7 @@
         }
 
 
+        .message .message-stack > .bubble.bubble--audio,
         .message .bubble.bubble--audio {
             --audio-leading-offset: 60px; /* play button (50) + gap (10) */
             --audio-btn-bg: color-mix(in srgb, var(--chat-bubble-in-bg) 76%, #ffffff 24%);
@@ -6839,8 +6843,8 @@
             width: min(460px, 100%);
             min-width: clamp(180px, 25vw, 230px);
             max-width: min(460px, 74vw);
-            border-radius: 14px !important;
-            padding: 9px 12px 7px !important;
+            border-radius: 14px;
+            padding: 9px 12px 7px;
             display: flex;
             flex-direction: column;
             gap: 5px;
@@ -11989,9 +11993,10 @@
 .contact-avatar.saved-messages-avatar,
 #chatPartnerAvatar.saved-messages-avatar,
 #profileLargeAvatar.saved-messages-avatar {
-    background: #7b69ff !important;
-    color: #ffffff !important;
-    border: none !important;
+    --saved-messages-color: #7b69ff;
+    background: var(--saved-messages-color);
+    color: #ffffff;
+    border: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -12780,8 +12785,9 @@
     --inline-meta-slot-width: calc(74px * var(--chat-message-scale));
 }
 
+.message:not(.message-emoji-only) .message-stack > .bubble.bubble--simple-text > .message-footer,
 .message:not(.message-emoji-only) .bubble.bubble--simple-text > .message-footer {
-    display: inline-flex !important;
+    display: inline-flex;
     align-self: flex-end;
     margin-top: 0;
     margin-left: calc(4px * var(--chat-message-scale));
@@ -12805,8 +12811,9 @@
     margin: 0 !important;
 }
 
+.message .message-stack > .bubble > .message-footer,
 .message .bubble > .message-footer {
-    display: flex !important;
+    display: flex;
     align-items: flex-end;
     justify-content: flex-end;
     gap: calc(2px * var(--chat-message-scale));
@@ -12949,12 +12956,6 @@
 
 .reaction-reactor + .reaction-reactor {
     margin-left: -6px;
-}
-
-.reaction-pill__reactors {
-    display: inline-flex !important;
-    align-items: center;
-    margin-left: 2px;
 }
 
 .reaction-pill__count {

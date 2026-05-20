@@ -293,7 +293,7 @@ export function applyEmojiGraphics(root) {
     return changed;
 }
 
-function tr(value) {
+export function tr(value) {
     const api = window.SUN_I18N;
     if (api && typeof api.translateText === 'function') {
         return api.translateText(value);
@@ -343,7 +343,7 @@ export function resolveMessageDisplayText(messageText) {
     return String(messageText ?? '');
 }
 
-function activeLocale() {
+export function activeLocale() {
     const api = window.SUN_I18N;
     const language = api && typeof api.getLanguage === 'function'
         ? api.getLanguage()

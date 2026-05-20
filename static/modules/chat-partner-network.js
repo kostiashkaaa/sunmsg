@@ -1,4 +1,5 @@
 import { withAppRoot } from './app-url.js';
+import { tr } from './utils.js';
 
 export function markMessagesAsReadFlow({
     chatId,
@@ -17,14 +18,6 @@ export function markMessagesAsReadFlow({
             if (response.success) onSuccess?.();
         })
         .catch(() => {});
-}
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
 }
 
 export function createOnlineStatusStateController({

@@ -1,23 +1,7 @@
 import { STANDARD_SINGLE_CHECK_UI_HTML } from './check-glyph.js';
-import { applyFallbackAvatarTint } from './utils.js';
+import { applyFallbackAvatarTint, buildAvatarInitials, tr } from './utils.js';
 
-function getInitials(value) {
-    return String(value || '?')
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((word) => word[0] || '')
-        .join('')
-        .toUpperCase() || '?';
-}
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
+const getInitials = buildAvatarInitials;
 
 function buildDialogRequestItemHtml(data, escapeHtml) {
     const displayName = data.sender_display_name || data.sender_username || '';

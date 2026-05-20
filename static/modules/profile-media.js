@@ -1,26 +1,10 @@
 // Media tabs renderer for the partner profile drawer.
 // Source of truth: already decrypted chat messages from local chat state.
 
-import { parseSunFilePayload, sanitizeFileUri } from './utils.js';
+import { parseSunFilePayload, sanitizeFileUri, tr, activeLocale, escapeHtml } from './utils.js';
 import { getMotionDurationTokenMs, waitForMotionEnd } from './motion.js';
 
 const URL_REGEX = /\bhttps?:\/\/[^\s<>"'`]+/gi;
-
-function tr(value) {
-    const api = window.SUN_I18N;
-    if (api && typeof api.translateText === 'function') {
-        return api.translateText(value);
-    }
-    return String(value ?? '');
-}
-
-function activeLocale() {
-    const api = window.SUN_I18N;
-    const language = api && typeof api.getLanguage === 'function'
-        ? api.getLanguage()
-        : (document.documentElement.lang === 'en' ? 'en' : 'ru');
-    return language === 'en' ? 'en-US' : 'ru-RU';
-}
 
 const TAB_DEFINITIONS = [
     { key: 'media', label: '\u041C\u0435\u0434\u0438\u0430' },
@@ -166,14 +150,6 @@ function formatShortDate(rawIso) {
     });
 }
 
-function escapeHtml(value) {
-    return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 function normalizeProfileMediaKind(kind) {
     const normalized = String(kind || '').toLowerCase();
