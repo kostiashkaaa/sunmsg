@@ -715,12 +715,12 @@ html[data-interface-surface="glass"] .search-overlay__body {
     margin: 8px 12px 12px;
     padding: 10px;
     min-height: 0;
-    border: 1px solid var(--sun-glass-border);
-    border-radius: 18px;
-    background: var(--sun-glass-profile-card-bg);
-    box-shadow: var(--sun-glass-shadow);
-    -webkit-backdrop-filter: var(--sun-glass-blur);
-    backdrop-filter: var(--sun-glass-blur);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 html[data-interface-surface="glass"] .command-palette-action,
@@ -837,7 +837,6 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__month-btn,
 html[data-interface-surface="glass"] .chat-date-picker-panel__action,
 html[data-interface-surface="glass"] .search-overlay__tabs,
 html[data-interface-surface="glass"] .search-overlay__tab.is-active,
-html[data-interface-surface="glass"] .search-overlay__body,
 html[data-interface-surface="glass"] .command-palette-action,
 html[data-interface-surface="glass"] .palette-recent-item,
 html[data-interface-surface="glass"] .search-global-state,
