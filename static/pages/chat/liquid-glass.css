@@ -544,6 +544,22 @@ html[data-interface-surface="glass"] .emoji-picker {
     backdrop-filter: var(--sun-glass-blur);
 }
 
+html[data-interface-surface="glass"] #messageForm .attach-menu {
+    background: var(--sun-glass-profile-card-bg) !important;
+}
+
+@media (max-width: 768px) {
+    html[data-interface-surface="glass"] #messageForm .attach-menu {
+        left: -5px;
+        right: -5px;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+        transform-origin: bottom center;
+    }
+}
+
 html[data-interface-surface="glass"] .emoji-picker::before {
     background:
         radial-gradient(120% 120% at 10% 0%, color-mix(in srgb, var(--accent-glow) 24%, transparent) 0%, transparent 54%),
