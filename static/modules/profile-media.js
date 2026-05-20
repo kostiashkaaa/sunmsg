@@ -205,11 +205,27 @@ export async function resolveProfileMediaSource(rawUri, kind = 'other') {
     return isEncryptedMediaReference(safeUri) ? '' : safeUri;
 }
 
+function forceProfileMediaNetworkLoad(mediaEl, mediaKind) {
+    if (!mediaEl || typeof mediaEl.setAttribute !== 'function') return;
+    if (mediaKind === 'image') {
+        try { mediaEl.loading = 'eager'; } catch (_) {}
+        mediaEl.setAttribute('loading', 'eager');
+        mediaEl.setAttribute('decoding', 'async');
+        return;
+    }
+    if (mediaKind === 'video') {
+        mediaEl.setAttribute('preload', 'metadata');
+        mediaEl.setAttribute('playsinline', '');
+        mediaEl.muted = true;
+    }
+}
+
 export async function hydrateProfileMediaElement(mediaEl, rawUri, kind = 'other') {
     if (!mediaEl || typeof mediaEl.setAttribute !== 'function') return false;
     const mediaKind = normalizeProfileMediaKind(kind);
     const safeUri = sanitizeFileUri(rawUri, { imageOnlyData: mediaKind === 'image' });
     if (!safeUri || safeUri === '#') return false;
+    forceProfileMediaNetworkLoad(mediaEl, mediaKind);
 
     const nextSeq = Number(mediaEl.dataset?.profileMediaSourceSeq || 0) + 1;
     if (mediaEl.dataset) {

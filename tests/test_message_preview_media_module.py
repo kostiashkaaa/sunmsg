@@ -215,3 +215,20 @@ def test_file_card_and_search_media_thumbnails_do_not_inline_encrypted_sources()
     assert '.file-card-thumb-video[data-src]' in media_runtime
     assert '.search-global-media-card img[data-src]' in media_runtime
     assert '.search-global-media-card video[data-src]' in media_runtime
+
+
+def test_mobile_preview_surfaces_call_thumbnail_hydration_directly():
+    contacts = (ROOT / 'static' / 'modules' / 'contacts.js').read_text(encoding='utf-8')
+    sidebar = (ROOT / 'static' / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
+    banners = (ROOT / 'static' / 'modules' / 'message-thread-banners.js').read_text(encoding='utf-8')
+    media_runtime = (ROOT / 'static' / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+    profile_media = (ROOT / 'static' / 'modules' / 'profile-media.js').read_text(encoding='utf-8')
+
+    assert 'window._hydrateMediaPreviewThumbs?.(lastMsgEl)' in contacts
+    assert 'window._hydrateMediaPreviewThumbs?.(lastMsgEl)' in sidebar
+    assert banners.count('window._hydrateMediaPreviewThumbs?.(textEl)') >= 2
+    assert 'function forcePreviewThumbNetworkLoad(mediaEl)' in media_runtime
+    assert "mediaEl.setAttribute?.('loading', 'eager')" in media_runtime
+    assert "mediaEl.setAttribute?.('preload', 'metadata')" in media_runtime
+    assert 'function forceProfileMediaNetworkLoad(mediaEl, mediaKind)' in profile_media
+    assert "mediaEl.setAttribute('loading', 'eager')" in profile_media

@@ -450,7 +450,9 @@ export function initChatContactsSidebar({
             wrapper.innerHTML = contactHtml.trim();
             const nextItem = wrapper.firstElementChild;
             if (!nextItem) return;
-            applyEmojiGraphics(nextItem.querySelector('.contact-last-msg'));
+            const lastMsgEl = nextItem.querySelector('.contact-last-msg');
+            applyEmojiGraphics(lastMsgEl);
+            window._hydrateMediaPreviewThumbs?.(lastMsgEl);
             if (deferSort) {
                 contactsList?.appendChild(nextItem);
             } else {

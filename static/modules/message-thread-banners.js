@@ -68,6 +68,7 @@ export function initReplyBar({
                 mediaTokenStyle: 'plain',
             });
             applyEmojiGraphics(textEl);
+            window._hydrateMediaPreviewThumbs?.(textEl);
         }
         scheduleReplyBarLayoutSync();
         inputEl?.focus();
@@ -164,6 +165,7 @@ export function initPinnedBar({
                 mediaTokenStyle: 'plain',
             });
             applyEmojiGraphics(textEl);
+            window._hydrateMediaPreviewThumbs?.(textEl);
         }
         if (barEl) {
             const seq = ++pinnedMotionSeq;

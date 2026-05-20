@@ -124,6 +124,19 @@ export function initChatMediaRuntime(deps = {}) {
         return '';
     }
 
+    function forcePreviewThumbNetworkLoad(mediaEl) {
+        const kind = resolvePreviewThumbKind(mediaEl);
+        if (kind === 'image') {
+            try { mediaEl.loading = 'eager'; } catch (_) {}
+            mediaEl.setAttribute?.('loading', 'eager');
+            mediaEl.setAttribute?.('decoding', 'async');
+            return;
+        }
+        mediaEl.setAttribute?.('preload', 'metadata');
+        mediaEl.setAttribute?.('playsinline', '');
+        mediaEl.muted = true;
+    }
+
     function showPreviewThumbFallback(imgEl) {
         try {
             window._onPreviewThumbError?.(imgEl);
@@ -134,6 +147,7 @@ export function initChatMediaRuntime(deps = {}) {
         if (!isPreviewThumbMedia(mediaEl)) return false;
         const rawSrc = normalizePreviewThumbSource(mediaEl.getAttribute?.('data-src') || '');
         if (!rawSrc) return false;
+        forcePreviewThumbNetworkLoad(mediaEl);
 
         const currentSrc = normalizePreviewThumbSource(mediaEl.getAttribute?.('src') || mediaEl.currentSrc || '');
         if (currentSrc && !isEncryptedPreviewThumbSource(currentSrc)) return true;

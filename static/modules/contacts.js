@@ -328,6 +328,7 @@ export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, 
             draftLabel,
         });
         applyEmojiGraphics(lastMsgEl);
+        window._hydrateMediaPreviewThumbs?.(lastMsgEl);
     }
 
     const timeMetaEl = el.querySelector('.contact-time-meta');
