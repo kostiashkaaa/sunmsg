@@ -6,7 +6,8 @@ body {
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
-    transition: background var(--transition), color var(--transition);
+    /* No transition on body — cascades to all children causing layout thrash.
+       Theme switching is handled via View Transitions API on .is-interface-surface-transitioning. */
 }
 
 @keyframes sun-fade-up {
@@ -136,15 +137,21 @@ a:hover { color: var(--accent-hover); }
     border-radius: var(--radius-sm);
     font-weight: 600;
     font-family: var(--font);
-    transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+    transition:
+        opacity     var(--dur-quick)   var(--ease-standard),
+        transform   var(--dur-instant) var(--ease-spring),
+        box-shadow  var(--dur-quick)   var(--ease-standard);
     box-shadow: 0 2px 12px var(--accent-glow);
 }
 .btn-primary:hover:not(:disabled) {
     opacity: 0.92;
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.01);
     box-shadow: 0 4px 20px var(--accent-glow);
 }
-.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+    transition-duration: var(--dur-instant);
+}
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .btn-secondary {

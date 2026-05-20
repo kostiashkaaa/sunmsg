@@ -1185,15 +1185,18 @@
     opacity: 1;
     pointer-events: auto;
 }
-.call-overlay--ringing .call-overlay__ctrl-group .call-ctrl:not(.call-ctrl--end) {
+.call-overlay--ringing #call-btn-devices,
+.call-overlay--ringing #call-btn-speaker,
+.call-overlay--ringing #call-btn-switch-camera,
+.call-overlay--ringing #call-btn-screen {
     display: none;
 }
 .call-overlay--ringing .call-overlay__controls {
     padding-top: 12px;
 }
-/* Исходящий звонок: одна кнопка «Отменить» — центрируем и убираем label */
 .call-overlay--ringing .call-overlay__ctrl-group {
     justify-content: center;
+    gap: 24px;
 }
 .call-overlay--ringing .call-ctrl--end .call-ctrl__label {
     display: block;
@@ -1437,7 +1440,7 @@
     overflow: hidden;
     color: var(--text-secondary);
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1708,6 +1711,31 @@
         border-radius: 0;
         transform: none;
         touch-action: manipulation;
+    }
+    .call-overlay--ringing .call-card {
+        inset: 0;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        width: 100dvw;
+        height: var(--app-vh, 100dvh);
+        min-height: 0;
+        max-height: none;
+        aspect-ratio: auto;
+        border: none;
+        border-radius: 0;
+        transform: none;
+    }
+    .call-overlay--ringing .call-card__stage {
+        min-height: 0;
+    }
+    .call-overlay--ringing .call-overlay__controls {
+        padding: 18px 12px max(22px, env(safe-area-inset-bottom, 0px));
+    }
+    .call-overlay--ringing .call-overlay__ctrl-group {
+        width: 100%;
+        justify-content: center;
+        gap: clamp(18px, 7vw, 34px);
     }
     .call-card__stage {
         cursor: default;

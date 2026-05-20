@@ -11,12 +11,12 @@
 
 :root {
     /* Motion contract: single source of truth for duration / easing / distance / delay. */
-    --motion-ease-standard: cubic-bezier(.4, 0, .2, 1);
+    --motion-ease-standard:    cubic-bezier(.4, 0, .2, 1);
     --motion-ease-interactive: cubic-bezier(.4, 0, .2, 1);
-    --motion-ease-enter: var(--motion-ease-standard);
-    --motion-ease-exit: var(--motion-ease-standard);
-    --motion-ease-surface: var(--motion-ease-standard);
-    --motion-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --motion-ease-enter:       cubic-bezier(0, 0, .2, 1);       /* decel — for enter/appear */
+    --motion-ease-exit:        cubic-bezier(.4, 0, 1, 1);       /* accel — for exit/disappear */
+    --motion-ease-surface:     cubic-bezier(.4, 0, .2, 1);
+    --motion-ease-pop:         cubic-bezier(0.34, 1.56, 0.64, 1); /* spring overshoot */
 
     --motion-duration-instant: 120ms;
     --motion-duration-fast: 200ms;
@@ -85,9 +85,9 @@
     --motion-duration-section-in-desktop: 500ms;
 
     /* Legacy aliases mapped to the unified motion contract. */
-    --m-spring: var(--motion-ease-interactive);
-    --m-decel: var(--motion-ease-enter);
-    --m-accel: var(--motion-ease-exit);
+    --m-spring: var(--motion-ease-pop);         /* spring with overshoot for interactive feedback */
+    --m-decel:  var(--motion-ease-enter);       /* decel for enter */
+    --m-accel:  var(--motion-ease-exit);        /* accel for exit */
     --m-bouncy: var(--motion-ease-pop);
 
     --m-dur-instant: var(--motion-duration-instant);
@@ -99,11 +99,11 @@
     --m-dur-screen: var(--motion-duration-screen);
 
     --dur-instant: var(--motion-duration-instant);
-    --dur-quick: var(--motion-duration-fast);
-    --dur-medium: var(--motion-duration-medium);
-    --dur-slow: var(--motion-duration-slow);
-    --ease-quick: var(--motion-ease-enter);
-    --ease-spring: var(--motion-ease-surface);
+    --dur-quick:   var(--motion-duration-fast);
+    --dur-medium:  var(--motion-duration-medium);
+    --dur-slow:    var(--motion-duration-slow);
+    --ease-quick:  var(--motion-ease-standard);
+    --ease-spring: var(--motion-ease-pop);       /* now a real spring */
 
     --m-press-scale: 0.96;
     --m-press-scale-soft: 0.985;
@@ -200,15 +200,29 @@ html[data-motion-level="lite"] {
 /* ───────────── 5. Переход между чатами ─────────────
    Новая реализация lives in motion-v3.css. */
 
-/* Sidebar reaction — контакт пульсирует и слегка «толкается» при выборе */
-.contact-item.contact-just-activated {
-    animation: m-contact-press var(--m-dur-slow) var(--m-decel) both;
+/* Sidebar reaction — контакт пульсирует при выборе.
+   Псевдоэлемент с opacity — compositor-only, нет Paint. */
+.contact-item {
+    isolation: isolate;
+}
+.contact-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--accent-light, rgba(196,148,60,0.22));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--m-dur-base) var(--m-decel);
+}
+.contact-item.contact-just-activated::after {
+    animation: m-contact-press-overlay var(--m-dur-slow) var(--m-decel) both;
 }
 
-@keyframes m-contact-press {
-    0%   { background-color: transparent; transform: translate3d(0, 0, 0); }
-    18%  { background-color: var(--accent-light, rgba(196,148,60,0.22)); transform: translate3d(0, 0, 0); }
-    100% { background-color: transparent; transform: translate3d(0, 0, 0); }
+@keyframes m-contact-press-overlay {
+    0%   { opacity: 0; }
+    18%  { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 /* ───────────── 6. Сообщения (B+E) ───────────── */
@@ -219,22 +233,32 @@ html[data-motion-level="lite"] {
     will-change: auto;
 }
 .message.msg-animate-in {
-    animation-timing-function: var(--m-spring) !important;
+    animation-timing-function: var(--m-decel) !important;
     animation-duration: var(--m-dur-base) !important;
     will-change: transform, opacity;
 }
 .message.msg-animate-in.msg-animate-self {
-    /* Своё сообщение — лёгкий overshoot */
     animation-timing-function: var(--m-bouncy) !important;
     animation-duration: var(--m-dur-base) !important;
 }
-.message.msg-animate-in .bubble {
-    animation: m-fade-in var(--m-dur-fast) var(--m-decel) both;
+/* Входящее сообщение — пузырь появляется слева снизу */
+.message.msg-animate-in:not(.msg-animate-self) .bubble {
+    animation: m-bubble-in-other var(--m-dur-base) var(--m-decel) both;
+    transform-origin: bottom left;
 }
-/* Самоотправленное — bubble pop с overshoot */
+/* Своё сообщение — пузырь появляется справа снизу с overshoot */
 .message.msg-animate-in.msg-animate-self .bubble {
-    animation: m-pop-overshoot 260ms var(--m-decel) both;
+    animation: m-bubble-in-self 280ms var(--m-bouncy) both;
     transform-origin: bottom right;
+}
+
+@keyframes m-bubble-in-other {
+    from { opacity: 0; transform: scale(0.88) translate3d(-6px, 4px, 0); }
+    to   { opacity: 1; transform: scale(1)    translate3d(0,    0,   0); }
+}
+@keyframes m-bubble-in-self {
+    from { opacity: 0; transform: scale(0.88) translate3d(6px, 4px, 0); }
+    to   { opacity: 1; transform: scale(1)    translate3d(0,   0,   0); }
 }
 
 /* Чекмарки read — мягкий pop */

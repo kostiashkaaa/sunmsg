@@ -1,8 +1,8 @@
 /* normalized: removed mojibake comment */
 :root {
-    --font: 'Inter', system-ui, sans-serif;
-    --font-serif: var(--font);
-    --font-mono: var(--font);
+    --font:       'Inter', system-ui, sans-serif;
+    --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
     /* Backgrounds */
     --bg:              #f3f0e8;
@@ -82,12 +82,13 @@
     --chat-hdr:        #f3f0e8;
     --overlay-menu-bg: #fbf8f1;
 
-    /* Radius */
+    /* Radius — proper scale with visual hierarchy */
     --radius-xs:       4px;
     --radius-sm:       8px;
-    --radius-md:       14px;
-    --radius:          14px;
-    --radius-lg:       14px;
+    --radius-md:       12px;
+    --radius:          12px;
+    --radius-lg:       18px;
+    --radius-xl:       24px;
     --radius-full:     999px;
 
     /* normalized: removed mojibake comment */
@@ -100,13 +101,17 @@
     /* normalized: removed mojibake comment */
     --header-h:        60px;
 
-    /* Shadow */
+    /* Shadow — deduplicated and semantic */
     --shadow-none:     none;
+    --shadow-xs:       0 1px 2px rgba(20,16,8,0.06);
+    --shadow-sm:       0 1px 3px rgba(20,16,8,0.10);
     --shadow-1:        0 1px 2px rgba(20,16,8,0.08);
     --shadow-2:        0 4px 12px rgba(20,16,8,0.07);
-    --shadow:          0 1px 2px rgba(20,16,8,0.08);
-    --shadow-md:       0 4px 12px rgba(20,16,8,0.07);
-    --shadow-lg:       0 10px 26px rgba(20,16,8,0.12);
+    --shadow:          var(--shadow-sm);
+    --shadow-md:       0 4px 12px rgba(20,16,8,0.08), 0 1px 3px rgba(20,16,8,0.06);
+    --shadow-lg:       0 10px 26px rgba(20,16,8,0.12), 0 2px 6px rgba(20,16,8,0.06);
+    --shadow-bubble-out: 0 1px 3px rgba(0,0,0,0.14);
+    --shadow-bubble-in:  0 1px 2px rgba(20,16,8,0.08);
     --text-shadow-1:   0 1px 2px rgba(0,0,0,0.22);
     --text-shadow-contrast: 0 1px 2px rgba(0,0,0,0.30);
     --text-shadow-media: 0 1px 3px rgba(0,0,0,0.60);
@@ -119,14 +124,18 @@
     --space-7: 32px; --space-8: 40px;
     --space-9: 56px; --space-10: 72px;
 
-    /* normalized: removed mojibake comment */
-    --ease-quick:      cubic-bezier(.4,0,.2,1);
-    --ease-spring:     cubic-bezier(.4,0,.2,1);
+    /* Easing — proper semantic scale */
+    --ease-standard:   cubic-bezier(.4, 0, .2, 1);   /* Material standard — general purpose */
+    --ease-quick:      cubic-bezier(.4, 0, .2, 1);   /* alias for compat */
+    --ease-decel:      cubic-bezier(0, 0, .2, 1);    /* enter / appear */
+    --ease-accel:      cubic-bezier(.4, 0, 1, 1);    /* exit / disappear */
+    --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);  /* real spring with overshoot */
+    --ease-bounce:     cubic-bezier(0.34, 1.56, 0.64, 1);  /* alias */
     --dur-instant:     120ms;
     --dur-quick:       200ms;
     --dur-medium:      300ms;
     --dur-slow:        400ms;
-    --transition:      0.2s cubic-bezier(.4,0,.2,1);
+    --transition:      0.2s cubic-bezier(.4, 0, .2, 1);
 
     /* normalized: removed mojibake comment */
     --profile-sheet-bg:    linear-gradient(180deg, rgba(243,240,232,0.98) 0%, rgba(239,234,224,0.99) 100%);

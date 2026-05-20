@@ -380,7 +380,7 @@ body.settings-detail-open .settings-card .settings-row + .settings-row {
 }
 .settings-scene .settings-avatar-name {
     font-size: 23px !important;
-    font-weight: 650 !important;
+    font-weight: 600 !important;
     letter-spacing: -0.01em !important;
 }
 .settings-scene .settings-avatar-username {
@@ -627,7 +627,7 @@ body.settings-home-open .settings-nav-profile-main {
 }
 body.settings-home-open .settings-nav-profile-name {
     font-size: 21px !important;
-    font-weight: 650 !important;
+    font-weight: 600 !important;
 }
 body.settings-home-open .settings-nav-profile-status {
     font-size: 13.5px !important;

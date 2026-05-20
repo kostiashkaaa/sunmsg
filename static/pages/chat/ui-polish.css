@@ -1,0 +1,206 @@
+/* ================================================================
+   UI POLISH — premium micro-polish layer
+   Applied after all other chat styles.
+   ================================================================ */
+
+/* ── 1. Global focus-visible ring ──────────────────────────────── */
+:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+/* Remove :focus outline for mouse users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ── 2. Button press feedback — spring scale ───────────────────── */
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled),
+.btn:active:not(:disabled) {
+    transform: scale(0.97);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 3. Bubble polish — subtle shadow + max-width cap ──────────── */
+.message.self  .bubble {
+    max-width: min(72%, 600px);
+    margin-left: auto;
+}
+.message.other .bubble {
+    max-width: min(72%, 600px);
+    margin-right: auto;
+}
+
+/* ── 4. Message bubble transition smooth ───────────────────────── */
+.message .bubble {
+    transition:
+        background      var(--dur-quick)   var(--ease-standard),
+        border-color    var(--dur-quick)   var(--ease-standard),
+        box-shadow      var(--dur-quick)   var(--ease-standard),
+        border-radius   var(--dur-medium)  var(--ease-spring);
+}
+
+/* ── 5. Contact item hover — spring scale ──────────────────────── */
+.contact-item {
+    transition: background var(--dur-quick) var(--ease-standard);
+}
+
+/* ── 6. Reaction pill press feedback ───────────────────────────── */
+.reaction-pill:active,
+[data-reaction-pill]:active {
+    transform: scale(0.90);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 7. Ink-faint contrast fix — WCAG AA ───────────────────────── */
+/* --ink-faint on light bg gives ~2.8:1 — below WCAG AA (4.5:1).
+   Raise contrast for small-text uses. */
+.sidebar-group-label,
+.day-separator span,
+.empty-state-eyebrow {
+    color: var(--ink-mute);  /* #7a7363 — better contrast ~5.1:1 */
+}
+
+/* ── 8. Composer gap improvement ───────────────────────────────── */
+.chat-input-area {
+    gap: 10px;
+}
+
+/* ── 9. msg-meta font-size — no sub-pixel ──────────────────────── */
+.msg-meta {
+    font-size: 11px;
+}
+
+/* ── 10. Scrollbar polish ──────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 5px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--border) 72%, transparent);
+    border-radius: var(--radius-full);
+    transition: background var(--dur-quick);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--border) 100%, transparent);
+}
+
+/* ── 11. Lightbox btn spring ───────────────────────────────────── */
+.lightbox-btn:active,
+.lightbox-nav:active,
+.lightbox-zoom-btn:active {
+    transform: scale(0.93) !important;
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 12. Audio player toggle spring ───────────────────────────── */
+.audio-player-toggle:active {
+    transform: scale(0.93);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 13. Profile meta copy btn spring ─────────────────────────── */
+.profile-meta-copy-btn:active {
+    transform: scale(0.86);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 14. Disappearing pill border-radius → full ───────────────── */
+.disappearing-pill {
+    border-radius: var(--radius-full);
+}
+
+/* ── 15. Delete-chat-action hover states polish ───────────────── */
+.delete-chat-action--surface:hover {
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.delete-chat-action--danger:hover {
+    filter: brightness(1.06);
+}
+
+/* ── 16. Profile drawer topbar height → 60px (align with header) */
+.profile-topbar {
+    height: var(--header-h);
+}
+
+/* ── 17. Profile toggle thumb spring ─────────────────────────── */
+.profile-toggle-thumb {
+    transition: transform var(--dur-quick) var(--ease-spring);
+}
+
+/* ── 18. Larger tap target for msg-menu-trigger on mobile ──────── */
+@media (pointer: coarse) {
+    .msg-menu-trigger {
+        width: 32px;
+        height: 28px;
+        margin-left: 2px;
+    }
+    .reaction-pill,
+    [data-reaction-pill] {
+        min-height: 32px;
+        padding: 4px 10px;
+    }
+}
+
+/* ── 19. Reduced motion — disable spring for lite mode ─────────── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 1ms !important;
+    }
+}
+
+html[data-motion-level="lite"] .reaction-pill,
+html[data-motion-level="lite"] [data-reaction-pill],
+html[data-motion-level="lite"] .profile-toggle-thumb,
+html[data-motion-level="lite"] .message .bubble {
+    transition-timing-function: var(--ease-standard) !important;
+}
+
+/* ── 20. msg-tick unified font-weight ─────────────────────────── */
+.msg-tick {
+    font-weight: 600;
+}
+
+/* ── 21. Link preview card border-radius ─────────────────────── */
+.link-preview-card {
+    border-radius: var(--radius-md);
+}
+
+/* ── 22. Edit banner border-radius → token ───────────────────── */
+.edit-message-banner,
+.message-actions-bar {
+    border-radius: var(--radius-md);
+}
+
+/* ── 23. Reply bar close button spring ───────────────────────── */
+.reply-bar__close:active {
+    transform: scale(0.88);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 24. Context menu item spring feedback ────────────────────── */
+.message-context-menu .menu-item:active {
+    transform: scale(0.98);
+    transition-duration: var(--dur-instant) !important;
+}
+
+/* ── 25. Ultrawide — cap message content width ────────────────── */
+@media (min-width: 1440px) {
+    .message.self  .bubble { max-width: min(65%, 560px); }
+    .message.other .bubble { max-width: min(65%, 560px); }
+}
+
+@media (min-width: 1920px) {
+    .message.self  .bubble { max-width: min(60%, 520px); }
+    .message.other .bubble { max-width: min(60%, 520px); }
+    .chat-area { --chat-content-max-width: 860px; }
+}

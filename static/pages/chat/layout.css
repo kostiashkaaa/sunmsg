@@ -28,8 +28,8 @@
     background: transparent;
     border: none;
 }
-.message.self { justify-content: flex-end; align-items: flex-end; align-self: flex-end; transform-origin: right bottom; padding-left: 18%; }
-.message.other { justify-content: flex-start; align-items: flex-start; align-self: flex-start; transform-origin: left bottom; padding-right: 18%; }
+.message.self  { justify-content: flex-end;   align-items: flex-end;   align-self: flex-end;   transform-origin: right bottom; padding-left: 14%;  }
+.message.other { justify-content: flex-start; align-items: flex-start; align-self: flex-start; transform-origin: left bottom;  padding-right: 14%; }
 
 /* Bubble base styles are canonicalized in components.css. */
 
@@ -44,7 +44,7 @@
     line-height: 1;
 }
 
-.msg-edited { font-style: italic; font-size: 9.5px; margin-right: 2px; white-space: nowrap; }
+.msg-edited { font-style: italic; font-size: 10px; margin-right: 2px; white-space: nowrap; }
 /* .msg-tick base styles are defined in the canonical block below (~line 280). */
 /* Dead micro-declaration removed: was fully overridden by the canonical .msg-tick block. */
 .msg-menu-trigger {
@@ -140,12 +140,13 @@
     resize: none;
     overflow-y: auto;
     border: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: var(--radius-full);
     padding: 11px 16px;
     background: var(--surface);
     color: var(--text);
     outline: none;
     line-height: 1.4;
+    transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard);
 }
 #messageInput:focus {
     border-color: var(--accent);
@@ -162,7 +163,7 @@
     gap: 12px;
     padding: 10px 14px;
     border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 .message-actions-bar {
@@ -172,7 +173,7 @@
     gap: 14px;
     padding: 10px 14px;
     border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .message-actions-bar__text {
@@ -292,13 +293,13 @@
 .msg-tick.sent { color: rgba(255,255,255,0.55); }
 .msg-tick.read { color: color-mix(in srgb, var(--chat-bubble-out-text) 86%, var(--accent) 14%); }
 body:not(.dark-mode) .msg-tick.sent { color: rgba(255,255,255,0.6); }
-body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff); }
+body:not(.dark-mode) .msg-tick.read { color: var(--read-tick-color); }
 
 /* normalized: removed mojibake comment */
 .contact-avatar {
     position: relative;
-    width: 44px;
-    height: 44px;
+    width: var(--avatar-md);
+    height: var(--avatar-md);
     background: var(--surface-2);
     border-radius: 50%;
     display: flex;
@@ -325,22 +326,23 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     position: absolute;
     bottom: -1px;
     right: -1px;
-    width: 14px;
-    height: 14px;
-    border: 2.5px solid var(--sidebar-bg); /* Masking effect */
+    width: 12px;
+    height: 12px;
+    border: none;
     border-radius: 50%;
     background: var(--online-dot-color, #10b981);
+    /* box-shadow masking works on any background including glass/wallpaper */
+    box-shadow: 0 0 0 2.5px var(--sidebar-bg);
     opacity: 0;
     transform: scale(0.55);
-    box-shadow: none;
     pointer-events: none;
-    transition: opacity var(--dur-quick) var(--ease-quick), transform var(--dur-quick) var(--ease-quick);
+    transition: opacity var(--dur-quick) var(--ease-spring), transform var(--dur-quick) var(--ease-spring);
     z-index: 2;
 }
 
 .status-dot.online {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1.0);
 }
 
 @keyframes statusDotPulse {
@@ -473,11 +475,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     z-index: 10;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--rule);
     color: var(--sub-text);
     background: var(--paper);
-    transition: transform var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+    transition: transform var(--dur-quick) var(--ease-spring), background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
 }
 
 .profile-close-btn:hover {
@@ -665,16 +667,16 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 .profile-action-btn {
     border: 1px solid var(--profile-action-border);
     background: var(--profile-action-bg);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     min-height: 84px;
     padding: 12px 8px;
     color: var(--text);
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
     gap: 10px;
-    transition: transform var(--dur-quick) var(--ease-quick), opacity var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
+    transition: transform var(--dur-quick) var(--ease-spring), opacity var(--dur-quick) var(--ease-quick), border-color var(--dur-quick) var(--ease-quick), background var(--dur-quick) var(--ease-quick);
 }
 
 .profile-action-btn:hover {
@@ -684,8 +686,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 .profile-action-btn:active,
 .profile-action-btn.is-tapped {
-    transform: scale(0.96);
-    opacity: 0.75;
+    transform: scale(0.94);
+    opacity: 0.80;
 }
 
 .profile-action-icon {
@@ -702,7 +704,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 .profile-meta-card {
     margin-top: 16px;
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--profile-card-border);
     background: var(--profile-card-bg);
     overflow: hidden;
@@ -797,7 +799,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 
 .profile-info-list,
 .profile-danger-list {
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--profile-card-border);
     background: var(--profile-card-bg);
     overflow: hidden;
@@ -1149,11 +1151,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     .profile-main-info #profileLastSeen { font-size: 13px; }
     .profile-action-btn {
         min-height: 86px;
-        border-radius: 16px;
+        border-radius: var(--radius-lg);
     }
     .profile-action-icon { font-size: 28px; }
     .profile-action-label { font-size: 14px; }
-    .profile-meta-card { margin-top: 16px; border-radius: 16px; }
+    .profile-meta-card { margin-top: 16px; border-radius: var(--radius-lg); }
     .profile-meta-row { padding: 14px 12px; }
     .profile-meta-label { font-size: 13px; }
     .profile-meta-value { font-size: 14px; }
@@ -1183,8 +1185,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     .auth-page-body { padding: 20px 12px; }
 
     /* normalized: removed mojibake comment */
-    .message.self  { padding-left: 8%; }
-    .message.other { padding-right: 8%; }
+    .message.self  { padding-left: 10%; }
+    .message.other { padding-right: 10%; }
     /* normalized: removed mojibake comment */
     .msg-meta { font-size: 9px; }
     .msg-edited { font-size: 8.5px; }
@@ -1230,7 +1232,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     }
     .profile-info-list,
     .profile-danger-list {
-        border-radius: 14px;
+        border-radius: var(--radius-md);
     }
 
     #toastContainer {
@@ -1273,8 +1275,8 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
 /* -- Very small screens (?360px) -- */
 @media (max-width: 360px) {
     .auth-card { padding: 16px 12px; }
-    .message.self  { padding-left: 5%; }
-    .message.other { padding-right: 5%; }
+    .message.self  { padding-left: 8%; }
+    .message.other { padding-right: 8%; }
     .profile-action-label { font-size: 12px; }
     .profile-meta-label { font-size: 12px; }
     .profile-meta-value { font-size: 13px; }
@@ -1320,7 +1322,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     vertical-align: middle;
 }
 .sidebar-tick.sent { color: var(--sub-text); opacity: 0.7; }
-.sidebar-tick.read { color: var(--accent); font-weight: 700; }
+.sidebar-tick.read { color: var(--read-tick-color); font-weight: 600; }
 
 /* Settings overlay */
 .settings-overlay {
@@ -1372,13 +1374,13 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     overflow: hidden;
     background: var(--bg);
     box-shadow: var(--profile-sheet-shadow);
-    transform: translate3d(40px, 0, 0) scale(0.986);
+    transform: translate3d(32px, 0, 0) scale(0.988);
     transform-origin: right center;
     opacity: 0;
     transition:
-        transform var(--dur-medium) var(--ease-spring),
-        opacity var(--dur-quick) var(--ease-quick),
-        box-shadow var(--dur-medium) var(--ease-quick);
+        transform var(--motion-duration-medium) var(--motion-ease-enter),
+        opacity   var(--motion-duration-fast)   var(--motion-ease-enter),
+        box-shadow var(--dur-medium) var(--ease-standard);
     will-change: transform, opacity;
     backface-visibility: hidden;
 }
@@ -1387,8 +1389,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     opacity: 1;
 }
 .settings-overlay.is-closing .settings-overlay-panel {
-    transform: translate3d(24px, 0, 0) scale(0.992);
+    transform: translate3d(20px, 0, 0) scale(0.993);
     opacity: 0;
+    transition:
+        transform var(--motion-duration-base) var(--motion-ease-exit),
+        opacity   var(--motion-duration-fast)  var(--motion-ease-exit);
 }
 .settings-overlay-frame {
     flex: 1;
@@ -1448,8 +1453,8 @@ body.settings-detail-open .settings-overlay-frame {
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg,
-        color-mix(in srgb, var(--accent, #c8932b) 55%, #2a241a) 0%,
-        color-mix(in srgb, var(--accent, #c8932b) 22%, var(--profile-card-bg, #1c1a14)) 100%);
+        color-mix(in srgb, var(--accent) 60%, var(--surface-2)) 0%,
+        color-mix(in srgb, var(--accent) 20%, var(--surface))   100%);
     z-index: 0;
 }
 .profile-banner-row {
@@ -1510,7 +1515,7 @@ body.settings-detail-open .settings-overlay-frame {
 
 .profile-meta-card--sun {
     margin-top: 16px;
-    border-radius: 14px;
+    border-radius: var(--radius-md);
 }
 .profile-meta-card--sun .profile-meta-row {
     padding: 14px 16px;
@@ -1756,7 +1761,7 @@ body.settings-detail-open .settings-overlay-frame {
     margin: 0 14px 18px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -2416,7 +2421,7 @@ body.settings-detail-open .settings-overlay-frame {
         .app-boot-brand-mark {
             width: 48px;
             height: 48px;
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             background:
                 radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.46) 0, transparent 34%),
                 linear-gradient(135deg, color-mix(in srgb, var(--accent) 94%, transparent) 0%, color-mix(in srgb, var(--accent-deep) 84%, transparent) 100%);
@@ -2694,7 +2699,7 @@ body.settings-detail-open .settings-overlay-frame {
         .app-boot-composer-action {
             width: 42px;
             height: 42px;
-            border-radius: 14px;
+            border-radius: var(--radius-md);
             background: color-mix(in srgb, var(--accent) 16%, var(--surface) 84%);
         }
 
@@ -2711,7 +2716,7 @@ body.settings-detail-open .settings-overlay-frame {
             flex-direction: column;
             gap: 6px;
             padding: 14px 15px;
-            border-radius: 18px;
+            border-radius: var(--radius-lg);
             border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
             background: color-mix(in srgb, var(--surface) 74%, transparent 26%);
         }
@@ -2797,7 +2802,7 @@ body.settings-detail-open .settings-overlay-frame {
         .app-boot-mark {
             width: 52px;
             height: 52px;
-            border-radius: 18px;
+            border-radius: var(--radius-lg);
             background:
                 radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.5) 0, transparent 34%),
                 linear-gradient(145deg, color-mix(in srgb, var(--accent) 94%, transparent) 0%, color-mix(in srgb, var(--accent-deep) 86%, transparent) 100%);
@@ -2917,7 +2922,7 @@ body.settings-detail-open .settings-overlay-frame {
             max-width: 74%;
             padding: 13px 14px;
             gap: 9px;
-            border-radius: 18px;
+            border-radius: var(--radius-lg);
             background: color-mix(in srgb, var(--surface) 82%, transparent 18%);
         }
 
@@ -3067,7 +3072,7 @@ body.settings-detail-open .settings-overlay-frame {
             padding: 8px;
             opacity: 0;
             border: 1px solid transparent;
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             background: color-mix(in srgb, var(--surface) 88%, transparent);
             box-shadow: none;
             pointer-events: none;
@@ -3229,7 +3234,7 @@ body.settings-detail-open .settings-overlay-frame {
 
         .sidebar-user-info .display-name {
             font-size: 15px;
-            font-weight: 650;
+            font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -3271,7 +3276,7 @@ body.settings-detail-open .settings-overlay-frame {
             width: 100%;
             min-width: 0;
             padding: 8px;
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             border: 1px solid var(--border);
             background: var(--surface);
             box-shadow: none;
@@ -3288,7 +3293,7 @@ body.settings-detail-open .settings-overlay-frame {
             align-items: center;
             gap: 10px;
             padding: 8px 10px;
-            border-radius: 14px;
+            border-radius: var(--radius-md);
             border: 1px solid transparent;
             background: transparent;
             color: inherit;
@@ -3398,7 +3403,7 @@ body.settings-detail-open .settings-overlay-frame {
             gap: 8px;
             width: 100%;
             padding: 9px 10px 9px 8px;
-            border-radius: 14px;
+            border-radius: var(--radius-md);
             border: 1px solid var(--border);
             background: var(--surface-2);
             color: var(--text);
@@ -3456,7 +3461,7 @@ body.settings-detail-open .settings-overlay-frame {
             align-self: stretch;
             width: 52px;
             min-width: 52px;
-            border-radius: 14px;
+            border-radius: var(--radius-md);
             font-size: 15px;
             color: var(--sub-text);
             background: color-mix(in srgb, var(--surface) 64%, transparent 36%);
@@ -3641,8 +3646,8 @@ body.settings-detail-open .settings-overlay-frame {
 
 
         .chat-header .chat-partner-name {
-            font-size: 16.5px;
-            font-weight: 650;
+            font-size: 17px;
+            font-weight: 600;
             line-height: 1.2;
             color: var(--text);
             letter-spacing: -0.015em;
@@ -3685,7 +3690,7 @@ body.settings-detail-open .settings-overlay-frame {
                 + env(safe-area-inset-bottom, 0px)
                 + 12px
             );
-            scrollbar-gutter: stable both-edges;
+            scrollbar-gutter: stable;
         }
 
 
@@ -3817,8 +3822,8 @@ body.settings-detail-open .settings-overlay-frame {
             transform: translate3d(calc(var(--profile-sheet-closed-shift) + var(--profile-drag-x, 0px)), 0, 0);
             opacity: 0;
             transition:
-                transform var(--dur-slow) var(--ease-quick),
-                opacity var(--dur-medium) var(--ease-quick);
+                transform var(--motion-duration-medium) var(--motion-ease-enter),
+                opacity   var(--motion-duration-fast)   var(--motion-ease-enter);
             will-change: transform, opacity;
         }
 

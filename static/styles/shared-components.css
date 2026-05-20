@@ -90,7 +90,7 @@ svg[aria-hidden="true"][focusable="false"][width="0"][height="0"] {
 
 .toast-msg__title {
     font-size: 13px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.25;
     letter-spacing: -0.01em;
 }
