@@ -552,6 +552,84 @@ def test_handle_send_message_event_success_inserts_and_emits(tmp_path):
     assert any(event[0] == 'message_sent' and event[2].get('room') == 'pk-1' for event in emitted)
 
 
+def test_handle_send_message_event_replays_existing_request_without_duplicate_insert(tmp_path):
+    db_path = tmp_path / 'socket-message-handler-send-duplicate-request.db'
+    with _connect(db_path) as conn:
+        _prepare_send_schema(conn)
+        conn.execute('ALTER TABLE messages ADD COLUMN client_id TEXT')
+        conn.execute('ALTER TABLE messages ADD COLUMN request_id TEXT')
+        conn.execute(
+            '''
+            CREATE UNIQUE INDEX idx_messages_sender_request_id
+            ON messages(sender_id, request_id)
+            WHERE request_id IS NOT NULL AND request_id <> ''
+            '''
+        )
+        conn.execute("INSERT INTO users (id, public_key) VALUES (1, 'pk-1'), (2, 'pk-2')")
+        conn.execute("INSERT INTO contacts (user_id, contact_id, chat_id) VALUES (1, 2, 'chat-a'), (2, 1, 'chat-a')")
+        conn.execute(
+            '''
+            INSERT INTO messages (
+                chat_id, sender_id, receiver_id, message, message_type,
+                is_delivered, client_id, request_id
+            )
+            VALUES (
+                'chat-a', 1, 2, ?, 'text',
+                1, 'client-dup', 'client-dup'
+            )
+            ''',
+            (E2EE_DIRECT_MESSAGE,),
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_send_message_event(
+        {
+            'chat_id': 'chat-a',
+            'message': E2EE_DIRECT_MESSAGE,
+            'message_type': 'text',
+            'client_id': 'client-dup',
+            'request_id': 'client-dup',
+        },
+        session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        is_valid_chat_id_func=lambda chat_id: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        count_connected_func=lambda pub: 1 if pub == 'pk-2' else 0,
+        build_block_state_func=lambda conn, sender_id, receiver_id: {'is_blocked': False, 'blocked_by_me': False, 'blocked_me': False},
+        normalize_block_state_func=lambda state: state,
+        sanitize_message_type_func=lambda value: 'text',
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        looks_like_ciphertext_func=lambda raw: isinstance(raw, str) and 'encrypted_message' in raw,
+        emit_blocked_error_func=lambda message, state: None,
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+        utc_now_text_func=lambda: '2025-01-01 00:00:00',
+        logger=type('Logger', (), {'warning': lambda self, msg, *args: None, 'error': lambda self, msg, *args: None})(),
+        database_error_cls=DatabaseError,
+    )
+
+    with _connect(db_path) as conn:
+        count_row = conn.execute(
+            '''
+            SELECT COUNT(*) AS cnt
+            FROM messages
+            WHERE sender_id = 1 AND request_id = 'client-dup'
+            '''
+        ).fetchone()
+
+    assert int(count_row['cnt']) == 1
+    assert not any(event[0] == 'receive_message' for event in emitted)
+    replayed = [event for event in emitted if event[0] == 'message_sent']
+    assert len(replayed) == 1
+    assert replayed[0][1]['client_id'] == 'client-dup'
+    assert replayed[0][1]['request_id'] == 'client-dup'
+    assert replayed[0][1]['duplicate'] is True
+
+
 def test_handle_send_message_event_blocked_emits_state_and_error(tmp_path):
     db_path = tmp_path / 'socket-message-handler-send-blocked.db'
     with _connect(db_path) as conn:

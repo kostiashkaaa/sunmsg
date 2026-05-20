@@ -203,19 +203,147 @@ def _resolve_message_table_columns(conn) -> set[str]:
     return column_names
 
 
-def _resolve_message_table_capabilities(conn) -> dict[str, bool]:
+def _resolve_message_table_capabilities(conn) -> dict[str, object]:
     message_columns = _resolve_message_table_columns(conn)
     return {
+        'columns': message_columns,
         'supports_forward_metadata': (
             'forward_from_name' in message_columns
             and 'forward_from_user_id' in message_columns
         ),
         'supports_album_metadata': 'album_id' in message_columns,
+        'supports_client_metadata': 'client_id' in message_columns,
+        'supports_request_metadata': 'request_id' in message_columns,
     }
 
 
 def _supports_forward_metadata(conn) -> bool:
     return _resolve_message_table_capabilities(conn)['supports_forward_metadata']
+
+
+def _message_select_expr(message_columns: set[str], column_name: str, fallback_sql: str) -> str:
+    if column_name in message_columns:
+        return column_name
+    safe_alias = column_name.replace('"', '""')
+    return f'{fallback_sql} AS "{safe_alias}"'
+
+
+def _find_existing_send_by_request_id(
+    conn,
+    *,
+    sender_id: int,
+    request_id: str,
+) -> dict | None:
+    normalized_request_id = str(request_id or '').strip()
+    if not normalized_request_id:
+        return None
+    capabilities = _resolve_message_table_capabilities(conn)
+    if not capabilities.get('supports_request_metadata'):
+        return None
+    message_columns = capabilities.get('columns') or set()
+    select_columns = [
+        'id',
+        'chat_id',
+        'sender_id',
+        _message_select_expr(message_columns, 'receiver_id', 'NULL'),
+        _message_select_expr(message_columns, 'message', "''"),
+        _message_select_expr(message_columns, 'message_type', "'text'"),
+        _message_select_expr(message_columns, 'created_at', 'CURRENT_TIMESTAMP'),
+        _message_select_expr(message_columns, 'is_read', '0'),
+        _message_select_expr(message_columns, 'is_delivered', '0'),
+        _message_select_expr(message_columns, 'voice_listened_by_receiver', '0'),
+        _message_select_expr(message_columns, 'reply_to_id', 'NULL'),
+        _message_select_expr(message_columns, 'forward_from_name', 'NULL'),
+        _message_select_expr(message_columns, 'forward_from_user_id', 'NULL'),
+        _message_select_expr(message_columns, 'album_id', 'NULL'),
+        _message_select_expr(message_columns, 'expires_at', 'NULL'),
+        _message_select_expr(message_columns, 'client_id', 'NULL'),
+        'request_id',
+    ]
+    row = conn.execute(
+        f'''
+        SELECT {', '.join(select_columns)}
+        FROM messages
+        WHERE sender_id = ? AND request_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (int(sender_id), normalized_request_id),
+    ).fetchone()
+    if not row:
+        return None
+    if hasattr(row, 'keys'):
+        return {key: row[key] for key in row.keys()}
+    return dict(row)
+
+
+def _emit_existing_send_ack(conn, *, context: dict | None = None) -> None:
+    send_context = context or {}
+    existing = send_context.get('existing_message') or {}
+    emit_func = send_context.get('emit_func')
+    if not existing or not callable(emit_func):
+        return
+
+    sender_id = int(existing.get('sender_id') or send_context.get('sender_id') or 0)
+    receiver_id = existing.get('receiver_id')
+    reply_to_id = existing.get('reply_to_id')
+    reply_message = None
+    reply_sender_pub = None
+    if reply_to_id:
+        reply_to_id, reply_message, reply_sender_pub = _resolve_reply_preview_for_send(
+            conn,
+            context={
+                'reply_to_id': reply_to_id,
+                'chat_id': existing.get('chat_id'),
+                'looks_like_ciphertext_func': send_context.get('looks_like_ciphertext_func'),
+                'logger': send_context.get('logger'),
+            },
+        )
+
+    sender_display_name, sender_username, sender_avatar_url = _resolve_sender_identity_for_send(
+        conn,
+        context={
+            'sender_id': sender_id,
+            'receiver_id': receiver_id,
+            'chat_type': send_context.get('chat_type'),
+            'sender_display_name': send_context.get('sender_display_name'),
+            'sender_username': send_context.get('sender_username'),
+        },
+    )
+
+    payload = {
+        'id': existing.get('id'),
+        'chat_id': str(existing.get('chat_id') or ''),
+        'sender_user_id': sender_id,
+        'sender_public_key': str(send_context.get('sender_pub') or ''),
+        'sender_display_name': sender_display_name,
+        'sender_username': sender_username,
+        'sender_avatar_url': sender_avatar_url,
+        'message': str(existing.get('message') or ''),
+        'is_read': bool(existing.get('is_read')),
+        'is_delivered': bool(existing.get('is_delivered')),
+        'voice_listened_by_partner': bool(existing.get('voice_listened_by_receiver')),
+        'created_at': (
+            existing.get('created_at')
+            or (
+                send_context.get('utc_now_text_func')()
+                if callable(send_context.get('utc_now_text_func'))
+                else ''
+            )
+        ),
+        'client_id': send_context.get('client_id') or existing.get('client_id') or existing.get('request_id'),
+        'request_id': str(existing.get('request_id') or ''),
+        'reply_to_id': reply_to_id,
+        'reply_message': reply_message,
+        'reply_sender_pub': reply_sender_pub,
+        'forward_from_name': existing.get('forward_from_name'),
+        'forward_from_user_id': existing.get('forward_from_user_id'),
+        'album_id': existing.get('album_id') or None,
+        'reactions': [],
+        'expires_at': existing.get('expires_at'),
+        'duplicate': True,
+    }
+    emit_func('message_sent', payload, room=send_context.get('sender_pub'))
 
 
 def _sync_direct_contact_chat(conn, *, sender_id: int, receiver_id: int, chat_id: str) -> None:
@@ -738,6 +866,8 @@ def _insert_message_row(
     send_context = context or {}
     supports_forward_metadata = bool(send_context.get('supports_forward_metadata'))
     supports_album_metadata = bool(send_context.get('supports_album_metadata'))
+    supports_client_metadata = bool(send_context.get('supports_client_metadata'))
+    supports_request_metadata = bool(send_context.get('supports_request_metadata'))
     chat_type = str(send_context.get('chat_type') or '')
     chat_id = str(send_context.get('chat_id') or '')
     sender_id = int(send_context.get('sender_id') or 0)
@@ -749,6 +879,8 @@ def _insert_message_row(
     forward_from_user_id = send_context.get('forward_from_user_id')
     album_id = send_context.get('album_id') or None
     receiver_is_connected = bool(send_context.get('receiver_is_connected'))
+    client_id = str(send_context.get('client_id') or '').strip()
+    request_id = str(send_context.get('request_id') or '').strip()
 
     # Build the INSERT dynamically: the base columns are always present, while
     # forward/album columns are appended only when the schema supports them.
@@ -771,6 +903,12 @@ def _insert_message_row(
     if supports_album_metadata:
         columns.append('album_id')
         values.append(album_id)
+    if supports_client_metadata:
+        columns.append('client_id')
+        values.append(client_id or None)
+    if supports_request_metadata:
+        columns.append('request_id')
+        values.append(request_id or None)
     columns.append('is_delivered')
     values.append(1 if is_group else int(receiver_is_connected))
 
@@ -995,6 +1133,8 @@ def _persist_send_flow(conn, *, context: dict | None = None):
         message_table_capabilities = _resolve_message_table_capabilities(conn)
         supports_forward_metadata = message_table_capabilities['supports_forward_metadata']
         supports_album_metadata = message_table_capabilities['supports_album_metadata']
+        supports_client_metadata = message_table_capabilities['supports_client_metadata']
+        supports_request_metadata = message_table_capabilities['supports_request_metadata']
         if chat_type != 'group':
             _sync_direct_contact_chat(
                 conn,
@@ -1009,6 +1149,8 @@ def _persist_send_flow(conn, *, context: dict | None = None):
             context={
                 'supports_forward_metadata': supports_forward_metadata,
                 'supports_album_metadata': supports_album_metadata,
+                'supports_client_metadata': supports_client_metadata,
+                'supports_request_metadata': supports_request_metadata,
                 'chat_type': chat_type,
                 'chat_id': chat_id,
                 'sender_id': sender_id,
@@ -1020,6 +1162,8 @@ def _persist_send_flow(conn, *, context: dict | None = None):
                 'forward_from_user_id': forward_from_user_id,
                 'album_id': album_id,
                 'receiver_is_connected': receiver_is_connected,
+                'client_id': send_context.get('client_id'),
+                'request_id': request_id,
             },
         )
         inserted_row = cur.fetchone()
@@ -1992,6 +2136,29 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
             delivery_context['receiver_pub'],
             delivery_context['receiver_is_connected'],
         )
+        existing_send = _find_existing_send_by_request_id(
+            conn,
+            sender_id=sender_id,
+            request_id=request_id,
+        )
+        if existing_send:
+            _emit_existing_send_ack(
+                conn,
+                context={
+                    'existing_message': existing_send,
+                    'emit_func': emit_func,
+                    'sender_id': sender_id,
+                    'sender_pub': sender_pub,
+                    'sender_display_name': str(session_store.get('display_name') or session_store.get('username') or ''),
+                    'sender_username': str(session_store.get('username') or ''),
+                    'chat_type': chat_type,
+                    'client_id': data.get('client_id'),
+                    'looks_like_ciphertext_func': looks_like_ciphertext_func,
+                    'logger': logger,
+                    'utc_now_text_func': utc_now_text_func,
+                },
+            )
+            return
         if callable(socket_send_context_rate_check_func):
             send_rate_result = socket_send_context_rate_check_func(
                 conn,
@@ -2104,6 +2271,7 @@ def handle_send_message_event(  # noqa: PLR0913 - dependency-injected socket han
                 'sender_display_name': sender_display_name,
                 'sender_username': sender_username,
                 'request_id': request_id,
+                'client_id': data.get('client_id'),
             },
         )
     finally:

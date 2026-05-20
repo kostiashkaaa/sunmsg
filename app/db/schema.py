@@ -223,7 +223,9 @@ def ensure_base_schema(conn) -> None:
             forward_from_name TEXT DEFAULT NULL,
             forward_from_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
             edit_count INTEGER DEFAULT 0,
-            is_delivered INTEGER NOT NULL DEFAULT 0
+            is_delivered INTEGER NOT NULL DEFAULT 0,
+            client_id TEXT DEFAULT NULL,
+            request_id TEXT DEFAULT NULL
         );
 
         CREATE TABLE IF NOT EXISTS message_receipts (

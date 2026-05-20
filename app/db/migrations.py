@@ -48,6 +48,7 @@ CRYPTO_V2_SCHEMA_MIGRATION = (32, 'add_x25519_ed25519_double_ratchet_mls_schema'
 SPOTIFY_PRIVACY_MIGRATION = (33, 'add_spotify_privacy_and_explicit_fields')
 USER_EXTENDED_PRIVACY_MIGRATION = (34, 'add_extended_user_privacy_controls')
 LIQUID_GLASS_FEATURE_ACCESS_MIGRATION = (35, 'create_liquid_glass_feature_access_tables')
+MESSAGE_SEND_IDEMPOTENCY_MIGRATION = (36, 'add_message_send_idempotency_columns')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -326,6 +327,8 @@ def _run_messages_schema_migrations(conn, cursor) -> None:
         ('voice_listened_by_receiver', 'voice_listened_by_receiver INTEGER NOT NULL DEFAULT 0'),
         ('read_at', 'read_at TIMESTAMP DEFAULT NULL'),
         ('call_id', 'call_id TEXT DEFAULT NULL'),
+        ('client_id', 'client_id TEXT DEFAULT NULL'),
+        ('request_id', 'request_id TEXT DEFAULT NULL'),
     )
     for column_name, ddl in message_columns:
         add_column_if_missing(conn, cursor, 'messages', column_name, ddl)
@@ -338,6 +341,17 @@ def _run_messages_schema_migrations(conn, cursor) -> None:
         _record_migration(cursor, MESSAGES_CALL_ID_MIGRATION)
         conn.commit()
         logger.info('Migration: added call_id unique index to messages')
+    if not migration_applied(cursor, MESSAGE_SEND_IDEMPOTENCY_MIGRATION[0]):
+        cursor.execute(
+            '''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_sender_request_id
+                ON messages(sender_id, request_id)
+                WHERE request_id IS NOT NULL AND request_id <> ''
+            '''
+        )
+        _record_migration(cursor, MESSAGE_SEND_IDEMPOTENCY_MIGRATION)
+        conn.commit()
+        logger.info('Migration: added durable send idempotency to messages')
 
 
 def _run_users_schema_migrations(conn, cursor) -> None:
