@@ -66,7 +66,7 @@
     // ── Утилиты ──────────────────────────────────────────────────────────────
 
     function _formatFingerprint(b64u) {
-        if (!b64u) return '<em style="color:var(--text-muted)">недоступен</em>';
+        if (!b64u) return '<em class="e2ee-status-muted">недоступен</em>';
         // SHA-256 hex отпечаток из raw байт ключа
         return b64u
             .replace(/[^A-Za-z0-9_-]/g, '')
@@ -169,7 +169,7 @@
         const peerHash = await _fingerprintForProto(_peerEd);
 
         if (myFp)   myFp.innerHTML   = _isLegacy
-            ? '<em style="color:var(--text-muted)">RSA — без Ed25519 отпечатка</em>'
+            ? '<em class="e2ee-status-muted">RSA — без Ed25519 отпечатка</em>'
             : _formatFingerprint(myHash);
         if (peerFp) peerFp.innerHTML = _formatFingerprint(peerHash);
 

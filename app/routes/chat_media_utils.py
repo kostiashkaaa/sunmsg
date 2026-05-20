@@ -17,6 +17,43 @@ _FORCED_MIME_BY_EXTENSION = {
     'sunenc': 'application/octet-stream',
 }
 
+_ALLOWED_MIME_BY_EXTENSION = {
+    'png': {'image/png'},
+    'jpg': {'image/jpeg'},
+    'jpeg': {'image/jpeg'},
+    'gif': {'image/gif'},
+    'webp': {'image/webp'},
+    'bmp': {'image/bmp', 'image/x-ms-bmp'},
+    'heic': {'image/heic', 'image/heif'},
+    'heif': {'image/heif', 'image/heic'},
+    'avif': {'image/avif'},
+    'mp4': {'video/mp4', 'audio/mp4'},
+    'webm': {'video/webm', 'audio/webm'},
+    'mov': {'video/quicktime'},
+    'm4v': {'video/mp4', 'video/x-m4v'},
+    'avi': {'video/x-msvideo', 'video/avi'},
+    'mkv': {'video/x-matroska', 'video/matroska'},
+    'mpeg': {'video/mpeg', 'audio/mpeg'},
+    'mpg': {'video/mpeg', 'audio/mpeg'},
+    '3gp': {'video/3gpp', 'audio/3gpp'},
+    'ogg': {'audio/ogg', 'video/ogg', 'application/ogg'},
+    'wav': {'audio/wav', 'audio/x-wav'},
+    'mp3': {'audio/mpeg', 'audio/mp3'},
+    'm4a': {'audio/mp4', 'audio/x-m4a'},
+    'aac': {'audio/aac', 'audio/aacp'},
+    'opus': {'audio/ogg', 'audio/opus'},
+    'pdf': {'application/pdf'},
+    'doc': {'application/msword'},
+    'docx': {'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
+    'txt': {'text/plain'},
+    'csv': {'text/csv', 'application/csv'},
+    'zip': {'application/zip', 'application/x-zip-compressed'},
+    'rar': {'application/vnd.rar', 'application/x-rar-compressed'},
+    '7z': {'application/x-7z-compressed'},
+    'xlsx': {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+    'sunenc': {'application/octet-stream'},
+}
+
 
 def allowed_file(filename, *, allowed_extensions) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -110,7 +147,13 @@ def normalize_chat_media_mime(uploaded_mime: str | None, filename: str, ext: str
     forced_mime = _FORCED_MIME_BY_EXTENSION.get(ext)
     if forced_mime:
         return forced_mime
-    mime = _detect_or_guess_mime(uploaded_mime, filename, ext)
+    uploaded = (uploaded_mime or '').strip().lower()
+    allowed = _ALLOWED_MIME_BY_EXTENSION.get(ext, set())
+    if uploaded and uploaded != 'application/octet-stream' and uploaded in allowed:
+        return uploaded
+    mime = _detect_or_guess_mime(None, filename, ext)
+    if allowed and mime not in allowed:
+        return sorted(allowed)[0]
     return mime or 'application/octet-stream'
 
 

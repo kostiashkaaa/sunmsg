@@ -25,7 +25,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         const initials = (req.sender_display_name || req.sender_username || '?')
             .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
         return `
-            <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${escapeHtml(initials)}</div>
+            <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
                 <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
                 <div class="req-username">@${escapeHtml(req.sender_username)}</div>
@@ -44,7 +44,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             ? `\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443: ${escapeHtml(String(req.chat_name || '').trim())}`
             : '\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443';
         return `
-            <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${escapeHtml(initials)}</div>
+            <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
                 <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
                 <div class="req-username">@${escapeHtml(req.sender_username)}</div>

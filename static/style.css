@@ -407,6 +407,7 @@ body {
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--accent-hover); }
+.text-muted { color: var(--text-muted); }
 
 /* normalized: removed mojibake comment */
 .form-control {

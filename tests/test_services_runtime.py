@@ -598,7 +598,7 @@ def test_csp_uses_script_nonce_and_restricts_websocket_sources():
     assert "'unsafe-inline'" not in style_src
     assert "'unsafe-inline'" not in style_src_elem
     assert "'self'" in style_src_elem
-    assert style_src_attr == "style-src-attr 'unsafe-inline'"
+    assert style_src_attr == "style-src-attr 'none'"
     assert object_src == "object-src 'none'"
     assert base_uri == "base-uri 'self'"
     assert form_action == "form-action 'self'"

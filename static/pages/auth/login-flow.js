@@ -94,7 +94,7 @@ export function initLoginFlow({
 
     function buildKeyPersistenceOptions(sessionData = {}) {
         return {
-            persistent: true,
+            persistent: false,
             sessionAutoLogoutSeconds: sessionData?.session_auto_logout_seconds,
             sessionExpiresAt: sessionData?.session_expires_at,
         };

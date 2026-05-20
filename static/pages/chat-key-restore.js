@@ -38,7 +38,7 @@ async function persistPrivateKeyPem(privateKeyPem) {
         return false;
     }
     return api.stagePrivateKeyForRedirect(privateKeyPem, {
-        persistent: true,
+        persistent: false,
         notify: true,
     });
 }

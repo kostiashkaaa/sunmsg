@@ -40,6 +40,11 @@ _LINK_PREVIEW_COMPACT_MAX_ASPECT_RATIO = 1.15
 _LINK_PREVIEW_CACHE = {}
 _LINK_PREVIEW_CACHE_LOCK = threading.Lock()
 _LINK_PREVIEW_CACHE_MAX_ENTRIES = 4096
+_LINK_PREVIEW_HOST_BUDGET = {}
+_LINK_PREVIEW_HOST_BUDGET_LOCK = threading.Lock()
+_LINK_PREVIEW_HOST_BUDGET_WINDOW_SECONDS = 60.0
+_LINK_PREVIEW_HOST_BUDGET_MAX_FETCHES = 30
+_LINK_PREVIEW_HOST_BUDGET_MAX_HOSTS = 2048
 
 
 class _MetaPreviewParser(HTMLParser):
@@ -608,6 +613,35 @@ def _looks_like_challenge_url(url: str) -> bool:
     return bool(_LINK_PREVIEW_CHALLENGE_PATH_RE.search(path))
 
 
+def _reserve_link_preview_host_budget(hostname: str) -> bool:
+    normalized_host = str(hostname or '').strip().lower()
+    if not normalized_host:
+        return False
+    now = float(time.time())
+    window_start = now - float(_LINK_PREVIEW_HOST_BUDGET_WINDOW_SECONDS)
+    with _LINK_PREVIEW_HOST_BUDGET_LOCK:
+        if (
+            normalized_host not in _LINK_PREVIEW_HOST_BUDGET
+            and len(_LINK_PREVIEW_HOST_BUDGET) >= int(_LINK_PREVIEW_HOST_BUDGET_MAX_HOSTS)
+        ):
+            oldest_host = min(
+                _LINK_PREVIEW_HOST_BUDGET,
+                key=lambda key: min(_LINK_PREVIEW_HOST_BUDGET[key] or [now]),
+            )
+            _LINK_PREVIEW_HOST_BUDGET.pop(oldest_host, None)
+        timestamps = [
+            float(value)
+            for value in _LINK_PREVIEW_HOST_BUDGET.get(normalized_host, [])
+            if float(value) >= window_start
+        ]
+        if len(timestamps) >= max(1, int(_LINK_PREVIEW_HOST_BUDGET_MAX_FETCHES)):
+            _LINK_PREVIEW_HOST_BUDGET[normalized_host] = timestamps
+            return False
+        timestamps.append(now)
+        _LINK_PREVIEW_HOST_BUDGET[normalized_host] = timestamps
+        return True
+
+
 def _fetch_preview_html(url: str) -> tuple[str, str]:
     request_headers = {
         'User-Agent': _LINK_PREVIEW_BOT_USER_AGENT,
@@ -793,6 +827,24 @@ def _put_preview_cache(normalized_url: str, payload: dict) -> None:
     )
 
 
+def _empty_preview_payload(normalized_url: str, hostname: str) -> dict:
+    fallback_image_url = _normalize_asset_url('/favicon.ico', base_url=normalized_url)
+    return {
+        'success': True,
+        'url': normalized_url,
+        'hostname': hostname,
+        'site_name': hostname,
+        'title': '',
+        'description': '',
+        'image_url': fallback_image_url,
+        'image_width': 0,
+        'image_height': 0,
+        'image_aspect_ratio': '1.7778',
+        'image_layout': 'compact',
+        'has_meta': False,
+    }
+
+
 def resolve_link_preview_payload(raw_url: str) -> tuple[dict, int]:
     normalized_url = _normalize_preview_url(raw_url)
     if not normalized_url:
@@ -807,42 +859,19 @@ def resolve_link_preview_payload(raw_url: str) -> tuple[dict, int]:
     if cached_payload is not None:
         return cached_payload, 200
 
+    if not _reserve_link_preview_host_budget(hostname):
+        payload = _empty_preview_payload(normalized_url, hostname)
+        _put_preview_cache(normalized_url, payload)
+        return payload, 200
+
     try:
         html_text, resolved_url = _fetch_preview_html(normalized_url)
     except (HTTPError, URLError, TimeoutError, OSError):
-        fallback_image_url = _normalize_asset_url('/favicon.ico', base_url=normalized_url)
-        return {
-            'success': True,
-            'url': normalized_url,
-            'hostname': hostname,
-            'site_name': hostname,
-            'title': '',
-            'description': '',
-            'image_url': fallback_image_url,
-            'image_width': 0,
-            'image_height': 0,
-            'image_aspect_ratio': '1.7778',
-            'image_layout': 'compact',
-            'has_meta': False,
-        }, 200
+        return _empty_preview_payload(normalized_url, hostname), 200
     if not _is_allowed_preview_url(resolved_url or normalized_url):
         return {'success': False, 'error': 'forbidden_host'}, 400
     if _looks_like_challenge_url(resolved_url or ''):
-        fallback_image_url = _normalize_asset_url('/favicon.ico', base_url=normalized_url)
-        payload = {
-            'success': True,
-            'url': normalized_url,
-            'hostname': hostname,
-            'site_name': hostname,
-            'title': '',
-            'description': '',
-            'image_url': fallback_image_url,
-            'image_width': 0,
-            'image_height': 0,
-            'image_aspect_ratio': '1.7778',
-            'image_layout': 'compact',
-            'has_meta': False,
-        }
+        payload = _empty_preview_payload(normalized_url, hostname)
         _put_preview_cache(normalized_url, payload)
         return payload, 200
 
@@ -894,6 +923,11 @@ def register_chat_link_preview_routes(chat_bp, *, limiter):  # noqa: C901
 
         if not _is_allowed_preview_url(normalized_url):
             return jsonify({'success': False, 'error': 'forbidden_host'}), 400
+
+        parsed = urlparse(normalized_url)
+        hostname = str(parsed.hostname or '').strip().lower()
+        if not _reserve_link_preview_host_budget(hostname):
+            return jsonify({'success': False, 'error': 'host_rate_limited'}), 429
 
         try:
             image_bytes, mime_type, resolved_url = _fetch_preview_image(normalized_url)

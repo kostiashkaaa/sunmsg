@@ -66,7 +66,7 @@ export function createGroupInviteLinkController({
                     <span class="group-invite-link-title">Ссылка-приглашение</span>
                     ${canManage ? `<button class="group-invite-link-create btn-sm-action" type="button">Создать</button>` : ''}
                 </div>
-                <div class="group-invite-link-display" style="display:none">
+                <div class="group-invite-link-display" hidden>
                     <input type="text" class="group-invite-link-input" readonly>
                     <button class="group-invite-link-copy btn-sm-action" type="button" title="Скопировать">
                         <i class="bi bi-clipboard"></i>
@@ -87,7 +87,7 @@ export function createGroupInviteLinkController({
 
         function showLink(token) {
             inputEl.value = buildLinkUrl(token);
-            displayEl.style.display = 'flex';
+            displayEl.hidden = false;
             statusEl.textContent = '';
         }
 
@@ -133,7 +133,7 @@ export function createGroupInviteLinkController({
             revokeBtn.setAttribute('aria-busy', 'true');
             try {
                 await revokeLink(chatId);
-                displayEl.style.display = 'none';
+                displayEl.hidden = true;
                 inputEl.value = '';
                 showStatus('Ссылка отозвана.');
             } catch (err) {

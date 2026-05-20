@@ -9,11 +9,11 @@ function buildDialogRequestItemHtml(data, escapeHtml) {
     const avatar = data.sender_avatar || '';
     const initials = getInitials(displayName || username);
     const avatarHtml = avatar
-        ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        ? `<img class="contact-avatar__img" src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}">`
         : escapeHtml(initials);
 
     return `
-        <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${avatarHtml}</div>
+        <div class="contact-avatar contact-avatar--request">${avatarHtml}</div>
         <div class="req-info">
             <div class="req-name">${escapeHtml(displayName)}</div>
             <div class="req-username">@${escapeHtml(username)}</div>
@@ -33,14 +33,14 @@ function buildGroupInviteRequestItemHtml(data, escapeHtml) {
     const chatName = String(data.chat_name || '').trim();
     const initials = getInitials(displayName || username);
     const avatarHtml = avatar
-        ? `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        ? `<img class="contact-avatar__img" src="${escapeHtml(avatar)}" alt="${escapeHtml(displayName || username || '\u0410\u0432\u0430\u0442\u0430\u0440')}">`
         : escapeHtml(initials);
     const subtitle = chatName
         ? `\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443: ${escapeHtml(chatName)}`
         : '\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435 \u0432 \u0433\u0440\u0443\u043F\u043F\u0443';
 
     return `
-        <div class="contact-avatar" style="width:36px;height:36px;font-size:13px;">${avatarHtml}</div>
+        <div class="contact-avatar contact-avatar--request">${avatarHtml}</div>
         <div class="req-info">
             <div class="req-name">${escapeHtml(displayName)}</div>
             <div class="req-username">@${escapeHtml(username)}</div>

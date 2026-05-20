@@ -729,6 +729,11 @@
             margin: 0 auto;
         }
 
+        .settings-qr-error {
+            color: var(--danger);
+            font-size: 12px;
+        }
+
         /* Mobile */
 
         body.settings-embed-mode {

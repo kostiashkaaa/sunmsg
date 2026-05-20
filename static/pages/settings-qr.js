@@ -41,7 +41,7 @@ export async function initSettingsQr() {
         applySunQrBrand(container, { logoRatio: 0.26 });
         return true;
     } catch (_) {
-        container.innerHTML = '<p style="color:red;font-size:12px;">\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C QR-\u043A\u043E\u0434</p>';
+        container.innerHTML = '<p class="settings-qr-error">\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C QR-\u043A\u043E\u0434</p>';
         return false;
     }
 }

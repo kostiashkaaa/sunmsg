@@ -33,7 +33,7 @@ function renderAvatarContent(element, {
         const freshUrl = escapeHtml(`${cleanUrl}${sep}t=${Date.now()}`);
         const alt = includeAlt ? ` alt="${escapeHtml(label)}"` : '';
         element.removeAttribute('data-avatar-tint');
-        element.innerHTML = `<img src="${freshUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"${alt}>`;
+        element.innerHTML = `<img class="contact-avatar__img" src="${freshUrl}"${alt}>`;
         return;
     }
     element.textContent = buildAvatarInitials(label);

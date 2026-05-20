@@ -94,7 +94,7 @@ export function initRegisterFlow({
         }
         try {
             const staged = await stagePrivateKeyForRedirect(pem, {
-                persistent: true,
+                persistent: false,
                 sessionAutoLogoutSeconds: flowState.sessionAutoLogoutSeconds,
                 sessionExpiresAt: flowState.sessionExpiresAt,
                 notify: true,

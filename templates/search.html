@@ -110,6 +110,82 @@
         .u-min-w-0 { min-width: 0; }
         .search-form-row { align-items: stretch; }
         .search-result-main { flex: 1; min-width: 0; }
+        .search-card-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px var(--accent-glow);
+            flex-shrink: 0;
+        }
+        .search-card-icon i {
+            color: #fff;
+            font-size: 1.2rem;
+        }
+        .search-heading-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .search-heading-subtitle {
+            font-size: 0.75rem;
+            color: var(--sub-text);
+        }
+        .search-input-wrap {
+            position: relative;
+            flex: 1;
+        }
+        .search-input-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            pointer-events: none;
+        }
+        .search-results-count {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--sub-text);
+            margin-bottom: 10px;
+        }
+        .search-result-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .search-result-username {
+            font-size: 0.78rem;
+            color: var(--sub-text);
+        }
+        .search-card-footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .add-btn-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+        }
+        .add-btn.is-sent {
+            background: var(--success);
+            box-shadow: none;
+        }
 
         .result-item {
             display: flex;
@@ -281,23 +357,19 @@
 
 <div class="search-card">
     <div class="u-flex u-items-center u-gap-3 u-mb-6">
-        <div style="width:42px;height:42px;border-radius:12px;background:var(--accent-gradient);
-                    display:flex;align-items:center;justify-content:center;
-                    box-shadow:0 4px 14px var(--accent-glow);flex-shrink:0;">
-            <i class="bi bi-person-search" style="color:#fff;font-size:1.2rem;"></i>
+        <div class="search-card-icon">
+            <i class="bi bi-person-search"></i>
         </div>
         <div>
-            <div style="font-size:1.05rem;font-weight:700;color:var(--text);">Поиск пользователей</div>
-            <div style="font-size:0.75rem;color:var(--sub-text);">Найдите людей по имени или @username</div>
+            <div class="search-heading-title">Поиск пользователей</div>
+            <div class="search-heading-subtitle">Найдите людей по имени или @username</div>
         </div>
     </div>
 
     <form method="GET" action="{{ url_for('contacts.search') }}" class="u-mb-5">
         <div class="u-flex u-gap-2 search-form-row">
-            <div style="position:relative;flex:1;">
-                <i class="bi bi-search"
-                   style="position:absolute;left:13px;top:50%;transform:translateY(-50%);
-                          color:var(--text-muted);font-size:0.95rem;pointer-events:none;"></i>
+            <div class="search-input-wrap">
+                <i class="bi bi-search search-input-icon"></i>
                 <input type="text"
                        class="search-input"
                        name="q"
@@ -313,8 +385,7 @@
     </form>
 
     {% if results %}
-    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;
-                color:var(--sub-text);margin-bottom:10px;">
+    <div class="search-results-count">
         <span>Найдено:</span> <span>{{ results|length }}</span>
     </div>
     <div class="u-flex-col u-gap-2" id="resultsList">
@@ -323,11 +394,10 @@
             <div class="u-flex u-items-center u-gap-3 u-min-w-0 search-result-main">
                 <div class="result-avatar" data-avatar-seed="{{ user.display_name or user.username or '?' }}">{{ user.display_name[0]|upper }}</div>
                 <div class="u-min-w-0">
-                    <div style="font-size:0.9rem;font-weight:600;color:var(--text);
-                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <div class="search-result-name">
                         {{ user.display_name }}
                     </div>
-                    <div style="font-size:0.78rem;color:var(--sub-text);">@{{ user.username }}</div>
+                    <div class="search-result-username">@{{ user.username }}</div>
                 </div>
             </div>
             <button class="add-btn"
@@ -347,7 +417,7 @@
     </div>
     {% endif %}
 
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+    <div class="search-card-footer">
         <a href="{{ url_for('chat.chat_index') }}" class="back-link">
             <i class="bi bi-arrow-left"></i> Вернуться в чат
         </a>
@@ -405,7 +475,7 @@
 
     async function sendRequest(userId, displayName, btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;"></span>';
+        btn.innerHTML = '<span class="add-btn-spinner"></span>';
 
         try {
             const res = await fetch('{{ url_for("contacts.send_request_route") }}', {
@@ -421,8 +491,7 @@
 
             if (data.success) {
                 btn.innerHTML = `<span class="sun-check-glyph sun-check-glyph--single sun-check-glyph--ui" aria-hidden="true"><svg viewBox="0 0 10 10" focusable="false"><path d="M1.2 5.2L4 8L8.8 2.2"></path></svg></span> ${tr('Отправлено')}`;
-                btn.style.background = 'var(--success)';
-                btn.style.boxShadow = 'none';
+                btn.classList.add('is-sent');
             } else {
                 throw new Error(data.error || tr('Ошибка'));
             }

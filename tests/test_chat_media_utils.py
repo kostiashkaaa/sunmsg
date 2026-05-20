@@ -164,6 +164,8 @@ def test_detect_media_type_normalize_mime_and_block_state():
     assert normalize_chat_media_mime('audio/webm', 'voice.webm', 'webm') == 'audio/webm'
     assert normalize_chat_media_mime('application/octet-stream', 'photo.jpg', 'jpg') == 'image/jpeg'
     assert normalize_chat_media_mime(None, 'track.mp3', 'mp3') == 'audio/mpeg'
+    assert normalize_chat_media_mime('image/png', 'note.txt', 'txt') == 'text/plain'
+    assert normalize_chat_media_mime('text/html', 'report.pdf', 'pdf') == 'application/pdf'
     assert normalize_chat_media_mime(None, 'sheet.xlsx', 'xlsx') in {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'}
     assert normalize_chat_media_mime('text/plain', 'payload.sunenc', 'sunenc') == 'application/octet-stream'
 

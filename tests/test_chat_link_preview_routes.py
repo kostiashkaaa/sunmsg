@@ -166,6 +166,37 @@ def test_resolve_link_preview_payload_retries_after_empty_meta_cache_ttl(monkeyp
     assert calls['fetch'] == 2
 
 
+def test_resolve_link_preview_payload_uses_host_budget_before_network(monkeypatch):
+    _disable_persistent_link_preview_store(monkeypatch)
+    calls = {'fetch': 0}
+
+    def fake_fetch(url):
+        calls['fetch'] += 1
+        return (
+            '<html><head><meta property="og:title" content="Allowed once"></head></html>',
+            url,
+        )
+
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_CACHE', {})
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_HOST_BUDGET', {})
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_HOST_BUDGET_MAX_FETCHES', 1)
+    monkeypatch.setattr(
+        'app.routes.chat_link_preview_routes._is_allowed_preview_url',
+        lambda url: True,
+    )
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._fetch_preview_html', fake_fetch)
+
+    first_payload, first_status = resolve_link_preview_payload('https://example.com/one')
+    second_payload, second_status = resolve_link_preview_payload('https://example.com/two')
+
+    assert first_status == 200
+    assert first_payload['has_meta'] is True
+    assert second_status == 200
+    assert second_payload['success'] is True
+    assert second_payload['has_meta'] is False
+    assert calls['fetch'] == 1
+
+
 def test_resolve_link_preview_payload_uses_compact_layout_for_portrait_images(monkeypatch):
     _disable_persistent_link_preview_store(monkeypatch)
     monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_CACHE', {})
@@ -373,6 +404,28 @@ def test_link_preview_image_returns_not_found_for_non_image_content(monkeypatch,
     response = client.get('/link_preview_image', query_string={'url': 'https://example.com/page'})
     assert response.status_code == 404
     assert response.get_json() == {'success': False, 'error': 'image_unavailable'}
+
+
+def test_link_preview_image_uses_host_budget_before_network(monkeypatch, tmp_path):
+    _disable_persistent_link_preview_store(monkeypatch)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(tmp_path / 'link-preview-image-budget.db')})
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._is_allowed_preview_url', lambda url: True)
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_HOST_BUDGET_MAX_FETCHES', 1)
+    monkeypatch.setattr('app.routes.chat_link_preview_routes._LINK_PREVIEW_HOST_BUDGET', {'example.com': [1000.0]})
+    monkeypatch.setattr('app.routes.chat_link_preview_routes.time.time', lambda: 1000.0)
+    monkeypatch.setattr(
+        'app.routes.chat_link_preview_routes._fetch_preview_image',
+        lambda url: (_ for _ in ()).throw(AssertionError('image fetch must not run when host budget is spent')),
+    )
+
+    response = client.get('/link_preview_image', query_string={'url': 'https://example.com/image.png'})
+    assert response.status_code == 429
+    assert response.get_json() == {'success': False, 'error': 'host_rate_limited'}
 
 
 def test_link_preview_prewarm_route_queues_background_task(monkeypatch, tmp_path):

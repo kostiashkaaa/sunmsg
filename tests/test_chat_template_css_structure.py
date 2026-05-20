@@ -8,6 +8,13 @@ TEMPLATE = ROOT / 'templates' / 'chat.html'
 AUTH_TEMPLATE = ROOT / 'templates' / 'index.html'
 STATIC = ROOT / 'static'
 CHAT_CSS = STATIC / 'pages' / 'chat.css'
+PRIVATE_KEY_SESSION_ENTRYPOINTS = [
+    STATIC / 'pages' / 'auth' / 'login-flow.js',
+    STATIC / 'pages' / 'auth' / 'register-flow.js',
+    STATIC / 'pages' / 'chat-key-restore.js',
+    STATIC / 'pages' / 'settings' / 'mnemonic-section.js',
+    STATIC / 'pages' / 'key-transfer' / 'state.js',
+]
 
 CHAT_PARTIALS = [
     'chat/_head.html',
@@ -51,6 +58,20 @@ def test_auth_login_does_not_render_remember_device_checkbox() -> None:
     assert 'id="rememberDeviceLabel"' not in src
 
 
+def test_private_key_entrypoints_do_not_force_persistent_storage_without_opt_in() -> None:
+    offenders = []
+
+    for path in PRIVATE_KEY_SESSION_ENTRYPOINTS:
+        src = path.read_text(encoding='utf-8')
+        if re.search(r'\bpersistent\s*:\s*true\b', src):
+            offenders.append(str(path.relative_to(ROOT)))
+
+    assert not offenders, (
+        'Private-key session entrypoints must not persist wrapped keys without an explicit '
+        f'remember-device opt-in. Offenders: {offenders}'
+    )
+
+
 def test_chat_template_keeps_inline_styles_to_minimum() -> None:
     src = TEMPLATE.read_text(encoding='utf-8')
     inline_styles = re.findall(r'\bstyle\s*=\s*"', src)
@@ -68,6 +89,27 @@ def test_chat_partials_do_not_use_inline_styles() -> None:
         assert not inline_styles, (
             f'Inline styles are not allowed in {partial}; use CSS layer files instead.'
         )
+
+
+def test_strict_csp_has_no_inline_style_attributes() -> None:
+    scanned_suffixes = {'.html', '.js', '.json'}
+    roots = [ROOT / 'templates', STATIC]
+    offenders = []
+
+    for root in roots:
+        for path in root.rglob('*'):
+            if path.is_dir() or path.suffix not in scanned_suffixes:
+                continue
+            if 'vendor' in path.parts:
+                continue
+            src = path.read_text(encoding='utf-8')
+            if re.search(r'\bstyle=', src):
+                offenders.append(str(path.relative_to(ROOT)))
+
+    assert not offenders, (
+        'Strict CSP uses style-src-attr none; inline style attributes must stay out '
+        f'of templates and generated HTML strings. Offenders: {offenders[:10]}'
+    )
 
 
 def test_chat_css_uses_import_aggregator() -> None:

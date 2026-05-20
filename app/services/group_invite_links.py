@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 def _generate_token() -> str:
     return secrets.token_urlsafe(16)
 
 
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def create_invite_link(conn, *, chat_id: str, created_by: int, max_uses: int | None = None, expires_in_hours: int | None = None) -> dict:
     token = _generate_token()
     expires_at = None
     if expires_in_hours:
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) if False else None
-        from datetime import timedelta
-        expires_at = (datetime.utcnow() + timedelta(hours=expires_in_hours)).isoformat()
+        expires_at = (_utcnow_naive() + timedelta(hours=expires_in_hours)).isoformat()
 
     conn.execute(
         '''
@@ -83,7 +85,7 @@ def resolve_invite_link(conn, token: str) -> dict | None:
     if row['expires_at']:
         try:
             exp = datetime.fromisoformat(str(row['expires_at']))
-            if exp < datetime.utcnow():
+            if exp < _utcnow_naive():
                 return None
         except ValueError:
             pass
@@ -103,12 +105,32 @@ def consume_invite_link(conn, token: str, user_id: int) -> dict | None:
     if already:
         return {'chat_id': chat_id, 'already_member': True}
 
-    conn.execute(
-        'INSERT INTO chat_members (user_id, chat_id, role) VALUES (?, ?, ?)',
+    insert_result = conn.execute(
+        '''
+        INSERT INTO chat_members (user_id, chat_id, role)
+        VALUES (?, ?, ?)
+        ON CONFLICT (user_id, chat_id) DO NOTHING
+        ''',
         (user_id, chat_id, 'member'),
     )
-    conn.execute(
-        'UPDATE group_invite_links SET uses_count = uses_count + 1 WHERE token = ?',
-        (token,),
+    if int(getattr(insert_result, 'rowcount', 0) or 0) <= 0:
+        return {'chat_id': chat_id, 'already_member': True}
+
+    reserve_result = conn.execute(
+        '''
+        UPDATE group_invite_links
+        SET uses_count = uses_count + 1
+        WHERE token = ?
+          AND is_active = 1
+          AND (max_uses IS NULL OR uses_count < max_uses)
+          AND (expires_at IS NULL OR expires_at >= ?)
+        ''',
+        (token, _utcnow_naive().isoformat()),
     )
+    if int(getattr(reserve_result, 'rowcount', 0) or 0) != 1:
+        conn.execute(
+            'DELETE FROM chat_members WHERE user_id = ? AND chat_id = ?',
+            (user_id, chat_id),
+        )
+        return None
     return {'chat_id': chat_id, 'already_member': False}

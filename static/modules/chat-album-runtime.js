@@ -120,7 +120,7 @@ function buildAlbumGridHtml(items) {
     const totalRows = Math.max(...cells.map((c) => c.row + (c.rowspan || 1)));
     const totalCols = 2; // always 2 columns
 
-    let gridHtml = `<div class="message-album-grid" style="--album-rows:${totalRows};--album-cols:${totalCols}">`;
+    let gridHtml = `<div class="message-album-grid" data-album-rows="${totalRows}" data-album-cols="${totalCols}">`;
 
     for (let i = 0; i < count; i++) {
         const item = items[i];
@@ -128,16 +128,15 @@ function buildAlbumGridHtml(items) {
         const { src, mediaSrc, kind, caption, isVideo, duration } = item;
         const { row, col, rowspan = 1, colspan = 1 } = cell;
 
-        const style = [
-            `grid-row: ${row + 1} / span ${rowspan}`,
-            `grid-column: ${col + 1} / span ${colspan}`,
-        ].join('; ');
-
         const triggerAttrs = [
             `data-media-aspect-ratio="1"`,
             `data-media-kind="${kind}"`,
             `data-media-src="${escapeAttr(mediaSrc || src)}"`,
             `data-caption="${escapeAttr(caption)}"`,
+            `data-album-row="${row + 1}"`,
+            `data-album-col="${col + 1}"`,
+            `data-album-rowspan="${rowspan}"`,
+            `data-album-colspan="${colspan}"`,
         ].join(' ');
 
         const mediaEl = isVideo
@@ -148,7 +147,7 @@ function buildAlbumGridHtml(items) {
             : `<img class="album-cell-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="">`;
 
         gridHtml += `
-            <div class="album-cell file-msg-media-trigger" style="${style}" ${triggerAttrs}>
+            <div class="album-cell file-msg-media-trigger" ${triggerAttrs}>
                 ${mediaEl}
                 <div class="album-cell-count-badge" aria-hidden="true"></div>
             </div>`;
@@ -163,6 +162,22 @@ function buildAlbumGridHtml(items) {
         : '';
 
     return { gridHtml, captionHtml };
+}
+
+function applyAlbumGridStyles(grid) {
+    if (!grid) return;
+    const rows = Number(grid.getAttribute('data-album-rows') || 0) || 1;
+    const cols = Number(grid.getAttribute('data-album-cols') || 0) || 2;
+    grid.style.setProperty('--album-rows', String(rows));
+    grid.style.setProperty('--album-cols', String(cols));
+    grid.querySelectorAll('.album-cell').forEach((cell) => {
+        const row = Number(cell.getAttribute('data-album-row') || 0) || 1;
+        const col = Number(cell.getAttribute('data-album-col') || 0) || 1;
+        const rowspan = Number(cell.getAttribute('data-album-rowspan') || 0) || 1;
+        const colspan = Number(cell.getAttribute('data-album-colspan') || 0) || 1;
+        cell.style.gridRow = `${row} / span ${rowspan}`;
+        cell.style.gridColumn = `${col} / span ${colspan}`;
+    });
 }
 
 /**
@@ -260,6 +275,7 @@ function processAlbumGroup(group) {
     } else {
         bubble.insertAdjacentHTML('beforeend', gridHtml + captionHtml);
     }
+    applyAlbumGridStyles(bubble.querySelector('.message-album-grid'));
 
     // Set cell height based on bubble width so cells are square-ish
     requestAnimationFrame(() => {
@@ -267,7 +283,7 @@ function processAlbumGroup(group) {
         if (!grid) return;
         const bubbleWidth = bubble.getBoundingClientRect().width || bubble.offsetWidth;
         if (bubbleWidth > 0) {
-            const cols = Number(grid.style.getPropertyValue('--album-cols') || 2) || 2;
+            const cols = Number(grid.getAttribute('data-album-cols') || 2) || 2;
             const cellSize = Math.round((bubbleWidth - (cols - 1) * 2) / cols);
             grid.style.setProperty('--album-cell-height', `${cellSize}px`);
         }

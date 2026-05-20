@@ -147,6 +147,9 @@
             border: 1px solid var(--line);
             border-radius: 10px;
         }
+        .table-wrap--spaced {
+            margin-top: 10px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -168,6 +171,9 @@
         .muted {
             color: var(--muted);
             font-size: 12px;
+        }
+        .muted--spaced {
+            margin-top: 10px;
         }
         .user-summary-chips {
             display: flex;
@@ -269,7 +275,7 @@
             <button class="btn primary" type="submit">Найти</button>
         </form>
         {% if users %}
-            <div class="table-wrap" style="margin-top:10px;">
+            <div class="table-wrap table-wrap--spaced">
                 <table>
                     <thead>
                         <tr>
@@ -414,7 +420,7 @@
                 </table>
             </div>
         {% elif lookup_query %}
-            <p class="muted" style="margin-top:10px;">Пользователи по запросу "{{ lookup_query|e }}" не найдены.</p>
+            <p class="muted muted--spaced">Пользователи по запросу "{{ lookup_query|e }}" не найдены.</p>
         {% endif %}
     </section>
 
@@ -449,7 +455,7 @@
             <button class="btn primary" type="submit">Применить</button>
         </form>
 
-        <div class="table-wrap" style="margin-top:10px;">
+        <div class="table-wrap table-wrap--spaced">
             <table>
                 <thead>
                     <tr>
