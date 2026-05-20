@@ -17,7 +17,7 @@
 import { CallMedia } from './call-media.js';
 import { CallWebRTC } from './call-webrtc.js';
 import {
-    showPreCallScreen, removePreCallScreen,
+    removePreCallScreen,
     showIncomingCallBanner, removeIncomingCallBanner,
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
@@ -34,7 +34,6 @@ import { showToast } from './dialogs.js';
 
 const STATES = {
     IDLE:        'idle',
-    PRECALL:     'precall',
     RINGING_OUT: 'ringing_out',
     RINGING_IN:  'ringing_in',
     ACTIVE:      'active',
@@ -98,7 +97,7 @@ export class CallManager {
     // but the server-side disconnect cleanup is the real safety net.
     _bindUnloadHandler() {
         this._onPageHide = () => {
-            if (this._state === STATES.IDLE || this._state === STATES.PRECALL || !this._callId) return;
+            if (this._state === STATES.IDLE || !this._callId) return;
             const event = this._state === STATES.RINGING_OUT ? 'call_cancel'
                 : this._state === STATES.RINGING_IN ? 'call_reject'
                 : 'call_end';
@@ -156,7 +155,7 @@ export class CallManager {
         }
         this._chatId   = chatId;
         this._callType = callType === 'video' ? 'video' : 'audio';
-        this._state    = STATES.PRECALL;
+        this._state    = STATES.RINGING_OUT;
         this._isPolite = false;  // caller is impolite
         this._partner  = this._resolvePartner(partnerInfo);  // set from DOM before server confirms
         this._pendingMediaOptions = {
@@ -164,147 +163,6 @@ export class CallManager {
             videoEnabled: this._callType === 'video',
             speakerDeviceId: this._selectedSpeakerDeviceId,
         };
-        this._showPreCallSetup();
-    }
-
-    _showPreCallSetup() {
-        const partner = this._resolvePartner(this._partner);
-        this._partner = partner;
-        const partnerName = partner.display_name || partner.username || 'Собеседник';
-        showPreCallScreen({
-            callType: this._callType,
-            partnerName,
-            partnerAvatar: partner.avatar_url || '',
-            onPrepare: (options) => this._preparePreCallMedia(options),
-            onToggleAudio: () => this._togglePreCallAudio(),
-            onToggleVideo: (enabled) => this._togglePreCallVideo(enabled),
-            onSwitchCamera: () => this._switchPreCallCamera(),
-            onListDevices: async () => {
-                const devices = await this._media.listDevices();
-                return {
-                    ...devices,
-                    selected: {
-                        audioInputId: this._media.getAudioDeviceId(),
-                        videoInputId: this._media.getVideoDeviceId(),
-                    },
-                };
-            },
-            onSelectMicrophone: (deviceId) => this._selectPreCallMicrophone(deviceId),
-            onSelectCamera: (deviceId) => this._selectPreCallCamera(deviceId),
-            onSelectSpeaker: (deviceId) => {
-                this._selectedSpeakerDeviceId = String(deviceId || '');
-                this._pendingMediaOptions = {
-                    ...(this._pendingMediaOptions || {}),
-                    speakerDeviceId: this._selectedSpeakerDeviceId,
-                };
-            },
-            onStart: (options) => {
-                void this._beginOutgoingCall(options);
-            },
-            onCancel: () => this._cleanup(),
-        });
-    }
-
-    async _preparePreCallMedia(options = {}) {
-        const normalized = this._normalizeMediaOptions(options, this._callType);
-        this._callType = normalized.callType;
-        this._pendingMediaOptions = normalized;
-        await this._ensureLocalMediaForOptions(normalized);
-        return {
-            localStream: this._media.getLocalStream(),
-            audioMuted: this._media.isAudioMuted(),
-            videoEnabled: this._media.isVideoEnabled(),
-            callType: this._callType,
-        };
-    }
-
-    async _togglePreCallAudio() {
-        if (!this._media.getAudioTrack()) {
-            const prepared = await this._media.prepareAudioInput('');
-            this._media.commitPreparedAudioTrack(prepared.track, prepared);
-        }
-        const muted = this._media.toggleAudio();
-        this._pendingMediaOptions = {
-            ...(this._pendingMediaOptions || {}),
-            audioMuted: muted,
-        };
-        return muted;
-    }
-
-    async _togglePreCallVideo(enabled) {
-        const shouldEnable = Boolean(enabled);
-        if (!shouldEnable) {
-            this._media.disableVideo();
-            this._pendingMediaOptions = {
-                ...(this._pendingMediaOptions || {}),
-                videoEnabled: false,
-            };
-            return { enabled: false, localStream: this._media.getLocalStream(), callType: this._callType };
-        }
-
-        if (!this._media.getVideoTrack()) {
-            const prepared = await this._media.prepareVideoInput('');
-            this._media.commitPreparedVideoTrack(prepared.track, prepared);
-        } else {
-            this._media.toggleVideo();
-        }
-        this._callType = 'video';
-        this._pendingMediaOptions = {
-            ...(this._pendingMediaOptions || {}),
-            callType: 'video',
-            videoEnabled: true,
-        };
-        return { enabled: true, localStream: this._media.getLocalStream(), callType: 'video' };
-    }
-
-    async _switchPreCallCamera() {
-        const prepared = await this._media.prepareCameraSwitch();
-        if (!prepared?.track) return { localStream: this._media.getLocalStream() };
-        this._media.commitPreparedVideoTrack(prepared.track, prepared);
-        this._callType = 'video';
-        this._pendingMediaOptions = {
-            ...(this._pendingMediaOptions || {}),
-            callType: 'video',
-            videoEnabled: true,
-        };
-        return { localStream: this._media.getLocalStream(), facingMode: this._media.getVideoFacingMode() };
-    }
-
-    async _selectPreCallMicrophone(deviceId) {
-        const prepared = await this._media.prepareAudioInput(deviceId);
-        this._media.commitPreparedAudioTrack(prepared.track, prepared);
-        return { localStream: this._media.getLocalStream() };
-    }
-
-    async _selectPreCallCamera(deviceId) {
-        const prepared = await this._media.prepareVideoInput(deviceId);
-        this._media.commitPreparedVideoTrack(prepared.track, prepared);
-        this._callType = 'video';
-        this._pendingMediaOptions = {
-            ...(this._pendingMediaOptions || {}),
-            callType: 'video',
-            videoEnabled: true,
-        };
-        return { enabled: true, localStream: this._media.getLocalStream(), callType: 'video' };
-    }
-
-    async _beginOutgoingCall(options = {}) {
-        if (this._state !== STATES.PRECALL) return;
-        const normalized = this._normalizeMediaOptions(options, this._callType);
-        this._pendingMediaOptions = normalized;
-        this._callType = normalized.callType;
-        this._selectedSpeakerDeviceId = normalized.speakerDeviceId;
-        try {
-            await this._ensureLocalMediaForOptions(normalized);
-        } catch (err) {
-            console.warn('[CallManager] pre-call media access failed', err);
-            const message = _mediaAccessMessage(err, normalized.videoEnabled ? 'video' : 'audio');
-            showToast(message, 'error');
-            this._cleanup();
-            return;
-        }
-
-        this._state = STATES.RINGING_OUT;
         startRingtone('outgoing');
         this._ringTimeout = setTimeout(() => {
             if (this._state !== STATES.RINGING_OUT) return;
@@ -317,10 +175,6 @@ export class CallManager {
 
     endCall() {
         if (this._state === STATES.IDLE) return;
-        if (this._state === STATES.PRECALL) {
-            this._cleanup();
-            return;
-        }
         if (this._state === STATES.RINGING_OUT) {
             this._emit('call_cancel', { call_id: this._callId });
         } else if (this._state === STATES.RINGING_IN) {
