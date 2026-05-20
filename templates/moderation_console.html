@@ -83,6 +83,11 @@
             font-size: 20px;
             font-weight: 700;
         }
+        .metric .detail {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--muted);
+        }
         .feature-card {
             background: var(--card);
             border: 1px solid var(--line);
@@ -127,6 +132,10 @@
             color: var(--muted);
             font-size: 13px;
             padding: 4px 0;
+        }
+        .server-metrics {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            margin-bottom: 0;
         }
         .filters {
             margin-bottom: 12px;
@@ -282,6 +291,56 @@
             <div class="label">Активны за 24 часа</div>
             <div class="value" data-live-metric="active_last_24h">{{ metrics.user_stats.active_last_24h if metrics.user_stats else 0 }}</div>
         </article>
+    </section>
+    {% set server = metrics.server or {} %}
+    {% set cpu = server.cpu or {} %}
+    {% set memory = server.memory or {} %}
+    {% set disk = server.disk or {} %}
+    {% set process = server.process or {} %}
+    {% set initial_cpu_percent = cpu.usage_percent if cpu.usage_percent is not none else cpu.load_percent_1m %}
+    <!-- Server Stats | CPU Load | RAM Used | Disk Used | Process Uptime -->
+    <section class="feature-card" id="serverStats" data-server-stats>
+        <div class="feature-card__head">
+            <div>
+                <h2 class="feature-card__title">Сервер</h2>
+                <p class="feature-card__desc">CPU, RAM, диск и процесс веб-приложения.</p>
+            </div>
+            <div class="muted" data-server-collected-at>
+                {% if server.collected_at %}обновлено: {{ server.collected_at }}{% else %}ожидаем данные{% endif %}
+            </div>
+        </div>
+        <section class="metrics server-metrics">
+            <article class="metric">
+                <div class="label">CPU</div>
+                <div class="value" data-server-metric="cpu_load">
+                    {{ "%.1f"|format(initial_cpu_percent) ~ "%" if initial_cpu_percent is number else "н/д" }}
+                </div>
+                <div class="detail" data-server-metric-detail="cpu_load">
+                    {% if cpu.logical_count %}{{ cpu.logical_count }} лог. CPU{% if cpu.load_average_1m is number %} · load {{ "%.2f"|format(cpu.load_average_1m) }}{% endif %}{% else %}нет данных{% endif %}
+                </div>
+            </article>
+            <article class="metric">
+                <div class="label">RAM</div>
+                <div class="value" data-server-metric="memory_used">
+                    {{ "%.1f"|format(memory.used_percent) ~ "%" if memory.used_percent is number else "н/д" }}
+                </div>
+                <div class="detail" data-server-metric-detail="memory_used">обновляется</div>
+            </article>
+            <article class="metric">
+                <div class="label">Диск</div>
+                <div class="value" data-server-metric="disk_used">
+                    {{ "%.1f"|format(disk.used_percent) ~ "%" if disk.used_percent is number else "н/д" }}
+                </div>
+                <div class="detail" data-server-metric-detail="disk_used">{{ disk.path if disk.path else "нет данных" }}</div>
+            </article>
+            <article class="metric">
+                <div class="label">Процесс</div>
+                <div class="value" data-server-metric="process_uptime">обновляется</div>
+                <div class="detail" data-server-metric-detail="process_uptime">
+                    {% if process.python_threads %}threads: {{ process.python_threads }}{% else %}нет данных{% endif %}
+                </div>
+            </article>
+        </section>
     </section>
 
     <section class="feature-card" aria-labelledby="callFeatureTitle">
@@ -561,6 +620,8 @@
             const payload = await response.json();
             if (!payload || payload.success !== true) return;
             renderLiveUserMetrics(payload);
+            window.SUN_LAST_MODERATION_METRICS = payload;
+            window.dispatchEvent(new CustomEvent('sun:moderation-metrics', { detail: payload }));
         } catch (_) {
             // keep last shown values when transient network/API errors happen
         } finally {
@@ -577,5 +638,6 @@
     }, refreshSeconds * 1000);
 })();
 </script>
+<script type="module" src="{{ asset_url('modules/moderation-server-stats.js') }}" nonce="{{ csp_nonce }}"></script>
 </body>
 </html>

@@ -2027,4 +2027,32 @@ def moderation_metrics_prometheus_text(metrics: dict[str, Any]) -> str:
                 int(row.get('decisions') or 0),
             )
         )
+    server = metrics.get('server') or {}
+    cpu = server.get('cpu') or {}
+    cpu_percent = cpu.get('usage_percent')
+    if cpu_percent is None:
+        cpu_percent = cpu.get('load_percent_1m')
+    if cpu_percent is not None:
+        lines.append('# HELP server_cpu_load_ratio Server CPU usage ratio, falling back to normalized 1m load average.')
+        lines.append('# TYPE server_cpu_load_ratio gauge')
+        lines.append(f'server_cpu_load_ratio {float(cpu_percent) / 100.0}')
+    memory = server.get('memory') or {}
+    if memory.get('used_percent') is not None:
+        lines.append('# HELP server_memory_used_ratio Server RAM used ratio.')
+        lines.append('# TYPE server_memory_used_ratio gauge')
+        lines.append(f'server_memory_used_ratio {float(memory.get("used_percent") or 0.0) / 100.0}')
+    disk = server.get('disk') or {}
+    if disk.get('used_percent') is not None:
+        lines.append('# HELP server_disk_used_ratio Server disk used ratio for the configured app path.')
+        lines.append('# TYPE server_disk_used_ratio gauge')
+        lines.append(f'server_disk_used_ratio {float(disk.get("used_percent") or 0.0) / 100.0}')
+    process = server.get('process') or {}
+    if process.get('uptime_seconds') is not None:
+        lines.append('# HELP server_process_uptime_seconds Current web process uptime in seconds.')
+        lines.append('# TYPE server_process_uptime_seconds gauge')
+        lines.append(f'server_process_uptime_seconds {float(process.get("uptime_seconds") or 0.0)}')
+    if process.get('rss_bytes') is not None:
+        lines.append('# HELP server_process_rss_bytes Current web process resident memory in bytes.')
+        lines.append('# TYPE server_process_rss_bytes gauge')
+        lines.append(f'server_process_rss_bytes {int(process.get("rss_bytes") or 0)}')
     return '\n'.join(lines) + '\n'

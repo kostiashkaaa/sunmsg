@@ -9,6 +9,7 @@ from app.extensions import limiter
 from app.services import call_feature_access
 from app.services import liquid_glass_feature_access
 from app.services import moderation as moderation_service
+from app.services import server_metrics
 
 moderation_bp = Blueprint('moderation', __name__)
 
@@ -76,6 +77,16 @@ def _sla_by_priority_seconds() -> dict[int, int]:
         3: int(current_app.config.get('MODERATION_SLA_PRIORITY_3_SECONDS', 4 * 60 * 60) or 4 * 60 * 60),
         4: int(current_app.config.get('MODERATION_SLA_PRIORITY_4_SECONDS', 12 * 60 * 60) or 12 * 60 * 60),
     }
+
+
+def _server_metrics_disk_path() -> str:
+    return str(current_app.config.get('SERVER_METRICS_DISK_PATH') or current_app.root_path)
+
+
+def _moderation_metrics_with_server(conn, *, since_hours: int) -> dict:
+    metrics = moderation_service.moderation_metrics(conn, since_hours=since_hours)
+    metrics['server'] = server_metrics.collect_server_metrics(disk_path=_server_metrics_disk_path())
+    return metrics
 
 
 @moderation_bp.route('/api/moderation/reports', methods=['POST'])
@@ -385,7 +396,7 @@ def moderation_get_metrics():
     since_hours = moderation_service.parse_int(request.args.get('hours'), min_value=1, max_value=24 * 90) or 24
     conn = get_db_connection()
     try:
-        metrics = moderation_service.moderation_metrics(conn, since_hours=since_hours)
+        metrics = _moderation_metrics_with_server(conn, since_hours=since_hours)
     finally:
         conn.close()
     return jsonify({'success': True, **metrics})
@@ -400,7 +411,7 @@ def moderation_prometheus_metrics():
     since_hours = moderation_service.parse_int(request.args.get('hours'), min_value=1, max_value=24 * 90) or 24
     conn = get_db_connection()
     try:
-        metrics = moderation_service.moderation_metrics(conn, since_hours=since_hours)
+        metrics = _moderation_metrics_with_server(conn, since_hours=since_hours)
     finally:
         conn.close()
     body = moderation_service.moderation_metrics_prometheus_text(metrics)
@@ -424,7 +435,7 @@ def moderation_console():
     conn = get_db_connection()
     try:
         cases = moderation_service.list_cases(conn, state=state, limit=limit, offset=offset)
-        metrics = moderation_service.moderation_metrics(conn, since_hours=24)
+        metrics = _moderation_metrics_with_server(conn, since_hours=24)
         call_feature = call_feature_access.call_feature_state(conn)
         liquid_glass_feature = liquid_glass_feature_access.liquid_glass_feature_state(conn)
     finally:

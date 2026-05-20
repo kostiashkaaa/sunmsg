@@ -338,6 +338,7 @@ def test_moderation_console_and_metrics(monkeypatch, tmp_path):
     assert 'Queue Pending' in html
     assert 'Refresh (sec)' in html
     assert 'Prometheus Metrics' in html
+    assert 'Server Stats' in html
     assert 'sla-timer' in html
 
     response = moderator_client.get('/api/moderation/metrics')
@@ -346,12 +347,19 @@ def test_moderation_console_and_metrics(monkeypatch, tmp_path):
     assert payload['success'] is True
     assert 'time_to_action_p95_seconds' in payload
     assert 'queue' in payload
+    assert 'server' in payload
+    assert 'cpu' in payload['server']
+    assert 'memory' in payload['server']
+    assert 'disk' in payload['server']
+    assert 'process' in payload['server']
+    assert isinstance(payload['server']['disk']['used_percent'], float)
 
     response = moderator_client.get('/metrics/moderation')
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert 'moderation_time_to_action_p95_seconds' in text
     assert 'moderation_queue_jobs{status="pending"}' in text
+    assert 'server_disk_used_ratio' in text
 
 
 def test_moderation_appeals_console(monkeypatch, tmp_path):
