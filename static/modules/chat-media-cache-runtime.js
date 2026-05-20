@@ -41,6 +41,7 @@ export function createChatMediaCacheRuntime({
     const normalizedUserId = String(currentUserId || '').trim();
     const resolvedFetch = normalizeFetchImpl(fetchImpl);
     const objectUrlByKey = new Map();
+    const transientObjectUrls = new Set();
     const inFlightByKey = new Map();
     let ready = false;
 
@@ -62,6 +63,12 @@ export function createChatMediaCacheRuntime({
         return url;
     }
 
+    function createTransientObjectUrl(blob) {
+        const url = URL.createObjectURL(blob);
+        transientObjectUrls.add(url);
+        return url;
+    }
+
     function releaseObjectUrls() {
         for (const objectUrl of objectUrlByKey.values()) {
             try {
@@ -69,6 +76,12 @@ export function createChatMediaCacheRuntime({
             } catch (_) {}
         }
         objectUrlByKey.clear();
+        for (const objectUrl of transientObjectUrls.values()) {
+            try {
+                URL.revokeObjectURL(objectUrl);
+            } catch (_) {}
+        }
+        transientObjectUrls.clear();
     }
 
     async function resolveMediaSource(sourceUrl, { kind = 'other' } = {}) {
@@ -84,7 +97,7 @@ export function createChatMediaCacheRuntime({
                     });
                     if (!response?.ok) return '';
                     const blob = await decryptChatMediaBlob(await response.blob(), encryptedMedia.metadata);
-                    return URL.createObjectURL(blob);
+                    return createTransientObjectUrl(blob);
                 } catch (_) {
                     return '';
                 }

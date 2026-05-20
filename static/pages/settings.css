@@ -7,5 +7,3 @@
 @import url("./settings/legacy-global.css");
 @import url("./settings/responsive.css");
 @import url("./settings/home-composition.css");
-/* Premium polish — must be last */
-@import url("../settings-premium.css");

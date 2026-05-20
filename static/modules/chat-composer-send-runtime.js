@@ -46,9 +46,14 @@ export function createChatComposerSendRuntime({
     isRealtimeConnected,
 } = {}) {
     const pendingTimeouts = new Map();
+    const pendingRetryHandlers = new Map();
+
+    function normalizeClientId(clientId) {
+        return String(clientId || '').trim();
+    }
 
     function schedulePendingTimeout(clientId, ms = 20000) {
-        const token = String(clientId || '').trim();
+        const token = normalizeClientId(clientId);
         if (!token) return;
         const timeoutId = windowRef.setTimeout(() => {
             pendingTimeouts.delete(token);
@@ -58,13 +63,34 @@ export function createChatComposerSendRuntime({
     }
 
     function cancelPendingTimeout(clientId) {
-        const token = String(clientId || '').trim();
+        const token = normalizeClientId(clientId);
         if (!token) return;
         const timeoutId = pendingTimeouts.get(token);
         if (timeoutId !== undefined) {
             clearTimeout(timeoutId);
             pendingTimeouts.delete(token);
         }
+    }
+
+    function registerPendingMessageRetry(clientId, handler) {
+        const token = normalizeClientId(clientId);
+        if (!token || typeof handler !== 'function') return;
+        pendingRetryHandlers.set(token, handler);
+    }
+
+    function clearPendingMessageRetry(clientId) {
+        const token = normalizeClientId(clientId);
+        if (!token) return;
+        pendingRetryHandlers.delete(token);
+    }
+
+    async function retryPendingMessage(clientId) {
+        const token = normalizeClientId(clientId);
+        const handler = token ? pendingRetryHandlers.get(token) : null;
+        if (!handler) return false;
+        pendingRetryHandlers.delete(token);
+        await handler();
+        return true;
     }
 
     function buildSourceChatSnapshot() {
@@ -120,10 +146,10 @@ export function createChatComposerSendRuntime({
         });
     }
 
-    async function sendFileMessage(file, caption = '', options = {}) {
-        const snapshot = buildSourceChatSnapshot();
-        if (!snapshot) return;
-        const { sourceChatId, sourceChatIsGroup, encryptForSourceChat } = snapshot;
+    async function runFileMessageFlow(file, caption = '', options = {}, snapshot = null) {
+        const resolvedSnapshot = snapshot || buildSourceChatSnapshot();
+        if (!resolvedSnapshot) return;
+        const { sourceChatId, sourceChatIsGroup, encryptForSourceChat } = resolvedSnapshot;
 
         return sendFileMessageFlow({
             file,
@@ -157,7 +183,26 @@ export function createChatComposerSendRuntime({
             updateActiveComposerUploadProgress,
             clearActiveComposerUpload,
             enqueueOutbox: enqueueOutboxMessage,
+            registerPendingMessageRetry: (clientId, retryOptions = {}) => {
+                registerPendingMessageRetry(clientId, () => runFileMessageFlow(
+                    file,
+                    caption,
+                    {
+                        ...options,
+                        ...retryOptions,
+                        retryClientId: clientId,
+                    },
+                    resolvedSnapshot,
+                ));
+            },
+            clearPendingMessageRetry,
         });
+    }
+
+    async function sendFileMessage(file, caption = '', options = {}) {
+        const snapshot = buildSourceChatSnapshot();
+        if (!snapshot) return;
+        return runFileMessageFlow(file, caption, options, snapshot);
     }
 
     async function handleComposerEncryptAndSend(rawContent) {
@@ -213,6 +258,8 @@ export function createChatComposerSendRuntime({
     return {
         schedulePendingTimeout,
         cancelPendingTimeout,
+        clearPendingMessageRetry,
+        retryPendingMessage,
         sendTextMessage,
         sendFileMessage,
         handleComposerEncryptAndSend,

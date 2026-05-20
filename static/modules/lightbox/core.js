@@ -8,6 +8,7 @@ import {
 } from './media-renderers.js';
 import { bindLightboxGestures } from './gestures.js';
 import { bindLightboxAccessibility } from './accessibility.js';
+import { lockPageScroll } from '../modal-scroll-lock.js';
 
 const LIGHTBOX_MIN_ZOOM = 1;
 const LIGHTBOX_MAX_ZOOM = 4;
@@ -51,6 +52,7 @@ let lightboxImages = [];
 let lightboxIndex = 0;
 let lightboxTransitionSeq = 0;
 let lightboxInitialized = false;
+let unlockLightboxScroll = null;
 
 function _getLightboxEls() {
     return {
@@ -416,9 +418,10 @@ function _closeLightbox() {
         els.root.classList.remove('is-closing');
         els.root.removeAttribute('data-media-kind');
         _resetLightboxView();
-        const prevOverflow = document.body.getAttribute('data-lightbox-prev-overflow');
-        document.body.style.overflow = prevOverflow || '';
-        document.body.removeAttribute('data-lightbox-prev-overflow');
+        if (unlockLightboxScroll) {
+            unlockLightboxScroll();
+            unlockLightboxScroll = null;
+        }
     });
 }
 
@@ -677,6 +680,7 @@ export function initLightbox() {
         hideZoomPanel: _hideLightboxZoomPanel,
         clearZoomHideTimer: _clearLightboxZoomHideTimer,
         showOverlay: _showLightboxOverlay,
+        close: _closeLightbox,
     });
 
     bindLightboxAccessibility({
@@ -722,10 +726,9 @@ export function initLightbox() {
         }
         if (lightboxIndex === -1) lightboxIndex = 0;
         _renderLightbox();
-        if (!document.body.hasAttribute('data-lightbox-prev-overflow')) {
-            document.body.setAttribute('data-lightbox-prev-overflow', document.body.style.overflow || '');
+        if (!unlockLightboxScroll) {
+            unlockLightboxScroll = lockPageScroll();
         }
-        document.body.style.overflow = 'hidden';
         afterNextFrame(() => {
             if (openSeq !== lightboxTransitionSeq) return;
             els.root.classList.add('active');

@@ -148,8 +148,10 @@ html, body {
             cursor: pointer;
             flex-shrink: 0;
         }
-        .settings-panel-close:hover {
-            background: var(--paper-alt);
+        @media (hover: hover) and (pointer: fine) {
+            .settings-panel-close:hover {
+                background: var(--paper-alt);
+            }
         }
         .settings-panel-head-copy {
             min-width: 0;
@@ -190,10 +192,12 @@ html, body {
             cursor: pointer;
             transition: border-color var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick), background-color var(--dur-quick) var(--ease-quick);
         }
-        .settings-panel-tool-btn:hover {
-            border-color: color-mix(in srgb, var(--rule) 78%, transparent);
-            color: var(--text);
-            background: color-mix(in srgb, var(--paper-alt) 48%, transparent);
+        @media (hover: hover) and (pointer: fine) {
+            .settings-panel-tool-btn:hover {
+                border-color: color-mix(in srgb, var(--rule) 78%, transparent);
+                color: var(--text);
+                background: color-mix(in srgb, var(--paper-alt) 48%, transparent);
+            }
         }
         .settings-panel-close .sun-icon,
         .settings-panel-tool-btn .sun-icon {
@@ -233,8 +237,10 @@ html, body {
             cursor: pointer;
             transition: background-color var(--dur-instant) var(--ease-quick), color var(--dur-instant) var(--ease-quick);
         }
-        .settings-panel-menu-item:hover {
-            background: color-mix(in srgb, var(--paper-alt) 78%, transparent);
+        @media (hover: hover) and (pointer: fine) {
+            .settings-panel-menu-item:hover {
+                background: color-mix(in srgb, var(--paper-alt) 78%, transparent);
+            }
         }
         .settings-panel-menu-item .sun-icon {
             width: 18px;
@@ -243,8 +249,10 @@ html, body {
         .settings-panel-menu-item.danger {
             color: color-mix(in srgb, var(--danger) 78%, var(--text) 22%);
         }
-        .settings-panel-menu-item.danger:hover {
-            background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
+        @media (hover: hover) and (pointer: fine) {
+            .settings-panel-menu-item.danger:hover {
+                background: color-mix(in srgb, var(--danger) 12%, var(--surface) 88%);
+            }
         }
         .settings-panel-esc {
             margin-left: auto;
@@ -376,9 +384,11 @@ html, body {
         transform var(--dur-medium) var(--ease-spring);
 }
 
-.settings-panel-close:hover {
-    background: color-mix(in srgb, var(--paper-alt) 62%, transparent);
-    color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+    .settings-panel-close:hover {
+        background: color-mix(in srgb, var(--paper-alt) 62%, transparent);
+        color: var(--text);
+    }
 }
 
 .settings-panel-close:active {

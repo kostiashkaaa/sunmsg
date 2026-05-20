@@ -15,6 +15,7 @@ export function registerMessageStatusSocketHandlers({
     getChatState,
     findMessageIndex,
     cancelPendingTimeout,
+    clearPendingMessageRetry = null,
     getMessageKey,
     normalizeChatMessageOrder,
     currentChatMessagesEl,
@@ -165,6 +166,7 @@ export function registerMessageStatusSocketHandlers({
 
     socket.on('message_sent', (data) => {
         if (!data?.client_id) return;
+        clearPendingMessageRetry?.(data.client_id);
         const chatId = data.chat_id || getCurrentChatId();
         const state = getChatState(chatId);
         const pendingIndex = findMessageIndex(state, (msg) => msg.clientId === data.client_id);

@@ -16,6 +16,8 @@ export function initAvatarEditor({
     const avatarEditorCropFrame = avatarEditorEl?.querySelector('.avatar-editor-crop-frame') || null;
 
     const AVATAR_OUTPUT_SIZE = 512;
+    const AVATAR_MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const AVATAR_MAX_SOURCE_PIXELS = 24 * 1000 * 1000;
     let avatarEditorState = null;
     let avatarEditorDrag = null;
 
@@ -151,7 +153,15 @@ export function initAvatarEditor({
         return new Promise((resolve, reject) => {
             const objectUrl = URL.createObjectURL(file);
             const image = new Image();
-            image.onload = () => resolve({ image, objectUrl });
+            image.onload = () => {
+                const pixelCount = Number(image.naturalWidth || 0) * Number(image.naturalHeight || 0);
+                if (!Number.isFinite(pixelCount) || pixelCount <= 0 || pixelCount > AVATAR_MAX_SOURCE_PIXELS) {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(new Error('\u0418\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0435. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0444\u0430\u0439\u043B \u0434\u043E 24 \u041C\u041F.'));
+                    return;
+                }
+                resolve({ image, objectUrl });
+            };
             image.onerror = () => {
                 URL.revokeObjectURL(objectUrl);
                 reject(new Error('Не удалось прочитать это изображение'));
@@ -167,6 +177,11 @@ export function initAvatarEditor({
         }
         if (!String(file.type || '').startsWith('image/')) {
             setAvatarUploadStatus('Ошибка: выберите изображение', 'var(--danger)');
+            if (avatarFileInputEl) avatarFileInputEl.value = '';
+            return;
+        }
+        if (Number(file.size || 0) > AVATAR_MAX_FILE_SIZE) {
+            setAvatarUploadStatus('\u041E\u0448\u0438\u0431\u043A\u0430: \u0444\u0430\u0439\u043B \u0430\u0432\u0430\u0442\u0430\u0440\u0430 \u0431\u043E\u043B\u044C\u0448\u0435 10 \u041C\u0411', 'var(--danger)');
             if (avatarFileInputEl) avatarFileInputEl.value = '';
             return;
         }

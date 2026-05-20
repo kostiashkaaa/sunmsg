@@ -4,7 +4,14 @@
  * Вызывается один раз после инициализации панели настроек.
  */
 
+const premiumUxInitializedDocs = new WeakSet();
+const observedRangeScenes = new WeakSet();
+const onlineIndicatorTargets = new WeakSet();
+const observedSettingsBodies = new WeakSet();
+
 export function initSettingsPremiumUX(doc = document) {
+    if (premiumUxInitializedDocs.has(doc)) return;
+    premiumUxInitializedDocs.add(doc);
     initRangeInputs(doc);
     initPrivacyPanelTransition(doc);
     initSwipeBack(doc);
@@ -35,6 +42,8 @@ function initRangeInputs(doc) {
     }
 
     doc.querySelectorAll('.settings-scene input[type="range"]').forEach(attachRange);
+    const scene = doc.querySelector('.settings-scene');
+    if (!scene || observedRangeScenes.has(scene)) return;
 
     // MutationObserver для динамически добавленных range-inputs
     const mo = new MutationObserver(mutations => {
@@ -46,8 +55,8 @@ function initRangeInputs(doc) {
             }
         }
     });
-    const scene = doc.querySelector('.settings-scene');
-    if (scene) mo.observe(scene, { childList: true, subtree: true });
+    observedRangeScenes.add(scene);
+    mo.observe(scene, { childList: true, subtree: true });
 }
 
 /* ── 2. Range min/max labels ─────────────────────────────────────────────── */
@@ -161,8 +170,10 @@ function initSwipeBack(doc) {
             const closeBtn = doc.getElementById('settingsPanelCloseBtn');
             if (doc.body.classList.contains('settings-detail-open')) {
                 // Имитируем навигацию назад — ищем функцию навигации
-                const homeEvent = new CustomEvent('settings:navigate-home', { bubbles: true });
-                panelBody.dispatchEvent(homeEvent);
+                document.dispatchEvent(new CustomEvent('sun-settings-navigate', {
+                    detail: { section: 'settings' },
+                    bubbles: false,
+                }));
             }
         }
     }, { passive: true });
@@ -255,6 +266,8 @@ function initOnlineIndicator(doc) {
         'body.settings-home-open .settings-nav-avatar-wrap, .settings-nav-avatar-wrap'
     );
     if (!avatarWrap) return;
+    if (onlineIndicatorTargets.has(avatarWrap)) return;
+    onlineIndicatorTargets.add(avatarWrap);
 
     // Используем socket presence или просто navigator.onLine
     function updateOnlineState() {
@@ -290,6 +303,8 @@ function initNavScrollFade(doc) {
 
 /* ── 9. MutationObserver — переинициализация при смене body-класса ──────── */
 function observeSettingsSections(doc) {
+    if (!doc.body || observedSettingsBodies.has(doc.body)) return;
+    observedSettingsBodies.add(doc.body);
     const observer = new MutationObserver(() => {
         initRangeInputs(doc);
         initFloatingSaveLabel(doc);
@@ -325,9 +340,12 @@ function observeSettingsSections(doc) {
                 input.setAttribute('aria-valuemax', input.max || '100');
             }
             input.setAttribute('aria-valuenow', input.value);
-            input.addEventListener('input', () => {
-                input.setAttribute('aria-valuenow', input.value);
-            });
+            if (!input.dataset.premiumAriaValueInit) {
+                input.dataset.premiumAriaValueInit = '1';
+                input.addEventListener('input', () => {
+                    input.setAttribute('aria-valuenow', input.value);
+                });
+            }
         });
     });
 

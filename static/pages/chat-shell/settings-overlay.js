@@ -1,3 +1,5 @@
+import { lockPageScroll } from '../../modules/modal-scroll-lock.js';
+
 export function initChatShellSettingsOverlay(options = {}) {
     const withAppRoot = options.withAppRoot || ((value) => value);
     const markFirstRunCompleted = options.markFirstRunCompleted || (() => {});
@@ -14,9 +16,7 @@ export function initChatShellSettingsOverlay(options = {}) {
 
     let settingsOverlayPhase = 'closed';
     let settingsOverlayTransitionSeq = 0;
-    let settingsOverlayScrollLocked = false;
-    let settingsOverlayBodyOverflow = '';
-    let settingsOverlayBodyPaddingRight = '';
+    let unlockSettingsOverlayPageScroll = null;
     let settingsPanelInitialized = false;
     let settingsPanelInitPromise = null;
     let commandPaletteOpenPromise = null;
@@ -181,22 +181,14 @@ export function initChatShellSettingsOverlay(options = {}) {
     }
 
     function lockSettingsOverlayScroll() {
-        if (settingsOverlayScrollLocked) return;
-        settingsOverlayBodyOverflow = document.body.style.overflow;
-        settingsOverlayBodyPaddingRight = document.body.style.paddingRight;
-        const scrollbarCompensation = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
-        if (scrollbarCompensation > 0) {
-            document.body.style.paddingRight = `${scrollbarCompensation}px`;
-        }
-        document.body.style.overflow = 'hidden';
-        settingsOverlayScrollLocked = true;
+        if (unlockSettingsOverlayPageScroll) return;
+        unlockSettingsOverlayPageScroll = lockPageScroll();
     }
 
     function unlockSettingsOverlayScroll() {
-        if (!settingsOverlayScrollLocked) return;
-        document.body.style.overflow = settingsOverlayBodyOverflow;
-        document.body.style.paddingRight = settingsOverlayBodyPaddingRight;
-        settingsOverlayScrollLocked = false;
+        if (!unlockSettingsOverlayPageScroll) return;
+        unlockSettingsOverlayPageScroll();
+        unlockSettingsOverlayPageScroll = null;
     }
 
     function setSettingsBrandGlow(active) {

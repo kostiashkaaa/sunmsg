@@ -349,6 +349,7 @@ export const initChatPage = async () => {
         emitSocket,
         onPendingMessageExpired: (clientId) => failPendingMessage(clientId),
         onPendingMessageDrained: (clientId) => schedulePendingTimeout(clientId),
+        onRetryPendingMessage: (clientId) => retryPendingMessage(clientId),
         windowRef: window,
         documentRef: document,
     });
@@ -3280,6 +3281,14 @@ export const initChatPage = async () => {
         return composerSendRuntime?.cancelPendingTimeout(clientId);
     }
 
+    function clearPendingMessageRetry(clientId) {
+        return composerSendRuntime?.clearPendingMessageRetry(clientId);
+    }
+
+    function retryPendingMessage(clientId) {
+        return composerSendRuntime?.retryPendingMessage(clientId) || false;
+    }
+
     async function sendTextMessage(message) {
         return composerSendRuntime?.sendTextMessage(message);
     }
@@ -3482,6 +3491,7 @@ export const initChatPage = async () => {
             getChatState,
             findMessageIndex,
             cancelPendingTimeout,
+            clearPendingMessageRetry,
             getMessageKey,
             normalizeChatMessageOrder,
             currentChatMessagesEl: chatMessages,

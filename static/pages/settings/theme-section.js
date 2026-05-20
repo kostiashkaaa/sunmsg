@@ -680,6 +680,8 @@ export function initThemeSection({
                 showAlert('Кастомный фон применён', 'success');
             } catch (_) {
                 showAlert('Не удалось обработать это изображение обоев. Попробуйте другой файл.', 'warning');
+            } finally {
+                this.value = '';
             }
         });
 

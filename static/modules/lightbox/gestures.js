@@ -25,6 +25,7 @@ export function bindLightboxGestures(ctx) {
         hideZoomPanel,
         clearZoomHideTimer,
         showOverlay,
+        close,
     } = ctx;
 
     els.zoomToggle?.addEventListener('click', (e) => {
@@ -162,6 +163,10 @@ export function bindLightboxGestures(ctx) {
             if (t) {
                 const dx = t.clientX - state.touchStartX;
                 const dy = t.clientY - state.touchStartY;
+                if (state.zoom <= 1.02 && dy > 72 && Math.abs(dx) < 52) {
+                    close?.();
+                    return;
+                }
                 if (Math.abs(dx) > 42 && Math.abs(dy) < 36) {
                     if (dx < 0) goNext();
                     if (dx > 0) goPrev();

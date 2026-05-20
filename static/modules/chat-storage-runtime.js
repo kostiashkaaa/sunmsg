@@ -12,6 +12,7 @@ export function createChatStorageRuntime({
     emitSocket,
     onPendingMessageExpired,
     onPendingMessageDrained,
+    onRetryPendingMessage,
     windowRef = window,
     documentRef = document,
 } = {}) {
@@ -120,7 +121,20 @@ export function createChatStorageRuntime({
         if (!messageEl) return;
         event.preventDefault();
         event.stopPropagation();
-        void drainOutboxOnce();
+        const clientId = String(messageEl.getAttribute('data-client-id') || '').trim();
+        void (async () => {
+            try {
+                const drainedCount = await drainOutboxOnce();
+                if (drainedCount > 0) return;
+                if (clientId && typeof onRetryPendingMessage === 'function') {
+                    const handled = await onRetryPendingMessage(clientId);
+                    if (handled) return;
+                }
+                await drainOutboxOnce();
+            } catch (_) {
+                await drainOutboxOnce();
+            }
+        })();
     });
 
     const previousClearChatHistoryCacheOnLogout = windowRef.clearChatHistoryCacheOnLogout;

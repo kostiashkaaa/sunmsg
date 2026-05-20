@@ -227,6 +227,9 @@ export function initDataMemorySection({
     });
 
     clearAllBtnEl?.addEventListener('click', async () => {
+        if (!window.confirm(tr('\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C \u0432\u0435\u0441\u044C \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u044D\u0448 SUNmessenger?'))) {
+            return;
+        }
         clearAllBtnEl.disabled = true;
         try {
             await clearAllManagedCache({ userId: currentUserId });

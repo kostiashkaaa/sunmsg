@@ -255,6 +255,7 @@ export function initPrivacySection({
     let latestPresencePayload = null;
     let sidebarWeatherCitySuggestionsTimerId = 0;
     let sidebarWeatherCitySuggestionsRequestSeq = 0;
+    let sidebarWeatherCitySuggestionsAbortController = null;
     let sidebarWeatherPreferencesSaveTimerId = 0;
     let sidebarWeatherPreferencesSaveSeq = 0;
     let lastSavedSidebarWeatherPreferencesKey = '';
@@ -485,6 +486,10 @@ export function initPrivacySection({
     }
 
     function clearSidebarWeatherCitySuggestions({ close = true } = {}) {
+        if (sidebarWeatherCitySuggestionsAbortController) {
+            sidebarWeatherCitySuggestionsAbortController.abort();
+            sidebarWeatherCitySuggestionsAbortController = null;
+        }
         if (sidebarWeatherCitySuggestionsEl) {
             sidebarWeatherCitySuggestionsEl.replaceChildren();
         }
@@ -550,16 +555,31 @@ export function initPrivacySection({
     }
 
     async function requestSidebarWeatherCitySuggestions(query, seq) {
+        if (sidebarWeatherCitySuggestionsAbortController) {
+            sidebarWeatherCitySuggestionsAbortController.abort();
+        }
+        const abortController = typeof AbortController === 'function'
+            ? new AbortController()
+            : null;
+        sidebarWeatherCitySuggestionsAbortController = abortController;
         const language = resolveWeatherCitySuggestionsLanguage();
         const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
         url.searchParams.set('name', query);
         url.searchParams.set('count', String(SIDEBAR_WEATHER_CITY_SUGGESTIONS_LIMIT));
         url.searchParams.set('language', language);
         url.searchParams.set('format', 'json');
-        const response = await fetch(url.toString(), {
-            method: 'GET',
-            cache: 'no-store',
-        });
+        let response = null;
+        try {
+            response = await fetch(url.toString(), {
+                method: 'GET',
+                cache: 'no-store',
+                ...(abortController ? { signal: abortController.signal } : {}),
+            });
+        } finally {
+            if (abortController && sidebarWeatherCitySuggestionsAbortController === abortController) {
+                sidebarWeatherCitySuggestionsAbortController = null;
+            }
+        }
         if (!response.ok) return;
         const payload = await response.json().catch(() => null);
         if (seq !== sidebarWeatherCitySuggestionsRequestSeq) return;

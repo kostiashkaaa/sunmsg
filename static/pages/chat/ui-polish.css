@@ -115,12 +115,14 @@ button:active:not(:disabled),
 }
 
 /* ── 15. Delete-chat-action hover states polish ───────────────── */
-.delete-chat-action--surface:hover {
-    background: var(--surface);
-    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-}
-.delete-chat-action--danger:hover {
-    filter: brightness(1.06);
+@media (hover: hover) and (pointer: fine) {
+    .delete-chat-action--surface:hover {
+        background: var(--surface);
+        border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    }
+    .delete-chat-action--danger:hover {
+        filter: brightness(1.06);
+    }
 }
 
 /* ── 16. Profile drawer topbar height → 60px (align with header) */
@@ -136,9 +138,9 @@ button:active:not(:disabled),
 /* ── 18. Larger tap target for msg-menu-trigger on mobile ──────── */
 @media (pointer: coarse) {
     .msg-menu-trigger {
-        width: 32px;
-        height: 28px;
-        margin-left: 2px;
+        width: 44px;
+        height: 44px;
+        margin-left: 0;
     }
     .reaction-pill,
     [data-reaction-pill] {

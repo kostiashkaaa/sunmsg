@@ -91,12 +91,22 @@ export async function sendFileMessageFlow({
     updateActiveComposerUploadProgress,
     clearActiveComposerUpload,
     enqueueOutbox,
+    registerPendingMessageRetry,
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
         return;
     }
     if (!file) return;
+    const retryClientId = String(options?.retryClientId || '').trim();
+    const isRetry = Boolean(retryClientId);
+    const clientId = retryClientId || generateRequestId();
+    if (isRetry) {
+        registerPendingMessageRetry?.(clientId, {
+            retryCreatedAt: String(options?.retryCreatedAt || '').trim(),
+            retryReplySnapshot: options?.retryReplySnapshot || null,
+        });
+    }
     const maxChatMediaSizeBytes = normalizeMaxChatMediaSize(maxChatMediaSize);
     if (maxChatMediaSizeBytes !== null && Number(file.size) > maxChatMediaSizeBytes) {
         throw createFileTooLargeError(maxChatMediaSizeBytes);
@@ -148,13 +158,16 @@ export async function sendFileMessageFlow({
         _safeRevokePreviewUrl();
         throw _;
     }
-    const clientId = generateRequestId();
-    const pendingTimestamp = new Date().toISOString();
+    const pendingTimestamp = String(options?.retryCreatedAt || '').trim() || new Date().toISOString();
+    const retryReplySnapshot = options?.retryReplySnapshot && typeof options.retryReplySnapshot === 'object'
+        ? options.retryReplySnapshot
+        : null;
+    const replyState = retryReplySnapshot || getReplyState();
     const {
         replyToId: snapReplyId,
         replyToText: snapReplyText,
         replyToSender: snapReplySender,
-    } = getReplyState();
+    } = replyState;
     const optimisticMime = String(uploadFile?.type || '').toLowerCase()
         || (sourceCategory === 'audio' ? 'audio/webm' : 'application/octet-stream');
     const albumId = typeof options?.albumId === 'string' ? options.albumId : null;
@@ -177,7 +190,9 @@ export async function sendFileMessageFlow({
     };
     const optimisticPayloadText = JSON.stringify(optimisticPayload);
 
-    cancelReply();
+    if (!isRetry) {
+        cancelReply();
+    }
     appendMessage({
         sender: 'self',
         message: optimisticPayloadText,
@@ -197,6 +212,14 @@ export async function sendFileMessageFlow({
         reactions: [],
     }, { renderOptions: { scrollToBottom: true } });
     setKeepChatPinnedToBottom(true);
+    registerPendingMessageRetry?.(clientId, {
+        retryCreatedAt: pendingTimestamp,
+        retryReplySnapshot: {
+            replyToId: snapReplyId,
+            replyToText: snapReplyText,
+            replyToSender: snapReplySender,
+        },
+    });
     updateActiveContactLastMessage(
         optimisticPayloadText,
         true,

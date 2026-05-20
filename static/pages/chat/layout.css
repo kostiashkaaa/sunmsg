@@ -5,6 +5,16 @@
     overflow: hidden;
 }
 
+html.sun-modal-scroll-locked,
+html.sun-modal-scroll-locked body {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+html.sun-modal-scroll-locked body {
+    touch-action: none;
+}
+
 .sidebar-header {
     background: var(--sidebar-hdr);
     border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent 38%);
@@ -243,6 +253,9 @@
     white-space: pre-wrap;
     margin: 0;
     padding: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .message-text a {
     color: var(--link-color, #7dd3fc);
@@ -253,6 +266,14 @@
 }
 .message-text a:hover {
     color: var(--link-hover-color, #bae6fd);
+}
+
+.file-caption,
+.reply-quote-text,
+.forward-quote-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 /* Search */

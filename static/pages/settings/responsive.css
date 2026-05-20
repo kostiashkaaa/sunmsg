@@ -905,3 +905,17 @@ body.settings-detail-open .settings-content {
     display: block;
 }
 
+@media (pointer: coarse) {
+    .settings-panel-close,
+    .settings-panel-tool-btn,
+    .settings-avatar-edit-btn,
+    .settings-nav-profile-action {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .settings-panel-menu-item {
+        min-height: 44px;
+    }
+}
+

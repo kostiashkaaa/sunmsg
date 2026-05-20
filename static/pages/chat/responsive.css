@@ -300,8 +300,8 @@
             .lightbox-topbar { padding: 10px 14px; }
             .lightbox-stage-wrap { padding-left: 8px; padding-right: 8px; }
             .lightbox-stage { width: 100%; gap: 6px; }
-            .lightbox-btn { width: 34px; height: 34px; }
-            .lightbox-nav { width: 36px; height: 36px; }
+            .lightbox-btn { width: 44px; height: 44px; }
+            .lightbox-nav { width: 44px; height: 44px; }
             .lightbox-nav i { font-size: 16px; }
             .lightbox-main {
                 max-width: calc(100vw - 90px);
