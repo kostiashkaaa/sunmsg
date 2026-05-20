@@ -172,7 +172,7 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert '.contact-last-msg-loading__line' in components_css
 
 
-def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
+def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
     sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
     sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
@@ -183,15 +183,18 @@ def test_sidebar_loading_preview_expands_to_full_contact_row() -> None:
 
     assert 'contact-item--preview-loading' in contacts_src
     assert 'data-preview-loading="${isPreviewLoading ? \'1\' : \'0\'}"' in contacts_src
-    assert "CustomEvent('sun-sidebar-preview-loading-change'" in contacts_src
+    assert "CustomEvent('sun-sidebar-preview-loading-change'" not in contacts_src
     assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
-    assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" in sidebar_runtime_src
-    assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" in sidebar_runtime_src
-    assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" in sidebar_runtime_src
+    assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" not in sidebar_runtime_src
+    assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" not in sidebar_runtime_src
+    assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src
     assert "const hasRenderedContactsBeforeLoad = Boolean(" not in sidebar_runtime_src
     assert 'const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad' not in sidebar_runtime_src
+    clear_idx = sidebar_runtime_src.index('setContactsLoadingState(false, { partial: isPartialLoad });')
+    decrypt_idx = sidebar_runtime_src.index('await runWithConcurrency(')
+    assert clear_idx < decrypt_idx
     assert 'contact-item--preview-loading' in sidebar_template_src
     assert 'sidebar_loading' in sidebar_template_src
     assert 'data-sidebar-loading="{{ \'1\' if sidebar_loading.active else \'0\' }}"' in sidebar_template_src

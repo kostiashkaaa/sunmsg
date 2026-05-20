@@ -45,7 +45,6 @@ export function initChatContactsSidebar({
     const CONTACTS_MAX_LIMIT = 200;
     const CONTACTS_IMMEDIATE_MIN_INTERVAL_MS = 220;
     const CONTACTS_LOADING_EVENT = 'sun-contacts-loading';
-    const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change';
     const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';
     const AVATAR_LOADING_BARS_HTML = `
         <span class="contact-avatar-loading" aria-hidden="true"></span>
@@ -79,12 +78,8 @@ export function initChatContactsSidebar({
         if (!contactsList) return;
         const sidebar = contactsList.closest('.sidebar');
         if (!sidebar) return;
-        const isFullContactsLoading = contactsList.dataset.contactsLoading === '1'
+        const shouldShowShellLoading = contactsList.dataset.contactsLoading === '1'
             && contactsList.dataset.contactsLoadingPartial !== '1';
-        const hasPreviewLoading = Boolean(
-            contactsList.querySelector('.contact-item--preview-loading, .contact-last-msg-loading'),
-        );
-        const shouldShowShellLoading = isFullContactsLoading || hasPreviewLoading;
         sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading);
         sidebar.setAttribute('data-sidebar-loading', shouldShowShellLoading ? '1' : '0');
     }
@@ -109,7 +104,6 @@ export function initChatContactsSidebar({
         }
     }
 
-    contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT, syncSidebarLoadingShellState);
     syncSidebarLoadingShellState();
 
     function animateContactEntry(item, renderIndex = 0) {
@@ -529,6 +523,7 @@ export function initChatContactsSidebar({
                                 lastFullContactsPayloadSignature = nextSignature;
                                 reconcileContactsList(orderedContacts);
                             }
+                            setContactsLoadingState(false, { partial: isPartialLoad });
                             await runWithConcurrency(
                                 orderedContacts,
                                 shouldBatchHydrate ? 1 : CONTACTS_DECRYPT_CONCURRENCY,
