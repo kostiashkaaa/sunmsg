@@ -1042,6 +1042,9 @@ body.settings-home-open .settings-nav {
     body.settings-detail-open .settings-panel-body {
         overflow: hidden !important;
     }
+    body.settings-detail-open .settings-panel-body {
+        overflow-y: auto !important;
+    }
     body.settings-detail-open .settings-layout {
         height: 100dvh !important;
     }

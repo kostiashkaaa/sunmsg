@@ -1046,6 +1046,28 @@ def test_mobile_header_dropdown_is_viewport_bounded() -> None:
     )
 
 
+def test_settings_detail_panel_body_scrolls_on_mobile() -> None:
+    """Mobile settings detail tabs must scroll instead of being clipped by the shell."""
+    css = (STATIC / 'pages' / 'settings-polish.css').read_text(encoding='utf-8')
+    mobile_start = css.find('@media (max-width: 1024px)')
+    mobile_end = css.find('@media (max-width: 600px)', mobile_start)
+    assert mobile_start >= 0, 'settings-polish.css: max-width 1024px block not found'
+    assert mobile_end > mobile_start, 'settings-polish.css: next mobile block not found'
+
+    mobile_css = css[mobile_start:mobile_end]
+    panel_body_blocks = re.findall(
+        r'body\.settings-detail-open\s+\.settings-panel-body\s*\{([^}]*)\}',
+        mobile_css,
+        re.DOTALL,
+    )
+    assert panel_body_blocks, (
+        'settings-polish.css: mobile settings detail panel body block not found'
+    )
+    assert any('overflow-y: auto !important' in block for block in panel_body_blocks), (
+        'settings-polish.css: mobile settings detail panel body must keep vertical scrolling'
+    )
+
+
 def test_hidden_group_profile_panels_stay_out_of_direct_profile_layout() -> None:
     """Hidden group-only panels must not override [hidden] inside direct profiles."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')

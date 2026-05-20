@@ -41,8 +41,19 @@
             || 0;
     }
 
+    function hasSessionPersistenceWindow(options = {}) {
+        return Boolean(
+            positiveInteger(options.sessionAutoLogoutSeconds ?? options.ttlSeconds)
+            || positiveInteger(options.sessionExpiresAt ?? options.expiresAt)
+            || positiveInteger(readBootstrapSession().autoLogoutSeconds)
+            || positiveInteger(readBootstrapSession().expiresAt)
+        );
+    }
+
     function buildPersistentWrapOptions(options = {}) {
-        const persistent = options?.persistent === true || options?.rememberDevice === true;
+        const persistent = options?.persistent === true
+            || options?.rememberDevice === true
+            || hasSessionPersistenceWindow(options);
         const ttlSeconds = resolveSessionAutoLogoutSeconds(options);
         const expiresAt = resolveSessionExpiresAt(options);
         return {
