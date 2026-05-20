@@ -635,8 +635,6 @@ export function initEmojiPicker(messageInput) {
     let searchQuery = '';
     let lastSelectionStart = messageInput.value.length;
     let lastSelectionEnd = lastSelectionStart;
-    let handledKeyboardSwitchPointer = false;
-    let keyboardSwitchPointerTimer = null;
     let suppressCategorySyncUntil = 0;
     let lastRenderedMode = '';
     let lastDefaultRenderKey = '';
@@ -690,6 +688,14 @@ export function initEmojiPicker(messageInput) {
         const label = getEmojiButtonLabel(showKeyboardIcon ? 'keyboard' : 'emoji');
         emojiBtn.setAttribute('aria-label', label);
         emojiBtn.setAttribute('title', label);
+    };
+
+    const focusNativeMobileComposer = () => {
+        clearMobileEmojiSheetState(emojiPicker);
+        emojiPicker.classList.remove('active', 'is-closing', 'is-closing-instant');
+        emojiPicker.setAttribute('aria-hidden', 'true');
+        syncEmojiButtonMode(false);
+        focusComposerInput();
     };
 
     const updateSearchUi = (strings) => {
@@ -907,6 +913,11 @@ export function initEmojiPicker(messageInput) {
         const renderSeq = ++openRenderSeq;
         const shouldOpenMobile = isMobileEmojiViewport();
 
+        if (shouldOpenMobile) {
+            focusNativeMobileComposer();
+            return;
+        }
+
         searchQuery = '';
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
@@ -972,33 +983,20 @@ export function initEmojiPicker(messageInput) {
     };
 
     // On mobile we handle the toggle on pointerdown and preventDefault so the
-    // emoji button never steals focus from the textarea — this keeps the
-    // emoji-sheet <-> keyboard switch a single clean transition.
+    // emoji button never steals focus from the textarea. Mobile uses the native
+    // keyboard emoji key instead of the custom bottom sheet.
     emojiBtn.addEventListener('pointerdown', (event) => {
         if (!isMobileEmojiViewport()) return;
         event.preventDefault();
         event.stopPropagation();
-        window.clearTimeout(keyboardSwitchPointerTimer);
-        handledKeyboardSwitchPointer = true;
-        keyboardSwitchPointerTimer = window.setTimeout(() => {
-            handledKeyboardSwitchPointer = false;
-        }, 450);
-        if (emojiPicker.classList.contains('active')) {
-            // Emoji sheet -> keyboard
-            closePicker({ focusInput: true });
-        } else {
-            // Keyboard / nothing -> emoji sheet
-            openPicker().catch(() => {});
-        }
+        focusNativeMobileComposer();
     });
 
     emojiBtn.addEventListener('click', async (event) => {
         event.stopPropagation();
-        if (handledKeyboardSwitchPointer) {
-            // Already handled on pointerdown (mobile path).
+        if (isMobileEmojiViewport()) {
             event.preventDefault();
-            window.clearTimeout(keyboardSwitchPointerTimer);
-            handledKeyboardSwitchPointer = false;
+            focusNativeMobileComposer();
             return;
         }
         const shouldOpen = !emojiPicker.classList.contains('active');
@@ -1243,6 +1241,10 @@ export function initEmojiPicker(messageInput) {
     });
 
     document.addEventListener('sun-open-emoji-picker', () => {
+        if (isMobileEmojiViewport()) {
+            focusNativeMobileComposer();
+            return;
+        }
         openPicker().catch(() => {});
     });
 

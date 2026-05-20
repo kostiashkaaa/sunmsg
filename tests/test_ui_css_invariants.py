@@ -691,42 +691,49 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     assert 'height: 0 !important' in instant_block.group(1)
 
 
-def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
-    """Emoji button pointerdown owns mobile toggling so click/blur cannot race it."""
+def test_mobile_emoji_button_uses_native_keyboard_instead_of_sheet() -> None:
+    """Mobile must not open the custom emoji sheet; native keyboard owns emoji input."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     pointer_start = emoji.find("emojiBtn.addEventListener('pointerdown'")
     assert pointer_start >= 0, 'emoji.js: emoji button pointerdown handler not found'
     prevent_idx = emoji.find('event.preventDefault();', pointer_start)
-    handled_idx = emoji.find('handledKeyboardSwitchPointer = true;', prevent_idx)
-    active_idx = emoji.find("if (emojiPicker.classList.contains('active'))", handled_idx)
-    close_idx = emoji.find('closePicker({ focusInput: true });', active_idx)
-    open_idx = emoji.find('openPicker().catch(() => {});', close_idx)
+    focus_idx = emoji.find('focusNativeMobileComposer();', prevent_idx)
     click_idx = emoji.find("emojiBtn.addEventListener('click'", pointer_start)
-    assert pointer_start < prevent_idx < handled_idx < active_idx < close_idx < open_idx < click_idx, (
-        'emoji.js: mobile pointerdown should prevent default, mark the click handled, then toggle the sheet.'
+    assert pointer_start < prevent_idx < focus_idx < click_idx, (
+        'emoji.js: mobile pointerdown should prevent default and focus the native composer instead of opening a sheet.'
     )
 
     lazy_ui_runtime = (STATIC / 'modules' / 'chat-lazy-ui-runtime.js').read_text(encoding='utf-8')
+    assert 'function focusMessageInput()' in lazy_ui_runtime
+    assert 'if (isMobileViewport() || emojiPickerInitPromise || emojiWarmupScheduled) return;' in lazy_ui_runtime
     lazy_pointer_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('pointerdown'")
     lazy_click_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('click'")
-    lazy_ready_idx = lazy_ui_runtime.find('if (isEmojiPickerReady) return;', lazy_pointer_idx)
     lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
-    lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
-    lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen();', lazy_pointer_idx)
+    lazy_focus_idx = lazy_ui_runtime.find('focusMessageInput();', lazy_prevent_idx)
+    lazy_return_idx = lazy_ui_runtime.find('return;', lazy_focus_idx)
+    lazy_ready_idx = lazy_ui_runtime.find('if (isEmojiPickerReady) return;', lazy_return_idx)
     lazy_pending_bail_idx = lazy_ui_runtime.find('if (emojiPickerInitPromise) return;', lazy_pointer_idx, lazy_prevent_idx)
-    lazy_warmup_idx = lazy_ui_runtime.find('function scheduleEmojiPickerWarmup')
-    lazy_focus_warmup_idx = lazy_ui_runtime.find("messageInput?.addEventListener('focus'", lazy_warmup_idx)
     assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
     assert 'let isEmojiPickerReady = false;' in lazy_ui_runtime
     assert lazy_pending_bail_idx == -1, (
         'chat-lazy-ui-runtime.js: pending emoji preload must still own mobile pointerdown.'
     )
-    assert lazy_pointer_idx < lazy_ready_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
-        'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur and dispatch open.'
+    assert lazy_pointer_idx < lazy_prevent_idx < lazy_focus_idx < lazy_return_idx < lazy_ready_idx < lazy_click_idx, (
+        'chat-lazy-ui-runtime.js: first mobile emoji tap must focus input and return before lazy-loading the picker.'
     )
-    assert 0 <= lazy_warmup_idx < lazy_focus_warmup_idx, (
-        'chat-lazy-ui-runtime.js: emoji module should warm up before the first emoji button tap.'
+
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    assert '#messageForm #emojiBtn' in css and 'display: none !important' in css, (
+        'chat.css: mobile composer should hide the custom emoji button.'
     )
+    hidden_picker_block = re.search(
+        r'\.emoji-picker,\s*\.emoji-picker\.active,\s*\.emoji-picker\.is-opening,\s*\.emoji-picker\.is-closing\s*\{([^}]*)\}',
+        css,
+        re.DOTALL,
+    )
+    assert hidden_picker_block, 'chat.css: mobile emoji picker hidden block not found'
+    assert 'display: none !important' in hidden_picker_block.group(1)
+    assert 'height: 0 !important' in hidden_picker_block.group(1)
 
 
 def test_mobile_emoji_keyboard_handoff_uses_visual_viewport_release() -> None:
@@ -1554,9 +1561,12 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert 'const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop)' in viewport
     assert 'const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22))' in viewport
     assert 'const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85' in viewport
-    assert 'keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset' in viewport
-    assert 'keyboardInset = keyboardActive ? keyboardInsetCandidate : 0' in viewport
+    assert 'const composerViewportActive = composerFocused && vvHeight > 0' in viewport
+    assert 'keyboardActive = composerViewportActive && (' in viewport
+    assert 'keyboardGeometryActive\n                    ? keyboardInsetCandidate >= minKeyboardInset\n                    : true' in viewport
+    assert 'keyboardInset = keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset' in viewport
     assert 'keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive' in viewport
+    assert 'composerViewportActive || keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive' in viewport
     assert "root.classList.toggle('mobile-keyboard-active', keyboardActive)" in viewport
     assert "setTimeoutFn(() => scheduleViewportAndInsets({ immediate: true }), 520)" in runtime
 

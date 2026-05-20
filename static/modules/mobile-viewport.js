@@ -48,9 +48,20 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const keyboardInsetCandidate = Math.max(0, layoutHeight - vvHeight - vvTop);
             const minKeyboardInset = Math.max(160, Math.round(layoutHeight * 0.22));
             const keyboardGeometryActive = layoutHeight > 0 && vvHeight < layoutHeight * 0.85;
-            // Safari browser chrome can also shrink visualViewport; require the larger real-keyboard inset.
-            keyboardActive = composerFocused && keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset;
-            keyboardInset = keyboardActive ? keyboardInsetCandidate : 0;
+            const composerViewportActive = composerFocused && vvHeight > 0;
+            // iOS can resize window.innerHeight together with visualViewport while
+            // the keyboard is open, which makes the inset candidate 0. The app
+            // height still has to follow visualViewport whenever the composer is
+            // focused; the inset var remains geometry-only for consumers that
+            // need a real keyboard offset.
+            keyboardActive = composerViewportActive && (
+                keyboardGeometryActive
+                    ? keyboardInsetCandidate >= minKeyboardInset
+                    : true
+            );
+            keyboardInset = keyboardGeometryActive && keyboardInsetCandidate >= minKeyboardInset
+                ? keyboardInsetCandidate
+                : 0;
             const keyboardHandoffActive = root.classList.contains('mobile-emoji-keyboard-handoff');
             const wasKeyboardActive = root.classList.contains('mobile-keyboard-active');
             const now = Date.now();
@@ -62,7 +73,7 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const keyboardReleaseActive = keyboardReleaseUntil > now;
             const shouldUseVisualViewportHeight = Boolean(
                 vvHeight > 0
-                && (keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive)
+                && (composerViewportActive || keyboardActive || keyboardReleaseActive || keyboardHandoffActive || wasKeyboardActive)
             );
             if (shouldUseVisualViewportHeight) {
                 nextAppVh = `${vvHeight}px`;
