@@ -37,6 +37,7 @@ export function resetOpenChatUnreadCounter({
     markCurrentChatSeenIfPossible = () => {},
     setContactUnreadBadge = () => {},
     currentChatId = '',
+    chatMessagesEl = null,
 } = {}) {
     setOpenChatUnreadCount(0);
     updateJumpToNewMessagesButton();
@@ -44,4 +45,6 @@ export function resetOpenChatUnreadCounter({
         markCurrentChatSeenIfPossible();
     }
     setContactUnreadBadge(currentChatId, 0);
+    // Remove unread divider when counter resets to zero
+    chatMessagesEl?.querySelector?.('.chat-unread-divider')?.remove();
 }

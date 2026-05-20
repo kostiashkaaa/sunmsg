@@ -1795,6 +1795,7 @@ export const initChatPage = async () => {
             markCurrentChatSeenIfPossible,
             setContactUnreadBadge,
             currentChatId,
+            chatMessagesEl: chatMessages,
         });
     }
 

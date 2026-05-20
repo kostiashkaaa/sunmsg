@@ -1,6 +1,7 @@
 import { withAppRoot } from './app-url.js';
 import { normalizeMentionUserIds } from './chat-mentions.js';
 import { normalizeGroupReaders } from './chat-group-read-receipts.js';
+import { insertUnreadDivider, removeUnreadDivider } from './chat-skeleton-ui.js';
 
 const INITIAL_SNAPSHOT_CACHE_LIMIT = 200;
 
@@ -559,6 +560,8 @@ export function createChatHistoryRuntime(ctx = {}) {
             ctx.hideFavoriteBar();
             await restoreFavoriteBar(state.favorites, { activeMessageId: state.activeFavoriteMessageId });
             ctx.resetOpenChatUnreadCounter();
+            // Clear any stale divider from a previous chat
+            removeUnreadDivider(ctx.chatMessagesEl);
 
             if (useAfterId) {
                 state.initialized = true;
@@ -582,6 +585,13 @@ export function createChatHistoryRuntime(ctx = {}) {
                 const decodedMessages = await decodeChatMessages(response.messages);
                 if (requestToken !== state.historyRequestToken) return;
                 const shouldRerenderMessages = hasRenderableMessageDiff(state.messages, decodedMessages);
+
+                // Find first unread incoming message to place divider
+                const firstUnreadMsg = decodedMessages.find(
+                    (msg) => msg.sender === 'other' && !msg.is_read
+                );
+                const firstUnreadId = firstUnreadMsg?.id ?? null;
+
                 if (shouldRerenderMessages) {
                     ctx.setChatMessages(chatId, decodedMessages, { resetHeights: true });
                     decodedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
@@ -600,11 +610,16 @@ export function createChatHistoryRuntime(ctx = {}) {
                         ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
                     } else {
                         await ctx.renderChatMessagesStable(chatId, {
-                            scrollToBottom: true,
+                            scrollToBottom: !firstUnreadId,
                             animateReveal: shouldAnimateHistoryReveal(),
                             suppressHydrationMask: restoredFromCache,
                         });
-                        ctx.setKeepChatPinnedToBottom(true);
+                        ctx.setKeepChatPinnedToBottom(!firstUnreadId);
+                    }
+
+                    // Insert unread divider after render if there are unread messages
+                    if (firstUnreadId) {
+                        insertUnreadDivider(ctx.chatMessagesEl, String(firstUnreadId));
                     }
                 } else {
                     state.hasMoreBefore = Boolean(response.has_more_before);
