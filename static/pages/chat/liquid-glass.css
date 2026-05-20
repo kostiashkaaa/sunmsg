@@ -1,7 +1,8 @@
 /* =================================================================
-   LIQUID GLASS — surface mode overlay
-   Active only when html[data-interface-surface="glass"].
-   Solid mode is never touched. Calls are never touched.
+   LIQUID GLASS - surface mode overlays
+   Glass rules are scoped to html[data-interface-surface="glass"].
+   Solid rules below only align the desktop bottom profile card.
+   Calls are never touched.
    ================================================================= */
 
 /* ── tokens ──────────────────────────────────────────────────── */
@@ -54,6 +55,81 @@ html[data-interface-surface="glass"] body.dark-mode {
     --sun-glass-border:             color-mix(in srgb, #ffffff 16%, var(--border) 84%);
     --sun-glass-rim:                color-mix(in srgb, #ffffff 26%, transparent);
     --sun-glass-shadow:             0 16px 38px color-mix(in srgb, #000000 42%, transparent), inset 0 1px 0 var(--sun-glass-rim), inset 0 -1px 0 color-mix(in srgb, #000000 30%, transparent);
+}
+
+/* ================================================================
+   SURFACE MODE TRANSITION
+   ================================================================ */
+html.is-interface-surface-transitioning::view-transition-old(root),
+html.is-interface-surface-transitioning::view-transition-new(root) {
+    animation-duration: var(--motion-duration-emphasis, 500ms);
+    animation-timing-function: var(--motion-ease-standard, cubic-bezier(.4, 0, .2, 1));
+    animation-fill-mode: both;
+    mix-blend-mode: normal;
+}
+
+html.is-interface-surface-transitioning::view-transition-old(root) {
+    animation-name: sunSurfaceModeOld;
+}
+
+html.is-interface-surface-transitioning::view-transition-new(root) {
+    animation-name: sunSurfaceModeNew;
+}
+
+@keyframes sunSurfaceModeOld {
+    from { opacity: 1; filter: saturate(1) blur(0); }
+    to { opacity: 0; filter: saturate(0.92) blur(1px); }
+}
+
+@keyframes sunSurfaceModeNew {
+    from { opacity: 0; filter: saturate(0.9) blur(2px); }
+    to { opacity: 1; filter: saturate(1) blur(0); }
+}
+
+html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-top-row,
+html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-tabs,
+html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-profile-card,
+html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-status-bar,
+html[data-interface-surface="glass"].is-interface-surface-transitioning .chat-header::before,
+html[data-interface-surface="glass"].is-interface-surface-transitioning #messageForm {
+    animation: sunGlassSurfaceIn var(--motion-duration-emphasis, 500ms) var(--motion-ease-standard, cubic-bezier(.4, 0, .2, 1)) both;
+    will-change: opacity, transform, filter;
+}
+
+@keyframes sunGlassSurfaceIn {
+    from {
+        opacity: 0.74;
+        transform: translate3d(0, 2px, 0) scale(0.992);
+        filter: saturate(0.88);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+        filter: saturate(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.is-interface-surface-transitioning::view-transition-old(root),
+    html.is-interface-surface-transitioning::view-transition-new(root),
+    html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-top-row,
+    html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-tabs,
+    html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-profile-card,
+    html[data-interface-surface="glass"].is-interface-surface-transitioning .sidebar:not(.sidebar--loading) .sidebar-status-bar,
+    html[data-interface-surface="glass"].is-interface-surface-transitioning .chat-header::before,
+    html[data-interface-surface="glass"].is-interface-surface-transitioning #messageForm {
+        animation-duration: 1ms;
+    }
+}
+
+@media (min-width: 769px) {
+    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
+        padding: 12px 0 0;
+    }
+
+    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
+        border-radius: 16px 16px 0 0;
+    }
 }
 
 /* ================================================================
@@ -952,11 +1028,29 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
     html[data-interface-surface="glass"] {
         --sun-glass-overlay-top-gap: calc(8px + env(safe-area-inset-top, 0px));
         --sun-glass-overlay-bottom-gap: calc(18px + env(safe-area-inset-bottom, 0px));
+        --sun-glass-mobile-header-overlap: calc(var(--header-h, 60px) + 6px + env(safe-area-inset-top, 0px));
     }
 
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card,
     html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-card {
         margin: calc(8px + env(safe-area-inset-top, 0px)) 10px 0;
+    }
+
+    html[data-interface-surface="glass"] #sidebarScrollArea {
+        position: relative;
+        z-index: 1;
+        margin-top: calc(0px - var(--sidebar-top-card-height, 54px) - var(--sun-glass-sidebar-tabs-cover));
+        padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
+        scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
+    }
+
+    html[data-interface-surface="glass"] .chat-messages {
+        margin-top: calc(-1 * var(--sun-glass-mobile-header-overlap));
+        margin-bottom: calc(-1 * var(--floating-composer-reserve, 84px));
+        padding-top: calc(var(--sun-glass-mobile-header-overlap) + 8px + var(--disappearing-pill-space, 0px));
+        padding-bottom: calc(var(--floating-composer-reserve, 84px) + 12px) !important;
+        scroll-padding-top: calc(var(--sun-glass-mobile-header-overlap) + 10px);
+        scroll-padding-bottom: calc(var(--floating-composer-reserve, 84px) + 16px) !important;
     }
 
     html[data-interface-surface="glass"] .chat-header::before,
