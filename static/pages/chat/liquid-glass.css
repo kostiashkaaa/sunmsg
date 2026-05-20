@@ -891,6 +891,32 @@ html[data-interface-surface="glass"] .emoji-picker::before {
     background: transparent !important;
 }
 
+/* Keep Liquid Glass preload geometry equal to the hydrated desktop chat. */
+@media (min-width: 769px) {
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .chat-partner-avatar--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
+        width: 54px;
+        height: 54px;
+        flex: 0 0 54px;
+    }
+
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .header-actions-group--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
+        min-width: 96px;
+        justify-content: flex-end;
+    }
+
+    html[data-interface-surface="glass"] .sidebar.sidebar--loading ~ .chat-area .chat-input-area.chat-input-area--hidden {
+        display: flex;
+        visibility: hidden;
+        pointer-events: none;
+    }
+}
+
 /* ================================================================
    SUN BRAND GLOW REPLAY (settings open animation)
    ================================================================ */
