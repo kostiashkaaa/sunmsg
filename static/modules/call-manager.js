@@ -255,9 +255,26 @@ export class CallManager {
             partnerAvatar: partner.avatar_url || '',
             localStream: null,
             initialAudioMuted: Boolean(this._pendingMediaOptions?.audioMuted),
-            initialVideoEnabled: false,
-            onToggleAudio: () => this._media.isAudioMuted(),
-            onToggleVideo: () => false,
+            initialVideoEnabled: Boolean(this._pendingMediaOptions?.videoEnabled),
+            onToggleAudio: () => {
+                const nextMuted = !Boolean(this._pendingMediaOptions?.audioMuted);
+                this._pendingMediaOptions = {
+                    ...(this._pendingMediaOptions || {}),
+                    audioMuted: nextMuted,
+                };
+                return nextMuted;
+            },
+            onToggleVideo: () => {
+                const nextEnabled = !Boolean(this._pendingMediaOptions?.videoEnabled);
+                const nextCallType = nextEnabled ? 'video' : this._callType;
+                this._pendingMediaOptions = {
+                    ...(this._pendingMediaOptions || {}),
+                    callType: nextCallType,
+                    videoEnabled: nextEnabled,
+                };
+                if (nextEnabled) this._callType = 'video';
+                return { enabled: nextEnabled, localStream: null };
+            },
             onSwitchCamera: () => {},
             onListDevices: async () => ({}),
             onSelectMicrophone: async () => null,
