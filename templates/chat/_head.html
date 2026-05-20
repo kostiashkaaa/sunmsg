@@ -35,6 +35,7 @@
             'root': request.script_root or '',
             'webPush': web_push_bootstrap_payload|default({'enabled': false, 'publicKey': ''}),
             'callsEnabled': calls_feature_enabled|default(false),
+            'liquidGlassEnabled': liquid_glass_feature_enabled|default(false),
         },
         'assets': {
             'qrcodeSrc': asset_url('vendor/js/qrcode.min.js'),

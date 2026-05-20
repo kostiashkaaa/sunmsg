@@ -332,6 +332,54 @@
         </div>
     </section>
 
+    <section class="feature-card" aria-labelledby="liquidGlassFeatureTitle">
+        <div class="feature-card__head">
+            <div>
+                <h2 class="feature-card__title" id="liquidGlassFeatureTitle">Тестовый доступ к Liquid Glass</h2>
+                <p class="feature-card__desc">
+                    {% if liquid_glass_feature.allowlist_enabled %}
+                        Переключатель Liquid Glass скрыт для всех, кроме пользователей в списке ниже.
+                    {% else %}
+                        Переключатель Liquid Glass открыт для всех пользователей.
+                    {% endif %}
+                </p>
+            </div>
+            <form class="inline-form" method="post" action="/moderation/console/liquid-glass/settings">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="allowlist_enabled" value="{{ 0 if liquid_glass_feature.allowlist_enabled else 1 }}">
+                <button type="submit">{{ 'Открыть всем' if liquid_glass_feature.allowlist_enabled else 'Включить список' }}</button>
+            </form>
+        </div>
+        <form class="inline-form" method="post" action="/moderation/console/liquid-glass/allowlist">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="identifier" value="" maxlength="80" placeholder="ID или username">
+            <input name="note" value="" maxlength="512" placeholder="заметка">
+            <button type="submit">Выдать доступ</button>
+        </form>
+        <div class="feature-card__list">
+            {% if liquid_glass_feature.allowed_users %}
+                {% for allowed_user in liquid_glass_feature.allowed_users %}
+                    <div class="feature-card__row">
+                        <div>
+                            <strong>#{{ allowed_user.user_id }} @{{ allowed_user.username }}</strong>
+                            <div class="muted">{{ allowed_user.display_name or 'без имени' }}</div>
+                            {% if allowed_user.note %}
+                                <div class="muted">заметка: {{ allowed_user.note }}</div>
+                            {% endif %}
+                            <div class="muted">выдал: {{ allowed_user.granted_by_username or allowed_user.granted_by_user_id or '—' }} · {{ allowed_user.created_at }}</div>
+                        </div>
+                        <form class="inline-form" method="post" action="/moderation/console/liquid-glass/allowlist/{{ allowed_user.user_id }}/delete">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Убрать</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="feature-card__empty">Список доступа пуст.</div>
+            {% endif %}
+        </div>
+    </section>
+
     <form class="filters" method="get" action="/moderation/console">
         <label for="state">Состояние</label>
         <select id="state" name="state">

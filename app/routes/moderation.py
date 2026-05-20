@@ -7,6 +7,7 @@ from flask import Blueprint, Response, current_app, flash, jsonify, redirect, re
 from app.database import get_db_connection
 from app.extensions import limiter
 from app.services import call_feature_access
+from app.services import liquid_glass_feature_access
 from app.services import moderation as moderation_service
 
 moderation_bp = Blueprint('moderation', __name__)
@@ -425,6 +426,7 @@ def moderation_console():
         cases = moderation_service.list_cases(conn, state=state, limit=limit, offset=offset)
         metrics = moderation_service.moderation_metrics(conn, since_hours=24)
         call_feature = call_feature_access.call_feature_state(conn)
+        liquid_glass_feature = liquid_glass_feature_access.liquid_glass_feature_state(conn)
     finally:
         conn.close()
 
@@ -438,6 +440,7 @@ def moderation_console():
         refresh_seconds=refresh_seconds,
         sla_by_priority_seconds=_sla_by_priority_seconds(),
         call_feature=call_feature,
+        liquid_glass_feature=liquid_glass_feature,
     )
 
 
@@ -552,6 +555,122 @@ def moderation_console_revoke_call_access(target_user_id: int):
         flash('Не удалось убрать доступ к звонкам', 'error')
     else:
         flash('Доступ к звонкам убран' if removed else 'Пользователя не было в списке доступа', 'success')
+    finally:
+        conn.close()
+    return redirect(url_for('moderation.moderation_console'))
+
+
+@moderation_bp.route('/moderation/console/liquid-glass/settings', methods=['POST'])
+@limiter.limit('30 per minute')
+def moderation_console_update_liquid_glass_settings():
+    user_id, auth_error = _require_auth_user_id()
+    if auth_error:
+        return redirect(url_for('auth.login'))
+    if not _is_moderator_user(user_id):
+        return redirect('/chat')
+
+    allowlist_enabled = str(request.form.get('allowlist_enabled') or '').strip() == '1'
+    conn = get_db_connection()
+    try:
+        liquid_glass_feature_access.set_liquid_glass_allowlist_enabled(
+            conn,
+            enabled=allowlist_enabled,
+            actor_user_id=user_id,
+        )
+        moderation_service.add_audit_log(
+            conn,
+            actor_type='moderator',
+            actor_id=str(user_id),
+            action='liquid_glass_feature_settings_update',
+            entity_type='liquid_glass_feature',
+            entity_id='allowlist_enabled',
+            details_json=json.dumps({'allowlist_enabled': allowlist_enabled}, ensure_ascii=False),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        flash('Не удалось обновить доступ к Liquid Glass', 'error')
+    else:
+        flash('Настройки Liquid Glass обновлены', 'success')
+    finally:
+        conn.close()
+    return redirect(url_for('moderation.moderation_console'))
+
+
+@moderation_bp.route('/moderation/console/liquid-glass/allowlist', methods=['POST'])
+@limiter.limit('60 per minute')
+def moderation_console_grant_liquid_glass_access():
+    user_id, auth_error = _require_auth_user_id()
+    if auth_error:
+        return redirect(url_for('auth.login'))
+    if not _is_moderator_user(user_id):
+        return redirect('/chat')
+
+    identifier = str(request.form.get('identifier') or '').strip()
+    note = moderation_service.normalize_comment(request.form.get('note'), max_length=512)
+    if not identifier:
+        flash('Укажите ID или username пользователя', 'error')
+        return redirect(url_for('moderation.moderation_console'))
+
+    conn = get_db_connection()
+    try:
+        granted_user = liquid_glass_feature_access.grant_liquid_glass_access(
+            conn,
+            identifier=identifier,
+            granted_by_user_id=user_id,
+            note=note,
+        )
+        moderation_service.add_audit_log(
+            conn,
+            actor_type='moderator',
+            actor_id=str(user_id),
+            action='liquid_glass_feature_access_grant',
+            entity_type='user',
+            entity_id=str(granted_user['user_id']),
+            details_json=json.dumps({'identifier': identifier, 'note': note}, ensure_ascii=False),
+        )
+        conn.commit()
+    except ValueError as exc:
+        conn.rollback()
+        message = 'Пользователь не найден' if str(exc) == 'user_not_found' else 'Не удалось выдать доступ'
+        flash(message, 'error')
+    except Exception:
+        conn.rollback()
+        flash('Не удалось выдать доступ к Liquid Glass', 'error')
+    else:
+        flash('Доступ к Liquid Glass выдан', 'success')
+    finally:
+        conn.close()
+    return redirect(url_for('moderation.moderation_console'))
+
+
+@moderation_bp.route('/moderation/console/liquid-glass/allowlist/<int:target_user_id>/delete', methods=['POST'])
+@limiter.limit('60 per minute')
+def moderation_console_revoke_liquid_glass_access(target_user_id: int):
+    user_id, auth_error = _require_auth_user_id()
+    if auth_error:
+        return redirect(url_for('auth.login'))
+    if not _is_moderator_user(user_id):
+        return redirect('/chat')
+
+    conn = get_db_connection()
+    try:
+        removed = liquid_glass_feature_access.revoke_liquid_glass_access(conn, user_id=int(target_user_id))
+        moderation_service.add_audit_log(
+            conn,
+            actor_type='moderator',
+            actor_id=str(user_id),
+            action='liquid_glass_feature_access_revoke',
+            entity_type='user',
+            entity_id=str(target_user_id),
+            details_json=json.dumps({'removed': removed}, ensure_ascii=False),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        flash('Не удалось убрать доступ к Liquid Glass', 'error')
+    else:
+        flash('Доступ к Liquid Glass убран' if removed else 'Пользователя не было в списке доступа', 'success')
     finally:
         conn.close()
     return redirect(url_for('moderation.moderation_console'))

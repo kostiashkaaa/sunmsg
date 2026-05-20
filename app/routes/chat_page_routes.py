@@ -1,6 +1,7 @@
 from flask import current_app, flash, redirect, render_template, session, url_for
 
 from app.services.call_feature_access import can_user_use_calls
+from app.services.liquid_glass_feature_access import can_user_use_liquid_glass
 
 
 def _normalize_requested_username(
@@ -68,6 +69,17 @@ def _fetch_calls_feature_enabled(*, get_db_connection_func, user_id: int) -> boo
         conn.close()
 
 
+def _fetch_liquid_glass_feature_enabled(*, get_db_connection_func, user_id: int) -> bool:
+    conn = get_db_connection_func()
+    try:
+        return can_user_use_liquid_glass(conn, user_id=int(user_id))
+    except Exception:
+        current_app.logger.exception('Failed to resolve Liquid Glass feature access for user_id=%s', user_id)
+        return False
+    finally:
+        conn.close()
+
+
 def _render_chat_page(  # noqa: PLR0913
     *,
     logger,
@@ -116,6 +128,10 @@ def _render_chat_page(  # noqa: PLR0913
         get_db_connection_func=get_db_connection_func,
         user_id=user_id,
     )
+    liquid_glass_feature_enabled = _fetch_liquid_glass_feature_enabled(
+        get_db_connection_func=get_db_connection_func,
+        user_id=user_id,
+    )
     return render_template(
         'chat.html',
         **page_context,
@@ -123,6 +139,7 @@ def _render_chat_page(  # noqa: PLR0913
         socketio_client_config=build_socketio_client_config_func(current_app.config),
         web_push_bootstrap_payload=web_push_bootstrap_payload_func(current_app.config),
         calls_feature_enabled=calls_feature_enabled,
+        liquid_glass_feature_enabled=liquid_glass_feature_enabled,
     )
 
 

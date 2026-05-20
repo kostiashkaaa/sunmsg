@@ -6,16 +6,23 @@ const SURFACE_TRANSITION_CLASS = 'is-interface-surface-transitioning';
 const SURFACE_TRANSITION_MS = 520;
 let surfaceTransitionTimer = 0;
 
-export function normalizeInterfaceSurfaceMode(value) {
-    return String(value || '').trim().toLowerCase() === INTERFACE_SURFACE_MODE_SOLID
-        ? INTERFACE_SURFACE_MODE_SOLID
-        : INTERFACE_SURFACE_MODE_GLASS;
+export function canUseLiquidGlass() {
+    if (typeof window === 'undefined') return false;
+    return window.SUN_BOOTSTRAP?.app?.liquidGlassEnabled === true;
 }
 
-export function readStoredInterfaceSurfaceMode(fallback = INTERFACE_SURFACE_MODE_GLASS) {
+export function normalizeInterfaceSurfaceMode(value) {
+    return String(value || '').trim().toLowerCase() === INTERFACE_SURFACE_MODE_GLASS && canUseLiquidGlass()
+        ? INTERFACE_SURFACE_MODE_GLASS
+        : INTERFACE_SURFACE_MODE_SOLID;
+}
+
+export function readStoredInterfaceSurfaceMode(fallback = INTERFACE_SURFACE_MODE_SOLID) {
     try {
         const raw = window.localStorage.getItem(INTERFACE_SURFACE_MODE_STORAGE_KEY);
-        if (raw === INTERFACE_SURFACE_MODE_GLASS || raw === INTERFACE_SURFACE_MODE_SOLID) return raw;
+        if (raw === INTERFACE_SURFACE_MODE_GLASS || raw === INTERFACE_SURFACE_MODE_SOLID) {
+            return normalizeInterfaceSurfaceMode(raw);
+        }
     } catch (_) {}
     return normalizeInterfaceSurfaceMode(fallback);
 }
@@ -88,5 +95,5 @@ export function resolveInterfaceSurfaceMode(preferences = {}) {
     const raw = preferences && typeof preferences === 'object'
         ? preferences.interfaceSurfaceMode
         : '';
-    return readStoredInterfaceSurfaceMode(raw || INTERFACE_SURFACE_MODE_GLASS);
+    return readStoredInterfaceSurfaceMode(raw || INTERFACE_SURFACE_MODE_SOLID);
 }

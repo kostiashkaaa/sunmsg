@@ -47,6 +47,7 @@ USER_CREATED_AT_MIGRATION = (31, 'add_created_at_to_users')
 CRYPTO_V2_SCHEMA_MIGRATION = (32, 'add_x25519_ed25519_double_ratchet_mls_schema')
 SPOTIFY_PRIVACY_MIGRATION = (33, 'add_spotify_privacy_and_explicit_fields')
 USER_EXTENDED_PRIVACY_MIGRATION = (34, 'add_extended_user_privacy_controls')
+LIQUID_GLASS_FEATURE_ACCESS_MIGRATION = (35, 'create_liquid_glass_feature_access_tables')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -1009,6 +1010,47 @@ def _run_call_feature_access_migration(conn, cursor) -> None:
     logger.info('Migration: created call feature access tables')
 
 
+def _run_liquid_glass_feature_access_migration(conn, cursor) -> None:
+    if migration_applied(cursor, LIQUID_GLASS_FEATURE_ACCESS_MIGRATION[0]):
+        return
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS liquid_glass_feature_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    cursor.execute(
+        '''
+        INSERT INTO liquid_glass_feature_settings (key, value)
+        VALUES ('allowlist_enabled', '1')
+        ON CONFLICT(key) DO NOTHING
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS liquid_glass_feature_allowlist (
+            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            granted_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+            note TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_liquid_glass_feature_allowlist_created
+            ON liquid_glass_feature_allowlist(created_at DESC)
+        '''
+    )
+    _record_migration(cursor, LIQUID_GLASS_FEATURE_ACCESS_MIGRATION)
+    conn.commit()
+    logger.info('Migration: created liquid glass feature access tables')
+
+
 def run_migrations() -> None:
     global _chat_pins_schema_checked
 
@@ -1043,6 +1085,7 @@ def run_migrations() -> None:
         _run_crypto_v2_schema_migration(conn, cursor)
         _run_spotify_privacy_migration(conn, cursor)
         _run_extended_user_privacy_migration(conn, cursor)
+        _run_liquid_glass_feature_access_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

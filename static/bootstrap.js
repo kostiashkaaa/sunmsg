@@ -379,6 +379,14 @@
         return String(value ?? '').trim();
     }
 
+    function normalizeInterfaceSurfaceModeForAccess(value, options = {}) {
+        const mode = asString(value).toLowerCase();
+        if (mode === 'glass') {
+            return options.liquidGlassEnabled === true ? 'glass' : 'solid';
+        }
+        return mode === 'solid' ? 'solid' : '';
+    }
+
     function asLanguage(value) {
         return asString(value).toLowerCase() === 'en' ? 'en' : 'ru';
     }
@@ -1011,7 +1019,7 @@
         }
     }
 
-    function readRuntimeClientPreferencesSnapshot(fallback = {}) {
+    function readRuntimeClientPreferencesSnapshot(fallback = {}, options = {}) {
         const snapshot = asClientPreferences(fallback || {});
         if (!hasStorage()) return snapshot;
         try {
@@ -1038,7 +1046,8 @@
             if (TIME_FORMAT_MODES.has(storedTimeFormat)) snapshot.timeFormat = storedTimeFormat;
 
             const storedSurfaceMode = asString(localStorage.getItem(INTERFACE_SURFACE_MODE_STORAGE_KEY)).toLowerCase();
-            if (INTERFACE_SURFACE_MODES.has(storedSurfaceMode)) snapshot.interfaceSurfaceMode = storedSurfaceMode;
+            const surfaceMode = normalizeInterfaceSurfaceModeForAccess(storedSurfaceMode, options);
+            if (INTERFACE_SURFACE_MODES.has(surfaceMode)) snapshot.interfaceSurfaceMode = surfaceMode;
 
             const storedLang = asString(localStorage.getItem(UI_LANGUAGE_STORAGE_KEY));
             if (storedLang) snapshot.language = asLanguage(storedLang);
@@ -1062,6 +1071,12 @@
             ensureLanguage: options.ensureLanguage !== false,
             defaultLanguage: options.defaultLanguage || document.documentElement?.lang || 'ru',
         });
+        if (typeof normalized.interfaceSurfaceMode === 'string') {
+            normalized.interfaceSurfaceMode = normalizeInterfaceSurfaceModeForAccess(
+                normalized.interfaceSurfaceMode,
+                options,
+            ) || 'solid';
+        }
 
         if (!hasStorage()) {
             return normalized;
@@ -1119,7 +1134,9 @@
 
     function mergeClientPreferences(patch, options = {}) {
         const localBaseline = readUnifiedClientPreferences();
-        const runtimeBaseline = readRuntimeClientPreferencesSnapshot(localBaseline);
+        const runtimeBaseline = readRuntimeClientPreferencesSnapshot(localBaseline, {
+            liquidGlassEnabled: options.liquidGlassEnabled === true,
+        });
         const merged = {
             ...runtimeBaseline,
             ...asObject(patch),
@@ -1133,6 +1150,7 @@
             persistUnified: true,
             touchUpdatedAt: false,
             defaultLanguage: options.defaultLanguage || document.documentElement?.lang || 'ru',
+            liquidGlassEnabled: options.liquidGlassEnabled === true,
         });
     }
 
@@ -1180,6 +1198,8 @@
             app: {
                 root: asAppRoot(appPayload.root || bodyDataset.appRoot),
                 webPush: asWebPushConfig(appPayload.webPush),
+                callsEnabled: appPayload.callsEnabled === true,
+                liquidGlassEnabled: appPayload.liquidGlassEnabled === true,
             },
             assets: {
                 qrcodeSrc: asString(assetsPayload.qrcodeSrc || DEFAULT_QRCODE_SRC),
@@ -1189,7 +1209,9 @@
 
     const bootstrap = buildBootstrap();
     const localUnifiedPreferences = readUnifiedClientPreferences();
-    const localRuntimePreferences = readRuntimeClientPreferencesSnapshot(localUnifiedPreferences);
+    const localRuntimePreferences = readRuntimeClientPreferencesSnapshot(localUnifiedPreferences, {
+        liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
+    });
     const effectiveClientPreferences = resolveEffectiveClientPreferences(
         bootstrap.user?.clientPreferences || {},
         localRuntimePreferences,
@@ -1201,6 +1223,7 @@
         ensureUpdatedAt: true,
         ensureLanguage: true,
         defaultLanguage: bootstrap.user?.uiLanguage || 'ru',
+        liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
     });
     bootstrap.user.clientPreferences = appliedClientPreferences;
     if (!bootstrap.user.uiLanguage) {
@@ -1216,7 +1239,10 @@
             return deepClone(readUnifiedClientPreferences());
         },
         merge(patch, options = {}) {
-            return deepClone(mergeClientPreferences(patch, options));
+            return deepClone(mergeClientPreferences(patch, {
+                ...options,
+                liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
+            }));
         },
         replace(nextValue, options = {}) {
             const normalized = finalizeClientPreferences(nextValue || {}, {
@@ -1229,15 +1255,21 @@
                 persistUnified: true,
                 touchUpdatedAt: false,
                 defaultLanguage: options.defaultLanguage || bootstrap.user?.uiLanguage || 'ru',
+                liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
             }));
         },
         collect(extra = {}, options = {}) {
-            const snapshot = readRuntimeClientPreferencesSnapshot(readUnifiedClientPreferences());
+            const snapshot = readRuntimeClientPreferencesSnapshot(readUnifiedClientPreferences(), {
+                liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
+            });
             const merged = {
                 ...snapshot,
                 ...asObject(extra),
             };
-            return deepClone(mergeClientPreferences(merged, options));
+            return deepClone(mergeClientPreferences(merged, {
+                ...options,
+                liquidGlassEnabled: bootstrap.app?.liquidGlassEnabled === true,
+            }));
         },
     };
 

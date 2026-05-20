@@ -43,6 +43,8 @@ APPLICATION_TABLES = (
     'call_participants',
     'call_feature_settings',
     'call_feature_allowlist',
+    'liquid_glass_feature_settings',
+    'liquid_glass_feature_allowlist',
 )
 
 

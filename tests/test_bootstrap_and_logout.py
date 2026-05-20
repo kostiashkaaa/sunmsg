@@ -115,6 +115,70 @@ def test_chat_page_uses_safe_socketio_client_config(monkeypatch, tmp_path):
     assert 'window.SUN_SOCKETIO_CONFIG' not in html
 
 
+def test_chat_page_hides_liquid_glass_switch_without_allowlist(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-page-liquid-glass-default.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.commit()
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.get('/chat')
+    html = response.get_data(as_text=True)
+    bootstrap_payload = _extract_bootstrap_payload(html)
+
+    assert response.status_code == 200
+    assert bootstrap_payload['app']['liquidGlassEnabled'] is False
+    assert 'id="interfaceSurfaceGlassSwitch"' not in html
+
+
+def test_chat_page_exposes_liquid_glass_switch_for_allowlisted_user(monkeypatch, tmp_path):
+    db_path = tmp_path / 'chat-page-liquid-glass.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO liquid_glass_feature_allowlist (user_id, granted_by_user_id, note)
+            VALUES (1, 1, 'test')
+            '''
+        )
+        conn.commit()
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.get('/chat')
+    html = response.get_data(as_text=True)
+    bootstrap_payload = _extract_bootstrap_payload(html)
+
+    assert response.status_code == 200
+    assert bootstrap_payload['app']['liquidGlassEnabled'] is True
+    assert 'id="interfaceSurfaceGlassSwitch"' in html
+
+
 def test_auth_page_and_embedded_chat_settings_bootstrap(monkeypatch, tmp_path):
     db_path = tmp_path / 'bootstrap-pages.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -263,6 +327,97 @@ if (localStorageState.sun_time_format_v1 !== '12h') throw new Error('time format
 if (localStorageState.sun_interface_surface_mode_v1 !== 'solid') throw new Error('surface mode was not persisted from bootstrap clientPreferences');
 if (!localStorageState['sun.interfaceTheme.v1']) throw new Error('interface theme store was not persisted');
 if (!localStorageState['sun.chatAppearance.v2']) throw new Error('chat appearance store was not persisted');
+"""
+
+    result = subprocess.run(
+        ['node', '-e', node_harness],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_bootstrap_runtime_clamps_liquid_glass_without_access():
+    script_path = Path(__file__).resolve().parents[1] / 'static' / 'bootstrap.js'
+
+    node_harness = f"""
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync({str(script_path)!r}, 'utf8');
+
+function run(liquidGlassEnabled) {{
+  const payload = {{
+    page: 'chat',
+    user: {{
+      currentUserId: '42',
+      uiLanguage: 'en',
+      clientPreferences: {{
+        darkMode: false,
+        interfaceSurfaceMode: 'glass',
+      }},
+    }},
+    app: {{
+      liquidGlassEnabled,
+    }},
+  }};
+  const bootstrapScript = {{ textContent: JSON.stringify(payload) }};
+  const localStorageState = {{}};
+  const attrs = {{ rootSurface: '', bodySurface: '' }};
+  const localStorage = {{
+    getItem(key) {{
+      return Object.prototype.hasOwnProperty.call(localStorageState, key) ? localStorageState[key] : null;
+    }},
+    setItem(key, value) {{
+      localStorageState[key] = String(value);
+    }},
+  }};
+  const windowObj = {{}};
+  const context = {{
+    window: windowObj,
+    localStorage,
+    document: {{
+      documentElement: {{
+        lang: 'ru',
+        setAttribute(name, value) {{
+          if (name === 'data-interface-surface') attrs.rootSurface = value;
+        }},
+      }},
+      body: {{
+        dataset: {{}},
+        setAttribute(name, value) {{
+          if (name === 'data-interface-surface') attrs.bodySurface = value;
+        }},
+      }},
+      getElementById(id) {{
+        return id === 'sun-bootstrap-data' ? bootstrapScript : null;
+      }},
+    }},
+    console,
+  }};
+  windowObj.window = windowObj;
+  windowObj.document = context.document;
+  vm.runInNewContext(source, context, {{ filename: 'bootstrap.js' }});
+  return {{
+    stored: localStorageState.sun_interface_surface_mode_v1,
+    rootSurface: attrs.rootSurface,
+    bodySurface: attrs.bodySurface,
+    bootstrapMode: windowObj.SUN_BOOTSTRAP.user.clientPreferences.interfaceSurfaceMode,
+  }};
+}}
+
+const denied = run(false);
+if (denied.stored !== 'solid') throw new Error('Denied Liquid Glass should persist solid');
+if (denied.rootSurface !== 'solid') throw new Error('Denied Liquid Glass should render solid on root');
+if (denied.bodySurface !== 'solid') throw new Error('Denied Liquid Glass should render solid on body');
+if (denied.bootstrapMode !== 'solid') throw new Error('Denied Liquid Glass should expose solid preferences');
+
+const allowed = run(true);
+if (allowed.stored !== 'glass') throw new Error('Allowlisted Liquid Glass should persist glass');
+if (allowed.rootSurface !== 'glass') throw new Error('Allowlisted Liquid Glass should render glass on root');
+if (allowed.bodySurface !== 'glass') throw new Error('Allowlisted Liquid Glass should render glass on body');
+if (allowed.bootstrapMode !== 'glass') throw new Error('Allowlisted Liquid Glass should expose glass preferences');
 """
 
     result = subprocess.run(

@@ -1143,6 +1143,7 @@
                 </div>
                 <p class="settings-body-copy">Выберите базовую тему и акцент. Изменения применяются сразу.</p>
 
+                {% if liquid_glass_feature_enabled|default(false) %}
                 <div class="settings-row settings-row-divider-top">
                     <div class="settings-row-info">
                         <div class="settings-row-label">Liquid Glass</div>
@@ -1154,6 +1155,7 @@
                         <div class="toggle-knob"></div>
                     </label>
                 </div>
+                {% endif %}
 
                 <div class="theme-preview-row" id="themePresetRow">
                     <button type="button" class="theme-preview theme-preview--light-classic" data-theme-preset="light-classic" aria-label="Светлая классика">

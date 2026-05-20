@@ -3,6 +3,7 @@
     'use strict';
 
     const SERVER_CLIENT_PREFERENCES = {{ client_preferences|default({})|tojson }};
+    const LIQUID_GLASS_FEATURE_ENABLED = {{ liquid_glass_feature_enabled|default(false)|tojson }};
     const STORAGE_KEY = 'sun.clientPreferences.v1';
     const LANGUAGE_STORAGE_KEY = 'sun_ui_language';
     const INTERFACE_THEME_STORAGE_KEY = 'sun.interfaceTheme.v1';
@@ -392,7 +393,9 @@
     }
 
     function asInterfaceSurfaceMode(value) {
-        return String(value || '').trim().toLowerCase() === 'solid' ? 'solid' : 'glass';
+        return String(value || '').trim().toLowerCase() === 'glass' && LIQUID_GLASS_FEATURE_ENABLED
+            ? 'glass'
+            : 'solid';
     }
 
     function clamp(value, min, max) {
@@ -476,7 +479,7 @@
         } catch (_error) {
             storedMode = '';
         }
-        const mode = storedMode === 'glass' || storedMode === 'solid'
+        const mode = LIQUID_GLASS_FEATURE_ENABLED && (storedMode === 'glass' || storedMode === 'solid')
             ? storedMode
             : asInterfaceSurfaceMode(asObject(preferences).interfaceSurfaceMode);
         targetRoot.setAttribute('data-interface-surface', mode);
