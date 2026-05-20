@@ -106,31 +106,22 @@ export function initMessageTouchContext(options = {}) {
         scheduleDesktopContextHoverClose();
     }
 
-    function isInteractiveMessageTarget(target) {
+    function isContextGestureBlockedTarget(target) {
         if (!(target instanceof Element)) return false;
         return Boolean(target.closest(
-            'a,button,input,textarea,select,label,[contenteditable="true"],' +
-            '.reaction-pill,.reaction-picker,.file-msg-media-trigger,.file-msg-link,' +
-            '.audio-player,.audio-player-toggle,.audio-player-progress,.audio-player-speed,.reply-quote,' +
+            'input,textarea,select,label,[contenteditable="true"],' +
+            '.reaction-pill,.reaction-picker,' +
+            '.audio-player-toggle,.audio-player-progress,.audio-player-speed,' +
             '[data-open-profile-trigger],[data-call-message-trigger]'
         ));
     }
 
-    function isAudioControlTarget(target) {
-        if (!(target instanceof Element)) return false;
-        return Boolean(target.closest('.audio-player-toggle,.audio-player-speed,.file-msg-audio-wrap,.file-msg-audio-player'));
-    }
-
-    function isAudioSeekTarget(target) {
-        if (!(target instanceof Element)) return false;
-        return Boolean(target.closest('.audio-player-progress'));
-    }
-
     function resolveContextMenuMessageTarget(target) {
         if (!(target instanceof Element)) return null;
-        const bubbleEl = target.closest('.message[data-msg-id] .bubble');
-        if (!bubbleEl || !chatMessages || !chatMessages.contains(bubbleEl)) return null;
-        const messageEl = bubbleEl.closest('.message[data-msg-id]');
+        const messageEl = target.closest('.message[data-msg-id]');
+        if (!messageEl || !chatMessages || !chatMessages.contains(messageEl)) return null;
+        const contextSurface = target.closest('.bubble,.message-reactions,.message-stack');
+        if (!contextSurface || !messageEl.contains(contextSurface)) return null;
         return messageEl && chatMessages.contains(messageEl) ? messageEl : null;
     }
 
@@ -291,10 +282,7 @@ export function initMessageTouchContext(options = {}) {
         const target = event.target;
         const messageEl = resolveContextMenuMessageTarget(target);
         if (!messageEl) return;
-        const interactiveTarget = isInteractiveMessageTarget(target);
-        const audioControlTarget = isAudioControlTarget(target);
-        const audioSeekTarget = isAudioSeekTarget(target);
-        if (interactiveTarget && (!audioControlTarget || audioSeekTarget)) return;
+        if (isContextGestureBlockedTarget(target)) return;
 
         const payload = resolveMessageActionPayload(messageEl);
         if (!payload) return;
@@ -327,7 +315,6 @@ export function initMessageTouchContext(options = {}) {
             dragging: false,
             longPressTriggered: false,
             longPressTimer,
-            audioControlTarget,
         };
     }
 
@@ -368,8 +355,6 @@ export function initMessageTouchContext(options = {}) {
             return;
         }
         if (gesture.longPressTriggered) return;
-
-        if (gesture.audioControlTarget) return;
 
         const shouldDrag = dx > 10 && absDx > (absDy * 1.2);
         if (!gesture.dragging && !shouldDrag) return;

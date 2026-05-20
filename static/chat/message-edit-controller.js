@@ -66,7 +66,6 @@ export function createMessageEditController(options = {}) {
         const tickEl = messageEl?.querySelector('.msg-tick');
         const domIsRead = Boolean(tickEl?.classList.contains('read'));
         const domReadAt = String(tickEl?.getAttribute('data-read-at') || '').trim();
-        if (messageElHint) return (domIsRead && domReadAt) ? { isRead: true, readAt: domReadAt } : { isRead: false, readAt: '' };
 
         const currentChatId = getCurrentChatId();
         if (currentChatId) {
@@ -223,10 +222,6 @@ export function createMessageEditController(options = {}) {
             return;
         }
         const createdAtRaw = resolveMessageCreatedAt(normalizedMsgId);
-        if (createdAtRaw && !isWithinMessageEditWindow(createdAtRaw)) {
-            hideContextReadInfo();
-            return;
-        }
         const lang = resolveCurrentLanguage();
         const openedFromTick = triggerTarget instanceof Element && Boolean(triggerTarget.closest('.msg-tick'));
         if (openedFromTick) {
