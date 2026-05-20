@@ -552,6 +552,29 @@ function callStatusLabel(status, durationSec) {
     return tr('\u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D');
 }
 
+function callTypeIconSvg(callType) {
+    if (callType === 'video') {
+        return `
+            <svg class="profile-call-svg" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor"/>
+                <rect x="2" y="6" width="13" height="12" rx="2.5" fill="currentColor"/>
+            </svg>`;
+    }
+    return `
+        <svg class="profile-call-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6.5 3.5h-2A1.5 1.5 0 003 5c0 8.84 7.16 16 16 16a1.5 1.5 0 001.5-1.5v-2a1.5 1.5 0 00-1.18-1.47l-3.2-.72a1.5 1.5 0 00-1.43.43l-1.18 1.2a12.2 12.2 0 01-6.45-6.45l1.2-1.18a1.5 1.5 0 00.43-1.43l-.72-3.2A1.5 1.5 0 006.5 3.5z" fill="currentColor"/>
+        </svg>`;
+}
+
+function jumpIconSvg() {
+    return `
+        <svg class="profile-call-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="3"/>
+            <path d="M10 14L17 7"/>
+            <path d="M12 7h5v5"/>
+        </svg>`;
+}
+
 function renderCallList(contentEl, items, onItemClick) {
     contentEl.innerHTML = '<div class="profile-call-list"></div>';
     const list = contentEl.firstElementChild;
@@ -564,13 +587,12 @@ function renderCallList(contentEl, items, onItemClick) {
         const dateText = formatShortDate(entry.createdAt);
         const title = isVideo ? tr('\u0412\u0438\u0434\u0435\u043E\u0437\u0432\u043E\u043D\u043E\u043A') : tr('\u0417\u0432\u043E\u043D\u043E\u043A');
         const sub = [callStatusLabel(status, payload.duration_sec), dateText].filter(Boolean).join(' \u2022 ');
-        const icon = isVideo ? 'bi-camera-video-fill' : 'bi-telephone-fill';
         const row = document.createElement('div');
         row.className = `profile-call-row${status && status !== 'ended' ? ' profile-call-row--missed' : ''}`;
         row.setAttribute('data-msg-id', String(entry.msgId || ''));
         row.innerHTML = `
             <div class="profile-call-icon" aria-hidden="true">
-                <i class="bi ${icon}"></i>
+                ${callTypeIconSvg(callType)}
             </div>
             <div class="profile-call-meta">
                 <div class="profile-call-title">${escapeHtml(title)}</div>
@@ -578,10 +600,10 @@ function renderCallList(contentEl, items, onItemClick) {
             </div>
             <div class="profile-call-actions">
                 <button type="button" class="profile-call-action-btn profile-call-action-btn--repeat" data-action="call" aria-label="${escapeHtml(tr('\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u0437\u0432\u043E\u043D\u043E\u043A'))}">
-                    <i class="bi ${isVideo ? 'bi-camera-video' : 'bi-telephone'}"></i>
+                    ${callTypeIconSvg(callType)}
                 </button>
                 <button type="button" class="profile-call-action-btn" data-action="jump" aria-label="${escapeHtml(tr('\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044E'))}">
-                    <i class="bi bi-arrow-up-right-square"></i>
+                    ${jumpIconSvg()}
                 </button>
             </div>
         `;

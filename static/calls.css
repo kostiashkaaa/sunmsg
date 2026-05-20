@@ -220,15 +220,16 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition: transform .15s, filter .15s;
+    transition: transform .15s;
     color: var(--call-text);
     background: transparent;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
 }
-.call-ib__btn:active { transform: scale(.88); }
+.call-ib__btn:active .call-ib__btn-icon { transform: scale(.88); }
 .call-ib__btn[disabled] {
     cursor: default;
-    opacity: .82;
+    opacity: .46;
 }
 .call-ib__btn-icon {
     position: relative;
@@ -238,10 +239,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--surface, #1f2328) 74%, var(--call-role-accent) 14%);
-    border: 1px solid color-mix(in srgb, var(--call-border) 82%, transparent);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.14);
+    border: none;
+    transition: background .15s, transform .15s;
     overflow: hidden;
+}
+.call-ib__btn:hover .call-ib__btn-icon {
+    background: rgba(255, 255, 255, 0.22);
+}
+.call-ib__btn--active .call-ib__btn-icon {
+    background: rgba(255, 255, 255, 0.07);
 }
 .call-ib__btn--active .call-ib__btn-icon::after {
     content: "";
@@ -260,19 +267,23 @@
 .call-ib__btn--reject {
     color: #fff;
 }
-.call-ib__btn--accept .call-ib__btn-icon { background: #28c76f; }
-.call-ib__btn--reject .call-ib__btn-icon { background: #ff4d4d; }
-.call-ib__btn--accept:hover .call-ib__btn-icon,
-.call-ib__btn--reject:hover .call-ib__btn-icon {
-    filter: brightness(1.08);
+.call-ib__btn--accept .call-ib__btn-icon {
+    background: #28c76f;
+    box-shadow: 0 6px 20px rgba(40, 199, 111, 0.42);
 }
+.call-ib__btn--reject .call-ib__btn-icon {
+    background: #ff4d4d;
+    box-shadow: 0 6px 20px rgba(255, 77, 77, 0.40);
+}
+.call-ib__btn--accept:hover .call-ib__btn-icon { background: #22b565; }
+.call-ib__btn--reject:hover .call-ib__btn-icon { background: #e03c3c; }
 .call-ib__btn-label {
     max-width: 82px;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--call-text);
+    color: rgba(255, 255, 255, 0.72);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
 }
@@ -1166,6 +1177,14 @@
 .call-overlay--ringing .call-overlay__controls {
     padding-top: 12px;
 }
+/* Исходящий звонок: одна кнопка «Отменить» — центрируем и убираем label */
+.call-overlay--ringing .call-overlay__ctrl-group {
+    justify-content: center;
+}
+.call-overlay--ringing .call-ctrl--end .call-ctrl__label {
+    display: block;
+}
+
 .call-overlay__ctrl-group {
     display: flex;
     align-items: center;
@@ -1214,13 +1233,12 @@
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--surface-2, #2a2f36) 76%, var(--call-role-accent) 14%);
-    border: 1px solid color-mix(in srgb, var(--call-border) 82%, transparent);
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background .15s, transform .15s;
-    backdrop-filter: blur(8px);
     overflow: hidden;
 }
 .call-ctrl--active:not(.call-ctrl--end) .call-ctrl__icon {
@@ -1241,14 +1259,15 @@
     pointer-events: none;
     z-index: 10;
 }
-.call-ctrl:hover .call-ctrl__icon { background: color-mix(in srgb, var(--call-role-accent) 20%, var(--surface-2, #2a2f36)); }
-.call-ctrl:active .call-ctrl__icon { transform: scale(.88); }
+.call-ctrl:hover .call-ctrl__icon { background: rgba(255, 255, 255, 0.20); }
+.call-ctrl:active .call-ctrl__icon { transform: scale(.88); background: rgba(255, 255, 255, 0.08); }
 .call-ctrl__label {
     max-width: 78px;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 12px;
-    color: var(--call-muted);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
     white-space: nowrap;
 }
 
@@ -1294,8 +1313,8 @@
 }
 
 .call-ctrl--active .call-ctrl__icon {
-    background: color-mix(in srgb, var(--surface, #1f2328) 82%, #000 12%);
-    color: color-mix(in srgb, var(--call-muted) 58%, transparent);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.42);
 }
 .call-ctrl--active-positive .call-ctrl__icon {
     background: color-mix(in srgb, var(--call-role-accent) 82%, #ffffff 8%);
@@ -1322,8 +1341,17 @@
     background: #ef4444;
     width: 58px;
     height: 58px;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.40);
 }
-.call-ctrl--end:hover .call-ctrl__icon { background: #dc2626; }
+.call-ctrl--end:hover .call-ctrl__icon {
+    background: #dc2626;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.52);
+}
+.call-ctrl--end:active .call-ctrl__icon {
+    background: #b91c1c;
+    transform: scale(.88);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30);
+}
 
 .profile-call-list {
     display: flex;
@@ -1363,6 +1391,13 @@
     border-radius: 8px;
     color: #fff;
     background: linear-gradient(135deg, #22a06b 0%, #117d52 100%);
+}
+
+.profile-call-svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    flex: 0 0 auto;
 }
 
 .profile-call-row--missed .profile-call-icon {
