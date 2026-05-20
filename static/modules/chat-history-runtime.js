@@ -455,7 +455,7 @@ export function createChatHistoryRuntime(ctx = {}) {
         if (state.initialized) {
             ctx.applyChatBlockState(state.blockState || {}, { syncChatRoom: true });
             ctx.resetOpenChatUnreadCounter();
-            ctx.showChatContent(true);
+            ctx.showChatContent(true, { renderInitializedChat: false });
             ctx.setChatStageLoading(false);
             ctx.setHistoryLoading(false);
             await restorePinnedBar(state.pins || [], { activeMessageId: state.activePinMessageId });

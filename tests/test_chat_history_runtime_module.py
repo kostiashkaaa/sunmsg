@@ -33,6 +33,10 @@ source = source.replace(
   "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
   "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
 );
+source = source.replace(
+  "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
+  "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
+);
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ createChatHistoryRuntime }} = await import(moduleUrl);
 const decryptCalls = [];
@@ -92,6 +96,10 @@ source = source.replace(
 source = source.replace(
   "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
   "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
+  "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
 );
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ createChatHistoryRuntime }} = await import(moduleUrl);
@@ -191,6 +199,99 @@ if (stageLoadingCalls[0] !== true || stageLoadingCalls[stageLoadingCalls.length 
 }}
 if (historyLoadingCalls.includes(true)) {{
   throw new Error(`Initial fetch must not show older-history loader: ${{JSON.stringify(historyLoadingCalls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_initialized_history_restores_snapshot_without_visibility_rerender():
+    module_path = ROOT / 'static' / 'modules' / 'chat-history-runtime.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  "import {{ withAppRoot }} from './app-url.js';",
+  "const withAppRoot = (value) => value;",
+);
+source = source.replace(
+  "import {{ normalizeMentionUserIds }} from './chat-mentions.js';",
+  "const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
+  "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ createChatHistoryRuntime }} = await import(moduleUrl);
+
+const state = {{
+  initialized: true,
+  isLoadingInitial: false,
+  historyRequestToken: 0,
+  messages: [{{ id: 1, message: 'cached' }}],
+  pins: [],
+  favorites: [],
+  blockState: {{}},
+  activePinMessageId: null,
+  activeFavoriteMessageId: null,
+  lastRenderRange: {{ start: 0, end: 1 }},
+  renderedKeys: new Set(['id:1']),
+}};
+const showCalls = [];
+const restoreCalls = [];
+
+const runtime = createChatHistoryRuntime({{
+  chatHistoryPageSize: 50,
+  chatHistoryMaxPageSize: 100,
+  getChatState: () => state,
+  getCurrentChatId: () => 'chat-ready',
+  getPrivateKeyPem: () => 'private-key',
+  getCurrentUserPublicKey: () => 'pk-current',
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (_privateKey, payload) => payload,
+  normalizePinnedMessages: () => [],
+  normalizeFavoriteMessages: () => [],
+  hidePinnedBar: () => {{}},
+  hideFavoriteBar: () => {{}},
+  applyChatBlockState: () => {{}},
+  resetOpenChatUnreadCounter: () => {{}},
+  showChatContent: (show, options) => showCalls.push({{ show, options }}),
+  setChatStageLoading: () => {{}},
+  setHistoryLoading: () => {{}},
+  restoreChatDomSnapshot: (chatId) => {{
+    restoreCalls.push(chatId);
+    return true;
+  }},
+  setKeepChatPinnedToBottom: () => {{}},
+  isChatNearBottom: () => false,
+  schedulePostRenderUiRefresh: () => {{}},
+  renderChatMessages: () => {{
+    throw new Error('Snapshot restore should not be preceded by a forced render');
+  }},
+  renderChatAtBottom: () => {{
+    throw new Error('Snapshot restore should not fall through to bottom render');
+  }},
+  resolveSavedChatScrollTop: () => NaN,
+  normalizeMessageReactions: (value) => value || [],
+  enrichDecodedMessagesVisualMeta: async (messages) => messages,
+}});
+
+await runtime.fetchChatHistory('chat-ready');
+
+if (showCalls.length !== 1 || showCalls[0].show !== true) {{
+  throw new Error(`Expected one showChatContent call: ${{JSON.stringify(showCalls)}}`);
+}}
+if (showCalls[0].options?.renderInitializedChat !== false) {{
+  throw new Error(`Initialized history must not trigger visibility rerender: ${{JSON.stringify(showCalls)}}`);
+}}
+if (restoreCalls.length !== 1 || restoreCalls[0] !== 'chat-ready') {{
+  throw new Error(`Expected snapshot restore before render: ${{JSON.stringify(restoreCalls)}}`);
 }}
 """
     result = _run_node_harness(node_harness)

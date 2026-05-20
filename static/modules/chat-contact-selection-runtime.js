@@ -168,7 +168,7 @@ export function bindChatContactSelectionRuntime({
         if (isSelectionMode()) {
             toggleSelectionMode(false);
         }
-        showChatContent(true);
+        showChatContent(true, { renderInitializedChat: false });
         if (windowRef.innerWidth > 768) {
             scheduleComposerFocus({ force: true });
         }

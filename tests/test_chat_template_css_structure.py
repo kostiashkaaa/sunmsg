@@ -247,8 +247,9 @@ def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
     decrypt_idx = sidebar_runtime_src.index('await runWithConcurrency(')
     assert clear_idx < decrypt_idx
     assert 'contact-item--preview-loading' in sidebar_template_src
-    assert 'sidebar_loading' in sidebar_template_src
-    assert 'data-sidebar-loading="{{ \'1\' if sidebar_loading.active else \'0\' }}"' in sidebar_template_src
+    assert 'sidebar_loading' not in sidebar_template_src
+    assert '<aside class="sidebar" id="sidebar" data-sidebar-loading="0">' in sidebar_template_src
+    assert 'sidebar--loading' not in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"

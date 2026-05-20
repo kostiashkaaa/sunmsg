@@ -20,7 +20,7 @@ export function createChatContentVisibilityRuntime({
     syncE2EPillState = () => {},
     updateVoiceRecordButtonState = () => {},
 } = {}) {
-    function showChatContent(show) {
+    function showChatContent(show, options = {}) {
         if (chatPlaceholder) chatPlaceholder.style.display = show ? 'none' : '';
         if (chatMessages) {
             chatMessages.classList.toggle('chat-messages--hidden', !show);
@@ -42,7 +42,7 @@ export function createChatContentVisibilityRuntime({
         }
         if (!show) {
             resetOpenChatUnreadCounter();
-        } else {
+        } else if (options?.renderInitializedChat !== false) {
             const currentChatId = getCurrentChatId();
             const state = currentChatId ? getChatState(currentChatId) : null;
             if (state?.initialized) {
