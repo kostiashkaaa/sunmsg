@@ -654,7 +654,7 @@
                         <button type="button" class="btn-icon ripple-target" id="emojiBtn" title="Эмодзи" aria-label="Эмодзи">
                             <i class="bi bi-emoji-smile"></i>
                         </button>
-                        <input type="file" id="fileAttachInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" />
+                        <input type="file" id="fileAttachInput" class="file-attach-input--hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.7z,.csv,.xlsx,.mov,.m4v,.avi,.mkv,.webm,.ogg,.wav,.mp3,.m4a,.aac,.opus" aria-hidden="true" tabindex="-1" />
                         <textarea id="messageInput" placeholder="Сообщение..." autocomplete="off" autocapitalize="sentences" autocorrect="on" spellcheck="true" enterkeyhint="send" rows="1" disabled></textarea>
                         <div class="voice-record-wave-live" id="voiceRecordWaveLive" aria-hidden="true"></div>
                         <span class="voice-record-meta" id="voiceRecordMeta" aria-hidden="true">
@@ -736,7 +736,7 @@
     </main>
 <div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
 
-<div id="lightbox">
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр медиа" aria-hidden="true">
     <div class="lightbox-topbar">
         <div class="lightbox-meta">
             <div class="lightbox-sender" id="lightboxSender"></div>

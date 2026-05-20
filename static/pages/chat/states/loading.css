@@ -398,7 +398,7 @@
         .menu-item.danger:hover { background: rgba(229, 57, 53, 0.11); }
 
 
-        body.dark-mode .menu-item.danger:hover { background: #3a1010; }
+        body.dark-mode .menu-item.danger:hover { background: color-mix(in srgb, var(--danger) 18%, #1a0808 82%); }
 
 
         .sidebar-bottom-identity:hover {
@@ -530,7 +530,7 @@
         .user-popup-item.danger:hover { background: rgba(229,57,53,0.11); }
 
 
-        body.dark-mode .user-popup-item.danger:hover { background: #3a1010; }
+        body.dark-mode .user-popup-item.danger:hover { background: color-mix(in srgb, var(--danger) 18%, #1a0808 82%); }
 
         .search-input-wrapper[data-network-state="offline"] {
             border-color: color-mix(in srgb, var(--warning) 34%, var(--border) 66%);

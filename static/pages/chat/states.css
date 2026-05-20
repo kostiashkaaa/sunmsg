@@ -31,7 +31,6 @@
             transition:
                 opacity var(--dur-medium) var(--ease-quick),
                 transform var(--dur-slow) var(--ease-quick);
-            will-change: opacity, transform;
         }
 
 
@@ -44,6 +43,7 @@
 
         [data-animated-dialog].is-opening {
             pointer-events: none;
+            will-change: opacity, transform;
         }
 
 
@@ -57,6 +57,7 @@
             opacity: 0;
             transform: translateY(24px) scale(0.95);
             pointer-events: none;
+            will-change: opacity, transform;
         }
 
 
@@ -2597,14 +2598,6 @@
     line-height: 1.2;
 }
 
-body.dark-mode #messageForwardModal .forward-target-name {
-    color: #f3f4f6;
-}
-
-body.dark-mode #messageForwardModal .forward-target-status {
-    color: #9aa4b3;
-}
-
 #messageForwardModal .group-create-modal__actions {
     display: none;
 }
@@ -3399,7 +3392,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        [data-theme="dark"] mark.search-highlight,
+        body.dark-mode mark.search-highlight,
         .dark mark.search-highlight {
             background: #c9a000;
             color: #fff;

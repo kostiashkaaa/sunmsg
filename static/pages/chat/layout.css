@@ -98,7 +98,7 @@
     background-position: var(--chat-wallpaper-position);
     background-repeat: var(--chat-wallpaper-repeat);
     opacity: var(--chat-wallpaper-opacity);
-    filter: blur(var(--chat-wallpaper-blur));
+    filter: blur(min(var(--chat-wallpaper-blur), 40px));
     transform: translateZ(0) scale(1.03);
     transform-origin: center;
     pointer-events: none;
@@ -171,9 +171,9 @@
     justify-content: space-between;
     gap: 14px;
     padding: 10px 14px;
-    border: 1px solid rgba(0, 128, 128, 0.28);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
     border-radius: 14px;
-    background: rgba(0, 128, 128, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .message-actions-bar__text {
     display: flex;
@@ -215,8 +215,8 @@
     transition: background var(--dur-quick), border-color var(--dur-quick), color var(--dur-quick);
 }
 .btn-msg-bar:hover {
-    background: rgba(0, 128, 128, 0.12);
-    border-color: rgba(0, 128, 128, 0.35);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .btn-msg-bar.danger {
     color: var(--danger);
@@ -913,7 +913,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 128, 128, 0.15);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: stretch;
@@ -989,10 +989,10 @@ body:not(.dark-mode) .msg-tick.read { color: var(--msg-meta-read-color, #5ea8ff)
     background: var(--accent-glow);
 }
 .message-context-menu .menu-item.danger {
-    color: #ef4444;
+    color: var(--danger);
 }
 .message-context-menu .menu-item.danger:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 .message-context-menu .menu-item i {
     font-size: 17px;

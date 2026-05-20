@@ -394,12 +394,12 @@
 
 
         .profile-more-item.danger {
-            color: #f87171;
+            color: var(--danger);
         }
 
 
         .profile-more-item.danger:hover {
-            background: #ef4444;
+            background: var(--danger);
             color: #fff;
         }
 
@@ -989,14 +989,6 @@
     font-size: 14px;
     color: var(--sub-text, #9aa4b3);
     line-height: 1.2;
-}
-
-body.dark-mode #messageForwardModal .forward-target-name {
-    color: #f3f4f6;
-}
-
-body.dark-mode #messageForwardModal .forward-target-status {
-    color: #9aa4b3;
 }
 
 #messageForwardModal .group-create-modal__actions {
@@ -1790,7 +1782,7 @@ body.dark-mode #messageForwardModal .forward-target-status {
         }
 
 
-        [data-theme="dark"] mark.search-highlight,
+        body.dark-mode mark.search-highlight,
         .dark mark.search-highlight {
             background: #c9a000;
             color: #fff;

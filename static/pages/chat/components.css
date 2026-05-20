@@ -5906,31 +5906,35 @@
 
 
 
-        /* File message bubble */
+        /* File message bubble — higher specificity via .message-stack avoids !important */
+        .message .message-stack > .bubble.bubble--image,
         .message .bubble.bubble--image {
             position: relative;
-            padding: 0 !important;
-            border-radius: 14px !important;
-            box-shadow: none !important;
+            padding: 0;
+            border-radius: 14px;
+            box-shadow: none;
             overflow: hidden;
             width: min(420px, calc(420px * var(--media-aspect-ratio, 1)), 72vw);
-            min-width: min(72vw, 160px);
+            min-width: clamp(96px, min(72vw, 160px), 420px);
             max-width: min(420px, 72vw);
             display: flex;
             flex-direction: column;
             isolation: isolate;
-            background: transparent !important;
+            background: transparent;
+            border: none;
             --media-aspect-ratio: 1;
         }
 
 
+        .message .message-stack > .bubble.bubble--image.bubble--image-has-caption,
         .message .bubble.bubble--image.bubble--image-has-caption {
-            background: var(--chat-bubble-in-bg) !important;
+            background: var(--chat-bubble-in-bg);
         }
 
 
+        .message.self .message-stack > .bubble.bubble--image.bubble--image-has-caption,
         .message.self .bubble.bubble--image.bubble--image-has-caption {
-            background: var(--chat-bubble-out-bg) !important;
+            background: var(--chat-bubble-out-bg);
         }
 
 
@@ -6004,27 +6008,32 @@
         }
 
 
+        .message .message-stack > .bubble.bubble--video,
         .message .bubble.bubble--video {
-            padding: 0 !important;
-            border-radius: 14px !important;
+            padding: 0;
+            border-radius: 14px;
+            border: none;
+            box-shadow: none;
             overflow: hidden;
             width: min(420px, calc(420px * var(--media-aspect-ratio, 1)), 72vw);
-            min-width: min(72vw, 160px);
+            min-width: clamp(96px, min(72vw, 160px), 420px);
             max-width: min(420px, 72vw);
-            background: transparent !important;
+            background: transparent;
             display: flex;
             flex-direction: column;
             --media-aspect-ratio: 1;
         }
 
 
+        .message .message-stack > .bubble.bubble--video.bubble--video-has-caption,
         .message .bubble.bubble--video.bubble--video-has-caption {
-            background: var(--chat-bubble-in-bg) !important;
+            background: var(--chat-bubble-in-bg);
         }
 
 
+        .message.self .message-stack > .bubble.bubble--video.bubble--video-has-caption,
         .message.self .bubble.bubble--video.bubble--video-has-caption {
-            background: var(--chat-bubble-out-bg) !important;
+            background: var(--chat-bubble-out-bg);
         }
 
 
@@ -10854,12 +10863,12 @@
             user-select: none;
         }
 
-        [data-theme="dark"] mark.search-highlight {
+        body.dark-mode mark.search-highlight {
             background: #7a6000;
             color: #ffe066;
         }
 
-        [data-theme="dark"] .message.search-active-match mark.search-highlight {
+        body.dark-mode .message.search-active-match mark.search-highlight {
             background: #b07a00;
             box-shadow: 0 0 0 2px #b07a0060;
         }
@@ -13000,7 +13009,7 @@
 }
 
 .reaction-pill.reaction-pill--failed {
-    border-color: color-mix(in srgb, #ef4444 58%, var(--reaction-pill-border));
+    border-color: color-mix(in srgb, var(--danger) 58%, var(--reaction-pill-border));
 }
 
 .reaction-pill.reaction-pill--disabled,
@@ -13443,9 +13452,9 @@
 }
 
 .btn-sm-action.btn-sm-danger:hover {
-    background: color-mix(in srgb, #ef4444 12%, var(--surface-2, var(--surface)));
-    color: #ef4444;
-    border-color: color-mix(in srgb, #ef4444 30%, transparent);
+    background: color-mix(in srgb, var(--danger) 12%, var(--surface-2, var(--surface)));
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 /* "Создать" button inside invite link header uses same sm-action style but auto-width */

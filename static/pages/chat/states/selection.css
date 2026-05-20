@@ -74,10 +74,10 @@
         }
 
 
-        .context-menu-item.danger { color: #f87171; }
+        .context-menu-item.danger { color: var(--danger); }
 
 
-        .context-menu-item.danger:hover { background: #ef4444; color: #fff; }
+        .context-menu-item.danger:hover { background: var(--danger); color: #fff; }
 
 
         .contact-item[data-favorite="1"] .contact-name {

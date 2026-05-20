@@ -174,13 +174,10 @@ html[data-interface-surface="glass"] .app-boot-shell .sun-skeleton-block {
 }
 
 /* ================================================================
-   SIDEBAR - no full-panel tint; child pills carry glass.
+   SIDEBAR - opaque theme background; child pills carry glass.
    ================================================================ */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) {
-    background: transparent;
     box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
 }
 
 /* sidebar-top-card: transparent wrapper, pill children carry the glass */

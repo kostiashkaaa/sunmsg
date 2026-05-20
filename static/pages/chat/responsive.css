@@ -1089,52 +1089,31 @@
             }
             .jump-to-new-btn {
                 --jump-to-new-size: 44px;
-                left: auto !important;
-                right: calc(8px + env(safe-area-inset-right, 0px)) !important;
-                bottom: calc(
-                    var(--floating-composer-reserve, 84px)
-                    + var(--mobile-bottom-dock-height, 0px)
-                    + env(safe-area-inset-bottom, 0px)
-                    + 14px
-                ) !important;
+                position: absolute;
+                left: auto;
+                right: calc(8px + env(safe-area-inset-right, 0px));
+                top: auto;
+                bottom: calc(100% + 10px);
                 width: var(--jump-to-new-size);
                 height: var(--jump-to-new-size);
                 border-radius: 50%;
                 background: color-mix(in srgb, var(--surface) 96%, transparent 4%);
                 box-shadow: none;
                 color: var(--sub-text);
-                transform: scale(0.82) !important;
+                transform: scale(0.82);
                 transform-origin: center center;
                 transition:
                     opacity var(--dur-quick) var(--ease-quick),
                     transform var(--dur-quick) var(--ease-spring),
-                    filter var(--dur-quick) var(--ease-quick) !important;
-                will-change: opacity, transform;
+                    filter var(--dur-quick) var(--ease-quick);
+                z-index: 30;
             }
             .jump-to-new-btn.is-visible {
-                transform: scale(1) !important;
+                transform: scale(1);
             }
             .jump-to-new-btn.is-visible:active {
-                transform: scale(0.92) !important;
+                transform: scale(0.92);
                 filter: brightness(0.94);
-            }
-            .chat-input-area > .jump-to-new-btn {
-                position: absolute !important;
-                left: auto !important;
-                right: calc(8px + env(safe-area-inset-right, 0px)) !important;
-                top: auto !important;
-                bottom: calc(100% + 10px) !important;
-                transform: none !important;
-                z-index: 30;
-            }
-            .composer-row > .jump-to-new-btn {
-                position: absolute !important;
-                left: auto !important;
-                right: 0 !important;
-                top: auto !important;
-                bottom: calc(100% + 10px) !important;
-                transform: none !important;
-                z-index: 30;
             }
             .jump-to-new-btn i,
             .jump-to-new-btn .sun-icon {
@@ -1648,65 +1627,14 @@
         left: calc(-1 * (var(--selection-marker-size, 18px) - 6px));
     }
 
-    .message .bubble.bubble--text {
-        /* normalized: removed mojibake comment */
-        --text-meta-reserve: 70px;
-        display: block;
-        /* normalized: removed mojibake comment */
-        min-width: min(
-            100%,
-            calc(var(--text-meta-reserve) + var(--chat-message-pad-x) * 2 + 6ch)
-        );
-        width: auto;
-        max-width: 100%;
-        position: relative;
-        /* normalized: removed mojibake comment */
-        word-break: normal;
-        overflow-wrap: anywhere;
-    }
-
-    .message.self .bubble.bubble--text {
-        min-width: min(
-            100%,
-            calc(var(--text-meta-reserve) + var(--chat-message-pad-x) * 2 + 2ch)
-        );
-    }
-
     .message .bubble {
         line-height: var(--chat-message-line-height);
         font-size: var(--chat-message-font-size);
     }
 
-    .message .bubble.bubble--text > .message-text,
-    .message .bubble > .message-text {
-        display: block;
-        box-sizing: border-box;
-        white-space: pre-wrap;
-        letter-spacing: var(--chat-message-letter-spacing);
-        padding-right: var(--text-meta-reserve);
-        word-break: normal;
-        overflow-wrap: anywhere;
-    }
-
-    .message .bubble.bubble--text > .message-text ~ .msg-meta,
-    .message .bubble.bubble--text > .message-text ~ .message-meta,
-    .message .bubble > .message-text ~ .msg-meta,
-    .message .bubble > .message-text ~ .message-meta {
-        position: absolute;
-        right: 10px;
-        bottom: 6px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        pointer-events: none;
-        white-space: nowrap;
-    }
-
     #messageInput {
         white-space: pre-wrap;
     }
-
-    /* normalized: removed mojibake comment */
 }
 
 @media (min-width: 769px) {
