@@ -49,9 +49,9 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
             <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
         <div class="call-ib__body">
+            <div class="call-ib__avatar">${avatarHtml}</div>
             <div class="call-ib__name">${name}</div>
             <div class="call-ib__type">${typeLabel}</div>
-            <div class="call-ib__avatar">${avatarHtml}</div>
         </div>
         <div class="call-ib__actions">
             <button class="call-ib__btn" type="button" data-call-answer-audio aria-label="Микрофон включён" aria-pressed="false">
