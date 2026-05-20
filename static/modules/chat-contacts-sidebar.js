@@ -79,24 +79,27 @@ export function initChatContactsSidebar({
         const sidebar = contactsList.closest('.sidebar');
         if (!sidebar) return;
         const shouldShowShellLoading = contactsList.dataset.contactsLoading === '1'
-            && contactsList.dataset.contactsLoadingPartial !== '1';
+            && contactsList.dataset.contactsLoadingPartial !== '1'
+            && contactsList.dataset.contactsLoadingShell !== '0';
         sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading);
         sidebar.setAttribute('data-sidebar-loading', shouldShowShellLoading ? '1' : '0');
     }
 
-    function setContactsLoadingState(isLoading, { partial = false } = {}) {
+    function setContactsLoadingState(isLoading, { partial = false, shell = true } = {}) {
         if (!contactsList) return;
-        const isFullLoading = Boolean(isLoading) && !partial;
+        const shouldShowShellLoading = Boolean(isLoading) && !partial && shell;
         contactsList.dataset.contactsLoading = isLoading ? '1' : '0';
         contactsList.dataset.contactsLoadingPartial = partial ? '1' : '0';
+        contactsList.dataset.contactsLoadingShell = shouldShowShellLoading ? '1' : '0';
         contactsList.setAttribute('aria-busy', isLoading ? 'true' : 'false');
-        contactsList.classList.toggle('contacts-list--loading', isFullLoading);
+        contactsList.classList.toggle('contacts-list--loading', shouldShowShellLoading);
         syncSidebarLoadingShellState();
         try {
             contactsList.dispatchEvent(new CustomEvent(CONTACTS_LOADING_EVENT, {
                 detail: {
                     loading: Boolean(isLoading),
                     partial: Boolean(partial),
+                    shell: shouldShowShellLoading,
                 },
             }));
         } catch (_) {
@@ -483,8 +486,15 @@ export function initChatContactsSidebar({
         }
 
         contactsLoadInFlight = new Promise((resolve) => {
-            setContactsLoadingState(true, { partial: isPartialLoad });
             const shouldBatchHydrate = !isPartialLoad;
+            const hasStableContactRows = Boolean(
+                contactsList?.querySelector('.contact-item[data-chat-id]'),
+            );
+            const shouldShowBlockingShell = shouldBatchHydrate && !hasStableContactRows;
+            setContactsLoadingState(true, {
+                partial: isPartialLoad,
+                shell: shouldShowBlockingShell,
+            });
             const previousScrollTop = contactsList?.scrollTop || 0;
             const previousScrollHeight = contactsList?.scrollHeight || 0;
             if (shouldBatchHydrate) {

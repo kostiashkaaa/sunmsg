@@ -236,6 +236,8 @@ def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
     assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
+    assert "contactsList.dataset.contactsLoadingShell" in sidebar_runtime_src
+    assert "const shouldShowBlockingShell = shouldBatchHydrate && !hasStableContactRows" in sidebar_runtime_src
     assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" not in sidebar_runtime_src
     assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" not in sidebar_runtime_src
     assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src

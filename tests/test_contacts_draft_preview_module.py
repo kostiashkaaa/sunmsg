@@ -344,3 +344,299 @@ if (options.isDraft !== false || options.preserveDraft !== true || options.draft
 """
     result = _run_contacts_sidebar_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_contacts_refresh_keeps_sidebar_shell_off_when_rows_are_already_rendered():
+    harness_body = """
+class FakeClassList {
+  constructor(names = []) {
+    this.names = new Set(names);
+  }
+
+  add(name) {
+    this.names.add(name);
+  }
+
+  remove(name) {
+    this.names.delete(name);
+  }
+
+  contains(name) {
+    return this.names.has(name);
+  }
+
+  toggle(name, force) {
+    const enabled = Boolean(force);
+    if (enabled) {
+      this.add(name);
+    } else {
+      this.remove(name);
+    }
+    return enabled;
+  }
+}
+
+class FakeContactItem {
+  constructor(chatId) {
+    this.attrs = new Map([['data-chat-id', chatId]]);
+    this.classList = new FakeClassList();
+  }
+
+  getAttribute(name) {
+    return this.attrs.get(name) || '';
+  }
+
+  setAttribute(name, value) {
+    this.attrs.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attrs.delete(name);
+  }
+
+  querySelector() {
+    return null;
+  }
+
+  remove() {
+    this.removed = true;
+  }
+}
+
+const existing = new FakeContactItem('chat-a');
+const sidebar = {
+  attrs: new Map(),
+  classList: new FakeClassList(),
+  setAttribute(name, value) {
+    this.attrs.set(name, String(value));
+  },
+};
+const loadingEvents = [];
+const contactsList = {
+  dataset: {},
+  children: [existing],
+  scrollTop: 24,
+  scrollHeight: 160,
+  classList: new FakeClassList(),
+  closest: (selector) => selector === '.sidebar' ? sidebar : null,
+  setAttribute(name, value) {
+    this.attrs = this.attrs || new Map();
+    this.attrs.set(name, String(value));
+  },
+  dispatchEvent(event) {
+    loadingEvents.push(event.detail);
+  },
+  querySelector(selector) {
+    if (selector === '.contact-item[data-chat-id]') return existing;
+    if (selector === '.contact-last-msg-loading') return null;
+    return null;
+  },
+  querySelectorAll(selector) {
+    if (selector === '.contact-item[data-chat-id]') return [existing];
+    return [];
+  },
+};
+
+let resolveFetch;
+globalThis.CustomEvent = class {
+  constructor(type, init = {}) {
+    this.type = type;
+    this.detail = init.detail;
+  }
+};
+globalThis.document = {
+  querySelector: (selector) => selector.includes('chat-a') ? existing : null,
+  documentElement: {
+    classList: { contains: () => false },
+    getAttribute: () => 'full',
+  },
+};
+globalThis.window = {
+  authFetch: () => new Promise((resolve) => { resolveFetch = resolve; }),
+  requestAnimationFrame: (callback) => callback(),
+  matchMedia: () => ({ matches: false }),
+  e2e: {},
+};
+
+const controller = moduleApi.initChatContactsSidebar({
+  contactsList,
+  escapeHtml: (value) => String(value ?? ''),
+  getPrivateKeyPem: () => '',
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (value) => value,
+  getCurrentUserId: () => 'me',
+  getCurrentChatId: () => 'chat-a',
+  applyPinnedState: () => {},
+  sortContactsList: () => {},
+  buildContactItemHtml: () => '',
+  applyEmojiGraphics: () => {},
+  applyChatBlockState: () => {},
+  updateActiveContactLastMessage: () => {},
+  hideSidebarTyping: () => {},
+  getPinnedContactsCount: () => 0,
+  showToast: () => {},
+  restoreLastActiveChatSelection: () => {},
+  hasAttemptedInitialChatRestore: () => true,
+  setHasAttemptedInitialChatRestore: () => {},
+  hideAppBootOverlay: () => {},
+  onRemovedChatState: () => {},
+  clearStoredLastActiveChatId: () => {},
+  getStoredLastActiveChatId: () => '',
+  onContactRendered: () => {},
+});
+
+const pending = controller.loadContactsNow();
+
+if (sidebar.classList.contains('sidebar--loading')) {
+  throw new Error('Rendered sidebar rows must not be replaced by the blocking loading shell.');
+}
+if (contactsList.classList.contains('contacts-list--loading')) {
+  throw new Error('Rendered contacts list must not enter full loading shimmer during refresh.');
+}
+if (contactsList.dataset.contactsLoading !== '1' || contactsList.dataset.contactsLoadingShell !== '0') {
+  throw new Error(`Wrong loading dataset: ${JSON.stringify(contactsList.dataset)}`);
+}
+if (!loadingEvents[0] || loadingEvents[0].shell !== false || loadingEvents[0].partial !== false) {
+  throw new Error(`Wrong loading event: ${JSON.stringify(loadingEvents[0])}`);
+}
+
+resolveFetch({
+  json: async () => ({
+    success: true,
+    contacts: [{
+      chatId: 'chat-a',
+      userId: 'user-a',
+      username: 'kmr',
+      display_name: 'Kmr',
+      last_message: 'after delete',
+      last_message_time: '2026-01-01T10:10:00Z',
+      last_sender_id: 'me',
+      unreadCount: 0,
+    }],
+  }),
+});
+await pending;
+
+if (contactsList.dataset.contactsLoading !== '0' || contactsList.dataset.contactsLoadingShell !== '0') {
+  throw new Error(`Loading state was not cleared: ${JSON.stringify(contactsList.dataset)}`);
+}
+"""
+    result = _run_contacts_sidebar_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_contacts_refresh_uses_sidebar_shell_when_no_rows_exist_yet():
+    harness_body = """
+class FakeClassList {
+  constructor(names = []) {
+    this.names = new Set(names);
+  }
+
+  add(name) {
+    this.names.add(name);
+  }
+
+  remove(name) {
+    this.names.delete(name);
+  }
+
+  contains(name) {
+    return this.names.has(name);
+  }
+
+  toggle(name, force) {
+    const enabled = Boolean(force);
+    if (enabled) {
+      this.add(name);
+    } else {
+      this.remove(name);
+    }
+    return enabled;
+  }
+}
+
+const sidebar = {
+  attrs: new Map(),
+  classList: new FakeClassList(),
+  setAttribute(name, value) {
+    this.attrs.set(name, String(value));
+  },
+};
+const contactsList = {
+  dataset: {},
+  children: [],
+  scrollTop: 0,
+  scrollHeight: 0,
+  classList: new FakeClassList(),
+  closest: (selector) => selector === '.sidebar' ? sidebar : null,
+  setAttribute() {},
+  dispatchEvent() {},
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+
+let resolveFetch;
+globalThis.CustomEvent = class {
+  constructor(type, init = {}) {
+    this.type = type;
+    this.detail = init.detail;
+  }
+};
+globalThis.document = {
+  querySelector: () => null,
+  documentElement: {
+    classList: { contains: () => false },
+    getAttribute: () => 'full',
+  },
+};
+globalThis.window = {
+  authFetch: () => new Promise((resolve) => { resolveFetch = resolve; }),
+  requestAnimationFrame: (callback) => callback(),
+  matchMedia: () => ({ matches: false }),
+  e2e: {},
+};
+
+const controller = moduleApi.initChatContactsSidebar({
+  contactsList,
+  escapeHtml: (value) => String(value ?? ''),
+  getPrivateKeyPem: () => '',
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (value) => value,
+  getCurrentUserId: () => 'me',
+  getCurrentChatId: () => '',
+  applyPinnedState: () => {},
+  sortContactsList: () => {},
+  buildContactItemHtml: () => '',
+  applyEmojiGraphics: () => {},
+  applyChatBlockState: () => {},
+  updateActiveContactLastMessage: () => {},
+  hideSidebarTyping: () => {},
+  getPinnedContactsCount: () => 0,
+  showToast: () => {},
+  restoreLastActiveChatSelection: () => {},
+  hasAttemptedInitialChatRestore: () => true,
+  setHasAttemptedInitialChatRestore: () => {},
+  hideAppBootOverlay: () => {},
+  onRemovedChatState: () => {},
+  clearStoredLastActiveChatId: () => {},
+  getStoredLastActiveChatId: () => '',
+  onContactRendered: () => {},
+});
+
+const pending = controller.loadContactsNow();
+
+if (!sidebar.classList.contains('sidebar--loading')) {
+  throw new Error('Empty sidebar must still use the blocking loading shell.');
+}
+if (!contactsList.classList.contains('contacts-list--loading')) {
+  throw new Error('Empty contacts list must expose full loading state.');
+}
+if (contactsList.dataset.contactsLoadingShell !== '1') {
+  throw new Error(`Wrong loading dataset: ${JSON.stringify(contactsList.dataset)}`);
+}
+
+resolveFetch({ json: async () => ({ success: true, contacts: [] }) });
+await pending;
+"""
+    result = _run_contacts_sidebar_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
