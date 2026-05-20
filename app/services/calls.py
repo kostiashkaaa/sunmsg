@@ -4,6 +4,7 @@ import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from app.db.schema import table_columns
 
 _CALL_STATUSES = {'ringing', 'active', 'ended', 'rejected', 'cancelled', 'missed', 'failed'}
 _CALL_TYPES = {'audio', 'video'}
@@ -56,7 +57,7 @@ def _lock_chat_for_calls(conn, chat_id: str) -> None:
 
 
 def create_call_session_locked(
-    conn, *, chat_id: str, initiator_id: int, call_type: str,
+    conn, *, chat_id: str, initiator_id: int, call_type: str, participant_ids=None,
 ) -> str | None:
     """Atomically reap stale calls, verify no live call exists, and create a new
     'ringing' session — all under a per-chat advisory lock held until commit.
@@ -69,13 +70,37 @@ def create_call_session_locked(
     if get_active_call_in_chat(conn, chat_id) is not None:
         conn.commit()
         return None
+    normalized_participants = _normalize_participant_ids(initiator_id, participant_ids)
+    for participant_id in normalized_participants:
+        if get_user_active_call(conn, participant_id) is not None:
+            conn.commit()
+            return None
     call_id = generate_call_id()
     create_call_session(conn, call_id=call_id, chat_id=chat_id,
-                         initiator_id=initiator_id, call_type=call_type)
+                         initiator_id=initiator_id, call_type=call_type,
+                         participant_ids=normalized_participants)
     return call_id
 
 
-def create_call_session(conn, *, call_id: str, chat_id: str, initiator_id: int, call_type: str) -> None:
+def _normalize_participant_ids(initiator_id: int, participant_ids=None) -> list[int]:
+    raw_ids = participant_ids if participant_ids is not None else [initiator_id]
+    normalized: list[int] = []
+    for raw_id in raw_ids:
+        try:
+            participant_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if participant_id <= 0 or participant_id in normalized:
+            continue
+        normalized.append(participant_id)
+    if int(initiator_id) not in normalized:
+        normalized.insert(0, int(initiator_id))
+    return normalized
+
+
+def create_call_session(
+    conn, *, call_id: str, chat_id: str, initiator_id: int, call_type: str, participant_ids=None,
+) -> None:
     conn.execute(
         '''
         INSERT INTO call_sessions (call_id, chat_id, initiator_id, call_type, status, started_at)
@@ -83,13 +108,15 @@ def create_call_session(conn, *, call_id: str, chat_id: str, initiator_id: int, 
         ''',
         (call_id, chat_id, initiator_id, call_type),
     )
-    conn.execute(
-        '''
-        INSERT INTO call_participants (call_id, user_id, joined_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ''',
-        (call_id, initiator_id),
-    )
+    for participant_id in _normalize_participant_ids(initiator_id, participant_ids):
+        conn.execute(
+            '''
+            INSERT INTO call_participants (call_id, user_id, joined_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(call_id, user_id) DO NOTHING
+            ''',
+            (call_id, participant_id),
+        )
     conn.commit()
 
 
@@ -506,28 +533,20 @@ def _resolve_direct_call_receiver_id(conn, chat_id: str, initiator_id: int) -> i
 
 
 def _get_call_sender_identity(conn, user_id: int) -> dict:
-    try:
-        row = conn.execute(
-            '''
-            SELECT public_key, display_name, username, avatar_url, avatar_visibility
-            FROM users
-            WHERE id = ?
-            ''',
-            (user_id,),
-        ).fetchone()
-    except Exception:
-        try:
-            conn.rollback()
-        except Exception:  # noqa: BLE001
-            pass
-        row = conn.execute(
-            '''
-            SELECT public_key, display_name, username, avatar_url, 'all' AS avatar_visibility
-            FROM users
-            WHERE id = ?
-            ''',
-            (user_id,),
-        ).fetchone()
+    user_columns = table_columns(conn, 'users')
+    avatar_visibility_select = (
+        'avatar_visibility'
+        if 'avatar_visibility' in user_columns
+        else "'all' AS avatar_visibility"
+    )
+    row = conn.execute(
+        f'''
+        SELECT public_key, display_name, username, avatar_url, {avatar_visibility_select}
+        FROM users
+        WHERE id = ?
+        ''',
+        (user_id,),
+    ).fetchone()
     if row is None:
         return {
             'public_key': '',

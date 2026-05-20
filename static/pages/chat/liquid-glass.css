@@ -8,14 +8,14 @@
 /* ── tokens ──────────────────────────────────────────────────── */
 html[data-interface-surface="glass"] {
     --sun-glass-profile-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 30%, transparent) 0%, color-mix(in srgb, #ffffff 10%, transparent) 52%, color-mix(in srgb, var(--accent) 7%, transparent) 100%);
-    --sun-glass-sidebar-pill-bg:    var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-pill-bg-hi: var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-card-bg:    var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-card-bg-hi: var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-pill-bg:       var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-pill-bg-hi:    var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-card-bg:       var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-card-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--sidebar-bg) 82%, #ffffff 18%);
+    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--sidebar-bg) 70%, var(--accent) 30%);
+    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--sidebar-bg) 88%, #ffffff 12%);
+    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--sidebar-bg) 76%, var(--accent) 24%);
+    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 82%, #ffffff 18%);
+    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 70%, var(--accent) 30%);
+    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 88%, #ffffff 12%);
+    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 76%, var(--accent) 24%);
     --sun-glass-header-bg:          var(--sun-glass-profile-card-bg);
     --sun-glass-header-bg-hi:       var(--sun-glass-profile-card-bg);
     --sun-glass-top-pill-bg:        var(--sun-glass-profile-card-bg);
@@ -37,14 +37,14 @@ html[data-interface-surface="glass"] {
 html[data-interface-surface="glass"].dark-mode,
 html[data-interface-surface="glass"] body.dark-mode {
     --sun-glass-profile-card-bg:    linear-gradient(135deg, color-mix(in srgb, #ffffff 10%, transparent) 0%, color-mix(in srgb, #ffffff 3%, transparent) 52%, color-mix(in srgb, var(--accent) 6%, transparent) 100%);
-    --sun-glass-sidebar-pill-bg:    var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-pill-bg-hi: var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-card-bg:    var(--sun-glass-profile-card-bg);
-    --sun-glass-sidebar-card-bg-hi: var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-pill-bg:       var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-pill-bg-hi:    var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-card-bg:       var(--sun-glass-profile-card-bg);
-    --sun-glass-chat-card-bg-hi:    var(--sun-glass-profile-card-bg);
+    --sun-glass-sidebar-pill-bg:    color-mix(in srgb, var(--sidebar-bg) 92%, #ffffff 8%);
+    --sun-glass-sidebar-pill-bg-hi: color-mix(in srgb, var(--sidebar-bg) 82%, var(--accent) 18%);
+    --sun-glass-sidebar-card-bg:    color-mix(in srgb, var(--sidebar-bg) 96%, #ffffff 4%);
+    --sun-glass-sidebar-card-bg-hi: color-mix(in srgb, var(--sidebar-bg) 86%, var(--accent) 14%);
+    --sun-glass-chat-pill-bg:       color-mix(in srgb, var(--chat-hdr) 92%, #ffffff 8%);
+    --sun-glass-chat-pill-bg-hi:    color-mix(in srgb, var(--chat-hdr) 82%, var(--accent) 18%);
+    --sun-glass-chat-card-bg:       color-mix(in srgb, var(--chat-hdr) 96%, #ffffff 4%);
+    --sun-glass-chat-card-bg-hi:    color-mix(in srgb, var(--chat-hdr) 86%, var(--accent) 14%);
     --sun-glass-header-bg:          var(--sun-glass-profile-card-bg);
     --sun-glass-header-bg-hi:       var(--sun-glass-profile-card-bg);
     --sun-glass-top-pill-bg:        var(--sun-glass-profile-card-bg);
@@ -176,6 +176,13 @@ html[data-interface-surface="glass"] .app-boot-shell .sun-skeleton-block {
 /* ================================================================
    SIDEBAR - no full-panel tint; child pills carry glass.
    ================================================================ */
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) {
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
 /* sidebar-top-card: transparent wrapper, pill children carry the glass */
 html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-card {
     margin: 10px 12px 0;
@@ -284,6 +291,14 @@ html[data-interface-surface="glass"] .sidebar .sidebar-tab:hover:not(.active) {
     border-bottom-color: color-mix(in srgb, var(--sun-glass-border) 78%, transparent);
     background: var(--sun-glass-top-pill-bg-hi);
     box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+}
+
+html[data-interface-surface="glass"] #contactsList .contact-item.active {
+    border-color: color-mix(in srgb, var(--sun-glass-border-hi) 72%, transparent);
+    background: color-mix(in srgb, var(--sidebar-bg) 74%, var(--accent) 26%);
+    box-shadow: inset 0 1px 0 var(--sun-glass-rim);
+    -webkit-backdrop-filter: var(--sun-glass-blur-sm);
+    backdrop-filter: var(--sun-glass-blur-sm);
 }
 
 /* ── profile card (bottom) ───────────────────────────────────── */

@@ -318,7 +318,7 @@ export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, 
 
     const lastMsgEl = el.querySelector('.contact-last-msg');
     const isPreviewLoading = isEncryptedPreviewLoadingToken(normalizedText);
-    el.classList.toggle('contact-item--preview-loading', isPreviewLoading);
+    el.classList?.toggle?.('contact-item--preview-loading', isPreviewLoading);
     el.setAttribute('data-preview-loading', isPreviewLoading ? '1' : '0');
     if (lastMsgEl) {
         lastMsgEl.innerHTML = renderSidebarLastMessageHtml(normalizedText, {
@@ -328,7 +328,9 @@ export function updateActiveContactLastMessage(el, text, isSelf, deliveryState, 
             draftLabel,
         });
         applyEmojiGraphics(lastMsgEl);
-        window._hydrateMediaPreviewThumbs?.(lastMsgEl);
+        if (typeof window !== 'undefined') {
+            window._hydrateMediaPreviewThumbs?.(lastMsgEl);
+        }
     }
 
     const timeMetaEl = el.querySelector('.contact-time-meta');

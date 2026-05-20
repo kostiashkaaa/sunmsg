@@ -123,12 +123,7 @@ def process_get_user_profile(  # noqa: PLR0913 - dependency-injected route handl
         user['last_seen_visibility'] if 'last_seen_visibility' in user.keys() else None,
         default=PRIVACY_NOBODY if bool(user['hide_online_status']) else PRIVACY_CONTACTS,
     )
-    can_view_last_seen = is_privacy_allowed(
-        conn,
-        owner_id=target_user_id,
-        viewer_id=current_user_id,
-        policy=last_seen_policy,
-    )
+    can_view_last_seen = is_self or (is_contact and last_seen_policy != PRIVACY_NOBODY)
     if can_view_last_seen:
         online = is_effectively_online_func(
             user['public_key'],

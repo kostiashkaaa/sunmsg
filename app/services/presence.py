@@ -111,16 +111,24 @@ def remove_connected(pub: str, sid: str) -> int:
     _ensure_configured()
     if _redis:
         key = _PREFIX_CONN + pub
+        active_key = _PREFIX_ACT + pub
         _redis.srem(key, sid)
+        _redis.srem(active_key, sid)
         count = _redis.scard(key)
         if count == 0:
             _redis.delete(key)
+            _redis.delete(active_key)
         return count
     sid_set = _connected.get(pub)
     if sid_set:
         sid_set.discard(sid)
         if not sid_set:
             _connected.pop(pub, None)
+    active_set = _active.get(pub)
+    if active_set:
+        active_set.discard(sid)
+        if not active_set:
+            _active.pop(pub, None)
     return len(_connected.get(pub, set()))
 
 

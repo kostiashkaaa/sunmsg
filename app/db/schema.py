@@ -578,6 +578,8 @@ def ensure_base_schema(conn) -> None:
             token_type TEXT NOT NULL DEFAULT 'Bearer',
             scope TEXT NOT NULL DEFAULT '',
             expires_at BIGINT NOT NULL,
+            spotify_privacy TEXT NOT NULL DEFAULT 'contacts',
+            hide_explicit INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -592,6 +594,8 @@ def ensure_base_schema(conn) -> None:
             spotify_track_url TEXT,
             progress_ms BIGINT DEFAULT 0,
             duration_ms BIGINT DEFAULT 1,
+            track_id TEXT DEFAULT NULL,
+            is_explicit INTEGER NOT NULL DEFAULT 0,
             cached_at DOUBLE PRECISION DEFAULT NULL
         );
 
