@@ -510,6 +510,10 @@ function looksLikeImageSource(src) {
         || /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|$)/i.test(src);
 }
 
+function isEncryptedMediaReference(src) {
+    return String(src || '').includes('sun_media_e2ee=');
+}
+
 export function extractImagePreview(filePayload) {
     if (!filePayload || typeof filePayload !== 'object') return null;
     const items = [];
@@ -556,14 +560,26 @@ function clipPreviewText(text, maxLen = 80) {
 
 function buildThumbHtml(src, count, altText) {
     const badge = count > 1 ? `<span class="msg-preview-thumb-count">+${count - 1}</span>` : '';
-    if (!src) {
+    const rawSrc = String(src || '').trim();
+    let safeSrc = rawSrc;
+    try {
+        const normalizedSrc = sanitizeFileUri(rawSrc, { imageOnlyData: true });
+        safeSrc = normalizedSrc && normalizedSrc !== '#' ? normalizedSrc : '';
+    } catch (_) {
+        safeSrc = rawSrc;
+    }
+    if (!safeSrc) {
         return `<span class="msg-preview-thumb is-fallback" aria-hidden="true">
             <i class="bi bi-image msg-preview-fallback-icon"></i>
             ${badge}
         </span>`;
     }
+    const escapedSrc = escapeHtml(safeSrc);
+    const sourceAttrs = isEncryptedMediaReference(safeSrc)
+        ? `data-src="${escapedSrc}"`
+        : `src="${escapedSrc}" data-src="${escapedSrc}"`;
     return `<span class="msg-preview-thumb" aria-hidden="true">
-        <img src="${escapeHtml(src)}" alt="${escapeHtml(altText || '\u0424\u043e\u0442\u043e')}" loading="lazy" decoding="async">
+        <img ${sourceAttrs} alt="${escapeHtml(altText || '\u0424\u043e\u0442\u043e')}" loading="lazy" decoding="async">
         ${badge}
     </span>`;
 }

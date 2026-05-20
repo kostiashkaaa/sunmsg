@@ -176,16 +176,33 @@ export function createChatMessageMutations({
                 const thumbImgEl = fileLinkEl.querySelector('.file-card-thumb-image');
                 if (thumbImgEl && isDocumentVisual && rawIsImageFile) {
                     const thumbSrc = sanitizeFileUri(filePayload.data, { imageOnlyData: true });
-                    if (thumbSrc && thumbImgEl.getAttribute('src') !== thumbSrc) {
-                        thumbImgEl.setAttribute('src', thumbSrc);
+                    if (thumbSrc) {
+                        thumbImgEl.setAttribute('data-src', thumbSrc);
+                        const currentThumbSrc = String(thumbImgEl.getAttribute('src') || '').trim();
+                        if (thumbSrc.includes('sun_media_e2ee=')) {
+                            if (!currentThumbSrc || currentThumbSrc.includes('sun_media_e2ee=')) {
+                                thumbImgEl.removeAttribute('src');
+                            }
+                        } else if (currentThumbSrc !== thumbSrc) {
+                            thumbImgEl.setAttribute('src', thumbSrc);
+                        }
                     }
                 }
                 const thumbVideoEl = fileLinkEl.querySelector('.file-card-thumb-video');
                 if (thumbVideoEl && isDocumentVisual && rawIsVideoFile) {
-                    if (fileSrc && thumbVideoEl.getAttribute('src') !== fileSrc) {
-                        thumbVideoEl.setAttribute('src', fileSrc);
+                    if (fileSrc) {
+                        thumbVideoEl.setAttribute('data-src', fileSrc);
+                        const currentThumbSrc = String(thumbVideoEl.getAttribute('src') || '').trim();
+                        if (fileSrc.includes('sun_media_e2ee=')) {
+                            if (!currentThumbSrc || currentThumbSrc.includes('sun_media_e2ee=')) {
+                                thumbVideoEl.removeAttribute('src');
+                            }
+                        } else if (currentThumbSrc !== fileSrc) {
+                            thumbVideoEl.setAttribute('src', fileSrc);
+                        }
                     }
                 }
+                win._hydrateMediaPreviewThumbs?.(fileLinkEl);
                 if (filePayload.name) {
                     fileLinkEl.setAttribute('download', String(filePayload.name));
                     const nameEl = fileLinkEl.querySelector('.file-info-name');

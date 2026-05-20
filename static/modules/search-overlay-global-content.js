@@ -33,6 +33,18 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function isEncryptedMediaReference(src) {
+    return String(src || '').includes('sun_media_e2ee=');
+}
+
+function buildMediaThumbAttrs(src) {
+    const safeSrc = String(src || '').trim();
+    const escapedSrc = escapeHtml(safeSrc);
+    return isEncryptedMediaReference(safeSrc)
+        ? `data-src="${escapedSrc}"`
+        : `src="${escapedSrc}" data-src="${escapedSrc}"`;
+}
+
 function formatBytes(bytes) {
     const n = Number(bytes);
     if (!Number.isFinite(n) || n <= 0) return '';
@@ -338,8 +350,8 @@ export function initSearchOverlayGlobalContent({
             card.setAttribute('data-msg-id', String(messageId));
             card.innerHTML = `
                 ${isVideo
-                    ? `<video src="${escapeHtml(src)}" preload="metadata" muted playsinline></video>`
-                    : `<img src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async">`
+                    ? `<video ${buildMediaThumbAttrs(src)} preload="metadata" muted playsinline></video>`
+                    : `<img ${buildMediaThumbAttrs(src)} alt="" loading="lazy" decoding="async">`
                 }
                 <div class="search-global-media-card-meta">
                     <span class="search-global-media-card-chat">${escapeHtml(chatMeta.chatName)}</span>
@@ -347,6 +359,7 @@ export function initSearchOverlayGlobalContent({
                 </div>
             `;
             grid.appendChild(card);
+            window._hydrateMediaPreviewThumbs?.(card);
         });
 
         if (!grid.children.length) {

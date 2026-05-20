@@ -622,6 +622,18 @@ export function createDaySeparatorNode(rawValue) {
 
 // ?? File bubble content ???????????????????????????????????????????????????????
 
+function isEncryptedMediaReference(src) {
+    return String(src || '').includes('sun_media_e2ee=');
+}
+
+function buildInlineMediaThumbAttrs(src) {
+    const safeSrc = String(src || '').trim();
+    const escapedSrc = escapeHtml(safeSrc);
+    return isEncryptedMediaReference(safeSrc)
+        ? `data-src="${escapedSrc}"`
+        : `src="${escapedSrc}" data-src="${escapedSrc}"`;
+}
+
 function buildFileBubble(filePayload) {
     const safeUri = sanitizeFileUri(filePayload.data, { imageOnlyData: false });
     const rawIsImage = filePayload.mime?.startsWith('image/');
@@ -778,9 +790,9 @@ function buildFileBubble(filePayload) {
         const iconColor = extColorMap[ext] || 'accent';
         const iconWrapClass = `file-icon-wrap${(useImageThumb || useVideoThumb) ? ' file-icon-wrap--media-thumb' : ''}`;
         const iconWrapContent = useImageThumb
-            ? `<img class="file-card-thumb-image" src="${escapeHtml(imageThumbSrc)}" loading="lazy" decoding="async" alt="">`
+            ? `<img class="file-card-thumb-image" ${buildInlineMediaThumbAttrs(imageThumbSrc)} loading="lazy" decoding="async" alt="">`
             : useVideoThumb
-                ? `<video class="file-card-thumb-video" src="${escapeHtml(safeUri)}" preload="metadata" muted playsinline aria-hidden="true"></video><span class="file-card-thumb-video-badge" aria-hidden="true"><i class="bi bi-play-fill"></i></span>`
+                ? `<video class="file-card-thumb-video" ${buildInlineMediaThumbAttrs(safeUri)} preload="metadata" muted playsinline aria-hidden="true"></video><span class="file-card-thumb-video-badge" aria-hidden="true"><i class="bi bi-play-fill"></i></span>`
                 : `<i class="bi ${icon}"></i>`;
         content = `
             <div class="file-msg-card-wrap">

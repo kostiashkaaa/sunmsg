@@ -78,6 +78,120 @@ export function initChatMediaRuntime(deps = {}) {
     const focusMessageByIdSafe = typeof focusMessageById === 'function'
         ? focusMessageById
         : null;
+    const previewThumbMediaSelector = [
+        '.msg-preview-thumb img[data-src]',
+        '.file-card-thumb-image[data-src]',
+        '.file-card-thumb-video[data-src]',
+        '.search-global-media-card img[data-src]',
+        '.search-global-media-card video[data-src]',
+    ].join(', ');
+    let previewThumbObserver = null;
+
+    function isPreviewThumbMedia(element) {
+        if (!element) return false;
+        if (typeof HTMLImageElement !== 'undefined' && element instanceof HTMLImageElement) {
+            return true;
+        }
+        if (typeof HTMLVideoElement !== 'undefined' && element instanceof HTMLVideoElement) {
+            return true;
+        }
+        return ['IMG', 'VIDEO'].includes(String(element.tagName || '').toUpperCase());
+    }
+
+    function resolvePreviewThumbKind(element) {
+        const tagName = String(element?.tagName || '').toUpperCase();
+        return tagName === 'VIDEO' ? 'video' : 'image';
+    }
+
+    function isEncryptedPreviewThumbSource(source) {
+        return String(source || '').includes('sun_media_e2ee=');
+    }
+
+    function normalizePreviewThumbSource(source) {
+        const raw = String(source || '').trim();
+        if (!raw) return '';
+        if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(raw)) return raw;
+        try {
+            const base = (typeof window !== 'undefined' && window.location?.origin)
+                || (typeof document !== 'undefined' && document.baseURI)
+                || 'http://localhost';
+            const parsed = new URL(raw, base);
+            const protocol = parsed.protocol.toLowerCase();
+            if (protocol === 'http:' || protocol === 'https:' || protocol === 'blob:') {
+                return parsed.href;
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    function showPreviewThumbFallback(imgEl) {
+        try {
+            window._onPreviewThumbError?.(imgEl);
+        } catch (_) {}
+    }
+
+    function hydratePreviewThumbMedia(mediaEl) {
+        if (!isPreviewThumbMedia(mediaEl)) return false;
+        const rawSrc = normalizePreviewThumbSource(mediaEl.getAttribute?.('data-src') || '');
+        if (!rawSrc) return false;
+
+        const currentSrc = normalizePreviewThumbSource(mediaEl.getAttribute?.('src') || mediaEl.currentSrc || '');
+        if (currentSrc && !isEncryptedPreviewThumbSource(currentSrc)) return true;
+        if (currentSrc && isEncryptedPreviewThumbSource(currentSrc)) {
+            mediaEl.removeAttribute?.('src');
+        }
+
+        const encrypted = isEncryptedPreviewThumbSource(rawSrc);
+        if (!encrypted) {
+            mediaEl.setAttribute?.('src', rawSrc);
+            return true;
+        }
+
+        const resolver = window.__sunMediaCacheResolveSource;
+        if (typeof resolver !== 'function') return false;
+
+        const nextSeq = Number(mediaEl.dataset?.previewThumbSourceSeq || 0) + 1;
+        if (mediaEl.dataset) {
+            mediaEl.dataset.previewThumbSourceSeq = String(nextSeq);
+        }
+        const mediaKind = resolvePreviewThumbKind(mediaEl);
+
+        Promise.resolve(resolver(rawSrc, { kind: mediaKind }))
+            .then((resolvedSrc) => {
+                if (mediaEl.dataset && mediaEl.dataset.previewThumbSourceSeq !== String(nextSeq)) return;
+                const safeResolvedSrc = normalizePreviewThumbSource(resolvedSrc);
+                if (safeResolvedSrc && !isEncryptedPreviewThumbSource(safeResolvedSrc)) {
+                    mediaEl.setAttribute?.('src', safeResolvedSrc);
+                    return;
+                }
+                showPreviewThumbFallback(mediaEl);
+            })
+            .catch(() => showPreviewThumbFallback(mediaEl));
+        return true;
+    }
+
+    function hydratePreviewThumbs(root = document) {
+        if (!root) return;
+        if (typeof root.matches === 'function' && root.matches(previewThumbMediaSelector)) {
+            hydratePreviewThumbMedia(root);
+        }
+        if (typeof root.querySelectorAll !== 'function') return;
+        root.querySelectorAll(previewThumbMediaSelector).forEach(hydratePreviewThumbMedia);
+    }
+
+    function initPreviewThumbHydration() {
+        hydratePreviewThumbs(document);
+        if (typeof MutationObserver !== 'function') return;
+        const observerRoot = document.body || document.documentElement;
+        if (!observerRoot) return;
+        previewThumbObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes?.forEach((node) => hydratePreviewThumbs(node));
+            });
+        });
+        previewThumbObserver.observe(observerRoot, { childList: true, subtree: true });
+    }
+    window._hydrateMediaPreviewThumbs = hydratePreviewThumbs;
 
     window._onPreviewThumbError = function(imgEl) {
         const thumb = imgEl?.closest('.msg-preview-thumb');
@@ -92,6 +206,7 @@ export function initChatMediaRuntime(deps = {}) {
         if (!target.closest('.msg-preview-thumb')) return;
         window._onPreviewThumbError?.(target);
     }, true);
+    initPreviewThumbHydration();
 
     window._onVideoPreviewLoaded = function(videoEl) {
         if (!videoEl) return;
