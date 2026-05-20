@@ -10,6 +10,7 @@ import { hasRuntimePrivateKey } from '../../modules/private-key-runtime.js';
 import { waitForMotionEnd } from '../../modules/motion.js';
 import { initSettingsPresence } from '../../modules/settings-presence.js';
 import { initSettingsQr, downloadSettingsQr } from '../settings-qr.js';
+import { initSettingsPremiumUX } from '../../modules/settings-premium-ux.js';
 
 import { createSettingsState } from './state.js';
 import { createSettingsApi } from './api.js';
@@ -61,6 +62,7 @@ export function initSettingsPage() {
     const currentUsername = String(bootstrapUser.currentUsername || pageRoot.dataset.currentUsername || '');
     initSettingsPresence({ isEmbedded: true });
     initProfilePullExpand();
+    initSettingsPremiumUX(document);
 
     const dispatch = (type, detail = {}) => {
         document.dispatchEvent(new CustomEvent(type, { detail, bubbles: false }));
