@@ -8603,10 +8603,22 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+            animation: contactSpotifyIndicatorIn var(--dur-quick) var(--ease-quick) both;
         }
 
         .contact-spotify-indicator[hidden] {
             display: none;
+        }
+
+        @keyframes contactSpotifyIndicatorIn {
+            from { opacity: 0; transform: translate3d(0, -3px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .contact-spotify-indicator {
+                animation: none;
+            }
         }
 
         .contact-spotify-indicator-icon {
