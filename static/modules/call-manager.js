@@ -121,6 +121,10 @@ export class CallManager {
             }
             minimizeActiveCallOverlay();
         });
+        document.addEventListener('sun:chat:closed', () => {
+            if (this._state !== STATES.ACTIVE) return;
+            minimizeActiveCallOverlay();
+        });
     }
 
     // ── Socket event bindings ────────────────────────────────────────────────
@@ -630,8 +634,8 @@ export class CallManager {
                 iceServers: this._iceServers,
                 iceTransportPolicy: this._iceTransportPolicy,
                 onSignal: (event, payload) => this._emit(event, payload),
-                onRemoteTrack: (track) => {
-                    attachRemoteTrack(track);
+                onRemoteTrack: (track, stream) => {
+                    attachRemoteTrack(track, stream);
                     setCallStatusText('Соединено');
                     startCallDurationTimer();
                 },

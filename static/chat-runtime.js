@@ -2625,13 +2625,15 @@ export const initChatPage = async () => {
     function closeChatUI() {
         const closedChatId = currentChatId;
 
-        // Завершить звонок при выходе из чата, только если он не свёрнут.
-        // Свёрнутый звонок пользователь намеренно минимизировал — не прерывать.
+        // Desktop chat close ends a non-minimized call.
+        // Mobile chat close keeps an active call alive and moves it to the topbar.
         if (!callManager.isIdle()) {
             const isMinimized = Boolean(
                 document.querySelector('#call-active-overlay.call-overlay--minimized')
             );
-            if (!isMinimized) {
+            const keepActiveMobileCall = browserEnv.isMobileWidth()
+                && callManager.getState?.() === 'active';
+            if (!isMinimized && !keepActiveMobileCall) {
                 callManager.endCall();
             }
         }
@@ -2704,6 +2706,9 @@ export const initChatPage = async () => {
             }
             closeMobileChatView({ leaveRoom: false, animated: false });
         }
+        document.dispatchEvent(new CustomEvent('sun:chat:closed', {
+            detail: { chatId: closedChatId },
+        }));
     }
 
     // \u0418\u0441\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439 \u0438 \u043F\u0430\u043D\u0435\u043B\u0438 \u043D\u0430 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u043E\u0439 \u0432\u0435\u0440\u0441\u0438\u0438

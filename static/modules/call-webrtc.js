@@ -40,7 +40,7 @@ export class CallWebRTC {
      * @param {string}   opts.callId
      * @param {string[]} opts.iceServers  - [{urls, username?, credential?}]
      * @param {string} opts.iceTransportPolicy - 'all'|'relay'
-     * @param {function(MediaStreamTrack): void} opts.onRemoteTrack
+     * @param {function(MediaStreamTrack, MediaStream|null): void} opts.onRemoteTrack
      * @param {function(string): void}           opts.onVerificationCode
      * @param {function(string): void}           opts.onConnectionState  - 'connected'|'disconnected'|'failed'
      * @param {function(object): void}           opts.onQualityStats
@@ -92,7 +92,7 @@ export class CallWebRTC {
 
         // Remote tracks → caller's callback
         this._pc.ontrack = ({ track, streams }) => {
-            this._onRemoteTrack(track);
+            this._onRemoteTrack(track, streams?.[0] || null);
         };
 
         // ICE trickle

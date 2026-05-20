@@ -1064,7 +1064,7 @@ export function setRemoteAudioMuted(muted) {
     }
 }
 
-export function attachRemoteTrack(track) {
+export function attachRemoteTrack(track, remoteStream = null) {
     const overlay = _currentOverlay();
     const media = track.kind === 'audio'
         ? overlay?.querySelector('#call-remote-audio')
@@ -1072,8 +1072,16 @@ export function attachRemoteTrack(track) {
     if (!media) return;
 
     const stream = media.srcObject instanceof MediaStream ? media.srcObject : new MediaStream();
-    if (!stream.getTracks().some(t => t.id === track.id)) {
-        stream.addTrack(track);
+    const remoteTracks = remoteStream instanceof MediaStream
+        ? remoteStream.getTracks().filter(candidate => candidate.kind === track.kind)
+        : [track];
+    if (!remoteTracks.some(candidate => candidate.id === track.id)) {
+        remoteTracks.push(track);
+    }
+    for (const remoteTrack of remoteTracks) {
+        if (!stream.getTracks().some(existing => existing.id === remoteTrack.id)) {
+            stream.addTrack(remoteTrack);
+        }
     }
     media.srcObject = stream;
 
@@ -1084,16 +1092,15 @@ export function attachRemoteTrack(track) {
             void _setSpeakerMode(true, overlay);
         }
     } else if (track.kind === 'video') {
-        overlay?.classList.add('call-overlay--has-remote-video');
-        _syncVideoLayout(overlay);
+        setRemoteVideoEnabled(media.dataset.remoteVideoExpected !== '0');
     }
     track.addEventListener('unmute', () => {
-        if (track.kind === 'video') setRemoteVideoEnabled(true);
+        if (track.kind === 'video' && media.dataset.remoteVideoExpected !== '0') {
+            setRemoteVideoEnabled(true);
+        }
         _playMedia(media);
     });
-    track.addEventListener('mute', () => {
-        if (track.kind === 'video') setRemoteVideoEnabled(false);
-    });
+    // call_media_state is the source of truth; track.mute can fire during replaceTrack().
     track.addEventListener('ended', () => removeRemoteTrack(track.kind), { once: true });
     _playMedia(media);
 }
@@ -1105,9 +1112,18 @@ export function setLocalVideoEnabled(stream, enabled) {
 export function setRemoteVideoEnabled(enabled) {
     const overlay = _currentOverlay();
     const remoteVideo = overlay?.querySelector('#call-remote-video');
-    const hasTrack = Boolean(remoteVideo?.srcObject?.getVideoTracks?.().length);
+    if (remoteVideo) {
+        remoteVideo.dataset.remoteVideoExpected = enabled ? '1' : '0';
+    }
+    const hasTrack = Boolean(remoteVideo?.srcObject?.getVideoTracks?.()
+        .some(track => track.readyState !== 'ended'));
     overlay?.classList.toggle('call-overlay--has-remote-video', Boolean(enabled && hasTrack));
-    if (!enabled) overlay?.classList.remove('call-overlay--self-view-primary');
+    if (enabled && hasTrack) {
+        _playMedia(remoteVideo);
+        _showCallInfoTemporarily(overlay);
+    } else {
+        overlay?.classList.remove('call-overlay--self-view-primary');
+    }
     _syncVideoLayout(overlay);
 }
 
