@@ -2590,6 +2590,20 @@ button > i[class*=" bi-"],
         animation: none;
     }
 
+    /* Mobile emoji is a flow bottom sheet, not a floating popup. */
+    .emoji-picker.active {
+        animation: none;
+    }
+
+    .emoji-picker,
+    .emoji-picker.is-closing {
+        transform: translate3d(0, 10px, 0);
+    }
+
+    .emoji-picker.active {
+        transform: translate3d(0, 0, 0);
+    }
+
     .header-dropdown.is-closing,
     .message-scale-panel.is-closing,
     .profile-more-menu.is-closing,

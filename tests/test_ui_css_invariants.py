@@ -128,11 +128,11 @@ def test_self_message_overshoot_duration_capped() -> None:
     # Ищем блок .message.msg-animate-in.msg-animate-self .bubble
     block_re = re.compile(
         r'\.message\.msg-animate-in\.msg-animate-self\s+\.bubble\s*\{[^}]*?'
-        r'animation:\s*m-pop-overshoot\s+(\d+)ms',
+        r'animation:\s*m-bubble-in-self\s+(\d+)ms',
         re.DOTALL,
     )
     match = block_re.search(css)
-    assert match, 'motion.css: правило m-pop-overshoot для self-bubble не найдено'
+    assert match, 'motion.css: правило m-bubble-in-self для self-bubble не найдено'
     duration = int(match.group(1))
     assert duration <= 280, (
         f'self-bubble overshoot = {duration}ms — слишком долго '
@@ -636,6 +636,15 @@ def test_mobile_emoji_picker_uses_css_bottom_sheet_without_js_positioning() -> N
         for block in active_blocks
     ), 'chat.css: mobile .emoji-picker.active should reserve height without animating layout.'
 
+    motion = (STATIC / 'motion.css').read_text(encoding='utf-8')
+    generic_pop_idx = motion.find('.emoji-picker.active,\n    .message-scale-panel.active')
+    mobile_sheet_override_idx = motion.find('.emoji-picker.active {\n        animation: none;\n    }', generic_pop_idx)
+    assert 0 <= generic_pop_idx < mobile_sheet_override_idx, (
+        'motion.css: mobile emoji sheet must override generic popup scale animation.'
+    )
+    assert '.emoji-picker,\n    .emoji-picker.is-closing {\n        transform: translate3d(0, 10px, 0);\n    }' in motion
+    assert '.emoji-picker.active {\n        transform: translate3d(0, 0, 0);\n    }' in motion
+
 
 def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     """Opening the mobile emoji sheet must dock composer layout before input blur."""
@@ -683,13 +692,19 @@ def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
     lazy_ui_runtime = (STATIC / 'modules' / 'chat-lazy-ui-runtime.js').read_text(encoding='utf-8')
     lazy_pointer_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('pointerdown'")
     lazy_click_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('click'")
+    lazy_ready_idx = lazy_ui_runtime.find('if (isEmojiPickerReady) return;', lazy_pointer_idx)
     lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
     lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
     lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen();', lazy_pointer_idx)
+    lazy_pending_bail_idx = lazy_ui_runtime.find('if (emojiPickerInitPromise) return;', lazy_pointer_idx, lazy_prevent_idx)
     lazy_warmup_idx = lazy_ui_runtime.find('function scheduleEmojiPickerWarmup')
     lazy_focus_warmup_idx = lazy_ui_runtime.find("messageInput?.addEventListener('focus'", lazy_warmup_idx)
     assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
-    assert lazy_pointer_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
+    assert 'let isEmojiPickerReady = false;' in lazy_ui_runtime
+    assert lazy_pending_bail_idx == -1, (
+        'chat-lazy-ui-runtime.js: pending emoji preload must still own mobile pointerdown.'
+    )
+    assert lazy_pointer_idx < lazy_ready_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
         'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur and dispatch open.'
     )
     assert 0 <= lazy_warmup_idx < lazy_focus_warmup_idx, (

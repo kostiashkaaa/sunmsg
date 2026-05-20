@@ -18,6 +18,7 @@ export function createChatLazyUiRuntime({
 } = {}) {
     let applyActiveMessageSearchFilterImpl = () => {};
     let emojiPickerInitPromise = null;
+    let isEmojiPickerReady = false;
     let handledEmojiPointerOpen = false;
     let handledEmojiPointerTimer = null;
     let messageSearchInitPromise = null;
@@ -98,9 +99,11 @@ export function createChatLazyUiRuntime({
         emojiPickerInitPromise = import('./emoji.js')
             .then(({ initEmojiPicker }) => {
                 initEmojiPicker(messageInput);
+                isEmojiPickerReady = true;
             })
             .catch((error) => {
                 emojiPickerInitPromise = null;
+                isEmojiPickerReady = false;
                 throw error;
             });
         return emojiPickerInitPromise;
@@ -215,8 +218,8 @@ export function createChatLazyUiRuntime({
     // emoji button never steals focus from the textarea (preventDefault). The
     // emoji sheet has a fixed CSS height — no keyboard measuring needed.
     emojiBtn?.addEventListener('pointerdown', async (event) => {
-        if (emojiPickerInitPromise) return;
         if (!isMobileViewport()) return;
+        if (isEmojiPickerReady) return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -245,7 +248,7 @@ export function createChatLazyUiRuntime({
         if (isProfileDrawerOpen()) {
             await closePartnerProfileDrawer();
         }
-        if (emojiPickerInitPromise) return;
+        if (isEmojiPickerReady) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         try {
