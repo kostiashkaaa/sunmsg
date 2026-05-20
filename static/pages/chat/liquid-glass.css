@@ -788,6 +788,110 @@ html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
 }
 
 /* ================================================================
+   UNIFIED GLASS SURFACES
+   Every glass block uses the same transparency as the bottom profile card.
+   ================================================================ */
+html[data-interface-surface="glass"] .app-boot-shell,
+html[data-interface-surface="glass"] .app-boot-preview,
+html[data-interface-surface="glass"] .app-boot-status,
+html[data-interface-surface="glass"] .app-boot-kicker,
+html[data-interface-surface="glass"] .app-boot-preview-chip,
+html[data-interface-surface="glass"] .app-boot-meta-item,
+html[data-interface-surface="glass"] .app-boot-bubble,
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-top-row,
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-tabs,
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-profile-card,
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-bar,
+html[data-interface-surface="glass"] .sidebar:not(.sidebar--loading) .sidebar-status-chip--inline,
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-top-row,
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-tabs,
+html[data-interface-surface="glass"] .sidebar.sidebar--loading .sidebar-profile-card,
+html[data-interface-surface="glass"] .chat-header::before,
+html[data-interface-surface="glass"] .chat-header .pinned-bar,
+html[data-interface-surface="glass"] .pinned-bar__icon,
+html[data-interface-surface="glass"] .pinned-bar__close,
+html[data-interface-surface="glass"] .e2ee-badge,
+html[data-interface-surface="glass"] .e2e-pill,
+html[data-interface-surface="glass"] .disappearing-pill,
+html[data-interface-surface="glass"] .disappearing-pill__icon,
+html[data-interface-surface="glass"] .header-dropdown,
+html[data-interface-surface="glass"] .message-scale-panel,
+html[data-interface-surface="glass"] .message-scale-popup,
+html[data-interface-surface="glass"] .message-scale-option,
+html[data-interface-surface="glass"] .message-scale-popup .scale-opt-btn,
+html[data-interface-surface="glass"] .header-selection-wrap,
+html[data-interface-surface="glass"] #messageForm,
+html[data-interface-surface="glass"] .attach-menu,
+html[data-interface-surface="glass"] .attach-menu-item__icon,
+html[data-interface-surface="glass"] .emoji-picker,
+html[data-interface-surface="glass"] .emoji-picker-search,
+html[data-interface-surface="glass"] .emoji-category-btn,
+html[data-interface-surface="glass"] .emoji-list-status,
+html[data-interface-surface="glass"] #voiceRecordBtn,
+html[data-interface-surface="glass"] .jump-to-new-btn,
+html[data-interface-surface="glass"] .jump-to-new-count,
+html[data-interface-surface="glass"] .chat-day-separator__label,
+html[data-interface-surface="glass"] .chat-date-picker-panel,
+html[data-interface-surface="glass"] .chat-date-picker-panel__day,
+html[data-interface-surface="glass"] .chat-date-picker-panel__month-btn,
+html[data-interface-surface="glass"] .chat-date-picker-panel__action,
+html[data-interface-surface="glass"] .search-overlay__tabs,
+html[data-interface-surface="glass"] .search-overlay__tab.is-active,
+html[data-interface-surface="glass"] .search-overlay__body,
+html[data-interface-surface="glass"] .command-palette-action,
+html[data-interface-surface="glass"] .palette-recent-item,
+html[data-interface-surface="glass"] .search-global-state,
+html[data-interface-surface="glass"] .search-global-row,
+html[data-interface-surface="glass"] .command-palette-result,
+html[data-interface-surface="glass"] .search-global-media-card,
+html[data-interface-surface="glass"] .user-search-panel__qr,
+html[data-interface-surface="glass"] .user-search-state,
+html[data-interface-surface="glass"] .user-search-action--muted,
+html[data-interface-surface="glass"] .settings-overlay-panel,
+html[data-interface-surface="glass"] .settings-scene .settings-card,
+html[data-interface-surface="glass"] body.settings-detail-open .settings-card {
+    background: var(--sun-glass-profile-card-bg) !important;
+}
+
+html[data-interface-surface="glass"] .sidebar .sidebar-tab.active,
+html[data-interface-surface="glass"] .sidebar .sidebar-tab:hover:not(.active),
+html[data-interface-surface="glass"] .search-overlay__tab:hover:not(.is-active),
+html[data-interface-surface="glass"] .header-dropdown .dropdown-item:hover,
+html[data-interface-surface="glass"] .header-dropdown .dropdown-item:focus-visible,
+html[data-interface-surface="glass"] .message-scale-option:hover,
+html[data-interface-surface="glass"] .message-scale-option.active,
+html[data-interface-surface="glass"] .message-scale-popup .scale-opt-btn:hover,
+html[data-interface-surface="glass"] .message-scale-popup .scale-opt-btn.active,
+html[data-interface-surface="glass"] #messageForm .btn-icon:hover,
+html[data-interface-surface="glass"] #messageForm .btn-icon:active,
+html[data-interface-surface="glass"] #messageForm .btn-attach:hover,
+html[data-interface-surface="glass"] .attach-menu-item:hover,
+html[data-interface-surface="glass"] .attach-menu-item:focus-visible,
+html[data-interface-surface="glass"] .attach-menu-item:active,
+html[data-interface-surface="glass"] .emoji-picker-search-clear:hover,
+html[data-interface-surface="glass"] .emoji-picker-search-clear:focus-visible,
+html[data-interface-surface="glass"] .emoji-category-btn:hover,
+html[data-interface-surface="glass"] .emoji-category-btn.active,
+html[data-interface-surface="glass"] .emoji-item:hover,
+html[data-interface-surface="glass"] .emoji-item:focus-visible,
+html[data-interface-surface="glass"] #voiceRecordBtn:hover,
+html[data-interface-surface="glass"] #voiceRecordBtn:focus-visible,
+html[data-interface-surface="glass"] .jump-to-new-btn:hover,
+html[data-interface-surface="glass"] .jump-to-new-btn:focus-visible,
+html[data-interface-surface="glass"] .chat-date-picker-panel__day:hover,
+html[data-interface-surface="glass"] .chat-date-picker-panel__month-btn:hover,
+html[data-interface-surface="glass"] .chat-date-picker-panel__action:hover,
+html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-selected,
+html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today,
+html[data-interface-surface="glass"] .settings-scene .settings-row:hover {
+    background: var(--sun-glass-profile-card-bg) !important;
+}
+
+html[data-interface-surface="glass"] .emoji-picker::before {
+    background: transparent !important;
+}
+
+/* ================================================================
    SUN BRAND GLOW REPLAY (settings open animation)
    ================================================================ */
 @keyframes sunBrandSettingsGlowReplay {
