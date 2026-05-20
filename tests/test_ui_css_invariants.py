@@ -691,49 +691,62 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     assert 'height: 0 !important' in instant_block.group(1)
 
 
-def test_mobile_emoji_button_uses_native_keyboard_instead_of_sheet() -> None:
-    """Mobile must not open the custom emoji sheet; native keyboard owns emoji input."""
+def test_mobile_emoji_switch_open_prevents_pointer_blur() -> None:
+    """Emoji button pointerdown owns mobile toggling so click/blur cannot race it."""
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     pointer_start = emoji.find("emojiBtn.addEventListener('pointerdown'")
     assert pointer_start >= 0, 'emoji.js: emoji button pointerdown handler not found'
     prevent_idx = emoji.find('event.preventDefault();', pointer_start)
-    focus_idx = emoji.find('focusNativeMobileComposer();', prevent_idx)
+    handled_idx = emoji.find('handledKeyboardSwitchPointer = true;', prevent_idx)
+    active_idx = emoji.find("if (emojiPicker.classList.contains('active'))", handled_idx)
+    close_idx = emoji.find('closePicker({ focusInput: true });', active_idx)
+    open_idx = emoji.find('openPicker().catch(() => {});', close_idx)
     click_idx = emoji.find("emojiBtn.addEventListener('click'", pointer_start)
-    assert pointer_start < prevent_idx < focus_idx < click_idx, (
-        'emoji.js: mobile pointerdown should prevent default and focus the native composer instead of opening a sheet.'
+    assert pointer_start < prevent_idx < handled_idx < active_idx < close_idx < open_idx < click_idx, (
+        'emoji.js: mobile pointerdown should prevent default, mark the click handled, then toggle the sheet.'
     )
 
     lazy_ui_runtime = (STATIC / 'modules' / 'chat-lazy-ui-runtime.js').read_text(encoding='utf-8')
-    assert 'function focusMessageInput()' in lazy_ui_runtime
-    assert 'if (isMobileViewport() || emojiPickerInitPromise || emojiWarmupScheduled) return;' in lazy_ui_runtime
     lazy_pointer_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('pointerdown'")
     lazy_click_idx = lazy_ui_runtime.find("emojiBtn?.addEventListener('click'")
+    lazy_ready_idx = lazy_ui_runtime.find('if (isEmojiPickerReady) return;', lazy_pointer_idx)
     lazy_prevent_idx = lazy_ui_runtime.find('event.preventDefault();', lazy_pointer_idx)
-    lazy_focus_idx = lazy_ui_runtime.find('focusMessageInput();', lazy_prevent_idx)
-    lazy_return_idx = lazy_ui_runtime.find('return;', lazy_focus_idx)
-    lazy_ready_idx = lazy_ui_runtime.find('if (isEmojiPickerReady) return;', lazy_return_idx)
+    lazy_import_idx = lazy_ui_runtime.find('await ensureEmojiPicker();', lazy_pointer_idx)
+    lazy_dispatch_idx = lazy_ui_runtime.find('dispatchEmojiOpen();', lazy_pointer_idx)
     lazy_pending_bail_idx = lazy_ui_runtime.find('if (emojiPickerInitPromise) return;', lazy_pointer_idx, lazy_prevent_idx)
+    lazy_warmup_idx = lazy_ui_runtime.find('function scheduleEmojiPickerWarmup')
+    lazy_focus_warmup_idx = lazy_ui_runtime.find("messageInput?.addEventListener('focus'", lazy_warmup_idx)
     assert lazy_pointer_idx >= 0, 'chat-lazy-ui-runtime.js: emoji pointerdown preload handler not found'
     assert 'let isEmojiPickerReady = false;' in lazy_ui_runtime
     assert lazy_pending_bail_idx == -1, (
         'chat-lazy-ui-runtime.js: pending emoji preload must still own mobile pointerdown.'
     )
-    assert lazy_pointer_idx < lazy_prevent_idx < lazy_focus_idx < lazy_return_idx < lazy_ready_idx < lazy_click_idx, (
-        'chat-lazy-ui-runtime.js: first mobile emoji tap must focus input and return before lazy-loading the picker.'
+    assert lazy_pointer_idx < lazy_ready_idx < lazy_prevent_idx < lazy_import_idx < lazy_dispatch_idx < lazy_click_idx, (
+        'chat-lazy-ui-runtime.js: first mobile emoji tap must preload before click/blur and dispatch open.'
+    )
+    assert 0 <= lazy_warmup_idx < lazy_focus_warmup_idx, (
+        'chat-lazy-ui-runtime.js: emoji module should warm up before the first emoji button tap.'
     )
 
+
+def test_mobile_emoji_tap_does_not_rebuild_recent_grid_during_animation() -> None:
+    """Mobile emoji tap feedback must keep the tapped node alive until animation ends."""
+    emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
+    assert 'const deferRecentUpdate = Boolean(options.deferRecentUpdate);' in emoji
+    assert 'if (!deferRecentUpdate && !compactQuery' in emoji
+    assert 'void itemButton.offsetWidth' not in emoji
+    assert "itemButton.classList.add(tapClass);" in emoji
+    assert "selectEmojiItem(itemButton, { focusAfter: false, deferRecentUpdate: true })" in emoji
+
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
-    assert '#messageForm #emojiBtn' in css and 'display: none !important' in css, (
-        'chat.css: mobile composer should hide the custom emoji button.'
-    )
-    hidden_picker_block = re.search(
-        r'\.emoji-picker,\s*\.emoji-picker\.active,\s*\.emoji-picker\.is-opening,\s*\.emoji-picker\.is-closing\s*\{([^}]*)\}',
+    tapped_block = re.search(
+        r'\.emoji-item\.emoji-item--tap-a\s+\.emoji-graphic\s*\{([^}]*)\}',
         css,
         re.DOTALL,
     )
-    assert hidden_picker_block, 'chat.css: mobile emoji picker hidden block not found'
-    assert 'display: none !important' in hidden_picker_block.group(1)
-    assert 'height: 0 !important' in hidden_picker_block.group(1)
+    assert tapped_block, 'chat.css: mobile emoji tap glyph animation block not found'
+    assert 'animation: emojiTapPopA 220ms' in tapped_block.group(1)
+    assert '.emoji-item.emoji-item--tap-a,\n            .emoji-item.emoji-item--tap-b' in css
 
 
 def test_mobile_emoji_keyboard_handoff_uses_visual_viewport_release() -> None:

@@ -113,20 +113,9 @@ export function createChatLazyUiRuntime({
         return windowRef.innerWidth <= 768;
     }
 
-    function focusMessageInput() {
-        if (!messageInput || messageInput.disabled) return;
-        windowRef.requestAnimationFrame(() => {
-            try {
-                messageInput.focus({ preventScroll: true });
-            } catch (_) {
-                messageInput.focus();
-            }
-        });
-    }
-
     let emojiWarmupScheduled = false;
     function scheduleEmojiPickerWarmup(delayMs = 0) {
-        if (isMobileViewport() || emojiPickerInitPromise || emojiWarmupScheduled) return;
+        if (!isMobileViewport() || emojiPickerInitPromise || emojiWarmupScheduled) return;
         emojiWarmupScheduled = true;
         const runWarmup = () => {
             emojiWarmupScheduled = false;
@@ -225,15 +214,11 @@ export function createChatLazyUiRuntime({
         }
     }, { capture: true });
 
-    // Mobile uses the native keyboard emoji key; do not lazy-load the custom
-    // picker or open a bottom sheet from the composer.
+    // Mobile: load the emoji module and open the picker on pointerdown so the
+    // emoji button never steals focus from the textarea (preventDefault). The
+    // emoji sheet has a fixed CSS height — no keyboard measuring needed.
     emojiBtn?.addEventListener('pointerdown', async (event) => {
-        if (isMobileViewport()) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            focusMessageInput();
-            return;
-        }
+        if (!isMobileViewport()) return;
         if (isEmojiPickerReady) return;
 
         event.preventDefault();
@@ -253,12 +238,6 @@ export function createChatLazyUiRuntime({
     }, { capture: true });
 
     emojiBtn?.addEventListener('click', async (event) => {
-        if (isMobileViewport()) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            focusMessageInput();
-            return;
-        }
         if (handledEmojiPointerOpen) {
             event.preventDefault();
             event.stopImmediatePropagation();

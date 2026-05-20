@@ -1380,22 +1380,6 @@
                 will-change: auto;
             }
 
-            #messageForm #emojiBtn {
-                display: none !important;
-            }
-
-            .emoji-picker,
-            .emoji-picker.active,
-            .emoji-picker.is-opening,
-            .emoji-picker.is-closing {
-                display: none !important;
-                height: 0 !important;
-                max-height: 0 !important;
-                min-height: 0 !important;
-                visibility: hidden !important;
-                pointer-events: none !important;
-            }
-
             @media (pointer: coarse) {
                 .disappearing-pill {
                     backdrop-filter: none;
@@ -1544,14 +1528,27 @@
                     box-shadow 60ms var(--ease-quick);
             }
 
-            /* Tapped emoji gets a brief pop so the choice feels acknowledged. */
-            .emoji-item.emoji-item--tapped .emoji-graphic,
-            .emoji-item.emoji-item--tapped {
-                animation: emojiTapPop 280ms var(--ease-spring);
+            .emoji-item.emoji-item--tap-a,
+            .emoji-item.emoji-item--tap-b {
+                background: color-mix(in srgb, var(--accent-glow) 24%, var(--contact-hover) 76%);
             }
-            @keyframes emojiTapPop {
+
+            /* Tapped emoji gets a brief glyph-only pop without replacing the
+               button node or forcing a grid reflow. */
+            .emoji-item.emoji-item--tap-a .emoji-graphic {
+                animation: emojiTapPopA 220ms var(--ease-spring);
+            }
+            .emoji-item.emoji-item--tap-b .emoji-graphic {
+                animation: emojiTapPopB 220ms var(--ease-spring);
+            }
+            @keyframes emojiTapPopA {
+                0%   { transform: scale(0.9); }
+                55%  { transform: scale(1.14); }
+                100% { transform: scale(1); }
+            }
+            @keyframes emojiTapPopB {
                 0%   { transform: scale(0.86); }
-                45%  { transform: scale(1.18); }
+                55%  { transform: scale(1.14); }
                 100% { transform: scale(1); }
             }
 

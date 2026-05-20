@@ -635,12 +635,15 @@ export function initEmojiPicker(messageInput) {
     let searchQuery = '';
     let lastSelectionStart = messageInput.value.length;
     let lastSelectionEnd = lastSelectionStart;
+    let handledKeyboardSwitchPointer = false;
+    let keyboardSwitchPointerTimer = null;
     let suppressCategorySyncUntil = 0;
     let lastRenderedMode = '';
     let lastDefaultRenderKey = '';
     let defaultListNeedsRefresh = true;
     let defaultListRenderPromise = null;
     let openRenderSeq = 0;
+    let emojiTapFeedbackAlt = false;
 
     const setStoredSelection = (start, end = start) => {
         const valueLength = messageInput.value.length;
@@ -688,14 +691,6 @@ export function initEmojiPicker(messageInput) {
         const label = getEmojiButtonLabel(showKeyboardIcon ? 'keyboard' : 'emoji');
         emojiBtn.setAttribute('aria-label', label);
         emojiBtn.setAttribute('title', label);
-    };
-
-    const focusNativeMobileComposer = () => {
-        clearMobileEmojiSheetState(emojiPicker);
-        emojiPicker.classList.remove('active', 'is-closing', 'is-closing-instant');
-        emojiPicker.setAttribute('aria-hidden', 'true');
-        syncEmojiButtonMode(false);
-        focusComposerInput();
     };
 
     const updateSearchUi = (strings) => {
@@ -913,11 +908,6 @@ export function initEmojiPicker(messageInput) {
         const renderSeq = ++openRenderSeq;
         const shouldOpenMobile = isMobileEmojiViewport();
 
-        if (shouldOpenMobile) {
-            focusNativeMobileComposer();
-            return;
-        }
-
         searchQuery = '';
         emojiSearchInput.value = '';
         activeCategory = DEFAULT_EMOJI_CATEGORY;
@@ -983,20 +973,33 @@ export function initEmojiPicker(messageInput) {
     };
 
     // On mobile we handle the toggle on pointerdown and preventDefault so the
-    // emoji button never steals focus from the textarea. Mobile uses the native
-    // keyboard emoji key instead of the custom bottom sheet.
+    // emoji button never steals focus from the textarea — this keeps the
+    // emoji-sheet <-> keyboard switch a single clean transition.
     emojiBtn.addEventListener('pointerdown', (event) => {
         if (!isMobileEmojiViewport()) return;
         event.preventDefault();
         event.stopPropagation();
-        focusNativeMobileComposer();
+        window.clearTimeout(keyboardSwitchPointerTimer);
+        handledKeyboardSwitchPointer = true;
+        keyboardSwitchPointerTimer = window.setTimeout(() => {
+            handledKeyboardSwitchPointer = false;
+        }, 450);
+        if (emojiPicker.classList.contains('active')) {
+            // Emoji sheet -> keyboard
+            closePicker({ focusInput: true });
+        } else {
+            // Keyboard / nothing -> emoji sheet
+            openPicker().catch(() => {});
+        }
     });
 
     emojiBtn.addEventListener('click', async (event) => {
         event.stopPropagation();
-        if (isMobileEmojiViewport()) {
+        if (handledKeyboardSwitchPointer) {
+            // Already handled on pointerdown (mobile path).
             event.preventDefault();
-            focusNativeMobileComposer();
+            window.clearTimeout(keyboardSwitchPointerTimer);
+            handledKeyboardSwitchPointer = false;
             return;
         }
         const shouldOpen = !emojiPicker.classList.contains('active');
@@ -1019,6 +1022,7 @@ export function initEmojiPicker(messageInput) {
         const emoji = String(itemButton?.dataset?.emoji || '').trim();
         if (!isAllowedPickerEmoji(emoji)) return false;
 
+        const deferRecentUpdate = Boolean(options.deferRecentUpdate);
         const selection = getStoredSelection();
         const shouldFocusAfterInsert = options.focusAfter
             ?? !(isMobileEmojiViewport() && emojiPicker.classList.contains('active'));
@@ -1030,7 +1034,7 @@ export function initEmojiPicker(messageInput) {
         setStoredSelection(nextSelection.start, nextSelection.end);
         rememberEmoji(emoji);
         const compactQuery = normalizeQuery(searchQuery);
-        if (!compactQuery && lastRenderedMode === 'default' && emojiList.childElementCount > 0) {
+        if (!deferRecentUpdate && !compactQuery && lastRenderedMode === 'default' && emojiList.childElementCount > 0) {
             const { localeCode, strings } = getLocaleStrings();
             if (updateRecentSectionInPlace(emojiList, strings)) {
                 lastDefaultRenderKey = buildDefaultRenderKey(localeCode);
@@ -1046,13 +1050,13 @@ export function initEmojiPicker(messageInput) {
     // before the mobile pointerup/click path that actually inserts it.
     const playEmojiTapFeedback = (itemButton) => {
         if (!itemButton) return;
-        itemButton.classList.remove('emoji-item--tapped');
-        // Force reflow so the animation restarts on rapid repeated taps.
-        void itemButton.offsetWidth;
-        itemButton.classList.add('emoji-item--tapped');
+        emojiTapFeedbackAlt = !emojiTapFeedbackAlt;
+        const tapClass = emojiTapFeedbackAlt ? 'emoji-item--tap-a' : 'emoji-item--tap-b';
+        itemButton.classList.remove('emoji-item--tap-a', 'emoji-item--tap-b');
+        itemButton.classList.add(tapClass);
         window.setTimeout(() => {
-            itemButton.classList.remove('emoji-item--tapped');
-        }, 300);
+            itemButton.classList.remove(tapClass);
+        }, 240);
     };
 
     const playComposerInsertFeedback = () => {
@@ -1116,7 +1120,7 @@ export function initEmojiPicker(messageInput) {
         pendingEmojiPointer.selectFrame = window.requestAnimationFrame(() => {
             const pending = pendingEmojiPointer;
             if (!pending || pending.pointerId !== event.pointerId || pending.moved || pending.selected) return;
-            pending.selected = selectEmojiItem(itemButton, { focusAfter: false });
+            pending.selected = selectEmojiItem(itemButton, { focusAfter: false, deferRecentUpdate: true });
             if (pending.selected) {
                 pending.valueAfter = messageInput.value;
                 playComposerInsertFeedback();
@@ -1162,7 +1166,7 @@ export function initEmojiPicker(messageInput) {
         if (pending.selectFrame) {
             window.cancelAnimationFrame(pending.selectFrame);
         }
-        if (!pending.selected && selectEmojiItem(itemButton, { focusAfter: false })) {
+        if (!pending.selected && selectEmojiItem(itemButton, { focusAfter: false, deferRecentUpdate: true })) {
             playComposerInsertFeedback();
             suppressNextClickAfterPointerSelect();
         }
@@ -1241,10 +1245,6 @@ export function initEmojiPicker(messageInput) {
     });
 
     document.addEventListener('sun-open-emoji-picker', () => {
-        if (isMobileEmojiViewport()) {
-            focusNativeMobileComposer();
-            return;
-        }
         openPicker().catch(() => {});
     });
 
