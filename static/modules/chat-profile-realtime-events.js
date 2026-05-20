@@ -1,5 +1,7 @@
 import { applyFallbackAvatarTint, buildAvatarInitials, escapeHtml } from './utils.js';
 
+const SIDEBAR_SPOTIFY_VISIBLE_CLASS = 'contact-spotify-indicator--visible';
+
 function applyRealtimeProfileEnterAnimation(element) {
     if (!element || !element.classList) return;
     element.classList.remove('sun-fade-enter');
@@ -248,8 +250,14 @@ export function updateSidebarSpotifyIndicator(contactItem, spotifyStatus) {
     if (sp && sp.is_playing && sp.track) {
         const textEl = indicator.querySelector('.contact-spotify-indicator-text');
         if (textEl) textEl.textContent = sp.track;
-        indicator.hidden = false;
+        if (indicator.hidden) {
+            indicator.classList.remove(SIDEBAR_SPOTIFY_VISIBLE_CLASS);
+            indicator.hidden = false;
+            void indicator.offsetHeight;
+        }
+        indicator.classList.add(SIDEBAR_SPOTIFY_VISIBLE_CLASS);
     } else {
+        indicator.classList.remove(SIDEBAR_SPOTIFY_VISIBLE_CLASS);
         indicator.hidden = true;
     }
 }

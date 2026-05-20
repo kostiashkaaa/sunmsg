@@ -8594,30 +8594,41 @@
 
         /* Sidebar Spotify indicator */
         .contact-spotify-indicator {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 3px;
             font-size: 11px;
+            line-height: 1.2;
             color: #1DB954;
+            width: fit-content;
             max-width: 140px;
+            max-height: 0;
+            opacity: 0;
+            transform: translate3d(0, -3px, 0);
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            animation: contactSpotifyIndicatorIn var(--dur-quick) var(--ease-quick) both;
+            pointer-events: none;
+            transition:
+                max-height var(--dur-quick) var(--ease-quick),
+                opacity var(--dur-quick) var(--ease-quick),
+                transform var(--dur-quick) var(--ease-quick);
         }
 
         .contact-spotify-indicator[hidden] {
             display: none;
         }
 
-        @keyframes contactSpotifyIndicatorIn {
-            from { opacity: 0; transform: translate3d(0, -3px, 0); }
-            to { opacity: 1; transform: translate3d(0, 0, 0); }
+        .contact-spotify-indicator.contact-spotify-indicator--visible {
+            max-height: 16px;
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+            pointer-events: auto;
         }
 
         @media (prefers-reduced-motion: reduce) {
             .contact-spotify-indicator {
-                animation: none;
+                transition: none;
             }
         }
 
