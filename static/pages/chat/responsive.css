@@ -672,6 +672,7 @@
             html[data-motion-level="lite"] .caption-modal-overlay,
             html[data-motion-level="lite"] .caption-modal,
             html[data-motion-level="lite"] .context-menu,
+            html[data-motion-level="lite"] .reaction-picker,
             html[data-motion-level="lite"] .emoji-picker,
             html[data-motion-level="lite"] .chat-area.emoji-sheet-open .chat-input-area,
             html[data-motion-level="lite"] .chat-area.mobile-closing,

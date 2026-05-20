@@ -3486,21 +3486,44 @@
         }
 
 
-        .context-menu-item:hover,
         .context-menu-item:focus-visible {
             background: color-mix(in srgb, var(--contact-hover) 68%, transparent);
             color: var(--text);
             transform: none;
         }
 
+        .context-menu-item:active {
+            background: color-mix(in srgb, var(--contact-hover) 82%, transparent);
+            color: var(--text);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .context-menu-item:hover {
+                background: color-mix(in srgb, var(--contact-hover) 68%, transparent);
+                color: var(--text);
+                transform: none;
+            }
+        }
+
 
         .context-menu-item.danger { color: color-mix(in srgb, var(--danger) 90%, #ffffff 10%); }
 
 
-        .context-menu-item.danger:hover,
         .context-menu-item.danger:focus-visible {
             background: color-mix(in srgb, var(--danger) 22%, transparent);
             color: color-mix(in srgb, var(--danger) 70%, #ffffff 30%);
+        }
+
+        .context-menu-item.danger:active {
+            background: color-mix(in srgb, var(--danger) 26%, transparent);
+            color: color-mix(in srgb, var(--danger) 68%, #ffffff 32%);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .context-menu-item.danger:hover {
+                background: color-mix(in srgb, var(--danger) 22%, transparent);
+                color: color-mix(in srgb, var(--danger) 70%, #ffffff 30%);
+            }
         }
 
 
@@ -3529,18 +3552,22 @@
 
         .reaction-picker.active {
             animation: none;
+            opacity: 1;
         }
 
         @media (max-width: 768px) {
             .reaction-picker.active {
                 animation: none;
+                opacity: 1;
             }
         }
 
 
-        .reaction-picker__item:hover {
-            transform: scale(1.04);
-            background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
+        @media (hover: hover) and (pointer: fine) {
+            .reaction-picker__item:hover {
+                transform: scale(1.04);
+                background: color-mix(in srgb, var(--contact-hover) 76%, transparent);
+            }
         }
 
 

@@ -21,7 +21,6 @@ export function initMessageTouchContext(options = {}) {
         getCurrentChatId,
         messageActionsBarController,
         openReactionPickerForMessage,
-        positionReactionPicker,
         startReply,
         getCurrentPartnerDisplayName,
         showToast,
@@ -186,7 +185,7 @@ export function initMessageTouchContext(options = {}) {
         clientY,
         {
             withReactions = true,
-            deferReactions = false,
+            deferReactions = true,
             originTarget = null,
         } = {},
     ) {
@@ -244,11 +243,6 @@ export function initMessageTouchContext(options = {}) {
             const openReactions = () => {
                 const anchor = contextMenu || msg.querySelector('.bubble') || msg;
                 openReactionPickerForMessage(msgId, anchor);
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        positionReactionPicker();
-                    });
-                });
             };
             if (deferReactions) {
                 requestAnimationFrame(openReactions);
@@ -421,11 +415,6 @@ export function initMessageTouchContext(options = {}) {
             && dy <= SWIPE_REPLY_MAX_VERTICAL_PX
             && !isChatBlocked();
 
-        const isTap = !gesture.dragging
-            && !gesture.longPressTriggered
-            && Math.abs(dx) < 8
-            && dy < 8;
-
         resetMessageSwipeState(gesture.messageEl);
         activeMessageTouchGesture = null;
         unbindSwipeReplyBlockingMove();
@@ -440,25 +429,7 @@ export function initMessageTouchContext(options = {}) {
         if (canReply) {
             suppressMessageTapUntil = Date.now() + 220;
             beginSwipeReplyFromGesture(gesture);
-            return;
         }
-
-        if (!isTap) return;
-        if (messageSelectionController.isSelectionMode()) return;
-        if (isEditingMessageId()) return;
-        const messageEl = gesture.messageEl;
-        if (!messageEl || !messageEl.isConnected) return;
-        const tapTarget = event?.target;
-        if (tapTarget && isInteractiveMessageTarget(tapTarget)) return;
-
-        const touch = event?.changedTouches?.[0];
-        const x = touch ? touch.clientX : gesture.lastX;
-        const y = touch ? touch.clientY : gesture.lastY;
-        suppressMessageTapUntil = Date.now() + 280;
-        if (event && typeof event.preventDefault === 'function') {
-            try { event.preventDefault(); } catch (_) {}
-        }
-        openMessageContextMenuFor(messageEl, x, y, { withReactions: true });
     }
 
     function handleMessageTouchCancel() {

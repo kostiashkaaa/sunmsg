@@ -2164,6 +2164,13 @@
             transition: opacity var(--dur-medium) var(--ease-quick);
         }
 
+        .contact-avatar--request {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            font-size: 13px;
+        }
+
 
         .contact-avatar-loading {
             position: absolute;
@@ -11253,7 +11260,7 @@
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transform: translateY(4px) scale(0.985);
+            transform: translateY(4px);
             transition:
                 opacity var(--motion-dur-fast) var(--motion-ease-exit),
                 transform var(--motion-dur-base) var(--motion-ease-enter),
@@ -11278,6 +11285,9 @@
             font-family: var(--font);
             color: var(--text);
             cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
             border-radius: 8px;
             text-align: left;
             transition:
@@ -11412,7 +11422,9 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
     z-index: var(--z-reaction-picker, 5100);
     transform-origin: center bottom;
+    opacity: 0;
     overflow: visible;
+    transition: opacity var(--motion-dur-fast) var(--motion-ease-enter);
 }
 
 .reaction-picker__row {
@@ -11451,15 +11463,13 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     flex: 0 0 34px;
     transition:
         background-color var(--dur-quick) var(--ease-quick),
         transform var(--dur-quick) var(--ease-quick);
-}
-
-.reaction-picker__expand-toggle:hover {
-    background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
-    transform: none;
 }
 
 .reaction-picker__expand-toggle i {
@@ -11481,6 +11491,9 @@
             font-size: 22px;
             line-height: 1;
             cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
             transition:
                 transform var(--dur-quick) var(--ease-quick),
                 background-color var(--dur-quick) var(--ease-quick),
@@ -11493,9 +11506,16 @@
     background: color-mix(in srgb, var(--contact-hover) 82%, transparent);
 }
 
-.reaction-picker__item:hover {
-    background: color-mix(in srgb, var(--contact-hover) 74%, transparent);
-    transform: none;
+@media (hover: hover) and (pointer: fine) {
+    .reaction-picker__expand-toggle:hover {
+        background: color-mix(in srgb, var(--contact-hover) 72%, transparent);
+        transform: none;
+    }
+
+    .reaction-picker__item:hover {
+        background: color-mix(in srgb, var(--contact-hover) 74%, transparent);
+        transform: none;
+    }
 }
 
 .reaction-picker__item:focus-visible,
@@ -11518,17 +11538,17 @@
             }
 
             .reaction-picker__item {
-                width: 30px;
-                height: 30px;
-                flex: 0 0 30px;
+                width: 34px;
+                height: 34px;
+                flex: 0 0 34px;
                 border-radius: 999px;
-                font-size: 21px;
+                font-size: 22px;
             }
 
             .reaction-picker__expand-toggle {
-                width: 30px;
-                height: 30px;
-                flex: 0 0 30px;
+                width: 34px;
+                height: 34px;
+                flex: 0 0 34px;
                 border-radius: 999px;
             }
         }
@@ -13395,6 +13415,10 @@
     animation: invite-section-in 180ms ease both;
 }
 
+.group-invite-link-display[hidden] {
+    display: none !important;
+}
+
 .group-invite-link-input {
     flex: 1;
     min-width: 0;
@@ -13643,6 +13667,10 @@
 
 .e2ee-key-fingerprint__chunk:nth-child(4n) {
     margin-right: 6px;
+}
+
+.e2ee-status-muted {
+    color: var(--text-muted);
 }
 
 .e2ee-proto-info {
