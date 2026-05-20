@@ -122,6 +122,7 @@ import {
 } from './modules/chat-partner-network-bridge.js';
 import { computeSidebarStatusSnapshot as _computeSidebarStatusSnapshot, runSidebarStatusAction as _runSidebarStatusAction, syncSidebarStatusBar as _syncSidebarStatusBar } from './modules/chat-sidebar-status.js';
 import { showConfirmDialog } from './modules/confirm-dialog.js';
+import { initSwipeReply } from './modules/chat-swipe-reply.js';
 import { initVoiceRecorder } from './modules/voice-recorder.js';
 import { getPrivateKeyPem, restoreWrappedPrivateKey } from './modules/private-key-session.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
@@ -4049,6 +4050,13 @@ export const initChatPage = async () => {
         reactionPickerEmojis: REACTION_PICKER_EMOJIS,
     });
 
+    const swipeReplyController = initSwipeReply({
+        chatMessages,
+        startReply,
+        getCurrentPartnerDisplayName,
+        showToast,
+    });
+
     // Selection Mode Logic
 
     ({ openDeleteModal } = initChatMessageActionsRuntime({
@@ -4345,6 +4353,7 @@ export const initChatPage = async () => {
             unbindVisibilityEvents();
             disposeMobileBackSwipe();
             messageTouchContextController.dispose();
+            swipeReplyController.dispose();
         },
         voiceRecorderController,
         disposeChatAnimations: () => chatAnimationsController?.dispose(),

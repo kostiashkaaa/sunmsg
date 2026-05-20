@@ -204,3 +204,119 @@ html[data-motion-level="lite"] .message .bubble {
     .message.other .bubble { max-width: min(60%, 520px); }
     .chat-area { --chat-content-max-width: 860px; }
 }
+
+/* ── 26. Bubble tail (Telegram-style) ────────────────────────────
+   Only on group-end and group-single (last/solo message in a run).
+   Uses ::before on .message-stack so it sits behind the bubble.
+   The tail is a rotated square clipped to a triangle via
+   clip-path — avoids the classic border-trick color mismatch.
+   ────────────────────────────────────────────────────────────── */
+
+/* Common tail base */
+.message.other.group-end   .message-stack,
+.message.other.group-single .message-stack,
+.message.self.group-end    .message-stack,
+.message.self.group-single .message-stack {
+    position: relative;
+    /* Establish stacking context so ::before sits behind bubble */
+    isolation: isolate;
+}
+
+/* Bubble must be above the tail */
+.message.other.group-end   .message-stack > .bubble,
+.message.other.group-single .message-stack > .bubble,
+.message.self.group-end    .message-stack > .bubble,
+.message.self.group-single .message-stack > .bubble {
+    position: relative;
+    z-index: 1;
+}
+
+.message.other.group-end   .message-stack::before,
+.message.other.group-single .message-stack::before,
+.message.self.group-end    .message-stack::before,
+.message.self.group-single .message-stack::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 10px;
+    height: 14px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Incoming (other) — tail on the LEFT, points bottom-left */
+.message.other.group-end   .message-stack::before,
+.message.other.group-single .message-stack::before {
+    left: -7px;
+    /* Match components.css incoming bubble color */
+    background: color-mix(in srgb, var(--bubble-in, var(--chat-bubble-in-bg)) 96%, var(--surface) 4%);
+    clip-path: polygon(100% 0%, 100% 100%, 0% 100%);
+    border-bottom-left-radius: 2px;
+}
+
+/* Outgoing (self) — tail on the RIGHT, points bottom-right */
+.message.self.group-end    .message-stack::before,
+.message.self.group-single .message-stack::before {
+    right: -7px;
+    background: var(--chat-bubble-out-bg, var(--bubble-out));
+    clip-path: polygon(0% 0%, 100% 100%, 0% 100%);
+    border-bottom-right-radius: 2px;
+}
+
+/* Reduced motion: no tail animation needed — it's static */
+
+/* ── 27. Swipe-to-reply — reply hint icon ────────────────────────
+   JS adds .swipe-reply-active and inline --swipe-x during drag.
+   The reply icon slides in from the side and fades.
+   ────────────────────────────────────────────────────────────── */
+
+/* Ensure the row track is the containing block for the swipe icon */
+.message .message-row-track {
+    position: relative;
+}
+
+.message-stack {
+    /* allow swipe transform without affecting flow */
+    will-change: auto;
+}
+
+.message.swipe-reply-active .message-stack {
+    transform: translateX(var(--swipe-x, 0px));
+    transition: none; /* live drag — no transition */
+}
+
+.message:not(.swipe-reply-active) .message-stack {
+    transform: translateX(0);
+    transition: transform var(--dur-quick) var(--ease-spring);
+}
+
+/* Reply icon that appears on the side during swipe */
+.message-swipe-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) scale(0.7);
+    opacity: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition:
+        opacity var(--dur-quick) var(--ease-standard),
+        transform var(--dur-quick) var(--ease-spring);
+}
+
+.message.other .message-swipe-icon {
+    left: -40px;
+}
+.message.self .message-swipe-icon {
+    right: -40px;
+}
+
+.message.swipe-reply-active .message-swipe-icon {
+    opacity: var(--swipe-icon-opacity, 0);
+    transform: translateY(-50%) scale(var(--swipe-icon-scale, 0.7));
+}
