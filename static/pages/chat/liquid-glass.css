@@ -1,7 +1,7 @@
 /* =================================================================
    LIQUID GLASS - surface mode overlays
    Glass rules are scoped to html[data-interface-surface="glass"].
-   Solid rules below only align the desktop bottom profile card.
+   Solid rules below align sidebar card geometry across breakpoints.
    Calls are never touched.
    ================================================================= */
 
@@ -122,14 +122,16 @@ html[data-interface-surface="glass"].is-interface-surface-transitioning #message
     }
 }
 
-@media (min-width: 769px) {
-    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
-        padding: 12px 0 0;
-    }
+html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-top-card {
+    border-radius: 0 0 16px 16px;
+}
 
-    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
-        border-radius: 16px 16px 0 0;
-    }
+html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
+    padding: 12px 0 0;
+}
+
+html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
+    border-radius: 16px 16px 0 0;
 }
 
 /* ================================================================
