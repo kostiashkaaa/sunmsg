@@ -638,9 +638,16 @@ def test_mobile_emoji_picker_uses_css_bottom_sheet_without_js_positioning() -> N
 
     motion = (STATIC / 'motion.css').read_text(encoding='utf-8')
     generic_pop_idx = motion.find('.emoji-picker.active,\n    .message-scale-panel.active')
-    mobile_sheet_override_idx = motion.find('.emoji-picker.active {\n        animation: none;\n    }', generic_pop_idx)
+    generic_close_idx = motion.find('.attach-menu.is-closing,\n    .emoji-picker.is-closing')
+    mobile_sheet_override_idx = motion.find(
+        '.emoji-picker.active,\n    .emoji-picker.is-closing {\n        animation: none;\n    }',
+        generic_close_idx,
+    )
     assert 0 <= generic_pop_idx < mobile_sheet_override_idx, (
         'motion.css: mobile emoji sheet must override generic popup scale animation.'
+    )
+    assert 0 <= generic_close_idx < mobile_sheet_override_idx, (
+        'motion.css: mobile emoji sheet must override generic closing popup scale.'
     )
     assert '.emoji-picker,\n    .emoji-picker.is-closing {\n        transform: translate3d(0, 10px, 0);\n    }' in motion
     assert '.emoji-picker.active {\n        transform: translate3d(0, 0, 0);\n    }' in motion
@@ -651,11 +658,21 @@ def test_mobile_emoji_open_locks_composer_before_blur() -> None:
     emoji = (STATIC / 'modules' / 'emoji.js').read_text(encoding='utf-8')
     open_start = emoji.find('const openPicker = async (options = {}) => {')
     assert open_start >= 0, 'emoji.js: openPicker not found'
+    assert 'const ensureDefaultEmojiListRendered = async ({ forceCategoryScroll = false } = {}) => {' in emoji
+    prepare_idx = emoji.find('await ensureDefaultEmojiListRendered({ forceCategoryScroll: true });', open_start)
+    guard_idx = emoji.find('if (renderSeq !== openRenderSeq) return;', prepare_idx)
     active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
     set_state_idx = emoji.find('setMobileEmojiSheetState(emojiPicker, true);', active_idx)
     blur_idx = emoji.find('messageInput.blur();', set_state_idx)
-    assert open_start < active_idx < set_state_idx < blur_idx, (
-        'emoji.js: keyboard-to-emoji must dock the CSS sheet before blurring the native keyboard.'
+    mobile_return_idx = emoji.find('if (shouldOpenMobile) {\n            return;\n        }', active_idx)
+    raf_idx = emoji.find('window.requestAnimationFrame(() => {', mobile_return_idx)
+    raf_render_idx = emoji.find('ensureDefaultEmojiListRendered({ forceCategoryScroll: true })', raf_idx)
+    assert open_start < prepare_idx < guard_idx < active_idx < set_state_idx < blur_idx, (
+        'emoji.js: mobile keyboard-to-emoji must prepare the emoji DOM before showing the sheet, '
+        'then dock layout before blurring the native keyboard.'
+    )
+    assert active_idx < mobile_return_idx < raf_idx < raf_render_idx, (
+        'emoji.js: requestAnimationFrame emoji rendering should remain desktop-only after mobile open returns.'
     )
 
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
@@ -755,11 +772,12 @@ def test_input_bar_panels_close_each_other() -> None:
     attach_menu = (STATIC / 'modules' / 'chat-attach-menu.js').read_text(encoding='utf-8')
 
     open_start = emoji.find('const openPicker = async (options = {}) => {')
-    active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
-    close_attach_idx = emoji.find("document.dispatchEvent(new Event('sun-close-attach-menu'));", active_idx)
-    mobile_idx = emoji.find('if (shouldOpenMobile)', close_attach_idx)
-    assert open_start < active_idx < close_attach_idx < mobile_idx, (
-        'emoji.js: opening emoji must close the attach menu before mobile layout handoff.'
+    close_attach_idx = emoji.find("document.dispatchEvent(new Event('sun-close-attach-menu'));", open_start)
+    prepare_idx = emoji.find('await ensureDefaultEmojiListRendered({ forceCategoryScroll: true });', close_attach_idx)
+    active_idx = emoji.find("emojiPicker.classList.add('active');", prepare_idx)
+    mobile_idx = emoji.find('if (shouldOpenMobile)', active_idx)
+    assert open_start < close_attach_idx < prepare_idx < active_idx < mobile_idx, (
+        'emoji.js: opening emoji must close the attach menu, prepare mobile DOM, then hand off layout.'
     )
 
     open_attach_idx = attach_menu.find('function openAttachMenu()')
@@ -794,11 +812,12 @@ def test_mobile_emoji_open_preserves_bottom_pinned_chat() -> None:
     )
 
     open_start = emoji.find('const openPicker = async (options = {}) => {')
-    active_idx = emoji.find("emojiPicker.classList.add('active');", open_start)
+    prepare_idx = emoji.find('await ensureDefaultEmojiListRendered({ forceCategoryScroll: true });', open_start)
+    active_idx = emoji.find("emojiPicker.classList.add('active');", prepare_idx)
     set_state_idx = emoji.find('setMobileEmojiSheetState(emojiPicker, true);', active_idx)
     open_blur_idx = emoji.find('messageInput.blur();', set_state_idx)
-    assert open_start < active_idx < set_state_idx < open_blur_idx, (
-        'emoji.js: keyboard-to-emoji handoff must set emoji layout before blurring the native keyboard.'
+    assert open_start < prepare_idx < active_idx < set_state_idx < open_blur_idx, (
+        'emoji.js: keyboard-to-emoji handoff must prepare emoji DOM and set emoji layout before blurring the native keyboard.'
     )
 
     close_start = emoji.find('const closePicker = ({ focusInput = false, keyboardOpening = false } = {}) => {')

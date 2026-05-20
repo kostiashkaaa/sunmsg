@@ -641,6 +641,7 @@ export function initEmojiPicker(messageInput) {
     let lastRenderedMode = '';
     let lastDefaultRenderKey = '';
     let defaultListNeedsRefresh = true;
+    let defaultListRenderPromise = null;
     let openRenderSeq = 0;
 
     const setStoredSelection = (start, end = start) => {
@@ -776,6 +777,43 @@ export function initEmojiPicker(messageInput) {
         }
     };
 
+    const isDefaultEmojiListFresh = (localeCode = getLocaleStrings().localeCode) => {
+        if (normalizeQuery(searchQuery)) return false;
+        return lastRenderedMode === 'default'
+            && !defaultListNeedsRefresh
+            && lastDefaultRenderKey === buildDefaultRenderKey(localeCode)
+            && emojiList.childElementCount > 0;
+    };
+
+    const applyDefaultEmojiListPosition = (forceCategoryScroll = false) => {
+        setActiveCategory(emojiCategories, activeCategory);
+        if (forceCategoryScroll) {
+            scrollToCategory(emojiList, activeCategory, { behavior: 'auto' });
+        }
+    };
+
+    const ensureDefaultEmojiListRendered = async ({ forceCategoryScroll = false } = {}) => {
+        if (isDefaultEmojiListFresh()) {
+            applyDefaultEmojiListPosition(forceCategoryScroll);
+            return;
+        }
+
+        if (!defaultListRenderPromise) {
+            defaultListRenderPromise = renderEmojiList()
+                .finally(() => {
+                    defaultListRenderPromise = null;
+                });
+        }
+
+        await defaultListRenderPromise;
+        if (isDefaultEmojiListFresh()) {
+            applyDefaultEmojiListPosition(forceCategoryScroll);
+            return;
+        }
+
+        await renderEmojiList({ forceCategoryScroll });
+    };
+
     const reposition = () => {
         if (emojiPicker.classList.contains('active')) {
             positionEmojiPicker(emojiPicker, emojiBtn, { preserveSize: true });
@@ -875,10 +913,16 @@ export function initEmojiPicker(messageInput) {
         emojiPicker.classList.remove('is-closing');
         resolveEmojiChatArea(emojiPicker)?.classList.remove('emoji-sheet-keyboard-handoff');
         document.documentElement.classList.remove('mobile-emoji-keyboard-handoff');
-        emojiPicker.classList.add('active');
-        emojiPicker.setAttribute('aria-hidden', 'false');
         document.dispatchEvent(new Event('sun-close-header-dropdown'));
         document.dispatchEvent(new Event('sun-close-attach-menu'));
+
+        if (shouldOpenMobile) {
+            await ensureDefaultEmojiListRendered({ forceCategoryScroll: true });
+            if (renderSeq !== openRenderSeq) return;
+        }
+
+        emojiPicker.classList.add('active');
+        emojiPicker.setAttribute('aria-hidden', 'false');
 
         if (shouldOpenMobile) {
             // Mark the chat-area first so CSS docks the emoji row before the
@@ -892,22 +936,13 @@ export function initEmojiPicker(messageInput) {
         }
         syncEmojiButtonMode(true);
 
-        const { localeCode } = getLocaleStrings();
-        const defaultRenderKey = buildDefaultRenderKey(localeCode);
-        const canReuseRenderedDefaultList = lastRenderedMode === 'default'
-            && !defaultListNeedsRefresh
-            && lastDefaultRenderKey === defaultRenderKey
-            && emojiList.childElementCount > 0;
-
-        if (canReuseRenderedDefaultList) {
-            setActiveCategory(emojiCategories, activeCategory);
-            scrollToCategory(emojiList, activeCategory, { behavior: 'auto' });
+        if (shouldOpenMobile) {
             return;
         }
 
         window.requestAnimationFrame(() => {
             if (renderSeq !== openRenderSeq) return;
-            renderEmojiList({ forceCategoryScroll: true }).then(() => {
+            ensureDefaultEmojiListRendered({ forceCategoryScroll: true }).then(() => {
                 if (renderSeq !== openRenderSeq) return;
                 if (!isMobileEmojiViewport()) {
                     positionEmojiPicker(emojiPicker, emojiBtn, { preserveSize: true });
@@ -1229,13 +1264,8 @@ export function initEmojiPicker(messageInput) {
     syncEmojiButtonMode(false);
 
     const prewarmEmojiData = () => {
-        loadEmojiData()
-            .then((data) => {
-                if (!data) return;
-                if (emojiPicker.classList.contains('active') || emojiPicker.classList.contains('is-closing')) return;
-                if (emojiList.childElementCount > 0 && lastRenderedMode === 'default' && !defaultListNeedsRefresh) return;
-                return renderEmojiList();
-            })
+        if (emojiPicker.classList.contains('active') || emojiPicker.classList.contains('is-closing')) return;
+        ensureDefaultEmojiListRendered()
             .catch(() => {});
     };
     if (typeof window.requestIdleCallback === 'function') {
