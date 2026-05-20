@@ -238,6 +238,20 @@ def test_liquid_glass_does_not_override_sidebar_loading_shell() -> None:
     assert 'html[data-interface-surface="glass"] .sidebar .sidebar-profile-card' not in liquid_glass_css
 
 
+def test_liquid_glass_sidebar_brand_allows_weather_label_intrinsic_width() -> None:
+    liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
+
+    brand_block = re.search(
+        r'html\[data-interface-surface="glass"\]\s+\.sidebar:not\(\.sidebar--loading\)\s+\.sidebar-brand\s*\{([^}]*)\}',
+        liquid_glass_css,
+        re.DOTALL,
+    )
+    assert brand_block, 'liquid-glass.css: glass sidebar brand block not found'
+    brand_body = brand_block.group(1)
+    assert 'flex: 0 0 auto;' in brand_body
+    assert 'width: auto;' in brand_body
+
+
 def test_liquid_glass_does_not_override_call_surfaces() -> None:
     liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
 
