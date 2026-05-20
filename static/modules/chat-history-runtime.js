@@ -26,9 +26,13 @@ export async function mapWithConcurrency(items, limit, mapper) {
     return results;
 }
 
+const DECRYPT_WORKER_MAX_FAILS = 3;
+const DECRYPT_WORKER_RETRY_DELAY_MS = 5000;
+
 export function createChatHistoryRuntime(ctx = {}) {
     let decryptWorker = null;
     let decryptWorkerFailed = false;
+    let decryptWorkerFailCount = 0;
     let decryptWorkerRequestSeq = 0;
     const decryptWorkerPending = new Map();
 
@@ -126,7 +130,17 @@ export function createChatHistoryRuntime(ctx = {}) {
                 decryptWorker?.terminate();
             } catch (_) {}
             decryptWorker = null;
-            decryptWorkerFailed = true;
+            decryptWorkerFailCount += 1;
+            if (decryptWorkerFailCount >= DECRYPT_WORKER_MAX_FAILS) {
+                decryptWorkerFailed = true;
+                console.warn('[decrypt-worker] Permanently disabled after', decryptWorkerFailCount, 'failures.');
+            } else {
+                // Разрешаем повторную инициализацию через задержку
+                decryptWorkerFailed = true;
+                setTimeout(() => {
+                    decryptWorkerFailed = false;
+                }, DECRYPT_WORKER_RETRY_DELAY_MS);
+            }
         });
 
         return decryptWorker;

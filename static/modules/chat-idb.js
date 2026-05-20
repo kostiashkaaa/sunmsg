@@ -5,6 +5,7 @@ const MAX_MESSAGES_PER_CHAT = 500;
 
 let activeDb = null;
 let activeUserId = '';
+let _openingPromise = null;
 
 function warn(message, error) {
     if (error) {
@@ -101,21 +102,29 @@ export async function openChatDb(userId) {
         return activeDb;
     }
 
-    if (activeDb) {
-        await closeChatDb();
-    }
+    // Если уже идёт открытие — ждём его завершения, не запускаем параллельное
+    if (_openingPromise) return _openingPromise;
 
-    try {
-        const db = await openIndexedDb(buildDbName(normalizedUserId));
-        activeDb = db;
-        activeUserId = normalizedUserId;
-        return db;
-    } catch (error) {
-        warn('openChatDb failed.', error);
-        activeDb = null;
-        activeUserId = '';
-        return null;
-    }
+    _openingPromise = (async () => {
+        if (activeDb) {
+            await closeChatDb();
+        }
+        try {
+            const db = await openIndexedDb(buildDbName(normalizedUserId));
+            activeDb = db;
+            activeUserId = normalizedUserId;
+            return db;
+        } catch (error) {
+            warn('openChatDb failed.', error);
+            activeDb = null;
+            activeUserId = '';
+            return null;
+        } finally {
+            _openingPromise = null;
+        }
+    })();
+
+    return _openingPromise;
 }
 
 export async function closeChatDb() {
@@ -210,20 +219,39 @@ export async function writeCachedMessages(chatId, messages, meta = {}) {
     const key = normalizeChatId(chatId);
     if (!activeDb || !key) return;
 
-    try {
-        const normalizedMessages = mergeAndTrimMessages([], messages);
-        const bounds = resolveBounds(normalizedMessages, meta);
-        const payload = {
-            chat_id: key,
-            messages: normalizedMessages,
-            lastId: bounds.lastId,
-            firstId: bounds.firstId,
-            updatedAt: Date.now(),
-        };
+    const replace = Boolean(meta?.replace);
 
+    try {
         await new Promise((resolve, reject) => {
             const tx = activeDb.transaction(STORE_CHATS, 'readwrite');
-            tx.objectStore(STORE_CHATS).put(payload);
+            const store = tx.objectStore(STORE_CHATS);
+
+            function doWrite(existing) {
+                const baseMessages = replace ? [] : (existing?.messages ?? []);
+                const mergedMessages = mergeAndTrimMessages(baseMessages, messages);
+                const bounds = resolveBounds(mergedMessages, { ...existing, ...meta });
+                const putRequest = store.put({
+                    chat_id: key,
+                    messages: mergedMessages,
+                    lastId: bounds.lastId,
+                    firstId: bounds.firstId,
+                    updatedAt: Date.now(),
+                });
+                putRequest.onerror = () => reject(putRequest.error || new Error('Failed to write cache row.'));
+            }
+
+            if (replace) {
+                doWrite(null);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error || new Error('Failed to write cache.'));
+                tx.onabort = () => reject(tx.error || new Error('Cache write transaction aborted.'));
+                return;
+            }
+
+            const getRequest = store.get(key);
+            getRequest.onerror = () => reject(getRequest.error || new Error('Failed to read cache row.'));
+            getRequest.onsuccess = () => doWrite(getRequest.result || null);
+
             tx.oncomplete = () => resolve();
             tx.onerror = () => reject(tx.error || new Error('Failed to write cache.'));
             tx.onabort = () => reject(tx.error || new Error('Cache write transaction aborted.'));
@@ -249,13 +277,14 @@ export async function appendCachedMessages(chatId, newMessages) {
                 const existing = getRequest.result || null;
                 const mergedMessages = mergeAndTrimMessages(existing?.messages, incoming);
                 const bounds = resolveBounds(mergedMessages, existing || {});
-                store.put({
+                const putRequest = store.put({
                     chat_id: key,
                     messages: mergedMessages,
                     lastId: bounds.lastId,
                     firstId: bounds.firstId,
                     updatedAt: Date.now(),
                 });
+                putRequest.onerror = () => reject(putRequest.error || new Error('Failed to append cache row.'));
             };
 
             tx.oncomplete = () => resolve();
@@ -289,17 +318,19 @@ export async function removeCachedMessages(chatId, messageIds) {
                 const nextMessages = (Array.isArray(existing.messages) ? existing.messages : [])
                     .filter((message) => !ids.has(safeMessageId(message?.id)));
                 if (!nextMessages.length) {
-                    store.delete(key);
+                    const deleteRequest = store.delete(key);
+                    deleteRequest.onerror = () => reject(deleteRequest.error || new Error('Failed to delete cache row.'));
                     return;
                 }
                 const bounds = resolveBounds(nextMessages, existing || {});
-                store.put({
+                const putRequest = store.put({
                     chat_id: key,
                     messages: nextMessages,
                     lastId: bounds.lastId,
                     firstId: bounds.firstId,
                     updatedAt: Date.now(),
                 });
+                putRequest.onerror = () => reject(putRequest.error || new Error('Failed to update cache row.'));
             };
 
             tx.oncomplete = () => resolve();

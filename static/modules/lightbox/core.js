@@ -691,6 +691,14 @@ export function initLightbox() {
         applyTransform: _applyLightboxTransform,
     });
 
+    // Экспортируем через window для доступа из chat-runtime при смене чата
+    window._resetLightboxGallery = function () {
+        if (_isLightboxOpen()) _closeLightbox();
+        lightboxImages = [];
+        lightboxIndex = 0;
+        lightboxTransitionSeq += 1;
+    };
+
     window._openLightbox = function (target) {
         if (!els.root) return;
         const openSeq = ++lightboxTransitionSeq;

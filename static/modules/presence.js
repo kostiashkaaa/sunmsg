@@ -266,6 +266,20 @@ function removeTypingSignal(data, getChatId) {
     applyTypingUiForChat(chatId, getChatId);
 }
 
+function clearAllTypingState(getChatId) {
+    for (const [chatId, map] of typingEntriesByChat) {
+        map.clear();
+        hideSidebarTyping(chatId);
+    }
+    typingEntriesByChat.clear();
+    for (const timerId of typingTimersByKey.values()) {
+        clearTimeout(timerId);
+    }
+    typingTimersByKey.clear();
+    const currentChatId = String(typeof getChatId === 'function' ? getChatId() || '' : '').trim();
+    if (currentChatId) hideTyping();
+}
+
 export function initPresence({ socket, getChatId, isChatBlocked }) {
     socket.on('partner_typing', (data) => {
         if (isChatBlocked(data.chat_id)) return;
@@ -275,6 +289,10 @@ export function initPresence({ socket, getChatId, isChatBlocked }) {
     socket.on('partner_stop_typing', (data) => {
         if (isChatBlocked(data.chat_id)) return;
         removeTypingSignal(data, getChatId);
+    });
+
+    socket.on('disconnect', () => {
+        clearAllTypingState(getChatId);
     });
 
     if (!lastSeenIntervalId) {

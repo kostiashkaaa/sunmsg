@@ -1,6 +1,6 @@
-// focus-trap.js — keyboard focus trap for modals/drawers
+// focus-trap.js — keyboard focus trap for modals/drawers (stack-based)
 
-let activeFocusTrap = null;
+const _trapStack = [];
 
 function _focusableInside(container) {
     if (!container) return [];
@@ -28,8 +28,17 @@ function _isContainerHidden(container) {
 
 export function activateFocusTrap(container) {
     if (!container) return;
-    if (activeFocusTrap) deactivateFocusTrap();
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    // Приостанавливаем текущий верхний трап (не удаляем — восстановим при deactivate)
+    const top = _trapStack[_trapStack.length - 1];
+    if (top) {
+        document.removeEventListener('keydown', top.keyHandler, true);
+    }
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
     const keyHandler = (e) => {
         if (e.key !== 'Tab') return;
         if (_isContainerHidden(container)) return;
@@ -52,15 +61,42 @@ export function activateFocusTrap(container) {
             first.focus({ preventScroll: true });
         }
     };
+
     document.addEventListener('keydown', keyHandler, true);
-    activeFocusTrap = { container, keyHandler, previouslyFocused };
+    _trapStack.push({ container, keyHandler, previouslyFocused });
 }
 
 export function deactivateFocusTrap(container = null) {
-    if (!activeFocusTrap) return;
-    if (container && activeFocusTrap.container !== container) return;
-    document.removeEventListener('keydown', activeFocusTrap.keyHandler, true);
-    const prev = activeFocusTrap.previouslyFocused;
-    activeFocusTrap = null;
-    if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
+    if (!_trapStack.length) return;
+
+    let idx;
+    if (container) {
+        idx = _findLastIndex(_trapStack, (t) => t.container === container);
+        if (idx < 0) return;
+    } else {
+        idx = _trapStack.length - 1;
+    }
+
+    const removed = _trapStack.splice(idx, 1)[0];
+    document.removeEventListener('keydown', removed.keyHandler, true);
+
+    // Восстанавливаем предыдущий трап, если он есть
+    const next = _trapStack[_trapStack.length - 1];
+    if (next) {
+        document.addEventListener('keydown', next.keyHandler, true);
+        return;
+    }
+
+    // Возвращаем фокус туда, где он был до открытия первого трапа
+    const prev = removed.previouslyFocused;
+    if (prev && document.contains(prev)) {
+        prev.focus({ preventScroll: true });
+    }
+}
+
+function _findLastIndex(arr, predicate) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+        if (predicate(arr[i])) return i;
+    }
+    return -1;
 }

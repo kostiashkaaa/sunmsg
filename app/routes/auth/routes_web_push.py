@@ -25,7 +25,10 @@ def service_worker_script():
 @limiter.limit("120 per minute")
 def web_push_public_key():
     payload = web_push_bootstrap_payload(current_app.config)
-    return jsonify({'success': True, **payload})
+    response = jsonify({'success': True, **payload})
+    # VAPID public key is static per deployment; safe to cache for 24 hours.
+    response.headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=3600'
+    return response
 
 
 @auth_bp.route('/api/web_push/subscribe', methods=['POST'])

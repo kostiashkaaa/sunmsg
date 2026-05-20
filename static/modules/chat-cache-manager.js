@@ -333,7 +333,7 @@ export async function clearCachedCategory({ userId, category } = {}) {
         await ChatIdb.writeCachedMessages(
             entry.chat_id,
             entry.nextMessages,
-            { firstId, lastId },
+            { firstId, lastId, replace: true },
         ).catch(() => {});
     }
 

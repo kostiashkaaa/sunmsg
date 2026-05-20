@@ -48,6 +48,14 @@ def _build_content_security_policy(
     frame_ancestors = "'self'" if is_settings_embed else "'none'"
     script_nonce = f"'nonce-{csp_nonce}'" if csp_nonce else ""
     style_allow_inline = bool(app.config.get("CSP_STYLE_UNSAFE_INLINE", True))
+    if style_allow_inline and is_production:
+        # В production CSP_STYLE_UNSAFE_INLINE должен быть False (ProductionConfig уже выставляет это).
+        # Если сюда попали — значит конфиг переопределён через env, логируем предупреждение.
+        import logging
+        logging.getLogger(__name__).warning(
+            "CSP: style-src 'unsafe-inline' is active in production. "
+            "Set CSP_STYLE_UNSAFE_INLINE=false to enforce stricter CSP."
+        )
     style_nonce = f"'nonce-{csp_nonce}'" if (csp_nonce and not style_allow_inline) else ""
     script_src = _csp_sources("'self'", script_nonce, app.config.get("SCRIPT_SRC_HOSTS"))
     style_inline = "'unsafe-inline'" if style_allow_inline else ""

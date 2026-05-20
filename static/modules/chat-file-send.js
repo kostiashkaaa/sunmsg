@@ -63,6 +63,7 @@ export async function sendFileMessageFlow({
     showToast,
     maxChatMediaSize,
     currentChatId,
+    getCurrentChatId,
     getCsrfToken,
     setSendingState,
     getReplyState,
@@ -118,9 +119,22 @@ export async function sendFileMessageFlow({
         ? buildAudioWaveformPeaks(uploadFile, 48).catch(() => null)
         : Promise.resolve(null);
     const previewUrl = URL.createObjectURL(uploadFile);
-    const visualMeta = (sourceCategory === 'image' || sourceCategory === 'video')
-        ? await probeVisualMediaMetadata(uploadFile, { category: sourceCategory, objectUrl: previewUrl })
-        : null;
+    let previewUrlRevoked = false;
+    function _safeRevokePreviewUrl() {
+        if (previewUrlRevoked) return;
+        previewUrlRevoked = true;
+        try { URL.revokeObjectURL(previewUrl); } catch (_) {}
+    }
+
+    let visualMeta = null;
+    try {
+        visualMeta = (sourceCategory === 'image' || sourceCategory === 'video')
+            ? await probeVisualMediaMetadata(uploadFile, { category: sourceCategory, objectUrl: previewUrl })
+            : null;
+    } catch (_) {
+        _safeRevokePreviewUrl();
+        throw _;
+    }
     const clientId = generateRequestId();
     const pendingTimestamp = new Date().toISOString();
     const {
@@ -237,6 +251,13 @@ export async function sendFileMessageFlow({
         transferPresenceSignal.start(transferPresenceKinds.send);
 
         const encrypted = await encryptForCurrentChat(payload);
+
+        // Guard: пользователь переключил чат пока шло шифрование
+        if (typeof getCurrentChatId === 'function' && getCurrentChatId() !== currentChatId) {
+            failPendingMessage?.(clientId);
+            return;
+        }
+
         const albumId = typeof options?.albumId === 'string' ? options.albumId : null;
         const sendPayload = {
             message: encrypted,
@@ -281,11 +302,10 @@ export async function sendFileMessageFlow({
         if (!isQueuedOffline) {
             schedulePendingTimeout(clientId);
         }
-        window.setTimeout(() => {
-            try { URL.revokeObjectURL(previewUrl); } catch (_) {}
-        }, 30000);
+        window.setTimeout(_safeRevokePreviewUrl, 30000);
     } catch (error) {
         failPendingMessage?.(clientId);
+        _safeRevokePreviewUrl();
         if (isUploadAbortedError(error)) return;
         throw error;
     } finally {

@@ -45,6 +45,7 @@ export async function sendTextMessageFlow({
     cancelReply,
     emitSocket,
     currentChatId,
+    getCurrentChatId,
     appendMessage,
     setKeepChatPinnedToBottom,
     updateActiveContactLastMessage,
@@ -112,6 +113,12 @@ export async function sendTextMessageFlow({
         }
 
         const encryptedPayloadStr = await encryptForCurrentChat(message);
+
+        // Guard: пользователь переключил чат пока шло шифрование
+        if (typeof getCurrentChatId === 'function' && getCurrentChatId() !== currentChatId) {
+            failPendingMessage?.(clientId);
+            return;
+        }
 
         const sendPayload = {
             message: encryptedPayloadStr,

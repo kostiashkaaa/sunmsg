@@ -2651,6 +2651,7 @@ export const initChatPage = async () => {
         disconnectLazyMediaHydrationObserver();
         resetMessageRenderScrollState();
         currentChatId = null; currentContactId = null;
+        window._resetLightboxGallery?.();
         disappearingMessagesController?.syncCurrentChatTimerUi?.();
         syncForwardDraftBarForCurrentChat();
         onlineStatusController.reset();

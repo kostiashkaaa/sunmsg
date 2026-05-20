@@ -105,6 +105,7 @@ export function createChatComposerSendRuntime({
             emitSocket,
             enqueueOutbox: enqueueOutboxMessage,
             currentChatId: sourceChatId,
+            getCurrentChatId,
             appendMessage,
             setKeepChatPinnedToBottom,
             updateActiveContactLastMessage: (text, isSelf, status, timestamp) => {
@@ -135,6 +136,7 @@ export function createChatComposerSendRuntime({
             showToast,
             maxChatMediaSize,
             currentChatId: sourceChatId,
+            getCurrentChatId,
             getCsrfToken,
             setSendingState,
             getReplyState,

@@ -10,6 +10,7 @@ const ENTRY_TTL_MS = 24 * 60 * 60 * 1000;
 
 let activeDb = null;
 let activeUserId = '';
+let _openingPromise = null;
 
 function warn(message, error) {
     if (error) {
@@ -56,18 +57,25 @@ export async function openOutbox(userId) {
     const normalized = normalizeUserId(userId);
     if (!normalized || !canUseIndexedDb()) return null;
     if (activeDb && activeUserId === normalized) return activeDb;
-    if (activeDb) await closeOutbox();
-    try {
-        const db = await openDb(buildDbName(normalized));
-        activeDb = db;
-        activeUserId = normalized;
-        return db;
-    } catch (error) {
-        warn('openOutbox failed.', error);
-        activeDb = null;
-        activeUserId = '';
-        return null;
-    }
+    // Если уже идёт открытие — ждём его завершения, не запускаем параллельное
+    if (_openingPromise) return _openingPromise;
+    _openingPromise = (async () => {
+        if (activeDb) await closeOutbox();
+        try {
+            const db = await openDb(buildDbName(normalized));
+            activeDb = db;
+            activeUserId = normalized;
+            return db;
+        } catch (error) {
+            warn('openOutbox failed.', error);
+            activeDb = null;
+            activeUserId = '';
+            return null;
+        } finally {
+            _openingPromise = null;
+        }
+    })();
+    return _openingPromise;
 }
 
 export async function closeOutbox() {
