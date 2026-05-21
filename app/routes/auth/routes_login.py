@@ -1,7 +1,6 @@
 import base64
 import json
 import logging
-import re
 import secrets
 import time
 
@@ -29,22 +28,10 @@ from app.extensions import limiter
 from app.forms import LoginForm, RegistrationForm
 from app.services.crypto import add_pem_headers
 from app.services.locale import detect_auth_language, language_from_user_row, normalize_language
-from app.services.session_state import (
-    clear_invalid_session_user,
-    resolve_guest_ui_language,
-    session_user_exists,
-)
-from app.routes.auth_utils import (
-    build_decoy_login_vault,
-    is_valid_b64_blob,
-    normalize_login_vault,
-)
 from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
     clear_refresh_cookie,
-    issue_refresh_token,
     refresh_cookie_max_age_from_expiry,
-    revoke_refresh_token,
     rotate_refresh_token,
     set_refresh_cookie,
 )
@@ -55,6 +42,18 @@ from app.services.session_policy import (
 )
 from .context import (
     auth_bp,
+    _build_decoy_login_vault,
+    _clear_invalid_session_user,
+    _clear_pending_passkey_login,
+    _clear_pending_totp,
+    _login_success_response,
+    _normalize_login_vault,
+    _pending_totp_context,
+    _resolve_guest_ui_language,
+    _revoke_request_refresh_cookie,
+    _session_user_exists,
+    _stage_pending_totp,
+    _totp_rate_limit_key,
 )
 from app.services.web_push import deactivate_user_push_subscriptions
 from app.services.totp_backup_codes import verify_and_consume_backup_code
@@ -66,145 +65,7 @@ from app.services.totp_secret_store import (
 
 logger = logging.getLogger(__name__)
 
-_LOGIN_VAULT_MAX_BYTES = 24 * 1024
-_B64_PATTERN = re.compile(r'^[A-Za-z0-9+/]+={0,2}$')
-_PENDING_TOTP_TTL_SECONDS = 5 * 60
 _LOGIN_CHALLENGE_TTL_SECONDS = 5 * 60
-
-
-def _resolve_guest_ui_language() -> str:
-    return resolve_guest_ui_language(
-        req=request,
-        session_state=session,
-        detect_auth_language=detect_auth_language,
-        normalize_language=normalize_language,
-    )
-
-
-def _clear_invalid_session_user() -> None:
-    clear_invalid_session_user(session)
-
-
-def _session_user_exists() -> bool:
-    return session_user_exists(
-        user_id=session.get('user_id'),
-        public_key=session.get('public_key_pem'),
-        get_db_connection=get_db_connection,
-        logger=logger,
-    )
-
-
-def _is_valid_b64_blob(value: str, *, min_bytes: int = 1, max_bytes: int = 16 * 1024) -> bool:
-    return is_valid_b64_blob(
-        value,
-        pattern=_B64_PATTERN,
-        min_bytes=min_bytes,
-        max_bytes=max_bytes,
-    )
-
-
-def _normalize_login_vault(raw_value):
-    return normalize_login_vault(
-        raw_value,
-        login_vault_max_bytes=_LOGIN_VAULT_MAX_BYTES,
-        is_valid_b64_blob_func=_is_valid_b64_blob,
-    )
-
-
-def _build_decoy_login_vault():
-    return build_decoy_login_vault()
-
-
-def _totp_rate_limit_key():
-    data = request.get_json(silent=True) or {}
-    pending_user_id = session.get('pending_totp_user_id')
-    if pending_user_id:
-        return f'totp-pending:{pending_user_id}'
-    username = str(data.get('username') or '').strip().lower()
-    if username:
-        return f'totp:{username}'
-    return f"totp-ip:{request.remote_addr or '-'}"
-
-
-def _clear_pending_totp() -> None:
-    for key in (
-        'pending_totp_user_id',
-        'pending_totp_public_key',
-        'pending_totp_remember',
-        'pending_totp_issued_at',
-    ):
-        session.pop(key, None)
-
-
-def _clear_pending_passkey_login() -> None:
-    for key in (
-        'pending_passkey_login_user_id',
-        'pending_passkey_login_challenge_b64',
-        'pending_passkey_login_remember',
-        'pending_passkey_login_issued_at',
-    ):
-        session.pop(key, None)
-
-
-def _stage_pending_totp(user, *, remember: bool) -> None:
-    _clear_pending_totp()
-    session.pop('user_id', None)
-    session.pop('public_key_pem', None)
-    session['pending_totp_user_id'] = int(user['id'])
-    session['pending_totp_public_key'] = user['public_key']
-    session['pending_totp_remember'] = bool(remember)
-    session['pending_totp_issued_at'] = int(time.time())
-
-
-def _pending_totp_context():
-    user_id = session.get('pending_totp_user_id')
-    public_key = str(session.get('pending_totp_public_key') or '').strip()
-    issued_at_raw = session.get('pending_totp_issued_at')
-    if not user_id or not public_key or not issued_at_raw:
-        return None
-    try:
-        issued_at = int(issued_at_raw)
-    except (TypeError, ValueError):
-        _clear_pending_totp()
-        return None
-    if int(time.time()) - issued_at > _PENDING_TOTP_TTL_SECONDS:
-        _clear_pending_totp()
-        return None
-    return {
-        'user_id': int(user_id),
-        'public_key': public_key,
-        'remember': bool(session.get('pending_totp_remember')),
-    }
-
-
-def _session_auto_logout_seconds_for_user(user_id: int) -> int:
-    conn = get_db_connection()
-    try:
-        row = conn.execute(
-            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
-            (int(user_id),),
-        ).fetchone()
-    finally:
-        conn.close()
-    return session_auto_logout_seconds_from_row(row)
-
-
-def _login_success_response(user_id: int):
-    ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
-    apply_session_auto_logout(session, ttl_seconds)
-    payload = {'success': True, **session_auto_logout_payload(session)}
-    response = make_response(jsonify(payload))
-    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
-    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
-    return response
-
-
-def _revoke_request_refresh_cookie() -> bool:
-    raw = request.cookies.get(REFRESH_COOKIE_NAME)
-    if not raw:
-        return False
-    return revoke_refresh_token(raw)
 
 
 @auth_bp.route('/', methods=['GET'])

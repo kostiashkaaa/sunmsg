@@ -1,4 +1,5 @@
 import { applyFallbackAvatarTint, buildAvatarInitials, tr, activeLocale } from './utils.js';
+import { getMotionDurationMs, prefersReducedMotion, waitForMotionEnd } from './motion.js';
 
 const TIME_FORMAT_STORAGE_KEY = 'sun_time_format_v1';
 
@@ -314,73 +315,12 @@ export function initProfileDrawer({
         chatArea.classList.toggle('is-profile-drawer-closing', state === 'closing');
     }
 
-    function prefersReducedMotion() {
-        if (document.documentElement.classList.contains('perf-lite')) {
-            return true;
-        }
-        const motionLevel = String(document.documentElement.getAttribute('data-motion-level') || 'full').toLowerCase();
-        if (motionLevel !== 'lite') {
-            return false;
-        }
-        try {
-            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function parseDurationMs(raw, fallbackMs = 0) {
-        const value = String(raw || '').trim().toLowerCase();
-        if (!value) return fallbackMs;
-        if (value.endsWith('ms')) {
-            const ms = Number.parseFloat(value.slice(0, -2));
-            return Number.isFinite(ms) ? Math.max(0, ms) : fallbackMs;
-        }
-        if (value.endsWith('s')) {
-            const seconds = Number.parseFloat(value.slice(0, -1));
-            return Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : fallbackMs;
-        }
-        const parsed = Number.parseFloat(value);
-        return Number.isFinite(parsed) ? Math.max(0, parsed) : fallbackMs;
-    }
-
     function getTransitionMs(element, fallbackMs = 280) {
-        if (!element || prefersReducedMotion()) return 0;
-        const style = getComputedStyle(element);
-        const durations = String(style.transitionDuration || '')
-            .split(',')
-            .map((item) => parseDurationMs(item, 0));
-        const delays = String(style.transitionDelay || '')
-            .split(',')
-            .map((item) => parseDurationMs(item, 0));
-        const durationMax = durations.reduce((maxMs, currentMs) => Math.max(maxMs, currentMs), 0);
-        const delayMax = delays.reduce((maxMs, currentMs) => Math.max(maxMs, currentMs), 0);
-        const computedMs = durationMax + delayMax;
-        return computedMs > 0 ? computedMs : fallbackMs;
+        return getMotionDurationMs(element, fallbackMs);
     }
 
     function waitForAnimationEnd(element, fallbackMs) {
-        if (!element || fallbackMs <= 0) return Promise.resolve();
-
-        return new Promise((resolve) => {
-            let settled = false;
-            let timeoutId = 0;
-            const onEnd = (event) => {
-                if (event?.target !== element) return;
-                finish();
-            };
-            const finish = () => {
-                if (settled) return;
-                settled = true;
-                if (timeoutId) window.clearTimeout(timeoutId);
-                element.removeEventListener('transitionend', onEnd);
-                element.removeEventListener('animationend', onEnd);
-                resolve();
-            };
-            element.addEventListener('transitionend', onEnd);
-            element.addEventListener('animationend', onEnd);
-            timeoutId = window.setTimeout(finish, fallbackMs + 50);
-        });
+        return waitForMotionEnd(element, fallbackMs);
     }
 
     function isOpen() {

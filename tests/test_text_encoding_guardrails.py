@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -38,7 +39,9 @@ EXCLUDED_DIR_NAMES = {
     '.venv',
     '.manual_artifacts',
     '.visual_artifacts',
+    '.runtime',
     '__pycache__',
+    'output',
     'storage',
 }
 
@@ -71,21 +74,24 @@ def _non_russian_cyrillic_chars(text: str) -> list[str]:
 
 def _iter_text_sources() -> list[Path]:
     files: list[Path] = []
-    for path in ROOT.rglob('*'):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(ROOT)
-        if rel.parts and rel.parts[0].startswith('.tmp_'):
-            continue
-        if path.name.startswith('.tmp_'):
-            continue
-        if any(part in EXCLUDED_DIR_NAMES for part in rel.parts):
-            continue
-        rel_posix = rel.as_posix()
-        if any(rel_posix.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
-            continue
-        if path.suffix.lower() in TEXT_SUFFIXES or path.name in TEXT_FILENAMES:
-            files.append(path)
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [
+            dirname
+            for dirname in dirnames
+            if dirname not in EXCLUDED_DIR_NAMES and not dirname.startswith('.tmp_')
+        ]
+        for filename in filenames:
+            path = Path(dirpath) / filename
+            rel = path.relative_to(ROOT)
+            if rel.parts and rel.parts[0].startswith('.tmp_'):
+                continue
+            if path.name.startswith('.tmp_'):
+                continue
+            rel_posix = rel.as_posix()
+            if any(rel_posix.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
+                continue
+            if path.suffix.lower() in TEXT_SUFFIXES or path.name in TEXT_FILENAMES:
+                files.append(path)
     return sorted(files, key=lambda p: p.relative_to(ROOT).as_posix())
 
 

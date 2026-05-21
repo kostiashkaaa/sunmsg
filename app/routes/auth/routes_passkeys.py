@@ -1,282 +1,44 @@
-import ipaddress
 import logging
 import json
 import secrets
-import time
-from urllib.parse import urlparse
 
-from flask import current_app, jsonify, make_response, request, session
+from flask import current_app, jsonify, request, session
 from flask_wtf.csrf import generate_csrf
 
 from app.database import get_db_connection
 from app.db_backend import IntegrityError
 from app.extensions import limiter
-from app.services.locale import (
-    detect_auth_language,
-    language_from_user_row,
-    normalize_language,
-)
-from app.services.refresh_tokens import issue_refresh_token, set_refresh_cookie
-from app.services.session_policy import (
-    apply_session_auto_logout,
-    session_auto_logout_payload,
-    session_auto_logout_seconds_from_row,
-)
-from app.services.session_state import resolve_guest_ui_language
+from app.services.locale import language_from_user_row
 from .context import (
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
     auth_bp,
+    base64url_to_bytes,
+    bytes_to_base64url,
+    generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
+    _clear_pending_passkey_login,
+    _clear_pending_passkey_register,
+    _login_success_response,
+    _passkey_configuration_error,
+    _passkey_expected_origin,
+    _passkey_rp_id,
+    _pending_passkey_login_context,
+    _pending_passkey_register_context,
+    _resolve_guest_ui_language,
+    _stage_pending_passkey_login,
+    _stage_pending_passkey_register,
+    _stage_pending_totp,
+    _extract_passkey_credential_id,
+    _webauthn_unavailable_response,
 )
 
 logger = logging.getLogger(__name__)
-_PENDING_TOTP_TTL_SECONDS = 5 * 60
-_PENDING_PASSKEY_REGISTER_TTL_SECONDS = 5 * 60
-_PENDING_PASSKEY_LOGIN_TTL_SECONDS = 5 * 60
-
-try:
-    from webauthn import (
-        generate_registration_options,
-        verify_registration_response,
-        generate_authentication_options,
-        verify_authentication_response,
-        options_to_json,
-    )
-    from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
-    from webauthn.helpers.structs import (
-        AuthenticatorSelectionCriteria,
-        PublicKeyCredentialDescriptor,
-        ResidentKeyRequirement,
-        UserVerificationRequirement,
-    )
-    _WEBAUTHN_IMPORT_ERROR = ''
-except Exception as webauthn_import_error:  # pragma: no cover - dependency guard
-    generate_registration_options = None
-    verify_registration_response = None
-    generate_authentication_options = None
-    verify_authentication_response = None
-    options_to_json = None
-    base64url_to_bytes = None
-    bytes_to_base64url = None
-    AuthenticatorSelectionCriteria = None
-    PublicKeyCredentialDescriptor = None
-    ResidentKeyRequirement = None
-    UserVerificationRequirement = None
-    _WEBAUTHN_IMPORT_ERROR = str(webauthn_import_error)
-
-
-def _webauthn_unavailable_response():
-    message = 'Passkey вход временно недоступен на сервере.'
-    if _WEBAUTHN_IMPORT_ERROR:
-        logger.warning('WebAuthn unavailable: %s', _WEBAUTHN_IMPORT_ERROR)
-    return jsonify({'success': False, 'error': message}), 503
-
-
-def _resolve_guest_ui_language() -> str:
-    return resolve_guest_ui_language(
-        req=request,
-        session_state=session,
-        detect_auth_language=detect_auth_language,
-        normalize_language=normalize_language,
-    )
-
-
-def _clear_pending_totp() -> None:
-    for key in (
-        'pending_totp_user_id',
-        'pending_totp_public_key',
-        'pending_totp_remember',
-        'pending_totp_issued_at',
-    ):
-        session.pop(key, None)
-
-
-def _stage_pending_totp(user, *, remember: bool) -> None:
-    _clear_pending_totp()
-    session.pop('user_id', None)
-    session.pop('public_key_pem', None)
-    session['pending_totp_user_id'] = int(user['id'])
-    session['pending_totp_public_key'] = user['public_key']
-    session['pending_totp_remember'] = bool(remember)
-    session['pending_totp_issued_at'] = int(time.time())
-
-
-def _session_auto_logout_seconds_for_user(user_id: int) -> int:
-    conn = get_db_connection()
-    try:
-        row = conn.execute(
-            'SELECT session_auto_logout_seconds FROM users WHERE id = ?',
-            (int(user_id),),
-        ).fetchone()
-    finally:
-        conn.close()
-    return session_auto_logout_seconds_from_row(row)
-
-
-def _login_success_response(user_id: int):
-    ttl_seconds = _session_auto_logout_seconds_for_user(user_id)
-    apply_session_auto_logout(session, ttl_seconds)
-    payload = {'success': True, **session_auto_logout_payload(session)}
-    response = make_response(jsonify(payload))
-    raw, _exp = issue_refresh_token(user_id, ttl_seconds=ttl_seconds)
-    secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    set_refresh_cookie(response, raw, secure=secure, max_age_seconds=ttl_seconds)
-    return response
-
-
-def _passkey_rp_id() -> str:
-    configured_raw = str(current_app.config.get('WEBAUTHN_RP_ID') or '').strip()
-    configured = configured_raw
-    if configured_raw and '://' in configured_raw:
-        try:
-            configured = str((urlparse(configured_raw).hostname) or '').strip()
-        except Exception:
-            configured = configured_raw
-    configured = str(configured).strip().lower().split(':', 1)[0]
-    if configured:
-        return configured
-    return str(request.host.split(':', 1)[0] or '').strip().lower()
-
-
-def _passkey_expected_origin():
-    current_origin = f'{request.scheme}://{request.host}'
-    configured_raw = str(current_app.config.get('WEBAUTHN_ORIGIN') or '').strip()
-    if not configured_raw:
-        return current_origin
-
-    configured_origins = [
-        part.strip()
-        for part in configured_raw.split(',')
-        if str(part or '').strip()
-    ]
-    if not configured_origins:
-        return current_origin
-
-    current_host = str(request.host.split(':', 1)[0] or '').strip().lower()
-    is_localhost_family = current_host == 'localhost' or current_host.endswith('.localhost')
-    if is_localhost_family and current_origin not in configured_origins:
-        configured_origins.append(current_origin)
-
-    return configured_origins[0] if len(configured_origins) == 1 else configured_origins
-
-
-def _is_ip_literal(host: str) -> bool:
-    try:
-        ipaddress.ip_address(str(host or '').strip())
-        return True
-    except ValueError:
-        return False
-
-
-def _passkey_configuration_error() -> str:
-    rp_id = _passkey_rp_id()
-    current_host = str(request.host.split(':', 1)[0] or '').strip().lower()
-    is_localhost_family = current_host == 'localhost' or current_host.endswith('.localhost')
-
-    if not rp_id:
-        return 'Passkey не настроен: пустой RP ID.'
-    if _is_ip_literal(rp_id):
-        return (
-            'Passkey не работает с IP-адресом. Откройте приложение через домен '
-            '(например https://sunmessenger.ru) или localhost.'
-        )
-    if _is_ip_literal(current_host):
-        return (
-            'Текущий адрес открыт как IP, а WebAuthn требует домен/localhost. '
-            'Откройте сайт через доменное имя.'
-        )
-    if current_host != rp_id and not current_host.endswith(f'.{rp_id}'):
-        return (
-            f'RP ID "{rp_id}" не совпадает с текущим хостом "{current_host}". '
-            'Проверьте WEBAUTHN_RP_ID и адрес входа.'
-        )
-    if request.scheme != 'https' and not is_localhost_family:
-        return 'Passkey требует HTTPS (исключение только localhost / *.localhost).'
-    return ''
-
-
-def _clear_pending_passkey_register() -> None:
-    for key in (
-        'pending_passkey_register_user_id',
-        'pending_passkey_register_challenge_b64',
-        'pending_passkey_register_issued_at',
-    ):
-        session.pop(key, None)
-
-
-def _stage_pending_passkey_register(user_id: int, challenge_b64: str) -> None:
-    _clear_pending_passkey_register()
-    session['pending_passkey_register_user_id'] = int(user_id)
-    session['pending_passkey_register_challenge_b64'] = str(challenge_b64)
-    session['pending_passkey_register_issued_at'] = int(time.time())
-
-
-def _pending_passkey_register_context():
-    user_id_raw = session.get('pending_passkey_register_user_id')
-    challenge_b64 = str(session.get('pending_passkey_register_challenge_b64') or '').strip()
-    issued_at_raw = session.get('pending_passkey_register_issued_at')
-    if not user_id_raw or not challenge_b64 or not issued_at_raw:
-        return None
-    try:
-        issued_at = int(issued_at_raw)
-    except (TypeError, ValueError):
-        _clear_pending_passkey_register()
-        return None
-    if int(time.time()) - issued_at > _PENDING_PASSKEY_REGISTER_TTL_SECONDS:
-        _clear_pending_passkey_register()
-        return None
-    return {
-        'user_id': int(user_id_raw),
-        'challenge_b64': challenge_b64,
-    }
-
-
-def _clear_pending_passkey_login() -> None:
-    for key in (
-        'pending_passkey_login_user_id',
-        'pending_passkey_login_challenge_b64',
-        'pending_passkey_login_remember',
-        'pending_passkey_login_issued_at',
-    ):
-        session.pop(key, None)
-
-
-def _stage_pending_passkey_login(user_id: int | None, challenge_b64: str, *, remember: bool) -> None:
-    _clear_pending_passkey_login()
-    _clear_pending_totp()
-    session.pop('user_id', None)
-    session.pop('public_key_pem', None)
-    session['pending_passkey_login_user_id'] = int(user_id) if user_id is not None else 0
-    session['pending_passkey_login_challenge_b64'] = str(challenge_b64)
-    session['pending_passkey_login_remember'] = bool(remember)
-    session['pending_passkey_login_issued_at'] = int(time.time())
-
-
-def _pending_passkey_login_context():
-    user_id_raw = session.get('pending_passkey_login_user_id')
-    challenge_b64 = str(session.get('pending_passkey_login_challenge_b64') or '').strip()
-    issued_at_raw = session.get('pending_passkey_login_issued_at')
-    if user_id_raw is None or not challenge_b64 or not issued_at_raw:
-        return None
-    try:
-        issued_at = int(issued_at_raw)
-        user_id = int(user_id_raw)
-    except (TypeError, ValueError):
-        _clear_pending_passkey_login()
-        return None
-    if int(time.time()) - issued_at > _PENDING_PASSKEY_LOGIN_TTL_SECONDS:
-        _clear_pending_passkey_login()
-        return None
-    return {
-        'user_id': user_id if user_id > 0 else None,
-        'challenge_b64': challenge_b64,
-        'remember': bool(session.get('pending_passkey_login_remember')),
-    }
-
-
-def _extract_passkey_credential_id(credential):
-    if not isinstance(credential, dict):
-        return ''
-    raw_id = credential.get('id') or credential.get('rawId')
-    return str(raw_id or '').strip()
 
 
 @auth_bp.route('/api/passkeys', methods=['GET'])
