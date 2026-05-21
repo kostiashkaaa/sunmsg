@@ -60,9 +60,8 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         const initials = (person.displayName || person.username || '?')
             .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
         const displayName = person.displayName || person.username || '\u0417\u0430\u043f\u0440\u043e\u0441';
-        const username = person.username ? `@${escapeHtml(person.username)}` : '';
         const subtitle = person.outgoing
-            ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
+            ? ''
             : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
@@ -71,7 +70,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                     <span class="req-kind-badge">\u0417\u0430\u043f\u0440\u043e\u0441</span>
                     <span class="req-name">${escapeHtml(displayName)}</span>
                 </div>
-                <div class="req-username">${subtitle}${username ? ` · ${username}` : ''}</div>
+                ${subtitle ? `<div class="req-username">${subtitle}</div>` : ''}
             </div>
             ${buildDialogRequestActions(person)}`;
     }
@@ -81,9 +80,8 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         const initials = (person.displayName || person.username || '?')
             .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
         const displayName = person.displayName || person.username || '\u0417\u0430\u043f\u0440\u043e\u0441';
-        const username = person.username ? `@${escapeHtml(person.username)}` : '';
         const subtitle = person.outgoing
-            ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
+            ? ''
             : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
@@ -94,9 +92,9 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                         <span class="contact-name">${escapeHtml(displayName)}</span>
                     </div>
                 </div>
-                <div class="contact-last-msg-row">
-                    <span class="contact-last-msg">${subtitle}${username ? ` &middot; ${username}` : ''}</span>
-                </div>
+                ${subtitle ? `<div class="contact-last-msg-row">
+                    <span class="contact-last-msg">${subtitle}</span>
+                </div>` : ''}
                 <div class="contact-request-actions-row">
                     ${buildDialogRequestActions(person, { contactListItem: true })}
                 </div>

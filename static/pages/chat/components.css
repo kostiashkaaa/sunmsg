@@ -2265,14 +2265,14 @@
 
 
         .contact-item--dialog-request {
-            align-items: flex-start;
-            min-height: 92px;
+            align-items: center;
+            min-height: 84px;
             padding-top: 10px;
             padding-bottom: 10px;
             cursor: default;
             background: color-mix(in srgb, var(--surface-2) 62%, transparent);
             box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, var(--border) 82%);
-            contain-intrinsic-size: 92px;
+            contain-intrinsic-size: 84px;
         }
 
         .contact-item--dialog-request .contact-name-main {
@@ -2284,17 +2284,31 @@
         }
 
         .contact-item--dialog-request .contact-request-actions-row {
-            display: flex;
-            justify-content: flex-start;
-            margin-top: 8px;
+            margin-top: 7px;
         }
 
         .contact-item--dialog-request .request-contact-actions {
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 108px));
+            gap: 8px;
+            align-items: center;
         }
 
-        .contact-item--dialog-request .req-btn {
-            min-height: 28px;
+        .contact-item--dialog-request .request-contact-actions .req-btn,
+        .contact-item--dialog-request .request-contact-actions .req-status {
+            width: 100%;
+            min-height: 32px;
+            padding: 0 10px;
+            border-radius: 9px;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .contact-item--dialog-request .request-contact-actions .req-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }
 
 
@@ -2355,6 +2369,10 @@
             .contact-item--dialog-request .contact-request-actions-row,
             .contact-item--dialog-request .request-contact-actions {
                 width: 100%;
+            }
+
+            .contact-item--dialog-request .request-contact-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
