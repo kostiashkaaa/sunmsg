@@ -3,16 +3,19 @@ Flask blueprint: /api/crypto — X25519/Ed25519/DR/MLS key management.
 
 Endpoints:
   POST /api/crypto/keys              — публикация X25519 + Ed25519 ключей пользователя
-  GET  /api/crypto/prekey-bundle/<user_id> — получение prekey bundle для X3DH
+  GET  /api/crypto/prekey-bundle/<user_id> — preview prekey bundle без claim
+  POST /api/crypto/prekey-bundle/<user_id>/claim — claim prekey bundle для X3DH
   POST /api/crypto/prekeys/signed    — загрузка signed prekey
   POST /api/crypto/prekeys/one-time  — загрузка one-time prekeys (batch)
   GET  /api/crypto/dr-session/<chat_id>   — получение DR состояния сессии
   POST /api/crypto/dr-session/<chat_id>   — сохранение / обновление DR состояния
   POST /api/crypto/mls/key-packages  — публикация MLS KeyPackage
-  GET  /api/crypto/mls/key-packages/<user_id> — получить KeyPackage пользователя
+  GET  /api/crypto/mls/key-packages/<user_id> — preview KeyPackage без claim
+  POST /api/crypto/mls/key-packages/<user_id>/claim — claim KeyPackage пользователя
   POST /api/crypto/mls/group/<chat_id>/commit — применить MLS Commit
   POST /api/crypto/mls/group/<chat_id>/welcome — сохранить Welcome для участника
-  GET  /api/crypto/mls/pending/<chat_id>  — получить pending MLS сообщения
+  GET  /api/crypto/mls/pending/<chat_id>  — preview pending MLS сообщений
+  POST /api/crypto/mls/pending/<chat_id>/claim — получить и отметить pending MLS сообщения
 """
 
 from __future__ import annotations
@@ -24,6 +27,12 @@ from flask import Blueprint, jsonify, request, session
 
 from app.database import get_db_connection
 from app.extensions import limiter
+from app.services.chat_members import (
+    CHAT_TYPE_GROUP,
+    get_chat_type,
+    is_chat_member,
+    list_chat_member_user_ids,
+)
 from app.services.crypto import (
     is_valid_ed25519_public_key,
     is_valid_x25519_public_key,
@@ -50,6 +59,26 @@ def _require_auth():
     if not uid:
         return jsonify({'error': 'unauthorized'}), 401
     return uid
+
+
+def _require_direct_chat_access(conn, chat_id: str, uid: int, peer_user_id: int | None = None):
+    if get_chat_type(conn, chat_id) == CHAT_TYPE_GROUP:
+        return jsonify({'error': 'direct_chat_required'}), 400
+    if not is_chat_member(conn, uid, chat_id):
+        return jsonify({'error': 'forbidden'}), 403
+    if peer_user_id is not None and not is_chat_member(conn, peer_user_id, chat_id):
+        return jsonify({'error': 'peer_not_in_chat'}), 400
+    return None
+
+
+def _require_group_member_ids(conn, chat_id: str, uid: int):
+    if get_chat_type(conn, chat_id) != CHAT_TYPE_GROUP:
+        return None, (jsonify({'error': 'group_chat_required'}), 400)
+
+    member_ids = set(list_chat_member_user_ids(conn, chat_id))
+    if uid not in member_ids:
+        return None, (jsonify({'error': 'forbidden'}), 403)
+    return member_ids, None
 
 
 # ── Публикация ключей пользователя ────────────────────────────────────────────
@@ -103,7 +132,18 @@ def publish_identity_keys():
 @crypto_v2_bp.route('/prekey-bundle/<int:peer_user_id>', methods=['GET'])
 @limiter.limit('60 per minute')
 def get_prekey_bundle(peer_user_id: int):
-    """Возвращает prekey bundle для X3DH инициализации DR сессии."""
+    """Возвращает prekey bundle preview без погашения one-time prekey."""
+    return _prekey_bundle_response(peer_user_id, claim_one_time=False)
+
+
+@crypto_v2_bp.route('/prekey-bundle/<int:peer_user_id>/claim', methods=['POST'])
+@limiter.limit('60 per minute')
+def claim_prekey_bundle(peer_user_id: int):
+    """Возвращает prekey bundle и погашает один one-time prekey."""
+    return _prekey_bundle_response(peer_user_id, claim_one_time=True)
+
+
+def _prekey_bundle_response(peer_user_id: int, *, claim_one_time: bool):
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -130,7 +170,6 @@ def get_prekey_bundle(peer_user_id: int):
             (peer_user_id,),
         ).fetchone()
 
-        # Один one-time prekey (помечаем как claimed)
         otpk_row = conn.execute(
             '''
             SELECT id, prekey_id, public_key
@@ -157,15 +196,18 @@ def get_prekey_bundle(peer_user_id: int):
             }
 
         if otpk_row:
-            conn.execute(
-                'UPDATE user_one_time_prekeys SET claimed_at = CURRENT_TIMESTAMP WHERE id = ?',
-                (otpk_row['id'],),
-            )
-            conn.commit()
-            bundle['one_time_prekey'] = {
-                'id': otpk_row['prekey_id'],
-                'public_key': otpk_row['public_key'],
-            }
+            if claim_one_time:
+                conn.execute(
+                    'UPDATE user_one_time_prekeys SET claimed_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    (otpk_row['id'],),
+                )
+                conn.commit()
+                bundle['one_time_prekey'] = {
+                    'id': otpk_row['prekey_id'],
+                    'public_key': otpk_row['public_key'],
+                }
+            else:
+                bundle['one_time_prekey_available'] = True
 
         return jsonify(bundle)
     finally:
@@ -269,6 +311,10 @@ def get_dr_session(chat_id: str):
 
     conn = get_db_connection()
     try:
+        access_error = _require_direct_chat_access(conn, chat_id, uid)
+        if access_error is not None:
+            return access_error
+
         row = conn.execute(
             '''
             SELECT session_state, updated_at
@@ -279,10 +325,11 @@ def get_dr_session(chat_id: str):
         ).fetchone()
 
         if not row:
-            return jsonify({'session': None})
+            return jsonify({'session': None, 'session_state': None})
 
         return jsonify({
             'session': row['session_state'],
+            'session_state': row['session_state'],
             'updated_at': str(row['updated_at']),
         })
     finally:
@@ -303,11 +350,15 @@ def save_dr_session(chat_id: str):
 
     if not isinstance(session_state, str) or len(session_state) > _SESSION_STATE_MAX:
         return jsonify({'error': 'invalid_session_state'}), 400
-    if not isinstance(peer_user_id, int):
+    if not isinstance(peer_user_id, int) or isinstance(peer_user_id, bool) or peer_user_id <= 0:
         return jsonify({'error': 'peer_user_id_required'}), 400
 
     conn = get_db_connection()
     try:
+        access_error = _require_direct_chat_access(conn, chat_id, uid, peer_user_id)
+        if access_error is not None:
+            return access_error
+
         conn.execute(
             '''
             INSERT INTO dr_sessions (chat_id, owner_user_id, peer_user_id, session_state, updated_at)
@@ -366,7 +417,18 @@ def upload_mls_key_package():
 @crypto_v2_bp.route('/mls/key-packages/<int:peer_user_id>', methods=['GET'])
 @limiter.limit('60 per minute')
 def get_mls_key_package(peer_user_id: int):
-    """Возвращает незаявленный MLS KeyPackage пользователя."""
+    """Возвращает preview незаявленного MLS KeyPackage без погашения."""
+    return _mls_key_package_response(peer_user_id, claim_package=False)
+
+
+@crypto_v2_bp.route('/mls/key-packages/<int:peer_user_id>/claim', methods=['POST'])
+@limiter.limit('60 per minute')
+def claim_mls_key_package(peer_user_id: int):
+    """Возвращает и погашает один MLS KeyPackage пользователя."""
+    return _mls_key_package_response(peer_user_id, claim_package=True)
+
+
+def _mls_key_package_response(peer_user_id: int, *, claim_package: bool):
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -387,16 +449,21 @@ def get_mls_key_package(peer_user_id: int):
         if not row:
             return jsonify({'error': 'no_key_package'}), 404
 
-        conn.execute(
-            'UPDATE mls_key_packages SET claimed_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (row['id'],),
-        )
-        conn.commit()
+        if claim_package:
+            conn.execute(
+                'UPDATE mls_key_packages SET claimed_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (row['id'],),
+            )
+            conn.commit()
 
-        return jsonify({
+        payload = {
             'key_package_ref': row['key_package_ref'],
-            'key_package': json.loads(row['key_package']),
-        })
+            'available': True,
+        }
+        if claim_package:
+            payload['key_package'] = json.loads(row['key_package'])
+
+        return jsonify(payload)
     finally:
         conn.close()
 
@@ -415,7 +482,7 @@ def store_mls_welcome(chat_id: str):
     recipient_user_id = data.get('recipient_user_id')
     welcome_payload = data.get('welcome')
 
-    if not isinstance(recipient_user_id, int):
+    if not isinstance(recipient_user_id, int) or isinstance(recipient_user_id, bool) or recipient_user_id <= 0:
         return jsonify({'error': 'recipient_required'}), 400
     if not isinstance(welcome_payload, dict):
         return jsonify({'error': 'welcome_required'}), 400
@@ -426,6 +493,12 @@ def store_mls_welcome(chat_id: str):
 
     conn = get_db_connection()
     try:
+        member_ids, access_error = _require_group_member_ids(conn, chat_id, uid)
+        if access_error is not None:
+            return access_error
+        if recipient_user_id not in member_ids:
+            return jsonify({'error': 'recipient_not_in_chat'}), 403
+
         conn.execute(
             '''
             INSERT INTO mls_pending_messages (chat_id, recipient_user_id, message_type, payload)
@@ -463,9 +536,24 @@ def store_mls_commit(chat_id: str):
 
     conn = get_db_connection()
     try:
+        member_ids, access_error = _require_group_member_ids(conn, chat_id, uid)
+        if access_error is not None:
+            return access_error
+
+        normalized_recipient_ids = []
         for rid in recipient_ids:
-            if not isinstance(rid, int) or rid == uid:
+            if not isinstance(rid, int) or isinstance(rid, bool):
+                return jsonify({'error': 'invalid_recipient'}), 400
+            if rid == uid:
                 continue
+            if rid not in member_ids:
+                return jsonify({'error': 'recipient_not_in_chat'}), 403
+            normalized_recipient_ids.append(rid)
+
+        if not normalized_recipient_ids:
+            return jsonify({'error': 'recipients_required'}), 400
+
+        for rid in normalized_recipient_ids:
             conn.execute(
                 '''
                 INSERT INTO mls_pending_messages (chat_id, recipient_user_id, message_type, payload)
@@ -483,13 +571,28 @@ def store_mls_commit(chat_id: str):
 @crypto_v2_bp.route('/mls/pending/<chat_id>', methods=['GET'])
 @limiter.limit('120 per minute')
 def get_mls_pending(chat_id: str):
-    """Возвращает pending MLS сообщения (Welcome/Commit) для текущего пользователя."""
+    """Возвращает pending MLS сообщения без отметки доставки."""
+    return _mls_pending_response(chat_id, mark_delivered=False)
+
+
+@crypto_v2_bp.route('/mls/pending/<chat_id>/claim', methods=['POST'])
+@limiter.limit('120 per minute')
+def claim_mls_pending(chat_id: str):
+    """Возвращает pending MLS сообщения и отмечает их доставленными."""
+    return _mls_pending_response(chat_id, mark_delivered=True)
+
+
+def _mls_pending_response(chat_id: str, *, mark_delivered: bool):
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
 
     conn = get_db_connection()
     try:
+        _member_ids, access_error = _require_group_member_ids(conn, chat_id, uid)
+        if access_error is not None:
+            return access_error
+
         rows = conn.execute(
             '''
             SELECT id, message_type, payload, created_at
@@ -510,7 +613,7 @@ def get_mls_pending(chat_id: str):
             })
             ids.append(row['id'])
 
-        if ids:
+        if ids and mark_delivered:
             placeholders = ','.join('?' * len(ids))
             conn.execute(
                 f'UPDATE mls_pending_messages SET delivered_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})',
