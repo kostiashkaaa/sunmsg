@@ -139,6 +139,61 @@ def send_dialog_request_workflow(
     }
 
 
+def cancel_dialog_request_workflow(
+    conn,
+    *,
+    sender_user_id: int,
+    receiver_user_id: int | None = None,
+    receiver_public_key: str | None = None,
+):
+    if receiver_user_id:
+        receiver = conn.execute(
+            'SELECT id, public_key FROM users WHERE id = ?',
+            (receiver_user_id,),
+        ).fetchone()
+    else:
+        receiver = conn.execute(
+            'SELECT id, public_key FROM users WHERE public_key = ?',
+            (receiver_public_key,),
+        ).fetchone()
+    if not receiver:
+        return {'status': 'receiver_missing'}
+
+    sender = conn.execute(
+        'SELECT public_key FROM users WHERE id = ?',
+        (sender_user_id,),
+    ).fetchone()
+    if not sender:
+        return {'status': 'sender_missing'}
+
+    dialog_request = conn.execute(
+        '''
+        SELECT id
+        FROM dialog_requests
+        WHERE sender_id = ? AND receiver_id = ? AND status = 'pending'
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (sender_user_id, receiver['id']),
+    ).fetchone()
+
+    updated = False
+    if dialog_request:
+        conn.execute(
+            "UPDATE dialog_requests SET status = 'cancelled' WHERE id = ?",
+            (dialog_request['id'],),
+        )
+        conn.commit()
+        updated = True
+
+    return {
+        'status': 'ok',
+        'updated': updated,
+        'sender_public_key': sender['public_key'],
+        'receiver_public_key': receiver['public_key'],
+    }
+
+
 def accept_dialog_request_workflow(  # noqa: PLR0913 - dependency-injected workflow contract
     conn,
     *,

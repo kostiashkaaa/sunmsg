@@ -180,6 +180,7 @@ export function registerSystemSocketHandlers({
         dialogRequestsList.appendChild(item);
         dialogRequestsSection.classList.add('has-requests');
         updateDialogRequestsBadge();
+        loadDialogRequests?.();
         showDialogRequestAttention(data, { requestKind: 'dialog' });
     });
 
@@ -215,10 +216,9 @@ export function registerSystemSocketHandlers({
             data?.sender_public_key,
         );
         const item = btn?.closest('.request-item')
-            || findDialogRequestItemByPeerKey(
-                dialogRequestsList,
-                data?.sender_public_key || data?.receiver_public_key || data?.public_key,
-            );
+            || findDialogRequestItemByPeerKey(dialogRequestsList, data?.sender_public_key)
+            || findDialogRequestItemByPeerKey(dialogRequestsList, data?.receiver_public_key)
+            || findDialogRequestItemByPeerKey(dialogRequestsList, data?.public_key);
         if (item) item.remove();
         else loadDialogRequests?.();
         updateDialogRequestsBadge();

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.routes.dialog_request_handlers import (
     build_accept_request_socket_events,
+    build_cancel_request_socket_events,
     build_decline_request_socket_event,
     fetch_pending_dialog_requests_for_user,
     fetch_pending_outgoing_dialog_requests_for_user,
@@ -227,3 +228,31 @@ def test_build_decline_request_socket_event_builds_payload():
         },
         'room': 'pk-1',
     }
+
+
+def test_build_cancel_request_socket_events_builds_payloads_for_both_users():
+    events = build_cancel_request_socket_events(
+        sender_public_key='pk-1',
+        receiver_public_key='pk-2',
+    )
+
+    assert events == [
+        {
+            'name': 'dialog_request_updated',
+            'payload': {
+                'action': 'cancelled',
+                'sender_public_key': 'pk-1',
+                'receiver_public_key': 'pk-2',
+            },
+            'room': 'pk-2',
+        },
+        {
+            'name': 'dialog_request_updated',
+            'payload': {
+                'action': 'cancelled',
+                'sender_public_key': 'pk-1',
+                'receiver_public_key': 'pk-2',
+            },
+            'room': 'pk-1',
+        },
+    ]

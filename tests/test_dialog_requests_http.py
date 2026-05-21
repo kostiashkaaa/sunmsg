@@ -149,6 +149,49 @@ def test_get_dialog_requests_includes_outgoing_pending_request(monkeypatch, tmp_
     ]
 
 
+def test_cancel_request_updates_status_and_emits_to_both_users(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cancel-dialog-request-flow.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    emitted = _capture_socket_emits(monkeypatch)
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.commit()
+
+    alice_client = _authed_client(app, 1, 'pk-1')
+
+    send_response = alice_client.post('/send_request', json={'contact_user_id': 2})
+    assert send_response.status_code == 200
+    assert send_response.get_json()['success'] is True
+
+    emitted.clear()
+    cancel_response = alice_client.post('/cancel_request', json={'receiver_public_key': 'pk-2'})
+
+    assert cancel_response.status_code == 200
+    assert cancel_response.get_json() == {'success': True}
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT status FROM dialog_requests WHERE sender_id = 1 AND receiver_id = 2'
+        ).fetchone()
+
+    assert row['status'] == 'cancelled'
+    assert [event['name'] for event in emitted] == ['dialog_request_updated', 'dialog_request_updated']
+    assert {event['kwargs']['room'] for event in emitted} == {'pk-1', 'pk-2'}
+    assert all(event['payload']['action'] == 'cancelled' for event in emitted)
+    assert all(event['payload']['sender_public_key'] == 'pk-1' for event in emitted)
+    assert all(event['payload']['receiver_public_key'] == 'pk-2' for event in emitted)
+
+
 def test_start_dialog_from_public_card_sends_request_or_opens_existing_chat(monkeypatch, tmp_path):
     db_path = tmp_path / 'public-user-card-start.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

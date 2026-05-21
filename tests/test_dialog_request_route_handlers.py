@@ -1,6 +1,8 @@
 from app.routes.dialog_request_route_handlers import (
     process_accept_request,
     process_accept_request_route,
+    process_cancel_request,
+    process_cancel_request_route,
     process_decline_request,
     process_decline_request_route,
     process_get_dialog_requests,
@@ -143,6 +145,94 @@ def test_process_get_dialog_requests_merges_outgoing_requests():
             {'request_direction': 'outgoing', 'receiver_public_key': 'pk-3'},
         ],
     }
+
+
+def test_process_cancel_request_maps_status_and_events():
+    receiver_missing = process_cancel_request(
+        object(),
+        sender_user_id=1,
+        receiver_user_id=2,
+        receiver_public_key=None,
+        cancel_dialog_request_workflow_func=lambda conn, **kwargs: {'status': 'receiver_missing'},
+        build_cancel_request_socket_events_func=lambda **kwargs: [{'unexpected': True}],
+    )
+    assert receiver_missing == {'status': 'receiver_missing'}
+
+    without_update = process_cancel_request(
+        object(),
+        sender_user_id=1,
+        receiver_user_id=2,
+        receiver_public_key=None,
+        cancel_dialog_request_workflow_func=lambda conn, **kwargs: {
+            'status': 'ok',
+            'updated': False,
+            'sender_public_key': 'pk-1',
+            'receiver_public_key': 'pk-2',
+        },
+        build_cancel_request_socket_events_func=lambda **kwargs: [{'unexpected': True}],
+    )
+    assert without_update == {'status': 'ok', 'events': []}
+
+    with_update = process_cancel_request(
+        object(),
+        sender_user_id=1,
+        receiver_user_id=2,
+        receiver_public_key=None,
+        cancel_dialog_request_workflow_func=lambda conn, **kwargs: {
+            'status': 'ok',
+            'updated': True,
+            'sender_public_key': 'pk-1',
+            'receiver_public_key': 'pk-2',
+        },
+        build_cancel_request_socket_events_func=lambda **kwargs: [{'name': 'dialog_request_updated', 'payload': kwargs}],
+    )
+    assert with_update == {
+        'status': 'ok',
+        'events': [{'name': 'dialog_request_updated', 'payload': {'sender_public_key': 'pk-1', 'receiver_public_key': 'pk-2'}}],
+    }
+
+
+def test_process_cancel_request_route_validates_and_delegates():
+    assert process_cancel_request_route(
+        None,
+        sender_user_id=1,
+        data={},
+        parse_int_func=lambda value: None,
+        process_cancel_request_func=lambda *args, **kwargs: {'status': 'ok', 'events': []},
+        cancel_dialog_request_workflow_func=lambda *args, **kwargs: {'status': 'ok'},
+        build_cancel_request_socket_events_func=lambda **kwargs: [],
+    ) == {'status': 'invalid_payload'}
+
+    assert process_cancel_request_route(
+        None,
+        sender_user_id=1,
+        data={'receiver_user_id': 1},
+        parse_int_func=lambda value: int(value),
+        process_cancel_request_func=lambda *args, **kwargs: {'status': 'ok', 'events': []},
+        cancel_dialog_request_workflow_func=lambda *args, **kwargs: {'status': 'ok'},
+        build_cancel_request_socket_events_func=lambda **kwargs: [],
+    ) == {'status': 'self_request'}
+
+    captured = {}
+
+    def _delegate(conn, **kwargs):
+        captured.update(kwargs)
+        return {'status': 'ok', 'events': []}
+
+    result = process_cancel_request_route(
+        object(),
+        sender_user_id=1,
+        data={'receiver_public_key': 'pk-2'},
+        parse_int_func=lambda value: None,
+        process_cancel_request_func=_delegate,
+        cancel_dialog_request_workflow_func=lambda *args, **kwargs: {'status': 'ok'},
+        build_cancel_request_socket_events_func=lambda **kwargs: [],
+    )
+
+    assert result == {'status': 'ok', 'events': []}
+    assert captured['sender_user_id'] == 1
+    assert captured['receiver_user_id'] is None
+    assert captured['receiver_public_key'] == 'pk-2'
 
 
 def test_process_accept_and_decline_request_route_delegate_with_sender_key():

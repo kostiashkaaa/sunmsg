@@ -27,6 +27,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             displayName: outgoing ? req.receiver_display_name : req.sender_display_name,
             username: outgoing ? req.receiver_username : req.sender_username,
             publicKey: outgoing ? req.receiver_public_key : req.sender_public_key,
+            userId: outgoing ? req.receiver_user_id : null,
             outgoing,
         };
     }
@@ -41,7 +42,10 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
             : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
         const actions = person.outgoing
-            ? '<div class="req-actions req-actions--status"><span class="req-status">\u041e\u0436\u0438\u0434\u0430\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430</span></div>'
+            ? `<div class="req-actions req-actions--status">
+                <span class="req-status">\u041e\u0436\u0438\u0434\u0430\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430</span>
+                <button class="req-btn cancel" data-request-action="cancel" data-key="${escapeHtml(person.publicKey)}" data-user-id="${escapeHtml(String(person.userId || ''))}"><span class="req-btn-label">\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c</span></button>
+            </div>`
             : `<div class="req-actions">
                 <button class="req-btn accept" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
                 <button class="req-btn decline" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
@@ -119,6 +123,16 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             .catch((err) => console.warn('[DialogRequests] load failed', err));
     }
 
+    let visibilityRefreshTimer = 0;
+    function refreshDialogRequestsWhenVisible() {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        if (visibilityRefreshTimer) return;
+        visibilityRefreshTimer = window.setTimeout(() => {
+            visibilityRefreshTimer = 0;
+            loadDialogRequests();
+        }, 250);
+    }
+
     function handleDialogRequest({ senderPublicKey, action, requestKind, requestId }) {
         const url = action === 'accept' ? withAppRoot('/accept_request') : withAppRoot('/decline_request');
         const payload = requestKind === 'group_invite'
@@ -138,6 +152,16 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         }).catch((err) => console.warn('[DialogRequests] action request failed', err));
     }
 
+    function handleCancelDialogRequest({ receiverPublicKey, receiverUserId }) {
+        cancelDialogRequest({ receiverPublicKey, receiverUserId })
+            .then(function(response) {
+                if (!response?.success) {
+                    console.warn('[DialogRequests] cancel failed', getErrorMessage(response?.error));
+                }
+            })
+            .finally(loadDialogRequests);
+    }
+
     if (dialogRequestsList) {
         dialogRequestsList.addEventListener('click', function(e) {
             const btn = e.target.closest('.req-btn');
@@ -145,7 +169,16 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             const requestKind = String(btn.getAttribute('data-request-kind') || '').trim().toLowerCase();
             const requestIdRaw = String(btn.getAttribute('data-request-id') || '').trim();
             const key = btn.getAttribute('data-key');
-            const action = btn.classList.contains('accept') ? 'accept' : 'decline';
+            const action = btn.getAttribute('data-request-action')
+                || (btn.classList.contains('accept') ? 'accept' : 'decline');
+            if (action === 'cancel') {
+                btn.disabled = true;
+                handleCancelDialogRequest({
+                    receiverPublicKey: key,
+                    receiverUserId: btn.getAttribute('data-user-id'),
+                });
+                return;
+            }
             if (requestKind === 'group_invite' && (!requestIdRaw || !Number.isFinite(Number(requestIdRaw)))) {
                 console.warn('[DialogRequests] invalid group invite request id');
                 return;
@@ -158,6 +191,11 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                 requestId: requestIdRaw,
             });
         });
+    }
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('focus', refreshDialogRequestsWhenVisible);
+        document.addEventListener('visibilitychange', refreshDialogRequestsWhenVisible);
     }
 
     const api = { loadDialogRequests };
@@ -203,5 +241,36 @@ export function sendDialogRequest(userId, displayName, options = {}) {
     }).catch((err) => {
         console.warn('[DialogRequests] send request failed', err);
         return { success: false, error: err?.message || '\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0435 \u0437\u0430\u043F\u0440\u043E\u0441\u0430.' };
+    });
+}
+
+export function cancelDialogRequest({ receiverUserId = null, receiverPublicKey = '' } = {}) {
+    const payload = {};
+    const parsedUserId = Number.parseInt(String(receiverUserId || '').trim(), 10);
+    const normalizedPublicKey = String(receiverPublicKey || '').trim();
+    if (Number.isFinite(parsedUserId) && parsedUserId > 0) {
+        payload.receiver_user_id = parsedUserId;
+    }
+    if (normalizedPublicKey) {
+        payload.receiver_public_key = normalizedPublicKey;
+    }
+    if (!payload.receiver_user_id && !payload.receiver_public_key) {
+        return Promise.resolve({ success: false, error: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d \u0430\u0434\u0440\u0435\u0441\u0430\u0442 \u0437\u0430\u043f\u0440\u043e\u0441\u0430.' });
+    }
+
+    return fetch(withAppRoot('/cancel_request'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify(payload),
+    }).then(r => r.json()).then(function(data) {
+        if (data.success && typeof window !== 'undefined') {
+            window.SUN_DIALOG_REQUESTS?.loadDialogRequests?.();
+        } else if (!data.success) {
+            console.warn('[DialogRequests] cancel failed', getErrorMessage(data.error));
+        }
+        return data;
+    }).catch((err) => {
+        console.warn('[DialogRequests] cancel request failed', err);
+        return { success: false, error: err?.message || '\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u0438 \u043e\u0442\u043c\u0435\u043d\u0435 \u0437\u0430\u043f\u0440\u043e\u0441\u0430.' };
     });
 }

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.routes.dialog_request_workflows import (
     accept_dialog_request_workflow,
+    cancel_dialog_request_workflow,
     decline_dialog_request_workflow,
     send_dialog_request_workflow,
 )
@@ -285,3 +286,39 @@ def test_decline_dialog_request_workflow_marks_request_declined(tmp_path):
         'sender_display_name': 'Bob',
     }
     assert request_row['status'] == 'declined'
+
+
+def test_cancel_dialog_request_workflow_marks_outgoing_request_cancelled(tmp_path):
+    db_path = tmp_path / 'dialog-request-workflow-cancel-ok.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice'), (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO dialog_requests (sender_id, receiver_id, status)
+            VALUES (1, 2, 'pending')
+            '''
+        )
+        conn.commit()
+
+        result = cancel_dialog_request_workflow(
+            conn,
+            sender_user_id=1,
+            receiver_public_key='pk-2',
+        )
+        request_row = conn.execute(
+            'SELECT status FROM dialog_requests WHERE sender_id = 1 AND receiver_id = 2'
+        ).fetchone()
+
+    assert result == {
+        'status': 'ok',
+        'updated': True,
+        'sender_public_key': 'pk-1',
+        'receiver_public_key': 'pk-2',
+    }
+    assert request_row['status'] == 'cancelled'

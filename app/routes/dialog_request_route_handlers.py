@@ -94,6 +94,64 @@ def process_get_dialog_requests(
     return {'status': 'ok', 'dialog_requests': requests_list}
 
 
+def process_cancel_request(  # noqa: PLR0913 - dependency-injected route handler contract
+    conn,
+    *,
+    sender_user_id: int,
+    receiver_user_id: int | None,
+    receiver_public_key: str | None,
+    cancel_dialog_request_workflow_func,
+    build_cancel_request_socket_events_func,
+):
+    result = cancel_dialog_request_workflow_func(
+        conn,
+        sender_user_id=sender_user_id,
+        receiver_user_id=receiver_user_id,
+        receiver_public_key=receiver_public_key,
+    )
+
+    if result['status'] == 'receiver_missing':
+        return {'status': 'receiver_missing'}
+    if result['status'] == 'sender_missing':
+        return {'status': 'sender_missing'}
+
+    events = []
+    if result['updated']:
+        events = build_cancel_request_socket_events_func(
+            sender_public_key=result['sender_public_key'],
+            receiver_public_key=result['receiver_public_key'],
+        )
+    return {'status': 'ok', 'events': events}
+
+
+def process_cancel_request_route(  # noqa: PLR0913 - dependency-injected route handler contract
+    conn,
+    *,
+    sender_user_id: int,
+    data,
+    parse_int_func,
+    process_cancel_request_func,
+    cancel_dialog_request_workflow_func,
+    build_cancel_request_socket_events_func,
+):
+    payload = data or {}
+    receiver_user_id = parse_int_func(payload.get('receiver_user_id'))
+    receiver_public_key = str(payload.get('receiver_public_key') or '').strip()
+    if not receiver_user_id and not receiver_public_key:
+        return {'status': 'invalid_payload'}
+    if receiver_user_id and int(sender_user_id) == int(receiver_user_id):
+        return {'status': 'self_request'}
+
+    return process_cancel_request_func(
+        conn,
+        sender_user_id=sender_user_id,
+        receiver_user_id=receiver_user_id,
+        receiver_public_key=receiver_public_key,
+        cancel_dialog_request_workflow_func=cancel_dialog_request_workflow_func,
+        build_cancel_request_socket_events_func=build_cancel_request_socket_events_func,
+    )
+
+
 def process_decline_request(  # noqa: PLR0913 - dependency-injected route handler contract
     conn,
     *,

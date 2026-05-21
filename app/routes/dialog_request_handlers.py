@@ -76,6 +76,30 @@ def build_decline_request_socket_event(
     }
 
 
+def build_cancel_request_socket_events(
+    *,
+    sender_public_key: str,
+    receiver_public_key: str,
+) -> list[dict[str, Any]]:
+    payload = {
+        'action': 'cancelled',
+        'sender_public_key': sender_public_key,
+        'receiver_public_key': receiver_public_key,
+    }
+    return [
+        {
+            'name': 'dialog_request_updated',
+            'payload': payload,
+            'room': receiver_public_key,
+        },
+        {
+            'name': 'dialog_request_updated',
+            'payload': payload,
+            'room': sender_public_key,
+        },
+    ]
+
+
 def fetch_pending_dialog_requests_for_user(conn, *, user_id: int) -> list[dict]:
     dialog_requests = conn.execute(
         '''

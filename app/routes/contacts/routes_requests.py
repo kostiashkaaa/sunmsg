@@ -6,6 +6,7 @@ from app.routes.socket_emit import build_route_socket_emitter
 from app.routes.contacts_utils import canonical_username, parse_int
 from app.routes.dialog_request_handlers import (
     build_accept_request_socket_events,
+    build_cancel_request_socket_events,
     build_decline_request_socket_event,
     fetch_pending_dialog_requests_for_user,
     fetch_pending_outgoing_dialog_requests_for_user,
@@ -13,12 +14,15 @@ from app.routes.dialog_request_handlers import (
 from app.routes.dialog_request_route_handlers import (
     process_accept_request,
     process_accept_request_route,
+    process_cancel_request,
+    process_cancel_request_route,
     process_decline_request,
     process_decline_request_route,
     process_get_dialog_requests,
 )
 from app.routes.dialog_request_workflows import (
     accept_dialog_request_workflow,
+    cancel_dialog_request_workflow,
     decline_dialog_request_workflow,
     send_dialog_request_workflow,
 )
@@ -295,6 +299,43 @@ def accept_request():
         return _handle_direct_accept(conn, user_id=user_id, data=data)
     finally:
         conn.close()
+
+
+@contacts_bp.route('/cancel_request', methods=['POST'])
+@limiter.limit("30 per minute")
+def cancel_request():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': AUTH_REQUIRED_ERROR}), 401
+
+    data = request.get_json(silent=True) or {}
+    user_id = session['user_id']
+
+    conn = get_db_connection()
+    processed = process_cancel_request_route(
+        conn,
+        sender_user_id=user_id,
+        data=data,
+        parse_int_func=parse_int,
+        process_cancel_request_func=process_cancel_request,
+        cancel_dialog_request_workflow_func=cancel_dialog_request_workflow,
+        build_cancel_request_socket_events_func=build_cancel_request_socket_events,
+    )
+
+    if processed['status'] == 'invalid_payload':
+        conn.close()
+        return jsonify({'success': False, 'error': INVALID_REQUEST_DATA_ERROR}), 400
+    if processed['status'] == 'self_request':
+        conn.close()
+        return jsonify({'success': False, 'error': SELF_REQUEST_ERROR}), 400
+    if processed['status'] in {'receiver_missing', 'sender_missing'}:
+        conn.close()
+        return jsonify({'success': False, 'error': USER_NOT_FOUND_ERROR}), 404
+
+    for event in processed['events']:
+        _emit_socket_event(event['name'], event['payload'], room=event['room'])
+
+    conn.close()
+    return jsonify({'success': True}), 200
 
 
 @contacts_bp.route('/decline_request', methods=['POST'])

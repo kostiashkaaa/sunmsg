@@ -1,6 +1,7 @@
 import { initSearchOverlayGlobalContent } from './search-overlay-global-content.js';
 import { createUserSearchResultsRuntime } from './user-search-results.js';
 import { getCsrfToken } from './csrf.js';
+import { cancelDialogRequest as defaultCancelDialogRequest } from './dialogs.js';
 
 const RECENT_SEARCHES_KEY = 'sun_recent_searches';
 const RECENT_SEARCHES_MAX = 8;
@@ -50,6 +51,7 @@ export function createChatSearchRuntime({
     openAnimatedDialog,
     showToast,
     sendDialogRequest,
+    cancelDialogRequest = defaultCancelDialogRequest,
     openGroupCreateModal,
     loadContacts,
     resolveContactItemByChatId,
@@ -479,6 +481,7 @@ export function createChatSearchRuntime({
         resolveContactItemByUserId,
         openChatById: openPaletteChat,
         sendDialogRequest,
+        cancelDialogRequest,
         acceptDialogRequest: acceptSearchDialogRequest,
         showToast,
     });

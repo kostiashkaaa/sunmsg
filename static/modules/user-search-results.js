@@ -81,6 +81,7 @@ export function createUserSearchResultsRuntime({
     resolveContactItemByUserId = () => null,
     openChatById = () => {},
     sendDialogRequest = null,
+    cancelDialogRequest = null,
     acceptDialogRequest = null,
     showToast = () => {},
 } = {}) {
@@ -98,8 +99,11 @@ export function createUserSearchResultsRuntime({
         add: 'Добавить',
         accept: 'Принять',
         adding: 'Отправка...',
+        cancel: 'Отменить',
+        canceling: 'Отмена...',
         accepting: 'Принимаем...',
         requestSent: 'Запрос отправлен',
+        requestCanceled: 'Запрос отменён',
         requestAccepted: 'Запрос принят',
         contactStatus: 'Уже в контактах',
         incomingStatus: 'Входящий запрос',
@@ -108,6 +112,7 @@ export function createUserSearchResultsRuntime({
         unavailable: 'Недоступно',
         userFallback: 'Пользователь',
         sendFailed: 'Не удалось отправить запрос.',
+        cancelFailed: 'Не удалось отменить запрос.',
         acceptFailed: 'Не удалось принять запрос.',
     };
 
@@ -175,14 +180,14 @@ export function createUserSearchResultsRuntime({
         }
         if (person.relationship_status === RELATIONSHIP_OUTGOING) {
             return `
-                <button type="button" class="command-palette-result-btn user-search-action user-search-action--muted" disabled>
-                    <i class="bi bi-check2"></i>
-                    <span>${escapeHtml(t('requestSent'))}</span>
+                <button type="button" class="command-palette-result-btn user-search-action cancel-request-btn" data-user-id="${escapeHtml(String(person.userId || ''))}" data-public-key="${escapeHtml(person.public_key)}" data-display-name="${escapeHtml(person.display_name)}">
+                    <i class="bi bi-x-lg"></i>
+                    <span>${escapeHtml(t('cancel'))}</span>
                 </button>
             `;
         }
         return `
-            <button type="button" class="command-palette-result-btn user-search-action send-request-btn" data-user-id="${escapeHtml(String(person.userId || ''))}" data-display-name="${escapeHtml(person.display_name)}">
+            <button type="button" class="command-palette-result-btn user-search-action send-request-btn" data-user-id="${escapeHtml(String(person.userId || ''))}" data-public-key="${escapeHtml(person.public_key)}" data-display-name="${escapeHtml(person.display_name)}">
                 <i class="bi bi-person-plus"></i>
                 <span>${escapeHtml(t('add'))}</span>
             </button>
@@ -316,9 +321,30 @@ export function createUserSearchResultsRuntime({
         if (subtitle) {
             subtitle.textContent = [username, t('requestSent')].filter(Boolean).join(' · ');
         }
-        button.classList.add('user-search-action--muted');
-        button.disabled = true;
-        button.innerHTML = `<i class="bi bi-check2"></i><span>${escapeHtml(t('requestSent'))}</span>`;
+        button.className = 'command-palette-result-btn user-search-action cancel-request-btn';
+        button.disabled = false;
+        delete button.dataset.originalHtml;
+        button.innerHTML = `<i class="bi bi-x-lg"></i><span>${escapeHtml(t('cancel'))}</span>`;
+    }
+
+    function markRequestCanceled(button) {
+        const card = button.closest('.user-search-card');
+        card?.setAttribute('data-relationship', 'none');
+        const subtitle = card?.querySelector('.user-search-card__subtitle');
+        const username = normalizeText(subtitle?.textContent || '').split(' · ')[0];
+        if (subtitle) {
+            subtitle.textContent = [username, t('noneStatus')].filter(Boolean).join(' · ');
+        }
+        const userId = button.getAttribute('data-user-id') || card?.getAttribute('data-user-id') || '';
+        const displayName = button.getAttribute('data-display-name')
+            || card?.querySelector('.command-palette-result-copy strong')?.textContent
+            || t('userFallback');
+        button.className = 'command-palette-result-btn user-search-action send-request-btn';
+        button.setAttribute('data-user-id', userId);
+        button.setAttribute('data-display-name', displayName);
+        button.disabled = false;
+        delete button.dataset.originalHtml;
+        button.innerHTML = `<i class="bi bi-person-plus"></i><span>${escapeHtml(t('add'))}</span>`;
     }
 
     async function handleSendRequest(button) {
@@ -337,6 +363,24 @@ export function createUserSearchResultsRuntime({
         }
         restoreButton(button);
         showToast?.(response?.error || t('sendFailed'), 'danger');
+    }
+
+    async function handleCancelRequest(button) {
+        const userId = button.getAttribute('data-user-id');
+        const publicKey = button.getAttribute('data-public-key');
+        if (!cancelDialogRequest || (!userId && !publicKey)) return;
+        setButtonBusy(button, 'canceling');
+        const response = await cancelDialogRequest({
+            receiverUserId: userId,
+            receiverPublicKey: publicKey,
+        });
+        if (response?.success) {
+            markRequestCanceled(button);
+            showToast?.(t('requestCanceled'), 'success');
+            return;
+        }
+        restoreButton(button);
+        showToast?.(response?.error || t('cancelFailed'), 'danger');
     }
 
     async function handleAcceptRequest(button) {
@@ -364,6 +408,11 @@ export function createUserSearchResultsRuntime({
         const sendBtn = target.closest('.send-request-btn');
         if (sendBtn) {
             void handleSendRequest(sendBtn);
+            return true;
+        }
+        const cancelBtn = target.closest('.cancel-request-btn');
+        if (cancelBtn) {
+            void handleCancelRequest(cancelBtn);
             return true;
         }
         const acceptBtn = target.closest('.accept-request-btn');
