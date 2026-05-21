@@ -1,4 +1,5 @@
 import { STANDARD_SINGLE_CHECK_UI_HTML } from './check-glyph.js';
+import { showDialogRequestAttention } from './chat-dialog-request-attention.js';
 import { applyFallbackAvatarTint, buildAvatarInitials, tr } from './utils.js';
 
 const getInitials = buildAvatarInitials;
@@ -156,6 +157,7 @@ export function registerSystemSocketHandlers({
         dialogRequestsList.appendChild(item);
         dialogRequestsSection.classList.add('has-requests');
         updateDialogRequestsBadge();
+        showDialogRequestAttention(data, { requestKind: 'dialog' });
     });
 
     socket.on('new_group_invite_request', (data) => {
@@ -177,6 +179,7 @@ export function registerSystemSocketHandlers({
         dialogRequestsList.appendChild(item);
         dialogRequestsSection.classList.add('has-requests');
         updateDialogRequestsBadge();
+        showDialogRequestAttention(data, { requestKind: 'group_invite' });
     });
 
 

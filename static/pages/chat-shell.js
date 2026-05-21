@@ -39,6 +39,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const initialSettingsSection = consumeInitialSettingsSection();
 
+    function consumeInitialStartAction() {
+        try {
+            const url = new URL(window.location.href);
+            const action = String(url.searchParams.get('start') || '').trim().toLowerCase();
+            if (!['find', 'qr'].includes(action)) return '';
+            url.searchParams.delete('start');
+            window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+            return action;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    const initialStartAction = consumeInitialStartAction();
+
     async function persistClientPreferences(clientPreferences, options = {}) {
         const keepalive = options && options.keepalive === true;
         const response = await fetch(withAppRoot('/api/save_settings'), {
@@ -347,6 +362,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (initialSettingsSection) {
         settingsOverlayApi.openSettingsOverlay(initialSettingsSection);
     }
+    if (initialStartAction) {
+        window.setTimeout(() => {
+            if (initialStartAction === 'qr') {
+                qrApi.openMyQrModal();
+                return;
+            }
+            settingsOverlayApi.openCommandPalette('');
+        }, 180);
+    }
 
     const emptyStatePrimaryBtn = document.getElementById('emptyStatePrimaryBtn');
     const emptyStateSecondaryBtn = document.getElementById('emptyStateSecondaryBtn');
@@ -418,9 +442,9 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        if (emptyStateEyebrow) emptyStateEyebrow.textContent = tr('\u2318 \u0414\u043E\u0431\u0440\u043E \u043F\u043E\u0436\u0430\u043B\u043E\u0432\u0430\u0442\u044C \u0432 sun');
-        if (emptyStateHeadline) emptyStateHeadline.innerHTML = tr('\u0422\u0438\u0445\u043E\u0435 \u043C\u0435\u0441\u0442\u043E<br><em>\u0434\u043B\u044F \u0442\u0435\u0445, \u043A\u043E\u043C\u0443 \u0434\u043E\u0432\u0435\u0440\u044F\u0435\u0448\u044C.</em>');
-        if (emptyStateDesc) emptyStateDesc.textContent = tr('\u041A\u0430\u0436\u0434\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0437\u0430\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u043E end-to-end. \u0422\u043E\u043B\u044C\u043A\u043E \u0432\u044B \u0438 \u0432\u0430\u0448 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A \u043C\u043E\u0436\u0435\u0442\u0435 \u0447\u0438\u0442\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u043F\u0438\u0441\u043A\u0443.');
+        if (emptyStateEyebrow) emptyStateEyebrow.textContent = tr('\u2318 \u041F\u0435\u0440\u0432\u044B\u0439 \u0448\u0430\u0433');
+        if (emptyStateHeadline) emptyStateHeadline.innerHTML = tr('\u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u0441 \u0431\u043B\u0438\u0437\u043A\u043E\u0433\u043E \u0447\u0435\u043B\u043E\u0432\u0435\u043A\u0430<br><em>\u0447\u0435\u0440\u0435\u0437 QR \u0438\u043B\u0438 @\u043D\u0438\u043A.</em>');
+        if (emptyStateDesc) emptyStateDesc.textContent = tr('\u041F\u043E\u043A\u0430\u0436\u0438\u0442\u0435 QR \u0447\u0435\u043B\u043E\u0432\u0435\u043A\u0443 \u0440\u044F\u0434\u043E\u043C \u0438\u043B\u0438 \u043D\u0430\u0439\u0434\u0438\u0442\u0435 \u0435\u0433\u043E \u043F\u043E @\u043D\u0438\u043A\u0443. \u0412\u0445\u043E\u0434\u044F\u0449\u0438\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u0441\u0432\u0435\u0440\u0445\u0443 \u0432 \u0440\u0430\u0437\u0434\u0435\u043B\u0435 «\u0417\u0430\u043F\u0440\u043E\u0441\u044B».');
         if (emptyStatePrimaryLabel) emptyStatePrimaryLabel.textContent = tr('\u041D\u0430\u0439\u0442\u0438 \u043A\u043E\u043D\u0442\u0430\u043A\u0442');
         if (emptyStatePrimaryBtn) emptyStatePrimaryBtn.setAttribute('data-empty-action', 'palette');
         if (emptyStateSecondaryBtn) emptyStateSecondaryBtn.style.display = '';

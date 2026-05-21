@@ -2830,6 +2830,54 @@ body.auth-register-flow-active .auth-card {
     color: var(--sub-text);
 }
 
+.auth-register-next-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 0 0;
+    border-top: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+}
+
+.auth-register-next-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.auth-register-next-sub,
+.auth-register-request-hint {
+    font-size: 0.9rem;
+    line-height: 1.42;
+    color: var(--sub-text);
+}
+
+.auth-register-next-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.auth-register-next-action {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+    border-radius: 10px;
+    background: var(--paper);
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auth-register-next-action:disabled {
+    cursor: wait;
+    opacity: 0.68;
+}
+
 #registerDoneLoginBtn {
     margin-top: auto;
 }

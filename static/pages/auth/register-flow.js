@@ -46,6 +46,8 @@ export function initRegisterFlow({
 
     const registerDoneLoginBtn = document.getElementById('registerDoneLoginBtn');
     const registerDoneLoginLabel = document.getElementById('registerDoneLoginLabel');
+    const registerDoneQrBtn = document.getElementById('registerDoneQrBtn');
+    const registerDoneFindBtn = document.getElementById('registerDoneFindBtn');
     const registerStep4Title = document.getElementById('registerStep4Title');
     const registerStep4Sub = document.getElementById('registerStep4Sub');
     const registerDoneName = document.getElementById('registerDoneName');
@@ -78,13 +80,22 @@ export function initRegisterFlow({
         return activeLanguage() === 'en';
     }
 
-    function redirectToChat(overlayShown) {
+    function redirectToChat(overlayShown, startAction = '') {
+        const action = String(startAction || '').trim().toLowerCase();
+        const suffix = action ? `?start=${encodeURIComponent(action)}` : '';
         setTimeout(
             () => {
-                window.location.href = withAppRoot('/chat');
+                window.location.href = withAppRoot(`/chat${suffix}`);
             },
             overlayShown ? 1400 : 600,
         );
+    }
+
+    function setDoneActionButtonsDisabled(disabled) {
+        const isDisabled = Boolean(disabled);
+        [registerDoneLoginBtn, registerDoneQrBtn, registerDoneFindBtn].forEach((button) => {
+            if (button) button.disabled = isDisabled;
+        });
     }
 
     async function stageRegistrationPrivateKey() {
@@ -495,8 +506,8 @@ export function initRegisterFlow({
         }
     });
 
-    registerDoneLoginBtn?.addEventListener('click', async () => {
-        registerDoneLoginBtn.disabled = true;
+    async function openMessengerAfterRegister(startAction = '') {
+        setDoneActionButtonsDisabled(true);
         try {
             const staged = await stageRegistrationPrivateKey();
             if (!staged) {
@@ -519,10 +530,22 @@ export function initRegisterFlow({
             if (!overlayShown) {
                 showToast(isEnglish() ? 'Welcome!' : 'Добро пожаловать!', 'success');
             }
-            redirectToChat(overlayShown);
+            redirectToChat(overlayShown, startAction);
         } finally {
-            registerDoneLoginBtn.disabled = false;
+            setDoneActionButtonsDisabled(false);
         }
+    }
+
+    registerDoneLoginBtn?.addEventListener('click', () => {
+        void openMessengerAfterRegister();
+    });
+
+    registerDoneQrBtn?.addEventListener('click', () => {
+        void openMessengerAfterRegister('qr');
+    });
+
+    registerDoneFindBtn?.addEventListener('click', () => {
+        void openMessengerAfterRegister('find');
     });
 
     registerForm?.addEventListener('submit', async (event) => {

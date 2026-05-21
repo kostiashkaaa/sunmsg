@@ -23,6 +23,23 @@
             </div>
         </div>
 
+        <div class="dialog-request-attention" id="dialogRequestAttention" role="status" aria-live="polite" aria-hidden="true" hidden>
+            <div class="dialog-request-attention__icon" aria-hidden="true">
+                <i class="bi bi-person-plus-fill"></i>
+            </div>
+            <div class="dialog-request-attention__copy">
+                <div class="dialog-request-attention__title" id="dialogRequestAttentionTitle">Новый запрос</div>
+                <div class="dialog-request-attention__text" id="dialogRequestAttentionText">Откройте запрос и нажмите «Принять».</div>
+            </div>
+            <span class="dialog-request-attention__count" id="dialogRequestAttentionCount" aria-hidden="true"></span>
+            <div class="dialog-request-attention__actions">
+                <button type="button" class="dialog-request-attention__open" id="dialogRequestAttentionOpen">Открыть запрос</button>
+                <button type="button" class="dialog-request-attention__dismiss" id="dialogRequestAttentionDismiss" aria-label="Скрыть уведомление">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+
         <button type="button" class="e2e-lock-alert e2e-lock-alert--hidden e2e-lock-alert--reset" id="e2eLockAlert">
             <i class="bi bi-shield-slash"></i>
             <div class="e2e-lock-alert-content">

@@ -115,6 +115,21 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
             ? 'Account created. Message history is stored only on your devices.'
             : 'Аккаунт создан. История пишется только на ваших устройствах.',
     );
+    setText('registerNextStepsTitle', isEn ? 'Next step' : 'Следующий шаг');
+    setText(
+        'registerNextStepsSub',
+        isEn
+            ? 'Start with one trusted person: show your QR or find them by @handle.'
+            : 'Начните с одного близкого человека: покажите ему QR или найдите по @нику.',
+    );
+    setText('registerDoneQrLabel', isEn ? 'Show my QR' : 'Показать мой QR');
+    setText('registerDoneFindLabel', isEn ? 'Find a person' : 'Найти человека');
+    setText(
+        'registerRequestHint',
+        isEn
+            ? 'If someone sends you a request, it will appear at the top in Requests.'
+            : 'Если вам отправят запрос, он появится сверху в разделе «Запросы».',
+    );
     setText('registerDoneLoginLabel', isEn ? 'Open messenger' : 'Открыть мессенджер');
 
     setText('authLegalEyebrow', isEn ? '— documents & support —' : '— документы и поддержка —');

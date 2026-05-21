@@ -1,4 +1,5 @@
 import { withAppRoot } from './app-url.js';
+import { syncDialogRequestAttentionCount } from './chat-dialog-request-attention.js';
 import {
     applyListPerfGuard,
     getMotionStaggerStartMs,
@@ -232,6 +233,7 @@ export function initChatContactsSidebar({
         if (requestsShortcutBtn) {
             requestsShortcutBtn.classList.toggle('sidebar-requests-shortcut--hidden', count <= 0);
         }
+        syncDialogRequestAttentionCount(count);
         const activeSidebarTab = String(
             document.body?.dataset?.sidebarTab
             || document.querySelector('.sidebar-tab.active')?.getAttribute('data-tab')

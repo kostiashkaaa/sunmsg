@@ -1699,6 +1699,10 @@
         font-size: 13px;
     }
 
+    .dialog-request-attention {
+        margin: 10px 20px 0;
+    }
+
     .contact-item {
         gap: 14px;
         padding: 13px 16px;
