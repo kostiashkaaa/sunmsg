@@ -45,6 +45,7 @@ export function createChatComposerSendRuntime({
     updateActiveComposerUploadProgress,
     clearActiveComposerUpload,
     isRealtimeConnected,
+    playOutgoingMessageSound,
 } = {}) {
     const pendingTimeouts = new Map();
     const pendingRetryHandlers = new Map();
@@ -146,6 +147,7 @@ export function createChatComposerSendRuntime({
             clearComposerInput: () => clearComposerInput?.(sourceChatId),
             resizeComposerInput,
             restoreComposerFocus,
+            playOutgoingMessageSound,
         });
     }
 
@@ -186,6 +188,7 @@ export function createChatComposerSendRuntime({
             updateActiveComposerUploadProgress,
             clearActiveComposerUpload,
             enqueueOutbox: enqueueOutboxMessage,
+            playOutgoingMessageSound,
             registerPendingMessageRetry: (clientId, retryOptions = {}) => {
                 registerPendingMessageRetry(clientId, () => runFileMessageFlow(
                     file,

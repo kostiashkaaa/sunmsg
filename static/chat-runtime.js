@@ -28,6 +28,7 @@ import { buildContactItemHtml as _buildContactItemHtml, hydrateContactAvatarLoad
 import { applyBlockNoticeUI as _applyBlockNoticeUI, normalizeBlockState as _normalizeBlockState } from './modules/block-ui.js';
 import { getStoredString, setStoredString, hideBootOverlay as _hideBootOverlay, setElementActiveState, openFloatingPanel, closeFloatingPanel, openAnimatedDialog, closeAnimatedDialog, copyTextToClipboard, addTapFeedback } from './modules/chat-shell-ui.js';
 import { notifyIncomingChatMessage } from './modules/chat-incoming-notifications.js';
+import { playIncomingMessageSound, playOutgoingMessageSound } from './modules/chat-sounds.js';
 import { renderMessageTextWithMentions } from './modules/chat-mentions.js';
 import { markCurrentChatSeenIfPossible as markCurrentChatSeenFlow } from './modules/chat-seen-flow.js';
 import { isWindowActiveForUnreadHandling } from './modules/chat-window-activity.js';
@@ -3274,6 +3275,7 @@ export const initChatPage = async () => {
         updateActiveComposerUploadProgress,
         clearActiveComposerUpload,
         isRealtimeConnected: () => Boolean(socket.connected),
+        playOutgoingMessageSound,
     });
 
     function schedulePendingTimeout(clientId, ms = 20000) {
@@ -3579,6 +3581,7 @@ export const initChatPage = async () => {
                     isWindowActive: isWindowActiveForUnreadHandling,
                     pushTabAlert: (targetChatId) => tabAlertController.pushAlert(targetChatId),
                     showToast,
+                    playIncomingMessageSound,
                     newMessageToastText: '\u041D\u043E\u0432\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435',
                     mentionToastText: '\u0412\u0430\u0441 \u0443\u043F\u043E\u043C\u044F\u043D\u0443\u043B\u0438',
                 });

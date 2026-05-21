@@ -131,6 +131,7 @@ await sendTextMessageFlow({{
   clearComposerInput: () => calls.push(['clear']),
   resizeComposerInput: () => calls.push(['resize']),
   restoreComposerFocus: () => calls.push(['focus']),
+  playOutgoingMessageSound: () => calls.push(['sound']),
   prewarmMessageLinkPreview: () => calls.push(['prewarm']),
   enqueueOutbox: async () => true,
   failPendingMessage: (clientId) => calls.push(['fail', clientId]),
@@ -141,8 +142,13 @@ const pinAt = order.indexOf('pin');
 const clearAt = order.indexOf('clear');
 const resizeAt = order.indexOf('resize');
 const appendAt = order.indexOf('append');
+const soundAt = order.indexOf('sound');
+const lastMessageAt = order.indexOf('lastMessage');
 if (!(pinAt > -1 && pinAt < clearAt && clearAt < resizeAt && resizeAt < appendAt)) {{
   throw new Error(`Composer should settle before optimistic append: ${{JSON.stringify(calls)}}`);
+}}
+if (!(appendAt > -1 && appendAt < soundAt && soundAt < lastMessageAt)) {{
+  throw new Error(`Outgoing sound should follow optimistic append: ${{JSON.stringify(calls)}}`);
 }}
 """
     result = _run_node_harness(node_harness)
@@ -317,6 +323,7 @@ await sendFileMessageFlow({{
   updateActiveComposerUploadProgress: () => {{}},
   clearActiveComposerUpload: () => calls.push(['clearUpload']),
   enqueueOutbox: async () => true,
+  playOutgoingMessageSound: () => calls.push(['sound']),
 }});
 
 if (calls.some((call) => call[0] === 'sending')) {{
@@ -324,6 +331,10 @@ if (calls.some((call) => call[0] === 'sending')) {{
 }}
 if (!calls.some((call) => call[0] === 'append')) {{
   throw new Error(`Expected optimistic append: ${{JSON.stringify(calls)}}`);
+}}
+const order = calls.map((call) => call[0]);
+if (!(order.indexOf('append') > -1 && order.indexOf('append') < order.indexOf('sound'))) {{
+  throw new Error(`File send sound should follow optimistic append: ${{JSON.stringify(calls)}}`);
 }}
 """
     result = _run_node_harness(node_harness)

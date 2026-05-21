@@ -6,6 +6,7 @@ export function notifyIncomingChatMessage({
     isWindowActive = () => true,
     pushTabAlert = () => {},
     showToast = () => {},
+    playIncomingMessageSound = () => {},
     newMessageToastText = 'Новое сообщение',
     mentionToastText = 'Вас упомянули',
     allowMentionWhenMuted = true,
@@ -16,6 +17,9 @@ export function notifyIncomingChatMessage({
     const mentionNotification = Boolean(isMention);
     const muted = Boolean(isChatMuted(normalizedChatId));
     if (muted && !(mentionNotification && allowMentionWhenMuted)) return;
+    if (!muted) {
+        playIncomingMessageSound();
+    }
 
     const windowActive = Boolean(isWindowActive());
     const toastText = mentionNotification

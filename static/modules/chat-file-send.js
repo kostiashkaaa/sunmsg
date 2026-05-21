@@ -77,6 +77,7 @@ export async function sendFileMessageFlow({
     clearActiveComposerUpload,
     enqueueOutbox,
     registerPendingMessageRetry,
+    playOutgoingMessageSound = () => {},
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -158,6 +159,7 @@ export async function sendFileMessageFlow({
     const albumId = typeof options?.albumId === 'string' ? options.albumId : null;
     const albumSize = albumId && Number.isFinite(Number(options?.albumSize)) ? Number(options.albumSize) : null;
     const albumIndex = albumId && Number.isFinite(Number(options?.albumIndex)) ? Number(options.albumIndex) : null;
+    const shouldPlayOutgoingSound = !isRetry && (!albumId || albumIndex === 0);
     const optimisticPayload = {
         __sunfile: true,
         name: uploadFile.name,
@@ -196,6 +198,9 @@ export async function sendFileMessageFlow({
         ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
         reactions: [],
     }, { renderOptions: { scrollToBottom: true } });
+    if (shouldPlayOutgoingSound) {
+        playOutgoingMessageSound();
+    }
     setKeepChatPinnedToBottom(true);
     registerPendingMessageRetry?.(clientId, {
         retryCreatedAt: pendingTimestamp,

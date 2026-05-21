@@ -42,6 +42,7 @@ export async function sendTextMessageFlow({
     prewarmMessageLinkPreview,
     enqueueOutbox,
     failPendingMessage,
+    playOutgoingMessageSound = () => {},
 } = {}) {
     if (isChatBlocked()) {
         showToast(getBlockedNoticeText(currentBlockState), 'warning');
@@ -84,6 +85,7 @@ export async function sendTextMessageFlow({
         ...(isGroupChat ? { group_read_count: 0, group_readers: [] } : {}),
         reactions: [],
     }, { renderOptions: { scrollToBottom: true } });
+    playOutgoingMessageSound();
 
     updateActiveContactLastMessage(
         message,
