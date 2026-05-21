@@ -17,6 +17,7 @@ _NON_PERSISTED_CHAT_EVENTS = {
     'user_status',
     'force_leave_chat',
     # Calls: transient WebRTC negotiation events
+    'call_initiated',
     'call_incoming',
     'call_accepted',
     'call_rejected',

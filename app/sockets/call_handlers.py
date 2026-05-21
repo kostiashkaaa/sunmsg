@@ -191,7 +191,8 @@ def _emit_active_call_ended(conn, call: dict, call_id: str, user_id: int, reques
         emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id, 'duration_sec': duration},
                   to=f'user_{pid}')
     emit_func('call_ended', {'call_id': call_id, 'ended_by': user_id,
-                             'duration_sec': duration, 'request_id': request_id})
+                             'duration_sec': duration, 'request_id': request_id},
+              to=f'user_{user_id}')
     return True
 
 
@@ -297,6 +298,7 @@ def handle_call_initiate(
         # so two concurrent call_initiate requests cannot both create a session.
         call_id = create_call_session_locked(
             conn, chat_id=chat_id, initiator_id=user_id, call_type=call_type,
+            participant_ids=participant_ids,
         )
         if call_id is None:
             existing = get_active_call_in_chat(conn, chat_id)
@@ -390,7 +392,8 @@ def handle_call_accept(
 
         mark_missed_calls(conn)
 
-        if get_user_active_call(conn, user_id):
+        existing_user_call = get_user_active_call(conn, user_id)
+        if existing_user_call and str(existing_user_call.get('call_id') or '') != call_id:
             emit_func('call_error', {'error': 'user_busy', 'request_id': request_id})
             return
 
@@ -398,12 +401,11 @@ def handle_call_accept(
             emit_func('call_error', {'error': 'call_not_found_or_expired', 'call_id': call_id, 'request_id': request_id})
             return
 
-        emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
         emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id},
                   to=f'user_{call["initiator_id"]}')
         # Also notify the callee's own room: other tabs/devices that showed the
         # incoming banner must dismiss it now that the call was accepted here.
-        emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id},
+        emit_func('call_accepted', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id},
                   to=f'user_{user_id}')
 
         logger.info('Call accepted: call_id=%s user=%s', call_id, user_id)
@@ -443,7 +445,8 @@ def handle_call_reject(
         _emit_call_log_message(conn, call_id, emit_func, (user_id, call['initiator_id']))
         emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id},
                   to=f'user_{call["initiator_id"]}')
-        emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id})
+        emit_func('call_rejected', {'call_id': call_id, 'user_id': user_id, 'request_id': request_id},
+                  to=f'user_{user_id}')
         logger.info('Call rejected: call_id=%s user=%s', call_id, user_id)
     except Exception:
         logger.exception('Error in handle_call_reject')
@@ -476,11 +479,13 @@ def handle_call_cancel(
         if call['status'] == 'ringing':
             if not cancel_call(conn, call_id):
                 return
-            recipient_ids = [user_id, *_chat_members(conn, call['chat_id'], user_id)]
+            other_user_ids = _chat_members(conn, call['chat_id'], user_id)
+            recipient_ids = [user_id, *other_user_ids]
             _emit_call_log_message(conn, call_id, emit_func, recipient_ids)
-            for pid in _chat_members(conn, call['chat_id'], user_id):
+            for pid in other_user_ids:
                 emit_func('call_cancelled', {'call_id': call_id}, to=f'user_{pid}')
-            emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id})
+            emit_func('call_cancelled', {'call_id': call_id, 'request_id': request_id},
+                      to=f'user_{user_id}')
             logger.info('Call cancelled: call_id=%s user=%s', call_id, user_id)
             return
         if call['status'] == 'active':

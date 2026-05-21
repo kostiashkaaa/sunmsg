@@ -213,6 +213,32 @@ def test_call_lifecycle_and_webrtc_signal_reach_peer_user_room(monkeypatch, tmp_
         call_id = initiated[0]['call_id']
         assert incoming[0]['call_id'] == call_id
 
+        with _connect(db_path) as conn:
+            participant_rows = conn.execute(
+                '''
+                SELECT user_id
+                FROM call_participants
+                WHERE call_id = ?
+                ORDER BY user_id
+                ''',
+                (call_id,),
+            ).fetchall()
+            persisted_call_events = conn.execute(
+                '''
+                SELECT COUNT(*) AS n
+                FROM chat_update_events
+                WHERE event_type = 'call_initiated'
+                '''
+            ).fetchone()
+        assert [int(row['user_id']) for row in participant_rows] == [1, 2]
+        assert int(persisted_call_events['n']) == 0
+
+        bob_socket.emit('call_sync', {'csrf_token': bob_csrf})
+        ringing_sync = _wait_for_event_payloads(bob_socket, 'call_sync')[0]
+        assert ringing_sync['active_call']['call_id'] == call_id
+        assert ringing_sync['active_call']['status'] == 'ringing'
+        assert ringing_sync['active_call']['role'] == 'callee'
+
         bob_socket.emit('call_accept', {'call_id': call_id, 'csrf_token': bob_csrf})
         accepted = _wait_for_event_payloads(alice_socket, 'call_accepted')
         assert any(payload['call_id'] == call_id and payload['user_id'] == 2 for payload in accepted)
@@ -281,6 +307,48 @@ def test_call_initiate_respects_callee_privacy(monkeypatch, tmp_path):
             alice_socket.disconnect()
         if bob_socket.is_connected():
             bob_socket.disconnect()
+
+
+def test_call_reject_syncs_to_callee_user_room(monkeypatch, tmp_path):
+    db_path = tmp_path / 'socket-call-reject-sync.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_dialog(db_path)
+
+    alice_http, alice_csrf = _prepare_http_client(app, 1, 'pk-1')
+    bob_http_1, bob_csrf_1 = _prepare_http_client(app, 2, 'pk-2')
+    bob_http_2, bob_csrf_2 = _prepare_http_client(app, 2, 'pk-2')
+    alice_socket = _socket_client(app, alice_http, alice_csrf)
+    bob_socket_1 = _socket_client(app, bob_http_1, bob_csrf_1)
+    bob_socket_2 = _socket_client(app, bob_http_2, bob_csrf_2)
+
+    try:
+        alice_socket.get_received()
+        bob_socket_1.get_received()
+        bob_socket_2.get_received()
+
+        alice_socket.emit(
+            'call_initiate',
+            {'chat_id': chat_id, 'call_type': 'audio', 'csrf_token': alice_csrf},
+        )
+        call_id = _wait_for_event_payloads(alice_socket, 'call_initiated')[0]['call_id']
+        assert _wait_for_event_payloads(bob_socket_1, 'call_incoming')
+        assert _wait_for_event_payloads(bob_socket_2, 'call_incoming')
+
+        bob_socket_1.emit('call_reject', {'call_id': call_id, 'csrf_token': bob_csrf_1})
+
+        rejected_on_peer_device = _wait_for_event_payloads(bob_socket_2, 'call_rejected')
+        assert any(payload['call_id'] == call_id and payload['user_id'] == 2 for payload in rejected_on_peer_device)
+        rejected_on_caller = _wait_for_event_payloads(alice_socket, 'call_rejected')
+        assert any(payload['call_id'] == call_id and payload['user_id'] == 2 for payload in rejected_on_caller)
+    finally:
+        if alice_socket.is_connected():
+            alice_socket.disconnect()
+        if bob_socket_1.is_connected():
+            bob_socket_1.disconnect()
+        if bob_socket_2.is_connected():
+            bob_socket_2.disconnect()
 
 
 def test_stale_ringing_call_is_missed_before_new_call(monkeypatch, tmp_path):

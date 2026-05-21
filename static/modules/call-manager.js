@@ -36,12 +36,15 @@ const STATES = {
     IDLE:        'idle',
     RINGING_OUT: 'ringing_out',
     RINGING_IN:  'ringing_in',
+    ACCEPTING:   'accepting',
     ACTIVE:      'active',
 };
 
 // How long to wait in 'disconnected' state before giving up
 const DISCONNECT_TIMEOUT_MS = 15_000;
 const RING_TIMEOUT_MS = 60_000;
+const MAX_PENDING_SIGNALS = 128;
+const CALL_SESSION_STORAGE_KEY = 'sun.call.session.v1';
 
 function _normalizeIceTransportPolicy(value) {
     return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
@@ -83,6 +86,7 @@ export class CallManager {
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
         this._pendingSignals = [];
+        this._pendingAcceptRequestId = '';
         this._pendingMediaOptions = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
@@ -93,21 +97,13 @@ export class CallManager {
         this._bindChatNavigationMinimize();
     }
 
-    // Tell the server the call is over when the tab is closing. 'pagehide'
-    // fires reliably on mobile (unlike 'beforeunload'); the emit is best-effort
-    // but the server-side disconnect cleanup is the real safety net.
+    // Preserve enough local state for reload recovery. Server-side disconnect
+    // grace owns actual call termination; ending here would turn reloads into
+    // false call_end/reject transitions.
     _bindUnloadHandler() {
         this._onPageHide = () => {
             if (this._state === STATES.IDLE || !this._callId) return;
-            const event = this._state === STATES.RINGING_OUT ? 'call_cancel'
-                : this._state === STATES.RINGING_IN ? 'call_reject'
-                : 'call_end';
-            try {
-                this._socket.emit(event, {
-                    call_id: this._callId,
-                    csrf_token: this._getCsrfToken(),
-                });
-            } catch (_) { /* tab is closing — best effort */ }
+            this._rememberCallSession(this._state);
         };
         window.addEventListener('pagehide', this._onPageHide);
     }
@@ -168,6 +164,7 @@ export class CallManager {
             videoEnabled: this._callType === 'video',
             speakerDeviceId: this._selectedSpeakerDeviceId,
         };
+        this._rememberCallSession('ringing_out');
         startRingtone('outgoing');
         this._ringTimeout = setTimeout(() => {
             if (this._state !== STATES.RINGING_OUT) return;
@@ -182,7 +179,7 @@ export class CallManager {
         if (this._state === STATES.IDLE) return;
         if (this._state === STATES.RINGING_OUT) {
             this._emit('call_cancel', { call_id: this._callId });
-        } else if (this._state === STATES.RINGING_IN) {
+        } else if (this._state === STATES.RINGING_IN || this._state === STATES.ACCEPTING) {
             this._emit('call_reject', { call_id: this._callId });
         } else {
             this._emit('call_end', { call_id: this._callId });
@@ -196,22 +193,27 @@ export class CallManager {
     }
 
     async acceptCall(callId, callType, mediaOptions = {}) {
+        if (this._state !== STATES.RINGING_IN || String(callId || '') !== String(this._callId || '')) return;
         this._callId   = callId;
         this._callType = callType;
-        this._state    = STATES.ACTIVE;
+        this._state    = STATES.ACCEPTING;
         this._isPolite = true;   // callee is polite
         this._pendingMediaOptions = this._normalizeMediaOptions(mediaOptions, callType);
+        this._pendingAcceptRequestId = _makeRequestId('accept');
         stopRingtone();
         clearTimeout(this._ringTimeout);
         this._ringTimeout = null;
         removeIncomingCallBanner();
-        this._emit('call_accept', { call_id: callId });
-        await this._startMedia(this._pendingMediaOptions);
+        this._rememberCallSession('accepting');
+        this._emit('call_accept', { call_id: callId, request_id: this._pendingAcceptRequestId });
     }
 
     // ── Signalling: lifecycle ────────────────────────────────────────────────
 
     _onIncoming({ call_id, chat_id, call_type, initiator }) {
+        if (String(call_id || '') && String(call_id || '') === String(this._callId || '')) {
+            return;
+        }
         if (this._state !== STATES.IDLE) {
             // Already busy — auto-reject with notification
             this._socket.emit('call_reject', { call_id, csrf_token: this._getCsrfToken() });
@@ -223,6 +225,8 @@ export class CallManager {
         this._callType = call_type;
         this._partner  = this._resolvePartner(initiator);
         this._state    = STATES.RINGING_IN;
+        this._pendingAcceptRequestId = '';
+        this._rememberCallSession('ringing_in');
         startRingtone('incoming');
 
         // Auto-dismiss locally after the caller-side timeout expires.
@@ -242,11 +246,14 @@ export class CallManager {
     }
 
     _onInitiated({ call_id }) {
+        if (String(call_id || '') && String(call_id || '') === String(this._callId || '') && this._state !== STATES.RINGING_OUT) {
+            return;
+        }
         if (this._state !== STATES.RINGING_OUT) {
-            this._emit('call_cancel', { call_id });
             return;
         }
         this._callId = call_id;
+        this._rememberCallSession('ringing_out');
         // Show overlay immediately for caller with "Звонок..."
         const partner = this._resolvePartner(this._partner);
         this._partner = partner;
@@ -289,8 +296,25 @@ export class CallManager {
         setCallStatusText('Звонок...');
     }
 
-    async _onAccepted({ call_id, user_id }) {
+    async _onAccepted({ call_id, user_id, request_id }) {
         if (call_id !== this._callId) return;
+        if (this._state === STATES.RINGING_IN) {
+            this._cleanup();
+            return;
+        }
+        if (this._state === STATES.ACCEPTING) {
+            const pendingRequestId = String(this._pendingAcceptRequestId || '');
+            const acceptedRequestId = String(request_id || '');
+            if (pendingRequestId && acceptedRequestId && acceptedRequestId !== pendingRequestId) {
+                this._cleanup();
+                return;
+            }
+            this._pendingAcceptRequestId = '';
+            this._state = STATES.ACTIVE;
+            this._rememberCallSession('active');
+            await this._startMedia(this._pendingMediaOptions);
+            return;
+        }
         if (this._state !== STATES.RINGING_OUT) return;
         this._state = STATES.ACTIVE;
         stopRingtone();
@@ -299,13 +323,16 @@ export class CallManager {
         setCallStatusText('Соединение...');
         // Remove placeholder overlay and build real one with media
         removeActiveCallOverlay();
+        this._rememberCallSession('active');
         await this._startMedia(this._pendingMediaOptions);
     }
 
     _onRejected({ call_id }) {
         if (call_id !== this._callId) return;
-        playBusyTone();
-        showToast('Звонок отклонён', 'info');
+        if (this._state === STATES.RINGING_OUT) {
+            playBusyTone();
+            showToast('Звонок отклонён', 'info');
+        }
         this._cleanup();
     }
 
@@ -369,7 +396,15 @@ export class CallManager {
             clearTimeout(this._ringTimeout);
             this._ringTimeout = null;
             removeActiveCallOverlay();
+            this._rememberCallSession('active');
             await this._startMedia();
+            return;
+        }
+        if (this._state === STATES.ACCEPTING && status === 'active' && callId === this._callId) {
+            this._pendingAcceptRequestId = '';
+            this._state = STATES.ACTIVE;
+            this._rememberCallSession('active');
+            await this._startMedia(this._pendingMediaOptions);
             return;
         }
         if (this._state === STATES.RINGING_IN && status === 'active' && callId === this._callId) {
@@ -383,6 +418,14 @@ export class CallManager {
                 call_type: activeCall.call_type,
                 initiator: activeCall.partner,
             });
+            return;
+        }
+        if (this._state === STATES.IDLE && status === 'ringing' && activeCall.role === 'initiator') {
+            this._restoreOutgoingRinging(activeCall);
+            return;
+        }
+        if (this._state === STATES.IDLE && status === 'active' && this._shouldRecoverActiveCall(activeCall)) {
+            await this._recoverActiveCall(activeCall);
         }
     }
 
@@ -392,7 +435,7 @@ export class CallManager {
         if (call_id !== this._callId) return;
         if (!this._webrtc) {
             // Queue until _webrtc is ready
-            this._pendingSignals.push({ type: 'offer', sdp, from_user_id });
+            this._queuePendingSignal({ type: 'offer', sdp, from_user_id });
             return;
         }
         try {
@@ -405,7 +448,7 @@ export class CallManager {
     async _onAnswer({ call_id, sdp, from_user_id }) {
         if (call_id !== this._callId) return;
         if (!this._webrtc) {
-            this._pendingSignals.push({ type: 'answer', sdp, from_user_id });
+            this._queuePendingSignal({ type: 'answer', sdp, from_user_id });
             return;
         }
         try {
@@ -418,7 +461,7 @@ export class CallManager {
     async _onIceCandidate({ call_id, candidate, from_user_id }) {
         if (call_id !== this._callId) return;
         if (!this._webrtc) {
-            this._pendingSignals.push({ type: 'ice', candidate, from_user_id });
+            this._queuePendingSignal({ type: 'ice', candidate, from_user_id });
             return;
         }
         try {
@@ -426,6 +469,14 @@ export class CallManager {
         } catch (err) {
             console.warn('[CallManager] ICE candidate handling failed', err);
         }
+    }
+
+    _queuePendingSignal(signal) {
+        if (this._pendingSignals.length >= MAX_PENDING_SIGNALS) {
+            if (signal?.type === 'ice') return;
+            this._pendingSignals.shift();
+        }
+        this._pendingSignals.push(signal);
     }
 
     // Drain any signals that arrived before _webrtc was ready
@@ -769,6 +820,95 @@ export class CallManager {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    _restoreOutgoingRinging(activeCall) {
+        const callId = String(activeCall?.call_id || '');
+        if (!callId) return;
+        this._callId = callId;
+        this._chatId = activeCall.chat_id;
+        this._callType = activeCall.call_type === 'video' ? 'video' : 'audio';
+        this._partner = this._resolvePartner(activeCall.partner);
+        this._state = STATES.RINGING_OUT;
+        this._isPolite = false;
+        this._pendingAcceptRequestId = '';
+        this._pendingMediaOptions = {
+            audioMuted: false,
+            videoEnabled: this._callType === 'video',
+            speakerDeviceId: this._selectedSpeakerDeviceId,
+        };
+        startRingtone('outgoing');
+        this._ringTimeout = setTimeout(() => {
+            if (this._state !== STATES.RINGING_OUT) return;
+            this._emit('call_cancel', { call_id: this._callId });
+            showToast('Звонок не принят', 'info');
+            this._cleanup();
+        }, RING_TIMEOUT_MS);
+        this._rememberCallSession('ringing_out');
+        this._onInitiated({ call_id: callId });
+    }
+
+    async _recoverActiveCall(activeCall) {
+        const callId = String(activeCall?.call_id || '');
+        if (!callId) return;
+        this._callId = callId;
+        this._chatId = activeCall.chat_id;
+        this._callType = activeCall.call_type === 'video' ? 'video' : 'audio';
+        this._partner = this._resolvePartner(activeCall.partner);
+        this._state = STATES.ACTIVE;
+        this._isPolite = activeCall.role === 'callee';
+        this._pendingAcceptRequestId = '';
+        this._pendingMediaOptions = this._normalizeMediaOptions({
+            callType: this._callType,
+            videoEnabled: this._callType === 'video',
+            speakerDeviceId: this._selectedSpeakerDeviceId,
+        }, this._callType);
+        stopRingtone();
+        removeIncomingCallBanner();
+        this._rememberCallSession('active');
+        await this._startMedia(this._pendingMediaOptions);
+    }
+
+    _shouldRecoverActiveCall(activeCall) {
+        const remembered = this._readRememberedCallSession();
+        if (!remembered) return false;
+        if (String(remembered.call_id || '') !== String(activeCall?.call_id || '')) return false;
+        return ['active', 'accepting', 'ringing_out'].includes(String(remembered.phase || ''));
+    }
+
+    _rememberCallSession(phase = this._state) {
+        if (!this._callId) return;
+        try {
+            globalThis.sessionStorage?.setItem(CALL_SESSION_STORAGE_KEY, JSON.stringify({
+                call_id: this._callId,
+                chat_id: this._chatId,
+                call_type: this._callType,
+                role: this._isPolite ? 'callee' : 'initiator',
+                phase,
+            }));
+        } catch (_) { /* sessionStorage can be unavailable in private contexts */ }
+    }
+
+    _readRememberedCallSession() {
+        try {
+            const raw = globalThis.sessionStorage?.getItem(CALL_SESSION_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    _clearRememberedCallSession(callId = this._callId) {
+        try {
+            if (!callId) {
+                globalThis.sessionStorage?.removeItem(CALL_SESSION_STORAGE_KEY);
+                return;
+            }
+            const remembered = this._readRememberedCallSession();
+            if (!remembered || String(remembered.call_id || '') === String(callId || '')) {
+                globalThis.sessionStorage?.removeItem(CALL_SESSION_STORAGE_KEY);
+            }
+        } catch (_) { /* ignore storage cleanup failures */ }
+    }
+
     _onConnectionState(state) {
         if (state === 'connected') {
             clearTimeout(this._disconnectTimeout);
@@ -882,8 +1022,10 @@ export class CallManager {
     }
 
     _cleanup() {
+        const callId = this._callId;
         if (this._ringTimeout)       { clearTimeout(this._ringTimeout);       this._ringTimeout = null; }
         if (this._disconnectTimeout) { clearTimeout(this._disconnectTimeout); this._disconnectTimeout = null; }
+        this._clearRememberedCallSession(callId);
         stopRingtone();
         removePreCallScreen();
         removeIncomingCallBanner();
@@ -895,6 +1037,7 @@ export class CallManager {
         this._webrtc = null;
         this._media.release();
         this._pendingSignals = [];
+        this._pendingAcceptRequestId = '';
         this._pendingMediaOptions = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
@@ -919,6 +1062,11 @@ export class CallManager {
 function _formatDuration(sec) {
     if (!sec) return '';
     return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+function _makeRequestId(prefix = 'call') {
+    const random = Math.random().toString(36).slice(2, 10);
+    return `${prefix}-${Date.now().toString(36)}-${random}`;
 }
 
 function _mediaAccessMessage(error, callType) {

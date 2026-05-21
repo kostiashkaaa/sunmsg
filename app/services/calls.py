@@ -56,6 +56,28 @@ def _lock_chat_for_calls(conn, chat_id: str) -> None:
     )
 
 
+def _lock_call_participants(conn, participant_ids) -> None:
+    """Serialize live-call ownership per participant.
+
+    The chat lock prevents duplicate calls in one chat; user locks prevent two
+    different chats from concurrently reserving the same caller/callee.
+    """
+    normalized_ids = []
+    for raw_id in participant_ids or []:
+        try:
+            participant_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if participant_id <= 0 or participant_id in normalized_ids:
+            continue
+        normalized_ids.append(participant_id)
+    for participant_id in sorted(normalized_ids):
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('suncall:user:' || ?))",
+            (str(participant_id),),
+        )
+
+
 def create_call_session_locked(
     conn, *, chat_id: str, initiator_id: int, call_type: str, participant_ids=None,
 ) -> str | None:
@@ -64,13 +86,14 @@ def create_call_session_locked(
 
     Returns the new call_id, or None if a live call already exists in the chat.
     The caller MUST treat a non-None return as committed."""
+    normalized_participants = _normalize_participant_ids(initiator_id, participant_ids)
     _lock_chat_for_calls(conn, chat_id)
+    _lock_call_participants(conn, normalized_participants)
     mark_missed_calls(conn, chat_id)
     _reap_stale_active_calls(conn, chat_id)
     if get_active_call_in_chat(conn, chat_id) is not None:
         conn.commit()
         return None
-    normalized_participants = _normalize_participant_ids(initiator_id, participant_ids)
     for participant_id in normalized_participants:
         if get_user_active_call(conn, participant_id) is not None:
             conn.commit()
@@ -228,6 +251,15 @@ def end_call(conn, call_id: str, user_id: int, *, final_status: str = 'ended') -
         ''',
         (final_status, now, duration_sec, call_id),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = ?
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (now, call_id),
+        )
     conn.commit()
     return updated.rowcount > 0
 
@@ -241,6 +273,15 @@ def reject_call(conn, call_id: str) -> bool:
         ''',
         (call_id,),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (call_id,),
+        )
     conn.commit()
     return updated.rowcount > 0
 
@@ -254,6 +295,15 @@ def cancel_call(conn, call_id: str) -> bool:
         ''',
         (call_id,),
     )
+    if updated.rowcount > 0:
+        conn.execute(
+            '''
+            UPDATE call_participants
+            SET left_at = CURRENT_TIMESTAMP
+            WHERE call_id = ? AND left_at IS NULL
+            ''',
+            (call_id,),
+        )
     conn.commit()
     return updated.rowcount > 0
 

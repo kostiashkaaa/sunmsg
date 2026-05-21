@@ -134,6 +134,11 @@ def test_lifecycle_initiate_accept_end(conn):
     assert end_call(conn, call_id, 1, final_status='ended') is True
     assert get_call_session(conn, call_id)['status'] == 'ended'
     assert get_active_call_in_chat(conn, 'chat-ab') is None
+    live_participants = conn.execute(
+        'SELECT COUNT(*) AS n FROM call_participants WHERE call_id = ? AND left_at IS NULL',
+        (call_id,),
+    ).fetchone()
+    assert live_participants['n'] == 0
 
 
 def test_end_call_records_duration_from_iso_timestamp(conn):
@@ -152,18 +157,32 @@ def test_end_call_records_duration_from_iso_timestamp(conn):
 
 def test_reject_transitions_ringing_to_rejected(conn):
     call_id = create_call_session_locked(
-        conn, chat_id='chat-ab', initiator_id=1, call_type='audio')
+        conn, chat_id='chat-ab', initiator_id=1, call_type='audio',
+        participant_ids=[1, 2],
+    )
     assert reject_call(conn, call_id) is True
     assert get_call_session(conn, call_id)['status'] == 'rejected'
     # A rejected call no longer counts as active for the chat.
     assert get_active_call_in_chat(conn, 'chat-ab') is None
+    live_participants = conn.execute(
+        'SELECT COUNT(*) AS n FROM call_participants WHERE call_id = ? AND left_at IS NULL',
+        (call_id,),
+    ).fetchone()
+    assert live_participants['n'] == 0
 
 
 def test_cancel_transitions_ringing_to_cancelled(conn):
     call_id = create_call_session_locked(
-        conn, chat_id='chat-ab', initiator_id=1, call_type='audio')
+        conn, chat_id='chat-ab', initiator_id=1, call_type='audio',
+        participant_ids=[1, 2],
+    )
     assert cancel_call(conn, call_id) is True
     assert get_call_session(conn, call_id)['status'] == 'cancelled'
+    live_participants = conn.execute(
+        'SELECT COUNT(*) AS n FROM call_participants WHERE call_id = ? AND left_at IS NULL',
+        (call_id,),
+    ).fetchone()
+    assert live_participants['n'] == 0
 
 
 def test_missed_call_after_ring_timeout(conn):
