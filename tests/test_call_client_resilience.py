@@ -18,6 +18,9 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'navigator.onLine === false' in manager
     assert 'setIncomingCallBannerStatus(\'Подключение...\')' in manager
     assert 'setIncomingCallBannerStatus(\'Ждём соединение...\')' in manager
+    assert "setCallConnectionState('reconnecting')" in manager
+    assert "setCallConnectionState('lost')" in manager
+    assert "this._handleRecoverableDisconnect(state)" in manager
     assert 'this._partnerMediaState = {' in manager
     assert '_applyPartnerMediaState()' in manager
     assert '_partnerMediaStateFromActiveCall(activeCall)' in manager
@@ -25,12 +28,17 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'data-call-incoming-status' in ui
     assert "setIncomingBusy(true, 'Подключение...')" in ui
     assert 'acceptInProgress' in ui
+    assert 'id="call-connectivity"' in ui
+    assert 'export function setCallConnectionState' in ui
     assert 'initialLocalFacingMode' in ui
     assert '_localCameraX(facingMode)' in ui
     assert "String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1" in ui
 
     assert '--call-local-camera-x' in css
     assert '--call-preview-camera-x' in css
+    assert '.call-connectivity' in css
+    assert '.call-overlay--connection-lost [data-call-status]' in css
+    assert '@keyframes callConnectivityPulse' in css
 
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc

@@ -1009,6 +1009,81 @@
     white-space: nowrap;
 }
 
+.call-connectivity {
+    position: absolute;
+    top: 54px;
+    left: 50%;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: calc(100% - 28px);
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, .92);
+    color: #111827;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    transform: translateX(-50%);
+    box-shadow: 0 8px 22px rgba(0,0,0,.26);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease, background .18s ease;
+}
+
+.call-connectivity[hidden] {
+    display: none;
+}
+
+.call-connectivity[data-call-connectivity-state="lost"] {
+    background: rgba(239, 68, 68, .94);
+    color: #fff;
+}
+
+.call-connectivity__dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 44%, transparent);
+    animation: callConnectivityPulse 1.15s ease-out infinite;
+}
+
+.call-connectivity__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.call-overlay[data-call-connection-state="connected"] .call-topbar__state svg {
+    color: #22c55e;
+}
+
+.call-overlay--connection-warning [data-call-status] {
+    color: #f59e0b;
+}
+
+.call-overlay--connection-lost [data-call-status] {
+    color: #ef4444;
+}
+
+.call-overlay--connection-lost .call-card {
+    border-color: rgba(239, 68, 68, .54);
+    box-shadow: 0 18px 60px rgba(239, 68, 68, .18), var(--call-shadow);
+}
+
+@keyframes callConnectivityPulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 44%, transparent); }
+    70% { box-shadow: 0 0 0 8px color-mix(in srgb, currentColor 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+}
+
 .call-verify__label,
 .call-verify__code {
     min-width: 0;

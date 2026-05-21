@@ -21,7 +21,7 @@ import {
     showIncomingCallBanner, removeIncomingCallBanner,
     setIncomingCallBannerStatus,
     showActiveCallOverlay, removeActiveCallOverlay,
-    setCallStatusText, setCallVerificationCode,
+    setCallStatusText, setCallConnectionState, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
     setLocalVideoEnabled,
     setRemoteAudioMuted, startCallDurationTimer, setCallQualityIndicator,
@@ -88,6 +88,7 @@ export class CallManager {
         this._acceptAckTimeout = null;
         this._acceptSyncGraceTimeout = null;
         this._disconnectTimeout = null;
+        this._connectionLostEndTimeout = null;
         this._iceRestarting = false;
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
@@ -329,6 +330,7 @@ export class CallManager {
             onSelectCamera: async () => null,
             onEnd: () => this.endCall(),
         });
+        setCallConnectionState('ringing');
         setCallStatusText('Звонок...');
     }
 
@@ -776,6 +778,7 @@ export class CallManager {
                 onSignal: (event, payload) => this._emit(event, payload),
                 onRemoteTrack: (track, stream) => {
                     attachRemoteTrack(track, stream);
+                    setCallConnectionState('connected');
                     setCallStatusText('Соединено');
                     startCallDurationTimer();
                 },
@@ -1011,9 +1014,11 @@ export class CallManager {
         }
         if (this._state === STATES.RINGING_OUT) {
             setCallStatusText('Ждём соединение...');
+            setCallConnectionState('reconnecting', 'Ждём соединение...');
             return;
         }
         if (this._state === STATES.ACTIVE) {
+            setCallConnectionState('reconnecting');
             setCallStatusText('Переподключение...');
         }
     }
@@ -1022,25 +1027,37 @@ export class CallManager {
         if (state === 'connected') {
             clearTimeout(this._disconnectTimeout);
             this._disconnectTimeout = null;
+            if (this._connectionLostEndTimeout) {
+                clearTimeout(this._connectionLostEndTimeout);
+                this._connectionLostEndTimeout = null;
+            }
+            setCallConnectionState('connected');
             setCallStatusText('Соединено');
             startCallDurationTimer();
             playConnectedSound();
             return;
         }
         if (state === 'disconnected' || state === 'failed') {
-            this._handleRecoverableDisconnect();
+            this._handleRecoverableDisconnect(state);
         }
     }
 
-    _handleRecoverableDisconnect() {
+    _handleRecoverableDisconnect(connectionState = 'disconnected') {
         if (this._state !== STATES.ACTIVE) return;
-        setCallStatusText('Переподключение...');
+        const failed = connectionState === 'failed';
+        const label = failed ? 'Связь потеряна. Переподключаем...' : 'Переподключение...';
+        setCallConnectionState(failed ? 'lost' : 'reconnecting', label);
+        setCallStatusText(label);
         void this._restartIceWithFreshConfig();
         clearTimeout(this._disconnectTimeout);
         this._disconnectTimeout = setTimeout(() => {
             if (this._state === STATES.ACTIVE) {
+                setCallConnectionState('lost');
+                setCallStatusText('Связь потеряна');
                 showToast('Соединение потеряно', 'error');
-                this.endCall();
+                this._connectionLostEndTimeout = setTimeout(() => {
+                    if (this._state === STATES.ACTIVE) this.endCall();
+                }, 900);
             }
         }, DISCONNECT_TIMEOUT_MS);
     }
@@ -1161,6 +1178,7 @@ export class CallManager {
         if (this._initiateAckTimeout) { clearTimeout(this._initiateAckTimeout); this._initiateAckTimeout = null; }
         this._clearAcceptTimeouts();
         if (this._disconnectTimeout) { clearTimeout(this._disconnectTimeout); this._disconnectTimeout = null; }
+        if (this._connectionLostEndTimeout) { clearTimeout(this._connectionLostEndTimeout); this._connectionLostEndTimeout = null; }
         this._clearRememberedCallSession(callId);
         stopRingtone();
         removePreCallScreen();

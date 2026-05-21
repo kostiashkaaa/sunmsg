@@ -606,6 +606,10 @@ export function showActiveCallOverlay({
                     <span class="call-quality__dot" aria-hidden="true"></span>
                     <span class="call-quality__text">Связь</span>
                 </div>
+                <div class="call-connectivity" id="call-connectivity" data-call-connectivity-state="connecting" role="status" hidden>
+                    <span class="call-connectivity__dot" aria-hidden="true"></span>
+                    <span class="call-connectivity__text">Соединение...</span>
+                </div>
             </div>
             <span class="call-card__resize call-card__resize--n" data-call-resize="n" aria-hidden="true"></span>
             <span class="call-card__resize call-card__resize--e" data-call-resize="e" aria-hidden="true"></span>
@@ -756,6 +760,7 @@ export function showActiveCallOverlay({
     syncAudioControlState(localAudioMuted);
     syncVideoControlState(localVideoEnabled);
     _syncLocalVideo(overlay, activeLocalStream, localVideoEnabled && !isRinging, activeLocalFacingMode);
+    setCallConnectionState(isRinging ? 'ringing' : 'connecting');
     _bindCallInfoVisibility(overlay);
     if (!isMobile) {
         const card = overlay.querySelector('#call-card');
@@ -1025,6 +1030,28 @@ export function setCallStatusText(text) {
     if (changed) _showCallInfoTemporarily();
 }
 
+export function setCallConnectionState(state, text = '') {
+    const overlay = _currentOverlay();
+    if (!overlay) return;
+    const normalized = _normalizeCallConnectionState(state);
+    const label = String(text || _callConnectionLabel(normalized));
+    const badge = overlay.querySelector('#call-connectivity');
+    overlay.dataset.callConnectionState = normalized;
+    overlay.classList.toggle('call-overlay--connection-warning', normalized === 'connecting' || normalized === 'reconnecting');
+    overlay.classList.toggle('call-overlay--connection-lost', normalized === 'lost');
+    if (badge) {
+        badge.hidden = normalized === 'connected' || normalized === 'ringing';
+        badge.dataset.callConnectivityState = normalized;
+        const textEl = badge.querySelector('.call-connectivity__text');
+        if (textEl) textEl.textContent = label;
+        badge.setAttribute('aria-label', label);
+        badge.title = label;
+    }
+    if (normalized !== 'connected' && normalized !== 'ringing') {
+        _showCallInfoTemporarily(overlay);
+    }
+}
+
 export function setCallVerificationCode(code) {
     const el = _currentOverlay()?.querySelector('#call-verification-code');
     if (!el) return;
@@ -1145,6 +1172,20 @@ export function attachRemoteTrack(track, remoteStream = null) {
     // call_media_state is the source of truth; track.mute can fire during replaceTrack().
     track.addEventListener('ended', () => removeRemoteTrack(track.kind), { once: true });
     _playMedia(media);
+}
+
+function _normalizeCallConnectionState(state) {
+    const value = String(state || '').trim().toLowerCase();
+    if (['ringing', 'connecting', 'connected', 'reconnecting', 'lost'].includes(value)) return value;
+    return 'connecting';
+}
+
+function _callConnectionLabel(state) {
+    if (state === 'connected') return 'Соединено';
+    if (state === 'reconnecting') return 'Переподключение...';
+    if (state === 'lost') return 'Связь потеряна';
+    if (state === 'ringing') return 'Звонок...';
+    return 'Соединение...';
 }
 
 export function setLocalVideoEnabled(stream, enabled, facingMode = '') {
