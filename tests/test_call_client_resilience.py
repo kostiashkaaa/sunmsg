@@ -43,6 +43,12 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
     assert 'const requiredSamples = isDowngrade' in webrtc
+    assert '_createMirroredVideoTrack(sourceTrack)' in webrtc
+    assert 'canvas.captureStream(fps)' in webrtc
+    assert 'ctx.scale(-1, 1)' in webrtc
+    assert 'mirrorVideo: this._shouldMirrorOutgoingVideo()' in manager
+    assert '_isMobileCallClient()' in manager
+    assert "return mode === 'user';" in manager
 
     assert "'partner_media': _partner_media_state(conn, call_id, user_id)" in handlers
     assert "if status == 'active' else None" in handlers

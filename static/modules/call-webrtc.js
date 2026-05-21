@@ -60,6 +60,7 @@ export class CallWebRTC {
         this._localStream = null;
         this._audioSender = null;
         this._videoSender = null;
+        this._videoTransformCleanup = null;
         this._makingOffer = false;
         this._ignoreOffer = false;
         this._polite = false;   // set by caller: caller=impolite(false), callee=polite(true)
@@ -79,7 +80,7 @@ export class CallWebRTC {
      * Attach local media stream and create RTCPeerConnection.
      * Must be called before createOffer() or setRemoteOffer().
      */
-    init(localStream, { polite }) {
+    init(localStream, { polite, mirrorVideo = false } = {}) {
         this._localStream = localStream;
         this._polite = polite;
 
@@ -137,9 +138,14 @@ export class CallWebRTC {
         // Add tracks after handlers are attached, so negotiation cannot race
         // peer connection setup.
         for (const track of localStream?.getTracks?.() || []) {
+            if (track.kind === 'video') {
+                const outgoing = this._prepareOutgoingVideoTrack(track, { mirror: mirrorVideo });
+                this._videoSender = this._pc.addTrack(outgoing.track, outgoing.stream || localStream);
+                this._videoTransformCleanup = outgoing.cleanup || null;
+                continue;
+            }
             const sender = this._pc.addTrack(track, localStream);
             if (track.kind === 'audio') this._audioSender = sender;
-            if (track.kind === 'video') this._videoSender = sender;
         }
 
         this._startStatsMonitor();
@@ -250,14 +256,27 @@ export class CallWebRTC {
 
     setVideoEnabled(enabled) {
         this._localStream?.getVideoTracks().forEach(t => { t.enabled = enabled; });
+        const senderTrack = this._videoSender?.track;
+        if (senderTrack) senderTrack.enabled = enabled;
     }
 
-    async replaceVideoTrack(newTrack) {
+    async replaceVideoTrack(newTrack, { mirror = false } = {}) {
         const sender = this._videoSender || this._pc?.getSenders().find(s => s.track?.kind === 'video');
         if (sender) {
-            await sender.replaceTrack(newTrack || null);
+            const previousCleanup = this._videoTransformCleanup;
+            const outgoing = newTrack
+                ? this._prepareOutgoingVideoTrack(newTrack, { mirror })
+                : { track: null, stream: null };
+            try {
+                await sender.replaceTrack(outgoing.track || null);
+            } catch (err) {
+                outgoing.cleanup?.();
+                throw err;
+            }
+            previousCleanup?.();
+            this._videoTransformCleanup = outgoing.cleanup || null;
             this._videoSender = sender;
-            if (newTrack) this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
+            if (outgoing.track) this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
         }
     }
 
@@ -269,18 +288,49 @@ export class CallWebRTC {
         }
     }
 
-    async addVideoTrack(newTrack, stream = this._localStream) {
+    async addVideoTrack(newTrack, stream = this._localStream, { mirror = false } = {}) {
         if (!this._pc || !newTrack) return;
         const sender = this._videoSender || this._pc.getSenders().find(s => s.track?.kind === 'video');
+        const previousCleanup = this._videoTransformCleanup;
+        const outgoing = this._prepareOutgoingVideoTrack(newTrack, { mirror });
         if (sender) {
-            await sender.replaceTrack(newTrack);
+            try {
+                await sender.replaceTrack(outgoing.track);
+            } catch (err) {
+                outgoing.cleanup?.();
+                throw err;
+            }
+            previousCleanup?.();
+            this._videoTransformCleanup = outgoing.cleanup || null;
             this._videoSender = sender;
             this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
             return;
         }
-        const targetStream = stream || this._localStream || new MediaStream([newTrack]);
-        this._videoSender = this._pc.addTrack(newTrack, targetStream);
+        const targetStream = outgoing.stream || stream || this._localStream || new MediaStream([outgoing.track]);
+        this._videoSender = this._pc.addTrack(outgoing.track, targetStream);
+        this._videoTransformCleanup = outgoing.cleanup || null;
         this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
+    }
+
+    _prepareOutgoingVideoTrack(sourceTrack, { mirror = false } = {}) {
+        if (!sourceTrack || !mirror) {
+            return { track: sourceTrack || null, stream: null };
+        }
+        const transformed = _createMirroredVideoTrack(sourceTrack);
+        if (!transformed?.track) {
+            return { track: sourceTrack, stream: null };
+        }
+        return transformed;
+    }
+
+    _cleanupVideoTransform() {
+        if (!this._videoTransformCleanup) return;
+        try {
+            this._videoTransformCleanup();
+        } catch (err) {
+            console.warn('[CallWebRTC] video transform cleanup failed', err);
+        }
+        this._videoTransformCleanup = null;
     }
 
     async _updateVerificationCode() {
@@ -439,10 +489,12 @@ export class CallWebRTC {
             this._statsTimer = null;
         }
         this._pc?.close();
+        this._cleanupVideoTransform();
         this._pc = null;
         this._localStream = null;
         this._audioSender = null;
         this._videoSender = null;
+        this._videoTransformCleanup = null;
         this._pendingIceCandidates = [];
         this._lastInboundStats.clear();
         this._sendQualityLevel = '';
@@ -478,6 +530,91 @@ function _worseQualityLevel(left, right) {
 
 function _normalizeIceTransportPolicy(value) {
     return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
+}
+
+function _createMirroredVideoTrack(sourceTrack) {
+    if (
+        !sourceTrack
+        || typeof document === 'undefined'
+        || typeof MediaStream === 'undefined'
+        || typeof requestAnimationFrame !== 'function'
+    ) {
+        return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    if (typeof canvas.captureStream !== 'function') return null;
+
+    const video = document.createElement('video');
+    const inputStream = new MediaStream([sourceTrack]);
+    const settings = sourceTrack.getSettings?.() || {};
+    const fps = Math.max(1, Math.min(24, Math.round(Number(settings.frameRate || 24)) || 24));
+    const initialWidth = Math.max(1, Math.round(Number(settings.width || 640)) || 640);
+    const initialHeight = Math.max(1, Math.round(Number(settings.height || 360)) || 360);
+    canvas.width = initialWidth;
+    canvas.height = initialHeight;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return null;
+
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = inputStream;
+
+    let stopped = false;
+    let rafId = 0;
+    let outputTrack = null;
+
+    const syncCanvasSize = () => {
+        const width = Math.max(1, Math.round(Number(video.videoWidth || settings.width || canvas.width)));
+        const height = Math.max(1, Math.round(Number(video.videoHeight || settings.height || canvas.height)));
+        if (canvas.width !== width) canvas.width = width;
+        if (canvas.height !== height) canvas.height = height;
+    };
+
+    const draw = () => {
+        if (stopped || sourceTrack.readyState === 'ended') return;
+        syncCanvasSize();
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        try {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } catch (_) {
+            // Video metadata may not be ready on the first frames.
+        }
+        ctx.restore();
+        rafId = requestAnimationFrame(draw);
+    };
+
+    const outputStream = canvas.captureStream(fps);
+    outputTrack = outputStream.getVideoTracks()[0] || null;
+    if (!outputTrack) return null;
+    try { outputTrack.contentHint = sourceTrack.contentHint || 'motion'; } catch (_) { /* optional browser hint */ }
+
+    const cleanup = () => {
+        if (stopped) return;
+        stopped = true;
+        if (rafId) cancelAnimationFrame(rafId);
+        sourceTrack.removeEventListener('ended', cleanup);
+        outputTrack.removeEventListener('ended', cleanup);
+        video.pause?.();
+        video.srcObject = null;
+        if (outputTrack?.readyState !== 'ended') outputTrack.stop();
+    };
+
+    sourceTrack.addEventListener('ended', cleanup, { once: true });
+    outputTrack.addEventListener('ended', cleanup, { once: true });
+    const playPromise = video.play?.();
+    if (playPromise?.catch) {
+        playPromise.catch((err) => console.warn('[CallWebRTC] mirrored video source playback failed', err));
+    }
+    rafId = requestAnimationFrame(draw);
+
+    return {
+        track: outputTrack,
+        stream: outputStream,
+        cleanup,
+    };
 }
 
 function _extractDtlsFingerprint(sdp) {

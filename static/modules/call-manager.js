@@ -676,7 +676,9 @@ export class CallManager {
                 try {
                     prepared = await this._media.prepareCameraSwitch();
                     if (prepared?.track) {
-                        await this._webrtc?.replaceVideoTrack(prepared.track);
+                        await this._webrtc?.replaceVideoTrack(prepared.track, {
+                            mirror: this._shouldMirrorOutgoingVideo(prepared.track, prepared.facingMode),
+                        });
                         this._media.commitPreparedVideoTrack(prepared.track, prepared);
                         this._screenSharing = false;
                         setCallScreenShareActive(false);
@@ -684,7 +686,11 @@ export class CallManager {
                     }
                 } catch (err) {
                     if (oldTrack && oldTrack.readyState !== 'ended') {
-                        try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                        try {
+                            await this._webrtc?.replaceVideoTrack(oldTrack, {
+                                mirror: this._shouldMirrorOutgoingVideo(oldTrack),
+                            });
+                        } catch (_) { /* keep current sender best-effort */ }
                     } else {
                         try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
                     }
@@ -739,14 +745,20 @@ export class CallManager {
                 try {
                     prepared = await this._media.prepareVideoInput(deviceId);
                     this._callType = 'video';
-                    await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+                    await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream(), {
+                        mirror: this._shouldMirrorOutgoingVideo(prepared.track, prepared.facingMode),
+                    });
                     this._media.commitPreparedVideoTrack(prepared.track, prepared);
                     this._screenSharing = false;
                     setCallScreenShareActive(false);
                     this._notifyMediaState();
                 } catch (err) {
                     if (oldTrack) {
-                        try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                        try {
+                            await this._webrtc?.replaceVideoTrack(oldTrack, {
+                                mirror: this._shouldMirrorOutgoingVideo(oldTrack),
+                            });
+                        } catch (_) { /* keep current sender best-effort */ }
                     } else {
                         try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
                     }
@@ -788,7 +800,10 @@ export class CallManager {
             });
 
             // polite = callee (acceptCall sets _isPolite=true), impolite = caller
-            this._webrtc.init(this._media.getLocalStream(), { polite: this._isPolite });
+            this._webrtc.init(this._media.getLocalStream(), {
+                polite: this._isPolite,
+                mirrorVideo: this._shouldMirrorOutgoingVideo(),
+            });
             this._notifyMediaState();
 
             // 5. Drain signals queued before _webrtc was ready
@@ -826,7 +841,9 @@ export class CallManager {
             prepared = await this._media.prepareVideoInput('');
             if (!prepared?.track) return false;
             this._callType = 'video';
-            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream(), {
+                mirror: this._shouldMirrorOutgoingVideo(prepared.track, prepared.facingMode),
+            });
             this._media.commitPreparedVideoTrack(prepared.track, prepared);
             this._screenSharing = false;
             setCallScreenShareActive(false);
@@ -863,14 +880,18 @@ export class CallManager {
         try {
             prepared = await this._media.prepareDisplayMedia();
             this._callType = 'video';
-            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream());
+            await this._webrtc?.addVideoTrack(prepared.track, this._media.getLocalStream(), { mirror: false });
             this._media.commitPreparedVideoTrack(prepared.track, prepared);
             this._screenSharing = true;
             setCallScreenShareActive(true);
             return { enabled: true, localStream: this._media.getLocalStream(), facingMode: 'screen' };
         } catch (err) {
             if (oldTrack) {
-                try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
+                try {
+                    await this._webrtc?.replaceVideoTrack(oldTrack, {
+                        mirror: this._shouldMirrorOutgoingVideo(oldTrack),
+                    });
+                } catch (_) { /* keep current sender best-effort */ }
             } else {
                 try { await this._webrtc?.replaceVideoTrack(null); } catch (_) { /* keep current sender best-effort */ }
             }
@@ -1071,6 +1092,18 @@ export class CallManager {
         });
     }
 
+    _shouldMirrorOutgoingVideo(track = this._media.getVideoTrack(), facingMode = '') {
+        if (this._media.isScreenSharing()) return false;
+        if (!_isMobileCallClient()) return false;
+        const mode = String(
+            facingMode
+            || track?.getSettings?.()?.facingMode
+            || this._media.getVideoFacingMode()
+            || '',
+        ).trim().toLowerCase();
+        return mode === 'user';
+    }
+
     _partnerMediaStateFromActiveCall(activeCall) {
         const media = activeCall?.partner_media;
         if (!media || typeof media !== 'object') return null;
@@ -1243,4 +1276,11 @@ function _mediaAccessMessage(error, callType) {
     return isVideo
         ? 'Не удалось открыть микрофон или камеру'
         : 'Не удалось открыть микрофон';
+}
+
+function _isMobileCallClient() {
+    const uaData = globalThis.navigator?.userAgentData;
+    if (typeof uaData?.mobile === 'boolean') return uaData.mobile;
+    const ua = String(globalThis.navigator?.userAgent || '');
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
