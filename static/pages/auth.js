@@ -47,8 +47,8 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setHtml(
         'loginIntroTitle',
         isEn
-            ? '<span id="loginIntroTitleMain">Sign in</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">in three seconds.</em>'
-            : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">за три секунды.</em>',
+            ? '<span id="loginIntroTitleMain">Sign in</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">without extra steps.</em>'
+            : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">без лишних шагов.</em>',
     );
 
     setText('registerStep1Title', isEn ? 'Quick intro' : 'Знакомимся');
@@ -165,7 +165,7 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
             : 'Что-то непонятно? Напишите нам — мы читаем каждое сообщение.',
     );
     setText('authFeedbackAction', isEn ? 'Send feedback →' : 'Написать →');
-    setText('authDocsTagline', isEn ? 'a quiet network for your own' : 'тихая сеть для своих');
+    setText('authDocsTagline', isEn ? 'private chats without the noise' : 'личная связь без лишнего шума');
     setAttr('authLegalLinks', 'aria-label', isEn ? 'Legal and support links' : 'Юридические документы');
     setAttr('authPreferencesDock', 'aria-label', isEn ? 'Interface settings' : 'Настройки интерфейса');
     setAttr('authLanguageSwitch', 'aria-label', isEn ? 'Interface language' : 'Язык интерфейса');

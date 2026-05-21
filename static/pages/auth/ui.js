@@ -113,8 +113,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (tabRegisterBtn) tabRegisterBtn.textContent = isEn ? 'Create account' : 'Создать аккаунт';
         if (loginIntroTitleEl) {
             loginIntroTitleEl.innerHTML = isEn
-                ? '<span id="loginIntroTitleMain">Sign in</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">in three seconds.</em>'
-                : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">за три секунды.</em>';
+                ? '<span id="loginIntroTitleMain">Sign in</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">without extra steps.</em>'
+                : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">без лишних шагов.</em>';
         }
         if (loginIntroSubEl) loginIntroSubEl.textContent = isEn
             ? 'Open SUN on your phone → scan.'
@@ -145,8 +145,8 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (registerStep1BackBtn) registerStep1BackBtn.innerHTML = isEn ? '&larr; Back' : '&larr; Назад';
         if (authHeadlineEl) {
             authHeadlineEl.innerHTML = isEn
-                ? 'A quiet network<br><em class="auth-brand-headline-em">for the people<br>you trust.</em>'
-                : 'Тихая сеть<br><em class="auth-brand-headline-em">для своих.</em>';
+                ? 'Private chats<br><em class="auth-brand-headline-em">without the noise.</em>'
+                : 'Личная связь<br><em class="auth-brand-headline-em">без лишнего шума.</em>';
         }
     }
 
@@ -334,10 +334,10 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         if (!headline) return;
         const language = activeLanguage();
         headline.innerHTML = language === 'en'
-            ? 'A quiet network'
-                + '<br><em class="auth-brand-headline-em">for the people<br>you trust.</em>'
-            : 'Тихая сеть'
-                + '<br><em class="auth-brand-headline-em">для своих.</em>';
+            ? 'Private chats'
+                + '<br><em class="auth-brand-headline-em">without the noise.</em>'
+            : 'Личная связь'
+                + '<br><em class="auth-brand-headline-em">без лишнего шума.</em>';
     }
 
     document.getElementById('tab-login-btn')?.addEventListener('click', () => switchTab('login'));

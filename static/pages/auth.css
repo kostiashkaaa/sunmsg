@@ -2131,7 +2131,7 @@
 }
 
 #loginIntroTitle::after {
-    content: 'за три секунды.';
+    content: 'без лишних шагов.';
     margin-top: 4px;
     font-size: clamp(2.2rem, 3.2vw, 3.1rem);
     line-height: 0.94;
@@ -2144,7 +2144,7 @@ body[data-ui-language="en"] #loginIntroTitle::before {
 }
 
 body[data-ui-language="en"] #loginIntroTitle::after {
-    content: 'in three seconds.';
+    content: 'without extra steps.';
 }
 
 #loginIntroSub {
