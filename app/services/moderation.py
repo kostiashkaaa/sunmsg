@@ -3,8 +3,10 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
+
+from app.services.time_utils import to_db_timestamp, utc_now
 
 URL_PATTERN = re.compile(r"\bhttps?://[^\s<>\"'`]+|\bwww\.[^\s<>\"'`]+", re.IGNORECASE)
 ALLOWED_TARGET_TYPES = {'user', 'message', 'chat', 'channel', 'bot'}
@@ -18,14 +20,6 @@ MODERATION_JOB_DONE = 'done'
 MODERATION_JOB_FAILED = 'failed'
 MODERATOR_ROLE = 'moderator'
 GROUP_MEMBER_SUBJECT_TYPE = 'group_member'
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def to_db_timestamp(value: datetime) -> str:
-    return value.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def parse_int(value: Any, *, min_value: int | None = None, max_value: int | None = None) -> int | None:

@@ -1,9 +1,6 @@
-import re
 import base64
-import hashlib
 import json
 import logging
-import os
 import secrets
 import time
 import ipaddress
@@ -37,7 +34,6 @@ from app.services.session_policy import (
 
 from app.database import get_db_connection
 from app.services.locale import detect_auth_language, language_from_user_row, normalize_language
-from app.services.favorites_chat import ensure_saved_messages_chat
 from app.services.presence import is_effectively_online
 from app.services.session_state import (
     clear_invalid_session_user as _clear_invalid_session_user_impl,
@@ -45,11 +41,24 @@ from app.services.session_state import (
     session_user_exists as _session_user_exists_impl,
 )
 from app.routes.auth_utils import (
-    avatar_storage_name_from_url,
     build_decoy_login_vault,
-    is_valid_b64_blob,
-    normalize_login_vault,
-    safe_remove_stored_file,
+)
+from app.routes.auth_helpers_key_transfer import (
+    KEY_TRANSFER_SESSION_TTL_SECONDS as _KEY_TRANSFER_SESSION_TTL_SECONDS,
+    cleanup_key_transfer_sessions as _cleanup_key_transfer_sessions,
+    cleanup_login_key_transfer_sessions as _cleanup_login_key_transfer_sessions,
+    is_valid_b64url_blob as _is_valid_b64url_blob,
+    is_valid_key_transfer_session_id as _is_valid_key_transfer_session_id,
+    is_valid_p256_jwk as _is_valid_p256_jwk,
+)
+from app.routes.auth_helpers_register import (
+    ensure_default_saved_messages_chat as _ensure_default_saved_messages_chat,
+    normalize_login_vault_payload as _normalize_login_vault,
+)
+from app.routes.auth_helpers_sessions import current_refresh_family_id as _current_refresh_family_id
+from app.routes.auth_helpers_settings import (
+    avatar_storage_name_from_profile_url as _avatar_storage_name_from_url,
+    safe_remove_stored_file_from_dir as _safe_remove_stored_file,
 )
 from app.routes.auth_session_utils import (
     consume_register_challenge,
@@ -88,21 +97,13 @@ except Exception as webauthn_import_error:  # pragma: no cover - dependency guar
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
-_LOGIN_VAULT_MAX_BYTES = 24 * 1024
 _USERNAME_MAX_LENGTH = 50
 _DISPLAY_NAME_MAX_LENGTH = 50
-_B64_PATTERN = re.compile(r'^[A-Za-z0-9+/]+={0,2}$')
 _REGISTER_CHALLENGE_TTL_SECONDS = 5 * 60
 _PENDING_TOTP_TTL_SECONDS = 5 * 60
 _PENDING_TOTP_SETUP_TTL_SECONDS = 10 * 60
 _PENDING_PASSKEY_REGISTER_TTL_SECONDS = 5 * 60
 _PENDING_PASSKEY_LOGIN_TTL_SECONDS = 5 * 60
-_KEY_TRANSFER_SESSION_TTL_SECONDS = 3 * 60
-_KEY_TRANSFER_SESSION_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{16,128}$')
-_B64URL_PATTERN = re.compile(r'^[A-Za-z0-9_-]+$')
-_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-CHAT_MEDIA_FOLDER = os.path.join(_BASE_DIR, 'storage', 'chat_media')
-AVATAR_FOLDER = os.path.join(_BASE_DIR, 'static', 'avatars')
 
 # Keep shared symbols alive for split route modules importing from .context.
 _ROUTE_SHARED_SYMBOLS = (
@@ -127,6 +128,15 @@ _ROUTE_SHARED_SYMBOLS = (
     LoginForm,
     RegistrationForm,
     SettingsForm,
+    _avatar_storage_name_from_url,
+    _cleanup_key_transfer_sessions,
+    _cleanup_login_key_transfer_sessions,
+    _current_refresh_family_id,
+    _ensure_default_saved_messages_chat,
+    _is_valid_b64url_blob,
+    _is_valid_p256_jwk,
+    _normalize_login_vault,
+    _safe_remove_stored_file,
     list_visible_contact_public_keys,
     add_pem_headers,
     normalize_public_key,
@@ -156,31 +166,6 @@ def _session_user_exists() -> bool:
         public_key=session.get('public_key_pem'),
         get_db_connection=get_db_connection,
         logger=logger,
-    )
-
-
-def _is_valid_b64_blob(value: str, *, min_bytes: int = 1, max_bytes: int = 16 * 1024) -> bool:
-    return is_valid_b64_blob(
-        value,
-        pattern=_B64_PATTERN,
-        min_bytes=min_bytes,
-        max_bytes=max_bytes,
-    )
-
-
-def _normalize_login_vault(raw_value):
-    return normalize_login_vault(
-        raw_value,
-        login_vault_max_bytes=_LOGIN_VAULT_MAX_BYTES,
-        is_valid_b64_blob_func=_is_valid_b64_blob,
-    )
-
-
-def _ensure_default_saved_messages_chat(conn, *, user_id: int, public_key: str) -> str:
-    return ensure_saved_messages_chat(
-        conn,
-        user_id=user_id,
-        public_key=public_key,
     )
 
 
@@ -478,59 +463,6 @@ def _extract_passkey_credential_id(credential):
     return str(raw_id or '').strip()
 
 
-def _is_valid_p256_jwk(value) -> bool:
-    if not isinstance(value, dict):
-        return False
-    if str(value.get('kty') or '') != 'EC':
-        return False
-    if str(value.get('crv') or '') != 'P-256':
-        return False
-    x = str(value.get('x') or '').strip()
-    y = str(value.get('y') or '').strip()
-    if not x or not y:
-        return False
-    if len(x) > 200 or len(y) > 200:
-        return False
-    return bool(_B64URL_PATTERN.fullmatch(x) and _B64URL_PATTERN.fullmatch(y))
-
-
-def _is_valid_b64url_blob(value: str, *, max_len: int = 16384) -> bool:
-    text = str(value or '').strip()
-    if not text:
-        return False
-    if len(text) > max_len:
-        return False
-    return bool(_B64URL_PATTERN.fullmatch(text))
-
-
-def _is_valid_key_transfer_session_id(value: str) -> bool:
-    return bool(_KEY_TRANSFER_SESSION_ID_PATTERN.fullmatch(str(value or '').strip()))
-
-
-def _cleanup_key_transfer_sessions(conn) -> None:
-    now = int(time.time())
-    conn.execute(
-        '''
-        DELETE FROM key_transfer_sessions
-        WHERE expires_at <= ?
-           OR (status = 'claimed' AND claimed_at IS NOT NULL AND claimed_at <= ?)
-        ''',
-        (now, now - 60),
-    )
-
-
-def _cleanup_login_key_transfer_sessions(conn) -> None:
-    now = int(time.time())
-    conn.execute(
-        '''
-        DELETE FROM key_transfer_login_sessions
-        WHERE expires_at <= ?
-           OR (status = 'claimed' AND claimed_at IS NOT NULL AND claimed_at <= ?)
-        ''',
-        (now, now - 60),
-    )
-
-
 def _session_auto_logout_seconds_for_user(user_id: int) -> int:
     conn = get_db_connection()
     try:
@@ -560,29 +492,6 @@ def _issue_register_challenge() -> str:
 
 def _consume_register_challenge():
     return consume_register_challenge(session)
-
-
-def _safe_remove_stored_file(base_dir: str, storage_name: str) -> None:
-    safe_remove_stored_file(base_dir, storage_name, logger=logger)
-
-
-def _avatar_storage_name_from_url(avatar_url: str):
-    return avatar_storage_name_from_url(avatar_url)
-
-
-def _current_refresh_family_id(conn, raw_token: str | None):
-    raw = str(raw_token or '').strip()
-    if not raw:
-        return None
-
-    token_hash = hashlib.sha256(raw.encode('utf-8')).hexdigest()
-    row = conn.execute(
-        'SELECT family_id FROM refresh_tokens WHERE token_hash = ? LIMIT 1',
-        (token_hash,),
-    ).fetchone()
-    if not row or not row['family_id']:
-        return None
-    return str(row['family_id'])
 
 
 

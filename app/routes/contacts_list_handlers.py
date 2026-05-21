@@ -2,24 +2,11 @@ from datetime import datetime
 import time
 
 from app.db.schema import tables_columns
+from app.routes.bool_utils import coerce_bool_flag
 from app.services.favorites_chat import (
     ensure_saved_messages_chat,
     resolve_contact_display_name,
 )
-
-
-def _coerce_bool_flag(value, *, default: bool = True) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return int(value) != 0
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {'1', 'true', 't', 'yes', 'on'}:
-            return True
-        if normalized in {'0', 'false', 'f', 'no', 'off'}:
-            return False
-    return bool(default)
 
 
 def _resolve_schema_columns(conn, cursor, *, ensure_pinned_chats_table_func):
@@ -351,7 +338,7 @@ def _serialize_personal_contacts(  # noqa: PLR0913
                 'blocked_me': blocked_me,
                 'is_blocked': is_blocked,
                 'can_group_add_direct': (
-                    _coerce_bool_flag(contact['can_group_add_direct'], default=True)
+                    coerce_bool_flag(contact['can_group_add_direct'], default=True)
                     if 'can_group_add_direct' in contact.keys()
                     else True
                 ),

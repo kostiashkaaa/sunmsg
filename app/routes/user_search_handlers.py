@@ -1,34 +1,21 @@
+from app.routes.bool_utils import coerce_bool_flag
 from app.services.user_privacy import can_find_by_public_key
 
 
-def _coerce_bool_flag(value, *, default: bool = True) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return int(value) != 0
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {'1', 'true', 't', 'yes', 'on'}:
-            return True
-        if normalized in {'0', 'false', 'f', 'no', 'off'}:
-            return False
-    return bool(default)
-
-
 def _build_relationship_status(user) -> str:
-    if _coerce_bool_flag(user['is_contact'], default=False):
+    if coerce_bool_flag(user['is_contact'], default=False):
         return 'contact'
-    if _coerce_bool_flag(user['has_pending_incoming_request'], default=False):
+    if coerce_bool_flag(user['has_pending_incoming_request'], default=False):
         return 'incoming_request'
-    if _coerce_bool_flag(user['has_pending_outgoing_request'], default=False):
+    if coerce_bool_flag(user['has_pending_outgoing_request'], default=False):
         return 'outgoing_request'
     return 'none'
 
 
 def _build_search_result(user, *, viewer_id: int, get_safe_avatar_url_func, include_public_key: bool = False) -> dict:
-    is_contact = _coerce_bool_flag(user['is_contact'], default=False)
-    pending_incoming = _coerce_bool_flag(user['has_pending_incoming_request'], default=False)
-    pending_outgoing = _coerce_bool_flag(user['has_pending_outgoing_request'], default=False)
+    is_contact = coerce_bool_flag(user['is_contact'], default=False)
+    pending_incoming = coerce_bool_flag(user['has_pending_incoming_request'], default=False)
+    pending_outgoing = coerce_bool_flag(user['has_pending_outgoing_request'], default=False)
     contact_chat_id = str(user['contact_chat_id'] or '').strip()
     result = {
         'userId': user['id'],
@@ -36,7 +23,7 @@ def _build_search_result(user, *, viewer_id: int, get_safe_avatar_url_func, incl
         'username': user['username'],
         'display_name': user['display_name'],
         'avatar_url': get_safe_avatar_url_func(user, viewer_id),
-        'can_group_add_direct': _coerce_bool_flag(user['can_group_add_direct'], default=True),
+        'can_group_add_direct': coerce_bool_flag(user['can_group_add_direct'], default=True),
         'is_contact': is_contact,
         'pending_incoming_request': pending_incoming,
         'pending_outgoing_request': pending_outgoing,

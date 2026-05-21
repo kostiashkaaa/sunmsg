@@ -6,7 +6,7 @@ from app.services.group_receipts import (
     list_unread_group_receipt_message_ids,
 )
 from app.services.reactions import fetch_reactions_map
-from app.services.user import get_safe_avatar_url
+from app.services.user import get_safe_avatar_url, is_contact_for_avatar
 from app.services.user_privacy import can_share_read_receipt, can_share_voice_listened
 
 
@@ -36,16 +36,6 @@ def _count_visible_messages(conn, *, chat_id: str, user_id: int, is_group_chat: 
     return int(row['total'] or 0) if row else 0
 
 
-def _is_contact_for_avatar(conn, *, viewer_id: int, owner_id: int) -> bool:
-    if int(viewer_id) == int(owner_id):
-        return True
-    row = conn.execute(
-        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
-        (int(viewer_id), int(owner_id)),
-    ).fetchone()
-    return row is not None
-
-
 def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
     sender_id = int(row['sender_id'])
     return get_safe_avatar_url(
@@ -53,7 +43,7 @@ def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
             'id': sender_id,
             'avatar_url': row['sender_avatar_url'],
             'avatar_visibility': row['sender_avatar_visibility'] if 'sender_avatar_visibility' in row.keys() else 'all',
-            'is_contact': _is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
+            'is_contact': is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
         },
         viewer_id,
     )

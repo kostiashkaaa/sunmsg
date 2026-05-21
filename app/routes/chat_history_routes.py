@@ -1,26 +1,14 @@
 from flask import jsonify, request, session
 
 from app.db_backend import DatabaseError
-from app.sockets.event_envelope import get_chat_update_difference, get_chat_update_state
+from app.routes.request_args import parse_positive_optional_int
+from app.services.event_envelope import get_chat_update_difference, get_chat_update_state
 from app.services.chat_history_service import (
     delete_chat_for_user,
     load_chat_history,
     mark_messages_as_read,
 )
 from app.services.user import get_safe_avatar_url
-
-
-def _parse_positive_optional_int(raw_value: str, *, field_name: str):
-    value_raw = str(raw_value or '').strip()
-    if not value_raw:
-        return None, None
-    try:
-        value = int(value_raw)
-    except (TypeError, ValueError):
-        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
-    if value <= 0:
-        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
-    return value, None
 
 
 def _parse_chat_history_request_args(args, *, is_valid_chat_id_func):
@@ -36,10 +24,10 @@ def _parse_chat_history_request_args(args, *, is_valid_chat_id_func):
         limit = 40
     limit = max(1, min(limit, 100))
 
-    before_id, before_error = _parse_positive_optional_int(args.get('before_id', ''), field_name='before_id')
+    before_id, before_error = parse_positive_optional_int(args.get('before_id', ''), field_name='before_id')
     if before_error:
         return None, before_error
-    after_id, after_error = _parse_positive_optional_int(args.get('after_id', ''), field_name='after_id')
+    after_id, after_error = parse_positive_optional_int(args.get('after_id', ''), field_name='after_id')
     if after_error:
         return None, after_error
     if before_id is not None and after_id is not None:

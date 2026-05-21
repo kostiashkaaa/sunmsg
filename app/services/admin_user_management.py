@@ -5,15 +5,15 @@ import re
 from typing import Any
 
 from app.db_backend import IntegrityError
-from app.routes.auth_helpers_settings import (
+from app.services.user_file_storage import (
     AVATAR_FOLDER,
     CHAT_MEDIA_FOLDER,
-    USERNAME_MAX_LENGTH,
     avatar_storage_name_from_profile_url,
     safe_remove_stored_file_from_dir,
 )
 from app.services import moderation as moderation_service
 
+USERNAME_MAX_LENGTH = 50
 USERNAME_PATTERN = re.compile(r'[a-z0-9_]+')
 
 

@@ -3,13 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def to_db_timestamp(value: datetime) -> str:
-    return value.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+from app.services.time_utils import to_db_timestamp, utc_now
 
 
 def parse_db_timestamp(value: Any) -> datetime | None:

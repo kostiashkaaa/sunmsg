@@ -6,6 +6,7 @@ from flask import Blueprint, Response, current_app, flash, jsonify, redirect, re
 
 from app.database import get_db_connection
 from app.extensions import limiter
+from app.routes.moderation_access import configured_moderator_ids
 from app.services import call_feature_access
 from app.services import liquid_glass_feature_access
 from app.services import moderation as moderation_service
@@ -22,18 +23,13 @@ def _require_auth_user_id():
     return parsed, None
 
 
-def _moderator_ids() -> set[int]:
-    raw_ids = str(current_app.config.get('MODERATOR_USER_IDS') or '').strip()
-    return moderation_service.moderator_id_set(raw_ids)
-
-
 def _is_moderator_user(user_id: int) -> bool:
     conn = get_db_connection()
     try:
         return moderation_service.is_moderator_user(
             conn,
             user_id=user_id,
-            moderator_ids_override=_moderator_ids(),
+            moderator_ids_override=configured_moderator_ids(),
         )
     finally:
         conn.close()

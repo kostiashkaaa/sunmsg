@@ -3,23 +3,11 @@ from __future__ import annotations
 from flask import jsonify, request, session
 
 from app.db_backend import DatabaseError
+from app.routes.request_args import parse_positive_optional_int
 from app.services.chat_shared_content_service import (
     load_shared_content_candidates,
     normalize_shared_content_type,
 )
-
-
-def _parse_positive_optional_int(raw_value, *, field_name: str):
-    value_raw = str(raw_value or '').strip()
-    if not value_raw:
-        return None, None
-    try:
-        value = int(value_raw)
-    except (TypeError, ValueError):
-        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
-    if value <= 0:
-        return None, (jsonify({'success': False, 'error': f'Invalid {field_name}.'}), 400)
-    return value, None
 
 
 def register_chat_shared_content_routes(
@@ -49,7 +37,7 @@ def register_chat_shared_content_routes(
             limit = 80
         limit = max(1, min(limit, 120))
 
-        before_id, before_error = _parse_positive_optional_int(
+        before_id, before_error = parse_positive_optional_int(
             request.args.get('before_id', ''),
             field_name='before_id',
         )

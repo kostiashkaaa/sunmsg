@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from app.sockets.event_envelope import emit_enveloped_socket_event
+from app.services.event_envelope import emit_enveloped_socket_event
 
 
 def _extract_payload_chat_id(payload: Any) -> str:

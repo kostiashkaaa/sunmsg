@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
+from app.routes.username_utils import canonical_username as canonical_username
 from app.services.locale import normalize_language
 
 ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__'
@@ -164,7 +165,3 @@ def parse_int(value):
 def like_pattern(value: str) -> str:
     escaped = str(value or '').replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
     return f'%{escaped}%'
-
-
-def canonical_username(value) -> str:
-    return str(value or '').strip().lower()

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 
 from app.database import get_db_connection
 from app.extensions import limiter
+from app.routes.moderation_access import configured_moderator_ids
 from app.services import admin_user_management as admin_user_service
 from app.services import moderation as moderation_service
 from app.services import support as support_service
@@ -16,18 +17,13 @@ def _auth_user_id() -> int | None:
     return moderation_service.parse_int(session.get('user_id'), min_value=1)
 
 
-def _moderator_ids() -> set[int]:
-    raw_ids = str(current_app.config.get('MODERATOR_USER_IDS') or '').strip()
-    return moderation_service.moderator_id_set(raw_ids)
-
-
 def _is_moderator_user(user_id: int) -> bool:
     conn = get_db_connection()
     try:
         return moderation_service.is_moderator_user(
             conn,
             user_id=int(user_id),
-            moderator_ids_override=_moderator_ids(),
+            moderator_ids_override=configured_moderator_ids(),
         )
     finally:
         conn.close()

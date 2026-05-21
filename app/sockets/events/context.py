@@ -7,7 +7,7 @@ from wtforms.validators import ValidationError
 
 from app.database import get_db_connection
 from app.sockets.delivery import collect_and_mark_delivered, emit_delivered_events
-from app.sockets.event_envelope import emit_enveloped_socket_event
+from app.services.event_envelope import emit_enveloped_socket_event
 from app.sockets.rate_limit import (
     redis_token_bucket_rate_ok,
     redis_token_buckets_rate_ok,

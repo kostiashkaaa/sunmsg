@@ -1,6 +1,9 @@
 import logging
 
-from app import _require_production_realtime_backing_services, _require_production_security_baseline
+from app.bootstrap.security import (
+    require_production_realtime_backing_services,
+    require_production_security_baseline,
+)
 from app.config import get_config_class, load_environment
 from app.database import validate_postgres_backup_tools
 from app.services.av_scan import AVScanError, validate_scan_command
@@ -28,8 +31,8 @@ def run_security_check(config_name=None, overrides=None):
         report['note'] = 'non-production-mode'
         return report
 
-    _require_production_security_baseline(config)
-    _require_production_realtime_backing_services(config)
+    require_production_security_baseline(config)
+    require_production_realtime_backing_services(config)
 
     if bool(config.get('CHAT_MEDIA_AV_SCAN_ENABLED', False)):
         try:

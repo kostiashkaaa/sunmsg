@@ -2,28 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.feature_access_common import (
+    is_truthy_setting,
+    resolve_feature_access_user,
+    safe_feature_text,
+)
+
 LIQUID_GLASS_FEATURE_ALLOWLIST_SETTING_KEY = 'allowlist_enabled'
-
-_TRUE_VALUES = {'1', 'true', 'yes', 'on', 'enabled'}
-
-
-def _truthy(value: Any) -> bool:
-    return str(value or '').strip().lower() in _TRUE_VALUES
-
-
-def _safe_text(value: Any, *, max_length: int = 512) -> str:
-    return str(value or '').strip()[:max_length]
-
-
-def _user_payload(row) -> dict | None:
-    if row is None:
-        return None
-    return {
-        'user_id': int(row['id']),
-        'username': str(row['username'] or ''),
-        'display_name': str(row['display_name'] or ''),
-        'avatar_url': str(row['avatar_url'] or ''),
-    }
 
 
 def is_liquid_glass_allowlist_enabled(conn) -> bool:
@@ -38,7 +23,7 @@ def is_liquid_glass_allowlist_enabled(conn) -> bool:
     ).fetchone()
     if row is None:
         return True
-    return _truthy(row['value'])
+    return is_truthy_setting(row['value'])
 
 
 def set_liquid_glass_allowlist_enabled(conn, *, enabled: bool, actor_user_id: int | None) -> None:
@@ -60,32 +45,7 @@ def set_liquid_glass_allowlist_enabled(conn, *, enabled: bool, actor_user_id: in
 
 
 def resolve_user_for_liquid_glass_access(conn, identifier: Any) -> dict | None:
-    raw_identifier = _safe_text(identifier, max_length=80).lstrip('@')
-    if not raw_identifier:
-        return None
-
-    if raw_identifier.isdigit():
-        row = conn.execute(
-            '''
-            SELECT id, username, display_name, avatar_url
-            FROM users
-            WHERE id = ?
-            LIMIT 1
-            ''',
-            (int(raw_identifier),),
-        ).fetchone()
-        return _user_payload(row)
-
-    row = conn.execute(
-        '''
-        SELECT id, username, display_name, avatar_url
-        FROM users
-        WHERE LOWER(username) = LOWER(?)
-        LIMIT 1
-        ''',
-        (raw_identifier,),
-    ).fetchone()
-    return _user_payload(row)
+    return resolve_feature_access_user(conn, identifier)
 
 
 def grant_liquid_glass_access(
@@ -110,7 +70,7 @@ def grant_liquid_glass_access(
         (
             user['user_id'],
             int(granted_by_user_id),
-            _safe_text(note),
+            safe_feature_text(note),
         ),
     )
     return user

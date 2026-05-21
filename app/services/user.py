@@ -26,6 +26,16 @@ def _is_self_view(viewer_id, user_id_val) -> bool:
         return False
 
 
+def is_contact_for_avatar(conn, *, viewer_id: int, owner_id: int) -> bool:
+    if int(viewer_id) == int(owner_id):
+        return True
+    row = conn.execute(
+        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
+        (int(viewer_id), int(owner_id)),
+    ).fetchone()
+    return row is not None
+
+
 def _is_contact_for_viewer(viewer_id, user_id_val) -> bool:
     if not viewer_id or not user_id_val:
         return False

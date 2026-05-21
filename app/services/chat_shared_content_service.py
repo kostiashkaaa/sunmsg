@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.services.chat_members import get_chat_type
-from app.services.user import get_safe_avatar_url
+from app.services.user import get_safe_avatar_url, is_contact_for_avatar
 
 
 SHARED_CONTENT_TYPES = {
@@ -20,16 +20,6 @@ def normalize_shared_content_type(value) -> str:
     return normalized if normalized in SHARED_CONTENT_TYPES else 'all'
 
 
-def _is_contact_for_avatar(conn, *, viewer_id: int, owner_id: int) -> bool:
-    if int(viewer_id) == int(owner_id):
-        return True
-    row = conn.execute(
-        'SELECT 1 FROM contacts WHERE user_id = ? AND contact_id = ? LIMIT 1',
-        (int(viewer_id), int(owner_id)),
-    ).fetchone()
-    return row is not None
-
-
 def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
     sender_id = int(row['sender_user_id'])
     return get_safe_avatar_url(
@@ -37,7 +27,7 @@ def _safe_sender_avatar_url(conn, *, row, viewer_id: int):
             'id': sender_id,
             'avatar_url': row['sender_avatar_url'],
             'avatar_visibility': row['sender_avatar_visibility'] if 'sender_avatar_visibility' in row.keys() else 'all',
-            'is_contact': _is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
+            'is_contact': is_contact_for_avatar(conn, viewer_id=viewer_id, owner_id=sender_id),
         },
         viewer_id,
     )

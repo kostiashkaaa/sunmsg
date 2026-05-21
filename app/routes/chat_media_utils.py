@@ -1,6 +1,8 @@
 import mimetypes
 from zipfile import BadZipFile, ZipFile
 
+from app.routes.username_utils import canonical_username as canonical_username
+
 _FORCED_MIME_BY_EXTENSION = {
     'ogg': 'audio/ogg',
     'wav': 'audio/wav',
@@ -166,7 +168,3 @@ def serialize_block_state(state):
         'blocked_by_me': blocked_by_me,
         'blocked_me': blocked_me,
     }
-
-
-def canonical_username(value) -> str:
-    return str(value or '').strip().lower()
