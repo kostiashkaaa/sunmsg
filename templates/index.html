@@ -46,11 +46,6 @@
 
     <div class="auth-toast-container" id="toastContainer"></div>
 
-    <div class="auth-language-switch" id="authLanguageSwitch" role="group" aria-label="Язык интерфейса">
-        <button type="button" class="auth-language-btn" data-lang="ru" aria-pressed="false">RU</button>
-        <button type="button" class="auth-language-btn" data-lang="en" aria-pressed="false">EN</button>
-    </div>
-
     <main class="auth-wrapper">
         <section class="auth-hero-panel" id="authHeroPanel">
             <div class="auth-hero-header">
@@ -71,6 +66,16 @@
         </section>
 
         <div class="auth-card">
+            <div class="auth-preferences-dock" id="authPreferencesDock" aria-label="Настройки интерфейса">
+                <button id="themeToggleBtn" class="auth-theme-toggle-btn" type="button" title="Переключить тему" aria-label="Переключить тему" aria-pressed="false">
+                    <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
+                    <span class="auth-theme-toggle-label" id="themeToggleLabel">Тема</span>
+                </button>
+                <div class="auth-language-switch" id="authLanguageSwitch" role="group" aria-label="Язык интерфейса">
+                    <button type="button" class="auth-language-btn" data-lang="ru" aria-pressed="false">RU</button>
+                    <button type="button" class="auth-language-btn" data-lang="en" aria-pressed="false">EN</button>
+                </div>
+            </div>
             <div class="auth-tabs auth-tabs--auth" role="tablist">
                 <button class="auth-tab-btn active" id="tab-login-btn" role="tab"
                         aria-selected="true">
@@ -466,10 +471,6 @@
             <p class="auth-success-greeting" id="authSuccessGreeting">Добро пожаловать в тихую сеть.</p>
         </div>
     </div>
-
-    <button id="themeToggleBtn" class="auth-theme-toggle-btn" title="Переключить тему">
-        <i class="bi bi-moon-stars" id="themeIcon"></i>
-    </button>
 
 <script src="{{ asset_url('qrcode-loader.js') }}" nonce="{{ csp_nonce }}"></script>
     <script src="{{ asset_url('crypto.js') }}" nonce="{{ csp_nonce }}"></script>

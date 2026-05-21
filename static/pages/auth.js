@@ -167,8 +167,11 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     setText('authFeedbackAction', isEn ? 'Send feedback →' : 'Написать →');
     setText('authDocsTagline', isEn ? 'a quiet network for your own' : 'тихая сеть для своих');
     setAttr('authLegalLinks', 'aria-label', isEn ? 'Legal and support links' : 'Юридические документы');
+    setAttr('authPreferencesDock', 'aria-label', isEn ? 'Interface settings' : 'Настройки интерфейса');
     setAttr('authLanguageSwitch', 'aria-label', isEn ? 'Interface language' : 'Язык интерфейса');
     setAttr('themeToggleBtn', 'title', isEn ? 'Switch theme' : 'Переключить тему');
+    setAttr('themeToggleBtn', 'aria-label', isEn ? 'Switch theme' : 'Переключить тему');
+    setText('themeToggleLabel', isEn ? 'Theme' : 'Тема');
 
     setText(
         'authFooterEyebrow',

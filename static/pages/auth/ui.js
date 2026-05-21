@@ -67,6 +67,9 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
     const authLanguageSwitchEl = document.getElementById('authLanguageSwitch');
     const authLanguageButtons = Array.from(document.querySelectorAll('#authLanguageSwitch [data-lang]'));
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeToggleLabelEl = document.getElementById('themeToggleLabel');
     const tabLoginBtn = document.getElementById('tab-login-btn');
     const tabRegisterBtn = document.getElementById('tab-register-btn');
     const loginIntroTitleEl = document.getElementById('loginIntroTitle');
@@ -100,6 +103,12 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         const current = normalizeLanguageCode(language);
         const isEn = current === 'en';
 
+        if (themeToggleLabelEl) themeToggleLabelEl.textContent = isEn ? 'Theme' : 'Тема';
+        if (themeToggleBtn) {
+            const label = isEn ? 'Switch theme' : 'Переключить тему';
+            themeToggleBtn.setAttribute('title', label);
+            themeToggleBtn.setAttribute('aria-label', label);
+        }
         if (tabLoginBtn) tabLoginBtn.textContent = isEn ? 'Sign in' : 'Войти';
         if (tabRegisterBtn) tabRegisterBtn.textContent = isEn ? 'Create account' : 'Создать аккаунт';
         if (loginIntroTitleEl) {
@@ -200,14 +209,20 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
                 document.documentElement.classList.contains('dark-mode'),
             );
         }
-        const icon = document.getElementById('themeIcon');
-        if (icon) {
-            icon.className = document.body.classList.contains('dark-mode') ? 'bi bi-sun' : 'bi bi-moon-stars';
-        }
+        syncThemeToggleState(document.body.classList.contains('dark-mode'));
         if (interfaceThemeApi) {
             interfaceThemeApi.applyCurrentTheme();
         }
     })();
+
+    function syncThemeToggleState(isDark = document.body.classList.contains('dark-mode')) {
+        if (themeIcon) {
+            themeIcon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+        }
+        if (themeToggleBtn) {
+            themeToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        }
+    }
 
     function toggleTheme() {
         let isDark = false;
@@ -226,15 +241,12 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             localStorage.setItem('darkMode', String(isDark));
         }
 
-        const icon = document.getElementById('themeIcon');
-        if (icon) {
-            icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
-        }
+        syncThemeToggleState(isDark);
         if (interfaceThemeApi && shouldApplyInterfaceTheme) {
             interfaceThemeApi.applyCurrentTheme();
         }
     }
-    document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
+    themeToggleBtn?.addEventListener('click', toggleTheme);
     window.toggleTheme = toggleTheme;
 
     const loginMnemonicTextarea = document.getElementById('loginMnemonicTextarea');
