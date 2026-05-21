@@ -43,19 +43,21 @@ def normalize_source_page(value: Any) -> str:
     return normalized[:64]
 
 
-def normalize_subject(value: Any, *, max_length: int = 160) -> str:
+def _trimmed_text(value: Any, *, max_length: int) -> str:
     normalized = str(value or '').strip()
     return normalized[:max_length]
+
+
+def normalize_subject(value: Any, *, max_length: int = 160) -> str:
+    return _trimmed_text(value, max_length=max_length)
 
 
 def normalize_body(value: Any, *, max_length: int = 8000) -> str:
-    normalized = str(value or '').strip()
-    return normalized[:max_length]
+    return _trimmed_text(value, max_length=max_length)
 
 
 def normalize_handle(value: Any, *, max_length: int = 120) -> str:
-    normalized = str(value or '').strip()
-    return normalized[:max_length]
+    return _trimmed_text(value, max_length=max_length)
 
 
 def normalize_email(value: Any, *, max_length: int = 200) -> str:

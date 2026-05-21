@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.config import load_environment  # noqa: E402
+from app.db.sql_ident import quote_ident  # noqa: E402
 
 
 DEFAULT_ATTEMPTS = 10
@@ -36,10 +37,6 @@ def _with_database(database_url: str, database_name: str) -> str:
     if not safe_name:
         raise RuntimeError("PostgreSQL maintenance database name is empty.")
     return urlunparse(parsed._replace(path=f"/{safe_name}"))
-
-
-def _quote_ident(value: str) -> str:
-    return '"' + str(value or "").replace('"', '""') + '"'
 
 
 def _connect_with_retry(database_url: str):
@@ -82,7 +79,7 @@ def prepare_test_database() -> None:
                 (test_database_name,),
             )
             if cur.fetchone() is None:
-                cur.execute(f"CREATE DATABASE {_quote_ident(test_database_name)}")
+                cur.execute(f"CREATE DATABASE {quote_ident(test_database_name)}")
 
     with _connect_with_retry(test_database_url):
         pass

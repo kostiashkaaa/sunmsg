@@ -1,7 +1,7 @@
+import { extractMentionedUsernames } from './message-mentions.js';
 import { generateRequestId } from './utils.js';
 
 const LINK_MESSAGE_PATTERN = /((https?:\/\/|www\.)[^\s<]+)/i;
-const GROUP_MENTION_PATTERN = /(^|[\s([{])@([A-Za-z0-9_.-]{1,64})/g;
 const OFFLINE_RETRY_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0443 \u0447\u0435\u0440\u0435\u0437 \u043F\u0430\u0440\u0443 \u0441\u0435\u043A\u0443\u043D\u0434.';
 const OFFLINE_QUEUED_MESSAGE = '\u0421\u0432\u044F\u0437\u044C \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C. \u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E \u0434\u043B\u044F \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0439 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438.';
 
@@ -16,20 +16,6 @@ function markUnavailableMessage(clientId, failPendingMessage, showToast, message
     if (typeof showToast === 'function') {
         showToast(message, 'warning');
     }
-}
-
-function extractMentionedUsernames(text) {
-    const source = String(text || '');
-    const seen = new Set();
-    const result = [];
-    for (const match of source.matchAll(GROUP_MENTION_PATTERN)) {
-        const username = String(match?.[2] || '').trim().toLowerCase();
-        if (!username || seen.has(username)) continue;
-        seen.add(username);
-        result.push(username);
-        if (result.length >= 32) break;
-    }
-    return result;
 }
 
 export async function sendTextMessageFlow({

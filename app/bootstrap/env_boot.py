@@ -6,6 +6,7 @@ from flask import Flask
 from app.config import get_config_class, load_environment
 from app.database import run_migrations
 from app.db.connection import clear_postgres_connection_pools
+from app.db.sql_ident import quote_ident
 from app.db_backend import ensure_postgres_schema, testing_schema_from_identifier
 from app.bootstrap.security import (
     require_production_realtime_backing_services,
@@ -32,10 +33,6 @@ def load_app_config(app: Flask, config_name=None, overrides=None):
         app.config["CSP_STYLE_UNSAFE_INLINE"] = False
 
 
-def _quote_ident(value: str) -> str:
-    return '"' + str(value or '').replace('"', '""') + '"'
-
-
 def _reset_postgres_schema(database_url: str, schema_name: str) -> None:
     dsn = str(database_url or '').strip()
     schema = str(schema_name or '').strip()
@@ -46,7 +43,7 @@ def _reset_postgres_schema(database_url: str, schema_name: str) -> None:
     except ImportError:
         return
 
-    safe_schema = _quote_ident(schema)
+    safe_schema = quote_ident(schema)
     with psycopg.connect(dsn, autocommit=True, options='-c timezone=UTC', connect_timeout=5) as raw_conn:
         with raw_conn.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS {safe_schema} CASCADE')

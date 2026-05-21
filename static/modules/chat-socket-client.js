@@ -1,5 +1,6 @@
 import { getCsrfToken } from './csrf.js';
 import { withAppRoot } from './app-url.js';
+import { normalizePositiveChatPts } from './chat-pts.js';
 
 const IDEMPOTENT_SOCKET_EVENTS = new Set([
     'send_message',
@@ -78,13 +79,6 @@ function unwrapSocketPayload(rawPayload) {
         };
     }
     return { payload: rawPayload, envelope };
-}
-
-function normalizePositivePts(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return null;
-    const normalized = Math.floor(numeric);
-    return normalized > 0 ? normalized : null;
 }
 
 function patchSocketListeners(socket) {
@@ -199,9 +193,9 @@ function patchSocketListeners(socket) {
                 }
 
                 const envelopeChatId = String(envelope?.chat_id || '').trim();
-                const incomingPts = normalizePositivePts(envelope?.chat_pts);
+                const incomingPts = normalizePositiveChatPts(envelope?.chat_pts);
                 if (envelopeChatId && incomingPts && !isSameDispatchEvent) {
-                    const knownPts = normalizePositivePts(chatPtsByChatId.get(envelopeChatId));
+                    const knownPts = normalizePositiveChatPts(chatPtsByChatId.get(envelopeChatId));
                     if (knownPts && incomingPts <= knownPts) {
                         markEventSeen(eventId);
                         return;
@@ -216,7 +210,7 @@ function patchSocketListeners(socket) {
                     if (eventId && seenEventIds.has(eventId)) {
                         return;
                     }
-                    const latestKnownPts = normalizePositivePts(chatPtsByChatId.get(envelopeChatId));
+                    const latestKnownPts = normalizePositiveChatPts(chatPtsByChatId.get(envelopeChatId));
                     if (latestKnownPts && incomingPts <= latestKnownPts) {
                         markEventSeen(eventId);
                         return;
@@ -268,13 +262,13 @@ function patchSocketListeners(socket) {
     socket.__sun_getChatPts = (chatId) => {
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) return null;
-        return normalizePositivePts(chatPtsByChatId.get(normalizedChatId));
+        return normalizePositiveChatPts(chatPtsByChatId.get(normalizedChatId));
     };
     socket.__sun_setChatPts = (chatId, chatPts) => {
         const normalizedChatId = String(chatId || '').trim();
-        const normalizedPts = normalizePositivePts(chatPts);
+        const normalizedPts = normalizePositiveChatPts(chatPts);
         if (!normalizedChatId || !normalizedPts) return;
-        const currentPts = normalizePositivePts(chatPtsByChatId.get(normalizedChatId));
+        const currentPts = normalizePositiveChatPts(chatPtsByChatId.get(normalizedChatId));
         if (currentPts && currentPts > normalizedPts) return;
         chatPtsByChatId.set(normalizedChatId, normalizedPts);
     };

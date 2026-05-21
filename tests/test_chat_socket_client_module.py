@@ -16,6 +16,10 @@ source = source.replace(
   "import {{ withAppRoot }} from './app-url.js';",
   "const withAppRoot = (path) => path;",
 );
+source = source.replace(
+  "import {{ normalizePositiveChatPts }} from './chat-pts.js';",
+  "const normalizePositiveChatPts = (value) => {{ const numeric = Number(value); if (!Number.isFinite(numeric)) return null; const normalized = Math.floor(numeric); return normalized > 0 ? normalized : null; }};",
+);
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const moduleApi = await import(moduleUrl);
 

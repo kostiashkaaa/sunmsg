@@ -1,5 +1,4 @@
 from pathlib import Path
-import base64
 import subprocess
 
 
@@ -7,13 +6,18 @@ ROOT = Path(__file__).resolve().parents[1]
 MODULES = ROOT / 'static' / 'modules'
 
 
-def _module_url(source: str) -> str:
-    encoded = base64.b64encode(source.encode('utf-8')).decode('ascii')
-    return f'data:text/javascript;base64,{encoded}'
+def _write_module(tmp_path: Path, name: str, source: str) -> str:
+    module_path = tmp_path / name
+    module_path.write_text(source, encoding='utf-8')
+    return module_path.as_uri()
 
 
-def _settings_presence_module_url() -> str:
-    activity_url = _module_url((MODULES / 'chat-activity.js').read_text(encoding='utf-8'))
+def _settings_presence_module_url(tmp_path: Path) -> str:
+    activity_url = _write_module(
+        tmp_path,
+        'chat-activity.mjs',
+        (MODULES / 'chat-activity.js').read_text(encoding='utf-8'),
+    )
     socket_client_source = (MODULES / 'chat-socket-client.js').read_text(encoding='utf-8')
     socket_client_source = socket_client_source.replace(
         "import { getCsrfToken } from './csrf.js';",
@@ -23,7 +27,11 @@ def _settings_presence_module_url() -> str:
         "import { withAppRoot } from './app-url.js';",
         "const withAppRoot = (path) => path;",
     )
-    socket_client_url = _module_url(socket_client_source)
+    socket_client_source = socket_client_source.replace(
+        "import { normalizePositiveChatPts } from './chat-pts.js';",
+        "const normalizePositiveChatPts = (value) => { const numeric = Number(value); if (!Number.isFinite(numeric)) return null; const normalized = Math.floor(numeric); return normalized > 0 ? normalized : null; };",
+    )
+    socket_client_url = _write_module(tmp_path, 'chat-socket-client.mjs', socket_client_source)
     settings_presence_source = (MODULES / 'settings-presence.js').read_text(encoding='utf-8')
     settings_presence_source = settings_presence_source.replace(
         "from './chat-activity.js'",
@@ -33,11 +41,11 @@ def _settings_presence_module_url() -> str:
         "from './chat-socket-client.js'",
         f"from '{socket_client_url}'",
     )
-    return _module_url(settings_presence_source)
+    return _write_module(tmp_path, 'settings-presence.mjs', settings_presence_source)
 
 
-def test_settings_presence_reports_visibility_changes():
-    module_url = _settings_presence_module_url()
+def test_settings_presence_reports_visibility_changes(tmp_path):
+    module_url = _settings_presence_module_url(tmp_path)
     node_harness = f"""
 const documentListeners = new Map();
 const windowListeners = new Map();
@@ -151,8 +159,8 @@ if (documentListeners.has('visibilitychange') || windowListeners.has('pagehide')
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_settings_presence_skips_embedded_settings():
-    module_url = _settings_presence_module_url()
+def test_settings_presence_skips_embedded_settings(tmp_path):
+    module_url = _settings_presence_module_url(tmp_path)
     node_harness = f"""
 Object.defineProperty(globalThis, 'window', {{
   configurable: true,

@@ -135,11 +135,15 @@ def normalize_target_type(value: Any) -> str:
     return normalized if normalized in ALLOWED_TARGET_TYPES else ''
 
 
-def normalize_target_id(value: Any, *, max_length: int = 256) -> str:
+def _trimmed_nonempty_text(value: Any, *, max_length: int) -> str:
     normalized = str(value or '').strip()
     if not normalized:
         return ''
     return normalized[:max_length]
+
+
+def normalize_target_id(value: Any, *, max_length: int = 256) -> str:
+    return _trimmed_nonempty_text(value, max_length=max_length)
 
 
 def normalize_reason_code(value: Any, *, max_length: int = 64) -> str:
@@ -157,17 +161,11 @@ def normalize_optional_code(value: Any, *, max_length: int = 64) -> str:
 
 
 def normalize_comment(value: Any, *, max_length: int = 2000) -> str:
-    normalized = str(value or '').strip()
-    if not normalized:
-        return ''
-    return normalized[:max_length]
+    return _trimmed_nonempty_text(value, max_length=max_length)
 
 
 def normalize_idempotency_key(value: Any, *, max_length: int = 128) -> str:
-    normalized = str(value or '').strip()
-    if not normalized:
-        return ''
-    return normalized[:max_length]
+    return _trimmed_nonempty_text(value, max_length=max_length)
 
 
 def make_group_member_subject_id(chat_id: str, user_id: int) -> str:

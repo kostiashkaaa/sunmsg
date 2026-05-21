@@ -109,23 +109,12 @@ def _postgres_tool_env(database_url: str) -> tuple[dict[str, str], str, str]:
 
 
 def _run_postgres_tool(command: list[str], *, env: dict[str, str], tool_name: str) -> None:
-    completed = subprocess.run(
+    _backup_restore.run_postgres_tool(
         command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
         env=env,
-        check=False,
+        tool_name=tool_name,
+        run_func=subprocess.run,
     )
-    if completed.returncode == 0:
-        return
-
-    stderr = str(completed.stderr or '').strip()
-    stdout = str(completed.stdout or '').strip()
-    detail = stderr or stdout or f'exit code {completed.returncode}'
-    raise RuntimeError(f'{tool_name} failed: {detail}')
 
 
 def validate_postgres_backup_tools() -> dict[str, str]:

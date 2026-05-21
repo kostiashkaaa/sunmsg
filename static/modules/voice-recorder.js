@@ -1,4 +1,5 @@
 import { waitForMotionEnd } from './motion.js';
+import { clampUploadProgress } from './upload-progress.js';
 
 function formatVoiceSeconds(totalSeconds) {
     const safe = Math.max(0, Number(totalSeconds) || 0);
@@ -331,12 +332,6 @@ export function initVoiceRecorder({
         } catch (_) {
             messageInput.focus();
         }
-    }
-
-    function clampUploadProgress(value) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, Math.min(100, Math.round(numeric)));
     }
 
     function updateTimerDisplay() {

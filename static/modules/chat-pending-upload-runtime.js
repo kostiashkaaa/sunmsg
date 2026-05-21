@@ -1,3 +1,5 @@
+import { clampUploadProgress } from './upload-progress.js';
+
 export function createPendingUploadRuntime({
     getCurrentChatId,
     getChatState,
@@ -10,12 +12,6 @@ export function createPendingUploadRuntime({
     const escapeCss = typeof cssEscape === 'function'
         ? cssEscape
         : (value) => String(value).replace(/["\\]/g, '\\$&');
-
-    function clampPendingUploadProgress(value) {
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) return 0;
-        return Math.max(0, Math.min(100, Math.round(numeric)));
-    }
 
     function buildPendingMediaDimensions(width, height) {
         const safeWidth = Math.round(Number(width) || 0);
@@ -79,7 +75,7 @@ export function createPendingUploadRuntime({
         if (!mediaWrap) return;
 
         const isUploading = Boolean(filePayload.uploading);
-        const progress = clampPendingUploadProgress(filePayload.upload_progress);
+        const progress = clampUploadProgress(filePayload.upload_progress);
         mediaWrap.classList.toggle('is-uploading', isUploading);
         mediaWrap.setAttribute('data-upload-progress', String(progress));
 
@@ -103,7 +99,7 @@ export function createPendingUploadRuntime({
         if (!uploadEl) return;
 
         const isUploading = Boolean(filePayload.uploading);
-        const progress = clampPendingUploadProgress(filePayload.upload_progress);
+        const progress = clampUploadProgress(filePayload.upload_progress);
         uploadEl.classList.toggle('is-uploading', isUploading);
         uploadEl.classList.toggle('is-hidden', !isUploading);
         uploadEl.setAttribute('data-upload-progress', String(progress));
@@ -136,7 +132,7 @@ export function createPendingUploadRuntime({
         const nextPayload = {
             ...filePayload,
             uploading: true,
-            upload_progress: clampPendingUploadProgress(percent),
+            upload_progress: clampUploadProgress(percent),
         };
         resolved.state.messages[resolved.index] = {
             ...resolved.message,

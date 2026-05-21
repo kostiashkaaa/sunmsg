@@ -3,6 +3,16 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MENTIONS_IMPORT_STUB = (
+    "const extractMentionedUsernames = (text) => { "
+    "const seen = new Set(); const result = []; "
+    "for (const match of String(text || '').matchAll(/(^|[\\s([{])@([A-Za-z0-9_.-]{1,64})/g)) { "
+    "const username = String(match?.[2] || '').trim().toLowerCase(); "
+    "if (!username || seen.has(username)) continue; seen.add(username); result.push(username); "
+    "if (result.length >= 32) break; "
+    "} return result; "
+    "};"
+)
 
 
 def _run_node_harness(source: str) -> subprocess.CompletedProcess[str]:
@@ -21,7 +31,12 @@ def test_text_send_marks_queued_outbox_message_failed_without_pending_timeout():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const patchedSource = source.replace(
+const patchedSource = source
+  .replace(
+  "import {{ extractMentionedUsernames }} from './message-mentions.js';",
+  {MENTIONS_IMPORT_STUB!r},
+)
+  .replace(
   "import {{ generateRequestId }} from './utils.js';",
   "const generateRequestId = () => crypto.randomUUID();",
 );
@@ -77,7 +92,12 @@ def test_text_send_settles_composer_before_optimistic_append():
 import {{ readFile }} from 'node:fs/promises';
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const patchedSource = source.replace(
+const patchedSource = source
+  .replace(
+  "import {{ extractMentionedUsernames }} from './message-mentions.js';",
+  {MENTIONS_IMPORT_STUB!r},
+)
+  .replace(
   "import {{ generateRequestId }} from './utils.js';",
   "const generateRequestId = () => crypto.randomUUID();",
 );
@@ -154,6 +174,10 @@ const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: nul
 source = source.replace(
   "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
   "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ extractMentionedUsernames }} from './message-mentions.js';",
+  {MENTIONS_IMPORT_STUB!r},
 );
 source = source.replace(
   "import {{ generateRequestId }} from './utils.js';",
@@ -239,6 +263,10 @@ const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: nul
 source = source.replace(
   "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
   "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ extractMentionedUsernames }} from './message-mentions.js';",
+  {MENTIONS_IMPORT_STUB!r},
 );
 source = source.replace(
   "import {{ generateRequestId }} from './utils.js';",
@@ -329,6 +357,10 @@ const encryptChatMediaFile = async (file) => ({{ uploadFile: file, metadata: nul
 source = source.replace(
   "import {{ createTypingSignalHeartbeat }} from './chat-typing-signal-heartbeat.js';",
   "const createTypingSignalHeartbeat = () => ({{ start() {{}}, stopAll() {{}} }});",
+);
+source = source.replace(
+  "import {{ extractMentionedUsernames }} from './message-mentions.js';",
+  {MENTIONS_IMPORT_STUB!r},
 );
 source = source.replace(
   "import {{ generateRequestId }} from './utils.js';",

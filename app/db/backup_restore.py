@@ -11,11 +11,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from app.db.connection import database_url as _database_url
 from app.db.connection import resolve_database_identifier, schema_for_database_path
+from app.db.sql_ident import quote_ident
 from app.db_backend import ensure_postgres_schema
-
-
-def quote_ident(value: str) -> str:
-    return '"' + str(value or '').replace('"', '""') + '"'
 
 
 def safe_label(value: str | None) -> str:
@@ -69,8 +66,8 @@ def postgres_tool_env(database_url: str) -> tuple[dict[str, str], str, str]:
     return env, database_name, ''
 
 
-def run_postgres_tool(command: list[str], *, env: dict[str, str], tool_name: str) -> None:
-    completed = subprocess.run(
+def run_postgres_tool(command: list[str], *, env: dict[str, str], tool_name: str, run_func=subprocess.run) -> None:
+    completed = run_func(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

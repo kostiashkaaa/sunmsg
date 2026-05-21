@@ -19,6 +19,7 @@ import {
     STANDARD_DOUBLE_CHECK_TICK_HTML,
 } from './check-glyph.js';
 import { buildGroupReadMetaHtml } from './chat-group-read-receipts.js';
+import { clampUploadProgress } from './upload-progress.js';
 
 const DEFAULT_AUDIO_WAVEFORM = [
     30, 46, 62, 42, 58, 76, 40, 28, 64, 84, 52, 34,
@@ -110,12 +111,6 @@ function formatCompactFileSize(bytes) {
     if (!Number.isFinite(value) || value <= 0) return '';
     if (value < 1048576) return `${(value / 1024).toFixed(1)} KB`;
     return `${(value / 1048576).toFixed(1)} MB`;
-}
-
-function clampUploadProgress(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 0;
-    return Math.max(0, Math.min(100, Math.round(numeric)));
 }
 
 function resolveMediaAspectRatio(filePayload, fallbackRatio = 4 / 3) {

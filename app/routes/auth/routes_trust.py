@@ -389,14 +389,12 @@ def _render_doc(slug: str):
     )
 
 
-@auth_bp.route('/trust', methods=['GET'])
-def trust_center():
+def _render_privacy_doc():
     return _render_doc('privacy')
 
 
-@auth_bp.route('/privacy', methods=['GET'])
-def privacy_policy():
-    return _render_doc('privacy')
+auth_bp.add_url_rule('/trust', endpoint='trust_center', view_func=_render_privacy_doc, methods=['GET'])
+auth_bp.add_url_rule('/privacy', endpoint='privacy_policy', view_func=_render_privacy_doc, methods=['GET'])
 
 
 @auth_bp.route('/terms', methods=['GET'])

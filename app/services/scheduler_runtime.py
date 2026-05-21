@@ -47,7 +47,7 @@ def _get_spotify_socket_publisher():
     return _spotify_socket_publisher
 
 
-def _emit_spotify_socket_event(event_name: str, payload: dict, *, room: str) -> None:
+def _emit_runtime_socket_event(event_name: str, payload: dict, *, room: str) -> None:
     room_name = str(room or '').strip()
     if not room_name:
         return
@@ -62,19 +62,8 @@ def _emit_spotify_socket_event(event_name: str, payload: dict, *, room: str) -> 
     socketio.emit(event_name, payload, room=room_name)
 
 
-def _emit_scheduler_socket_event(event_name: str, payload: dict, *, room: str) -> None:
-    room_name = str(room or '').strip()
-    if not room_name:
-        return
-
-    publisher = _get_spotify_socket_publisher()
-    if publisher is not None:
-        publisher.emit(event_name, payload, room=room_name)
-        return
-
-    from app.extensions import socketio
-
-    socketio.emit(event_name, payload, room=room_name)
+_emit_spotify_socket_event = _emit_runtime_socket_event
+_emit_scheduler_socket_event = _emit_runtime_socket_event
 
 
 def cleanup_disappearing_messages_realtime() -> int:

@@ -1,4 +1,5 @@
 import { withAppRoot } from './app-url.js';
+import { normalizePositiveChatPts } from './chat-pts.js';
 
 const DEFAULT_DIFFERENCE_LIMIT = 200;
 const MAX_DIFFERENCE_LIMIT = 500;
@@ -13,13 +14,6 @@ function normalizeChatId(value) {
     return normalized || '';
 }
 
-function normalizePositiveInteger(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return null;
-    const normalized = Math.floor(numeric);
-    return normalized > 0 ? normalized : null;
-}
-
 function resolveEventType(payload) {
     const topLevelType = String(payload?.event_type || '').trim();
     if (topLevelType) return topLevelType;
@@ -29,9 +23,9 @@ function resolveEventType(payload) {
 }
 
 function resolveEventPts(payload) {
-    const topLevelPts = normalizePositiveInteger(payload?.chat_pts);
+    const topLevelPts = normalizePositiveChatPts(payload?.chat_pts);
     if (topLevelPts) return topLevelPts;
-    return normalizePositiveInteger(payload?.envelope?.chat_pts);
+    return normalizePositiveChatPts(payload?.envelope?.chat_pts);
 }
 
 function safeWarn(logger, message, context = null) {
@@ -177,18 +171,18 @@ export function createChatUpdatesSyncController({
     }
 
     function extractNextCursor(diffPayload, fallbackPts) {
-        const explicitNext = normalizePositiveInteger(diffPayload?.next_from_pts);
+        const explicitNext = normalizePositiveChatPts(diffPayload?.next_from_pts);
         if (explicitNext) return explicitNext;
 
         const events = Array.isArray(diffPayload?.events) ? diffPayload.events : [];
-        let maxPts = normalizePositiveInteger(fallbackPts) || 0;
+        let maxPts = normalizePositiveChatPts(fallbackPts) || 0;
         events.forEach((eventPayload) => {
             const pts = resolveEventPts(eventPayload);
             if (pts && pts > maxPts) {
                 maxPts = pts;
             }
         });
-        return maxPts > 0 ? maxPts : (normalizePositiveInteger(fallbackPts) || 0);
+        return maxPts > 0 ? maxPts : (normalizePositiveChatPts(fallbackPts) || 0);
     }
 
     async function recoverGap({ chatId, fromPts, targetPts }) {
@@ -197,7 +191,7 @@ export function createChatUpdatesSyncController({
         if (!normalizedChatId) return false;
 
         let cursor = Math.max(0, Number(fromPts) || 0);
-        const normalizedTargetPts = normalizePositiveInteger(targetPts);
+        const normalizedTargetPts = normalizePositiveChatPts(targetPts);
         for (let step = 0; step < MAX_DIFFERENCE_STEPS; step += 1) {
             const diffPayload = await requestUpdateDifference(normalizedChatId, cursor);
             if (!diffPayload) return false;
@@ -253,7 +247,7 @@ export function createChatUpdatesSyncController({
 
         const syncTask = requestUpdateState(normalizedChatId)
             .then((payload) => {
-                const chatPts = normalizePositiveInteger(payload?.chat_pts);
+                const chatPts = normalizePositiveChatPts(payload?.chat_pts);
                 if (chatPts) {
                     socket.__sun_setChatPts(normalizedChatId, chatPts);
                     return chatPts;
@@ -286,7 +280,7 @@ export function createChatUpdatesSyncController({
         let serverPts = null;
         try {
             const payload = await requestUpdateState(normalizedChatId);
-            serverPts = normalizePositiveInteger(payload?.chat_pts);
+            serverPts = normalizePositiveChatPts(payload?.chat_pts);
         } catch (_) {
             return false;
         }
