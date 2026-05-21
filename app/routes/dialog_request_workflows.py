@@ -6,6 +6,32 @@ from app.services.user_privacy import is_privacy_allowed, normalize_privacy_choi
 _SEND_REQUEST_COOLDOWN_SECONDS = 45
 
 
+def _build_new_dialog_request_event(conn, *, sender_user_id: int, receiver_user_id: int):
+    sender_info = conn.execute(
+        'SELECT public_key, display_name, username, avatar_url, avatar_visibility FROM users WHERE id = ?',
+        (sender_user_id,),
+    ).fetchone()
+    contact_info = conn.execute(
+        'SELECT public_key FROM users WHERE id = ?',
+        (receiver_user_id,),
+    ).fetchone()
+
+    if not sender_info or not contact_info:
+        return None
+
+    visibility = sender_info['avatar_visibility'] or 'all'
+    avatar = sender_info['avatar_url'] if visibility == 'all' else None
+    return {
+        'room': contact_info['public_key'],
+        'payload': {
+            'sender_public_key': sender_info['public_key'],
+            'sender_display_name': sender_info['display_name'],
+            'sender_username': sender_info['username'],
+            'sender_avatar': avatar,
+        },
+    }
+
+
 def _parse_dialog_request_timestamp(raw_value):
     if not raw_value:
         return None
@@ -81,7 +107,14 @@ def send_dialog_request_workflow(
             (existing_request['id'],),
         )
         conn.commit()
-        return {'status': 'ok', 'event': None}
+        return {
+            'status': 'ok',
+            'event': _build_new_dialog_request_event(
+                conn,
+                sender_user_id=sender_user_id,
+                receiver_user_id=receiver_user_id,
+            ),
+        }
 
     conn.execute(
         '''
@@ -96,30 +129,14 @@ def send_dialog_request_workflow(
     )
     conn.commit()
 
-    sender_info = conn.execute(
-        'SELECT public_key, display_name, username, avatar_url, avatar_visibility FROM users WHERE id = ?',
-        (sender_user_id,),
-    ).fetchone()
-    contact_info = conn.execute(
-        'SELECT public_key FROM users WHERE id = ?',
-        (receiver_user_id,),
-    ).fetchone()
-
-    event = None
-    if sender_info and contact_info:
-        visibility = sender_info['avatar_visibility'] or 'all'
-        avatar = sender_info['avatar_url'] if visibility == 'all' else None
-        event = {
-            'room': contact_info['public_key'],
-            'payload': {
-                'sender_public_key': sender_info['public_key'],
-                'sender_display_name': sender_info['display_name'],
-                'sender_username': sender_info['username'],
-                'sender_avatar': avatar,
-            },
-        }
-
-    return {'status': 'ok', 'event': event}
+    return {
+        'status': 'ok',
+        'event': _build_new_dialog_request_event(
+            conn,
+            sender_user_id=sender_user_id,
+            receiver_user_id=receiver_user_id,
+        ),
+    }
 
 
 def accept_dialog_request_workflow(  # noqa: PLR0913 - dependency-injected workflow contract
