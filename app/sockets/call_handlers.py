@@ -163,16 +163,36 @@ def _call_partner_identity(conn, call: dict, user_id: int) -> dict:
     return _user_identity(conn, initiator_id or user_id, viewer_id=user_id)
 
 
-def _serialize_live_call_for_user(conn, call: dict, user_id: int) -> dict:
+def _partner_media_state(conn, call_id: str, user_id: int) -> dict:
+    row = conn.execute(
+        '''
+        SELECT was_muted, had_video
+        FROM call_participants
+        WHERE call_id = %s AND user_id != %s AND left_at IS NULL
+        ORDER BY joined_at, user_id
+        LIMIT 1
+        ''',
+        (call_id, int(user_id)),
+    ).fetchone()
     return {
-        'call_id': str(call.get('call_id') or ''),
+        'audio_muted': bool(row['was_muted']) if row else False,
+        'video_enabled': bool(row['had_video']) if row else False,
+    }
+
+
+def _serialize_live_call_for_user(conn, call: dict, user_id: int) -> dict:
+    call_id = str(call.get('call_id') or '')
+    status = str(call.get('status') or '')
+    return {
+        'call_id': call_id,
         'chat_id': str(call.get('chat_id') or ''),
         'call_type': str(call.get('call_type') or 'audio'),
-        'status': str(call.get('status') or ''),
+        'status': status,
         'initiator_id': int(call.get('initiator_id') or 0),
         'role': 'initiator' if int(call.get('initiator_id') or 0) == int(user_id) else 'callee',
         'accepted_at': str(call.get('accepted_at') or ''),
         'partner': _call_partner_identity(conn, call, user_id),
+        'partner_media': _partner_media_state(conn, call_id, user_id) if status == 'active' else None,
     }
 
 

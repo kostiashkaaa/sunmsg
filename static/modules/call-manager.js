@@ -94,6 +94,7 @@ export class CallManager {
         this._pendingSignals = [];
         this._pendingAcceptRequestId = '';
         this._pendingMediaOptions = null;
+        this._partnerMediaState = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
         this._cameraSwitchInProgress = false;
@@ -406,8 +407,11 @@ export class CallManager {
 
     _onPartnerMediaState({ call_id, audio_muted, video_enabled }) {
         if (call_id !== this._callId) return;
-        setRemoteVideoEnabled(Boolean(video_enabled));
-        setRemoteAudioMuted(Boolean(audio_muted));
+        this._partnerMediaState = {
+            audioMuted: Boolean(audio_muted),
+            videoEnabled: Boolean(video_enabled),
+        };
+        this._applyPartnerMediaState();
     }
 
     async _onCallSync({ active_call }) {
@@ -422,6 +426,8 @@ export class CallManager {
 
         const callId = String(activeCall.call_id || '');
         const status = String(activeCall.status || '');
+        const partnerMediaState = this._partnerMediaStateFromActiveCall(activeCall);
+        if (partnerMediaState) this._partnerMediaState = partnerMediaState;
         if (this._state !== STATES.IDLE && callId !== this._callId) {
             showToast('Состояние звонка обновлено', 'info');
             this._cleanup();
@@ -751,6 +757,7 @@ export class CallManager {
             },
             onEnd: () => this.endCall(),
         });
+        this._applyPartnerMediaState();
 
         try {
             // 4. Create RTCPeerConnection and wire callbacks
@@ -927,6 +934,7 @@ export class CallManager {
             videoEnabled: this._callType === 'video',
             speakerDeviceId: this._selectedSpeakerDeviceId,
         }, this._callType);
+        this._partnerMediaState = this._partnerMediaStateFromActiveCall(activeCall);
         stopRingtone();
         removeIncomingCallBanner();
         this._rememberCallSession('active');
@@ -1028,6 +1036,24 @@ export class CallManager {
             audio_muted:   this._media.isAudioMuted(),
             video_enabled: this._media.isVideoEnabled(),
         });
+    }
+
+    _partnerMediaStateFromActiveCall(activeCall) {
+        const media = activeCall?.partner_media;
+        if (!media || typeof media !== 'object') return null;
+        const hasAudioState = Object.prototype.hasOwnProperty.call(media, 'audio_muted');
+        const hasVideoState = Object.prototype.hasOwnProperty.call(media, 'video_enabled');
+        if (!hasAudioState && !hasVideoState) return null;
+        return {
+            audioMuted: Boolean(media.audio_muted),
+            videoEnabled: Boolean(media.video_enabled),
+        };
+    }
+
+    _applyPartnerMediaState() {
+        if (!this._partnerMediaState) return;
+        setRemoteVideoEnabled(this._partnerMediaState.videoEnabled);
+        setRemoteAudioMuted(this._partnerMediaState.audioMuted);
     }
 
     _onLocalTrackEnded(kind, track = null) {
@@ -1133,6 +1159,7 @@ export class CallManager {
         this._pendingSignals = [];
         this._pendingAcceptRequestId = '';
         this._pendingMediaOptions = null;
+        this._partnerMediaState = null;
         this._selectedSpeakerDeviceId = '';
         this._screenSharing = false;
         this._cameraSwitchInProgress = false;

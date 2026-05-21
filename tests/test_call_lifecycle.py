@@ -25,7 +25,7 @@ from app.services.calls import (
     terminate_call_on_disconnect,
     _reap_stale_active_calls,
 )
-from app.sockets.call_handlers import _signal_payload_ok
+from app.sockets.call_handlers import _serialize_live_call_for_user, _signal_payload_ok
 from tests._pg_test_db import connect_test_db
 
 
@@ -139,6 +139,27 @@ def test_lifecycle_initiate_accept_end(conn):
         (call_id,),
     ).fetchone()
     assert live_participants['n'] == 0
+
+
+def test_live_call_serialization_includes_partner_media_state(conn):
+    call_id = create_call_session_locked(
+        conn, chat_id='chat-ab', initiator_id=1, call_type='video',
+        participant_ids=[1, 2],
+    )
+    assert accept_call(conn, call_id, 2) is True
+    conn.execute(
+        'UPDATE call_participants SET was_muted = 1, had_video = 1'
+        ' WHERE call_id = ? AND user_id = 2',
+        (call_id,),
+    )
+    conn.commit()
+
+    payload = _serialize_live_call_for_user(conn, get_call_session(conn, call_id), 1)
+
+    assert payload['partner_media'] == {
+        'audio_muted': True,
+        'video_enabled': True,
+    }
 
 
 def test_end_call_records_duration_from_iso_timestamp(conn):
