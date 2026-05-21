@@ -6,6 +6,7 @@ import { getErrorMessage } from './utils.js';
 export function createChatComposerSendRuntime({
     windowRef = window,
     getCurrentChatId,
+    getCurrentContactId,
     getCurrentBlockState,
     getCurrentUserPublicKey,
     getCurrentContactPublicKey,
@@ -96,12 +97,14 @@ export function createChatComposerSendRuntime({
     function buildSourceChatSnapshot() {
         const sourceChatId = String(getCurrentChatId?.() || '').trim();
         if (!sourceChatId) return null;
+        const sourceContactId = String(getCurrentContactId?.() || '').trim();
         const sourceChatIsGroup = Boolean(isCurrentChatGroup?.());
         const sourceContactPublicKey = String(getCurrentContactPublicKey?.() || '').trim();
         const sourceUserPublicKey = String(getCurrentUserPublicKey?.() || '').trim();
         const encryptForSourceChat = createEncryptForChatSnapshot?.({
             chatId: sourceChatId,
             isGroup: sourceChatIsGroup,
+            contactId: sourceContactId,
             contactPublicKey: sourceContactPublicKey,
             userPublicKey: sourceUserPublicKey,
         });

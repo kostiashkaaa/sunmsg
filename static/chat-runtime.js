@@ -896,12 +896,14 @@ export const initChatPage = async () => {
     chatEncryptionRuntime = createChatEncryptionRuntime({
         windowRef: window,
         getCurrentChatId: () => currentChatId,
+        getCurrentContactId: () => currentContactId,
         isCurrentChatGroup: () => isCurrentChatGroup(),
         getCurrentContactPublicKey,
         getCurrentUserPublicKey: () => currentUserPublicKey,
         getCurrentGroupMemberPublicKeys: getGroupMemberPublicKeysForChat,
         loadContacts: (options) => loadContacts(options),
         getPrivateKeyPem,
+        getCsrfToken,
     });
 
     let isE2EPillPinnedOpen = false;
@@ -3222,6 +3224,7 @@ export const initChatPage = async () => {
     composerSendRuntime = createChatComposerSendRuntime({
         windowRef: window,
         getCurrentChatId: () => currentChatId,
+        getCurrentContactId: () => currentContactId,
         getCurrentBlockState: () => currentBlockState,
         getCurrentUserPublicKey: () => currentUserPublicKey,
         getCurrentContactPublicKey,

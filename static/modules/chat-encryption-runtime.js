@@ -1,12 +1,14 @@
 export function createChatEncryptionRuntime({
     windowRef = window,
     getCurrentChatId,
+    getCurrentContactId,
     isCurrentChatGroup,
     getCurrentContactPublicKey,
     getCurrentUserPublicKey,
     getCurrentGroupMemberPublicKeys,
     loadContacts,
     getPrivateKeyPem,
+    getCsrfToken,
 } = {}) {
     const V3_PROTOS = new Set(['x3dh', 'dr', 'mls']);
 
@@ -73,7 +75,9 @@ export function createChatEncryptionRuntime({
         return windowRef.e2e.encryptMessageE2E(currentContactPublicKey, currentUserPublicKey, plainText, privateKeyPem);
     }
 
-    async function _tryEncryptDr(chatId, plainText) {
+    async function _tryEncryptDr(chatId, plainText, peerUserId = getCurrentContactId?.()) {
+        const normalizedPeerUserId = normalizePeerUserId(peerUserId);
+        if (!normalizedPeerUserId) return null;
         if (!windowRef.DoubleRatchet) return null;
         const session = await _loadDrSession(chatId);
         if (!session) return null;
@@ -85,7 +89,7 @@ export function createChatEncryptionRuntime({
             const { cipherPayload, newState } = await windowRef.DoubleRatchet.encryptAndPackage(
                 session, plainText, ed25519PrivKey, v2pub.ed25519Public
             );
-            await _saveDrSession(chatId, newState);
+            await _saveDrSession(chatId, newState, normalizedPeerUserId);
             windowRef.e2eeStatusUI?.setStatus('dr');
             return cipherPayload;
         } catch (_) { return null; }
@@ -114,10 +118,12 @@ export function createChatEncryptionRuntime({
         isGroup,
         contactPublicKey,
         userPublicKey,
+        contactId,
     } = {}) {
         const sourceChatId = String(chatId || '').trim();
         const sourceContactPublicKey = String(contactPublicKey || '').trim();
         const sourceUserPublicKey = String(userPublicKey || '').trim();
+        const sourceContactId = normalizePeerUserId(contactId);
         const sourceChatIsGroup = Boolean(isGroup);
 
         return async (plainText) => {
@@ -130,7 +136,7 @@ export function createChatEncryptionRuntime({
                 const mlsResult = await _tryEncryptMls(sourceChatId, plainText);
                 if (mlsResult !== null) return mlsResult;
             } else {
-                const drResult = await _tryEncryptDr(sourceChatId, plainText);
+                const drResult = await _tryEncryptDr(sourceChatId, plainText, sourceContactId);
                 if (drResult !== null) return drResult;
             }
 
@@ -185,7 +191,7 @@ export function createChatEncryptionRuntime({
                 const session = await _loadDrSession(chatId);
                 if (!session) return '[DR: \u043D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438]';
                 const { plaintext, newState } = await windowRef.DoubleRatchet.decryptPackage(session, rawPayload);
-                await _saveDrSession(chatId, newState);
+                await _saveDrSession(chatId, newState, getCurrentContactId?.());
                 windowRef.e2eeStatusUI?.setStatus(proto);
                 return plaintext;
             }
@@ -211,20 +217,35 @@ export function createChatEncryptionRuntime({
             const resp = await fetch(`/api/crypto/dr-session/${encodeURIComponent(chatId)}`, { credentials: 'same-origin' });
             if (!resp.ok) return null;
             const data = await resp.json();
-            if (!data?.session_state) return null;
-            return windowRef.DoubleRatchet.deserializeSession(data.session_state);
+            const sessionState = data?.session_state || data?.session;
+            if (!sessionState) return null;
+            return windowRef.DoubleRatchet.deserializeSession(sessionState);
         } catch (_) { return null; }
     }
 
-    async function _saveDrSession(chatId, state) {
+    function normalizePeerUserId(value) {
+        const numberValue = Number(value);
+        if (!Number.isSafeInteger(numberValue) || numberValue <= 0) return null;
+        return numberValue;
+    }
+
+    async function _saveDrSession(chatId, state, peerUserId) {
         if (!chatId || !state) return;
+        const normalizedPeerUserId = normalizePeerUserId(peerUserId);
+        if (!normalizedPeerUserId) return;
         try {
             const serialized = windowRef.DoubleRatchet.serializeSession(state);
+            const csrfToken = typeof getCsrfToken === 'function' ? getCsrfToken() : '';
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
             await fetch(`/api/crypto/dr-session/${encodeURIComponent(chatId)}`, {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_state: serialized }),
+                headers,
+                body: JSON.stringify({
+                    session_state: serialized,
+                    peer_user_id: normalizedPeerUserId,
+                }),
             });
         } catch (_) { /* non-fatal */ }
     }
