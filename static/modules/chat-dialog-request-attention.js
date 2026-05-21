@@ -49,7 +49,10 @@ function getCopy() {
 
 function currentRequestCount() {
     return document.querySelectorAll(
-        '#dialogRequestsList .request-item:not([data-request-direction="outgoing"])',
+        [
+            '#dialogRequestsList .request-item:not([data-request-direction="outgoing"])',
+            '#contactsList .contact-item--dialog-request:not([data-request-direction="outgoing"])',
+        ].join(', '),
     ).length;
 }
 
@@ -82,7 +85,9 @@ function openRequestsView() {
 
     setAttentionVisible(false);
     requestAnimationFrame(() => {
-        const firstAction = document.querySelector('#dialogRequestsList .req-btn.accept');
+        const firstAction = document.querySelector(
+            '#contactsList .contact-item--dialog-request .req-btn.accept, #dialogRequestsList .req-btn.accept',
+        );
         try {
             firstAction?.focus({ preventScroll: true });
         } catch (_) {

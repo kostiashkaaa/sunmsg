@@ -70,6 +70,7 @@ export function bindChatContactSelectionRuntime({
     contactsList.addEventListener('click', (event) => {
         const contactItem = event.target.closest('.contact-item');
         if (!contactItem) return;
+        if (String(contactItem.getAttribute('data-request-kind') || '') === 'dialog') return;
 
         closeCommandPalette();
         setActiveContactItem(contactItem);

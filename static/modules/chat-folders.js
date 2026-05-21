@@ -107,8 +107,15 @@ function hasUnread(contactItem) {
     return Number.isFinite(count) && count > 0;
 }
 
+function isDialogRequestItem(contactItem) {
+    return String(contactItem?.getAttribute?.('data-request-kind') || '') === 'dialog';
+}
+
 function matchesIncludeRule(contactItem, include) {
     if (!contactItem) return false;
+    if (isDialogRequestItem(contactItem)) {
+        return include === 'all' || include === 'direct';
+    }
     if (include === 'all') return true;
     if (include === 'direct') {
         return contactItem.getAttribute('data-is-group') !== '1'
@@ -123,7 +130,7 @@ function matchesIncludeRule(contactItem, include) {
 export function chatMatchesFolder(contactItem, folder) {
     if (!contactItem) return false;
     const chatId = String(contactItem.getAttribute?.('data-chat-id') || '').trim();
-    if (!chatId) return false;
+    if (!chatId && !isDialogRequestItem(contactItem)) return false;
 
     const normalizedFolder = normalizeChatFolder(folder, 0) || SYSTEM_CHAT_FOLDERS[0];
     const excluded = new Set(normalizedFolder.excluded_chat_ids);

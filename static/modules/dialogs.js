@@ -20,6 +20,11 @@ export function showToast(_message, _type, _options = {}) {
 export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
     const dialogRequestsList    = document.getElementById('dialogRequestsList');
     const dialogRequestsSection = document.getElementById('dialogRequestsSection');
+    const contactsList          = document.getElementById('contactsList');
+
+    function isGroupInviteRequest(req) {
+        return String(req?.request_kind || '').trim().toLowerCase() === 'group_invite';
+    }
 
     function getDialogRequestPerson(req) {
         const outgoing = req.request_direction === 'outgoing';
@@ -32,6 +37,24 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         };
     }
 
+    function buildDialogRequestActions(person, { contactListItem = false } = {}) {
+        const actionClass = contactListItem
+            ? 'req-actions request-contact-actions'
+            : 'req-actions';
+        const statusActionClass = contactListItem
+            ? 'req-actions req-actions--status request-contact-actions'
+            : 'req-actions req-actions--status';
+        return person.outgoing
+            ? `<div class="${statusActionClass}">
+                <span class="req-status">\u041e\u0436\u0438\u0434\u0430\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430</span>
+                <button class="req-btn cancel" data-request-action="cancel" data-key="${escapeHtml(person.publicKey)}" data-user-id="${escapeHtml(String(person.userId || ''))}"><span class="req-btn-label">\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c</span></button>
+            </div>`
+            : `<div class="${actionClass}">
+                <button class="req-btn accept" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
+                <button class="req-btn decline" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
+            </div>`;
+    }
+
     function buildDialogRequestItem(req) {
         const person = getDialogRequestPerson(req);
         const initials = (person.displayName || person.username || '?')
@@ -41,15 +64,6 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         const subtitle = person.outgoing
             ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
             : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
-        const actions = person.outgoing
-            ? `<div class="req-actions req-actions--status">
-                <span class="req-status">\u041e\u0436\u0438\u0434\u0430\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430</span>
-                <button class="req-btn cancel" data-request-action="cancel" data-key="${escapeHtml(person.publicKey)}" data-user-id="${escapeHtml(String(person.userId || ''))}"><span class="req-btn-label">\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c</span></button>
-            </div>`
-            : `<div class="req-actions">
-                <button class="req-btn accept" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
-                <button class="req-btn decline" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
-            </div>`;
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
@@ -59,7 +73,34 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                 </div>
                 <div class="req-username">${subtitle}${username ? ` · ${username}` : ''}</div>
             </div>
-            ${actions}`;
+            ${buildDialogRequestActions(person)}`;
+    }
+
+    function buildContactListRequestItem(req) {
+        const person = getDialogRequestPerson(req);
+        const initials = (person.displayName || person.username || '?')
+            .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        const displayName = person.displayName || person.username || '\u0417\u0430\u043f\u0440\u043e\u0441';
+        const username = person.username ? `@${escapeHtml(person.username)}` : '';
+        const subtitle = person.outgoing
+            ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
+            : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
+        return `
+            <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
+            <div class="contact-info">
+                <div class="contact-name-row">
+                    <div class="contact-name-main">
+                        <span class="req-kind-badge">\u0417\u0430\u043f\u0440\u043e\u0441</span>
+                        <span class="contact-name">${escapeHtml(displayName)}</span>
+                    </div>
+                </div>
+                <div class="contact-last-msg-row">
+                    <span class="contact-last-msg">${subtitle}${username ? ` &middot; ${username}` : ''}</span>
+                </div>
+                <div class="contact-request-actions-row">
+                    ${buildDialogRequestActions(person, { contactListItem: true })}
+                </div>
+            </div>`;
     }
 
     function buildGroupInviteRequestItem(req) {
@@ -86,27 +127,74 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             </div>`;
     }
 
+    function clearContactListRequestItems() {
+        contactsList?.querySelectorAll('.contact-item--dialog-request').forEach((item) => item.remove());
+    }
+
+    function renderContactListRequest(req, fragment) {
+        const person = getDialogRequestPerson(req);
+        const item = document.createElement('div');
+        const displayName = person.displayName || person.username || '\u0417\u0430\u043f\u0440\u043e\u0441';
+        item.className = 'contact-item contact-item--dialog-request ripple-target';
+        item.setAttribute('data-request-kind', 'dialog');
+        item.setAttribute('data-request-direction', person.outgoing ? 'outgoing' : 'incoming');
+        item.setAttribute('data-contact-id', person.userId ? String(person.userId) : '');
+        item.setAttribute('data-display-name', displayName);
+        item.setAttribute('data-username', person.username || '');
+        item.setAttribute('data-contact-username', person.username || '');
+        item.setAttribute('data-public-key', person.publicKey || '');
+        item.setAttribute('data-is-group', '0');
+        item.setAttribute('data-members-count', '0');
+        item.setAttribute('data-muted', '0');
+        item.setAttribute('data-saved-messages', '0');
+        item.setAttribute('data-message-count', '0');
+        item.setAttribute('data-pinned', '0');
+        item.setAttribute('data-last-message-time', new Date().toISOString());
+        item.setAttribute('data-last-message-ts', String(Date.now()));
+        item.setAttribute('draggable', 'false');
+        if (person.publicKey) item.setAttribute('data-request-peer-key', person.publicKey);
+        item.innerHTML = buildContactListRequestItem(req);
+        applyFallbackAvatarTint(
+            item.querySelector('.contact-avatar'),
+            person.displayName || person.username || '?',
+        );
+        fragment.appendChild(item);
+    }
+
     function loadDialogRequests() {
         fetch(withAppRoot('/get_dialog_requests'))
             .then(r => r.json())
             .then(function(response) {
                 if (!dialogRequestsList || !dialogRequestsSection) return;
                 dialogRequestsList.innerHTML = '';
+                clearContactListRequestItems();
                 const requests = (response.success && response.dialog_requests) ? response.dialog_requests : [];
+                const directRequests = contactsList
+                    ? requests.filter((req) => !isGroupInviteRequest(req))
+                    : [];
+                const sectionRequests = contactsList
+                    ? requests.filter(isGroupInviteRequest)
+                    : requests;
 
-                if (requests.length > 0) {
+                if (contactsList && directRequests.length > 0) {
+                    const fragment = document.createDocumentFragment();
+                    directRequests.forEach((req) => renderContactListRequest(req, fragment));
+                    contactsList.prepend(fragment);
+                }
+
+                if (sectionRequests.length > 0) {
                     dialogRequestsSection.classList.add('has-requests');
                     const countEl = document.getElementById('requestsCount');
-                    if (countEl) countEl.textContent = '(' + requests.length + ')';
+                    if (countEl) countEl.textContent = '(' + sectionRequests.length + ')';
 
-                    requests.forEach(function(req) {
+                    sectionRequests.forEach(function(req) {
                         const item = document.createElement('div');
                         const person = getDialogRequestPerson(req);
                         item.className = 'request-item';
-                        item.setAttribute('data-request-kind', req.request_kind === 'group_invite' ? 'group_invite' : 'dialog');
+                        item.setAttribute('data-request-kind', isGroupInviteRequest(req) ? 'group_invite' : 'dialog');
                         item.setAttribute('data-request-direction', person.outgoing ? 'outgoing' : 'incoming');
                         if (person.publicKey) item.setAttribute('data-request-peer-key', person.publicKey);
-                        item.innerHTML = req.request_kind === 'group_invite'
+                        item.innerHTML = isGroupInviteRequest(req)
                             ? buildGroupInviteRequestItem(req)
                             : buildDialogRequestItem(req);
                         applyFallbackAvatarTint(
@@ -117,6 +205,8 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                     });
                 } else {
                     dialogRequestsSection.classList.remove('has-requests');
+                    const countEl = document.getElementById('requestsCount');
+                    if (countEl) countEl.textContent = '';
                 }
                 onListUpdated?.();
             })
@@ -162,36 +252,44 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
             .finally(loadDialogRequests);
     }
 
-    if (dialogRequestsList) {
-        dialogRequestsList.addEventListener('click', function(e) {
-            const btn = e.target.closest('.req-btn');
-            if (!btn) return;
-            const requestKind = String(btn.getAttribute('data-request-kind') || '').trim().toLowerCase();
-            const requestIdRaw = String(btn.getAttribute('data-request-id') || '').trim();
-            const key = btn.getAttribute('data-key');
-            const action = btn.getAttribute('data-request-action')
-                || (btn.classList.contains('accept') ? 'accept' : 'decline');
-            if (action === 'cancel') {
-                btn.disabled = true;
-                handleCancelDialogRequest({
-                    receiverPublicKey: key,
-                    receiverUserId: btn.getAttribute('data-user-id'),
-                });
-                return;
-            }
-            if (requestKind === 'group_invite' && (!requestIdRaw || !Number.isFinite(Number(requestIdRaw)))) {
-                console.warn('[DialogRequests] invalid group invite request id');
-                return;
-            }
+    function handleRequestActionClick(e) {
+        const contactRequestItem = e.target.closest('.contact-item--dialog-request');
+        if (contactRequestItem) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const btn = e.target.closest('.req-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const requestKind = String(btn.getAttribute('data-request-kind') || '').trim().toLowerCase();
+        const requestIdRaw = String(btn.getAttribute('data-request-id') || '').trim();
+        const key = btn.getAttribute('data-key');
+        const action = btn.getAttribute('data-request-action')
+            || (btn.classList.contains('accept') ? 'accept' : 'decline');
+        if (action === 'cancel') {
             btn.disabled = true;
-            handleDialogRequest({
-                senderPublicKey: key,
-                action,
-                requestKind,
-                requestId: requestIdRaw,
+            handleCancelDialogRequest({
+                receiverPublicKey: key,
+                receiverUserId: btn.getAttribute('data-user-id'),
             });
+            return;
+        }
+        if (requestKind === 'group_invite' && (!requestIdRaw || !Number.isFinite(Number(requestIdRaw)))) {
+            console.warn('[DialogRequests] invalid group invite request id');
+            return;
+        }
+        btn.disabled = true;
+        handleDialogRequest({
+            senderPublicKey: key,
+            action,
+            requestKind,
+            requestId: requestIdRaw,
         });
     }
+
+    dialogRequestsList?.addEventListener('click', handleRequestActionClick);
+    contactsList?.addEventListener('click', handleRequestActionClick, true);
 
     if (typeof window !== 'undefined') {
         window.addEventListener('focus', refreshDialogRequestsWhenVisible);

@@ -233,19 +233,21 @@ export function initChatContactsSidebar({
 
     function updateDialogRequestsBadge(dialogRequestsList, dialogRequestsSection) {
         if (!dialogRequestsList || !dialogRequestsSection) return;
-        const count = dialogRequestsList.children.length;
+        const sectionCount = dialogRequestsList.children.length;
         const incomingCount = dialogRequestsList.querySelectorAll(
             '.request-item:not([data-request-direction="outgoing"])',
+        ).length + document.querySelectorAll(
+            '#contactsList .contact-item--dialog-request:not([data-request-direction="outgoing"])',
         ).length;
         const countEl = document.getElementById('requestsCount');
-        if (countEl) countEl.textContent = count > 0 ? `(${count})` : '';
+        if (countEl) countEl.textContent = sectionCount > 0 ? `(${sectionCount})` : '';
         syncDialogRequestAttentionCount(incomingCount);
         const activeSidebarTab = String(
             document.body?.dataset?.sidebarTab
             || document.querySelector('.sidebar-tab.active')?.getAttribute('data-tab')
             || 'all',
         );
-        if (count === 0) {
+        if (sectionCount === 0) {
             dialogRequestsSection.classList.remove('has-requests');
             dialogRequestsSection.style.display = 'none';
         } else {

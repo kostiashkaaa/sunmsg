@@ -34,8 +34,13 @@ export function initChatShellSidebar({
         return String(document.body?.dataset?.sidebarTab || 'all');
     }
 
-    function getRequestCount() {
+    function getSectionRequestCount() {
         return document.getElementById('dialogRequestsList')?.children?.length || 0;
+    }
+
+    function getFirstRequestRow() {
+        return document.querySelector('#contactsList .contact-item--dialog-request')
+            || document.querySelector('#dialogRequestsList .request-item');
     }
 
     function syncBootstrapPreferences(nextPreferences) {
@@ -85,7 +90,7 @@ export function initChatShellSidebar({
     }
 
     function shouldShowRequestsForTab(tabValue) {
-        return String(tabValue || '') === 'all' && getRequestCount() > 0;
+        return String(tabValue || '') === 'all' && getSectionRequestCount() > 0;
     }
 
     function applySidebarFolderFilter() {
@@ -136,13 +141,15 @@ export function initChatShellSidebar({
 
     function focusDialogRequests() {
         switchSidebarTab('all');
-        const section = document.getElementById('dialogRequestsSection');
+        const section = getFirstRequestRow() || document.getElementById('dialogRequestsSection');
         const scrollArea = document.getElementById('sidebarScrollArea');
         if (section && scrollArea) {
             scrollArea.scrollTo({ top: Math.max(0, section.offsetTop - 8), behavior: 'smooth' });
         }
         window.requestAnimationFrame(() => {
-            const firstAction = document.querySelector('#dialogRequestsList .req-btn.accept');
+            const firstAction = document.querySelector(
+                '#contactsList .contact-item--dialog-request .req-btn.accept, #dialogRequestsList .req-btn.accept',
+            );
             try {
                 firstAction?.focus({ preventScroll: true });
             } catch (_) {

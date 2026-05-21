@@ -69,6 +69,12 @@ const saved = new FakeContact({
   'data-saved-messages': '1',
   'data-pinned': '0',
 }, null);
+const dialogRequest = new FakeContact({
+  'data-request-kind': 'dialog',
+  'data-is-group': '0',
+  'data-saved-messages': '0',
+  'data-pinned': '0',
+}, null);
 
 if (!moduleApi.chatMatchesFolder(direct, { title: 'Direct', include: 'direct' })) {
   throw new Error('Direct folder should include direct chat');
@@ -84,6 +90,18 @@ if (!moduleApi.chatMatchesFolder(group, { title: 'Pinned', include: 'pinned' }))
 }
 if (!moduleApi.chatMatchesFolder(direct, { title: 'Unread', include: 'unread' })) {
   throw new Error('Unread folder should include unread chat');
+}
+if (!moduleApi.chatMatchesFolder(dialogRequest, { title: 'All', include: 'all' })) {
+  throw new Error('All folder should include direct dialog requests');
+}
+if (!moduleApi.chatMatchesFolder(dialogRequest, { title: 'Direct', include: 'direct' })) {
+  throw new Error('Direct folder should include direct dialog requests');
+}
+if (moduleApi.chatMatchesFolder(dialogRequest, { title: 'Groups', include: 'groups' })) {
+  throw new Error('Groups folder should exclude dialog requests');
+}
+if (moduleApi.chatMatchesFolder(dialogRequest, { title: 'Unread', include: 'unread' })) {
+  throw new Error('Unread folder should exclude dialog requests');
 }
 if (!moduleApi.chatMatchesFolder(group, {
   title: 'Manual',
