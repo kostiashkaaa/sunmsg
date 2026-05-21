@@ -2279,11 +2279,17 @@
             gap: 7px;
         }
 
+        .contact-item--dialog-request .contact-info {
+            display: grid;
+            align-content: center;
+        }
+
         .contact-item--dialog-request .contact-last-msg-row {
             margin-top: 3px;
         }
 
         .contact-item--dialog-request .contact-request-actions-row {
+            width: 100%;
             margin-top: 7px;
         }
 
@@ -2292,6 +2298,8 @@
             grid-template-columns: repeat(2, minmax(0, 108px));
             gap: 8px;
             align-items: center;
+            justify-content: start;
+            justify-items: stretch;
         }
 
         .contact-item--dialog-request .request-contact-actions .req-btn,
