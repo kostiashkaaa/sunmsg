@@ -1,33 +1,13 @@
 import { getCsrfToken } from '../../modules/csrf.js';
 import { showConfirmDialog } from '../../modules/confirm-dialog.js';
 import { withAppRoot } from '../../modules/app-url.js';
-import * as ChatIdb from '../../modules/chat-idb.js';
-import {
-    clearPrivateKeyPem,
-    stagePrivateKeyForRedirect,
-} from '../../modules/private-key-session.js';
-import { hasRuntimePrivateKey } from '../../modules/private-key-runtime.js';
 import { waitForMotionEnd } from '../../modules/motion.js';
-import { initSettingsPresence } from '../../modules/settings-presence.js';
-import { initSettingsQr, downloadSettingsQr } from '../settings-qr.js';
-import { initSettingsPremiumUX } from '../../modules/settings-premium-ux.js';
 
 import { createSettingsState } from './state.js';
 import { createSettingsApi } from './api.js';
 import { initProfileSection } from './profile-section.js';
 import { initPrivacySection } from './privacy-section.js';
-import { initTotpSection } from './totp-section.js';
-import { initDevicesSection } from './devices-section.js';
-import { initThemeSection } from './theme-section.js';
 import { initSettingsNavShell } from './nav-shell.js';
-import { initMnemonicSection } from './mnemonic-section.js';
-import { initAccountDangerSection } from './account-danger-section.js';
-import { initNotificationsSection } from './notifications-section.js';
-import { initSettingsTransferSection } from './settings-transfer-section.js';
-import { initDataMemorySection } from './data-memory-section.js';
-import { initSecuritySummarySection } from './security-summary-section.js';
-import { initProfilePullExpand } from './profile-pull-expand.js';
-import { initSpotifySection } from './spotify-section.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -36,6 +16,14 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function runWhenIdle(callback, timeout = 1200) {
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(callback, { timeout });
+        return;
+    }
+    window.setTimeout(callback, timeout);
 }
 
 export function initSettingsPage() {
@@ -60,9 +48,6 @@ export function initSettingsPage() {
 
     const isEmbedMode = true;
     const currentUsername = String(bootstrapUser.currentUsername || pageRoot.dataset.currentUsername || '');
-    initSettingsPresence({ isEmbedded: true });
-    initProfilePullExpand();
-    initSettingsPremiumUX(document);
 
     const dispatch = (type, detail = {}) => {
         document.dispatchEvent(new CustomEvent(type, { detail, bubbles: false }));
@@ -121,6 +106,157 @@ export function initSettingsPage() {
     });
 
     const api = createSettingsApi({ withAppRoot, getCsrfToken });
+    const deferredSectionControllers = new Map();
+    const deferredSectionPromises = new Map();
+    const deferredSectionKeys = new Set([
+        'account',
+        'account-danger',
+        'chat-style',
+        'data-memory',
+        'integrations',
+        'keys',
+        'notifications',
+        'settings-transfer',
+    ]);
+    const currentUserId = String(bootstrapUser.currentUserId || pageRoot.dataset.currentUserId || '').trim();
+
+    const initSettingsQrDeferred = () => import('../settings-qr.js')
+        .then(({ initSettingsQr }) => initSettingsQr());
+    const downloadSettingsQrDeferred = () => import('../settings-qr.js')
+        .then(({ downloadSettingsQr }) => downloadSettingsQr());
+
+    const ensureDeferredSection = (section) => {
+        const key = String(section || '').trim();
+        if (!key) return Promise.resolve(null);
+        if (!deferredSectionKeys.has(key)) return Promise.resolve(null);
+        if (deferredSectionControllers.has(key)) {
+            return Promise.resolve(deferredSectionControllers.get(key));
+        }
+        if (deferredSectionPromises.has(key)) {
+            return deferredSectionPromises.get(key);
+        }
+
+        const promise = (async () => {
+            if (key === 'chat-style') {
+                const { initThemeSection } = await import('./theme-section.js');
+                return initThemeSection({
+                    tr,
+                    notifyParent,
+                    showAlert,
+                    chatAppearanceApi: window.ChatAppearance || null,
+                    interfaceThemeApi: window.InterfaceTheme || null,
+                    persistClientPreferences: (clientPreferences, requestOptions = {}) => api.saveSettings({
+                        client_preferences: clientPreferences,
+                    }, requestOptions),
+                });
+            }
+            if (key === 'notifications') {
+                const { initNotificationsSection } = await import('./notifications-section.js');
+                return initNotificationsSection({ api, tr, showAlert });
+            }
+            if (key === 'data-memory') {
+                const { initDataMemorySection } = await import('./data-memory-section.js');
+                return initDataMemorySection({
+                    tr,
+                    showAlert,
+                    currentUserId,
+                });
+            }
+            if (key === 'keys') {
+                const [
+                    { initTotpSection },
+                    { initSecuritySummarySection },
+                    { initMnemonicSection },
+                    { stagePrivateKeyForRedirect },
+                    { hasRuntimePrivateKey },
+                ] = await Promise.all([
+                    import('./totp-section.js'),
+                    import('./security-summary-section.js'),
+                    import('./mnemonic-section.js'),
+                    import('../../modules/private-key-session.js'),
+                    import('../../modules/private-key-runtime.js'),
+                ]);
+                initTotpSection({ api, tr, showAlert, uiLocale });
+                initSecuritySummarySection({ tr });
+                initMnemonicSection({
+                    api,
+                    tr,
+                    showAlert,
+                    isEmbedMode,
+                    reloadSettingsSurface,
+                    stagePrivateKeyForRedirect,
+                    hasRuntimePrivateKey,
+                });
+                return true;
+            }
+            if (key === 'account') {
+                const { initDevicesSection } = await import('./devices-section.js');
+                return initDevicesSection({
+                    api,
+                    tr,
+                    escapeHtml,
+                    showAlert,
+                    navigateOut,
+                    uiLocale,
+                    doLogout: async () => {
+                        try { await api.logout(); } catch (_) {}
+                        navigateOut('/');
+                    },
+                });
+            }
+            if (key === 'settings-transfer') {
+                const { initSettingsTransferSection } = await import('./settings-transfer-section.js');
+                return initSettingsTransferSection({
+                    tr,
+                    showAlert,
+                    api,
+                    privacySection,
+                    notifyLanguageUpdate,
+                });
+            }
+            if (key === 'account-danger') {
+                const { initAccountDangerSection } = await import('./account-danger-section.js');
+                return initAccountDangerSection({
+                    api,
+                    tr,
+                    currentUsername,
+                    navigateOut,
+                    showAlert,
+                });
+            }
+            if (key === 'integrations') {
+                const { initSpotifySection } = await import('./spotify-section.js');
+                return initSpotifySection();
+            }
+            return null;
+        })()
+            .then((controller) => {
+                const resolvedController = controller || true;
+                deferredSectionControllers.set(key, resolvedController);
+                return resolvedController;
+            })
+            .catch((error) => {
+                deferredSectionPromises.delete(key);
+                console.warn(`[settings] Failed to initialize ${key} section`, error);
+                return null;
+            });
+
+        deferredSectionPromises.set(key, promise);
+        return promise;
+    };
+
+    const loadSessionDevicesDeferred = () => ensureDeferredSection('account')
+        .then((controller) => {
+            if (controller && typeof controller.loadSessionDevices === 'function') {
+                return controller.loadSessionDevices();
+            }
+            return null;
+        })
+        .catch(() => null);
+
+    const hydrateDeferredSection = (section) => {
+        void ensureDeferredSection(section);
+    };
 
     const closeSettingsSurface = async () => {
         if (state.isDirty()) {
@@ -249,42 +385,9 @@ export function initSettingsPage() {
         notifyMotionUpdate: (detail) => notifyParent('sun-settings-motion-updated', detail || {}),
         notifyWeatherLabelUpdate: (detail) => notifyParent('sun-settings-weather-label-updated', detail || {}),
         applyAvatarFromSettings: profileSection.applyAvatarFromSettings,
-        downloadSettingsQr,
+        downloadSettingsQr: downloadSettingsQrDeferred,
     });
     getCommonPayloadRef = privacySection.getCommonPayload;
-
-    initThemeSection({
-        tr,
-        notifyParent,
-        showAlert,
-        chatAppearanceApi: window.ChatAppearance || null,
-        interfaceThemeApi: window.InterfaceTheme || null,
-        persistClientPreferences: (clientPreferences, requestOptions = {}) => api.saveSettings({
-            client_preferences: clientPreferences,
-        }, requestOptions),
-    });
-
-    const devicesSection = initDevicesSection({
-        api,
-        tr,
-        escapeHtml,
-        showAlert,
-        navigateOut,
-        uiLocale,
-        doLogout: async () => {
-            try { await api.logout(); } catch (_) {}
-            navigateOut('/');
-        },
-    });
-
-    initTotpSection({ api, tr, showAlert, uiLocale });
-    initSecuritySummarySection({ tr });
-    initNotificationsSection({ api, tr, showAlert });
-    initDataMemorySection({
-        tr,
-        showAlert,
-        currentUserId: String(bootstrapUser.currentUserId || pageRoot.dataset.currentUserId || '').trim(),
-    });
 
     const settingsSupportSubmitBtn = document.getElementById('settingsSupportSubmitBtn');
     const settingsSupportOpenPageBtn = document.getElementById('settingsSupportOpenPageBtn');
@@ -353,23 +456,28 @@ export function initSettingsPage() {
         }
     });
 
-    initSettingsTransferSection({
-        tr,
-        showAlert,
-        api,
-        privacySection,
-        notifyLanguageUpdate,
-    });
-
     setServerSettingsControlsEnabled(false);
 
     initSettingsNavShell({
         tr,
         state,
-        initSettingsQr,
-        loadSessionDevices: devicesSection.loadSessionDevices,
+        initSettingsQr: initSettingsQrDeferred,
+        loadSessionDevices: loadSessionDevicesDeferred,
         closeSettingsSurface,
+        hydrateSection: hydrateDeferredSection,
+        preloadSection: hydrateDeferredSection,
     });
+    markSettingsReady();
+    runWhenIdle(() => {
+        void Promise.all([
+            import('./profile-pull-expand.js')
+                .then(({ initProfilePullExpand }) => initProfilePullExpand()),
+            import('../../modules/settings-premium-ux.js')
+                .then(({ initSettingsPremiumUX }) => initSettingsPremiumUX(document)),
+        ]).catch((error) => {
+            console.warn('[settings] Failed to initialize deferred enhancements', error);
+        });
+    }, 900);
 
     const logoutLinks = document.querySelectorAll('[data-logout-trigger]');
     if (logoutLinks.length) {
@@ -383,14 +491,18 @@ export function initSettingsPage() {
                     logoutRequestFailed = true;
                 }
 
-                await clearPrivateKeyPem({
-                    notify: true,
-                    clearWrappedSession: true,
-                    clearWrappedPersistent: true,
-                    clearDeviceKey: true,
-                });
+                try {
+                    const { clearPrivateKeyPem } = await import('../../modules/private-key-session.js');
+                    await clearPrivateKeyPem({
+                        notify: true,
+                        clearWrappedSession: true,
+                        clearWrappedPersistent: true,
+                        clearDeviceKey: true,
+                    });
+                } catch (_) {}
 
                 try {
+                    const ChatIdb = await import('../../modules/chat-idb.js');
                     const fallbackUserId = String(
                         bootstrapUser.currentUserId
                         || document.body?.dataset?.currentUserId
@@ -416,26 +528,6 @@ export function initSettingsPage() {
             });
         });
     }
-
-    initMnemonicSection({
-        api,
-        tr,
-        showAlert,
-        isEmbedMode,
-        reloadSettingsSurface,
-        stagePrivateKeyForRedirect,
-        hasRuntimePrivateKey,
-    });
-
-    initAccountDangerSection({
-        api,
-        tr,
-        currentUsername,
-        navigateOut,
-        showAlert,
-    });
-
-    initSpotifySection();
 
     initHomeMetaSync({ tr, i18nApi });
 }

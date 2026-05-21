@@ -12,6 +12,8 @@ export function initSettingsNavShell({
     initSettingsQr,
     loadSessionDevices,
     closeSettingsSurface,
+    hydrateSection = null,
+    preloadSection = null,
 }) {
     const navItems = document.querySelectorAll('.nav-item[data-section]');
     const sections = document.querySelectorAll('section[id^="section-"]');
@@ -216,6 +218,10 @@ export function initSettingsNavShell({
     function runSectionSideEffects(id) {
         syncSectionTitle(id, activeNavKey);
         syncSectionNav(id);
+
+        if (typeof hydrateSection === 'function') {
+            hydrateSection(id);
+        }
 
         if (id === 'keys' && !state.isQrGenerated()) {
             state.setQrGenerated(true);
@@ -504,6 +510,12 @@ export function initSettingsNavShell({
     });
 
     navItems.forEach((item) => {
+        const preloadTarget = () => {
+            if (typeof preloadSection !== 'function') return;
+            preloadSection(item.dataset.section);
+        };
+        item.addEventListener('pointerenter', preloadTarget, { passive: true });
+        item.addEventListener('focus', preloadTarget);
         item.addEventListener('click', function (event) {
             event.preventDefault();
             openSection(this.dataset.section, {

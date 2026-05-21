@@ -15,5 +15,6 @@ def test_settings_security_summary_is_wired():
 
     assert 'id="securitySummaryCard"' in template_src
     assert 'export function initSecuritySummarySection' in module_src
-    assert "import { initSecuritySummarySection } from './security-summary-section.js';" in orchestrator_src
+    assert "import('./security-summary-section.js')" in orchestrator_src
+    assert "key === 'keys'" in orchestrator_src
     assert 'initSecuritySummarySection({ tr });' in orchestrator_src
