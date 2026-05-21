@@ -32,6 +32,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     const canAnswerWithVideo = callType === 'video';
     let answerAudioMuted = false;
     let answerVideoEnabled = canAnswerWithVideo;
+    let acceptInProgress = false;
     const avatarHtml = caller.avatar_url
         ? `<img src="${escapeHtml(caller.avatar_url)}" class="call-ib__avatar-img" alt="">`
         : `<div class="call-ib__avatar-fallback">${escapeHtml(initial)}</div>`;
@@ -51,7 +52,7 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
         <div class="call-ib__body">
             <div class="call-ib__avatar">${avatarHtml}</div>
             <div class="call-ib__name">${name}</div>
-            <div class="call-ib__type">${typeLabel}</div>
+            <div class="call-ib__type" data-call-incoming-status>${typeLabel}</div>
         </div>
         <div class="call-ib__actions">
             <button class="call-ib__btn" type="button" data-call-answer-audio aria-label="Микрофон включён" aria-pressed="false">
@@ -101,16 +102,38 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
         </div>
     `;
 
+    const setIncomingBusy = (busy, statusText = typeLabel) => {
+        acceptInProgress = Boolean(busy);
+        banner.classList.toggle('call-ib--busy', acceptInProgress);
+        banner.querySelectorAll('button').forEach((button) => {
+            if (button.hasAttribute('data-call-fullscreen')) return;
+            button.disabled = acceptInProgress;
+            button.setAttribute('aria-disabled', String(acceptInProgress));
+        });
+        const statusEl = banner.querySelector('[data-call-incoming-status]');
+        if (statusEl) statusEl.textContent = String(statusText || typeLabel);
+    };
+
     banner.querySelectorAll('[data-call-reject]').forEach((button) => button.addEventListener('click', () => {
+        if (acceptInProgress) return;
         removeIncomingCallBanner();
         onReject(callId);
     }));
-    banner.querySelector('[data-call-accept]').addEventListener('click', () => {
-        removeIncomingCallBanner();
-        onAccept(callId, callType, {
-            audioMuted: answerAudioMuted,
-            videoEnabled: answerVideoEnabled,
-        });
+    banner.querySelector('[data-call-accept]').addEventListener('click', async () => {
+        if (acceptInProgress) return;
+        setIncomingBusy(true, 'Подключение...');
+        try {
+            const accepted = await onAccept(callId, callType, {
+                audioMuted: answerAudioMuted,
+                videoEnabled: answerVideoEnabled,
+            });
+            if (accepted === false && banner.isConnected) {
+                setIncomingBusy(false, typeLabel);
+            }
+        } catch (err) {
+            console.warn('[CallUI] incoming accept failed', err);
+            if (banner.isConnected) setIncomingBusy(false, typeLabel);
+        }
     });
     banner.querySelector('[data-call-fullscreen]')?.addEventListener('click', () => {
         _toggleElementFullscreen(banner);
@@ -138,6 +161,12 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
     document.body.appendChild(banner);
     applyFallbackAvatarTint(banner.querySelector('.call-ib__avatar'), rawName);
     requestAnimationFrame(() => banner.classList.add('call-ib--visible'));
+}
+
+export function setIncomingCallBannerStatus(text) {
+    const statusEl = document.querySelector('#call-incoming-banner [data-call-incoming-status]');
+    if (!statusEl) return;
+    statusEl.textContent = String(text || '');
 }
 
 export function removeIncomingCallBanner() {

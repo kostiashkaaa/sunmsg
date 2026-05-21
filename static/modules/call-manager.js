@@ -19,6 +19,7 @@ import { CallWebRTC } from './call-webrtc.js';
 import {
     removePreCallScreen,
     showIncomingCallBanner, removeIncomingCallBanner,
+    setIncomingCallBannerStatus,
     showActiveCallOverlay, removeActiveCallOverlay,
     setCallStatusText, setCallVerificationCode,
     attachRemoteTrack, removeRemoteTrack, setRemoteVideoEnabled,
@@ -43,6 +44,8 @@ const STATES = {
 // How long to wait in 'disconnected' state before giving up
 const DISCONNECT_TIMEOUT_MS = 15_000;
 const RING_TIMEOUT_MS = 60_000;
+const SIGNAL_ACK_TIMEOUT_MS = 12_000;
+const ACCEPT_SYNC_GRACE_MS = 5_000;
 const MAX_PENDING_SIGNALS = 128;
 const CALL_SESSION_STORAGE_KEY = 'sun.call.session.v1';
 
@@ -81,6 +84,9 @@ export class CallManager {
         this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;    // epoch ms; 0 = not fetched
         this._ringTimeout = null;
+        this._initiateAckTimeout = null;
+        this._acceptAckTimeout = null;
+        this._acceptSyncGraceTimeout = null;
         this._disconnectTimeout = null;
         this._iceRestarting = false;
 
@@ -137,6 +143,8 @@ export class CallManager {
         this._socket.on('call_sync',         d => this._onCallSync(d));
         this._socket.on('call_media_state',  d => this._onPartnerMediaState(d));
         this._socket.on('connect',           () => this._syncCallState());
+        this._socket.on('disconnect',        () => this._onSocketDisconnected());
+        this._socket.on('connect_error',     () => this._onSocketDisconnected());
         // WebRTC P2P signalling — relayed by server without inspection
         this._socket.on('call_offer',        d => this._onOffer(d));
         this._socket.on('call_answer',       d => this._onAnswer(d));
@@ -152,6 +160,10 @@ export class CallManager {
     async startCall(chatId, callType = 'audio', partnerInfo = null) {
         if (this._state !== STATES.IDLE) {
             showToast('Уже есть активный звонок', 'warning');
+            return;
+        }
+        if (!this._canEmitRealtime()) {
+            showToast('Связь с сервером не восстановлена. Попробуйте через пару секунд.', 'warning');
             return;
         }
         this._chatId   = chatId;
@@ -172,7 +184,15 @@ export class CallManager {
             showToast('Звонок не принят', 'info');
             this._cleanup();
         }, RING_TIMEOUT_MS);
-        this._emit('call_initiate', { chat_id: this._chatId, call_type: this._callType });
+        this._initiateAckTimeout = setTimeout(() => {
+            if (this._state !== STATES.RINGING_OUT || this._callId) return;
+            showToast('Не удалось начать звонок. Проверьте соединение.', 'warning');
+            this._cleanup();
+        }, SIGNAL_ACK_TIMEOUT_MS);
+        if (!this._emit('call_initiate', { chat_id: this._chatId, call_type: this._callType }, { requireConnected: true })) {
+            showToast('Связь с сервером не восстановлена. Попробуйте через пару секунд.', 'warning');
+            this._cleanup();
+        }
     }
 
     endCall() {
@@ -194,6 +214,10 @@ export class CallManager {
 
     async acceptCall(callId, callType, mediaOptions = {}) {
         if (this._state !== STATES.RINGING_IN || String(callId || '') !== String(this._callId || '')) return;
+        if (!this._canEmitRealtime()) {
+            showToast('Связь с сервером не восстановлена. Попробуйте через пару секунд.', 'warning');
+            return false;
+        }
         this._callId   = callId;
         this._callType = callType;
         this._state    = STATES.ACCEPTING;
@@ -203,9 +227,16 @@ export class CallManager {
         stopRingtone();
         clearTimeout(this._ringTimeout);
         this._ringTimeout = null;
-        removeIncomingCallBanner();
+        setIncomingCallBannerStatus('Подключение...');
         this._rememberCallSession('accepting');
-        this._emit('call_accept', { call_id: callId, request_id: this._pendingAcceptRequestId });
+        this._startAcceptAckTimeout();
+        if (!this._emit('call_accept', { call_id: callId, request_id: this._pendingAcceptRequestId }, { requireConnected: true })) {
+            this._clearAcceptTimeouts();
+            this._state = STATES.RINGING_IN;
+            setIncomingCallBannerStatus('Нет соединения');
+            return false;
+        }
+        return true;
     }
 
     // ── Signalling: lifecycle ────────────────────────────────────────────────
@@ -253,6 +284,10 @@ export class CallManager {
             return;
         }
         this._callId = call_id;
+        if (this._initiateAckTimeout) {
+            clearTimeout(this._initiateAckTimeout);
+            this._initiateAckTimeout = null;
+        }
         this._rememberCallSession('ringing_out');
         // Show overlay immediately for caller with "Звонок..."
         const partner = this._resolvePartner(this._partner);
@@ -309,9 +344,11 @@ export class CallManager {
                 this._cleanup();
                 return;
             }
+            this._clearAcceptTimeouts();
             this._pendingAcceptRequestId = '';
             this._state = STATES.ACTIVE;
             this._rememberCallSession('active');
+            removeIncomingCallBanner();
             await this._startMedia(this._pendingMediaOptions);
             return;
         }
@@ -401,9 +438,11 @@ export class CallManager {
             return;
         }
         if (this._state === STATES.ACCEPTING && status === 'active' && callId === this._callId) {
+            this._clearAcceptTimeouts();
             this._pendingAcceptRequestId = '';
             this._state = STATES.ACTIVE;
             this._rememberCallSession('active');
+            removeIncomingCallBanner();
             await this._startMedia(this._pendingMediaOptions);
             return;
         }
@@ -477,6 +516,33 @@ export class CallManager {
             this._pendingSignals.shift();
         }
         this._pendingSignals.push(signal);
+    }
+
+    _startAcceptAckTimeout() {
+        this._clearAcceptTimeouts();
+        this._acceptAckTimeout = setTimeout(() => {
+            if (this._state !== STATES.ACCEPTING) return;
+            setIncomingCallBannerStatus('Проверяем состояние...');
+            if (this._canEmitRealtime()) {
+                this._syncCallState();
+            }
+            this._acceptSyncGraceTimeout = setTimeout(() => {
+                if (this._state !== STATES.ACCEPTING) return;
+                showToast('Не удалось принять звонок. Проверьте соединение.', 'warning');
+                this._cleanup();
+            }, ACCEPT_SYNC_GRACE_MS);
+        }, SIGNAL_ACK_TIMEOUT_MS);
+    }
+
+    _clearAcceptTimeouts() {
+        if (this._acceptAckTimeout) {
+            clearTimeout(this._acceptAckTimeout);
+            this._acceptAckTimeout = null;
+        }
+        if (this._acceptSyncGraceTimeout) {
+            clearTimeout(this._acceptSyncGraceTimeout);
+            this._acceptSyncGraceTimeout = null;
+        }
     }
 
     // Drain any signals that arrived before _webrtc was ready
@@ -909,6 +975,25 @@ export class CallManager {
         } catch (_) { /* ignore storage cleanup failures */ }
     }
 
+    _onSocketDisconnected() {
+        if (this._state === STATES.IDLE) return;
+        if (this._state === STATES.ACCEPTING) {
+            setIncomingCallBannerStatus('Ждём соединение...');
+            return;
+        }
+        if (this._state === STATES.RINGING_IN) {
+            setIncomingCallBannerStatus('Нет соединения');
+            return;
+        }
+        if (this._state === STATES.RINGING_OUT) {
+            setCallStatusText('Ждём соединение...');
+            return;
+        }
+        if (this._state === STATES.ACTIVE) {
+            setCallStatusText('Переподключение...');
+        }
+    }
+
     _onConnectionState(state) {
         if (state === 'connected') {
             clearTimeout(this._disconnectTimeout);
@@ -1001,11 +1086,18 @@ export class CallManager {
     }
 
     _syncCallState() {
-        this._emit('call_sync', { call_id: this._callId || null });
+        this._emit('call_sync', { call_id: this._callId || null }, { requireConnected: true });
     }
 
-    _emit(event, data) {
+    _emit(event, data, { requireConnected = false } = {}) {
+        if (requireConnected && !this._canEmitRealtime()) return false;
         this._socket.emit(event, { ...data, csrf_token: this._getCsrfToken() });
+        return true;
+    }
+
+    _canEmitRealtime() {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+        return this._socket?.connected !== false;
     }
 
     _resolvePartner(partnerInfo = null) {
@@ -1024,6 +1116,8 @@ export class CallManager {
     _cleanup() {
         const callId = this._callId;
         if (this._ringTimeout)       { clearTimeout(this._ringTimeout);       this._ringTimeout = null; }
+        if (this._initiateAckTimeout) { clearTimeout(this._initiateAckTimeout); this._initiateAckTimeout = null; }
+        this._clearAcceptTimeouts();
         if (this._disconnectTimeout) { clearTimeout(this._disconnectTimeout); this._disconnectTimeout = null; }
         this._clearRememberedCallSession(callId);
         stopRingtone();
