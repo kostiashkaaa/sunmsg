@@ -651,6 +651,7 @@ export class CallManager {
             initialAudioMuted: normalizedMediaOptions.audioMuted,
             initialVideoEnabled: normalizedMediaOptions.videoEnabled,
             initialSpeakerDeviceId: normalizedMediaOptions.speakerDeviceId,
+            initialLocalFacingMode: this._media.getVideoFacingMode(),
             onToggleAudio: () => {
                 const muted = this._media.toggleAudio();
                 this._webrtc?.setAudioEnabled(!muted);
@@ -660,7 +661,11 @@ export class CallManager {
             onToggleVideo: async () => {
                 const enabled = await this._toggleVideo();
                 this._notifyMediaState();
-                return { enabled, localStream: this._media.getLocalStream() };
+                return {
+                    enabled,
+                    localStream: this._media.getLocalStream(),
+                    facingMode: this._media.getVideoFacingMode(),
+                };
             },
             onSwitchCamera: async () => {
                 let prepared = null;
@@ -748,7 +753,10 @@ export class CallManager {
                     setCallStatusText(message);
                     showToast(message, 'error');
                 }
-                return { localStream: this._media.getLocalStream() };
+                return {
+                    localStream: this._media.getLocalStream(),
+                    facingMode: this._media.getVideoFacingMode(),
+                };
             },
             onToggleScreenShare: async () => {
                 const result = await this._toggleScreenShare();
@@ -840,7 +848,11 @@ export class CallManager {
                 this._screenSharing = false;
                 setCallScreenShareActive(false);
             }
-            return { enabled: false, localStream: this._media.getLocalStream() };
+            return {
+                enabled: false,
+                localStream: this._media.getLocalStream(),
+                facingMode: this._media.getVideoFacingMode(),
+            };
         }
 
         let prepared = null;
@@ -852,7 +864,7 @@ export class CallManager {
             this._media.commitPreparedVideoTrack(prepared.track, prepared);
             this._screenSharing = true;
             setCallScreenShareActive(true);
-            return { enabled: true, localStream: this._media.getLocalStream() };
+            return { enabled: true, localStream: this._media.getLocalStream(), facingMode: 'screen' };
         } catch (err) {
             if (oldTrack) {
                 try { await this._webrtc?.replaceVideoTrack(oldTrack); } catch (_) { /* keep current sender best-effort */ }
@@ -864,7 +876,11 @@ export class CallManager {
             setCallScreenShareActive(false);
             console.warn('[CallManager] screen share failed', err);
             setCallStatusText('Демонстрация экрана недоступна');
-            return { enabled: false, localStream: this._media.getLocalStream() };
+            return {
+                enabled: false,
+                localStream: this._media.getLocalStream(),
+                facingMode: this._media.getVideoFacingMode(),
+            };
         }
     }
 

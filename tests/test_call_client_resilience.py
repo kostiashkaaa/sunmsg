@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_call_manager_guards_unstable_realtime_states() -> None:
     manager = (ROOT / 'static' / 'modules' / 'call-manager.js').read_text(encoding='utf-8')
     ui = (ROOT / 'static' / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
+    webrtc = (ROOT / 'static' / 'modules' / 'call-webrtc.js').read_text(encoding='utf-8')
+    css = (ROOT / 'static' / 'calls.css').read_text(encoding='utf-8')
     handlers = (ROOT / 'app' / 'sockets' / 'call_handlers.py').read_text(encoding='utf-8')
 
     assert 'const SIGNAL_ACK_TIMEOUT_MS = 12_000;' in manager
@@ -23,6 +25,16 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'data-call-incoming-status' in ui
     assert "setIncomingBusy(true, 'Подключение...')" in ui
     assert 'acceptInProgress' in ui
+    assert 'initialLocalFacingMode' in ui
+    assert '_localCameraX(facingMode)' in ui
+    assert "String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1" in ui
+
+    assert '--call-local-camera-x' in css
+    assert '--call-preview-camera-x' in css
+
+    assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
+    assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
+    assert 'const requiredSamples = isDowngrade' in webrtc
 
     assert "'partner_media': _partner_media_state(conn, call_id, user_id)" in handlers
     assert "if status == 'active' else None" in handlers

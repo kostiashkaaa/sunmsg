@@ -26,7 +26,8 @@
 // participant exhaust memory by flooding call_ice_candidate.
 const MAX_PENDING_ICE_CANDIDATES = 100;
 const SEND_QUALITY_ORDER = { poor: 0, fair: 1, good: 2 };
-const SEND_QUALITY_UPGRADE_SAMPLES = 3;
+const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;
+const SEND_QUALITY_UPGRADE_SAMPLES = 4;
 const SEND_QUALITY_PROFILES = Object.freeze({
     good: { maxBitrate: 900_000, scaleResolutionDownBy: 1, maxFramerate: 24 },
     fair: { maxBitrate: 450_000, scaleResolutionDownBy: 2, maxFramerate: 15 },
@@ -366,17 +367,21 @@ export class CallWebRTC {
             return;
         }
 
+        const hasCurrentLevel = Boolean(this._sendQualityLevel);
         const currentOrder = SEND_QUALITY_ORDER[this._sendQualityLevel] ?? SEND_QUALITY_ORDER.good;
         const nextOrder = SEND_QUALITY_ORDER[level];
-        const isDowngrade = !this._sendQualityLevel || nextOrder < currentOrder;
-        if (!isDowngrade) {
+        const isDowngrade = hasCurrentLevel && nextOrder < currentOrder;
+        if (hasCurrentLevel) {
             if (this._pendingSendQualityLevel !== level) {
                 this._pendingSendQualityLevel = level;
                 this._pendingSendQualitySamples = 1;
                 return;
             }
             this._pendingSendQualitySamples += 1;
-            if (this._pendingSendQualitySamples < SEND_QUALITY_UPGRADE_SAMPLES) return;
+            const requiredSamples = isDowngrade
+                ? SEND_QUALITY_DOWNGRADE_SAMPLES
+                : SEND_QUALITY_UPGRADE_SAMPLES;
+            if (this._pendingSendQualitySamples < requiredSamples) return;
         }
 
         this._pendingSendQualityLevel = '';

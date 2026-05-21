@@ -206,6 +206,7 @@ export function showPreCallScreen({
         busy: false,
     };
     let activeLocalStream = null;
+    let activeLocalFacingMode = '';
     const avatarHtml = partnerAvatar
         ? `<img src="${escapeHtml(partnerAvatar)}" class="call-preflight__avatar-img" alt="">`
         : `<span class="call-preflight__avatar-fallback">${initial}</span>`;
@@ -328,12 +329,14 @@ export function showPreCallScreen({
         overlay.classList.toggle('call-preflight--video-on', state.videoEnabled);
         overlay.classList.toggle('call-preflight--video-off', !state.videoEnabled);
     };
-    const syncPreview = (stream = activeLocalStream) => {
+    const syncPreview = (stream = activeLocalStream, facingMode = '') => {
         activeLocalStream = stream || activeLocalStream;
+        activeLocalFacingMode = facingMode || _localFacingModeFromStream(activeLocalStream) || activeLocalFacingMode;
         const hasVideo = Boolean(state.videoEnabled && activeLocalStream?.getVideoTracks?.().length);
         overlay.classList.toggle('call-preflight--has-video', hasVideo);
         if (videoEl) {
             videoEl.srcObject = hasVideo ? activeLocalStream : null;
+            videoEl.style.setProperty('--call-preview-camera-x', String(hasVideo ? _localCameraX(activeLocalFacingMode) : 1));
             if (hasVideo) _playMedia(videoEl);
         }
         syncVideoButton();
@@ -372,10 +375,11 @@ export function showPreCallScreen({
             state.videoEnabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
             state.callType = state.callType === 'video' || state.videoEnabled ? 'video' : 'audio';
             if (result?.localStream) activeLocalStream = result.localStream;
+            if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus(state.videoEnabled ? 'Камера включена' : 'Камера будет выключена');
         } finally {
             setBusy(false);
-            syncPreview(activeLocalStream);
+            syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
         }
     });
@@ -385,13 +389,14 @@ export function showPreCallScreen({
         try {
             const result = await onSwitchCamera?.();
             if (result?.localStream) activeLocalStream = result.localStream;
+            if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus('Камера переключена');
         } catch (err) {
             console.warn('[CallUI] pre-call camera switch failed', err);
             setStatus('Камера недоступна');
         } finally {
             setBusy(false);
-            syncPreview(activeLocalStream);
+            syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
         }
     });
@@ -413,10 +418,11 @@ export function showPreCallScreen({
             state.videoEnabled = Boolean(result?.enabled ?? true);
             state.callType = 'video';
             if (result?.localStream) activeLocalStream = result.localStream;
+            if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus('Камера выбрана');
         } finally {
             setBusy(false);
-            syncPreview(activeLocalStream);
+            syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
         }
     });
@@ -462,6 +468,7 @@ export function showPreCallScreen({
                 videoEnabled: state.videoEnabled,
             });
             if (prepared?.localStream) activeLocalStream = prepared.localStream;
+            if (prepared?.facingMode) activeLocalFacingMode = prepared.facingMode;
             if (Object.prototype.hasOwnProperty.call(prepared || {}, 'audioMuted')) {
                 state.audioMuted = Boolean(prepared.audioMuted);
             }
@@ -477,7 +484,7 @@ export function showPreCallScreen({
             setStatus('Нет доступа к устройствам');
         } finally {
             setBusy(false);
-            syncPreview(activeLocalStream);
+            syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
         }
     })();
@@ -498,6 +505,7 @@ export function showActiveCallOverlay({
     onListDevices, onEnd, onToggleScreenShare,
     callRole = 'participant', mode = 'active',
     initialAudioMuted = false, initialVideoEnabled = null, initialSpeakerDeviceId = '',
+    initialLocalFacingMode = '',
 }) {
     removeActiveCallOverlay({ immediate: true });
 
@@ -514,6 +522,7 @@ export function showActiveCallOverlay({
         && typeof onToggleScreenShare === 'function';
     const safeRole = callRole === 'caller' || callRole === 'callee' ? callRole : 'participant';
     let activeLocalStream = localStream || null;
+    let activeLocalFacingMode = initialLocalFacingMode || _localFacingModeFromStream(activeLocalStream);
     let localAudioMuted = Boolean(initialAudioMuted);
     let localVideoEnabled = initialVideoEnabled == null ? isVideo : Boolean(initialVideoEnabled);
     const avatarHtml = partnerAvatar
@@ -746,7 +755,7 @@ export function showActiveCallOverlay({
 
     syncAudioControlState(localAudioMuted);
     syncVideoControlState(localVideoEnabled);
-    _syncLocalVideo(overlay, activeLocalStream, localVideoEnabled && !isRinging);
+    _syncLocalVideo(overlay, activeLocalStream, localVideoEnabled && !isRinging, activeLocalFacingMode);
     _bindCallInfoVisibility(overlay);
     if (!isMobile) {
         const card = overlay.querySelector('#call-card');
@@ -770,9 +779,10 @@ export function showActiveCallOverlay({
                 const result = await onToggleScreenShare?.();
                 const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
                 if (result?.localStream) activeLocalStream = result.localStream;
+                if (result?.facingMode) activeLocalFacingMode = result.facingMode;
                 syncScreenShareState(enabled);
                 syncVideoControlState(Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled)));
-                _syncLocalVideo(overlay, activeLocalStream, enabled || localVideoEnabled);
+                _syncLocalVideo(overlay, activeLocalStream, enabled || localVideoEnabled, activeLocalFacingMode);
             } finally {
                 screenBtn.disabled = false;
             }
@@ -789,9 +799,10 @@ export function showActiveCallOverlay({
         const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
         const stream = typeof result === 'object' ? result?.localStream : activeLocalStream;
         activeLocalStream = stream || activeLocalStream;
+        if (result?.facingMode) activeLocalFacingMode = result.facingMode;
         syncScreenShareState(false);
         syncVideoControlState(enabled);
-        _syncLocalVideo(overlay, activeLocalStream, enabled);
+        _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
     });
 
     overlay.querySelector('#call-btn-switch-camera').addEventListener('click', async () => {
@@ -800,10 +811,11 @@ export function showActiveCallOverlay({
         try {
             const result = await onSwitchCamera();
             if (result?.localStream) activeLocalStream = result.localStream;
+            if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
             syncScreenShareState(false);
             syncVideoControlState(enabled);
-            _syncLocalVideo(overlay, activeLocalStream, enabled);
+            _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
         } finally {
             btn.disabled = false;
         }
@@ -861,10 +873,11 @@ export function showActiveCallOverlay({
         try {
             const result = await onSelectCamera?.(cameraSelect.value);
             if (result?.localStream) activeLocalStream = result.localStream;
+            if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
             syncScreenShareState(false);
             syncVideoControlState(enabled);
-            _syncLocalVideo(overlay, activeLocalStream, enabled);
+            _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
             await refreshDevicePanel();
         } catch (err) {
             console.warn('[CallUI] camera selection failed', err);
@@ -1134,8 +1147,8 @@ export function attachRemoteTrack(track, remoteStream = null) {
     _playMedia(media);
 }
 
-export function setLocalVideoEnabled(stream, enabled) {
-    _syncLocalVideo(_currentOverlay(), stream, enabled);
+export function setLocalVideoEnabled(stream, enabled, facingMode = '') {
+    _syncLocalVideo(_currentOverlay(), stream, enabled, facingMode);
 }
 
 export function setRemoteVideoEnabled(enabled) {
@@ -1306,21 +1319,37 @@ function _playMedia(media) {
     }
 }
 
-function _syncLocalVideo(overlay, stream, enabled) {
+function _syncLocalVideo(overlay, stream, enabled, facingMode = '') {
     const localVideo = overlay?.querySelector('#call-local-video');
     if (!localVideo) return;
     const hasVideo = Boolean(enabled && stream?.getVideoTracks?.().length);
     overlay?.classList.toggle('call-overlay--has-local-video', hasVideo);
     if (hasVideo) {
+        const mode = facingMode || _localFacingModeFromStream(stream);
+        localVideo.dataset.callLocalFacingMode = mode || '';
+        localVideo.style.setProperty('--call-local-camera-x', String(_localCameraX(mode)));
         localVideo.srcObject = stream;
         localVideo.classList.remove('call-overlay__local-video--hidden');
         _syncVideoLayout(overlay);
         return;
     }
+    delete localVideo.dataset.callLocalFacingMode;
+    localVideo.style.setProperty('--call-local-camera-x', '1');
     localVideo.classList.add('call-overlay__local-video--hidden');
     localVideo.srcObject = null;
     overlay?.classList.remove('call-overlay--self-view-primary');
     _syncVideoLayout(overlay);
+}
+
+function _localFacingModeFromStream(stream) {
+    const track = stream?.getVideoTracks?.().find(candidate => candidate.readyState !== 'ended');
+    const settings = track?.getSettings?.() || {};
+    if (settings.displaySurface) return 'screen';
+    return String(settings.facingMode || '').trim().toLowerCase();
+}
+
+function _localCameraX(facingMode) {
+    return String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1;
 }
 
 function _syncVideoLayout(overlay) {
