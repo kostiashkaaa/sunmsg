@@ -1627,6 +1627,52 @@ def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:
     assert "chatMessages?.addEventListener('scroll', () => {" in surface_events
 
 
+def test_chat_uses_single_mobile_message_gesture_runtime() -> None:
+    """Message touch context owns long-press and swipe-to-reply gestures."""
+    runtime = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
+    touch_context = (STATIC / 'chat' / 'message-touch-context.js').read_text(encoding='utf-8')
+
+    assert "import { initSwipeReply } from './modules/chat-swipe-reply.js';" not in runtime
+    assert 'const swipeReplyController = initSwipeReply' not in runtime
+    assert '.file-msg-media-trigger,.file-msg-link,.message-link-preview,.reply-quote,' in touch_context
+    assert 'button,a[href],[role="button"],' in touch_context
+
+
+def test_message_interactive_clicks_are_scoped() -> None:
+    """Message media and reply controls must not also trigger selection/context handlers."""
+    rendering = (STATIC / 'modules' / 'message-rendering.js').read_text(encoding='utf-8')
+    surface_events = (STATIC / 'modules' / 'chat-message-surface-events-runtime.js').read_text(encoding='utf-8')
+
+    assert "if (isMessageSelectionActive(messageDiv)) return;\n            event.preventDefault();\n            event.stopPropagation();" in rendering
+    assert "trigger.addEventListener('click', (event) => {" in rendering
+    assert "linkEl.addEventListener('click', async (event) => {" in rendering
+    assert 'event.stopPropagation();\n            const resolver = window.__sunMediaCacheResolveSource;' in rendering
+    assert "const cell = event.target?.closest?.('.album-cell.file-msg-media-trigger');" in surface_events
+    assert 'event.preventDefault();\n        event.stopPropagation();\n        if (typeof openLightbox === \'function\') openLightbox(cell);' in surface_events
+
+
+def test_link_preview_and_media_share_scroll_stabilizer() -> None:
+    """Async link previews and media load mutations must use the central scroll anchor helper."""
+    preview = (STATIC / 'modules' / 'message-link-preview.js').read_text(encoding='utf-8')
+    media = (STATIC / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in preview
+    assert 'withStableChatScroll,' in media
+    assert 'const runWithStableChatScroll = typeof withStableChatScroll === \'function\'' in media
+    assert 'function withStableChatScroll(referenceNode, mutateFn)' not in preview
+    assert 'runWithStableChatScroll(mediaEl, () => {' in media
+    assert 'runWithStableChatScroll(videoEl, () => {' in media
+
+
+def test_automatic_bottom_scroll_is_instant_by_default() -> None:
+    """Automatic bottom pinning must not animate during mobile viewport/composer changes."""
+    render_runtime = (STATIC / 'modules' / 'chat-message-render-runtime.js').read_text(encoding='utf-8')
+    surface_events = (STATIC / 'modules' / 'chat-message-surface-events-runtime.js').read_text(encoding='utf-8')
+
+    assert 'function requestAutoScrollToBottom({ ifNearBottom = false, smooth = false } = {})' in render_runtime
+    assert 'requestAutoScrollToBottom({ ifNearBottom: false, smooth: true });' in surface_events
+
+
 def test_message_selection_adjacency_does_not_use_hot_has_selector() -> None:
     """Selection adjacency should be a JS-synced class, not a message-list :has() selector."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')

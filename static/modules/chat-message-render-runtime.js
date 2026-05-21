@@ -179,7 +179,7 @@ export function createChatMessageRenderRuntime({
         return true;
     }
 
-    function requestAutoScrollToBottom({ ifNearBottom = false, smooth = true } = {}) {
+    function requestAutoScrollToBottom({ ifNearBottom = false, smooth = false } = {}) {
         const chatMessages = getCurrentMessagesElement();
         const currentChatId = getCurrentChatId?.();
         if (!chatMessages || !currentChatId) return false;

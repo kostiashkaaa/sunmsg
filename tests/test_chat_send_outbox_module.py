@@ -407,7 +407,9 @@ if (globalThis.__optimizeCalls() !== 0) {{
 
 
 def test_link_preview_scroll_stabilization_skips_detached_nodes():
-    module_path = ROOT / 'static' / 'modules' / 'message-link-preview.js'
-    source = module_path.read_text(encoding='utf-8')
+    preview_source = (ROOT / 'static' / 'modules' / 'message-link-preview.js').read_text(encoding='utf-8')
+    stability_source = (ROOT / 'static' / 'modules' / 'chat-scroll-stability.js').read_text(encoding='utf-8')
 
-    assert 'if (!referenceNode.isConnected) return null;' in source
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in preview_source
+    assert 'function withStableChatScroll(referenceNode, mutateFn)' not in preview_source
+    assert 'if (!referenceNode?.isConnected) return null;' in stability_source

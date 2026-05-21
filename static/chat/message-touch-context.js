@@ -110,7 +110,9 @@ export function initMessageTouchContext(options = {}) {
         if (!(target instanceof Element)) return false;
         return Boolean(target.closest(
             'input,textarea,select,label,[contenteditable="true"],' +
+            'button,a[href],[role="button"],' +
             '.reaction-pill,.reaction-picker,' +
+            '.file-msg-media-trigger,.file-msg-link,.message-link-preview,.reply-quote,' +
             '.audio-player-toggle,.audio-player-progress,.audio-player-speed,' +
             '[data-open-profile-trigger],[data-call-message-trigger]'
         ));

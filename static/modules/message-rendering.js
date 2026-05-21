@@ -178,7 +178,10 @@ function bindMessageInteractiveHandlers(messageDiv) {
 
     const replyQuote = messageDiv.querySelector('.reply-quote[data-scroll-to-msg]');
     if (replyQuote) {
-        replyQuote.addEventListener('click', () => {
+        replyQuote.addEventListener('click', (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            event.preventDefault();
+            event.stopPropagation();
             const rawId = Number(replyQuote.getAttribute('data-scroll-to-msg'));
             if (!Number.isFinite(rawId) || rawId <= 0) return;
             if (typeof window._scrollToMsg === 'function') {
@@ -210,7 +213,10 @@ function bindMessageInteractiveHandlers(messageDiv) {
     }
 
     messageDiv.querySelectorAll('.file-msg-media-trigger').forEach((trigger) => {
-        trigger.addEventListener('click', () => {
+        trigger.addEventListener('click', (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            event.preventDefault();
+            event.stopPropagation();
             if (typeof window._openLightbox === 'function') {
                 window._openLightbox(trigger);
             }
@@ -219,6 +225,8 @@ function bindMessageInteractiveHandlers(messageDiv) {
 
     messageDiv.querySelectorAll('.file-msg-link[href*="sun_media_e2ee"]').forEach((linkEl) => {
         linkEl.addEventListener('click', async (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            event.stopPropagation();
             const resolver = window.__sunMediaCacheResolveSource;
             if (typeof resolver !== 'function') return;
             event.preventDefault();
@@ -287,7 +295,12 @@ function bindMessageInteractiveHandlers(messageDiv) {
         };
         toggleBtn.addEventListener('mousedown', preventFocusSteal);
         toggleBtn.addEventListener('pointerdown', preventFocusSteal);
-        toggleBtn.addEventListener('click', () => window._toggleAudioPlayer?.(toggleBtn));
+        toggleBtn.addEventListener('click', (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            window._toggleAudioPlayer?.(toggleBtn);
+        });
     });
 
     messageDiv.querySelectorAll('.audio-player-progress').forEach((rangeEl) => {
@@ -345,6 +358,9 @@ function bindMessageInteractiveHandlers(messageDiv) {
 
     messageDiv.querySelectorAll('.audio-player-wave-wrap').forEach((waveWrap) => {
         waveWrap.addEventListener('click', (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
+            event.preventDefault();
+            event.stopPropagation();
             if (!(event instanceof MouseEvent)) return;
             const rangeEl = waveWrap.querySelector('.audio-player-progress');
             if (!rangeEl) return;
@@ -355,6 +371,7 @@ function bindMessageInteractiveHandlers(messageDiv) {
         let waveLastTapTime = 0;
         let waveLastTapX = 0;
         waveWrap.addEventListener('touchstart', (event) => {
+            if (isMessageSelectionActive(messageDiv)) return;
             const touch = event.touches?.[0];
             if (!touch) return;
             const rangeEl = waveWrap.querySelector('.audio-player-progress');

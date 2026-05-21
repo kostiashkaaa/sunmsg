@@ -59,6 +59,8 @@ export function bindChatMessageSurfaceEventsRuntime({
         const cell = event.target?.closest?.('.album-cell.file-msg-media-trigger');
         if (!cell || !chatMessages.contains(cell)) return;
         if (isSelectionMode()) return;
+        event.preventDefault();
+        event.stopPropagation();
         if (typeof openLightbox === 'function') openLightbox(cell);
     });
 
@@ -66,6 +68,7 @@ export function bindChatMessageSurfaceEventsRuntime({
     chatMessages?.addEventListener('click', (event) => {
         const overlay = event.target?.closest?.('.media-status-overlay.is-uploading');
         if (!overlay || !chatMessages.contains(overlay)) return;
+        event.preventDefault();
         event.stopPropagation();
         if (typeof cancelActiveUpload === 'function') cancelActiveUpload();
     });

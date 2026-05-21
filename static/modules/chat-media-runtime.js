@@ -64,6 +64,7 @@ export function initChatMediaRuntime(deps = {}) {
         getKeepChatPinnedToBottom,
         openChatByIdWhenReady,
         focusMessageById,
+        withStableChatScroll,
     } = deps;
 
     const getCurrentChatIdSafe = typeof getCurrentChatId === 'function'
@@ -78,6 +79,9 @@ export function initChatMediaRuntime(deps = {}) {
     const focusMessageByIdSafe = typeof focusMessageById === 'function'
         ? focusMessageById
         : null;
+    const runWithStableChatScroll = typeof withStableChatScroll === 'function'
+        ? withStableChatScroll
+        : (_referenceNode, mutateFn) => (typeof mutateFn === 'function' ? mutateFn() : undefined);
 
     function applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight) {
         if (!mediaWrap) return null;
@@ -245,19 +249,21 @@ export function initChatMediaRuntime(deps = {}) {
 
     window._onVideoPreviewLoaded = function(videoEl) {
         if (!videoEl) return;
-        const preview = videoEl.closest('.video-preview');
-        const durationEl = preview?.querySelector('.video-preview-duration');
-        if (durationEl) {
-            durationEl.textContent = formatMediaDuration(videoEl.duration);
-        }
-        const videoWidth = Number(videoEl.videoWidth);
-        const videoHeight = Number(videoEl.videoHeight);
-        if (preview && Number.isFinite(videoWidth) && videoWidth > 0 && Number.isFinite(videoHeight) && videoHeight > 0) {
-            applyLoadedMediaAspectRatio(preview, videoWidth, videoHeight);
-            persistPendingMediaDimensions(videoEl.closest('.message'), videoWidth, videoHeight);
-        }
-        videoEl.currentTime = 0;
-        videoEl.pause();
+        runWithStableChatScroll(videoEl, () => {
+            const preview = videoEl.closest('.video-preview');
+            const durationEl = preview?.querySelector('.video-preview-duration');
+            if (durationEl) {
+                durationEl.textContent = formatMediaDuration(videoEl.duration);
+            }
+            const videoWidth = Number(videoEl.videoWidth);
+            const videoHeight = Number(videoEl.videoHeight);
+            if (preview && Number.isFinite(videoWidth) && videoWidth > 0 && Number.isFinite(videoHeight) && videoHeight > 0) {
+                applyLoadedMediaAspectRatio(preview, videoWidth, videoHeight);
+                persistPendingMediaDimensions(videoEl.closest('.message'), videoWidth, videoHeight);
+            }
+            videoEl.currentTime = 0;
+            videoEl.pause();
+        }, { pinToBottom: getKeepChatPinnedToBottomSafe() });
     };
 
     function resolveAudioMessageElement(sourceEl) {
@@ -1556,28 +1562,30 @@ export function initChatMediaRuntime(deps = {}) {
 
     window._onMessageMediaLoaded = function(mediaEl) {
         if (!mediaEl) return;
-        mediaEl.setAttribute('data-loaded', '1');
-        const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
-        mediaWrap?.classList.add('is-loaded');
-        try {
-            window.__sunMediaCacheRememberElement?.(mediaEl);
-        } catch (_) {}
+        runWithStableChatScroll(mediaEl, () => {
+            mediaEl.setAttribute('data-loaded', '1');
+            const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
+            mediaWrap?.classList.add('is-loaded');
+            try {
+                window.__sunMediaCacheRememberElement?.(mediaEl);
+            } catch (_) {}
 
-        const resolvedSrc = String(mediaEl.currentSrc || mediaEl.getAttribute('src') || '').trim();
-        if (resolvedSrc) {
-            const bgLayer = mediaEl.closest('.bubble')?.querySelector('.background-layer');
-            if (bgLayer instanceof HTMLElement) {
-                const safeSrc = resolvedSrc.replace(/'/g, "\\'");
-                bgLayer.style.setProperty('background-image', `url('${safeSrc}')`);
+            const resolvedSrc = String(mediaEl.currentSrc || mediaEl.getAttribute('src') || '').trim();
+            if (resolvedSrc) {
+                const bgLayer = mediaEl.closest('.bubble')?.querySelector('.background-layer');
+                if (bgLayer instanceof HTMLElement) {
+                    const safeSrc = resolvedSrc.replace(/'/g, "\\'");
+                    bgLayer.style.setProperty('background-image', `url('${safeSrc}')`);
+                }
             }
-        }
 
-        const naturalWidth = Number(mediaEl.naturalWidth || mediaEl.videoWidth);
-        const naturalHeight = Number(mediaEl.naturalHeight || mediaEl.videoHeight);
-        if (mediaWrap && Number.isFinite(naturalWidth) && naturalWidth > 0 && Number.isFinite(naturalHeight) && naturalHeight > 0) {
-            applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight);
-            persistPendingMediaDimensions(mediaEl.closest('.message'), naturalWidth, naturalHeight);
-        }
+            const naturalWidth = Number(mediaEl.naturalWidth || mediaEl.videoWidth);
+            const naturalHeight = Number(mediaEl.naturalHeight || mediaEl.videoHeight);
+            if (mediaWrap && Number.isFinite(naturalWidth) && naturalWidth > 0 && Number.isFinite(naturalHeight) && naturalHeight > 0) {
+                applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight);
+                persistPendingMediaDimensions(mediaEl.closest('.message'), naturalWidth, naturalHeight);
+            }
+        }, { pinToBottom: getKeepChatPinnedToBottomSafe() });
 
         const currentChatId = getCurrentChatIdSafe();
         if (!chatMessages || !currentChatId) return;
@@ -1611,13 +1619,15 @@ export function initChatMediaRuntime(deps = {}) {
 
     window._onMessageMediaLoadError = function(mediaEl) {
         if (!mediaEl) return;
-        const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
-        mediaWrap?.classList.add('is-loaded');
-        if (mediaEl instanceof HTMLImageElement) {
-            mediaEl.removeAttribute('data-loaded');
-            return;
-        }
-        mediaEl.setAttribute('data-loaded', '1');
+        runWithStableChatScroll(mediaEl, () => {
+            const mediaWrap = mediaEl.closest('.image-wrapper, .video-preview');
+            mediaWrap?.classList.add('is-loaded');
+            if (mediaEl instanceof HTMLImageElement) {
+                mediaEl.removeAttribute('data-loaded');
+                return;
+            }
+            mediaEl.setAttribute('data-loaded', '1');
+        }, { pinToBottom: getKeepChatPinnedToBottomSafe() });
     };
 
     window._preventInlineVideoPlay = function(videoEl) {

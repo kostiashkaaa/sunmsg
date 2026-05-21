@@ -71,6 +71,7 @@ import { processAlbums, resetAlbums } from './modules/chat-album-runtime.js';
 import { createChatDomSnapshotRuntime } from './modules/chat-dom-snapshot-runtime.js';
 import { createMessageFocusRuntime } from './modules/chat-message-focus-runtime.js';
 import { createPendingUploadRuntime } from './modules/chat-pending-upload-runtime.js';
+import { withStableChatScroll } from './modules/chat-scroll-stability.js';
 import { createChatSearchRuntime } from './modules/chat-search-runtime.js';
 import { bindChatEscapeOverlaysRuntime } from './modules/chat-escape-overlays-runtime.js';
 import { bindChatMessageSurfaceEventsRuntime } from './modules/chat-message-surface-events-runtime.js';
@@ -123,7 +124,6 @@ import {
 } from './modules/chat-partner-network-bridge.js';
 import { computeSidebarStatusSnapshot as _computeSidebarStatusSnapshot, runSidebarStatusAction as _runSidebarStatusAction, syncSidebarStatusBar as _syncSidebarStatusBar } from './modules/chat-sidebar-status.js';
 import { showConfirmDialog } from './modules/confirm-dialog.js';
-import { initSwipeReply } from './modules/chat-swipe-reply.js';
 import { initVoiceRecorder } from './modules/voice-recorder.js';
 import { getPrivateKeyPem, restoreWrappedPrivateKey } from './modules/private-key-session.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
@@ -2550,6 +2550,7 @@ export const initChatPage = async () => {
         joinChatRoom,
         openChat,
         restoreLastActiveChatSelection,
+        isInitialChatRestoreDeferred: () => contactsSidebarController.isInitialSyncRequired?.() === true,
         getHasAttemptedInitialChatRestore: () => hasAttemptedInitialChatRestore,
         setHasAttemptedInitialChatRestore: (value) => { hasAttemptedInitialChatRestore = value; },
     });
@@ -3342,6 +3343,7 @@ export const initChatPage = async () => {
         getKeepChatPinnedToBottom: () => getKeepChatPinnedToBottom(),
         openChatByIdWhenReady: (chatId) => openChatByIdWhenReady(chatId),
         focusMessageById: (messageId, options = {}) => _focusMessageById(messageId, options),
+        withStableChatScroll,
     });
 
     contactPreviewRuntime = createChatContactPreviewRuntime({
@@ -3653,6 +3655,7 @@ export const initChatPage = async () => {
             hideTyping,
             isDialogRequestsMuted,
             dropChatCache,
+            loadDialogRequests,
             onChatDraftUpdated: handleRealtimeChatDraftUpdated,
             refreshCurrentGroupProfileIfVisible,
             onChatAutoDeleteUpdated: (data) => disappearingMessagesController?.onChatAutoDeleteUpdated(data),
@@ -3694,19 +3697,22 @@ export const initChatPage = async () => {
     const hasMoreInitialContacts = String(
         contactsList?.dataset?.hasMoreInitialContacts || '0',
     ) === '1';
-    const hasPendingEncryptedPreview = Boolean(
-        contactsList?.querySelector('.contact-last-msg-loading'),
-    );
+    const needsInitialContactsSync = contactsSidebarController.isInitialSyncRequired?.() === true
+        || hasMoreInitialContacts;
     if (hasSsrContacts) {
         sortContactsList();
-        hideAppBootOverlay();
+        if (needsInitialContactsSync) {
+            loadContacts({ immediate: true });
+        } else {
+            hideAppBootOverlay();
+        }
     } else {
         loadContacts({
             limit: CONTACTS_BOOTSTRAP_SYNC_LIMIT,
             attemptInitialChatRestore: false,
         });
     }
-    if (!hasSsrContacts || hasMoreInitialContacts || hasPendingEncryptedPreview) {
+    if (!hasSsrContacts) {
         scheduleNonCriticalTask(() => {
             loadContacts({ immediate: true });
         }, CONTACTS_FULL_SYNC_IDLE_TIMEOUT_MS);
@@ -4072,13 +4078,6 @@ export const initChatPage = async () => {
         reactionPickerEmojis: REACTION_PICKER_EMOJIS,
     });
 
-    const swipeReplyController = initSwipeReply({
-        chatMessages,
-        startReply,
-        getCurrentPartnerDisplayName,
-        showToast,
-    });
-
     // Selection Mode Logic
 
     ({ openDeleteModal } = initChatMessageActionsRuntime({
@@ -4375,7 +4374,6 @@ export const initChatPage = async () => {
             unbindVisibilityEvents();
             disposeMobileBackSwipe();
             messageTouchContextController.dispose();
-            swipeReplyController.dispose();
         },
         voiceRecorderController,
         disposeChatAnimations: () => chatAnimationsController?.dispose(),

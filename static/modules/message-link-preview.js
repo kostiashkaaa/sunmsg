@@ -3,14 +3,11 @@ import {
     getCachedLinkPreviewPayload,
     requestLinkPreviewPayload,
 } from './link-preview-shared.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 const MESSAGE_URL_PATTERN = /\bhttps?:\/\/[^\s<>"'`]+|\bwww\.[^\s<>"'`]+/i;
 const TRAILING_PUNCTUATION_RE = /[),.;:!?\]]+$/;
 const PREVIEW_DATA_ATTR = 'data-link-preview';
-
-const CHAT_SCROLL_STABILIZE_BOTTOM_THRESHOLD = 18;
-const CHAT_SCROLL_INITIAL_GRACE_MS = 2200;
-const CHAT_SCROLL_CORRECTION_MIN_DELTA_PX = 2.0;
 
 function normalizePreviewUrl(rawValue) {
     const raw = String(rawValue || '').trim();
@@ -86,93 +83,6 @@ function clearPreviewNode(messageTextEl) {
     });
 }
 
-function resolveChatScrollContainer(referenceNode) {
-    if (!referenceNode) return null;
-    if (!referenceNode.isConnected) return null;
-    const scopedContainer = referenceNode.closest('#chatMessages, .chat-messages');
-    if (scopedContainer instanceof HTMLElement) return scopedContainer;
-    const globalContainer = document.getElementById('chatMessages');
-    return globalContainer instanceof HTMLElement ? globalContainer : null;
-}
-
-function resolveViewportAnchor(scrollContainer) {
-    if (!(scrollContainer instanceof HTMLElement)) return null;
-    const containerRect = scrollContainer.getBoundingClientRect();
-    const containerTop = Number(containerRect.top) || 0;
-    const nodes = scrollContainer.querySelectorAll('.message, .day-separator');
-    for (const node of nodes) {
-        if (!(node instanceof HTMLElement)) continue;
-        const rect = node.getBoundingClientRect();
-        if (Number(rect.bottom) > containerTop + 1) {
-            return {
-                element: node,
-                top: Number(rect.top) || 0,
-            };
-        }
-    }
-    return null;
-}
-
-function withStableChatScroll(referenceNode, mutateFn) {
-    const scrollContainer = resolveChatScrollContainer(referenceNode);
-    if (!scrollContainer || typeof mutateFn !== 'function') {
-        mutateFn?.();
-        return;
-    }
-
-    const previousScrollTop = Number(scrollContainer.scrollTop) || 0;
-    const previousScrollHeight = Number(scrollContainer.scrollHeight) || 0;
-    const previousClientHeight = Number(scrollContainer.clientHeight) || 0;
-    const previousBottomDistance = previousScrollHeight - (previousScrollTop + previousClientHeight);
-    const wasNearBottom = previousBottomDistance <= CHAT_SCROLL_STABILIZE_BOTTOM_THRESHOLD;
-    const nowMs = Date.now();
-    const existingBootAt = Number(scrollContainer.dataset.previewStableBootAt || 0);
-    const bootAtMs = Number.isFinite(existingBootAt) && existingBootAt > 0 ? existingBootAt : nowMs;
-    if (!existingBootAt) {
-        scrollContainer.dataset.previewStableBootAt = String(bootAtMs);
-    }
-    const isWithinInitialGrace = (nowMs - bootAtMs) <= CHAT_SCROLL_INITIAL_GRACE_MS;
-    const viewportAnchorBefore = resolveViewportAnchor(scrollContainer);
-    const containerRectBefore = scrollContainer.getBoundingClientRect();
-    const referenceRectBefore = referenceNode instanceof Element
-        ? referenceNode.getBoundingClientRect()
-        : null;
-    const wasReferenceAboveViewport = Boolean(
-        referenceRectBefore
-        && referenceRectBefore.bottom <= containerRectBefore.top + 1
-    );
-
-    mutateFn();
-
-    const nextScrollHeight = Number(scrollContainer.scrollHeight) || 0;
-    if (nextScrollHeight === previousScrollHeight) return;
-
-    if (wasNearBottom) {
-        const nextTop = Math.max(0, nextScrollHeight - previousClientHeight);
-        scrollContainer.scrollTop = nextTop;
-        return;
-    }
-
-    if (viewportAnchorBefore?.element instanceof HTMLElement) {
-        const anchorRectAfter = viewportAnchorBefore.element.getBoundingClientRect();
-        const anchorDelta = (Number(anchorRectAfter.top) || 0) - (Number(viewportAnchorBefore.top) || 0);
-        if (Number.isFinite(anchorDelta) && Math.abs(anchorDelta) >= CHAT_SCROLL_CORRECTION_MIN_DELTA_PX) {
-            scrollContainer.scrollTop = Math.max(0, previousScrollTop + anchorDelta);
-            return;
-        }
-    }
-
-    if (isWithinInitialGrace) return;
-
-    if (!wasReferenceAboveViewport || !(referenceNode instanceof Element)) return;
-
-    const referenceRectAfter = referenceNode.getBoundingClientRect();
-    const shiftDelta = (Number(referenceRectAfter.top) || 0) - (Number(referenceRectBefore?.top) || 0);
-    if (!Number.isFinite(shiftDelta) || Math.abs(shiftDelta) < CHAT_SCROLL_CORRECTION_MIN_DELTA_PX) return;
-
-    scrollContainer.scrollTop = Math.max(0, previousScrollTop + shiftDelta);
-}
-
 function applyPreviewState(node, {
     href,
     siteName,
@@ -231,7 +141,6 @@ function applyPreviewState(node, {
                 mediaEl.style.removeProperty('--preview-media-ar');
             }
             if (hasImage) {
-                imageEl.src = buildPreviewImageSrc(safeImageUrl);
                 imageEl.onload = null;
                 imageEl.onerror = () => {
                     withStableChatScroll(node, () => {
@@ -242,6 +151,10 @@ function applyPreviewState(node, {
                         imageEl.removeAttribute('src');
                     });
                 };
+                const nextImageSrc = buildPreviewImageSrc(safeImageUrl);
+                if (String(imageEl.getAttribute('src') || '') !== nextImageSrc) {
+                    imageEl.src = nextImageSrc;
+                }
             } else {
                 imageEl.removeAttribute('src');
                 imageEl.onload = null;
