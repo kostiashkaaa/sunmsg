@@ -38,7 +38,53 @@ export function createChatHistoryRuntime(ctx = {}) {
     const decryptWorkerPending = new Map();
 
     function shouldAnimateHistoryReveal() {
-        return true;
+        return false;
+    }
+
+    function withTimeout(promise, timeoutMs) {
+        const safeTimeoutMs = Math.max(0, Number(timeoutMs) || 0);
+        if (!safeTimeoutMs) return Promise.resolve(promise);
+
+        let timeoutId = 0;
+        const timeoutPromise = new Promise((resolve) => {
+            timeoutId = setTimeout(() => resolve(null), safeTimeoutMs);
+        });
+
+        return Promise.race([Promise.resolve(promise), timeoutPromise])
+            .finally(() => {
+                if (timeoutId) clearTimeout(timeoutId);
+            });
+    }
+
+    async function prewarmInitialLinkPreviews(messages) {
+        if (typeof ctx.prewarmMessageLinkPreview !== 'function') return;
+        const rows = Array.isArray(messages) ? messages : [];
+        if (!rows.length) return;
+
+        const safeLimit = Math.max(0, Number(ctx.chatInitialLinkPreviewPrewarmLimit) || 0);
+        if (!safeLimit) return;
+
+        const candidates = rows
+            .slice(-safeLimit)
+            .map((messageState) => String(messageState?.message || '').trim())
+            .filter(Boolean);
+        if (!candidates.length) return;
+
+        const concurrency = Math.max(1, Number(ctx.chatInitialLinkPreviewPrewarmConcurrency) || 1);
+        const prewarmPromise = mapWithConcurrency(candidates, concurrency, async (messageText) => {
+            try {
+                await ctx.prewarmMessageLinkPreview(messageText, { awaitReady: true, delayMs: 0 });
+            } catch (_) {}
+            return null;
+        });
+
+        await withTimeout(prewarmPromise, ctx.chatInitialLinkPreviewPrewarmTimeoutMs);
+    }
+
+    async function prepareDecodedMessagesForInitialRender(rawMessages) {
+        const decodedMessages = await decodeChatMessages(rawMessages);
+        await prewarmInitialLinkPreviews(decodedMessages);
+        return decodedMessages;
     }
 
     function requestChatHistoryPage(chatId, {
@@ -485,7 +531,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 && String(chatId) === String(ctx.getCurrentChatId())
                 && requestToken === state.historyRequestToken
             ) {
-                const decodedCachedMessages = await decodeChatMessages(cached.messages);
+                const decodedCachedMessages = await prepareDecodedMessagesForInitialRender(cached.messages);
                 if (String(chatId) === String(ctx.getCurrentChatId()) && requestToken === state.historyRequestToken) {
                     ctx.setChatMessages(chatId, decodedCachedMessages, { resetHeights: true });
                     decodedCachedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
@@ -582,7 +628,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                     ctx.pruneCachedChats(100).catch(() => {});
                 }
             } else {
-                const decodedMessages = await decodeChatMessages(response.messages);
+                const decodedMessages = await prepareDecodedMessagesForInitialRender(response.messages);
                 if (requestToken !== state.historyRequestToken) return;
                 const shouldRerenderMessages = hasRenderableMessageDiff(state.messages, decodedMessages);
 

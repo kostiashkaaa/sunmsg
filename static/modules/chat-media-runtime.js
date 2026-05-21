@@ -98,6 +98,9 @@ export function initChatMediaRuntime(deps = {}) {
         if (String(mediaWrap.getAttribute('data-media-aspect-ratio-source') || '') === 'fallback') {
             return ratio;
         }
+        if (String(mediaWrap.getAttribute('data-media-aspect-ratio') || '').trim()) {
+            return ratio;
+        }
 
         mediaWrap.style.setProperty('--media-aspect-ratio', ratio);
         mediaWrap.closest('.bubble')?.style.setProperty('--media-aspect-ratio', ratio);

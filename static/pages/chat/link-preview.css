@@ -5,19 +5,6 @@
 .message-link-preview {
     margin-top: 6px;
     min-width: 0;
-    animation: link-preview-appear 200ms var(--ease-quick) both;
-    transform-origin: top center;
-}
-
-@keyframes link-preview-appear {
-    from {
-        opacity: 0;
-        transform: translateY(6px) scaleY(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scaleY(1);
-    }
 }
 
 /* ── Surface ─────────────────────────────────────────────── */
