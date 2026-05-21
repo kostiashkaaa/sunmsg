@@ -41,6 +41,7 @@ export function initSettingsNavShell({
     let sectionTransitionSeq = 0;
     let detailViewOpen = false;
     let headerMenuOpen = false;
+    let navInitialized = false;
 
     const sectionTitles = {
         profile: 'Изменить профиль',
@@ -149,6 +150,9 @@ export function initSettingsNavShell({
         if (!settingsNavEl || !settingsNavToggleEl) return;
         if (!isCompactNav()) {
             setMobileNavOpen(false);
+            if (navInitialized && !detailViewOpen) {
+                showSection('profile', false, { immediate: true, navKey: 'profile' });
+            }
         }
     }
 
@@ -269,7 +273,7 @@ export function initSettingsNavShell({
                 fallbackMinMs: compact ? 90 : 80,
                 fallbackMaxMs: compact ? 140 : 120,
             }),
-            compact ? 140 : 120,
+            compact ? 120 : 70,
         );
         const incomingDuration = Math.min(
             getVelocityAwareDurationMs(compact ? sectionInCompactX : sectionInDesktopDistance, {
@@ -278,7 +282,7 @@ export function initSettingsNavShell({
                 fallbackMinMs: compact ? 140 : 120,
                 fallbackMaxMs: compact ? 210 : 170,
             }),
-            compact ? 210 : 170,
+            compact ? 160 : 90,
         );
         const outgoingEasing = getMotionEasingToken('--motion-ease-exit', 'cubic-bezier(.32,0,.67,0)');
         const incomingEasing = getMotionEasingToken('--motion-ease-enter', 'cubic-bezier(.16,1,.3,1)');
@@ -336,6 +340,10 @@ export function initSettingsNavShell({
     }
 
     function showHome(pushState = true) {
+        if (!isCompactNav()) {
+            showSection('profile', pushState, { immediate: true, navKey: 'profile' });
+            return;
+        }
         sectionTransitionSeq += 1;
         activeSectionId = '';
         activeNavKey = '';
@@ -380,7 +388,8 @@ export function initSettingsNavShell({
             }
             activeSectionId = resolvedId;
         } else {
-            if (settingsContentEl) {
+            const shouldLockTransitionHeight = isCompactNav();
+            if (settingsContentEl && shouldLockTransitionHeight) {
                 const currentHeight = current.offsetHeight || 0;
                 target.style.display = 'block';
                 target.classList.remove('settings-hidden');
@@ -391,6 +400,7 @@ export function initSettingsNavShell({
             } else {
                 target.style.display = 'block';
                 target.classList.remove('settings-hidden');
+                target.classList.remove('section-leaving');
             }
 
             current.classList.remove('section-entering');
@@ -404,7 +414,7 @@ export function initSettingsNavShell({
             animateSectionTransition(current, target);
 
             const transitionSeq = ++sectionTransitionSeq;
-            const transitionFallbackMs = isCompactNav() ? 240 : 190;
+            const transitionFallbackMs = isCompactNav() ? 190 : 110;
             Promise.all([
                 waitForMotionEnd(current, transitionFallbackMs),
                 waitForMotionEnd(target, transitionFallbackMs),
@@ -526,7 +536,7 @@ export function initSettingsNavShell({
     });
 
     panelCloseBtn?.addEventListener('click', (event) => {
-        if (!detailViewOpen) return;
+        if (!detailViewOpen || !isCompactNav()) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         showHome(true);
@@ -539,6 +549,7 @@ export function initSettingsNavShell({
     } else {
         showHome(false);
     }
+    navInitialized = true;
 
     window.addEventListener('hashchange', () => {
         const nextSection = normalizeHashSection(window.location.hash.substring(1));
@@ -565,7 +576,7 @@ export function initSettingsNavShell({
             setMobileNavOpen(false);
             return;
         }
-        if (detailViewOpen) {
+        if (detailViewOpen && isCompactNav()) {
             event.preventDefault();
             showHome(true);
             return;
