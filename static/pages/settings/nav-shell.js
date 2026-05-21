@@ -204,6 +204,7 @@ export function initSettingsNavShell({
     function hideAllSections() {
         sections.forEach((section) => {
             section.style.display = 'none';
+            section.classList.add('settings-hidden');
             section.classList.remove('section-active', 'section-entering', 'section-leaving');
         });
         if (settingsContentEl) {
@@ -308,9 +309,11 @@ export function initSettingsNavShell({
         cancelSectionAnimations(incoming);
         if (outgoing) {
             outgoing.style.display = 'none';
+            outgoing.classList.add('settings-hidden');
             outgoing.classList.remove('section-active', 'section-leaving');
         }
         if (incoming) {
+            incoming.classList.remove('settings-hidden');
             incoming.classList.remove('section-entering');
             incoming.classList.add('section-active');
         }
@@ -358,6 +361,7 @@ export function initSettingsNavShell({
             sections.forEach((section) => {
                 const isActive = section === target;
                 section.style.display = isActive ? 'block' : 'none';
+                section.classList.toggle('settings-hidden', !isActive);
                 section.classList.toggle('section-active', isActive);
                 section.classList.remove('section-entering', 'section-leaving');
             });
@@ -373,12 +377,14 @@ export function initSettingsNavShell({
             if (settingsContentEl) {
                 const currentHeight = current.offsetHeight || 0;
                 target.style.display = 'block';
+                target.classList.remove('settings-hidden');
                 target.classList.remove('section-leaving');
                 const nextHeight = target.offsetHeight || currentHeight;
                 settingsContentEl.style.minHeight = `${Math.max(currentHeight, nextHeight)}px`;
                 settingsContentEl.classList.add('is-transitioning');
             } else {
                 target.style.display = 'block';
+                target.classList.remove('settings-hidden');
             }
 
             current.classList.remove('section-entering');

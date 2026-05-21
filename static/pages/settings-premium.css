@@ -1422,3 +1422,240 @@ body.settings-home-open .settings-logout-form .nav-item > svg.sun-icon:first-chi
     box-shadow: none !important;
     color: var(--settings-icon-tone) !important;
 }
+
+/* Compact alignment pass: narrower desktop sheet and natural scroll end. */
+.settings-scene {
+    --settings-ui-panel-max: 680px;
+    --settings-ui-content-max: 620px;
+    --settings-ui-pad-x: 14px;
+    --settings-ui-card-gap: 6px;
+    --settings-ui-row-min: 44px;
+    --settings-ui-radius-lg: 10px;
+}
+
+.settings-scene section[id^="section-"],
+.settings-scene .settings-section {
+    margin: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.settings-scene .settings-card:last-child,
+.settings-scene .settings-content > section > .settings-card:last-child {
+    margin-bottom: 0 !important;
+}
+
+@media (min-width: 769px) {
+    .settings-overlay-panel,
+    body.settings-home-open .settings-overlay-panel,
+    body.settings-detail-open .settings-overlay-panel {
+        width: min(680px, calc(100vw - 56px)) !important;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: calc(var(--app-vh, 100dvh) - 32px) !important;
+        align-self: flex-start !important;
+        overflow: hidden !important;
+    }
+
+    .settings-overlay-frame,
+    .settings-overlay-frame .settings-scene,
+    .settings-overlay-frame .settings-layout {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: inherit !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: min(var(--settings-ui-panel-max), 100%) !important;
+        min-height: 0 !important;
+        max-height: inherit !important;
+        padding: 6px 8px 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 46px !important;
+        height: 46px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        flex: 0 1 auto !important;
+        min-height: 0 !important;
+        max-height: calc(var(--app-vh, 100dvh) - 90px) !important;
+        padding: 6px 0 8px !important;
+        overflow-y: auto !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        margin: 0 !important;
+        padding: 10px 12px 9px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: 58px !important;
+        height: 58px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-main {
+        margin-top: 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-rows {
+        margin-top: 6px !important;
+        gap: 4px 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row {
+        min-height: 22px !important;
+        padding: 2px 7px !important;
+    }
+
+    body.settings-home-open .settings-nav-list {
+        padding: 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 38px !important;
+        height: 38px !important;
+        gap: 9px !important;
+        padding: 0 28px 0 12px !important;
+        font-size: 12.75px !important;
+        background-position: right 12px center !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 12.75px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::after {
+        max-width: 38% !important;
+        margin-left: 6px !important;
+        font-size: 11.5px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        width: 100% !important;
+        max-width: var(--settings-ui-content-max) !important;
+        margin: 0 auto !important;
+        padding: 0 10px 8px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 6px !important;
+        padding: 8px 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card:first-child {
+        margin-top: 0 !important;
+    }
+
+    body.settings-detail-open .settings-card-header {
+        min-height: 34px !important;
+        padding: 6px var(--settings-ui-pad-x) 3px !important;
+        margin-bottom: 2px !important;
+    }
+
+    body.settings-detail-open .settings-row {
+        min-height: 44px !important;
+        padding: 6px var(--settings-ui-pad-x) !important;
+        gap: 10px !important;
+    }
+
+    body.settings-detail-open .settings-body-copy,
+    body.settings-detail-open .settings-trust-intro,
+    body.settings-detail-open .settings-copy-muted-sm {
+        margin-bottom: 8px !important;
+        padding-bottom: 6px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+        grid-template-columns: minmax(112px, 140px) minmax(0, 1fr) !important;
+        column-gap: 18px !important;
+        padding-top: 10px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 82px !important;
+        height: 82px !important;
+        flex-basis: 82px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+        width: 32px !important;
+        height: 32px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-scene {
+        --settings-ui-pad-x: 14px;
+        --settings-ui-card-gap: 8px;
+        --settings-ui-row-min: 52px;
+        --settings-ui-radius-lg: 12px;
+    }
+
+    .settings-overlay-panel {
+        align-self: stretch !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        padding: 6px 8px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 8px 0 calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        padding: 13px 12px 11px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: min(calc(72px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+        height: min(calc(72px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 50px !important;
+        padding: 0 34px 0 14px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        padding: 0 0 calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 8px !important;
+        border-radius: 12px !important;
+    }
+
+    .settings-scene .settings-row,
+    body.settings-detail-open .settings-row {
+        min-height: 52px !important;
+        padding: 10px var(--settings-ui-pad-x) !important;
+    }
+}
