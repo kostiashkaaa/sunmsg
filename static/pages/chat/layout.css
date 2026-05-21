@@ -3762,7 +3762,7 @@ body.settings-detail-open .settings-overlay-frame {
         .chat-input-area {
             --composer-min-height: 48px;
             --composer-max-height: 136px;
-            --composer-action-size: 50px;
+            --composer-action-size: 42px;
             position: absolute;
             left: 0;
             right: 0;
