@@ -37,6 +37,10 @@ source = source.replace(
   "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
   "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
 );
+source = source.replace(
+  "import {{ captureChatViewportAnchor }} from './chat-scroll-stability.js';",
+  "const captureChatViewportAnchor = () => null;",
+);
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ createChatHistoryRuntime }} = await import(moduleUrl);
 const decryptCalls = [];
@@ -100,6 +104,10 @@ source = source.replace(
 source = source.replace(
   "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
   "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
+);
+source = source.replace(
+  "import {{ captureChatViewportAnchor }} from './chat-scroll-stability.js';",
+  "const captureChatViewportAnchor = () => null;",
 );
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ createChatHistoryRuntime }} = await import(moduleUrl);
@@ -227,6 +235,10 @@ source = source.replace(
   "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
   "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
 );
+source = source.replace(
+  "import {{ captureChatViewportAnchor }} from './chat-scroll-stability.js';",
+  "const captureChatViewportAnchor = () => null;",
+);
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const {{ createChatHistoryRuntime }} = await import(moduleUrl);
 
@@ -292,6 +304,136 @@ if (showCalls[0].options?.renderInitializedChat !== false) {{
 }}
 if (restoreCalls.length !== 1 || restoreCalls[0] !== 'chat-ready') {{
   throw new Error(`Expected snapshot restore before render: ${{JSON.stringify(restoreCalls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_load_older_messages_anchors_current_viewport_after_async_fetch():
+    module_path = ROOT / 'static' / 'modules' / 'chat-history-runtime.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  "import {{ withAppRoot }} from './app-url.js';",
+  "const withAppRoot = (value) => value;",
+);
+source = source.replace(
+  "import {{ normalizeMentionUserIds }} from './chat-mentions.js';",
+  "const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
+  "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
+);
+source = source.replace(
+  "import {{ captureChatViewportAnchor }} from './chat-scroll-stability.js';",
+  "const captureChatViewportAnchor = () => ({{ messageKey: 'id:10', offsetTop: 32 }});",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ createChatHistoryRuntime }} = await import(moduleUrl);
+
+const state = {{
+  initialized: true,
+  isLoadingInitial: false,
+  isLoadingOlder: false,
+  historyOlderToken: 0,
+  messages: [
+    {{ id: 10, message: 'visible anchor', created_at: '2026-01-02T00:00:00Z' }},
+    {{ id: 11, message: 'next', created_at: '2026-01-02T00:01:00Z' }},
+  ],
+  hasMoreBefore: true,
+  renderedKeys: new Set(['id:10', 'id:11']),
+}};
+const classNames = new Set();
+const chatMessages = {{
+  scrollTop: 120,
+  scrollHeight: 1000,
+  clientHeight: 400,
+  classList: {{
+    add: (name) => classNames.add(name),
+    remove: (name) => classNames.delete(name),
+  }},
+}};
+const renderCalls = [];
+
+const runtime = createChatHistoryRuntime({{
+  chatHistoryPageSize: 50,
+  chatHistoryMaxPageSize: 100,
+  chatDecryptConcurrency: 2,
+  chatDecryptWorkerTimeoutMs: 100,
+  fetchImpl: async () => {{
+    chatMessages.scrollTop = 180;
+    chatMessages.scrollHeight = 1100;
+    return {{
+      ok: true,
+      json: async () => ({{
+        success: true,
+        messages: [
+          {{ id: 8, sender_public_key: 'other', message: 'older 8', created_at: '2026-01-01T23:58:00Z', reactions: [] }},
+          {{ id: 9, sender_public_key: 'other', message: 'older 9', created_at: '2026-01-01T23:59:00Z', reactions: [] }},
+        ],
+        has_more_before: true,
+      }}),
+    }};
+  }},
+  chatMessagesEl: chatMessages,
+  getChatState: () => state,
+  getCurrentChatId: () => 'chat-older',
+  getPrivateKeyPem: () => 'private-key',
+  getCurrentUserPublicKey: () => 'pk-current',
+  getCurrentUserId: () => '1',
+  getCurrentPartnerData: () => ({{ display_name: 'Partner' }}),
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (_privateKey, payload) => payload,
+  normalizeMessageReactions: (value) => value || [],
+  enrichDecodedMessagesVisualMeta: async (messages) => messages,
+  createHistoryAbortController: () => ({{ signal: undefined }}),
+  releaseHistoryAbortController: () => {{}},
+  historyOlderAbortControllers: new Map(),
+  getMessageKey: (msg) => `id:${{msg.id}}`,
+  prependChatMessages: (_chatId, messages) => {{
+    state.messages = [...messages, ...state.messages];
+    return messages.length;
+  }},
+  sumEstimatedHeights: () => 240,
+  renderChatMessages: (_chatId, options) => renderCalls.push(options),
+  appendEncryptedMessagesToCache: async () => {{}},
+  isAbortError: () => false,
+  showToast: (message) => {{
+    throw new Error(`Unexpected toast: ${{message}}`);
+  }},
+}});
+
+const loaded = await runtime.loadOlderMessages('chat-older');
+
+if (!loaded) {{
+  throw new Error('Expected older messages to load');
+}}
+if (renderCalls.length !== 1) {{
+  throw new Error(`Expected one anchored render, got ${{JSON.stringify(renderCalls)}}`);
+}}
+const options = renderCalls[0];
+if (options.previousScrollTop !== 180 || options.previousScrollHeight !== 1100) {{
+  throw new Error(`Prepend must anchor the viewport at mutation time, got ${{JSON.stringify(options)}}`);
+}}
+if (options.anchorMessageKey !== 'id:10' || options.anchorOffsetTop !== 32) {{
+  throw new Error(`Missing viewport anchor: ${{JSON.stringify(options)}}`);
+}}
+if (options.scrollTop !== 420) {{
+  throw new Error(`Expected estimated post-prepend scrollTop 420, got ${{options.scrollTop}}`);
+}}
+if (options.reuseExistingNodes !== true || options.preserveHeightDelta !== true) {{
+  throw new Error(`Prepend render must preserve existing DOM/media nodes: ${{JSON.stringify(options)}}`);
+}}
+if (classNames.size) {{
+  throw new Error(`History loading class was not cleaned up: ${{JSON.stringify([...classNames])}}`);
 }}
 """
     result = _run_node_harness(node_harness)

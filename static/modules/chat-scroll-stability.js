@@ -30,6 +30,46 @@ function resolveViewportAnchor(scrollContainer) {
     return null;
 }
 
+function resolveViewportMessageAnchor(scrollContainer) {
+    if (!(scrollContainer instanceof HTMLElement)) return null;
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const containerTop = Number(containerRect.top) || 0;
+    const nodes = scrollContainer.querySelectorAll('.message[data-message-key]');
+
+    for (const node of nodes) {
+        if (!(node instanceof HTMLElement)) continue;
+        const key = String(node.getAttribute('data-message-key') || '').trim();
+        if (!key) continue;
+        const rect = node.getBoundingClientRect();
+        if (Number(rect.bottom) > containerTop + 1) {
+            return {
+                element: node,
+                messageKey: key,
+                offsetTop: (Number(rect.top) || 0) - containerTop,
+                top: Number(rect.top) || 0,
+            };
+        }
+    }
+
+    return null;
+}
+
+export function captureChatViewportAnchor(referenceNode) {
+    const scrollContainer = resolveChatScrollContainer(referenceNode);
+    if (!scrollContainer) return null;
+    const anchor = resolveViewportMessageAnchor(scrollContainer);
+    if (!anchor) return null;
+    return {
+        scrollContainer,
+        element: anchor.element,
+        messageKey: anchor.messageKey,
+        offsetTop: anchor.offsetTop,
+        scrollTop: Number(scrollContainer.scrollTop) || 0,
+        scrollHeight: Number(scrollContainer.scrollHeight) || 0,
+        clientHeight: Number(scrollContainer.clientHeight) || 0,
+    };
+}
+
 function captureStableScrollSnapshot(referenceNode, options = {}) {
     const scrollContainer = resolveChatScrollContainer(referenceNode);
     if (!scrollContainer) return null;

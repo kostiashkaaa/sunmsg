@@ -2,6 +2,7 @@ import { withAppRoot } from './app-url.js';
 import { normalizeMentionUserIds } from './chat-mentions.js';
 import { normalizeGroupReaders } from './chat-group-read-receipts.js';
 import { insertUnreadDivider, removeUnreadDivider } from './chat-skeleton-ui.js';
+import { captureChatViewportAnchor } from './chat-scroll-stability.js';
 
 const INITIAL_SNAPSHOT_CACHE_LIMIT = 200;
 
@@ -744,8 +745,6 @@ export function createChatHistoryRuntime(ctx = {}) {
 
         state.isLoadingOlder = true;
         const requestToken = ++state.historyOlderToken;
-        const previousScrollHeight = chatMessages.scrollHeight;
-        const previousScrollTop = chatMessages.scrollTop;
         const requestController = ctx.createHistoryAbortController(
             ctx.historyOlderAbortControllers,
             chatId,
@@ -771,15 +770,34 @@ export function createChatHistoryRuntime(ctx = {}) {
 
             const decodedMessages = await decodeChatMessages(response.messages);
             if (requestToken !== state.historyOlderToken) return false;
-            ctx.prependChatMessages(chatId, decodedMessages);
+            const scrollAnchor = captureChatViewportAnchor(chatMessages);
+            const previousScrollHeight = chatMessages.scrollHeight;
+            const previousScrollTop = chatMessages.scrollTop;
+            const insertedCount = ctx.prependChatMessages(chatId, decodedMessages);
             decodedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
             state.hasMoreBefore = Boolean(response.has_more_before);
-            ctx.renderChatMessages(chatId, {
+            if (!insertedCount) return false;
+
+            const renderOptions = {
                 force: true,
+                reuseExistingNodes: true,
                 preserveHeightDelta: true,
                 previousScrollHeight,
                 previousScrollTop,
-            });
+            };
+            if (scrollAnchor?.messageKey && Number.isFinite(scrollAnchor.offsetTop)) {
+                renderOptions.anchorMessageKey = scrollAnchor.messageKey;
+                renderOptions.anchorOffsetTop = scrollAnchor.offsetTop;
+                const estimatedPrependedHeight = ctx.sumEstimatedHeights?.(
+                    state,
+                    0,
+                    Math.max(0, Number(insertedCount) || 0),
+                );
+                if (Number.isFinite(estimatedPrependedHeight) && estimatedPrependedHeight > 0) {
+                    renderOptions.scrollTop = previousScrollTop + estimatedPrependedHeight;
+                }
+            }
+            ctx.renderChatMessages(chatId, renderOptions);
             ctx.appendEncryptedMessagesToCache(chatId, response.messages).catch(() => {});
             return true;
         } catch (error) {

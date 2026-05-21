@@ -354,6 +354,21 @@ export function createChatMessageRenderRuntime({
         return spacer;
     }
 
+    function ensureRangeIncludesMessageKey(state, range, messageKey) {
+        const key = String(messageKey || '').trim();
+        if (!key || !state?.messages?.length || !range) return range;
+        const anchorIndex = state.messages.findIndex((msg) => String(getMessageKey?.(msg) || '') === key);
+        if (anchorIndex < 0 || (anchorIndex >= range.start && anchorIndex < range.end)) return range;
+
+        const total = state.messages.length;
+        const currentSize = Math.max(1, Number(range.end) - Number(range.start));
+        const windowSize = Math.min(total, Math.max(currentSize, 24));
+        let start = Math.max(0, anchorIndex - Math.floor(windowSize / 2));
+        let end = Math.min(total, start + windowSize);
+        start = Math.max(0, end - windowSize);
+        return { start, end };
+    }
+
     function replaceChatMessageChildren(container, desiredNodes) {
         if (!container) return [];
         const previousNodes = Array.from(container.childNodes || []);
@@ -423,6 +438,7 @@ export function createChatMessageRenderRuntime({
             ? sumEstimatedHeights?.(state, 0, state.messages.length)
             : (forcedScrollTop ?? chatMessages.scrollTop);
         let range = getDesiredRenderRange?.(state, effectiveScrollTop);
+        range = ensureRangeIncludesMessageKey(state, range, anchorMessageKey);
         const activeVoiceMessageEl = chatMessages.querySelector('.file-msg-audio-player.is-playing')?.closest('.message[data-message-key]');
         const activeVoiceMessageKey = String(activeVoiceMessageEl?.getAttribute('data-message-key') || '');
         const needsForcedRender = Boolean(options.force || hasScrollAnchor || options.preserveHeightDelta || forcedScrollTop !== null || options.scrollToBottom);
@@ -432,7 +448,7 @@ export function createChatMessageRenderRuntime({
         }
 
         const reusableMessageNodesByKey = new Map();
-        if (!options.force) {
+        if (!options.force || options.reuseExistingNodes) {
             chatMessages.querySelectorAll('.message[data-message-key]').forEach((node) => {
                 const key = String(node.getAttribute('data-message-key') || '');
                 if (!key || reusableMessageNodesByKey.has(key)) return;
