@@ -16,8 +16,11 @@ function buildDialogRequestItemHtml(data, escapeHtml) {
     return `
         <div class="contact-avatar contact-avatar--request">${avatarHtml}</div>
         <div class="req-info">
-            <div class="req-name">${escapeHtml(displayName)}</div>
-            <div class="req-username">@${escapeHtml(username)}</div>
+            <div class="req-name-row">
+                <span class="req-kind-badge">Запрос</span>
+                <span class="req-name">${escapeHtml(displayName || username || 'Запрос')}</span>
+            </div>
+            <div class="req-username">Хочет начать диалог${username ? ` · @${escapeHtml(username)}` : ''}</div>
         </div>
         <div class="req-actions">
             <button class="req-btn accept" data-key="${escapeHtml(data.sender_public_key)}"><span class="req-btn-label">Принять</span></button>
@@ -43,9 +46,11 @@ function buildGroupInviteRequestItemHtml(data, escapeHtml) {
     return `
         <div class="contact-avatar contact-avatar--request">${avatarHtml}</div>
         <div class="req-info">
-            <div class="req-name">${escapeHtml(displayName)}</div>
-            <div class="req-username">@${escapeHtml(username)}</div>
-            <div class="req-username">${subtitle}</div>
+            <div class="req-name-row">
+                <span class="req-kind-badge">Запрос</span>
+                <span class="req-name">${escapeHtml(displayName || username || 'Запрос')}</span>
+            </div>
+            <div class="req-username">${subtitle}${username ? ` · @${escapeHtml(username)}` : ''}</div>
         </div>
         <div class="req-actions">
             <button class="req-btn accept" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
@@ -149,6 +154,7 @@ export function registerSystemSocketHandlers({
 
         const item = document.createElement('div');
         item.className = 'request-item';
+        item.setAttribute('data-request-kind', 'dialog');
         item.innerHTML = buildDialogRequestItemHtml(data, escapeHtml).trim();
         applyFallbackAvatarTint(
             item.querySelector('.contact-avatar'),
@@ -171,6 +177,7 @@ export function registerSystemSocketHandlers({
 
         const item = document.createElement('div');
         item.className = 'request-item';
+        item.setAttribute('data-request-kind', 'group_invite');
         item.innerHTML = buildGroupInviteRequestItemHtml(data, escapeHtml).trim();
         applyFallbackAvatarTint(
             item.querySelector('.contact-avatar'),

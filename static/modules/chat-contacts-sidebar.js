@@ -227,12 +227,6 @@ export function initChatContactsSidebar({
         const count = dialogRequestsList.children.length;
         const countEl = document.getElementById('requestsCount');
         if (countEl) countEl.textContent = count > 0 ? `(${count})` : '';
-        const requestsShortcutCount = document.getElementById('requestsShortcutCount');
-        if (requestsShortcutCount) requestsShortcutCount.textContent = count > 0 ? (count > 99 ? '99+' : String(count)) : '';
-        const requestsShortcutBtn = document.getElementById('requestsShortcutBtn');
-        if (requestsShortcutBtn) {
-            requestsShortcutBtn.classList.toggle('sidebar-requests-shortcut--hidden', count <= 0);
-        }
         syncDialogRequestAttentionCount(count);
         const activeSidebarTab = String(
             document.body?.dataset?.sidebarTab
@@ -242,13 +236,11 @@ export function initChatContactsSidebar({
         if (count === 0) {
             dialogRequestsSection.classList.remove('has-requests');
             dialogRequestsSection.style.display = 'none';
-            if (activeSidebarTab === 'requests' && typeof window.switchSidebarTab === 'function') {
-                window.switchSidebarTab('all');
-            }
         } else {
             dialogRequestsSection.classList.add('has-requests');
-            dialogRequestsSection.style.display = activeSidebarTab === 'requests' ? '' : 'none';
+            dialogRequestsSection.style.display = activeSidebarTab === 'all' ? '' : 'none';
         }
+        globalThis.window?.applySidebarFolderFilter?.();
     }
 
     function reconcileContactsList(serverContacts) {
@@ -436,6 +428,7 @@ export function initChatContactsSidebar({
                     applyChatBlockState({ blocked_by_me: blockedByMe, blocked_me: blockedMe }, { syncChatRoom: false });
                 }
                 onContactRendered?.(existing, contact);
+                globalThis.window?.applySidebarFolderFilter?.();
                 return;
             }
 
@@ -467,6 +460,7 @@ export function initChatContactsSidebar({
                 animateContactEntry(nextItem, renderIndex);
             }
             onContactRendered?.(nextItem, contact);
+            globalThis.window?.applySidebarFolderFilter?.();
             if (String(contact.chatId) === String(currentChatId)) {
                 applyChatBlockState({ blocked_by_me: blockedByMe, blocked_me: blockedMe }, { syncChatRoom: false });
             }

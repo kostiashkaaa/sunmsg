@@ -8,6 +8,7 @@ export function initContactContextMenu({
     pinButtonEl,
     unpinButtonEl,
     toggleMuteButtonEl,
+    folderButtonEl,
     deleteButtonEl,
     getCsrfToken,
     showToast,
@@ -83,7 +84,7 @@ export function initContactContextMenu({
     }
 
     function getVisibleContextMenuItems() {
-        return [pinButtonEl, unpinButtonEl, toggleMuteButtonEl, deleteButtonEl]
+        return [pinButtonEl, unpinButtonEl, toggleMuteButtonEl, folderButtonEl, deleteButtonEl]
             .filter((item) => item && !item.hidden && item.getAttribute('aria-hidden') !== 'true');
     }
 
@@ -113,6 +114,9 @@ export function initContactContextMenu({
         if (toggleMuteButtonEl) {
             toggleMuteButtonEl.hidden = muteBlocked;
         }
+        if (folderButtonEl) {
+            folderButtonEl.hidden = !window.SUN_CHAT_FOLDERS?.pickFolderForChat || isSavedMessages;
+        }
         if (deleteButtonEl) {
             const label = deleteButtonEl.querySelector('span');
             if (label) {
@@ -133,7 +137,7 @@ export function initContactContextMenu({
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const w = menuEl.offsetWidth || 214;
-        const h = menuEl.offsetHeight || 132;
+        const h = menuEl.offsetHeight || 174;
         menuEl.style.left = `${x + w > vw ? vw - w - 8 : x}px`;
         menuEl.style.top = `${y + h > vh ? y - h : y}px`;
         setMotionOriginFromPoint(menuEl, x, y);
@@ -326,6 +330,13 @@ export function initContactContextMenu({
         } catch (_) {
             // Best effort: caller handles toast on error.
         }
+    });
+
+    folderButtonEl?.addEventListener('click', () => {
+        const chatId = targetChatId;
+        hideContactContextMenu();
+        if (!chatId) return;
+        window.SUN_CHAT_FOLDERS?.pickFolderForChat?.(chatId);
     });
 
     deleteButtonEl?.addEventListener('click', () => {

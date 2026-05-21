@@ -37,6 +37,10 @@
         'sun_cycle',
     ]);
     const SIDEBAR_WEATHER_DEFAULT_METRICS = ['temperature'];
+    const CHAT_FOLDER_INCLUDES = new Set(['all', 'direct', 'groups', 'unread', 'pinned']);
+    const MAX_CHAT_FOLDERS = 24;
+    const MAX_CHAT_FOLDER_TITLE_LENGTH = 32;
+    const MAX_CHAT_FOLDER_CHAT_IDS = 250;
 
     const INTERFACE_DEFAULT_ACCENT = {
         light: '#c58a22',
@@ -522,6 +526,66 @@
         return result;
     }
 
+    function normalizeChatFolderTitle(value) {
+        return asString(value)
+            .replace(/\s+/g, ' ')
+            .slice(0, MAX_CHAT_FOLDER_TITLE_LENGTH);
+    }
+
+    function normalizeChatFolderId(value, fallbackIndex = 0) {
+        const raw = asString(value).toLowerCase();
+        const safe = raw.replace(/[^a-z0-9_-]/g, '').slice(0, 48);
+        return safe || `folder_${fallbackIndex + 1}`;
+    }
+
+    function normalizeChatFolderIds(value) {
+        if (!Array.isArray(value)) return [];
+        const result = [];
+        const seen = new Set();
+        for (const rawId of value) {
+            const chatId = asString(rawId);
+            if (!chatId || seen.has(chatId)) continue;
+            result.push(chatId);
+            seen.add(chatId);
+            if (result.length >= MAX_CHAT_FOLDER_CHAT_IDS) break;
+        }
+        return result;
+    }
+
+    function normalizeChatFolderOrder(value, fallbackIndex = 0) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallbackIndex;
+    }
+
+    function normalizeChatFolders(value) {
+        if (!Array.isArray(value)) return [];
+        const result = [];
+        const seenIds = new Set(['all', 'direct', 'groups', 'unread', 'pinned']);
+        value.forEach((folder, index) => {
+            if (result.length >= MAX_CHAT_FOLDERS) return;
+            const rawFolder = asObject(folder);
+            const title = normalizeChatFolderTitle(rawFolder.title);
+            if (!title) return;
+            const id = normalizeChatFolderId(rawFolder.id, index);
+            if (seenIds.has(id)) return;
+            const include = asString(rawFolder.include).toLowerCase();
+            result.push({
+                id,
+                title,
+                include: CHAT_FOLDER_INCLUDES.has(include) ? include : 'all',
+                included_chat_ids: normalizeChatFolderIds(rawFolder.included_chat_ids),
+                excluded_chat_ids: normalizeChatFolderIds(rawFolder.excluded_chat_ids),
+                order: normalizeChatFolderOrder(rawFolder.order, index),
+            });
+            seenIds.add(id);
+        });
+        return result.sort((a, b) => {
+            const orderDelta = a.order - b.order;
+            if (orderDelta !== 0) return orderDelta;
+            return a.title.localeCompare(b.title, 'ru');
+        });
+    }
+
     function asTransports(value) {
         if (!Array.isArray(value)) {
             return ['websocket', 'polling'];
@@ -619,6 +683,10 @@
             out.sidebarWeatherMetrics = normalizeSidebarWeatherMetrics(raw.sidebarWeatherMetrics, {
                 fallbackToDefault: false,
             });
+        }
+
+        if (Object.prototype.hasOwnProperty.call(raw, 'chatFolders')) {
+            out.chatFolders = normalizeChatFolders(raw.chatFolders);
         }
 
         const interfaceThemeStore = asJsonObject(raw.interfaceThemeStore, 32_000);

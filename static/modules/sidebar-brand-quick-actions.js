@@ -70,11 +70,15 @@ function openCommandPalette({ openDialog, prefill = '' } = {}) {
 }
 
 function switchToRequestsTab() {
-    if (typeof window.switchSidebarTab === 'function') {
-        window.switchSidebarTab('requests');
+    if (typeof window.focusDialogRequests === 'function') {
+        window.focusDialogRequests();
         return true;
     }
-    document.getElementById('requestsShortcutBtn')?.click();
+    if (typeof window.switchSidebarTab === 'function') {
+        window.switchSidebarTab('all');
+        return true;
+    }
+    document.querySelector('.sidebar-tab[data-tab="all"]')?.click();
     return true;
 }
 

@@ -24,11 +24,16 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
     function buildDialogRequestItem(req) {
         const initials = (req.sender_display_name || req.sender_username || '?')
             .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        const displayName = req.sender_display_name || req.sender_username || '\u0417\u0430\u043f\u0440\u043e\u0441';
+        const username = req.sender_username ? `@${escapeHtml(req.sender_username)}` : '';
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
-                <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
-                <div class="req-username">@${escapeHtml(req.sender_username)}</div>
+                <div class="req-name-row">
+                    <span class="req-kind-badge">\u0417\u0430\u043f\u0440\u043e\u0441</span>
+                    <span class="req-name">${escapeHtml(displayName)}</span>
+                </div>
+                <div class="req-username">\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433${username ? ` · ${username}` : ''}</div>
             </div>
             <div class="req-actions">
                 <button class="req-btn accept" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
@@ -43,12 +48,16 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         const groupLabel = String(req.chat_name || '').trim()
             ? `\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443: ${escapeHtml(String(req.chat_name || '').trim())}`
             : '\u041f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0443';
+        const displayName = req.sender_display_name || req.sender_username || '\u0417\u0430\u043f\u0440\u043e\u0441';
+        const username = req.sender_username ? `@${escapeHtml(req.sender_username)}` : '';
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
-                <div class="req-name">${escapeHtml(req.sender_display_name)}</div>
-                <div class="req-username">@${escapeHtml(req.sender_username)}</div>
-                <div class="req-username">${groupLabel}</div>
+                <div class="req-name-row">
+                    <span class="req-kind-badge">\u0417\u0430\u043f\u0440\u043e\u0441</span>
+                    <span class="req-name">${escapeHtml(displayName)}</span>
+                </div>
+                <div class="req-username">${groupLabel}${username ? ` · ${username}` : ''}</div>
             </div>
             <div class="req-actions">
                 <button class="req-btn accept" data-request-kind="group_invite" data-request-id="${Number.isFinite(requestId) && requestId > 0 ? requestId : ''}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
@@ -72,6 +81,7 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                     requests.forEach(function(req) {
                         const item = document.createElement('div');
                         item.className = 'request-item';
+                        item.setAttribute('data-request-kind', req.request_kind === 'group_invite' ? 'group_invite' : 'dialog');
                         item.innerHTML = req.request_kind === 'group_invite'
                             ? buildGroupInviteRequestItem(req)
                             : buildDialogRequestItem(req);

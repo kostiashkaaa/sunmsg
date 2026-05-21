@@ -354,7 +354,10 @@ document.addEventListener('DOMContentLoaded', async function () {
             ),
         }) || weatherLabelApi;
 
-        sidebarModule.initChatShellSidebar();
+        sidebarModule.initChatShellSidebar({
+            clientPreferences: bootstrapUser.clientPreferences || {},
+            persistClientPreferences,
+        });
     } catch (error) {
         console.error('Failed to initialize chat shell modules', error);
     }

@@ -524,6 +524,82 @@
             display: none;
         }
 
+        .sidebar-user-folder-tabs {
+            display: contents;
+        }
+
+        .sidebar-folder-create-tab {
+            width: 34px;
+            justify-content: center;
+            padding-inline: 9px;
+        }
+
+        .sidebar-folder-create-tab i {
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        .chat-folder-editor {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(104px, 0.48fr) auto auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 20px 10px;
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--surface) 88%, transparent);
+        }
+
+        .chat-folder-editor[hidden] {
+            display: none !important;
+        }
+
+        .chat-folder-editor__input,
+        .chat-folder-editor__select {
+            min-width: 0;
+            height: 34px;
+            border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 12px;
+            outline: none;
+        }
+
+        .chat-folder-editor__input {
+            padding: 0 10px;
+        }
+
+        .chat-folder-editor__select {
+            padding: 0 8px;
+        }
+
+        .chat-folder-editor__save,
+        .chat-folder-editor__cancel {
+            height: 34px;
+            border: none;
+            border-radius: 8px;
+            font-family: var(--font);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .chat-folder-editor__save {
+            padding: 0 12px;
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .chat-folder-editor__cancel {
+            width: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-2);
+            color: var(--sub-text);
+        }
+
 
 
         /* ?????????????? E2E PILL ?????????????? */
@@ -2064,11 +2140,33 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 16px;
+            padding: 10px 12px;
+            margin: 0 0 6px;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--surface-2) 74%, transparent);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, var(--border) 82%);
         }
 
 
         .request-item .req-info { flex: 1; min-width: 0; }
+
+        .req-name-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+        }
+
+        .req-kind-badge {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 2px 7px;
+            font-size: 10px;
+            line-height: 1.25;
+            font-weight: 700;
+            color: color-mix(in srgb, var(--accent) 82%, var(--text) 18%);
+            background: color-mix(in srgb, var(--accent-soft) 58%, transparent);
+        }
 
 
         .request-item .req-name {
@@ -2124,6 +2222,20 @@
 
 
         @media (max-width: 768px) {
+            .chat-folder-editor {
+                grid-template-columns: 1fr auto;
+                padding: 8px 20px 10px;
+            }
+
+            .chat-folder-editor__input,
+            .chat-folder-editor__select {
+                grid-column: span 2;
+            }
+
+            .chat-folder-editor__save {
+                min-width: 112px;
+            }
+
             .request-item {
                 flex-wrap: wrap;
                 align-items: flex-start;

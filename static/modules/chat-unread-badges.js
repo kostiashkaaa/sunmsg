@@ -41,6 +41,7 @@ export function setContactUnreadBadge({
     }
 
     updateGlobalUnreadTabCountFn();
+    globalThis.window?.applySidebarFolderFilter?.();
 
     const timeMetaEl = contactItem.querySelector('.contact-time-meta');
     if (!timeMetaEl) return;

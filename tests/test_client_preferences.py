@@ -53,6 +53,36 @@ def test_normalize_client_preferences_sidebar_weather_fields():
     assert normalized['sidebarWeatherMetrics'] == ['temperature', 'aqi']
 
 
+def test_normalize_client_preferences_chat_folders():
+    normalized = normalize_client_preferences(
+        {
+            'chatFolders': [
+                {
+                    'id': ' Work Folder! ',
+                    'title': '  Work   chats  ',
+                    'include': ' GROUPS ',
+                    'included_chat_ids': ['10', '10', ' 11 '],
+                    'excluded_chat_ids': ['12', '', '12'],
+                    'order': '2',
+                },
+                {'id': 'all', 'title': 'reserved', 'include': 'all'},
+                {'id': 'empty', 'title': '   ', 'include': 'all'},
+            ],
+        }
+    )
+
+    assert normalized['chatFolders'] == [
+        {
+            'id': 'workfolder',
+            'title': 'Work chats',
+            'include': 'groups',
+            'included_chat_ids': ['10', '11'],
+            'excluded_chat_ids': ['12'],
+            'order': 2,
+        }
+    ]
+
+
 def test_normalize_client_preferences_updated_at_from_epoch_and_iso():
     epoch_seconds = 1_710_000_000
     epoch_milliseconds = '1710000000000'
@@ -76,6 +106,16 @@ def test_client_preferences_json_round_trip():
         'language': 'ru',
         'interfaceSurfaceMode': 'glass',
         'sidebarWeatherRotateSeconds': 30,
+        'chatFolders': [
+            {
+                'id': 'work',
+                'title': 'Work',
+                'include': 'direct',
+                'included_chat_ids': ['chat-1'],
+                'excluded_chat_ids': [],
+                'order': 0,
+            }
+        ],
     }
     packed = client_preferences_to_json(source)
     restored = client_preferences_from_db(packed)

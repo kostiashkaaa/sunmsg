@@ -33,11 +33,11 @@ function getCopy() {
         groupTitle: 'Новое приглашение в группу',
         open: 'Открыть запрос',
         dismiss: 'Скрыть уведомление',
-        countText: (count) => (
-            count === 1
-                ? 'У вас 1 входящий запрос. Откройте его и нажмите «Принять».'
-                : `У вас ${count} входящих запросов. Откройте раздел и нажмите «Принять».`
-        ),
+            countText: (count) => (
+                count === 1
+                    ? 'У вас 1 входящий запрос. Откройте его и нажмите «Принять».'
+                    : `У вас ${count} входящих запросов. Откройте список и нажмите «Принять».`
+            ),
         dialogText: (name) => `${name} хочет начать диалог. Откройте запрос и нажмите «Принять».`,
         groupText: (name, groupName) => (
             groupName
@@ -52,7 +52,7 @@ function currentRequestCount() {
 }
 
 function isRequestsTabActive() {
-    return String(document.body?.dataset?.sidebarTab || '') === 'requests';
+    return String(document.body?.dataset?.sidebarTab || '') === 'all';
 }
 
 function resolveSenderName(data) {
@@ -70,10 +70,12 @@ function setAttentionVisible(visible) {
 }
 
 function openRequestsView() {
-    if (typeof window.switchSidebarTab === 'function') {
-        window.switchSidebarTab('requests');
+    if (typeof window.focusDialogRequests === 'function') {
+        window.focusDialogRequests();
+    } else if (typeof window.switchSidebarTab === 'function') {
+        window.switchSidebarTab('all');
     } else {
-        document.getElementById('requestsShortcutBtn')?.click();
+        document.querySelector('.sidebar-tab[data-tab="all"]')?.click();
     }
 
     setAttentionVisible(false);
@@ -97,7 +99,7 @@ function bindAttention() {
         setAttentionVisible(false);
     });
     window.addEventListener('sun-sidebar-tab-changed', (event) => {
-        if (event?.detail?.tab === 'requests') {
+        if (event?.detail?.tab === 'all') {
             setAttentionVisible(false);
         }
     });

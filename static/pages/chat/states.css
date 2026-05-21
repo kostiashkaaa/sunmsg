@@ -601,8 +601,8 @@
 
 
         .dialog-requests-section.has-requests {
-            max-height: 400px;
-            border-bottom: 1px solid var(--border);
+            max-height: 1000px;
+            border-bottom: none;
         }
 
 

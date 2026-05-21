@@ -74,6 +74,7 @@ export function bindChatHeaderActionsRuntime({
         pinButtonEl: documentRef.getElementById('ctxPinChat'),
         unpinButtonEl: documentRef.getElementById('ctxUnpinChat'),
         toggleMuteButtonEl: documentRef.getElementById('ctxToggleMuteChat'),
+        folderButtonEl: documentRef.getElementById('ctxAddToFolder'),
         deleteButtonEl: documentRef.getElementById('ctxDeleteChat'),
         getCsrfToken,
         showToast,

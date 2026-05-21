@@ -17,9 +17,29 @@
                     </div>
                 </div>
             </div>
-            <div class="sidebar-tabs" id="sidebarTabs">
+            <div class="sidebar-tabs" id="sidebarTabs" role="tablist" aria-label="Папки чатов">
                 <button class="sidebar-tab active" data-tab="all" type="button">Все<span class="sidebar-tab-count" id="unreadTabCount" aria-live="polite"></span></button>
-                <button class="sidebar-tab sidebar-requests-shortcut--hidden" id="requestsShortcutBtn" data-tab="requests" type="button" aria-label="Запросы на диалог" aria-pressed="false">Запросы<span class="sidebar-tab-count" id="requestsShortcutCount"></span></button>
+                <button class="sidebar-tab" data-tab="direct" type="button">Личные</button>
+                <button class="sidebar-tab" data-tab="groups" type="button">Группы</button>
+                <button class="sidebar-tab" data-tab="unread" type="button">Непрочитанные</button>
+                <span class="sidebar-user-folder-tabs" id="sidebarUserFolderTabs"></span>
+                <button class="sidebar-tab sidebar-folder-create-tab" id="chatFolderCreateBtn" type="button" aria-label="Создать папку" title="Создать папку">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="chat-folder-editor" id="chatFolderEditor" hidden>
+                <input id="chatFolderTitleInput" class="chat-folder-editor__input" type="text" maxlength="32" placeholder="Название папки" autocomplete="off">
+                <select id="chatFolderIncludeSelect" class="chat-folder-editor__select" aria-label="Тип папки">
+                    <option value="all">Все чаты</option>
+                    <option value="direct">Личные</option>
+                    <option value="groups">Группы</option>
+                    <option value="unread">Непрочитанные</option>
+                    <option value="pinned">Закреплённые</option>
+                </select>
+                <button type="button" class="chat-folder-editor__save" id="chatFolderSaveBtn">Сохранить</button>
+                <button type="button" class="chat-folder-editor__cancel" id="chatFolderCancelBtn" aria-label="Отмена">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
 
@@ -49,14 +69,13 @@
             <i class="bi bi-chevron-right e2e-lock-alert-chevron"></i>
         </button>
 
-        <div class="dialog-requests-section" id="dialogRequestsSection">
-            <div class="requests-header">
-                <span><i class="bi bi-person-plus-fill"></i> Запросы на диалог <span id="requestsCount"></span></span>
-            </div>
-            <div id="dialogRequestsList"></div>
-        </div>
-
         <div id="sidebarScrollArea" class="sidebar-scroll-area">
+            <div class="dialog-requests-section" id="dialogRequestsSection">
+                <div class="requests-header">
+                    <span><i class="bi bi-person-plus-fill"></i> Запросы <span id="requestsCount"></span></span>
+                </div>
+                <div id="dialogRequestsList"></div>
+            </div>
             <div id="contactsList" data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}">
                 {% for contact in initial_contacts %}
                 {% set display_name = contact.display_name or contact.username or '' %}

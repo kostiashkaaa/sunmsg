@@ -25,6 +25,10 @@ _SIDEBAR_WEATHER_METRICS = {
     'pressure',
     'sun_cycle',
 }
+_CHAT_FOLDER_INCLUDES = {'all', 'direct', 'groups', 'unread', 'pinned'}
+_MAX_CHAT_FOLDERS = 24
+_MAX_CHAT_FOLDER_TITLE_LENGTH = 32
+_MAX_CHAT_FOLDER_CHAT_IDS = 250
 
 
 def _clamp_message_scale(value: float) -> float:
@@ -142,6 +146,88 @@ def _normalize_sidebar_weather_metrics(raw_value):
     return metrics
 
 
+def _normalize_chat_folder_title(raw_value):
+    if not isinstance(raw_value, str):
+        return None
+    title = ' '.join(raw_value.strip().split())
+    if not title:
+        return None
+    return title[:_MAX_CHAT_FOLDER_TITLE_LENGTH]
+
+
+def _normalize_chat_folder_id(raw_value, fallback_index: int) -> str:
+    raw = str(raw_value or '').strip().lower()
+    safe = ''.join(
+        ch for ch in raw if ch.isascii() and (ch.isalnum() or ch in {'_', '-'})
+    )[:48]
+    return safe or f'folder_{fallback_index + 1}'
+
+
+def _normalize_chat_folder_ids(raw_value):
+    if not isinstance(raw_value, list):
+        return []
+    values: list[str] = []
+    seen: set[str] = set()
+    for raw_chat_id in raw_value:
+        chat_id = str(raw_chat_id or '').strip()
+        if not chat_id or chat_id in seen:
+            continue
+        values.append(chat_id)
+        seen.add(chat_id)
+        if len(values) >= _MAX_CHAT_FOLDER_CHAT_IDS:
+            break
+    return values
+
+
+def _normalize_chat_folder_order(raw_value, fallback_index: int):
+    if isinstance(raw_value, bool):
+        return fallback_index
+    if isinstance(raw_value, (int, float)) and math.isfinite(float(raw_value)):
+        return int(raw_value)
+    if isinstance(raw_value, str):
+        try:
+            parsed = int(raw_value.strip())
+        except (TypeError, ValueError):
+            return fallback_index
+        return parsed
+    return fallback_index
+
+
+def _normalize_chat_folders(raw_value):
+    if not isinstance(raw_value, list):
+        return None
+    folders: list[dict] = []
+    seen_ids = {'all', 'direct', 'groups', 'unread', 'pinned'}
+    for index, raw_folder in enumerate(raw_value):
+        if len(folders) >= _MAX_CHAT_FOLDERS:
+            break
+        if not isinstance(raw_folder, dict):
+            continue
+        title = _normalize_chat_folder_title(raw_folder.get('title'))
+        if title is None:
+            continue
+        folder_id = _normalize_chat_folder_id(raw_folder.get('id'), index)
+        if folder_id in seen_ids:
+            continue
+        include = str(raw_folder.get('include') or '').strip().lower()
+        folders.append(
+            {
+                'id': folder_id,
+                'title': title,
+                'include': include if include in _CHAT_FOLDER_INCLUDES else 'all',
+                'included_chat_ids': _normalize_chat_folder_ids(
+                    raw_folder.get('included_chat_ids')
+                ),
+                'excluded_chat_ids': _normalize_chat_folder_ids(
+                    raw_folder.get('excluded_chat_ids')
+                ),
+                'order': _normalize_chat_folder_order(raw_folder.get('order'), index),
+            }
+        )
+        seen_ids.add(folder_id)
+    return sorted(folders, key=lambda folder: (folder['order'], folder['title']))
+
+
 def _normalize_base_preferences(src: dict) -> dict:
     normalized: dict = {}
 
@@ -250,11 +336,20 @@ def _normalize_extended_preferences(src: dict) -> dict:
     return normalized
 
 
+def _normalize_chat_preferences(src: dict) -> dict:
+    normalized: dict = {}
+    chat_folders = _normalize_chat_folders(src.get('chatFolders'))
+    if chat_folders is not None:
+        normalized['chatFolders'] = chat_folders
+    return normalized
+
+
 def normalize_client_preferences(raw_value) -> dict:
     src = raw_value if isinstance(raw_value, dict) else {}
     normalized: dict = {}
     normalized.update(_normalize_base_preferences(src))
     normalized.update(_normalize_sidebar_weather_preferences(src))
+    normalized.update(_normalize_chat_preferences(src))
     normalized.update(_normalize_extended_preferences(src))
     return normalized
 
