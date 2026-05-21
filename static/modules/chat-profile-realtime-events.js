@@ -1,6 +1,37 @@
 import { applyFallbackAvatarTint, buildAvatarInitials, escapeHtml } from './utils.js';
 
 const SIDEBAR_SPOTIFY_VISIBLE_CLASS = 'contact-spotify-indicator--visible';
+const SIDEBAR_SPOTIFY_HIDE_FALLBACK_MS = 260;
+const sidebarSpotifyHideTimers = new WeakMap();
+
+function clearSidebarSpotifyHideTimer(indicator) {
+    const timer = sidebarSpotifyHideTimers.get(indicator);
+    if (!timer) return;
+    globalThis.clearTimeout(timer);
+    sidebarSpotifyHideTimers.delete(indicator);
+}
+
+function hideSidebarSpotifyIndicatorAfterTransition(indicator) {
+    clearSidebarSpotifyHideTimer(indicator);
+    let finished = false;
+    const finish = () => {
+        if (finished) return;
+        finished = true;
+        clearSidebarSpotifyHideTimer(indicator);
+        indicator.removeEventListener?.('transitionend', handleTransitionEnd);
+        if (!indicator.classList.contains(SIDEBAR_SPOTIFY_VISIBLE_CLASS)) {
+            indicator.hidden = true;
+        }
+    };
+    const handleTransitionEnd = (event) => {
+        if (event.target !== indicator) return;
+        if (!['max-height', 'opacity', 'transform'].includes(event.propertyName)) return;
+        finish();
+    };
+    indicator.addEventListener?.('transitionend', handleTransitionEnd);
+    const timer = globalThis.setTimeout(finish, SIDEBAR_SPOTIFY_HIDE_FALLBACK_MS);
+    sidebarSpotifyHideTimers.set(indicator, timer);
+}
 
 function applyRealtimeProfileEnterAnimation(element) {
     if (!element || !element.classList) return;
@@ -248,6 +279,7 @@ export function updateSidebarSpotifyIndicator(contactItem, spotifyStatus) {
     if (!indicator) return;
     const sp = spotifyStatus;
     if (sp && sp.is_playing && sp.track) {
+        clearSidebarSpotifyHideTimer(indicator);
         const textEl = indicator.querySelector('.contact-spotify-indicator-text');
         if (textEl) textEl.textContent = sp.track;
         if (indicator.hidden) {
@@ -258,6 +290,8 @@ export function updateSidebarSpotifyIndicator(contactItem, spotifyStatus) {
         indicator.classList.add(SIDEBAR_SPOTIFY_VISIBLE_CLASS);
     } else {
         indicator.classList.remove(SIDEBAR_SPOTIFY_VISIBLE_CLASS);
-        indicator.hidden = true;
+        if (!indicator.hidden) {
+            hideSidebarSpotifyIndicatorAfterTransition(indicator);
+        }
     }
 }

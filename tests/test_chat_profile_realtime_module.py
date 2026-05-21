@@ -220,3 +220,53 @@ if (renderProfileBioCalls !== 1) {
 """
     result = _run_profile_realtime_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_sidebar_spotify_indicator_hides_after_transition():
+    harness_body = """
+const classNames = new Set(['contact-spotify-indicator--visible']);
+let transitionHandler = null;
+let removedHandler = null;
+const indicator = {
+  hidden: false,
+  offsetHeight: 16,
+  classList: {
+    add: (name) => classNames.add(name),
+    remove: (name) => classNames.delete(name),
+    contains: (name) => classNames.has(name),
+  },
+  querySelector: () => ({ textContent: '' }),
+  addEventListener: (event, handler) => {
+    if (event === 'transitionend') transitionHandler = handler;
+  },
+  removeEventListener: (event, handler) => {
+    if (event === 'transitionend') removedHandler = handler;
+  },
+};
+const contactItem = {
+  querySelector: (selector) => selector === '[data-contact-spotify]' ? indicator : null,
+};
+
+moduleApi.updateSidebarSpotifyIndicator(contactItem, null);
+
+if (indicator.hidden) {
+  throw new Error('Indicator was hidden before the hide transition could run');
+}
+if (classNames.has('contact-spotify-indicator--visible')) {
+  throw new Error('Visible class was not removed for hide transition');
+}
+if (typeof transitionHandler !== 'function') {
+  throw new Error('Hide transition handler was not registered');
+}
+
+transitionHandler({ target: indicator, propertyName: 'opacity' });
+
+if (!indicator.hidden) {
+  throw new Error('Indicator was not hidden after transitionend');
+}
+if (removedHandler !== transitionHandler) {
+  throw new Error('Transition handler was not removed after hide');
+}
+"""
+    result = _run_profile_realtime_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

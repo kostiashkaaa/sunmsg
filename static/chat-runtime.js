@@ -203,6 +203,7 @@ import { createComposerUploadState } from './modules/chat-composer-upload-state.
 import { createChatAnimationsController } from './modules/chat-animations.js';
 import { initChatClipboardAndDrop } from './modules/chat-clipboard-drop.js';
 import { initWebPush } from './modules/web-push.js';
+import { initSpotifyRealtimeRefresh } from './modules/spotify-realtime-refresh.js';
 import { CallManager } from './modules/call-manager.js';
 import { initChatBootstrap } from './chat/bootstrap.js';
 import { createSidebarShell } from './chat/sidebar-shell.js';
@@ -264,6 +265,9 @@ export const initChatPage = async () => {
         authFetch: browserEnv.getAuthFetch(),
         showToast,
         config: browserEnv.getWebPushConfig(),
+    });
+    initSpotifyRealtimeRefresh({
+        fetchImpl: browserEnv.getAuthFetch(),
     });
 
     if ('serviceWorker' in navigator && navigator.serviceWorker) {

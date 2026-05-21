@@ -21,6 +21,7 @@ from app.services.spotify import (
     get_privacy_settings,
     get_user_playlists,
     is_connected,
+    poll_and_update,
     revoke_tokens,
     save_tokens,
     save_track,
@@ -118,9 +119,12 @@ def spotify_disconnect():
     if 'user_id' not in session:
         return _unauthorized()
 
+    uid = int(session['user_id'])
     conn = get_db_connection()
     try:
-        revoke_tokens(conn, int(session['user_id']))
+        revoke_tokens(conn, uid)
+        from app.services.scheduler_runtime import _broadcast_spotify_status
+        _broadcast_spotify_status(conn, uid, None)
     finally:
         conn.close()
 
@@ -154,6 +158,51 @@ def spotify_status():
         'configured': cfg_ok,
         'connected': connected,
         **privacy_settings,
+    })
+
+
+@spotify_bp.route('/spotify/refresh', methods=['POST'])
+@limiter.limit('30 per minute')
+def spotify_refresh():
+    if 'user_id' not in session:
+        return _unauthorized()
+
+    creds = _spotify_configured()
+    if not creds:
+        return jsonify({
+            'success': True,
+            'configured': False,
+            'connected': False,
+            'spotify_status': None,
+        })
+
+    client_id, client_secret, _ = creds
+    uid = int(session['user_id'])
+    conn = get_db_connection()
+    try:
+        if not is_connected(conn, uid):
+            return jsonify({
+                'success': True,
+                'configured': True,
+                'connected': False,
+                'spotify_status': None,
+            })
+        try:
+            spotify_status_payload = poll_and_update(conn, uid, client_id, client_secret)
+        except Exception:
+            logger.exception('Spotify immediate refresh failed for user %s', uid)
+            return jsonify({'success': False, 'error': 'spotify_refresh_failed'}), 502
+
+        from app.services.scheduler_runtime import _broadcast_spotify_status
+        _broadcast_spotify_status(conn, uid, spotify_status_payload)
+    finally:
+        conn.close()
+
+    return jsonify({
+        'success': True,
+        'configured': True,
+        'connected': True,
+        'spotify_status': spotify_status_payload,
     })
 
 

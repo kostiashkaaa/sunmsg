@@ -198,3 +198,57 @@ def test_spotify_callback_saves_tokens_and_returns_to_settings(tmp_path, monkeyp
     assert response.status_code == 302
     assert response.headers['Location'].endswith('/chat?settings=integrations')
     assert saved == [(5, {'access_token': 'access-token'})]
+
+
+def test_spotify_refresh_polls_current_user_and_broadcasts(monkeypatch):
+    from flask import Flask
+    from app.routes import spotify as spotify_routes
+    from app.extensions import limiter
+    from app.services import scheduler_runtime
+
+    app = Flask(__name__)
+    app.secret_key = 'test-secret'
+    app.config.update(
+        TESTING=True,
+        RATELIMIT_ENABLED=False,
+        SPOTIFY_CLIENT_ID='client-id',
+        SPOTIFY_CLIENT_SECRET='client-secret',
+        SPOTIFY_REDIRECT_URI='https://example.test/spotify/callback',
+    )
+    limiter.init_app(app)
+    app.register_blueprint(spotify_routes.spotify_bp)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 5
+        sess['public_key_pem'] = 'pk-5'
+
+    class FakeConn:
+        def close(self):
+            pass
+
+    status_payload = {'is_playing': True, 'track': 'Fresh Track'}
+    broadcasts = []
+    monkeypatch.setattr(spotify_routes, 'get_db_connection', lambda: FakeConn())
+    monkeypatch.setattr(spotify_routes, 'is_connected', lambda conn, user_id: True)
+    monkeypatch.setattr(
+        spotify_routes,
+        'poll_and_update',
+        lambda conn, user_id, client_id, client_secret: status_payload,
+    )
+    monkeypatch.setattr(
+        scheduler_runtime,
+        '_broadcast_spotify_status',
+        lambda conn, user_id, spotify_status: broadcasts.append((user_id, spotify_status)),
+    )
+
+    response = client.post('/spotify/refresh')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload == {
+        'success': True,
+        'configured': True,
+        'connected': True,
+        'spotify_status': status_payload,
+    }
+    assert broadcasts == [(5, status_payload)]
