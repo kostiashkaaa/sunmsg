@@ -740,74 +740,7 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     display: block !important;
 }
 
-/* ── 23. SECTION ICON COLORS — уникальный accent per раздел ─────────────────── */
-
-body.settings-home-open [data-nav-key="notifications"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #ef4444 14%, transparent) !important;
-    color: #ef4444 !important;
-}
-
-body.settings-home-open [data-nav-key="data-memory"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #3b82f6 14%, transparent) !important;
-    color: #3b82f6 !important;
-}
-
-body.settings-home-open [data-nav-key="privacy"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #8b5cf6 14%, transparent) !important;
-    color: #8b5cf6 !important;
-}
-
-body.settings-home-open [data-nav-key="keys"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #f59e0b 14%, transparent) !important;
-    color: #f59e0b !important;
-}
-
-body.settings-home-open [data-nav-key="chat-style"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #06b6d4 14%, transparent) !important;
-    color: #06b6d4 !important;
-}
-
-body.settings-home-open [data-nav-key="language"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #10b981 14%, transparent) !important;
-    color: #10b981 !important;
-}
-
-body.settings-home-open [data-nav-key="chat-behavior"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #6366f1 14%, transparent) !important;
-    color: #6366f1 !important;
-}
-
-body.settings-home-open [data-nav-key="sidebar-label"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #f97316 14%, transparent) !important;
-    color: #f97316 !important;
-}
-
-body.settings-home-open [data-nav-key="settings-transfer"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #64748b 14%, transparent) !important;
-    color: #64748b !important;
-}
-
-body.settings-home-open [data-nav-key="integrations"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #1DB954 14%, transparent) !important;
-    color: #1DB954 !important;
-}
-
-body.settings-home-open [data-nav-key="account"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #78716c 14%, transparent) !important;
-    color: #78716c !important;
-}
-
-body.settings-home-open [data-nav-key="account-danger"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #ef4444 14%, transparent) !important;
-    color: #ef4444 !important;
-}
-
-body.settings-home-open [data-nav-key="support"] > .sun-icon:first-child {
-    background: color-mix(in srgb, #0ea5e9 14%, transparent) !important;
-    color: #0ea5e9 !important;
-}
-
-/* ── 24. DANGER ZONE — больше visual separation ──────────────────────────────── */
+/* ── 23. DANGER ZONE — больше visual separation ──────────────────────────────── */
 
 .settings-scene .settings-danger-panel {
     background: color-mix(in srgb, var(--s-danger) 5%, var(--s-surface)) !important;
@@ -821,7 +754,7 @@ body.settings-home-open [data-nav-key="support"] > .sun-icon:first-child {
     margin-top: 24px !important;
 }
 
-/* ── 25. DESKTOP — ограничение ширины контента ───────────────────────────────── */
+/* ── 24. DESKTOP — ограничение ширины контента ───────────────────────────────── */
 
 @media (min-width: 900px) {
     .settings-scene #section-profile .settings-body-copy,
@@ -834,7 +767,7 @@ body.settings-home-open [data-nav-key="support"] > .sun-icon:first-child {
     }
 }
 
-/* ── 26. SCROLLBAR — тонкая стилизация ──────────────────────────────────────── */
+/* ── 25. SCROLLBAR — тонкая стилизация ──────────────────────────────────────── */
 
 .settings-scene .settings-content::-webkit-scrollbar {
     width: 5px !important;
@@ -937,4 +870,555 @@ body.settings-home-open [data-nav-key="support"] > .sun-icon:first-child {
         width: 100% !important;
         font-size: 20px !important;
     }
+}
+
+/* ==========================================================================
+   Settings production UI pass.
+   This block is intentionally last: it normalizes the settings surface after
+   earlier polish layers and separates desktop density from mobile touch UX.
+   ========================================================================== */
+
+.settings-scene {
+    --settings-ui-panel-max: 760px;
+    --settings-ui-content-max: 704px;
+    --settings-ui-pad-x: 18px;
+    --settings-ui-card-gap: 8px;
+    --settings-ui-row-min: 48px;
+    --settings-ui-radius: 10px;
+    --settings-ui-radius-lg: 12px;
+    --s-icon-sm: 15px;
+    --s-icon-md: 18px;
+    --s-icon-lg: 20px;
+    --s-icon-chip: 18px;
+    --s-dur-fast: 0.09s;
+    --s-dur-mid: 0.14s;
+    --s-dur-slow: 0.18s;
+    --sun-dur: 0.16s;
+    --sun-icon-stroke: 1.75;
+    --settings-icon-tone: color-mix(in srgb, var(--sx-ink-2, var(--sub-text)) 88%, var(--sx-ink, var(--text)) 12%);
+}
+
+.settings-scene .settings-panel-title,
+.settings-scene .settings-card-header h3,
+.settings-scene .settings-row-label,
+.settings-scene .settings-row-desc,
+.settings-scene .btn-settings,
+.settings-scene .nav-item,
+.settings-scene .sp-brand-name,
+.settings-scene .sp-connect-btn,
+.settings-scene .sp-section-header {
+    letter-spacing: 0 !important;
+}
+
+.settings-scene .settings-section {
+    contain: layout paint style;
+    filter: none !important;
+    transform: translate3d(0, 0, 0);
+    will-change: opacity, transform;
+}
+
+.settings-scene .settings-section.section-entering,
+.settings-scene .settings-section.section-leaving,
+.settings-scene .settings-section.section-entering .settings-card {
+    animation: none !important;
+    filter: none !important;
+}
+
+.settings-scene .settings-content {
+    max-width: var(--settings-ui-content-max) !important;
+    transition: min-height 0.14s var(--s-ease) !important;
+}
+
+.settings-scene .settings-card,
+body.settings-detail-open .settings-card {
+    border-radius: var(--settings-ui-radius-lg) !important;
+    margin-top: var(--settings-ui-card-gap) !important;
+    padding: 4px 0 !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 64%, transparent) inset !important;
+}
+
+.settings-scene .settings-card:first-child {
+    margin-top: 8px !important;
+}
+
+.settings-scene .settings-card-header {
+    min-height: 38px !important;
+    gap: 8px !important;
+    padding: 8px var(--settings-ui-pad-x) 4px !important;
+}
+
+.settings-scene .settings-card-header h3 {
+    color: var(--sx-ink, var(--text)) !important;
+    font-size: 13.5px !important;
+    font-weight: 650 !important;
+    line-height: 1.25 !important;
+}
+
+.settings-scene .settings-body-copy,
+.settings-scene .settings-trust-intro,
+.settings-scene .settings-copy-muted-sm {
+    padding: 0 var(--settings-ui-pad-x) 8px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+}
+
+.settings-scene .settings-row,
+body.settings-detail-open .settings-row {
+    min-height: var(--settings-ui-row-min) !important;
+    gap: 12px !important;
+    padding: 7px var(--settings-ui-pad-x) !important;
+}
+
+.settings-scene .settings-row-label {
+    font-size: 14px !important;
+    font-weight: 560 !important;
+    line-height: 1.3 !important;
+}
+
+.settings-scene .settings-row-desc {
+    font-size: 12.5px !important;
+    line-height: 1.42 !important;
+    margin-top: 2px !important;
+}
+
+.settings-scene .settings-input,
+.settings-scene select.settings-select-control,
+.settings-scene .chat-style-select {
+    min-height: 36px !important;
+    border-radius: 9px !important;
+    font-size: 13px !important;
+}
+
+.settings-scene .btn-settings,
+.settings-scene a.btn-settings,
+.settings-scene label.btn-settings,
+.settings-scene button.btn-settings {
+    min-height: 36px !important;
+    border-radius: 9px !important;
+    padding: 0 13px !important;
+    font-size: 12.75px !important;
+    transition:
+        background-color 0.1s var(--s-ease),
+        color 0.1s var(--s-ease),
+        box-shadow 0.1s var(--s-ease),
+        transform 0.08s var(--s-ease) !important;
+}
+
+.settings-scene .btn-settings:active,
+.settings-scene .nav-item:active,
+.settings-scene .settings-panel-close:active,
+.settings-scene .settings-panel-tool-btn:active {
+    transform: scale(0.98) !important;
+}
+
+.settings-scene .settings-card-header > .sun-icon,
+.settings-scene .settings-card-header i,
+.settings-scene .settings-nav-group .nav-item > .sun-icon:first-child,
+.settings-scene .settings-logout-form .nav-item > .sun-icon:first-child,
+.settings-scene .settings-nav-profile-row > .sun-icon,
+.settings-scene .settings-privacy-item > .sun-icon:not(.settings-privacy-chevron),
+.settings-scene .settings-row-label > .sun-icon,
+.settings-scene .settings-warning-icon,
+.settings-scene .settings-panel-menu-item .sun-icon,
+.settings-scene .mnemonic-paste-all-btn .sun-icon {
+    width: var(--s-icon-md) !important;
+    min-width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+    flex-basis: var(--s-icon-md) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--settings-icon-tone) !important;
+}
+
+.settings-scene .settings-panel-close .sun-icon,
+.settings-scene .settings-panel-tool-btn .sun-icon,
+.settings-scene .settings-icon-action .sun-icon,
+.settings-scene .avatar-editor-icon-btn .sun-icon {
+    width: 17px !important;
+    height: 17px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: currentColor !important;
+}
+
+.settings-scene .settings-privacy-chevron {
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    color: color-mix(in srgb, var(--settings-icon-tone) 70%, transparent) !important;
+}
+
+.settings-scene .settings-card-header-warning .sun-icon,
+.settings-scene .settings-danger-panel .sun-icon,
+.settings-scene .danger-btn .sun-icon {
+    color: currentColor !important;
+}
+
+body.settings-home-open .settings-nav-group .nav-item.active > .sun-icon:first-child,
+body.settings-home-open .settings-logout-form .nav-item > .sun-icon:first-child {
+    background: transparent !important;
+    color: var(--settings-icon-tone) !important;
+}
+
+.settings-scene .settings-nav-profile-action {
+    border: 0 !important;
+    background: color-mix(in srgb, var(--sx-ink, var(--text)) 7%, transparent) !important;
+    color: var(--settings-icon-tone) !important;
+    box-shadow: none !important;
+}
+
+.settings-scene .settings-nav-profile-action:hover {
+    background: color-mix(in srgb, var(--sx-ink, var(--text)) 10%, transparent) !important;
+    filter: none !important;
+}
+
+.settings-scene .sp-brand-logo,
+.settings-scene .sp-connect-btn-icon,
+.settings-scene .sp-notice-icon,
+.settings-scene .sp-section-icon {
+    color: var(--settings-icon-tone) !important;
+    filter: grayscale(1) saturate(0) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .settings-scene .nav-item:hover,
+    body.settings-home-open .settings-nav-group .nav-item:hover {
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 5%, transparent) !important;
+        color: var(--sx-ink, var(--text)) !important;
+    }
+
+    .settings-scene .settings-row:hover {
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 4%, transparent) !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .settings-overlay-panel {
+        width: min(760px, calc(100vw - 48px)) !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: min(760px, 100%) !important;
+        padding: 8px 10px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 48px !important;
+        height: 48px !important;
+        padding: 3px 6px 3px 3px !important;
+        border-radius: 12px !important;
+    }
+
+    .settings-scene .settings-panel-title {
+        font-size: 16px !important;
+        font-weight: 650 !important;
+    }
+
+    .settings-scene .settings-panel-close,
+    .settings-scene .settings-panel-tool-btn {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 9px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        min-height: 0 !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: 64px !important;
+        height: 64px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-main {
+        margin-top: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-name {
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-status {
+        font-size: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        top: 10px !important;
+        right: 10px !important;
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-rows {
+        margin-top: 8px !important;
+        gap: 5px 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row {
+        min-height: 24px !important;
+        padding: 3px 8px !important;
+        border-radius: 999px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row > .sun-icon {
+        width: var(--s-icon-sm) !important;
+        min-width: var(--s-icon-sm) !important;
+        height: var(--s-icon-sm) !important;
+        flex-basis: var(--s-icon-sm) !important;
+    }
+
+    body.settings-home-open .settings-nav-list {
+        padding: 2px 0 !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 42px !important;
+        height: 42px !important;
+        gap: 10px !important;
+        padding: 0 32px 0 14px !important;
+        font-size: 13px !important;
+        background-position: right 14px center !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 13px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::after {
+        max-width: 42% !important;
+        margin-left: 8px !important;
+        font-size: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-group #navMetaIntegrations[data-meta]::after {
+        min-height: 18px !important;
+        padding: 0 7px !important;
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 8%, transparent) !important;
+        box-shadow: none !important;
+        color: var(--sx-ink-2, var(--sub-text)) !important;
+        font-size: 10.5px !important;
+        font-weight: 650 !important;
+        line-height: 18px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        max-width: 704px !important;
+        padding: 0 16px 16px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 0 !important;
+        padding: 12px 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card-header {
+        margin-bottom: 4px !important;
+    }
+
+    body.settings-detail-open .settings-card .settings-row + .settings-row {
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 42%, transparent) !important;
+        border-top: 0 !important;
+    }
+
+    body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+        grid-template-columns: minmax(132px, 164px) minmax(0, 1fr) !important;
+        column-gap: 22px !important;
+        padding-top: 14px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 92px !important;
+        height: 92px !important;
+        flex-basis: 92px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-name {
+        font-size: 18px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-scene {
+        --settings-ui-pad-x: 16px;
+        --settings-ui-card-gap: 10px;
+        --settings-ui-row-min: 56px;
+        --settings-ui-radius-lg: 14px;
+        --s-icon-md: 19px;
+        --s-icon-lg: 21px;
+    }
+
+    .settings-overlay-panel {
+        width: 100% !important;
+        height: var(--app-vh, 100dvh) !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: 100% !important;
+        padding: 8px 10px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 56px !important;
+        height: 56px !important;
+        padding: 5px 8px 5px 4px !important;
+        border-radius: 14px !important;
+    }
+
+    .settings-scene .settings-panel-title {
+        font-size: 18px !important;
+        font-weight: 650 !important;
+    }
+
+    .settings-scene .settings-panel-close,
+    .settings-scene .settings-panel-tool-btn {
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 10px 0 calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+        overflow-y: auto !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile,
+    body.settings-home-open .settings-nav-list,
+    body.settings-detail-open .settings-content {
+        border-radius: 14px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        padding: 16px 14px 13px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: min(calc(82px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+        height: min(calc(82px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        top: 12px !important;
+        right: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 54px !important;
+        height: auto !important;
+        padding: 0 36px 0 16px !important;
+        gap: 12px !important;
+        font-size: 14.5px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 14.5px !important;
+    }
+
+    .settings-scene .settings-row,
+    body.settings-detail-open .settings-row {
+        align-items: center !important;
+        min-height: 56px !important;
+        padding: 12px var(--settings-ui-pad-x) !important;
+    }
+
+    .settings-scene .settings-row-label {
+        font-size: 15px !important;
+    }
+
+    .settings-scene .settings-row-desc {
+        font-size: 13px !important;
+    }
+
+    .settings-scene .settings-input,
+    .settings-scene select.settings-select-control,
+    .settings-scene .chat-style-select {
+        min-height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    .settings-scene .btn-settings,
+    .settings-scene a.btn-settings,
+    .settings-scene label.btn-settings,
+    .settings-scene button.btn-settings {
+        min-height: 44px !important;
+        border-radius: 11px !important;
+        font-size: 14px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        padding: 0 0 18px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 10px !important;
+        padding: 4px 0 !important;
+        border-radius: 14px !important;
+    }
+
+    body.settings-detail-open .settings-card:first-child {
+        margin-top: 0 !important;
+    }
+}
+
+/* Higher-specificity guard against older colored icon chip rules. */
+.settings-scene .settings-card-header > svg.sun-icon,
+.settings-scene .settings-card-header > i,
+body.settings-home-open .settings-nav-group .nav-item > svg.sun-icon:first-child,
+body.settings-home-open .settings-logout-form .nav-item > svg.sun-icon:first-child,
+.settings-scene .settings-nav-profile-row > svg.sun-icon,
+.settings-scene .settings-privacy-item > svg.sun-icon:not(.settings-privacy-chevron),
+.settings-scene .settings-row-label > svg.sun-icon,
+.settings-scene .settings-warning-icon,
+.settings-scene .settings-panel-menu-item svg.sun-icon,
+.settings-scene .mnemonic-paste-all-btn svg.sun-icon {
+    width: var(--s-icon-md) !important;
+    min-width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+    flex: 0 0 var(--s-icon-md) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--settings-icon-tone) !important;
 }

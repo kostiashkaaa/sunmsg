@@ -69,8 +69,20 @@ export function initSettingsNavShell({
         return homeSectionSet.has(String(value || '').trim().toLowerCase());
     }
 
+    function getSettingsUxMode() {
+        return compactNavMedia.matches ? 'mobile' : 'desktop';
+    }
+
     function isCompactNav() {
-        return compactNavMedia.matches;
+        return getSettingsUxMode() === 'mobile';
+    }
+
+    function syncSettingsUxMode() {
+        const mode = getSettingsUxMode();
+        document.body.dataset.settingsUx = mode;
+        if (settingsSceneEl) {
+            settingsSceneEl.dataset.settingsUx = mode;
+        }
     }
 
     function setMobileNavOpen(nextState) {
@@ -131,6 +143,7 @@ export function initSettingsNavShell({
     }
 
     function syncCompactNavState() {
+        syncSettingsUxMode();
         if (!settingsNavEl || !settingsNavToggleEl) return;
         if (!isCompactNav()) {
             setMobileNavOpen(false);
@@ -183,7 +196,7 @@ export function initSettingsNavShell({
             activeItem.scrollIntoView({
                 block: 'nearest',
                 inline: 'nearest',
-                behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+                behavior: 'auto',
             });
         }
     }
@@ -232,48 +245,42 @@ export function initSettingsNavShell({
         cancelSectionAnimations(outgoing);
         cancelSectionAnimations(incoming);
         const compact = isCompactNav();
-        const sectionOutCompactX = getMotionDistanceTokenPx('--motion-distance-section-out-compact-x', 18);
-        const sectionOutDesktopX = getMotionDistanceTokenPx('--motion-distance-section-out-desktop-x', 22);
-        const sectionInCompactX = getMotionDistanceTokenPx('--motion-distance-section-in-compact-x', 30);
-        const sectionInDesktopX = getMotionDistanceTokenPx('--motion-distance-section-in-desktop-x', 34);
+        const sectionOutCompactX = getMotionDistanceTokenPx('--motion-distance-section-out-compact-x', 14);
+        const sectionInCompactX = getMotionDistanceTokenPx('--motion-distance-section-in-compact-x', 18);
+        const sectionOutDesktopDistance = 4;
+        const sectionInDesktopDistance = 6;
         const outgoingEnd = compact
-            ? `translate3d(-${sectionOutCompactX}px, 0, 0) scale(0.985)`
-            : `translate3d(-${sectionOutDesktopX}px, 0, 0) scale(0.988)`;
+            ? `translate3d(-${sectionOutCompactX}px, 0, 0)`
+            : 'translate3d(0, 4px, 0)';
         const incomingStart = compact
-            ? `translate3d(${sectionInCompactX}px, 0, 0) scale(0.972)`
-            : `translate3d(${sectionInDesktopX}px, 0, 0) scale(0.982)`;
-        const outgoingBaseDuration = compact
-            ? getMotionDurationTokenMs('--motion-duration-section-out-compact', 240)
-            : getMotionDurationTokenMs('--motion-duration-section-out-desktop', 300);
-        const incomingBaseDuration = compact
-            ? getMotionDurationTokenMs('--motion-duration-section-in-compact', 360)
-            : getMotionDurationTokenMs('--motion-duration-section-in-desktop', 500);
-        const outgoingDuration = Math.max(
-            outgoingBaseDuration,
-            getVelocityAwareDurationMs(compact ? sectionOutCompactX : sectionOutDesktopX, {
+            ? `translate3d(${sectionInCompactX}px, 0, 0)`
+            : 'translate3d(0, 6px, 0)';
+        const outgoingDuration = Math.min(
+            getVelocityAwareDurationMs(compact ? sectionOutCompactX : sectionOutDesktopDistance, {
                 minToken: '--motion-duration-fast',
                 maxToken: '--motion-duration-medium',
-                fallbackMinMs: 180,
-                fallbackMaxMs: 300,
+                fallbackMinMs: compact ? 90 : 80,
+                fallbackMaxMs: compact ? 140 : 120,
             }),
+            compact ? 140 : 120,
         );
-        const incomingDuration = Math.max(
-            incomingBaseDuration,
-            getVelocityAwareDurationMs(compact ? sectionInCompactX : sectionInDesktopX, {
+        const incomingDuration = Math.min(
+            getVelocityAwareDurationMs(compact ? sectionInCompactX : sectionInDesktopDistance, {
                 minToken: '--motion-duration-fast',
                 maxToken: '--motion-duration-emphasis',
-                fallbackMinMs: 180,
-                fallbackMaxMs: 500,
+                fallbackMinMs: compact ? 140 : 120,
+                fallbackMaxMs: compact ? 210 : 170,
             }),
+            compact ? 210 : 170,
         );
-        const outgoingEasing = getMotionEasingToken('--motion-ease-exit', 'cubic-bezier(.4,0,.2,1)');
-        const incomingEasing = getMotionEasingToken('--motion-ease-enter', 'cubic-bezier(.4,0,.2,1)');
+        const outgoingEasing = getMotionEasingToken('--motion-ease-exit', 'cubic-bezier(.32,0,.67,0)');
+        const incomingEasing = getMotionEasingToken('--motion-ease-enter', 'cubic-bezier(.16,1,.3,1)');
 
         if (outgoing && typeof outgoing.animate === 'function') {
             outgoing.animate(
                 [
-                    { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)', filter: 'blur(0px)' },
-                    { opacity: 0, transform: outgoingEnd, filter: 'blur(2px)' },
+                    { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+                    { opacity: 0, transform: outgoingEnd },
                 ],
                 {
                     duration: outgoingDuration,
@@ -285,8 +292,8 @@ export function initSettingsNavShell({
 
         incoming.animate(
             [
-                { opacity: 0, transform: incomingStart, filter: 'blur(3px)' },
-                { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)', filter: 'blur(0px)' },
+                { opacity: 0, transform: incomingStart },
+                { opacity: 1, transform: 'translate3d(0, 0, 0)' },
             ],
             {
                 duration: incomingDuration,
@@ -385,7 +392,7 @@ export function initSettingsNavShell({
             animateSectionTransition(current, target);
 
             const transitionSeq = ++sectionTransitionSeq;
-            const transitionFallbackMs = isCompactNav() ? 390 : 540;
+            const transitionFallbackMs = isCompactNav() ? 240 : 190;
             Promise.all([
                 waitForMotionEnd(current, transitionFallbackMs),
                 waitForMotionEnd(target, transitionFallbackMs),
