@@ -94,6 +94,61 @@ def test_send_request_rejects_repeat_bursts_with_cooldown(monkeypatch, tmp_path)
 
     assert int(row['cnt']) == 1
 
+
+def test_get_dialog_requests_includes_outgoing_pending_request(monkeypatch, tmp_path):
+    db_path = tmp_path / 'outgoing-dialog-request-list.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob')
+            '''
+        )
+        conn.commit()
+
+    alice_client = _authed_client(app, 1, 'pk-1')
+    bob_client = _authed_client(app, 2, 'pk-2')
+
+    send_response = alice_client.post('/send_request', json={'contact_user_id': 2})
+    assert send_response.status_code == 200
+    assert send_response.get_json()['success'] is True
+
+    alice_response = alice_client.get('/get_dialog_requests')
+    alice_payload = alice_response.get_json()
+
+    assert alice_response.status_code == 200
+    assert alice_payload['success'] is True
+    assert alice_payload['dialog_requests'] == [
+        {
+            'request_direction': 'outgoing',
+            'receiver_user_id': 2,
+            'receiver_public_key': 'pk-2',
+            'receiver_username': 'bob',
+            'receiver_display_name': 'Bob',
+        }
+    ]
+
+    bob_response = bob_client.get('/get_dialog_requests')
+    bob_payload = bob_response.get_json()
+
+    assert bob_response.status_code == 200
+    assert bob_payload['success'] is True
+    assert bob_payload['dialog_requests'] == [
+        {
+            'request_direction': 'incoming',
+            'sender_public_key': 'pk-1',
+            'sender_username': 'alice',
+            'sender_display_name': 'Alice',
+        }
+    ]
+
+
 def test_start_dialog_from_public_card_sends_request_or_opens_existing_chat(monkeypatch, tmp_path):
     db_path = tmp_path / 'public-user-card-start.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)

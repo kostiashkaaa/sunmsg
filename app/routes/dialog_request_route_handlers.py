@@ -79,9 +79,15 @@ def process_get_dialog_requests(
     *,
     user_id: int,
     fetch_pending_dialog_requests_for_user_func,
+    fetch_pending_outgoing_dialog_requests_for_user_func=None,
 ):
     try:
         requests_list = fetch_pending_dialog_requests_for_user_func(conn, user_id=user_id)
+        if fetch_pending_outgoing_dialog_requests_for_user_func is not None:
+            requests_list = [
+                *requests_list,
+                *fetch_pending_outgoing_dialog_requests_for_user_func(conn, user_id=user_id),
+            ]
     except Exception:
         return {'status': 'error'}
 

@@ -124,6 +124,27 @@ def test_process_get_dialog_requests_maps_success_and_error():
     assert result == {'status': 'error'}
 
 
+def test_process_get_dialog_requests_merges_outgoing_requests():
+    result = process_get_dialog_requests(
+        object(),
+        user_id=1,
+        fetch_pending_dialog_requests_for_user_func=lambda conn, *, user_id: [
+            {'request_direction': 'incoming', 'sender_public_key': 'pk-2'},
+        ],
+        fetch_pending_outgoing_dialog_requests_for_user_func=lambda conn, *, user_id: [
+            {'request_direction': 'outgoing', 'receiver_public_key': 'pk-3'},
+        ],
+    )
+
+    assert result == {
+        'status': 'ok',
+        'dialog_requests': [
+            {'request_direction': 'incoming', 'sender_public_key': 'pk-2'},
+            {'request_direction': 'outgoing', 'receiver_public_key': 'pk-3'},
+        ],
+    }
+
+
 def test_process_accept_and_decline_request_route_delegate_with_sender_key():
     accept_captured = {}
 

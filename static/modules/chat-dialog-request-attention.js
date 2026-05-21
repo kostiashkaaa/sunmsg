@@ -48,7 +48,9 @@ function getCopy() {
 }
 
 function currentRequestCount() {
-    return document.getElementById('dialogRequestsList')?.children?.length || 0;
+    return document.querySelectorAll(
+        '#dialogRequestsList .request-item:not([data-request-direction="outgoing"])',
+    ).length;
 }
 
 function isRequestsTabActive() {

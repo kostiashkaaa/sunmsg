@@ -87,6 +87,20 @@ function findDialogRequestActionButtonByRequestId(dialogRequestsList, requestId)
     return null;
 }
 
+function findDialogRequestItemByPeerKey(dialogRequestsList, peerPublicKey) {
+    if (!dialogRequestsList) return null;
+    const normalizedPeerKey = String(peerPublicKey || '');
+    if (!normalizedPeerKey) return null;
+
+    const requestItems = dialogRequestsList.querySelectorAll('.request-item[data-request-peer-key]');
+    for (const item of requestItems) {
+        if (String(item.getAttribute('data-request-peer-key') || '') === normalizedPeerKey) {
+            return item;
+        }
+    }
+    return null;
+}
+
 export function registerSystemSocketHandlers({
     socket,
     escapeHtml,
@@ -115,6 +129,7 @@ export function registerSystemSocketHandlers({
     hideTyping,
     isDialogRequestsMuted = () => false,
     dropChatCache,
+    loadDialogRequests = null,
     onChatDraftUpdated = null,
     refreshCurrentGroupProfileIfVisible = null,
     onChatAutoDeleteUpdated = null,
@@ -155,6 +170,8 @@ export function registerSystemSocketHandlers({
         const item = document.createElement('div');
         item.className = 'request-item';
         item.setAttribute('data-request-kind', 'dialog');
+        item.setAttribute('data-request-direction', 'incoming');
+        if (data?.sender_public_key) item.setAttribute('data-request-peer-key', data.sender_public_key);
         item.innerHTML = buildDialogRequestItemHtml(data, escapeHtml).trim();
         applyFallbackAvatarTint(
             item.querySelector('.contact-avatar'),
@@ -178,6 +195,8 @@ export function registerSystemSocketHandlers({
         const item = document.createElement('div');
         item.className = 'request-item';
         item.setAttribute('data-request-kind', 'group_invite');
+        item.setAttribute('data-request-direction', 'incoming');
+        if (data?.sender_public_key) item.setAttribute('data-request-peer-key', data.sender_public_key);
         item.innerHTML = buildGroupInviteRequestItemHtml(data, escapeHtml).trim();
         applyFallbackAvatarTint(
             item.querySelector('.contact-avatar'),
@@ -195,8 +214,13 @@ export function registerSystemSocketHandlers({
             dialogRequestsList,
             data?.sender_public_key,
         );
-        const item = btn?.closest('.request-item');
+        const item = btn?.closest('.request-item')
+            || findDialogRequestItemByPeerKey(
+                dialogRequestsList,
+                data?.sender_public_key || data?.receiver_public_key || data?.public_key,
+            );
         if (item) item.remove();
+        else loadDialogRequests?.();
         updateDialogRequestsBadge();
     });
 
@@ -213,6 +237,7 @@ export function registerSystemSocketHandlers({
     socket.on('chat_created', (data) => {
         if (!data.contact) return;
         window.closeCommandPalette?.();
+        loadDialogRequests?.();
         updateContact(data.contact).finally(() => {
             sortContactsList();
             Promise.resolve(loadContacts({ immediate: true, attemptInitialChatRestore: false }));

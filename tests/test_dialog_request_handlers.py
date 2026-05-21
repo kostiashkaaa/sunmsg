@@ -4,6 +4,7 @@ from app.routes.dialog_request_handlers import (
     build_accept_request_socket_events,
     build_decline_request_socket_event,
     fetch_pending_dialog_requests_for_user,
+    fetch_pending_outgoing_dialog_requests_for_user,
 )
 from tests._pg_test_db import connect_test_db
 
@@ -80,9 +81,55 @@ def test_fetch_pending_dialog_requests_for_user_filters_blocked_pairs(tmp_path):
 
     assert requests == [
         {
+            'request_direction': 'incoming',
             'sender_public_key': 'pk-2',
             'sender_username': 'bob',
             'sender_display_name': 'Bob',
+        }
+    ]
+
+
+def test_fetch_pending_outgoing_dialog_requests_for_user_filters_blocked_pairs(tmp_path):
+    db_path = tmp_path / 'dialog-requests-outgoing.db'
+    with _connect(db_path) as conn:
+        _prepare_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES
+                (1, 'pk-1', 'alice', 'Alice'),
+                (2, 'pk-2', 'bob', 'Bob'),
+                (3, 'pk-3', 'carol', 'Carol'),
+                (4, 'pk-4', 'dave', 'Dave')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO dialog_requests (sender_id, receiver_id, status)
+            VALUES
+                (1, 2, 'pending'),
+                (1, 3, 'pending'),
+                (1, 4, 'accepted')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO block_list (blocker_id, blocked_id)
+            VALUES
+                (3, 1)
+            '''
+        )
+        conn.commit()
+
+        requests = fetch_pending_outgoing_dialog_requests_for_user(conn, user_id=1)
+
+    assert requests == [
+        {
+            'request_direction': 'outgoing',
+            'receiver_user_id': 2,
+            'receiver_public_key': 'pk-2',
+            'receiver_username': 'bob',
+            'receiver_display_name': 'Bob',
         }
     ]
 

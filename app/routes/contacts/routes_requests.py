@@ -8,6 +8,7 @@ from app.routes.dialog_request_handlers import (
     build_accept_request_socket_events,
     build_decline_request_socket_event,
     fetch_pending_dialog_requests_for_user,
+    fetch_pending_outgoing_dialog_requests_for_user,
 )
 from app.routes.dialog_request_route_handlers import (
     process_accept_request,
@@ -265,6 +266,7 @@ def get_dialog_requests():
         conn,
         user_id=user_id,
         fetch_pending_dialog_requests_for_user_func=fetch_pending_dialog_requests_for_user,
+        fetch_pending_outgoing_dialog_requests_for_user_func=fetch_pending_outgoing_dialog_requests_for_user,
     )
 
     if result['status'] == 'error':

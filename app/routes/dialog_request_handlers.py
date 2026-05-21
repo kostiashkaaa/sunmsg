@@ -95,9 +95,39 @@ def fetch_pending_dialog_requests_for_user(conn, *, user_id: int) -> list[dict]:
 
     return [
         {
+            'request_direction': 'incoming',
             'sender_public_key': req['sender_public_key'],
             'sender_username': req['username'],
             'sender_display_name': req['display_name'],
+        }
+        for req in dialog_requests
+    ]
+
+
+def fetch_pending_outgoing_dialog_requests_for_user(conn, *, user_id: int) -> list[dict]:
+    dialog_requests = conn.execute(
+        '''
+        SELECT u.id as receiver_user_id, u.public_key as receiver_public_key, u.username, u.display_name
+        FROM dialog_requests dr
+        JOIN users u ON dr.receiver_id = u.id
+        WHERE dr.sender_id = ? AND dr.status = 'pending'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM block_list b
+              WHERE (b.blocker_id = ? AND b.blocked_id = dr.receiver_id)
+                 OR (b.blocker_id = dr.receiver_id AND b.blocked_id = ?)
+          )
+        ''',
+        (user_id, user_id, user_id),
+    ).fetchall()
+
+    return [
+        {
+            'request_direction': 'outgoing',
+            'receiver_user_id': req['receiver_user_id'],
+            'receiver_public_key': req['receiver_public_key'],
+            'receiver_username': req['username'],
+            'receiver_display_name': req['display_name'],
         }
         for req in dialog_requests
     ]

@@ -21,11 +21,31 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
     const dialogRequestsList    = document.getElementById('dialogRequestsList');
     const dialogRequestsSection = document.getElementById('dialogRequestsSection');
 
+    function getDialogRequestPerson(req) {
+        const outgoing = req.request_direction === 'outgoing';
+        return {
+            displayName: outgoing ? req.receiver_display_name : req.sender_display_name,
+            username: outgoing ? req.receiver_username : req.sender_username,
+            publicKey: outgoing ? req.receiver_public_key : req.sender_public_key,
+            outgoing,
+        };
+    }
+
     function buildDialogRequestItem(req) {
-        const initials = (req.sender_display_name || req.sender_username || '?')
+        const person = getDialogRequestPerson(req);
+        const initials = (person.displayName || person.username || '?')
             .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-        const displayName = req.sender_display_name || req.sender_username || '\u0417\u0430\u043f\u0440\u043e\u0441';
-        const username = req.sender_username ? `@${escapeHtml(req.sender_username)}` : '';
+        const displayName = person.displayName || person.username || '\u0417\u0430\u043f\u0440\u043e\u0441';
+        const username = person.username ? `@${escapeHtml(person.username)}` : '';
+        const subtitle = person.outgoing
+            ? '\u0417\u0430\u043f\u0440\u043e\u0441 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d'
+            : '\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433';
+        const actions = person.outgoing
+            ? '<div class="req-actions req-actions--status"><span class="req-status">\u041e\u0436\u0438\u0434\u0430\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430</span></div>'
+            : `<div class="req-actions">
+                <button class="req-btn accept" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
+                <button class="req-btn decline" data-key="${escapeHtml(person.publicKey)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
+            </div>`;
         return `
             <div class="contact-avatar contact-avatar--request">${escapeHtml(initials)}</div>
             <div class="req-info">
@@ -33,12 +53,9 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
                     <span class="req-kind-badge">\u0417\u0430\u043f\u0440\u043e\u0441</span>
                     <span class="req-name">${escapeHtml(displayName)}</span>
                 </div>
-                <div class="req-username">\u0425\u043e\u0447\u0435\u0442 \u043d\u0430\u0447\u0430\u0442\u044c \u0434\u0438\u0430\u043b\u043e\u0433${username ? ` · ${username}` : ''}</div>
+                <div class="req-username">${subtitle}${username ? ` · ${username}` : ''}</div>
             </div>
-            <div class="req-actions">
-                <button class="req-btn accept" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">\u041f\u0440\u0438\u043d\u044f\u0442\u044c</span></button>
-                <button class="req-btn decline" data-key="${escapeHtml(req.sender_public_key)}"><span class="req-btn-label">\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c</span></button>
-            </div>`;
+            ${actions}`;
     }
 
     function buildGroupInviteRequestItem(req) {
@@ -80,14 +97,17 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
 
                     requests.forEach(function(req) {
                         const item = document.createElement('div');
+                        const person = getDialogRequestPerson(req);
                         item.className = 'request-item';
                         item.setAttribute('data-request-kind', req.request_kind === 'group_invite' ? 'group_invite' : 'dialog');
+                        item.setAttribute('data-request-direction', person.outgoing ? 'outgoing' : 'incoming');
+                        if (person.publicKey) item.setAttribute('data-request-peer-key', person.publicKey);
                         item.innerHTML = req.request_kind === 'group_invite'
                             ? buildGroupInviteRequestItem(req)
                             : buildDialogRequestItem(req);
                         applyFallbackAvatarTint(
                             item.querySelector('.contact-avatar'),
-                            req.sender_display_name || req.sender_username || '?',
+                            person.displayName || person.username || req.sender_display_name || req.sender_username || '?',
                         );
                         dialogRequestsList.appendChild(item);
                     });
@@ -140,7 +160,11 @@ export function initDialogRequests({ onAccepted, onListUpdated } = {}) {
         });
     }
 
-    return { loadDialogRequests };
+    const api = { loadDialogRequests };
+    if (typeof window !== 'undefined') {
+        window.SUN_DIALOG_REQUESTS = api;
+    }
+    return api;
 }
 
 // normalized: removed mojibake comment
@@ -168,6 +192,9 @@ export function sendDialogRequest(userId, displayName, options = {}) {
                     button.disabled = true;
                     button.innerHTML = `${STANDARD_SINGLE_CHECK_UI_HTML} \u041E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E`;
                 }
+            }
+            if (typeof window !== 'undefined') {
+                window.SUN_DIALOG_REQUESTS?.loadDialogRequests?.();
             }
         } else {
             console.warn('[DialogRequests] send failed', getErrorMessage(data.error));
