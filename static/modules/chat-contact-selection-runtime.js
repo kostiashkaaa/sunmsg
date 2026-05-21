@@ -61,6 +61,7 @@ export function bindChatContactSelectionRuntime({
     joinChatRoom = () => {},
     openChat = () => {},
     restoreLastActiveChatSelection = () => false,
+    isInitialChatRestoreDeferred = () => false,
     getHasAttemptedInitialChatRestore = () => false,
     setHasAttemptedInitialChatRestore = () => {},
 } = {}) {
@@ -239,7 +240,7 @@ export function bindChatContactSelectionRuntime({
         }));
     });
 
-    if (!getHasAttemptedInitialChatRestore()) {
+    if (!getHasAttemptedInitialChatRestore() && !isInitialChatRestoreDeferred()) {
         setHasAttemptedInitialChatRestore(restoreLastActiveChatSelection());
     }
 }

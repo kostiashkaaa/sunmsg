@@ -221,7 +221,7 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert '.contact-last-msg-loading__line' in components_css
 
 
-def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
+def test_sidebar_loading_shell_is_shared_for_initial_contact_sync() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
     sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')
     sidebar_template_src = (ROOT / 'templates' / 'chat' / '_sidebar.html').read_text(encoding='utf-8')
@@ -237,19 +237,19 @@ def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingShell" in sidebar_runtime_src
-    assert "const shouldShowBlockingShell = shouldBatchHydrate && !hasStableContactRows" in sidebar_runtime_src
+    assert "function isInitialSyncRequired()" in sidebar_runtime_src
+    assert "!hasStableContactRows || isInitialSyncRequired()" in sidebar_runtime_src
     assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" not in sidebar_runtime_src
     assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" not in sidebar_runtime_src
     assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src
     assert "const hasRenderedContactsBeforeLoad = Boolean(" not in sidebar_runtime_src
     assert 'const shouldShowBlockingShell = !isPartialLoad && !hasRenderedContactsBeforeLoad' not in sidebar_runtime_src
-    clear_idx = sidebar_runtime_src.index('setContactsLoadingState(false, { partial: isPartialLoad });')
+    clear_idx = sidebar_runtime_src.rindex('setContactsLoadingState(false, { partial: isPartialLoad });')
     decrypt_idx = sidebar_runtime_src.index('await runWithConcurrency(')
-    assert clear_idx < decrypt_idx
+    assert decrypt_idx < clear_idx
     assert 'contact-item--preview-loading' in sidebar_template_src
-    assert 'sidebar_loading' not in sidebar_template_src
-    assert '<aside class="sidebar" id="sidebar" data-sidebar-loading="0">' in sidebar_template_src
-    assert 'sidebar--loading' not in sidebar_template_src
+    assert 'data-initial-sync-required="{{ \'1\' if contacts_initial_sync.required else \'0\' }}"' in sidebar_template_src
+    assert '<aside class="sidebar{% if contacts_initial_sync.required %} sidebar--loading{% endif %}"' in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"
@@ -263,7 +263,8 @@ def test_sidebar_loading_shell_clears_before_preview_decrypt_finishes() -> None:
     assert '.sidebar.sidebar--loading .search-input-wrapper::before' in components_css
     assert '@keyframes sidebarLoadingSurfaceSweep' in components_css
     assert '.sidebar.sidebar--loading #contactsList .contact-item::after' in components_css
-    assert '.sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg' in components_css
+    assert '.sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg' in components_css
+    assert '.sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg' not in components_css
     assert '.sidebar.sidebar--loading .sidebar-profile-card::after' in components_css
     assert '.sidebar.sidebar--loading .sidebar-bottom-avatar::after' in components_css
     assert '.sidebar.sidebar--loading .sidebar-status-chip--inline' in components_css

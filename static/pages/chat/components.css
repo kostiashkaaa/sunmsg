@@ -2196,6 +2196,23 @@
         }
 
 
+        .req-actions--status {
+            justify-content: flex-end;
+        }
+
+
+        .req-status {
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--sub-text);
+            background: color-mix(in srgb, var(--surface-3) 72%, transparent);
+            border: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+
         .req-btn {
             border: none;
             border-radius: 6px;
@@ -2247,6 +2264,11 @@
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
+            }
+
+            .req-actions--status {
+                display: flex;
+                justify-content: flex-start;
             }
 
             .req-btn {
@@ -2759,7 +2781,7 @@
         .sidebar.sidebar--loading #contactsList .contact-item .contact-avatar::after,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-name::after,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta::after,
-        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg::after,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg::after,
         .sidebar.sidebar--loading .sidebar-profile-card::after,
         .sidebar.sidebar--loading .sidebar-bottom-avatar::after,
         .sidebar.sidebar--loading .sidebar-bottom-name::after,
@@ -2826,7 +2848,7 @@
 
         .sidebar.sidebar--loading #contactsList .contact-item .contact-name,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta,
-        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg,
         .sidebar.sidebar--loading .sidebar-bottom-name,
         .sidebar.sidebar--loading .sidebar-username,
         .sidebar.sidebar--loading .sidebar-status-chip--inline,
@@ -2842,7 +2864,7 @@
         .sidebar.sidebar--loading .search-input-wrapper::before,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-name,
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta,
-        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg,
         .sidebar.sidebar--loading .sidebar-bottom-name,
         .sidebar.sidebar--loading .sidebar-username,
         .sidebar.sidebar--loading .sidebar-status-chip--inline,
@@ -2868,7 +2890,7 @@
             padding: 0;
         }
 
-        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg {
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg {
             width: min(122px, 64%) !important;
             max-width: min(122px, 64%) !important;
             min-width: 92px;
@@ -2878,7 +2900,7 @@
         }
 
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta > *,
-        .sidebar.sidebar--loading #contactsList .contact-item:not(.contact-item--preview-loading) .contact-last-msg > *,
+        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg > *,
         .sidebar.sidebar--loading #contactsList .pin-icon,
         .sidebar.sidebar--loading #contactsList .mute-icon,
         .sidebar.sidebar--loading #contactsList .favorite-icon,

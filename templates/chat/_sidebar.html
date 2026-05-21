@@ -1,4 +1,12 @@
-    <aside class="sidebar" id="sidebar" data-sidebar-loading="0">
+    {% set contacts_initial_sync = namespace(required=has_more_initial_contacts) %}
+    {% for contact in initial_contacts %}
+        {% set draft_text_probe = contact.draft_text or '' %}
+        {% set has_draft_probe = contact.has_draft and draft_text_probe.strip() %}
+        {% if (not has_draft_probe) and contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
+            {% set contacts_initial_sync.required = true %}
+        {% endif %}
+    {% endfor %}
+    <aside class="sidebar{% if contacts_initial_sync.required %} sidebar--loading{% endif %}" id="sidebar" data-sidebar-loading="{{ '1' if contacts_initial_sync.required else '0' }}">
         <div class="side-resizer" id="sideResizer"></div>
 
         <div class="sidebar-top-card">
@@ -76,7 +84,14 @@
                 </div>
                 <div id="dialogRequestsList"></div>
             </div>
-            <div id="contactsList" data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}">
+            <div id="contactsList"
+                 class="{% if contacts_initial_sync.required %}contacts-list--loading{% endif %}"
+                 data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}"
+                 data-initial-sync-required="{{ '1' if contacts_initial_sync.required else '0' }}"
+                 data-contacts-loading="{{ '1' if contacts_initial_sync.required else '0' }}"
+                 data-contacts-loading-partial="0"
+                 data-contacts-loading-shell="{{ '1' if contacts_initial_sync.required else '0' }}"
+                 aria-busy="{{ 'true' if contacts_initial_sync.required else 'false' }}">
                 {% for contact in initial_contacts %}
                 {% set display_name = contact.display_name or contact.username or '' %}
                 {% set initials = (display_name[:1] or '?')|upper %}

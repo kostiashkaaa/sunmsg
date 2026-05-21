@@ -108,6 +108,15 @@ export function initChatContactsSidebar({
         }
     }
 
+    function isInitialSyncRequired() {
+        return String(contactsList?.dataset?.initialSyncRequired || '') === '1';
+    }
+
+    function clearInitialSyncRequired() {
+        if (!contactsList) return;
+        contactsList.dataset.initialSyncRequired = '0';
+    }
+
     syncSidebarLoadingShellState();
 
     function animateContactEntry(item, renderIndex = 0) {
@@ -225,9 +234,12 @@ export function initChatContactsSidebar({
     function updateDialogRequestsBadge(dialogRequestsList, dialogRequestsSection) {
         if (!dialogRequestsList || !dialogRequestsSection) return;
         const count = dialogRequestsList.children.length;
+        const incomingCount = dialogRequestsList.querySelectorAll(
+            '.request-item:not([data-request-direction="outgoing"])',
+        ).length;
         const countEl = document.getElementById('requestsCount');
         if (countEl) countEl.textContent = count > 0 ? `(${count})` : '';
-        syncDialogRequestAttentionCount(count);
+        syncDialogRequestAttentionCount(incomingCount);
         const activeSidebarTab = String(
             document.body?.dataset?.sidebarTab
             || document.querySelector('.sidebar-tab.active')?.getAttribute('data-tab')
@@ -486,7 +498,9 @@ export function initChatContactsSidebar({
             const hasStableContactRows = Boolean(
                 contactsList?.querySelector('.contact-item[data-chat-id]'),
             );
-            const shouldShowBlockingShell = shouldBatchHydrate && !hasStableContactRows;
+            const shouldShowBlockingShell = shouldBatchHydrate && (
+                !hasStableContactRows || isInitialSyncRequired()
+            );
             setContactsLoadingState(true, {
                 partial: isPartialLoad,
                 shell: shouldShowBlockingShell,
@@ -518,6 +532,7 @@ export function initChatContactsSidebar({
                                 );
                                 if (
                                     hasRenderedContacts
+                                    && !isInitialSyncRequired()
                                     && nextSignature === lastFullContactsPayloadSignature
                                     && (!hasPendingEncryptedPreview || !canRetryEncryptedPreviewDecrypt)
                                 ) {
@@ -531,7 +546,6 @@ export function initChatContactsSidebar({
                                 lastFullContactsPayloadSignature = nextSignature;
                                 reconcileContactsList(orderedContacts);
                             }
-                            setContactsLoadingState(false, { partial: isPartialLoad });
                             await runWithConcurrency(
                                 orderedContacts,
                                 shouldBatchHydrate ? 1 : CONTACTS_DECRYPT_CONCURRENCY,
@@ -548,6 +562,7 @@ export function initChatContactsSidebar({
                                     ? 0
                                     : Math.max(0, previousScrollTop + scrollDelta);
                             }
+                            clearInitialSyncRequired();
                             if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore()) {
                                 setHasAttemptedInitialChatRestore(true);
                                 restoreLastActiveChatSelection();
@@ -666,6 +681,7 @@ export function initChatContactsSidebar({
         updateDialogRequestsBadge,
         reconcileContactsList,
         updateContact,
+        isInitialSyncRequired,
         loadContactsNow,
         loadContacts,
         updateSidebarForOtherChat,
