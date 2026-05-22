@@ -105,7 +105,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
 
         if (themeToggleLabelEl) themeToggleLabelEl.textContent = isEn ? 'Theme' : 'Тема';
         if (themeToggleBtn) {
-            const label = isEn ? 'Switch theme' : 'Переключить тему';
+            const label = isEn ? 'Theme, switch theme' : 'Тема, переключить тему';
             themeToggleBtn.setAttribute('title', label);
             themeToggleBtn.setAttribute('aria-label', label);
         }

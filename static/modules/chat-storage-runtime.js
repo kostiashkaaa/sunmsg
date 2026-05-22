@@ -105,11 +105,18 @@ export function createChatStorageRuntime({
     });
     outboxRuntime.init();
     mountOutboxPill(outboxRuntime);
-    const enqueueOutboxMessage = (entry) => outboxRuntime.enqueue(entry);
+    const enqueueOutboxMessage = async (entry) => {
+        const queued = await outboxRuntime.enqueue(entry);
+        if (queued && windowRef.SUN_PWA && typeof windowRef.SUN_PWA.registerBackgroundSync === 'function') {
+            try { await windowRef.SUN_PWA.registerBackgroundSync('sun-outbox-sync'); } catch (_) {}
+        }
+        return queued;
+    };
     const drainOutboxOnce = () => outboxRuntime.drainOnce(emitSocket);
     const removeOutboxByClientId = (clientId) => outboxRuntime.remove(clientId);
     socket.on('connect', () => { void drainOutboxOnce(); });
     windowRef.addEventListener('online', () => { void drainOutboxOnce(); });
+    windowRef.addEventListener('sun-pwa-background-sync', () => { void drainOutboxOnce(); });
     socket.on('message_sent', (data) => {
         const clientId = String(data?.client_id || '').trim();
         if (clientId) void removeOutboxByClientId(clientId);

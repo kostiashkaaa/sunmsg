@@ -1,5 +1,5 @@
 import { getCsrfToken } from './csrf.js';
-import { bindServiceWorkerUpdateLifecycle } from './service-worker-update.js';
+import { ensurePwaServiceWorkerRegistration } from './pwa-runtime.js';
 
 const PROMPT_ONCE_KEY = 'sun_web_push_prompted_v1';
 
@@ -42,8 +42,8 @@ export async function initWebPush({
 
     let registration = null;
     try {
-        registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
-        bindServiceWorkerUpdateLifecycle({ registration });
+        registration = await ensurePwaServiceWorkerRegistration();
+        if (!registration) return;
     } catch (_error) {
         return;
     }

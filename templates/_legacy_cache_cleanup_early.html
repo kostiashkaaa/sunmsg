@@ -2,7 +2,7 @@
 (() => {
     'use strict';
 
-    const RELOAD_MARKER = 'sun.legacyCacheCleanupReloaded.v2';
+    const RELOAD_MARKER = 'sun.legacyCacheCleanupReloaded.v3';
 
     function sessionGet(key) {
         try {
@@ -24,12 +24,12 @@
         } catch (_error) {}
     }
 
-    function isSunServiceWorkerRegistration(registration) {
+    function isLegacySunServiceWorkerRegistration(registration) {
         const scriptUrl = registration?.active?.scriptURL
             || registration?.waiting?.scriptURL
             || registration?.installing?.scriptURL
             || '';
-        return scriptUrl.includes('/static/service-worker.js') || scriptUrl.includes('/service-worker.js');
+        return scriptUrl.includes('/static/service-worker.js');
     }
 
     async function clearLegacySunCache() {
@@ -38,7 +38,7 @@
         if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             await Promise.all(registrations.map((registration) => {
-                if (!isSunServiceWorkerRegistration(registration)) {
+                if (!isLegacySunServiceWorkerRegistration(registration)) {
                     return null;
                 }
                 cleared = true;

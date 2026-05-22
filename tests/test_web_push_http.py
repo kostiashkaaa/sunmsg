@@ -56,6 +56,30 @@ def test_service_worker_route_served(monkeypatch, tmp_path):
     assert response.status_code == 200
     assert response.headers.get('Service-Worker-Allowed') == '/'
     assert 'javascript' in str(response.headers.get('Content-Type') or '')
+    body = response.get_data(as_text=True)
+    assert "sunmessenger-pwa-" in body
+    assert "fetch" in body
+    assert "SUN_BACKGROUND_SYNC" in body
+    assert "/static/offline.html" in body
+
+
+def test_manifest_is_installable_pwa_manifest(monkeypatch, tmp_path):
+    db_path = tmp_path / 'web-push-manifest.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+
+    response = app.test_client().get('/static/manifest.json')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['name'] == 'SUN Messenger'
+    assert payload['start_url'] == '/chat?source=pwa'
+    assert payload['scope'] == '/'
+    assert payload['display'] == 'standalone'
+    assert any(
+        icon['sizes'] == '192x192' and 'maskable' in icon.get('purpose', '')
+        for icon in payload['icons']
+    )
 
 
 def test_web_push_public_key_endpoint(monkeypatch, tmp_path):

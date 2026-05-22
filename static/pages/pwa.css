@@ -1,0 +1,53 @@
+.sun-pwa-update {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 12px 14px;
+    border: 1px solid rgba(34, 29, 25, 0.14);
+    border-radius: 8px;
+    background: var(--paper, #fffdf8);
+    background: color-mix(in srgb, var(--paper, #fffdf8) 94%, transparent);
+    color: var(--text, #221d19);
+    box-shadow: 0 14px 36px rgba(20, 16, 12, 0.18);
+    backdrop-filter: blur(18px);
+}
+
+.sun-pwa-update__text {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.sun-pwa-update__button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent, #c58a22);
+    color: var(--text-inv, #fffdf8);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.sun-pwa-update__button:focus-visible {
+    outline: 2px solid rgba(197, 138, 34, 0.48);
+    outline: 2px solid color-mix(in srgb, var(--accent, #c58a22) 48%, transparent);
+    outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+    .sun-pwa-update {
+        right: max(10px, env(safe-area-inset-right, 0px));
+        bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        left: max(10px, env(safe-area-inset-left, 0px));
+        max-width: none;
+    }
+}

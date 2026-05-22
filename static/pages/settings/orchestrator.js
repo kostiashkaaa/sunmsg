@@ -516,6 +516,10 @@ export function initSettingsPage() {
                     localStorage.removeItem('last_user_id');
                 } catch (_) {}
 
+                if (window.SUN_PWA && typeof window.SUN_PWA.clearPrivateCaches === 'function') {
+                    try { await window.SUN_PWA.clearPrivateCaches(); } catch (_) {}
+                }
+
                 if (logoutRequestFailed) {
                     const logoutForm = trigger.closest('form');
                     if (logoutForm && typeof logoutForm.submit === 'function') {

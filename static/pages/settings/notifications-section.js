@@ -1,4 +1,4 @@
-import { bindServiceWorkerUpdateLifecycle } from '../../modules/service-worker-update.js';
+import { ensurePwaServiceWorkerRegistration } from '../../modules/pwa-runtime.js';
 
 function base64UrlToUint8Array(base64Url) {
     const text = String(base64Url || '').trim();
@@ -38,8 +38,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
     async function ensureRegistration() {
         if (!supportAvailable()) return null;
         if (registration) return registration;
-        registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
-        bindServiceWorkerUpdateLifecycle({ registration });
+        registration = await ensurePwaServiceWorkerRegistration();
         return registration;
     }
 

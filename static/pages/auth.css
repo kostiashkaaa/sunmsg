@@ -3107,7 +3107,7 @@ body.auth-page-body--sunrise-v3 .auth-theme-toggle-btn:hover {
 
 body.auth-page-body--sunrise-v3 .auth-language-btn.is-active {
     border-color: color-mix(in srgb, var(--sun-accent) 58%, var(--sun-rule));
-    color: var(--sun-ink);
+    color: #24180f;
     background: color-mix(in srgb, var(--sun-accent-soft) 52%, #fff);
 }
 
@@ -3960,8 +3960,8 @@ body.auth-page-body--sunrise-v3 .auth-feedback-action {
     gap: 9px;
     padding: 14px 28px;
     border-radius: 999px;
-    background: var(--sun-accent);
-    color: #fff;
+    background: #8f520e;
+    color: #fffdf8;
     font-size: 30px;
     font-size: clamp(16px, 1vw, 20px);
     font-weight: 600;
