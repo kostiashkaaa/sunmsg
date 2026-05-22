@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SSH_HOST="${SUN_DEPLOY_SSH_HOST:?Set SUN_DEPLOY_SSH_HOST}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+LOCAL_ENV_FILE="$REPO_ROOT/deploy/.env.local"
+if [ -f "$LOCAL_ENV_FILE" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$LOCAL_ENV_FILE"
+  set +a
+fi
+
+SSH_HOST="${SUN_DEPLOY_SSH_HOST:-92.113.150.115}"
 SSH_PORT="${SUN_DEPLOY_SSH_PORT:-22}"
-SSH_USER="${SUN_DEPLOY_SSH_USER:?Set SUN_DEPLOY_SSH_USER}"
+SSH_USER="${SUN_DEPLOY_SSH_USER:-root}"
+SUN_DEPLOY_ALLOW_ROOT="${SUN_DEPLOY_ALLOW_ROOT:-1}"
 DEPLOY_ENV="${1:-staging}"
 case "$DEPLOY_ENV" in
   staging|production) ;;
@@ -17,13 +28,52 @@ if [ -n "${SUN_DEPLOY_SSH_KEY:-}" ]; then
   SSH_OPTS+=(-i "$SUN_DEPLOY_SSH_KEY")
 fi
 
+SCP_OPTS=(-P "$SSH_PORT" -o StrictHostKeyChecking=yes)
+if [ -n "${SUN_DEPLOY_SSH_KEY:-}" ]; then
+  SCP_OPTS+=(-i "$SUN_DEPLOY_SSH_KEY")
+fi
+
 if [ "$SSH_USER" = "root" ] && [ "${SUN_DEPLOY_ALLOW_ROOT:-0}" != "1" ]; then
   echo "Refusing root deploy user. Set SUN_DEPLOY_ALLOW_ROOT=1 to explicitly allow root deploy." >&2
   exit 1
 fi
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+USE_PUTTY_PASSWORD=0
+if [ -n "${SUN_DEPLOY_SSH_PASSWORD:-}" ]; then
+  if command -v plink.exe >/dev/null 2>&1 && command -v pscp.exe >/dev/null 2>&1; then
+    USE_PUTTY_PASSWORD=1
+  else
+    echo "SUN_DEPLOY_SSH_PASSWORD is set, but plink.exe/pscp.exe were not found. Use SUN_DEPLOY_SSH_KEY instead." >&2
+    exit 1
+  fi
+fi
+
+run_ssh() {
+  local remote_command="$1"
+
+  if [ "$USE_PUTTY_PASSWORD" = "1" ]; then
+    plink.exe -ssh -P "$SSH_PORT" -batch -pw "$SUN_DEPLOY_SSH_PASSWORD" "$SSH_USER@$SSH_HOST" "$remote_command"
+    return
+  fi
+
+  ssh "${SSH_OPTS[@]}" "$SSH_USER@$SSH_HOST" "$remote_command"
+}
+
+upload_file() {
+  local local_path="$1"
+  local remote_path="$2"
+
+  if [ "$USE_PUTTY_PASSWORD" = "1" ]; then
+    if command -v cygpath >/dev/null 2>&1; then
+      local_path="$(cygpath -w "$local_path")"
+    fi
+    pscp.exe -P "$SSH_PORT" -batch -pw "$SUN_DEPLOY_SSH_PASSWORD" "$local_path" "$SSH_USER@$SSH_HOST:$remote_path"
+    return
+  fi
+
+  scp "${SCP_OPTS[@]}" "$local_path" "$SSH_USER@$SSH_HOST:$remote_path"
+}
+
 cd "$REPO_ROOT"
 SHA=$(git rev-parse HEAD)
 REMOTE_DEPLOY_SCRIPT="/srv/sunmessenger/shared/deploy_release.sh"
@@ -51,21 +101,15 @@ tar -czf "$LOCAL_ARCHIVE" \
 echo "Archive built."
 
 echo "Creating remote directories..."
-ssh "${SSH_OPTS[@]}" "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_ARTIFACT_DIR' /srv/sunmessenger/shared"
-
-SCP_OPTS=(-P "$SSH_PORT" -o StrictHostKeyChecking=yes)
-if [ -n "${SUN_DEPLOY_SSH_KEY:-}" ]; then
-  SCP_OPTS+=(-i "$SUN_DEPLOY_SSH_KEY")
-fi
+run_ssh "mkdir -p '$REMOTE_ARTIFACT_DIR' /srv/sunmessenger/shared"
 
 echo "Uploading archive..."
-scp "${SCP_OPTS[@]}" "$LOCAL_ARCHIVE" "$SSH_USER@$SSH_HOST:$REMOTE_ARTIFACT_DIR/release.tar.gz"
+upload_file "$LOCAL_ARCHIVE" "$REMOTE_ARTIFACT_DIR/release.tar.gz"
 
 echo "Uploading deploy script..."
-scp "${SCP_OPTS[@]}" "$LOCAL_DEPLOY_SCRIPT" "$SSH_USER@$SSH_HOST:$REMOTE_DEPLOY_SCRIPT"
+upload_file "$LOCAL_DEPLOY_SCRIPT" "$REMOTE_DEPLOY_SCRIPT"
 
 echo "Running deploy..."
-ssh "${SSH_OPTS[@]}" "$SSH_USER@$SSH_HOST" \
-  "chmod +x $REMOTE_DEPLOY_SCRIPT && $REMOTE_DEPLOY_SCRIPT $SHA $DEPLOY_ENV"
+run_ssh "chmod +x $REMOTE_DEPLOY_SCRIPT && $REMOTE_DEPLOY_SCRIPT $SHA $DEPLOY_ENV"
 
 echo "DEPLOY DONE"
