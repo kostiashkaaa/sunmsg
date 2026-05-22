@@ -2,6 +2,8 @@ name: Deploy
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -25,12 +27,16 @@ jobs:
     timeout-minutes: 45
     if: |
       github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/v')
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
     env:
-      DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}
+      DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
       DEPLOY_SHA: ${{ github.sha }}
       DEPLOY_BASE_PATH: /srv/sunmessenger
+      DEPLOY_SSH_HOST: 92.113.150.115
+      DEPLOY_SSH_PORT: "22"
+      DEPLOY_SSH_USER: root
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,10 +60,10 @@ jobs:
       - name: Upload release archive
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ env.DEPLOY_SSH_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          password: ${{ secrets.SUN_DEPLOY_SSH_PASSWORD }}
+          port: ${{ env.DEPLOY_SSH_PORT }}
           source: release.tar.gz
           target: ${{ env.DEPLOY_BASE_PATH }}/artifacts/${{ env.DEPLOY_SHA }}
           overwrite: true
@@ -65,10 +71,10 @@ jobs:
       - name: Upload deploy script
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ env.DEPLOY_SSH_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          password: ${{ secrets.SUN_DEPLOY_SSH_PASSWORD }}
+          port: ${{ env.DEPLOY_SSH_PORT }}
           source: deploy/scripts/deploy_release.sh
           target: ${{ env.DEPLOY_BASE_PATH }}/shared
           strip_components: 2
@@ -77,10 +83,10 @@ jobs:
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ env.DEPLOY_SSH_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          password: ${{ secrets.SUN_DEPLOY_SSH_PASSWORD }}
+          port: ${{ env.DEPLOY_SSH_PORT }}
           script_stop: true
           script: |
             set -euo pipefail
