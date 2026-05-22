@@ -15,6 +15,7 @@ SSH_HOST="${SUN_DEPLOY_SSH_HOST:-92.113.150.115}"
 SSH_PORT="${SUN_DEPLOY_SSH_PORT:-22}"
 SSH_USER="${SUN_DEPLOY_SSH_USER:-root}"
 SUN_DEPLOY_ALLOW_ROOT="${SUN_DEPLOY_ALLOW_ROOT:-1}"
+SUN_DEPLOY_SSH_HOSTKEY="${SUN_DEPLOY_SSH_HOSTKEY:-SHA256:1AbGzv88DnU6wmGNrRi17TjJohArQY3UrniVOoMqWd4}"
 DEPLOY_ENV="${1:-staging}"
 case "$DEPLOY_ENV" in
   staging|production) ;;
@@ -38,6 +39,11 @@ if [ "$SSH_USER" = "root" ] && [ "${SUN_DEPLOY_ALLOW_ROOT:-0}" != "1" ]; then
   exit 1
 fi
 
+PUTTY_HOSTKEY_OPTS=()
+if [ -n "$SUN_DEPLOY_SSH_HOSTKEY" ]; then
+  PUTTY_HOSTKEY_OPTS=(-hostkey "$SUN_DEPLOY_SSH_HOSTKEY")
+fi
+
 USE_PUTTY_PASSWORD=0
 if [ -n "${SUN_DEPLOY_SSH_PASSWORD:-}" ]; then
   if command -v plink.exe >/dev/null 2>&1 && command -v pscp.exe >/dev/null 2>&1; then
@@ -52,7 +58,7 @@ run_ssh() {
   local remote_command="$1"
 
   if [ "$USE_PUTTY_PASSWORD" = "1" ]; then
-    plink.exe -ssh -P "$SSH_PORT" -batch -pw "$SUN_DEPLOY_SSH_PASSWORD" "$SSH_USER@$SSH_HOST" "$remote_command"
+    plink.exe -ssh -P "$SSH_PORT" -batch "${PUTTY_HOSTKEY_OPTS[@]}" -pw "$SUN_DEPLOY_SSH_PASSWORD" "$SSH_USER@$SSH_HOST" "$remote_command"
     return
   fi
 
@@ -67,7 +73,7 @@ upload_file() {
     if command -v cygpath >/dev/null 2>&1; then
       local_path="$(cygpath -w "$local_path")"
     fi
-    pscp.exe -P "$SSH_PORT" -batch -pw "$SUN_DEPLOY_SSH_PASSWORD" "$local_path" "$SSH_USER@$SSH_HOST:$remote_path"
+    pscp.exe -P "$SSH_PORT" -batch "${PUTTY_HOSTKEY_OPTS[@]}" -pw "$SUN_DEPLOY_SSH_PASSWORD" "$local_path" "$SSH_USER@$SSH_HOST:$remote_path"
     return
   fi
 
@@ -86,18 +92,7 @@ echo "SHA: $SHA"
 tr -d '\r' < deploy/scripts/deploy_release.sh > "$LOCAL_DEPLOY_SCRIPT"
 
 echo "Building archive..."
-tar -czf "$LOCAL_ARCHIVE" \
-  --exclude=.git \
-  --exclude=.github \
-  --exclude=.venv \
-  --exclude=.pytest_cache \
-  --exclude=.ruff_cache \
-  --exclude=.runtime \
-  --exclude=.tmp_* \
-  --exclude='storage/backups' \
-  --exclude='storage/chat_media' \
-  --exclude=release.tar.gz \
-  .
+git archive --format=tar.gz --output="$LOCAL_ARCHIVE" HEAD -- . ':!.github'
 echo "Archive built."
 
 echo "Creating remote directories..."
