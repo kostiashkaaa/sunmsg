@@ -485,7 +485,10 @@ export function initPrivacySection({
         }
     }
 
-    function clearSidebarWeatherCitySuggestions({ close = true } = {}) {
+    function clearSidebarWeatherCitySuggestions({ close = true, invalidate = true } = {}) {
+        if (invalidate) {
+            sidebarWeatherCitySuggestionsRequestSeq += 1;
+        }
         if (sidebarWeatherCitySuggestionsAbortController) {
             sidebarWeatherCitySuggestionsAbortController.abort();
             sidebarWeatherCitySuggestionsAbortController = null;
@@ -528,7 +531,7 @@ export function initPrivacySection({
 
     function applySidebarWeatherCitySuggestions(items) {
         if (!sidebarWeatherCitySuggestionsEl) return;
-        clearSidebarWeatherCitySuggestions({ close: false });
+        clearSidebarWeatherCitySuggestions({ close: false, invalidate: false });
         const seen = new Set();
         let hasItems = false;
         items.forEach((item) => {

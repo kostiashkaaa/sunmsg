@@ -725,3 +725,271 @@ if (payload.public_key_search_privacy !== 'nobody') throw new Error(`Expected no
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_sidebar_weather_suggestions_ignore_stale_response_after_clear(tmp_path):
+    module_path = (
+        Path(__file__).resolve().parents[1]
+        / 'static'
+        / 'pages'
+        / 'settings'
+        / 'privacy-section.js'
+    )
+    module_copy = tmp_path / 'privacy-section.mjs'
+    module_copy.write_text(_privacy_section_test_source(module_path), encoding='utf-8')
+    module_url = module_copy.as_uri()
+    node_harness = f"""
+class FakeElement {{
+  constructor(id = '') {{
+    this.id = id;
+    this.value = '';
+    this.checked = false;
+    this.disabled = false;
+    this.hidden = false;
+    this.textContent = '';
+    this.innerHTML = '';
+    this.children = [];
+    this.style = {{}};
+    this.listeners = new Map();
+    this.classList = {{
+      add() {{}},
+      remove() {{}},
+      toggle() {{}},
+      contains() {{ return false; }},
+    }};
+  }}
+  addEventListener(eventName, handler) {{
+    if (!this.listeners.has(eventName)) this.listeners.set(eventName, []);
+    this.listeners.get(eventName).push(handler);
+  }}
+  dispatchEvent(event) {{
+    for (const handler of this.listeners.get(event.type) || []) {{
+      handler.call(this, event);
+    }}
+    return true;
+  }}
+  setAttribute(name, value) {{ this[name] = String(value); }}
+  getAttribute(name) {{ return this[name] || ''; }}
+  removeAttribute(name) {{ delete this[name]; }}
+  replaceChildren() {{ this.children = []; }}
+  appendChild(child) {{ this.children.push(child); return child; }}
+  contains(target) {{ return this === target || this.children.includes(target); }}
+  querySelector() {{ return null; }}
+}}
+class FakeInputElement extends FakeElement {{}}
+globalThis.Element = FakeElement;
+globalThis.HTMLInputElement = FakeInputElement;
+globalThis.Event = class {{
+  constructor(type, options = {{}}) {{
+    this.type = type;
+    this.bubbles = !!options.bubbles;
+  }}
+}};
+
+const elements = new Map();
+function element(id) {{
+  if (!elements.has(id)) elements.set(id, new FakeInputElement(id));
+  return elements.get(id);
+}}
+[
+  'username',
+  'displayName',
+  'languageSelect',
+  'bioInput',
+  'statusTextInput',
+  'isPublicSwitch',
+  'hideOnlineStatusSwitch',
+  'autoDeclineSwitch',
+  'muteDialogRequestsSwitch',
+  'lastSeenVisibilitySelect',
+  'avatarVisibilitySelect',
+  'bioVisibilitySelect',
+  'forwardLinkPrivacySelect',
+  'groupInvitePrivacySelect',
+  'voiceMessagePrivacySelect',
+  'messagePrivacySelect',
+  'readReceiptsPrivacySelect',
+  'typingPrivacySelect',
+  'voiceListenedPrivacySelect',
+  'callPrivacySelect',
+  'publicKeySearchPrivacySelect',
+  'timeFormat24hOption',
+  'settingsNavProfileStatus',
+  'sidebarWeatherEnabledSwitch',
+  'sidebarWeatherSourceSelect',
+  'sidebarWeatherCityAutocomplete',
+  'sidebarWeatherCityInput',
+  'sidebarWeatherCitySuggestions',
+  'sidebarWeatherCityRow',
+  'sidebarWeatherSourceRow',
+  'sidebarWeatherRotateRow',
+  'sidebarWeatherMetricsRow',
+  'sidebarWeatherRotateSelect',
+  'sidebarWeatherMetricTemperature',
+].forEach(element);
+element('username').value = 'kmr';
+element('displayName').value = 'kmr';
+element('languageSelect').value = 'ru';
+element('avatarVisibilitySelect').value = 'all';
+element('bioVisibilitySelect').value = 'all';
+element('forwardLinkPrivacySelect').value = 'all';
+element('groupInvitePrivacySelect').value = 'all';
+element('voiceMessagePrivacySelect').value = 'all';
+element('messagePrivacySelect').value = 'all';
+element('readReceiptsPrivacySelect').value = 'all';
+element('typingPrivacySelect').value = 'all';
+element('voiceListenedPrivacySelect').value = 'all';
+element('callPrivacySelect').value = 'all';
+element('publicKeySearchPrivacySelect').value = 'all';
+element('timeFormat24hOption').checked = true;
+element('sidebarWeatherRotateSelect').value = '60';
+element('sidebarWeatherMetricTemperature').value = 'temperature';
+element('sidebarWeatherMetricTemperature').checked = true;
+
+Object.defineProperty(globalThis, 'document', {{
+  configurable: true,
+  value: {{
+    visibilityState: 'visible',
+    documentElement: new FakeElement('html'),
+    getElementById: element,
+    querySelector: (selector) => {{
+      if (String(selector).includes('sidebarWeatherMetricOption')) return element('sidebarWeatherMetricTemperature');
+      return null;
+    }},
+    querySelectorAll: () => [],
+    createElement: (tagName) => new FakeElement(tagName),
+    addEventListener() {{}},
+    execCommand: () => true,
+  }},
+}});
+document.documentElement.lang = 'ru';
+
+let weatherJsonResolve = null;
+Object.defineProperty(globalThis, 'fetch', {{
+  configurable: true,
+  value: () => Promise.resolve({{
+    ok: true,
+    json: () => new Promise((resolve) => {{
+      weatherJsonResolve = resolve;
+    }}),
+  }}),
+}});
+
+Object.defineProperty(globalThis, 'window', {{
+  configurable: true,
+  value: {{
+    localStorage: {{
+      getItem: () => null,
+      setItem: () => undefined,
+    }},
+    setTimeout: (handler) => setTimeout(handler, 0),
+    clearTimeout: clearTimeout,
+    addEventListener() {{}},
+    SUN_CLIENT_PREFERENCES: {{
+      read: () => ({{}}),
+      collect: (extra) => extra || {{}},
+    }},
+    InterfaceTheme: null,
+    ChatAppearance: null,
+  }},
+}});
+Object.defineProperty(globalThis, 'navigator', {{
+  configurable: true,
+  value: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+}});
+
+const moduleApi = await import({module_url!r});
+moduleApi.initPrivacySection({{
+  api: {{
+    getSettings: () => Promise.resolve({{
+      username: 'kmr',
+      display_name: 'kmr',
+      language: 'ru',
+      bio: '',
+      status_text: '',
+      is_public: true,
+      hide_online_status: false,
+      auto_decline_requests: false,
+      mute_dialog_requests: false,
+      avatar_visibility: 'all',
+      bio_visibility: 'all',
+      forward_link_privacy: 'all',
+      group_invite_privacy: 'all',
+      voice_message_privacy: 'all',
+      message_privacy: 'all',
+      read_receipts_privacy: 'all',
+      typing_privacy: 'all',
+      voice_listened_privacy: 'all',
+      call_privacy: 'all',
+      public_key_search_privacy: 'all',
+      online: true,
+      last_seen: null,
+      client_preferences: {{
+        sidebarWeatherEnabled: true,
+        sidebarWeatherSource: 'city',
+        sidebarWeatherCity: '',
+        sidebarWeatherRotateSeconds: 60,
+        sidebarWeatherMetrics: ['temperature'],
+      }},
+    }}),
+    saveSettings: () => Promise.resolve({{ success: true }}),
+  }},
+  tr: (value) => String(value),
+  i18nApi: {{ getLanguage: () => 'ru', setLanguage: () => undefined }},
+  showAlert: () => undefined,
+  state: {{
+    loaded: false,
+    baseline: null,
+    isLoaded() {{ return this.loaded; }},
+    getBaseline() {{ return this.baseline; }},
+    setFloatingSaveSaving: () => undefined,
+    setLoaded(next) {{ this.loaded = !!next; }},
+    setBaseline(next) {{ this.baseline = next; }},
+    syncDirtyState: () => undefined,
+    animateFloatingSaveSuccess: () => undefined,
+    isDirty: () => false,
+  }},
+  setServerSettingsControlsEnabled: () => undefined,
+  markSettingsReady: () => undefined,
+  persistMuteDialogRequestsPreference: () => undefined,
+  notifyLanguageUpdate: () => undefined,
+  notifyMotionUpdate: () => undefined,
+  notifyWeatherLabelUpdate: () => undefined,
+  applyAvatarFromSettings: () => undefined,
+  downloadSettingsQr: () => undefined,
+}});
+await new Promise((resolve) => setTimeout(resolve, 0));
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+element('sidebarWeatherEnabledSwitch').checked = true;
+element('sidebarWeatherSourceSelect').value = 'city';
+element('sidebarWeatherCityInput').disabled = false;
+element('sidebarWeatherCityInput').value = 'Москва';
+element('sidebarWeatherCityInput').dispatchEvent(new Event('input'));
+await new Promise((resolve) => setTimeout(resolve, 0));
+await new Promise((resolve) => setTimeout(resolve, 0));
+if (typeof weatherJsonResolve !== 'function') {{
+  throw new Error('Expected weather suggestions request to wait on json()');
+}}
+
+element('sidebarWeatherCityInput').value = 'М';
+element('sidebarWeatherCityInput').dispatchEvent(new Event('input'));
+weatherJsonResolve({{ results: [{{ name: 'Москва', country: 'Россия' }}] }});
+await new Promise((resolve) => setTimeout(resolve, 0));
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+const suggestions = element('sidebarWeatherCitySuggestions');
+if (suggestions.children.length !== 0 || suggestions.hidden !== true) {{
+  throw new Error(`Stale suggestions were rendered after clear: children=${{suggestions.children.length}}, hidden=${{suggestions.hidden}}`);
+}}
+"""
+    harness_path = tmp_path / 'settings-weather-stale-suggestions-harness.mjs'
+    harness_path.write_text(node_harness, encoding='utf-8')
+    result = subprocess.run(
+        ['node', str(harness_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout

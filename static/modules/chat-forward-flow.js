@@ -49,6 +49,7 @@ export function createChatForwardFlow(deps = {}) {
     let forwardModalActionInFlight = false;
     const forwardSourceMessageIds = new Set();
     const forwardComposerDraftByChatId = new Map();
+    let forwardDraftMotionSeq = 0;
 
     function renderForwardAvatarContent(sourceAvatarEl, displayName) {
         const imgEl = sourceAvatarEl?.querySelector?.('img.contact-avatar__img');
@@ -186,18 +187,24 @@ export function createChatForwardFlow(deps = {}) {
 
     function showForwardDraftBar() {
         if (!forwardDraftBar) return;
+        const motionSeq = ++forwardDraftMotionSeq;
         forwardDraftBar.classList.remove('link-draft-bar--hidden', 'is-closing');
         forwardDraftBar.style.display = 'flex';
         forwardDraftBar.setAttribute('aria-hidden', 'false');
-        requestAnimationFrame(() => forwardDraftBar.classList.add('is-visible'));
+        requestAnimationFrame(() => {
+            if (motionSeq !== forwardDraftMotionSeq) return;
+            forwardDraftBar.classList.add('is-visible');
+        });
     }
 
     function hideForwardDraftBar() {
         if (!forwardDraftBar) return;
+        const motionSeq = ++forwardDraftMotionSeq;
         forwardDraftBar.classList.remove('is-visible');
         forwardDraftBar.classList.add('is-closing');
         forwardDraftBar.setAttribute('aria-hidden', 'true');
         waitForMotionEnd(forwardDraftBar, 220).then(() => {
+            if (motionSeq !== forwardDraftMotionSeq) return;
             if (forwardDraftBar.classList.contains('is-visible')) return;
             forwardDraftBar.classList.add('link-draft-bar--hidden');
             forwardDraftBar.classList.remove('is-closing');

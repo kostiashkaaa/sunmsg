@@ -95,11 +95,14 @@ export function initLinkDraftBar({
     let hideMotionSeq = 0;
 
     function showBar() {
-        hideMotionSeq += 1;
+        const motionSeq = ++hideMotionSeq;
         barEl.classList.remove('link-draft-bar--hidden', 'is-closing');
         barEl.style.display = 'flex';
         barEl.setAttribute('aria-hidden', 'false');
-        requestAnimationFrame(() => barEl.classList.add('is-visible'));
+        requestAnimationFrame(() => {
+            if (motionSeq !== hideMotionSeq) return;
+            barEl.classList.add('is-visible');
+        });
     }
 
     function hideBar() {
