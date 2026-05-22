@@ -395,6 +395,7 @@ export function registerIncomingMessageSocketHandlers({
             currentUsername,
             text: decryptedMessage,
         });
+        let sidebarPreviewMessage = decryptedMessage;
         const otherState = getChatState(data.chat_id);
         if (otherState.initialized) {
             const canConfirmPending = isSelfOther && Boolean(data.client_id);
@@ -403,16 +404,42 @@ export function registerIncomingMessageSocketHandlers({
                 if (pendingIdx >= 0) {
                     cancelPendingTimeout?.(data.client_id);
                     const previousMessage = otherState.messages[pendingIdx];
-                    otherState.messages[pendingIdx] = {
+                    const safeIncomingMessageForOtherChat = preserveSelfEchoPlaintextFallback(
+                        previousMessage,
+                        incomingMessageForOtherChat,
+                        isEncryptedPayload,
+                    );
+                    const previousKey = typeof getMessageKey === 'function'
+                        ? getMessageKey(previousMessage)
+                        : null;
+                    const confirmedMessage = {
                         ...previousMessage,
-                        ...incomingMessageForOtherChat,
+                        ...safeIncomingMessageForOtherChat,
                         id: data.id,
                         pending: false,
                         failed: false,
                         clientId: null,
                         created_at: data.created_at || previousMessage.created_at,
                     };
+                    otherState.messages[pendingIdx] = confirmedMessage;
                     normalizeChatMessageOrder?.(otherState);
+                    const nextKey = typeof getMessageKey === 'function'
+                        ? getMessageKey(confirmedMessage)
+                        : null;
+                    if (previousKey && nextKey && previousKey !== nextKey) {
+                        const cachedHeight = otherState.messageHeights?.get(previousKey);
+                        if (Number.isFinite(cachedHeight) && cachedHeight > 0) {
+                            otherState.messageHeights.delete(previousKey);
+                            otherState.messageHeights.set(nextKey, cachedHeight);
+                            otherState.heightIndex = null;
+                            otherState.heightIndexRevision = (Number(otherState.heightIndexRevision) || 0) + 1;
+                        }
+                        if (otherState.renderedKeys?.has(previousKey)) {
+                            otherState.renderedKeys.delete(previousKey);
+                            otherState.renderedKeys.add(nextKey);
+                        }
+                    }
+                    sidebarPreviewMessage = confirmedMessage.message;
                 } else {
                     upsertChatMessage(data.chat_id, incomingMessageForOtherChat);
                 }
@@ -423,7 +450,7 @@ export function registerIncomingMessageSocketHandlers({
 
         updateSidebarForOtherChat(
             data.chat_id,
-            decryptedMessage,
+            sidebarPreviewMessage,
             isSelfOther,
             data.created_at,
             {

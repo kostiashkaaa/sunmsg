@@ -86,6 +86,7 @@ export function createMobileThreadShell({
 
     function openChat() {
         const reduceMotion = prefersReducedMotion();
+        mobileCloseTransitionSeq += 1;
         chatArea.classList.remove('mobile-closing', 'mobile-swipe-back-dragging');
         chatArea.style.removeProperty('--mobile-exit-swipe-shift');
         chatArea.classList.add('mobile-open');
@@ -129,16 +130,17 @@ export function createMobileThreadShell({
 
     function completeMobileChatClose() {
         mobileCloseTransitionSeq += 1;
-        chatArea.classList.remove('mobile-open', 'mobile-closing', 'mobile-swipe-back-dragging');
+        chatArea.classList.remove('mobile-open', 'mobile-revealing', 'mobile-closing', 'mobile-swipe-back-dragging');
         chatArea.style.removeProperty('--mobile-exit-swipe-shift');
         sidebar.classList.remove('mobile-returning', 'mobile-hiding');
         sidebar.style.display = '';
     }
 
     function closeMobileChatView({ leaveRoom = true, animated = true } = {}) {
+        mobileOpenTransitionSeq += 1;
         if (!isMobileViewport() || !chatArea.classList.contains('mobile-open')) {
             if (leaveRoom) leaveCurrentChatRoom();
-            chatArea.classList.remove('mobile-open', 'mobile-closing', 'mobile-swipe-back-dragging');
+            chatArea.classList.remove('mobile-open', 'mobile-revealing', 'mobile-closing', 'mobile-swipe-back-dragging');
             chatArea.style.removeProperty('--mobile-exit-swipe-shift');
             sidebar.classList.remove('mobile-returning');
             sidebar.style.display = '';
@@ -157,7 +159,7 @@ export function createMobileThreadShell({
 
         sidebar.style.display = '';
         sidebar.classList.add('mobile-returning');
-        chatArea.classList.remove('mobile-swipe-back-dragging');
+        chatArea.classList.remove('mobile-revealing', 'mobile-swipe-back-dragging');
         chatArea.style.setProperty('--mobile-exit-swipe-shift', '0px');
         chatArea.classList.add('mobile-closing');
 
