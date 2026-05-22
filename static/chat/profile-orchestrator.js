@@ -156,14 +156,22 @@ export function createProfileOrchestrator(options = {}) {
             return;
         }
 
+        const profileActionToken = typeof getProfileLoadToken === 'function' ? getProfileLoadToken() : null;
+        const profileAtActionStart = getCurrentPartnerData() || {};
         await handleProfileActionFn(action, {
-            currentProfile: getCurrentPartnerData() || {},
+            currentProfile: profileAtActionStart,
             closeDrawer: closePartnerProfileDrawer,
             isChatBlocked,
             scheduleComposerFocus,
             copyTextToClipboard,
             showToast,
             sendContactRequest,
+            isProfileCurrent: (profileKey) => {
+                const currentProfile = getCurrentPartnerData() || {};
+                const currentProfileKey = String(currentProfile?.user_id || currentProfile?.userId || '');
+                return (typeof getProfileLoadToken !== 'function' || getProfileLoadToken() === profileActionToken)
+                    && String(profileKey || '') === currentProfileKey;
+            },
         });
     }
 

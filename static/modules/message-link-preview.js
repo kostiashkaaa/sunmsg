@@ -127,6 +127,11 @@ function applyPreviewState(node, {
         }
         if (mediaEl && imageEl) {
             const hasImage = Boolean(safeImageUrl);
+            const nextImageSrc = hasImage ? buildPreviewImageSrc(safeImageUrl) : '';
+            const imageSeq = Number(imageEl.dataset?.previewImageSeq || 0) + 1;
+            if (imageEl.dataset) {
+                imageEl.dataset.previewImageSeq = String(imageSeq);
+            }
             mediaEl.hidden = !hasImage;
             if (hasImage) {
                 const finalLayout = safeImageLayout === 'compact' ? 'compact' : 'full';
@@ -143,6 +148,11 @@ function applyPreviewState(node, {
             if (hasImage) {
                 imageEl.onload = null;
                 imageEl.onerror = () => {
+                    if (
+                        imageEl.dataset?.previewImageSeq !== String(imageSeq)
+                        || !node.isConnected
+                        || String(imageEl.getAttribute('src') || '') !== nextImageSrc
+                    ) return;
                     withStableChatScroll(node, () => {
                         node.classList.remove('is-compact');
                         node.classList.remove('has-image');
@@ -151,7 +161,6 @@ function applyPreviewState(node, {
                         imageEl.removeAttribute('src');
                     });
                 };
-                const nextImageSrc = buildPreviewImageSrc(safeImageUrl);
                 if (String(imageEl.getAttribute('src') || '') !== nextImageSrc) {
                     imageEl.src = nextImageSrc;
                 }

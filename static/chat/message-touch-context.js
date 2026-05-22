@@ -44,6 +44,7 @@ export function initMessageTouchContext(options = {}) {
     let desktopContextHoverCloseTimer = 0;
     let desktopContextHoverCloseArmed = false;
     let swipeReplyBlockingMoveBound = false;
+    let messageContextGestureSeq = 0;
 
     function prefersTouchMessageGestures() {
         try {
@@ -86,6 +87,7 @@ export function initMessageTouchContext(options = {}) {
             desktopContextHoverCloseTimer = 0;
             if (!desktopContextHoverCloseArmed || isDesktopContextHovered()) return;
             desktopContextHoverCloseArmed = false;
+            messageContextGestureSeq += 1;
             closeReactionPicker();
             hideContextMenu();
         }, DESKTOP_CONTEXT_HOVER_CLOSE_MS);
@@ -182,7 +184,8 @@ export function initMessageTouchContext(options = {}) {
             originTarget = null,
         } = {},
     ) {
-        if (!msg) return;
+        if (!msg || !msg.isConnected || !chatMessages.contains(msg)) return;
+        const contextSeq = ++messageContextGestureSeq;
         disarmDesktopContextHoverClose();
         closeReactionPicker();
         const msgId = msg.getAttribute('data-msg-id');
@@ -234,6 +237,12 @@ export function initMessageTouchContext(options = {}) {
         showContextMenu(x, y, msgId, isSelf, isFile, { canEdit });
         if (!blocked && withReactions) {
             const openReactions = () => {
+                if (
+                    contextSeq !== messageContextGestureSeq
+                    || !msg.isConnected
+                    || !chatMessages.contains(msg)
+                    || !contextMenu?.classList.contains('is-open')
+                ) return;
                 const anchor = contextMenu || msg.querySelector('.bubble') || msg;
                 openReactionPickerForMessage(msgId, anchor);
             };
@@ -294,6 +303,10 @@ export function initMessageTouchContext(options = {}) {
             if (!activeMessageTouchGesture) return;
             if (activeMessageTouchGesture.dragging) return;
             if (messageSelectionController.isSelectionMode()) return;
+            if (!messageEl.isConnected || !chatMessages.contains(messageEl)) {
+                clearActiveMessageTouchGesture({ immediateReset: true });
+                return;
+            }
             activeMessageTouchGesture.longPressTriggered = true;
             suppressMessageTapUntil = Date.now() + 220;
             try {

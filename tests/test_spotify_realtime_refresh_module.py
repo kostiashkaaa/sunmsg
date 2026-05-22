@@ -107,3 +107,83 @@ if (clearedTimer !== 77) {{
         )
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_spotify_realtime_refresh_does_not_reschedule_after_stop_during_fetch():
+    modules_dir = Path(__file__).resolve().parents[1] / 'static' / 'modules'
+    with tempfile.TemporaryDirectory(prefix='spotify-refresh-stale-harness-') as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        for source_name, target_name in (
+            ('app-url.js', 'app-url.mjs'),
+            ('csrf.js', 'csrf.mjs'),
+            ('spotify-realtime-refresh.js', 'spotify-realtime-refresh.mjs'),
+        ):
+            source = (modules_dir / source_name).read_text(encoding='utf-8')
+            source = source.replace('./app-url.js', './app-url.mjs')
+            source = source.replace('./csrf.js', './csrf.mjs')
+            (tmp_dir_path / target_name).write_text(source, encoding='utf-8')
+
+        module_url = (tmp_dir_path / 'spotify-realtime-refresh.mjs').as_uri()
+        node_harness = f"""
+const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
+const moduleApi = await import({module_url!r});
+
+let timerCallback = null;
+let scheduledDelays = [];
+let resolveFetch = null;
+globalThis.window = {{ SUN_BOOTSTRAP: {{ app: {{ root: '' }} }} }};
+globalThis.document = {{
+  visibilityState: 'visible',
+  body: {{ dataset: {{}} }},
+  documentElement: {{ dataset: {{}} }},
+  querySelector: (selector) => selector === 'meta[name="csrf-token"]'
+    ? {{ getAttribute: () => 'csrf-token-value' }}
+    : null,
+  addEventListener: () => {{}},
+  removeEventListener: () => {{}},
+}};
+globalThis.setTimeout = (callback, delay) => {{
+  timerCallback = callback;
+  scheduledDelays.push(delay);
+  return scheduledDelays.length;
+}};
+globalThis.clearTimeout = () => {{}};
+
+const controller = moduleApi.initSpotifyRealtimeRefresh({{
+  documentRef: globalThis.document,
+  fetchImpl: async () => new Promise((resolve) => {{
+    resolveFetch = resolve;
+  }}),
+}});
+
+if (scheduledDelays.length !== 1 || scheduledDelays[0] !== 0 || typeof timerCallback !== 'function') {{
+  throw new Error('Initial refresh was not scheduled immediately');
+}}
+
+timerCallback();
+await new Promise((resolve) => nativeSetTimeout(resolve, 0));
+if (typeof resolveFetch !== 'function') {{
+  throw new Error('Fetch did not start');
+}}
+
+controller.stop();
+resolveFetch({{
+  status: 200,
+  ok: true,
+  json: async () => ({{ success: true, configured: true, connected: true }}),
+}});
+await new Promise((resolve) => nativeSetTimeout(resolve, 0));
+
+if (scheduledDelays.includes(2500)) {{
+  throw new Error('Stopped refresh loop scheduled a stale follow-up timer');
+}}
+"""
+
+        result = subprocess.run(
+            ['node', '--input-type=module', '-e', node_harness],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert result.returncode == 0, result.stderr or result.stdout

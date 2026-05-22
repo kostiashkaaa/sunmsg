@@ -313,6 +313,21 @@ export function createUserSearchResultsRuntime({
         button.disabled = false;
     }
 
+    function nextButtonActionSeq(button) {
+        const seq = Number(button?.dataset?.userSearchActionSeq || 0) + 1;
+        if (button?.dataset) {
+            button.dataset.userSearchActionSeq = String(seq);
+        }
+        return seq;
+    }
+
+    function isButtonActionCurrent(button, seq) {
+        return Boolean(
+            button?.isConnected
+            && button.dataset?.userSearchActionSeq === String(seq)
+        );
+    }
+
     function markRequestSent(button) {
         const card = button.closest('.user-search-card');
         card?.setAttribute('data-relationship', RELATIONSHIP_OUTGOING);
@@ -351,11 +366,13 @@ export function createUserSearchResultsRuntime({
         const userId = button.getAttribute('data-user-id');
         const displayName = button.getAttribute('data-display-name') || t('userFallback');
         if (!sendDialogRequest || !userId) return;
+        const actionSeq = nextButtonActionSeq(button);
         setButtonBusy(button, 'adding');
         const response = await sendDialogRequest(userId, displayName, {
             confirmBeforeSend: false,
             updateButton: false,
         });
+        if (!isButtonActionCurrent(button, actionSeq)) return;
         if (response?.success) {
             markRequestSent(button);
             showToast?.(t('requestSent'), 'success');
@@ -369,11 +386,13 @@ export function createUserSearchResultsRuntime({
         const userId = button.getAttribute('data-user-id');
         const publicKey = button.getAttribute('data-public-key');
         if (!cancelDialogRequest || (!userId && !publicKey)) return;
+        const actionSeq = nextButtonActionSeq(button);
         setButtonBusy(button, 'canceling');
         const response = await cancelDialogRequest({
             receiverUserId: userId,
             receiverPublicKey: publicKey,
         });
+        if (!isButtonActionCurrent(button, actionSeq)) return;
         if (response?.success) {
             markRequestCanceled(button);
             showToast?.(t('requestCanceled'), 'success');
@@ -386,8 +405,10 @@ export function createUserSearchResultsRuntime({
     async function handleAcceptRequest(button) {
         const publicKey = button.getAttribute('data-public-key');
         if (!acceptDialogRequest || !publicKey) return;
+        const actionSeq = nextButtonActionSeq(button);
         setButtonBusy(button, 'accepting');
         const response = await acceptDialogRequest(publicKey);
+        if (!isButtonActionCurrent(button, actionSeq)) return;
         if (response?.success) {
             button.innerHTML = `<i class="bi bi-check2"></i><span>${escapeHtml(t('requestAccepted'))}</span>`;
             showToast?.(t('requestAccepted'), 'success');

@@ -173,10 +173,13 @@ export function initSearchOverlay() {
 
     function close({ keepValue = false, focusTrigger = false } = {}) {
         if (!isOpen) {
+            clearAutoSwitch();
             overlay.hidden = true;
             overlay.setAttribute('hidden', '');
             overlay.setAttribute('aria-hidden', 'true');
             visibleInput.setAttribute('aria-expanded', 'false');
+            sidebar.classList.remove(SIDEBAR_DIMMED_CLASS);
+            if (clearBtn) clearBtn.hidden = true;
             if (!keepValue) resetValue();
             return;
         }
@@ -222,6 +225,7 @@ export function initSearchOverlay() {
         clearAutoSwitch();
         if (query.length < 3) return;
         autoSwitchTimer = window.setTimeout(() => {
+            if (!isOpen || query !== String(visibleInput.value || '').trim()) return;
             // \u0415\u0441\u043B\u0438 \u0430\u043A\u0442\u0438\u0432\u043D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0430 «\u0427\u0430\u0442\u044B» \u0438 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E \u043D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0448\u043B\u0438 — \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0435\u043C\u0441\u044F.
             if (activeTab !== 'chats') return;
             const hasLocal = localSection && localSection.style.display !== 'none'

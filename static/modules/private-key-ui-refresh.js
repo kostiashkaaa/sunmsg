@@ -18,8 +18,18 @@ export function initPrivateKeyUiRefresh({
     scheduleProfileMediaPanelRefresh,
 }) {
     let refreshInFlight = null;
+    let refreshQueued = false;
+    let refreshSeq = 0;
 
-    async function redecryptCurrentChatState() {
+    function isCurrentRefresh(seq, chatId, privateKeyPem) {
+        return (
+            seq === refreshSeq
+            && String(getCurrentChatId() || '') === String(chatId || '')
+            && getPrivateKeyPem() === privateKeyPem
+        );
+    }
+
+    async function redecryptCurrentChatState(seq) {
         const privateKeyPem = getPrivateKeyPem();
         const chatId = getCurrentChatId();
         if (!privateKeyPem || !chatId) return false;
@@ -69,17 +79,21 @@ export function initPrivateKeyUiRefresh({
             };
         }));
 
+        if (!isCurrentRefresh(seq, chatId, privateKeyPem)) return false;
+
         if (changed) {
             setChatMessages(chatId, nextMessages, { resetHeights: true });
             const refreshedState = getChatState(chatId);
             nextMessages.forEach((message) => refreshedState.renderedKeys.add(getMessageKey(message)));
             await renderChatMessagesStable(chatId, { force: true, scrollTop: currentScrollTop });
+            if (!isCurrentRefresh(seq, chatId, privateKeyPem)) return false;
         }
 
         const updatedState = getChatState(chatId);
         await restorePinnedBar(updatedState.pins || [], {
             activeMessageId: updatedState.activePinMessageId,
         });
+        if (!isCurrentRefresh(seq, chatId, privateKeyPem)) return false;
         updateE2EIndicator();
         return changed;
     }
@@ -87,12 +101,21 @@ export function initPrivateKeyUiRefresh({
     async function refreshPrivateKeyDependentUi() {
         syncSidebarStatusBar();
         if (!getPrivateKeyPem()) return undefined;
-        if (refreshInFlight) return refreshInFlight;
+        if (refreshInFlight) {
+            refreshQueued = true;
+            return refreshInFlight;
+        }
 
         refreshInFlight = (async () => {
             try {
-                await redecryptCurrentChatState();
-                await loadContacts({ immediate: true });
+                do {
+                    refreshQueued = false;
+                    const seq = ++refreshSeq;
+                    await redecryptCurrentChatState(seq);
+                    if (seq === refreshSeq && getPrivateKeyPem()) {
+                        await loadContacts({ immediate: true });
+                    }
+                } while (refreshQueued && getPrivateKeyPem());
             } finally {
                 refreshInFlight = null;
             }

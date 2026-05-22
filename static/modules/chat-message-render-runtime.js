@@ -45,6 +45,7 @@ export function createChatMessageRenderRuntime({
     let pendingVirtualRenderChatId = '';
     let pendingVirtualRenderOptions = null;
     let suppressChatScrollHandling = false;
+    let suppressChatScrollToken = 0;
     let pendingBottomScrollFrame = 0;
     let pendingBottomScroll = false;
     let bottomInertiaFrame = 0;
@@ -73,7 +74,19 @@ export function createChatMessageRenderRuntime({
     }
 
     function setSuppressChatScrollHandling(value) {
+        suppressChatScrollToken += 1;
         suppressChatScrollHandling = Boolean(value);
+    }
+
+    function beginSuppressChatScrollHandling() {
+        suppressChatScrollHandling = true;
+        suppressChatScrollToken += 1;
+        return suppressChatScrollToken;
+    }
+
+    function releaseSuppressChatScrollHandling(token) {
+        if (token !== suppressChatScrollToken) return;
+        suppressChatScrollHandling = false;
     }
 
     function cancelBottomInertiaScroll() {
@@ -100,11 +113,11 @@ export function createChatMessageRenderRuntime({
         if (!chatMessages) return;
         const maxScrollTop = Math.max(0, chatMessages.scrollHeight - chatMessages.clientHeight);
         const safeTop = Number.isFinite(nextTop) ? Math.max(0, Math.min(nextTop, maxScrollTop)) : 0;
-        suppressChatScrollHandling = true;
+        const suppressToken = beginSuppressChatScrollHandling();
         chatMessages.scrollTop = safeTop;
         requestAnimationFrameFn(() => {
             requestAnimationFrameFn(() => {
-                suppressChatScrollHandling = false;
+                releaseSuppressChatScrollHandling(suppressToken);
             });
         });
     }
@@ -571,17 +584,17 @@ export function createChatMessageRenderRuntime({
             saveChatScrollPosition?.(chatId);
             schedulePostRenderUiRefresh?.({ searchFilter: true, jumpButton: true, e2ePill: true, expiryBadges: true, albums: true });
         } else if (options.scrollToBottom) {
-            suppressChatScrollHandling = true;
+            const suppressToken = beginSuppressChatScrollHandling();
             setElementScrollToBottom(chatMessages);
             requestAnimationFrameFn(() => {
                 const currentMessages = getCurrentMessagesElement();
                 if (!currentMessages) {
-                    suppressChatScrollHandling = false;
+                    releaseSuppressChatScrollHandling(suppressToken);
                     return;
                 }
                 setElementScrollToBottom(currentMessages);
                 requestAnimationFrameFn(() => {
-                    suppressChatScrollHandling = false;
+                    releaseSuppressChatScrollHandling(suppressToken);
                     saveChatScrollPosition?.(chatId);
                     schedulePostRenderUiRefresh?.({ jumpButton: true });
                 });

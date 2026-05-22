@@ -24,6 +24,10 @@ function buildTimeFormatOptions() {
 let profileLocaleListenerBound = false;
 let profileSpotifyProgressFrame = 0;
 let profileSpotifyVisibilityTimer = 0;
+let profileSpotifyVisibilitySeq = 0;
+let profileSpotifyActionSeq = 0;
+let profileSpotifyPlaylistSeq = 0;
+let profileSpotifyTrackKey = '';
 
 function stopProfileSpotifyProgressTimer() {
     if (!profileSpotifyProgressFrame) return;
@@ -65,9 +69,28 @@ function clearProfileSpotifyVisibilityTimer() {
     profileSpotifyVisibilityTimer = 0;
 }
 
+function syncProfileSpotifyTrackLifecycle(nextTrackKey = '') {
+    const normalized = String(nextTrackKey || '');
+    if (profileSpotifyTrackKey === normalized) return;
+    profileSpotifyTrackKey = normalized;
+    profileSpotifyActionSeq += 1;
+    profileSpotifyPlaylistSeq += 1;
+}
+
+function isProfileSpotifyTrackCurrent(seq, trackId) {
+    const card = document.getElementById('profileSpotifyStatusCard');
+    return Boolean(
+        card
+        && seq === profileSpotifyActionSeq
+        && !card.hidden
+        && String(card.dataset?.spotifyTrackId || '') === String(trackId || '')
+    );
+}
+
 function showProfileSpotifyCard(card) {
     clearProfileSpotifyVisibilityTimer();
     if (!card.hidden && !card.classList.contains('profile-spotify-card--hiding')) return;
+    const visibilitySeq = ++profileSpotifyVisibilitySeq;
 
     card.hidden = false;
     card.setAttribute('aria-hidden', 'false');
@@ -78,12 +101,14 @@ function showProfileSpotifyCard(card) {
     card.style.transform = 'translateY(-6px)';
 
     window.requestAnimationFrame(() => {
+        if (visibilitySeq !== profileSpotifyVisibilitySeq || card.hidden) return;
         card.style.height = `${card.scrollHeight}px`;
         card.style.opacity = '1';
         card.style.transform = 'translateY(0)';
     });
 
     profileSpotifyVisibilityTimer = window.setTimeout(() => {
+        if (visibilitySeq !== profileSpotifyVisibilitySeq || card.hidden) return;
         card.classList.remove('profile-spotify-card--revealing');
         card.style.removeProperty('height');
         card.style.removeProperty('opacity');
@@ -95,6 +120,8 @@ function showProfileSpotifyCard(card) {
 function hideProfileSpotifyCard(card) {
     stopProfileSpotifyProgressTimer();
     clearProfileSpotifyVisibilityTimer();
+    const visibilitySeq = ++profileSpotifyVisibilitySeq;
+    syncProfileSpotifyTrackLifecycle('');
     card.setAttribute('aria-hidden', 'true');
     if (card.hidden) return;
 
@@ -105,12 +132,14 @@ function hideProfileSpotifyCard(card) {
     card.style.transform = 'translateY(0)';
 
     window.requestAnimationFrame(() => {
+        if (visibilitySeq !== profileSpotifyVisibilitySeq || card.hidden) return;
         card.style.height = '0px';
         card.style.opacity = '0';
         card.style.transform = 'translateY(-6px)';
     });
 
     profileSpotifyVisibilityTimer = window.setTimeout(() => {
+        if (visibilitySeq !== profileSpotifyVisibilitySeq) return;
         card.hidden = true;
         card.classList.remove('profile-spotify-card--hiding');
         card.style.removeProperty('height');
@@ -889,9 +918,13 @@ function _showSpotifyConnectToast() {
     `;
     document.body.appendChild(toast);
 
-    requestAnimationFrame(() => toast.classList.add('spotify-toast--visible'));
+    requestAnimationFrame(() => {
+        if (!toast.isConnected) return;
+        toast.classList.add('spotify-toast--visible');
+    });
 
     toast._hideTimer = setTimeout(() => {
+        if (!toast.isConnected) return;
         toast.classList.remove('spotify-toast--visible');
         toast.classList.add('spotify-toast--hidden');
     }, 4000);
@@ -912,12 +945,20 @@ function _initSpotifyActions() {
         return document.getElementById('profileSpotifyStatusCard')?.dataset?.spotifyTrackId || '';
     }
 
-    function flashBtn(btn, ok) {
+    function flashBtn(btn, ok, seq = profileSpotifyActionSeq, trackId = getTrackId()) {
+        if (!isProfileSpotifyTrackCurrent(seq, trackId)) {
+            btn.disabled = false;
+            return;
+        }
         const spanEl = btn.querySelector('span:last-child');
-        if (!spanEl) return;
+        if (!spanEl) {
+            btn.disabled = false;
+            return;
+        }
         const orig = spanEl.textContent;
         spanEl.textContent = ok ? '✓' : '✗';
         setTimeout(() => {
+            if (!isProfileSpotifyTrackCurrent(seq, trackId)) return;
             if (spanEl) spanEl.textContent = orig;
             btn.disabled = false;
         }, 1800);
@@ -935,32 +976,41 @@ function _initSpotifyActions() {
     saveBtn?.addEventListener('click', async () => {
         const trackId = getTrackId();
         if (!trackId) return;
+        const actionSeq = profileSpotifyActionSeq;
         if (!await guardConnected()) return;
+        if (!isProfileSpotifyTrackCurrent(actionSeq, trackId)) return;
         saveBtn.disabled = true;
         try {
             const resp = await _spotifyPost('/spotify/track/save', { track_id: trackId });
-            flashBtn(saveBtn, resp.ok);
+            flashBtn(saveBtn, resp.ok, actionSeq, trackId);
         } catch (_) {
-            flashBtn(saveBtn, false);
+            flashBtn(saveBtn, false, actionSeq, trackId);
         }
     });
 
     queueBtn?.addEventListener('click', async () => {
         const trackId = getTrackId();
         if (!trackId) return;
+        const actionSeq = profileSpotifyActionSeq;
         if (!await guardConnected()) return;
+        if (!isProfileSpotifyTrackCurrent(actionSeq, trackId)) return;
         queueBtn.disabled = true;
         try {
             const resp = await _spotifyPost('/spotify/track/queue', { track_id: trackId });
-            flashBtn(queueBtn, resp.ok);
+            flashBtn(queueBtn, resp.ok, actionSeq, trackId);
         } catch (_) {
-            flashBtn(queueBtn, false);
+            flashBtn(queueBtn, false, actionSeq, trackId);
         }
     });
 
     playlistBtn?.addEventListener('click', async () => {
         if (!playlistPicker || !playlistList) return;
+        const trackId = getTrackId();
+        if (!trackId) return;
+        const actionSeq = profileSpotifyActionSeq;
+        const playlistSeq = ++profileSpotifyPlaylistSeq;
         if (!await guardConnected()) return;
+        if (!isProfileSpotifyTrackCurrent(actionSeq, trackId) || playlistSeq !== profileSpotifyPlaylistSeq) return;
 
         playlistPicker.hidden = false;
         playlistList.textContent = '';
@@ -972,6 +1022,7 @@ function _initSpotifyActions() {
         try {
             const resp = await fetch('/spotify/playlists', { credentials: 'same-origin' });
             const data = await resp.json();
+            if (!isProfileSpotifyTrackCurrent(actionSeq, trackId) || playlistSeq !== profileSpotifyPlaylistSeq) return;
             playlistList.textContent = '';
             const playlists = data.playlists || [];
             if (!playlists.length) {
@@ -986,20 +1037,23 @@ function _initSpotifyActions() {
                 item.className = 'profile-spotify-playlist-item';
                 item.textContent = pl.name;
                 item.addEventListener('click', async () => {
-                    const trackId = getTrackId();
-                    if (!trackId) return;
+                    const itemTrackId = getTrackId();
+                    const itemSeq = profileSpotifyPlaylistSeq;
+                    if (!itemTrackId || !isProfileSpotifyTrackCurrent(actionSeq, itemTrackId) || itemSeq !== playlistSeq) return;
                     item.style.opacity = '0.5';
                     try {
                         await _spotifyPost('/spotify/track/playlist', {
-                            track_id: trackId,
+                            track_id: itemTrackId,
                             playlist_id: pl.id,
                         });
                     } catch (_) { /* ignore */ }
+                    if (!isProfileSpotifyTrackCurrent(actionSeq, itemTrackId) || itemSeq !== profileSpotifyPlaylistSeq) return;
                     playlistPicker.hidden = true;
                 });
                 playlistList.appendChild(item);
             });
         } catch (_) {
+            if (!isProfileSpotifyTrackCurrent(actionSeq, trackId) || playlistSeq !== profileSpotifyPlaylistSeq) return;
             playlistList.textContent = '';
             const errEl = document.createElement('div');
             errEl.style.cssText = 'padding:8px 10px;color:var(--sub-text);font-size:13px;';
@@ -1009,6 +1063,7 @@ function _initSpotifyActions() {
     });
 
     playlistClose?.addEventListener('click', () => {
+        profileSpotifyPlaylistSeq += 1;
         if (playlistPicker) playlistPicker.hidden = true;
     });
 }
@@ -1044,6 +1099,7 @@ export function renderProfileSpotifyStatus(profile) {
     const artEl = document.getElementById('profileSpotifyArt');
     const linkEl = document.getElementById('profileSpotifyTrackLink');
     const fillEl = document.getElementById('profileSpotifyBarFill');
+    syncProfileSpotifyTrackLifecycle(String(sp.track_id || ''));
 
     if (trackEl) trackEl.textContent = sp.track || '';
     if (artistEl) artistEl.textContent = sp.artist || '';
@@ -1130,8 +1186,11 @@ export async function handleProfileAction(action, {
     copyTextToClipboard,
     showToast,
     sendContactRequest,
+    isProfileCurrent = () => true,
 } = {}) {
     const profile = currentProfile || {};
+    const profileKey = String(profile?.user_id || profile?.userId || '');
+    const isCurrentProfileAction = () => isProfileCurrent(profileKey, profile);
 
     if (action === 'message') {
         closeDrawer?.();
@@ -1145,6 +1204,7 @@ export async function handleProfileAction(action, {
         const username = profile.username ? `@${profile.username}` : (profile.display_name || '\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C');
         const shareText = `\u041A\u043E\u043D\u0442\u0430\u043A\u0442 \u0432 SUN Messenger: ${username}`;
         const copied = await copyTextToClipboard?.(shareText);
+        if (!isCurrentProfileAction()) return;
         showToast?.(
             copied ? '\u041A\u043E\u043D\u0442\u0430\u043A\u0442 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430.' : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043A\u043E\u043D\u0442\u0430\u043A\u0442.',
             copied ? 'success' : 'warning',
@@ -1159,6 +1219,7 @@ export async function handleProfileAction(action, {
             return;
         }
         const copied = await copyTextToClipboard?.(username);
+        if (!isCurrentProfileAction()) return;
         showToast?.(
             copied ? 'Username \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D.' : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C username.',
             copied ? 'success' : 'warning',
@@ -1190,6 +1251,7 @@ export async function handleProfileAction(action, {
             userId: targetUserId,
             displayName: profile?.display_name || profile?.username || 'пользователь',
         });
+        if (!isCurrentProfileAction()) return;
         if (sent) {
             profile.can_send_request = false;
             profile.request_sent = true;

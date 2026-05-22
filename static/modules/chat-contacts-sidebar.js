@@ -42,6 +42,7 @@ export function initChatContactsSidebar({
     let scheduledContactsReloadOptions = null;
     let lastContactsLoadStartedAt = 0;
     let lastFullContactsPayloadSignature = '';
+    let contactsHydrationSeq = 0;
     const CONTACTS_DECRYPT_CONCURRENCY = 6;
     const CONTACTS_MAX_LIMIT = 200;
     const CONTACTS_IMMEDIATE_MIN_INTERVAL_MS = 220;
@@ -509,6 +510,7 @@ export function initChatContactsSidebar({
             });
             const previousScrollTop = contactsList?.scrollTop || 0;
             const previousScrollHeight = contactsList?.scrollHeight || 0;
+            const hydrationSeq = shouldBatchHydrate ? ++contactsHydrationSeq : contactsHydrationSeq;
             if (shouldBatchHydrate) {
                 contactsList?.classList.add('is-hydrating-contacts');
             }
@@ -576,6 +578,7 @@ export function initChatContactsSidebar({
                     } finally {
                         if (shouldBatchHydrate) {
                             window.requestAnimationFrame(() => {
+                                if (hydrationSeq !== contactsHydrationSeq) return;
                                 contactsList?.classList.remove('is-hydrating-contacts');
                             });
                         }
@@ -583,7 +586,7 @@ export function initChatContactsSidebar({
                     }
                 })
                 .catch(() => {
-                    if (shouldBatchHydrate) {
+                    if (shouldBatchHydrate && hydrationSeq === contactsHydrationSeq) {
                         contactsList?.classList.remove('is-hydrating-contacts');
                     }
                     hideAppBootOverlay();

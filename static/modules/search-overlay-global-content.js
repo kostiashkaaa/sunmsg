@@ -170,6 +170,9 @@ export function initSearchOverlayGlobalContent({
     let chatLookup = new Map();
     let mediaCollections = createEmptyCollections();
     let messageMetaById = new Map();
+    let tabRenderSeq = 0;
+    let jumpSeq = 0;
+    let audioPlaySeq = 0;
 
     function buildChatLookup() {
         const next = new Map();
@@ -536,11 +539,14 @@ export function initSearchOverlayGlobalContent({
         const normalizedChatId = String(chatId || '').trim();
         const normalizedMessageId = Number(messageId);
         if (!normalizedChatId || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) return;
+        const currentJumpSeq = ++jumpSeq;
 
         closeOverlay?.();
         await openChatById(normalizedChatId);
+        if (currentJumpSeq !== jumpSeq) return;
 
         for (let attempt = 0; attempt < 20; attempt += 1) {
+            if (currentJumpSeq !== jumpSeq) return;
             if (!isTargetChatActive(normalizedChatId)) {
                 await new Promise((resolve) => setTimeout(resolve, 120));
                 continue;
@@ -549,9 +555,11 @@ export function initSearchOverlayGlobalContent({
                 align: 'center',
                 smooth: true,
             });
+            if (currentJumpSeq !== jumpSeq) return;
             if (focused) return;
             await new Promise((resolve) => setTimeout(resolve, attempt < 8 ? 160 : 240));
         }
+        if (currentJumpSeq !== jumpSeq) return;
 
         showToast?.(tr('Не удалось перейти к сообщению.'), 'warning');
     }
@@ -574,12 +582,16 @@ export function initSearchOverlayGlobalContent({
             }
 
             stopOtherAudio(audio);
+            const playSeq = ++audioPlaySeq;
+            row.dataset.searchGlobalAudioPlaySeq = String(playSeq);
             audio.play().then(() => {
+                if (!row.isConnected || row.dataset.searchGlobalAudioPlaySeq !== String(playSeq) || audio.paused) return;
                 row.classList.add('is-playing');
                 if (icon) icon.className = 'bi bi-pause-fill';
             }).catch(() => {});
 
             audio.onended = () => {
+                if (!row.isConnected || row.dataset.searchGlobalAudioPlaySeq !== String(playSeq)) return;
                 row.classList.remove('is-playing');
                 if (icon) icon.className = 'bi bi-play-fill';
             };
@@ -600,17 +612,21 @@ export function initSearchOverlayGlobalContent({
         const tabId = String(event?.detail?.tabId || '').trim();
         if (!Object.prototype.hasOwnProperty.call(TAB_TO_MEDIA_KEY, tabId)) {
             activeTab = tabId;
+            tabRenderSeq += 1;
             return;
         }
 
         activeTab = tabId;
+        const renderSeq = ++tabRenderSeq;
         setLoadingState(tabId);
         ensureDataLoaded()
             .then(() => {
+                if (renderSeq !== tabRenderSeq || activeTab !== tabId) return;
                 buildChatLookup();
                 renderTab(tabId);
             })
             .catch((error) => {
+                if (renderSeq !== tabRenderSeq || activeTab !== tabId) return;
                 const panel = panelMap[tabId];
                 if (panel) {
                     panel.innerHTML = `<div class="search-global-state">${escapeHtml(tr('Не удалось загрузить контент'))}</div>`;

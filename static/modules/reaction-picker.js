@@ -216,7 +216,7 @@ export function initReactionPickerController({
             closeReactionPicker();
         },
         onOpen: () => {
-            if (!expandToggleEl) return;
+            if (!expandToggleEl || !pickerEl?.classList.contains('active')) return;
             expandToggleEl.setAttribute('aria-expanded', 'true');
             const icon = expandToggleEl.querySelector('i');
             if (icon) {
@@ -420,10 +420,10 @@ export function initReactionPickerController({
             anchorRect.top + anchorRect.height / 2,
         );
         window.requestAnimationFrame(() => {
-            if (openSeq !== pickerTransitionSeq) return;
+            if (openSeq !== pickerTransitionSeq || activeAnchorEl !== anchorEl || !document.body.contains(anchorEl)) return;
             pickerEl.classList.add('active');
             window.requestAnimationFrame(() => {
-                if (openSeq !== pickerTransitionSeq) return;
+                if (openSeq !== pickerTransitionSeq || activeAnchorEl !== anchorEl || !document.body.contains(anchorEl)) return;
                 pickerEl.classList.remove('is-opening');
             });
         });
@@ -463,8 +463,11 @@ export function initReactionPickerController({
             if (reactionEmojiPopup.isOpen()) {
                 reactionEmojiPopup.close();
             } else {
+                const expandSeq = pickerTransitionSeq;
+                const expandMessageId = msgId;
                 hideContextMenuForEmojiPopup();
                 await reactionEmojiPopup.open();
+                if (expandSeq !== pickerTransitionSeq || Number(activeMessageId) !== expandMessageId || !reactionEmojiPopup.isOpen()) return;
                 reactionEmojiPopup.position();
             }
             return;

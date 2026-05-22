@@ -15,6 +15,7 @@ export function initSpotifyRealtimeRefresh({
     let refreshTimer = 0;
     let stopped = false;
     let inFlight = false;
+    let refreshSeq = 0;
 
     function clearRefreshTimer() {
         if (!refreshTimer) return;
@@ -28,6 +29,7 @@ export function initSpotifyRealtimeRefresh({
 
     function stop() {
         stopped = true;
+        refreshSeq += 1;
         clearRefreshTimer();
         documentRef.removeEventListener?.('visibilitychange', handleVisibilityChange);
     }
@@ -44,6 +46,8 @@ export function initSpotifyRealtimeRefresh({
     async function refreshNow() {
         if (stopped || inFlight || !isVisible()) return;
         inFlight = true;
+        const seq = ++refreshSeq;
+        const isCurrentRefresh = () => seq === refreshSeq && !stopped && isVisible();
         try {
             const response = await fetchImpl(withAppRoot('/spotify/refresh'), {
                 method: 'POST',
@@ -53,12 +57,14 @@ export function initSpotifyRealtimeRefresh({
                     'X-CSRFToken': getCsrfToken(),
                 },
             });
+            if (!isCurrentRefresh()) return;
             if (response.status === 401) {
                 stop();
                 return;
             }
 
             const payload = await response.json().catch(() => null);
+            if (!isCurrentRefresh()) return;
             if (!response.ok || !payload?.success) {
                 scheduleRefresh(SPOTIFY_REFRESH_RETRY_MS);
                 return;
@@ -69,7 +75,9 @@ export function initSpotifyRealtimeRefresh({
             }
             scheduleRefresh(SPOTIFY_REFRESH_INTERVAL_MS);
         } catch (_) {
-            scheduleRefresh(SPOTIFY_REFRESH_RETRY_MS);
+            if (isCurrentRefresh()) {
+                scheduleRefresh(SPOTIFY_REFRESH_RETRY_MS);
+            }
         } finally {
             inFlight = false;
         }

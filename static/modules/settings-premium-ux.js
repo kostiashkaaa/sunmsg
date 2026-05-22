@@ -211,9 +211,13 @@ function initMnemonicPasteAll(doc) {
     actionsWrap.appendChild(pasteBtn);
     unlockBody.insertBefore(actionsWrap, grid);
 
+    let pasteFeedbackSeq = 0;
+
     pasteBtn.addEventListener('click', async () => {
+        const actionSeq = ++pasteFeedbackSeq;
         try {
             const text = await navigator.clipboard.readText();
+            if (actionSeq !== pasteFeedbackSeq || !pasteBtn.isConnected || !grid.isConnected) return;
             const words = text.trim().split(/\s+/).filter(Boolean);
             if (words.length < 12) {
                 showPasteFeedback(pasteBtn, 'Не похоже на мнемоническую фразу', 'warn');
@@ -228,15 +232,18 @@ function initMnemonicPasteAll(doc) {
             });
             showPasteFeedback(pasteBtn, `Вставлено ${Math.min(words.length, inputs.length)} слов`, 'ok');
         } catch {
+            if (actionSeq !== pasteFeedbackSeq || !pasteBtn.isConnected) return;
             showPasteFeedback(pasteBtn, 'Нет доступа к буферу', 'warn');
         }
     });
 
     function showPasteFeedback(btn, text, type) {
+        const feedbackSeq = ++pasteFeedbackSeq;
         const orig = btn.innerHTML;
         btn.textContent = text;
         btn.style.color = type === 'ok' ? 'var(--sx-good, #4e9a6f)' : 'var(--sx-danger, #c95a3a)';
         setTimeout(() => {
+            if (feedbackSeq !== pasteFeedbackSeq || !btn.isConnected) return;
             btn.innerHTML = orig;
             btn.style.color = '';
         }, 2200);
