@@ -1,4 +1,4 @@
-const VERSION = '2026-05-23-pwa-v4';
+const VERSION = '2026-05-23-pwa-v5';
 const CACHE_PREFIX = 'sunmessenger-pwa-';
 const LEGACY_CACHE_PREFIX = 'sunmessenger-cache-';
 const PRECACHE = `${CACHE_PREFIX}precache-${VERSION}`;

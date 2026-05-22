@@ -21,8 +21,8 @@ initSunRipple(document);
 void clearPrivateKeyPem({
     notify: false,
     clearWrappedSession: true,
-    clearWrappedPersistent: true,
-    clearDeviceKey: true,
+    clearWrappedPersistent: false,
+    clearDeviceKey: false,
 });
 
 const ui = initAuthUi({ withAppRoot, getCsrfToken });

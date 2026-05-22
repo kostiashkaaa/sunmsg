@@ -14,5 +14,16 @@
 <meta name="msapplication-TileColor" content="#f7f4ee">
 <meta name="msapplication-TileImage" content="{{ asset_url('icons/mstile-150x150.png') }}">
 <meta name="color-scheme" content="light dark">
+<script nonce="{{ csp_nonce }}">
+(() => {
+    const root = document.documentElement;
+    const standalone = window.navigator?.standalone === true
+        || window.matchMedia?.('(display-mode: standalone)')?.matches
+        || window.matchMedia?.('(display-mode: fullscreen)')?.matches;
+    root.classList.add('sun-pwa-capable');
+    root.classList.toggle('sun-pwa-standalone', standalone);
+    root.dataset.pwaDisplayMode = standalone ? 'standalone' : 'browser';
+})();
+</script>
 <link rel="stylesheet" href="{{ asset_url('pages/pwa.css') }}">
 <script type="module" src="{{ asset_url('modules/pwa-runtime.js') }}" nonce="{{ csp_nonce }}"></script>

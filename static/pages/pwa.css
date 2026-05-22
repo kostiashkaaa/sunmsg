@@ -1,3 +1,51 @@
+.sun-pwa-capable {
+    --pwa-vh: 100dvh;
+    --pwa-vw: 100%;
+    --pwa-vv-top: 0px;
+    --pwa-vv-left: 0px;
+    --pwa-keyboard-inset: 0px;
+    --pwa-safe-top: env(safe-area-inset-top, 0px);
+    --pwa-safe-right: env(safe-area-inset-right, 0px);
+    --pwa-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --pwa-safe-left: env(safe-area-inset-left, 0px);
+    --pwa-page-bg: var(--bg, #f7f4ee);
+}
+
+html.sun-pwa-standalone {
+    min-height: 100svh;
+    min-height: var(--pwa-vh, 100dvh);
+    background: var(--pwa-page-bg);
+    overscroll-behavior: none;
+}
+
+html.sun-pwa-standalone body {
+    min-height: 100svh;
+    min-height: var(--pwa-vh, 100dvh);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    background: var(--pwa-page-bg);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+@supports not (overflow: clip) {
+    html.sun-pwa-standalone body {
+        overflow-x: hidden;
+    }
+}
+
+html.sun-pwa-standalone body:not(.chat-page-body):not(.settings-embed-mode) {
+    min-height: var(--pwa-vh, 100dvh) !important;
+}
+
+html.sun-pwa-standalone body:not(.chat-page-body) .toast-container,
+html.sun-pwa-standalone body:not(.chat-page-body) .auth-toast-container {
+    top: max(10px, calc(var(--pwa-safe-top) + 10px));
+}
+
 .sun-pwa-update {
     position: fixed;
     right: max(16px, env(safe-area-inset-right, 0px));
@@ -15,6 +63,12 @@
     color: var(--text, #221d19);
     box-shadow: 0 14px 36px rgba(20, 16, 12, 0.18);
     backdrop-filter: blur(18px);
+}
+
+html.sun-pwa-standalone .sun-pwa-update {
+    right: max(12px, var(--pwa-safe-right));
+    bottom: max(12px, calc(var(--pwa-safe-bottom) + 12px));
+    left: auto;
 }
 
 .sun-pwa-update__text {
@@ -56,5 +110,22 @@
 
     body.chat-page-body .sun-pwa-update {
         bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 58px);
+    }
+
+    html.sun-pwa-standalone .sun-pwa-update {
+        right: max(10px, var(--pwa-safe-right));
+        bottom: max(10px, calc(var(--pwa-safe-bottom) + 10px));
+        left: max(10px, var(--pwa-safe-left));
+    }
+}
+
+@media (max-width: 768px) {
+    html.sun-pwa-standalone body.auth-page-body {
+        min-height: var(--pwa-vh, 100dvh) !important;
+        padding-top: max(16px, calc(var(--pwa-safe-top) + 12px)) !important;
+        padding-right: max(12px, var(--pwa-safe-right)) !important;
+        padding-bottom: max(18px, calc(var(--pwa-safe-bottom) + 14px)) !important;
+        padding-left: max(12px, var(--pwa-safe-left)) !important;
+        background: var(--auth-bg, var(--pwa-page-bg));
     }
 }

@@ -5,9 +5,12 @@ const SERVICE_WORKER_SCOPE = '/';
 const PWA_CACHE_PREFIX = 'sunmessenger-pwa-';
 const LEGACY_CACHE_PREFIX = 'sunmessenger-cache-';
 const BACKGROUND_SYNC_TAG = 'sun-outbox-sync';
+const PWA_CAPABLE_CLASS = 'sun-pwa-capable';
+const PWA_STANDALONE_CLASS = 'sun-pwa-standalone';
 
 let registrationPromise = null;
 let updateNoticeEl = null;
+let viewportSyncFrame = 0;
 
 function canUseServiceWorker() {
     return window.isSecureContext && 'serviceWorker' in navigator;
@@ -19,6 +22,86 @@ function translate(text) {
         return api.translateText(text);
     }
     return text;
+}
+
+function isStandaloneDisplayMode() {
+    return window.navigator?.standalone === true
+        || window.matchMedia?.('(display-mode: standalone)')?.matches
+        || window.matchMedia?.('(display-mode: fullscreen)')?.matches;
+}
+
+function roundedPx(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return 0;
+    return Math.round(number * 100) / 100;
+}
+
+function setRootPxVar(root, name, value) {
+    root.style.setProperty(name, `${roundedPx(value)}px`);
+}
+
+function applyDisplayModeState() {
+    const standalone = isStandaloneDisplayMode();
+    const root = document.documentElement;
+    root.classList.add(PWA_CAPABLE_CLASS);
+    root.classList.toggle(PWA_STANDALONE_CLASS, standalone);
+    root.dataset.pwaDisplayMode = standalone ? 'standalone' : 'browser';
+
+    if (document.body) {
+        document.body.classList.add(PWA_CAPABLE_CLASS);
+        document.body.classList.toggle(PWA_STANDALONE_CLASS, standalone);
+        document.body.dataset.pwaDisplayMode = standalone ? 'standalone' : 'browser';
+    }
+
+    return standalone;
+}
+
+function syncPwaViewportState() {
+    viewportSyncFrame = 0;
+    const root = document.documentElement;
+    const standalone = applyDisplayModeState();
+    const viewport = window.visualViewport;
+    const fallbackHeight = window.innerHeight || root.clientHeight || 0;
+    const fallbackWidth = window.innerWidth || root.clientWidth || 0;
+    const visualHeight = standalone && viewport?.height ? viewport.height : fallbackHeight;
+    const visualWidth = standalone && viewport?.width ? viewport.width : fallbackWidth;
+    const offsetTop = standalone && viewport?.offsetTop ? viewport.offsetTop : 0;
+    const offsetLeft = standalone && viewport?.offsetLeft ? viewport.offsetLeft : 0;
+    const keyboardInset = Math.max(0, fallbackHeight - (Number(viewport?.height) || fallbackHeight) - offsetTop);
+
+    setRootPxVar(root, '--pwa-vh', visualHeight || fallbackHeight);
+    setRootPxVar(root, '--pwa-vw', visualWidth || fallbackWidth);
+    setRootPxVar(root, '--pwa-vv-top', offsetTop);
+    setRootPxVar(root, '--pwa-vv-left', offsetLeft);
+    setRootPxVar(root, '--pwa-keyboard-inset', standalone ? keyboardInset : 0);
+}
+
+function schedulePwaViewportStateSync() {
+    if (viewportSyncFrame) return;
+    viewportSyncFrame = window.requestAnimationFrame(syncPwaViewportState);
+}
+
+function bindPwaViewportState() {
+    syncPwaViewportState();
+    document.addEventListener('DOMContentLoaded', schedulePwaViewportStateSync, { once: true });
+    window.addEventListener('resize', schedulePwaViewportStateSync, { passive: true });
+    window.addEventListener('orientationchange', schedulePwaViewportStateSync, { passive: true });
+
+    const viewport = window.visualViewport;
+    if (viewport) {
+        viewport.addEventListener('resize', schedulePwaViewportStateSync, { passive: true });
+        viewport.addEventListener('scroll', schedulePwaViewportStateSync, { passive: true });
+    }
+
+    for (const query of ['(display-mode: standalone)', '(display-mode: fullscreen)']) {
+        const media = window.matchMedia?.(query);
+        if (!media) continue;
+        if (typeof media.addEventListener === 'function') {
+            media.addEventListener('change', schedulePwaViewportStateSync);
+        } else if (typeof media.addListener === 'function') {
+            media.addListener(schedulePwaViewportStateSync);
+        }
+    }
 }
 
 function showUpdateNotice() {
@@ -120,6 +203,7 @@ export async function clearPrivatePwaCaches() {
 }
 
 bindServiceWorkerMessages();
+bindPwaViewportState();
 
 window.SUN_PWA = {
     ready: ensurePwaServiceWorkerRegistration,

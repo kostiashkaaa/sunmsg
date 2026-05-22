@@ -972,7 +972,7 @@
             }
             @media (display-mode: standalone), (display-mode: fullscreen) {
                 .sidebar {
-                    --mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom) - 12px));
+                    --mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom) - 18px));
                     --mobile-tabbar-content-height: 58px;
                     --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
                     --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
@@ -998,6 +998,33 @@
                     padding: 4px 8px 4px 0;
                     border-radius: 0;
                 }
+            }
+            html.sun-pwa-standalone .sidebar {
+                --mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom) - 18px));
+                --mobile-tabbar-content-height: 58px;
+                --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
+                --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+            }
+            html.sun-pwa-standalone .sidebar-bottom-user {
+                padding: 0 max(10px, env(safe-area-inset-right, 0px))
+                    var(--mobile-tabbar-pwa-bottom-gap)
+                    max(10px, env(safe-area-inset-left, 0px));
+                background: var(--sidebar-bg, var(--bg));
+            }
+            html.sun-pwa-standalone .sidebar-profile-card {
+                min-height: var(--mobile-tabbar-content-height, 58px);
+                padding: 0;
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+            }
+            html.sun-pwa-standalone .sidebar-bottom-main {
+                min-height: var(--mobile-tabbar-content-height, 58px);
+            }
+            html.sun-pwa-standalone .sidebar-bottom-identity {
+                min-height: 52px;
+                padding: 4px 8px 4px 0;
+                border-radius: 0;
             }
             .chat-area.mobile-open {
                 display: flex;
@@ -2053,7 +2080,7 @@
 
     @media (display-mode: standalone), (display-mode: fullscreen) {
         .sidebar {
-            --mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)) - 10px));
+            --mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)) - 16px));
             --mobile-tabbar-content-height: 50px;
             --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
             --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
@@ -2067,6 +2094,13 @@
         .sidebar-profile-card {
             min-height: var(--mobile-tabbar-content-height, 50px);
         }
+    }
+
+    html.sun-pwa-standalone .sidebar {
+        --mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)) - 16px));
+        --mobile-tabbar-content-height: 50px;
+        --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
+        --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
     }
 
     .sidebar-status-bar--compact {

@@ -1602,7 +1602,11 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     """Mobile PWA shell must paint safe areas and keep scroll inside app containers."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
+    pwa_css = (STATIC / 'pages' / 'pwa.css').read_text(encoding='utf-8')
+    pwa_head = (ROOT / 'templates' / '_pwa_head.html').read_text(encoding='utf-8')
+    pwa_runtime = (STATIC / 'modules' / 'pwa-runtime.js').read_text(encoding='utf-8')
     service_worker = (STATIC / 'service-worker.js').read_text(encoding='utf-8')
+    auth_js = (STATIC / 'pages' / 'auth.js').read_text(encoding='utf-8')
 
     assert 'body.chat-page-body {' in css
     assert 'position: fixed;' in css
@@ -1622,7 +1626,8 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'touch-action: pan-y;' in css
     assert '-webkit-overflow-scrolling: touch;' in css
     assert '@media (display-mode: standalone), (display-mode: fullscreen)' in css
-    assert '--mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom) - 12px));' in css
+    assert '--mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom) - 18px));' in css
+    assert 'html.sun-pwa-standalone .sidebar {' in css
     assert '--mobile-tabbar-content-height: 58px;' in css
     assert '--sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);' in css
     assert 'background: var(--sidebar-bg, var(--bg));' in css
@@ -1630,11 +1635,24 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {\n    padding: 12px;' in liquid_glass_css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {\n    border: 1px solid var(--border);' in liquid_glass_css
     assert '@media (max-width: 768px) and (display-mode: standalone),' in liquid_glass_css
-    assert 'var(--mobile-tabbar-pwa-bottom-gap, max(2px, calc(env(safe-area-inset-bottom, 0px) - 12px)))' in liquid_glass_css
+    assert 'var(--mobile-tabbar-pwa-bottom-gap, max(0px, calc(env(safe-area-inset-bottom, 0px) - 18px)))' in liquid_glass_css
+    assert 'html.sun-pwa-standalone[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user' in liquid_glass_css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {' in liquid_glass_css
     assert 'background: transparent !important;' in liquid_glass_css
-    assert "const VERSION = '2026-05-23-pwa-v4';" in service_worker
+    assert 'sun-pwa-standalone' in pwa_head
+    assert "root.dataset.pwaDisplayMode = standalone ? 'standalone' : 'browser';" in pwa_head
+    assert '--pwa-vh: 100dvh;' in pwa_css
+    assert 'html.sun-pwa-standalone body {' in pwa_css
+    assert 'overscroll-behavior-y: none;' in pwa_css
+    assert 'html.sun-pwa-standalone body.auth-page-body' in pwa_css
+    assert 'window.visualViewport' in pwa_runtime
+    assert '--pwa-keyboard-inset' in pwa_runtime
+    assert "window.navigator?.standalone === true" in pwa_runtime
+    assert "const VERSION = '2026-05-23-pwa-v5';" in service_worker
+    assert 'clearWrappedSession: true' in auth_js
+    assert 'clearWrappedPersistent: true' not in auth_js
+    assert 'clearDeviceKey: true' not in auth_js
 
 
 def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:
