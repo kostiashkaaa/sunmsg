@@ -719,18 +719,9 @@
                 max-height: var(--app-vh, 100dvh);
                 min-height: 0;
                 background: var(--sidebar-bg, var(--bg));
-                isolation: isolate;
                 touch-action: pan-y;
                 overscroll-behavior: none;
                 overscroll-behavior-y: none;
-            }
-            .app::before {
-                content: "";
-                position: fixed;
-                inset: 0;
-                z-index: -1;
-                pointer-events: none;
-                background: var(--sidebar-bg, var(--bg));
             }
             .sidebar-top-row {
                 gap: 10px;
@@ -778,8 +769,8 @@
             }
             .sidebar  {
                 --mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
-                --mobile-tabbar-block-size: calc(74px + var(--mobile-tabbar-safe-bottom));
-                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 10px);
+                --mobile-tabbar-block-size: calc(64px + var(--mobile-tabbar-safe-bottom));
+                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -818,8 +809,8 @@
                 touch-action: pan-y;
                 scroll-behavior: auto;
                 scrollbar-gutter: auto;
-                padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 10px);
-                scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 10px);
+                padding-bottom: var(--sidebar-bottom-user-reserve, 92px);
+                scroll-padding-bottom: var(--sidebar-bottom-user-reserve, 92px);
                 contain: layout paint style;
             }
             .contacts-list {
@@ -922,12 +913,12 @@
             }
             .sidebar-bottom-user {
                 bottom: 0;
-                min-height: var(--mobile-tabbar-block-size, calc(74px + env(safe-area-inset-bottom, 0px)));
-                padding: 8px max(12px, env(safe-area-inset-right, 0px))
-                    calc(10px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
-                    max(12px, env(safe-area-inset-left, 0px));
-                background: color-mix(in srgb, var(--sidebar-bg) 96%, var(--surface) 4%);
-                border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+                min-height: auto;
+                padding: 6px max(10px, env(safe-area-inset-right, 0px))
+                    max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
+                    max(10px, env(safe-area-inset-left, 0px));
+                background: transparent;
+                border-top: 0;
                 box-shadow: none;
                 backdrop-filter: none;
                 -webkit-backdrop-filter: none;
@@ -935,30 +926,30 @@
                 contain: layout paint style;
             }
             .sidebar-profile-card {
-                min-height: 56px;
-                padding: 0;
-                border: none;
-                border-radius: 0;
-                background: transparent;
+                min-height: 54px;
+                padding: 6px;
+                border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+                border-radius: 18px;
+                background: color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%);
                 box-shadow: none;
             }
             .sidebar-bottom-main {
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                min-height: 56px;
+                min-height: 48px;
             }
             .sidebar-bottom-identity {
-                min-height: 52px;
-                padding: 6px 4px;
+                min-height: 46px;
+                padding: 5px 8px;
                 border: 0;
-                border-radius: 0;
+                border-radius: 12px;
             }
             .sidebar-status-bar--compact {
-                width: 48px;
-                min-width: 48px;
-                height: 48px;
-                border-radius: 16px;
+                width: 44px;
+                min-width: 44px;
+                height: 44px;
+                border-radius: 14px;
                 background: color-mix(in srgb, var(--surface) 92%, var(--sidebar-bg) 8%);
                 border-color: color-mix(in srgb, var(--border) 76%, transparent);
             }
@@ -1983,7 +1974,7 @@
     }
 
     .sidebar {
-        --mobile-tabbar-block-size: calc(58px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+        --mobile-tabbar-block-size: calc(54px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
         --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
     }
 
@@ -2010,7 +2001,7 @@
     }
 
     .sidebar-bottom-user {
-        min-height: var(--mobile-tabbar-block-size);
+        min-height: auto;
         padding-top: 5px;
     }
 

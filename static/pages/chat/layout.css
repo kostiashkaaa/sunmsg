@@ -17,15 +17,6 @@
     overscroll-behavior-y: none;
 }
 
-.chat-page-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: var(--sidebar-bg, var(--bg));
-}
-
 html.sun-modal-scroll-locked,
 html.sun-modal-scroll-locked body {
     overflow: hidden;

@@ -1607,13 +1607,14 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'position: fixed;' in css
     assert 'min-height: 100svh;' in css
     assert 'overscroll-behavior-y: none;' in css
-    assert '.app::before' in css
+    assert '.app::before' not in css
     assert '--mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);' in css
-    assert '--mobile-tabbar-block-size: calc(74px + var(--mobile-tabbar-safe-bottom));' in css
-    assert 'min-height: var(--mobile-tabbar-block-size' in css
+    assert '--mobile-tabbar-block-size: calc(64px + var(--mobile-tabbar-safe-bottom));' in css
+    assert 'background: transparent;' in css
+    assert 'padding-bottom: var(--sidebar-bottom-user-reserve' in css
     assert 'touch-action: pan-y;' in css
     assert '-webkit-overflow-scrolling: touch;' in css
-    assert "const VERSION = '2026-05-23-pwa-v1';" in service_worker
+    assert "const VERSION = '2026-05-23-pwa-v2';" in service_worker
 
 
 def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:

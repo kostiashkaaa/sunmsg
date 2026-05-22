@@ -55,6 +55,6 @@
     }
 
     body.chat-page-body .sun-pwa-update {
-        bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 76px);
+        bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 58px);
     }
 }
