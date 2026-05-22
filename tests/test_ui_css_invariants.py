@@ -1598,6 +1598,24 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
     assert '.chat-area.emoji-sheet-keyboard-handoff .chat-input-area' in css
 
 
+def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
+    """Mobile PWA shell must paint safe areas and keep scroll inside app containers."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    service_worker = (STATIC / 'service-worker.js').read_text(encoding='utf-8')
+
+    assert 'body.chat-page-body {' in css
+    assert 'position: fixed;' in css
+    assert 'min-height: 100svh;' in css
+    assert 'overscroll-behavior-y: none;' in css
+    assert '.app::before' in css
+    assert '--mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);' in css
+    assert '--mobile-tabbar-block-size: calc(74px + var(--mobile-tabbar-safe-bottom));' in css
+    assert 'min-height: var(--mobile-tabbar-block-size' in css
+    assert 'touch-action: pan-y;' in css
+    assert '-webkit-overflow-scrolling: touch;' in css
+    assert "const VERSION = '2026-05-23-pwa-v1';" in service_worker
+
+
 def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:
     """Mobile scroll surfaces should keep touchmove passive until a horizontal drag is confirmed."""
     touch_context = (STATIC / 'chat' / 'message-touch-context.js').read_text(encoding='utf-8')

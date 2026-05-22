@@ -221,6 +221,16 @@ def test_sidebar_loading_preview_is_not_reused_for_avatar_loading() -> None:
     assert '.contact-last-msg-loading__line' in components_css
 
 
+def test_chat_template_marks_body_as_fixed_mobile_shell() -> None:
+    chat_template_src = (ROOT / 'templates' / 'chat.html').read_text(encoding='utf-8')
+    layout_css = (STATIC / 'pages' / 'chat' / 'layout.css').read_text(encoding='utf-8')
+
+    assert 'class="chat-page-body"' in chat_template_src
+    assert '.chat-page-body {' in layout_css
+    assert 'background: var(--sidebar-bg, var(--bg));' in layout_css
+    assert 'overscroll-behavior-y: none;' in layout_css
+
+
 def test_sidebar_loading_shell_is_shared_for_initial_contact_sync() -> None:
     contacts_src = (STATIC / 'modules' / 'contacts.js').read_text(encoding='utf-8')
     sidebar_runtime_src = (STATIC / 'modules' / 'chat-contacts-sidebar.js').read_text(encoding='utf-8')

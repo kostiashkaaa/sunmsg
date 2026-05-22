@@ -686,6 +686,19 @@
 
 
         @media (max-width: 768px) {
+            body.chat-page-body {
+                position: fixed;
+                inset: 0;
+                width: 100%;
+                min-width: 0;
+                min-height: 100svh;
+                height: var(--app-vh, 100dvh);
+                max-height: var(--app-vh, 100dvh);
+                overflow: hidden;
+                background: var(--sidebar-bg, var(--bg));
+                overscroll-behavior: none;
+                overscroll-behavior-y: none;
+            }
             /* Native keyboard handling: interactive-widget=resizes-content makes the
                browser shrink the layout viewport (and 100dvh) when the keyboard
                opens, so the app naturally sits above the keyboard without any JS
@@ -705,12 +718,24 @@
                 height: var(--app-vh, 100dvh);
                 max-height: var(--app-vh, 100dvh);
                 min-height: 0;
+                background: var(--sidebar-bg, var(--bg));
+                isolation: isolate;
                 touch-action: pan-y;
                 overscroll-behavior: none;
+                overscroll-behavior-y: none;
+            }
+            .app::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                z-index: -1;
+                pointer-events: none;
+                background: var(--sidebar-bg, var(--bg));
             }
             .sidebar-top-row {
                 gap: 10px;
-                padding: 14px 12px 10px;
+                min-height: 52px;
+                padding: clamp(10px, 2.8vw, 14px) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
             }
             .sidebar-brand {
                 min-height: 42px;
@@ -752,6 +777,9 @@
                 font-size: 10px;
             }
             .sidebar  {
+                --mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
+                --mobile-tabbar-block-size: calc(74px + var(--mobile-tabbar-safe-bottom));
+                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 10px);
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -765,6 +793,9 @@
                 padding-top: env(safe-area-inset-top, 0px);
                 padding-bottom: 0;
                 overflow: hidden;
+                background: var(--sidebar-bg, var(--bg));
+                overscroll-behavior: none;
+                overscroll-behavior-y: none;
                 contain: layout paint style;
             }
             .sidebar-top-card {
@@ -784,10 +815,11 @@
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior-y: contain;
+                touch-action: pan-y;
                 scroll-behavior: auto;
                 scrollbar-gutter: auto;
-                padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 14px + env(safe-area-inset-bottom, 0px));
-                scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 14px + env(safe-area-inset-bottom, 0px));
+                padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 10px);
+                scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 10px);
                 contain: layout paint style;
             }
             .contacts-list {
@@ -853,12 +885,16 @@
                 transform: translateX(100%);
                 opacity: 0;
                 touch-action: pan-y;
+                background: var(--chat-bg);
+                overscroll-behavior: none;
+                overscroll-behavior-y: none;
             }
             .chat-messages {
                 flex: 1 1 auto;
                 min-height: 0;
                 overscroll-behavior: contain;
                 touch-action: pan-y;
+                -webkit-overflow-scrolling: touch;
                 /* Composer & emoji sheet are real flow rows below, so messages
                    only needs a small breathing-room pad at the bottom. */
                 padding-bottom: 10px !important;
@@ -886,10 +922,11 @@
             }
             .sidebar-bottom-user {
                 bottom: 0;
-                padding: 8px max(10px, env(safe-area-inset-right, 0px))
-                    calc(8px + env(safe-area-inset-bottom, 0px))
-                    max(10px, env(safe-area-inset-left, 0px));
-                background: var(--sidebar-bg);
+                min-height: var(--mobile-tabbar-block-size, calc(74px + env(safe-area-inset-bottom, 0px)));
+                padding: 8px max(12px, env(safe-area-inset-right, 0px))
+                    calc(10px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
+                    max(12px, env(safe-area-inset-left, 0px));
+                background: color-mix(in srgb, var(--sidebar-bg) 96%, var(--surface) 4%);
                 border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
                 box-shadow: none;
                 backdrop-filter: none;
@@ -897,19 +934,39 @@
                 transform: translateZ(0);
                 contain: layout paint style;
             }
+            .sidebar-profile-card {
+                min-height: 56px;
+                padding: 0;
+                border: none;
+                border-radius: 0;
+                background: transparent;
+                box-shadow: none;
+            }
             .sidebar-bottom-main {
                 display: flex;
+                align-items: center;
+                gap: 10px;
+                min-height: 56px;
+            }
+            .sidebar-bottom-identity {
+                min-height: 52px;
+                padding: 6px 4px;
+                border: 0;
+                border-radius: 0;
+            }
+            .sidebar-status-bar--compact {
+                width: 48px;
+                min-width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                background: color-mix(in srgb, var(--surface) 92%, var(--sidebar-bg) 8%);
+                border-color: color-mix(in srgb, var(--border) 76%, transparent);
             }
             .sidebar-meta-footer {
                 padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
             }
             .sidebar-status-row {
                 display: none;
-            }
-            .sidebar-status-bar--compact {
-                width: 34px;
-                min-width: 34px;
-                height: 34px;
             }
             .chat-area.mobile-open {
                 display: flex;
@@ -1917,5 +1974,54 @@
     .reaction-pill {
         min-height: 30px;
         padding: 4px 10px;
+    }
+}
+
+@media (max-width: 768px) and (orientation: landscape) and (max-height: 520px) {
+    body.chat-page-body {
+        min-height: 100svh;
+    }
+
+    .sidebar {
+        --mobile-tabbar-block-size: calc(58px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+        --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+    }
+
+    .sidebar-top-row {
+        min-height: 42px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
+
+    .sidebar-tabs {
+        min-height: 38px;
+    }
+
+    .contact-item {
+        min-height: 58px;
+        contain-intrinsic-size: 58px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
+
+    .contact-avatar {
+        width: 42px;
+        height: 42px;
+    }
+
+    .sidebar-bottom-user {
+        min-height: var(--mobile-tabbar-block-size);
+        padding-top: 5px;
+    }
+
+    .sidebar-bottom-main,
+    .sidebar-profile-card {
+        min-height: 48px;
+    }
+
+    .sidebar-status-bar--compact {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
     }
 }

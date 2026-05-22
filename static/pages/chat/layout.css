@@ -1,8 +1,29 @@
 /* Migrated from legacy-global.css (formerly imported via style-base-layer.css). */
+:root {
+    background: var(--sidebar-bg, var(--bg));
+}
+
 .chat-page-body {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
     height: 100vh;
     height: 100dvh;
+    height: var(--app-vh, 100dvh);
+    margin: 0;
     overflow: hidden;
+    background: var(--sidebar-bg, var(--bg));
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+}
+
+.chat-page-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--sidebar-bg, var(--bg));
 }
 
 html.sun-modal-scroll-locked,
@@ -2274,13 +2295,18 @@ body.settings-detail-open .settings-overlay-frame {
             overflow-x: clip;
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
+            background: var(--sidebar-bg, var(--bg));
+            overscroll-behavior: none;
+            overscroll-behavior-y: none;
         }
 
 
         body {
-            background: var(--bg);
+            background: var(--sidebar-bg, var(--bg));
             color: var(--text);
             font-family: var(--font);
+            min-height: 100vh;
+            min-height: 100svh;
             height: 100vh;
             height: 100dvh;
             height: var(--app-vh, 100dvh); /* synced from visualViewport on mobile */
