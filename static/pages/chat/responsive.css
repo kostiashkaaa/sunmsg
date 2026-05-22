@@ -757,23 +757,68 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
+                height: var(--app-vh, 100dvh);
+                max-height: var(--app-vh, 100dvh);
                 min-width: 0;
                 max-width: 100%;
                 z-index: var(--z-mobile-sidebar, 50);
-                padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                padding-top: env(safe-area-inset-top, 0px);
+                padding-bottom: 0;
+                overflow: hidden;
+                contain: layout paint style;
+            }
+            .sidebar-top-card {
+                position: sticky;
+                top: 0;
+                z-index: 30;
+                background: var(--sidebar-bg);
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                transform: translateZ(0);
+                contain: layout paint style;
             }
             #sidebarScrollArea {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
+                scroll-behavior: auto;
                 scrollbar-gutter: auto;
+                padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 14px + env(safe-area-inset-bottom, 0px));
+                scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 14px + env(safe-area-inset-bottom, 0px));
+                contain: layout paint style;
+            }
+            .contacts-list {
+                contain: layout paint style;
             }
             .contact-item {
                 gap: 12px;
-                padding: 10px 14px;
-                margin: 0 0 4px;
+                min-height: 68px;
+                padding: 10px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
+                margin: 0;
+                border-radius: 0;
+                box-shadow: none;
+                contain: layout paint style;
+                contain-intrinsic-size: 68px;
+                transition:
+                    background-color var(--m-dur-instant) var(--m-spring),
+                    transform var(--m-dur-instant) var(--m-spring);
+            }
+            .contact-item::after {
+                display: none;
+            }
+            .contact-item::before {
+                left: max(4px, env(safe-area-inset-left, 0px));
+                box-shadow: none;
             }
             .contact-avatar {
                 width: 48px;
                 height: 48px;
                 font-size: 16px;
+                box-shadow: none;
+                transition: transform var(--m-dur-instant) var(--m-spring);
             }
             .contact-name {
                 font-size: 15px;
@@ -840,7 +885,17 @@
                 transform: none;
             }
             .sidebar-bottom-user {
-                padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+                bottom: 0;
+                padding: 8px max(10px, env(safe-area-inset-right, 0px))
+                    calc(8px + env(safe-area-inset-bottom, 0px))
+                    max(10px, env(safe-area-inset-left, 0px));
+                background: var(--sidebar-bg);
+                border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                transform: translateZ(0);
+                contain: layout paint style;
             }
             .sidebar-bottom-main {
                 display: flex;

@@ -85,7 +85,7 @@
                 <div id="dialogRequestsList"></div>
             </div>
             <div id="contactsList"
-                 class="{% if contacts_initial_sync.required %}contacts-list--loading{% endif %}"
+                 class="contacts-list{% if contacts_initial_sync.required %} contacts-list--loading{% endif %}"
                  data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}"
                  data-initial-sync-required="{{ '1' if contacts_initial_sync.required else '0' }}"
                  data-contacts-loading="{{ '1' if contacts_initial_sync.required else '0' }}"

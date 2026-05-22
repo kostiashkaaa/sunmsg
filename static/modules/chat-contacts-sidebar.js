@@ -176,6 +176,66 @@ export function initChatContactsSidebar({
         ].join('\u001f'))).join('\u001e');
     }
 
+    function buildContactRenderSignature(contact, { currentChatId = '', privateKeyReady = false } = {}) {
+        const contactChatId = String(contact?.chatId || '').trim();
+        const isActive = contactChatId && contactChatId === String(currentChatId || '').trim();
+        const rawIsGroup = contact?.is_group;
+        const isGroup = rawIsGroup === true
+            || rawIsGroup === 1
+            || rawIsGroup === '1'
+            || String(rawIsGroup || '').trim().toLowerCase() === 'true';
+        return [
+            contactChatId,
+            String(contact?.userId || ''),
+            String(contact?.username || ''),
+            String(contact?.display_name || ''),
+            String(contact?.avatar_url || ''),
+            String(contact?.public_key || ''),
+            isGroup ? '1' : '0',
+            String(contact?.members_count || 0),
+            String(contact?.message_count ?? contact?.messageCount ?? 0),
+            String(contact?.last_message || ''),
+            String(contact?.last_message_time || ''),
+            String(contact?.last_sender_id || ''),
+            isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0',
+            isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0',
+            String(contact?.last_seen || ''),
+            String(contact?.draft_text || ''),
+            String(contact?.draft_updated_at || ''),
+            isStatusTrueFlag(contact?.has_draft) ? '1' : '0',
+            String(contact?.unreadCount || 0),
+            isStatusTrueFlag(contact?.blocked_by_me) ? '1' : '0',
+            isStatusTrueFlag(contact?.blocked_me) ? '1' : '0',
+            isStatusTrueFlag(contact?.is_online) ? '1' : '0',
+            isStatusTrueFlag(contact?.is_muted) ? '1' : '0',
+            isStatusTrueFlag(contact?.is_saved_messages ?? contact?.isSavedMessages) ? '1' : '0',
+            isStatusTrueFlag(contact?.is_pinned) ? '1' : '0',
+            String(contact?.pin_order || 0),
+            isActive ? 'active' : 'inactive',
+            privateKeyReady ? 'key' : 'nokey',
+        ].join('\u001f');
+    }
+
+    function resolveExistingContactItem(chatId) {
+        const normalizedChatId = String(chatId || '').trim();
+        if (!normalizedChatId) return null;
+        const selector = `.contact-item[data-chat-id="${CSS.escape(normalizedChatId)}"]`;
+        return contactsList?.querySelector(selector) || document.querySelector(selector);
+    }
+
+    function shouldSkipContactRender(existing, renderSignature, privateKeyReady) {
+        if (!existing || !renderSignature) return false;
+        if (existing.getAttribute('data-contact-render-signature') !== renderSignature) return false;
+        const previewStillLoading = existing.getAttribute('data-preview-loading') === '1'
+            || Boolean(existing.querySelector?.('.contact-last-msg-loading'));
+        return !(previewStillLoading && privateKeyReady);
+    }
+
+    function markContactRendered(existing, renderSignature) {
+        if (!existing || !renderSignature) return;
+        existing.setAttribute('data-contact-render-signature', renderSignature);
+    }
+
     function hasContactDraft(contact) {
         const draftText = String(contact?.draft_text || '');
         return Boolean(contact?.has_draft) && Boolean(draftText.trim());
@@ -295,12 +355,22 @@ export function initChatContactsSidebar({
             const blockedByMe = Boolean(contact.blocked_by_me);
             const blockedMe = Boolean(contact.blocked_me);
             const isBlocked = blockedByMe || blockedMe;
+            const privateKeyPem = getPrivateKeyPem();
+            const privateKeyReady = Boolean(privateKeyPem);
+            const currentChatId = getCurrentChatId();
+            const renderSignature = buildContactRenderSignature(contact, {
+                currentChatId,
+                privateKeyReady,
+            });
+            const existing = contact.chatId ? resolveExistingContactItem(contact.chatId) : null;
+            if (shouldSkipContactRender(existing, renderSignature, privateKeyReady)) {
+                return;
+            }
             let displayLastMessage = contact.last_message || '';
             if (isBlocked) {
                 displayLastMessage = blockedByMe ? '🚫 \u0412\u044B \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043B\u0438 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F' : '🚫 \u0412\u044B \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D\u044B';
             }
 
-            const privateKeyPem = getPrivateKeyPem();
             if (!isBlocked && isEncryptedPayload(displayLastMessage) && privateKeyPem) {
                 try {
                     const isSelf = String(contact.last_sender_id) === String(getCurrentUserId());
@@ -314,11 +384,9 @@ export function initChatContactsSidebar({
 
             const isSelfContact = String(contact.last_sender_id) === String(getCurrentUserId());
             const isSavedMessagesContact = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
-            const currentChatId = getCurrentChatId();
             const hasDraft = hasContactDraft(contact);
             let draftText = hasDraft ? String(contact.draft_text || '') : '';
             if (!isBlocked && hasDraft && isEncryptedPayload(draftText)) {
-                const privateKeyPem = getPrivateKeyPem();
                 if (privateKeyPem) {
                     try {
                         draftText = await decryptForDisplay(privateKeyPem, draftText, true);
@@ -345,9 +413,6 @@ export function initChatContactsSidebar({
                 ? 0
                 : Math.max(0, Number(contact.unreadCount) || 0);
             const unread = unreadCount > 0;
-            const existing = contact.chatId
-                ? document.querySelector(`.contact-item[data-chat-id="${CSS.escape(String(contact.chatId))}"]`)
-                : null;
             if (existing) {
                 const rawIsGroup = contact?.is_group;
                 const isGroup = rawIsGroup === true
@@ -405,7 +470,7 @@ export function initChatContactsSidebar({
                         avatarEl.classList.remove('avatar-loading');
                     } else {
                         const existingAvatarHtml = hasAvatar
-                            ? `<img class="contact-avatar__img" src="${escapeHtml(nextAvatarUrl)}" alt="${escapeHtml(contact.display_name || contact.username || 'Avatar')}" loading="lazy" decoding="async">`
+                            ? `<img class="contact-avatar__img" src="${escapeHtml(nextAvatarUrl)}" alt="${escapeHtml(contact.display_name || contact.username || 'Avatar')}" loading="lazy" decoding="async" fetchpriority="low">`
                             : escapeHtml(existingInitials);
                         avatarEl.classList.toggle('avatar-loading', hasAvatar);
                         avatarEl.innerHTML = `${existingAvatarHtml}${hasAvatar ? AVATAR_LOADING_BARS_HTML : ''}${statusDotHtml}`;
@@ -442,6 +507,7 @@ export function initChatContactsSidebar({
                 if (String(contact.chatId) === String(currentChatId)) {
                     applyChatBlockState({ blocked_by_me: blockedByMe, blocked_me: blockedMe }, { syncChatRoom: false });
                 }
+                markContactRendered(existing, renderSignature);
                 onContactRendered?.(existing, contact);
                 globalThis.window?.applySidebarFolderFilter?.();
                 return;
@@ -474,6 +540,7 @@ export function initChatContactsSidebar({
             if (animateEntry) {
                 animateContactEntry(nextItem, renderIndex);
             }
+            markContactRendered(nextItem, renderSignature);
             onContactRendered?.(nextItem, contact);
             globalThis.window?.applySidebarFolderFilter?.();
             if (String(contact.chatId) === String(currentChatId)) {

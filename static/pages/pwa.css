@@ -49,5 +49,12 @@
         bottom: max(10px, env(safe-area-inset-bottom, 0px));
         left: max(10px, env(safe-area-inset-left, 0px));
         max-width: none;
+        box-shadow: 0 8px 20px rgba(20, 16, 12, 0.14);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    body.chat-page-body .sun-pwa-update {
+        bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 76px);
     }
 }

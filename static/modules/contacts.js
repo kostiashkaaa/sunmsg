@@ -180,7 +180,7 @@ export function buildContactItemHtml(contact, currentChatId) {
     const muted = isSavedMessages ? false : Boolean(contact?.is_muted);
     const hasAvatar = Boolean(contact?.avatar_url);
     const avatarHtml = contact?.avatar_url
-        ? `<img class="contact-avatar__img" src="${escapeHtml(contact.avatar_url)}" alt="${escapeHtml(displayName || 'Avatar')}" loading="lazy" decoding="async">`
+        ? `<img class="contact-avatar__img" src="${escapeHtml(contact.avatar_url)}" alt="${escapeHtml(displayName || 'Avatar')}" loading="lazy" decoding="async" fetchpriority="low">`
         : escapeHtml(initials);
     const avatarLoadingBarsHtml = hasAvatar ? buildAvatarLoadingBarsHtml() : '';
     const muteIconHtml = muted ? '<i class="bi bi-bell-slash-fill mute-icon"></i>' : '';

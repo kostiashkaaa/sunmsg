@@ -346,6 +346,91 @@ if (options.isDraft !== false || options.preserveDraft !== true || options.draft
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_contacts_refresh_skips_unchanged_contact_row():
+    harness_body = """
+class FakeContactItem {
+  constructor() {
+    this.attrs = new Map();
+  }
+
+  getAttribute(name) {
+    return this.attrs.get(name) || '';
+  }
+
+  setAttribute(name, value) {
+    this.attrs.set(name, String(value));
+  }
+
+  querySelector() {
+    return null;
+  }
+}
+
+const existing = new FakeContactItem();
+const updateCalls = [];
+globalThis.document = {
+  querySelector: (selector) => selector.includes('chat-a') ? existing : null,
+  documentElement: {
+    classList: { contains: () => false },
+    getAttribute: () => 'full',
+  },
+};
+globalThis.window = {
+  matchMedia: () => ({ matches: false }),
+};
+
+const controller = moduleApi.initChatContactsSidebar({
+  contactsList: null,
+  escapeHtml: (value) => String(value ?? ''),
+  getPrivateKeyPem: () => '',
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (value) => value,
+  getCurrentUserId: () => 'me',
+  getCurrentChatId: () => '',
+  applyPinnedState: () => {},
+  sortContactsList: () => {},
+  buildContactItemHtml: () => '',
+  applyEmojiGraphics: () => {},
+  applyChatBlockState: () => {},
+  updateActiveContactLastMessage: (...args) => updateCalls.push(args),
+  hideSidebarTyping: () => {},
+  getPinnedContactsCount: () => 0,
+  showToast: () => {},
+  restoreLastActiveChatSelection: () => {},
+  hasAttemptedInitialChatRestore: () => true,
+  setHasAttemptedInitialChatRestore: () => {},
+  hideAppBootOverlay: () => {},
+  onRemovedChatState: () => {},
+  clearStoredLastActiveChatId: () => {},
+  getStoredLastActiveChatId: () => '',
+  onContactRendered: () => {},
+});
+
+const contact = {
+  chatId: 'chat-a',
+  userId: 'user-a',
+  username: 'kmr',
+  display_name: 'Kmr',
+  last_message: 'Last message',
+  last_message_time: '2026-01-01T10:00:00Z',
+  last_sender_id: 'me',
+  last_message_is_delivered: true,
+};
+
+await controller.updateContact(contact);
+await controller.updateContact(contact);
+
+if (updateCalls.length !== 1) {
+  throw new Error(`Expected one DOM preview update, got ${updateCalls.length}`);
+}
+if (!existing.getAttribute('data-contact-render-signature')) {
+  throw new Error('Expected render signature to be stored on row');
+}
+"""
+    result = _run_contacts_sidebar_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_contacts_refresh_keeps_sidebar_shell_off_when_rows_are_already_rendered():
     harness_body = """
 class FakeClassList {

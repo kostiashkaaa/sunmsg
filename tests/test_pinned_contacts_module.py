@@ -160,3 +160,78 @@ if (order !== 'saved,pinned,active') {
 """
     result = _run_pinned_contacts_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_sort_contacts_list_skips_layout_reads_while_hydrating():
+    harness_body = """
+let rectReads = 0;
+FakeItem.prototype.getBoundingClientRect = function () {
+  rectReads += 1;
+  return { top: 0 };
+};
+
+const older = new FakeItem({
+  'data-chat-id': 'older',
+  'data-saved-messages': '0',
+  'data-pinned': '0',
+  'data-last-message-time': '2026-01-01T10:00:00Z',
+});
+const newer = new FakeItem({
+  'data-chat-id': 'newer',
+  'data-saved-messages': '0',
+  'data-pinned': '0',
+  'data-last-message-time': '2026-01-01T10:05:00Z',
+});
+const list = new FakeContactsList([older, newer]);
+
+moduleApi.sortContactsList(list);
+
+const order = list.children.map((item) => item.getAttribute('data-chat-id')).join(',');
+if (order !== 'newer,older') {
+  throw new Error(`Unexpected order: ${order}`);
+}
+if (rectReads !== 0) {
+  throw new Error(`Hydrating sort should not read layout, got ${rectReads}`);
+}
+"""
+    result = _run_pinned_contacts_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_sort_contacts_list_skips_flip_measurement_for_guarded_lists():
+    harness_body = """
+let rectReads = 0;
+FakeItem.prototype.getBoundingClientRect = function () {
+  rectReads += 1;
+  return { top: 0 };
+};
+globalThis.document.documentElement.getAttribute = () => 'full';
+globalThis.window.matchMedia = () => ({ matches: false });
+
+const older = new FakeItem({
+  'data-chat-id': 'older',
+  'data-saved-messages': '0',
+  'data-pinned': '0',
+  'data-last-message-time': '2026-01-01T10:00:00Z',
+});
+const newer = new FakeItem({
+  'data-chat-id': 'newer',
+  'data-saved-messages': '0',
+  'data-pinned': '0',
+  'data-last-message-time': '2026-01-01T10:05:00Z',
+});
+const list = new FakeContactsList([older, newer]);
+list.classList.names = new Set(['motion-list-guard']);
+
+moduleApi.sortContactsList(list);
+
+const order = list.children.map((item) => item.getAttribute('data-chat-id')).join(',');
+if (order !== 'newer,older') {
+  throw new Error(`Unexpected order: ${order}`);
+}
+if (rectReads !== 0) {
+  throw new Error(`Guarded list sort should not read layout, got ${rectReads}`);
+}
+"""
+    result = _run_pinned_contacts_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

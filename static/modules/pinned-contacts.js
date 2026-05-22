@@ -37,6 +37,7 @@ function prefersReducedMotion() {
 }
 
 const activeReorderMotionByItem = new WeakMap();
+const REORDER_FLIP_MAX_ITEMS = 60;
 
 function clearReorderMotion(item, state) {
     if (!item) return;
@@ -94,6 +95,23 @@ function animateContactReorder(orderedItems, previousTopByItem) {
             });
         });
     });
+}
+
+function shouldAnimateContactReorder(contactsList, orderedItems) {
+    if (!contactsList || prefersReducedMotion()) return false;
+    const itemCount = Array.isArray(orderedItems) ? orderedItems.length : 0;
+    if (contactsList.classList?.contains('is-hydrating-contacts')) return false;
+    if (contactsList.classList?.contains('motion-list-guard')) return false;
+    if (contactsList.getAttribute?.('data-motion-list-guard') === '1') return false;
+    if (itemCount > REORDER_FLIP_MAX_ITEMS) return false;
+    try {
+        if (window.matchMedia?.('(pointer: coarse)')?.matches && itemCount > 24) {
+            return false;
+        }
+    } catch (_) {
+        // Non-critical: media query failures should not block ordering.
+    }
+    return true;
 }
 
 export function applyPinnedState(item, {
@@ -164,14 +182,16 @@ export function sortContactsList(contactsList) {
         && ordered.every((item, index) => item === items[index]);
     if (isSameOrder) return;
 
-    const previousTopByItem = new Map(
-        items.map((item) => [item, item.getBoundingClientRect().top]),
-    );
+    const shouldAnimateReorder = shouldAnimateContactReorder(contactsList, ordered);
+    const previousTopByItem = shouldAnimateReorder
+        ? new Map(items.map((item) => [item, item.getBoundingClientRect().top]))
+        : null;
     const fragment = document.createDocumentFragment();
     ordered.forEach((item) => fragment.appendChild(item));
     contactsList.appendChild(fragment);
-    if (contactsList.classList.contains('is-hydrating-contacts')) return;
-    animateContactReorder(ordered, previousTopByItem);
+    if (shouldAnimateReorder) {
+        animateContactReorder(ordered, previousTopByItem);
+    }
 }
 
 export function initPinnedContactsDnD({
