@@ -1601,6 +1601,7 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
 def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     """Mobile PWA shell must paint safe areas and keep scroll inside app containers."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
     service_worker = (STATIC / 'service-worker.js').read_text(encoding='utf-8')
 
     assert 'body.chat-page-body {' in css
@@ -1609,12 +1610,25 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'overscroll-behavior-y: none;' in css
     assert '.app::before' not in css
     assert '--mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);' in css
-    assert '--mobile-tabbar-block-size: calc(64px + var(--mobile-tabbar-safe-bottom));' in css
+    assert '--mobile-tabbar-content-height: 58px;' in css
+    assert '--mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));' in css
+    assert '--sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);' in css
+    assert 'border-right: 0;' in css
+    assert 'scrollbar-width: none;' in css
+    assert '#sidebarScrollArea::-webkit-scrollbar' in css
+    assert 'background: var(--sidebar-bg, var(--bg));' in css
     assert 'background: transparent;' in css
+    assert 'border-radius: 0;' in css
     assert 'padding-bottom: var(--sidebar-bottom-user-reserve' in css
     assert 'touch-action: pan-y;' in css
     assert '-webkit-overflow-scrolling: touch;' in css
-    assert "const VERSION = '2026-05-23-pwa-v2';" in service_worker
+    assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user,' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {' in liquid_glass_css
+    assert 'var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))' in liquid_glass_css
+    assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,' in liquid_glass_css
+    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {' in liquid_glass_css
+    assert 'background: transparent !important;' in liquid_glass_css
+    assert "const VERSION = '2026-05-23-pwa-v3';" in service_worker
 
 
 def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:

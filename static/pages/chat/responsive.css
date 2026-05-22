@@ -769,8 +769,9 @@
             }
             .sidebar  {
                 --mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
-                --mobile-tabbar-block-size: calc(64px + var(--mobile-tabbar-safe-bottom));
-                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+                --mobile-tabbar-content-height: 58px;
+                --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));
+                --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -783,6 +784,7 @@
                 z-index: var(--z-mobile-sidebar, 50);
                 padding-top: env(safe-area-inset-top, 0px);
                 padding-bottom: 0;
+                border-right: 0;
                 overflow: hidden;
                 background: var(--sidebar-bg, var(--bg));
                 overscroll-behavior: none;
@@ -809,9 +811,16 @@
                 touch-action: pan-y;
                 scroll-behavior: auto;
                 scrollbar-gutter: auto;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
                 padding-bottom: var(--sidebar-bottom-user-reserve, 92px);
                 scroll-padding-bottom: var(--sidebar-bottom-user-reserve, 92px);
                 contain: layout paint style;
+            }
+            #sidebarScrollArea::-webkit-scrollbar {
+                width: 0;
+                height: 0;
+                display: none;
             }
             .contacts-list {
                 contain: layout paint style;
@@ -914,10 +923,10 @@
             .sidebar-bottom-user {
                 bottom: 0;
                 min-height: auto;
-                padding: 6px max(10px, env(safe-area-inset-right, 0px))
-                    max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
+                padding: 0 max(10px, env(safe-area-inset-right, 0px))
+                    var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))
                     max(10px, env(safe-area-inset-left, 0px));
-                background: transparent;
+                background: var(--sidebar-bg, var(--bg));
                 border-top: 0;
                 box-shadow: none;
                 backdrop-filter: none;
@@ -926,24 +935,26 @@
                 contain: layout paint style;
             }
             .sidebar-profile-card {
-                min-height: 54px;
-                padding: 6px;
-                border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-                border-radius: 18px;
-                background: color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%);
+                min-height: var(--mobile-tabbar-content-height, 58px);
+                padding: 0;
+                border: 0;
+                border-radius: 0;
+                background: transparent;
                 box-shadow: none;
+                -webkit-backdrop-filter: none;
+                backdrop-filter: none;
             }
             .sidebar-bottom-main {
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                min-height: 48px;
+                min-height: var(--mobile-tabbar-content-height, 58px);
             }
             .sidebar-bottom-identity {
-                min-height: 46px;
-                padding: 5px 8px;
+                min-height: 52px;
+                padding: 4px 8px 4px 0;
                 border: 0;
-                border-radius: 12px;
+                border-radius: 0;
             }
             .sidebar-status-bar--compact {
                 width: 44px;
@@ -1974,8 +1985,9 @@
     }
 
     .sidebar {
-        --mobile-tabbar-block-size: calc(54px + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
-        --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+        --mobile-tabbar-content-height: 50px;
+        --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+        --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
     }
 
     .sidebar-top-row {
@@ -2002,12 +2014,12 @@
 
     .sidebar-bottom-user {
         min-height: auto;
-        padding-top: 5px;
+        padding-top: 0;
     }
 
     .sidebar-bottom-main,
     .sidebar-profile-card {
-        min-height: 48px;
+        min-height: var(--mobile-tabbar-content-height, 50px);
     }
 
     .sidebar-status-bar--compact {
