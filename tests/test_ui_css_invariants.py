@@ -1610,25 +1610,31 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'overscroll-behavior-y: none;' in css
     assert '.app::before' not in css
     assert '--mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);' in css
-    assert '--mobile-tabbar-content-height: 58px;' in css
+    assert '--mobile-tabbar-content-height: 64px;' in css
     assert '--mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));' in css
-    assert '--sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);' in css
+    assert '--sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);' in css
     assert 'border-right: 0;' in css
     assert 'scrollbar-width: none;' in css
     assert '#sidebarScrollArea::-webkit-scrollbar' in css
-    assert 'background: var(--sidebar-bg, var(--bg));' in css
-    assert 'background: transparent;' in css
-    assert 'border-radius: 0;' in css
+    assert 'border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);' in css
+    assert 'border-radius: 18px;' in css
     assert 'padding-bottom: var(--sidebar-bottom-user-reserve' in css
     assert 'touch-action: pan-y;' in css
     assert '-webkit-overflow-scrolling: touch;' in css
-    assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user,' in liquid_glass_css
-    assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {' in liquid_glass_css
-    assert 'var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))' in liquid_glass_css
+    assert '@media (display-mode: standalone), (display-mode: fullscreen)' in css
+    assert '--mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom) - 12px));' in css
+    assert '--mobile-tabbar-content-height: 58px;' in css
+    assert '--sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);' in css
+    assert 'background: var(--sidebar-bg, var(--bg));' in css
+    assert 'border-radius: 0;' in css
+    assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {\n    padding: 12px;' in liquid_glass_css
+    assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {\n    border: 1px solid var(--border);' in liquid_glass_css
+    assert '@media (max-width: 768px) and (display-mode: standalone),' in liquid_glass_css
+    assert 'var(--mobile-tabbar-pwa-bottom-gap, max(2px, calc(env(safe-area-inset-bottom, 0px) - 12px)))' in liquid_glass_css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {' in liquid_glass_css
     assert 'background: transparent !important;' in liquid_glass_css
-    assert "const VERSION = '2026-05-23-pwa-v3';" in service_worker
+    assert "const VERSION = '2026-05-23-pwa-v4';" in service_worker
 
 
 def test_mobile_touch_gestures_do_not_block_scroll_until_dragging() -> None:

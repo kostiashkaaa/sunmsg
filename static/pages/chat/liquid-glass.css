@@ -127,11 +127,12 @@ html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-to
 }
 
 html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
-    padding: 12px 0 0;
+    padding: 12px;
 }
 
 html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
-    border-radius: 16px 16px 0 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
 }
 
 /* ================================================================
@@ -1060,29 +1061,6 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
         scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
     }
 
-    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user,
-    html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
-        padding: 0 max(10px, env(safe-area-inset-right, 0px))
-            var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))
-            max(10px, env(safe-area-inset-left, 0px));
-        background: var(--sidebar-bg, var(--bg));
-        border-top: 0;
-        box-shadow: none;
-        -webkit-backdrop-filter: none;
-        backdrop-filter: none;
-    }
-
-    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,
-    html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent !important;
-        box-shadow: none;
-        -webkit-backdrop-filter: none;
-        backdrop-filter: none;
-    }
-
     html[data-interface-surface="glass"] .chat-messages {
         margin-top: calc(-1 * var(--sun-glass-mobile-header-overlap));
         margin-bottom: calc(-1 * var(--floating-composer-reserve, 84px));
@@ -1129,5 +1107,31 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
         display: flex;
         visibility: hidden;
         pointer-events: none;
+    }
+}
+
+@media (max-width: 768px) and (display-mode: standalone),
+       (max-width: 768px) and (display-mode: fullscreen) {
+    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user,
+    html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
+        padding: 0 max(10px, env(safe-area-inset-right, 0px))
+            var(--mobile-tabbar-pwa-bottom-gap, max(2px, calc(env(safe-area-inset-bottom, 0px) - 12px)))
+            max(10px, env(safe-area-inset-left, 0px));
+        background: var(--sidebar-bg, var(--bg));
+        border-top: 0;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
+    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,
+    html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent !important;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
     }
 }

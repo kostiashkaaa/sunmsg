@@ -769,9 +769,9 @@
             }
             .sidebar  {
                 --mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
-                --mobile-tabbar-content-height: 58px;
+                --mobile-tabbar-content-height: 64px;
                 --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));
-                --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -923,10 +923,10 @@
             .sidebar-bottom-user {
                 bottom: 0;
                 min-height: auto;
-                padding: 0 max(10px, env(safe-area-inset-right, 0px))
-                    var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))
+                padding: 6px max(10px, env(safe-area-inset-right, 0px))
+                    max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
                     max(10px, env(safe-area-inset-left, 0px));
-                background: var(--sidebar-bg, var(--bg));
+                background: transparent;
                 border-top: 0;
                 box-shadow: none;
                 backdrop-filter: none;
@@ -935,11 +935,11 @@
                 contain: layout paint style;
             }
             .sidebar-profile-card {
-                min-height: var(--mobile-tabbar-content-height, 58px);
-                padding: 0;
-                border: 0;
-                border-radius: 0;
-                background: transparent;
+                min-height: 54px;
+                padding: 6px;
+                border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+                border-radius: 18px;
+                background: color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%);
                 box-shadow: none;
                 -webkit-backdrop-filter: none;
                 backdrop-filter: none;
@@ -948,13 +948,13 @@
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                min-height: var(--mobile-tabbar-content-height, 58px);
+                min-height: 48px;
             }
             .sidebar-bottom-identity {
-                min-height: 52px;
-                padding: 4px 8px 4px 0;
+                min-height: 46px;
+                padding: 5px 8px;
                 border: 0;
-                border-radius: 0;
+                border-radius: 12px;
             }
             .sidebar-status-bar--compact {
                 width: 44px;
@@ -969,6 +969,35 @@
             }
             .sidebar-status-row {
                 display: none;
+            }
+            @media (display-mode: standalone), (display-mode: fullscreen) {
+                .sidebar {
+                    --mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom) - 12px));
+                    --mobile-tabbar-content-height: 58px;
+                    --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
+                    --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+                }
+                .sidebar-bottom-user {
+                    padding: 0 max(10px, env(safe-area-inset-right, 0px))
+                        var(--mobile-tabbar-pwa-bottom-gap)
+                        max(10px, env(safe-area-inset-left, 0px));
+                    background: var(--sidebar-bg, var(--bg));
+                }
+                .sidebar-profile-card {
+                    min-height: var(--mobile-tabbar-content-height, 58px);
+                    padding: 0;
+                    border: 0;
+                    border-radius: 0;
+                    background: transparent;
+                }
+                .sidebar-bottom-main {
+                    min-height: var(--mobile-tabbar-content-height, 58px);
+                }
+                .sidebar-bottom-identity {
+                    min-height: 52px;
+                    padding: 4px 8px 4px 0;
+                    border-radius: 0;
+                }
             }
             .chat-area.mobile-open {
                 display: flex;
@@ -1985,9 +2014,9 @@
     }
 
     .sidebar {
-        --mobile-tabbar-content-height: 50px;
+        --mobile-tabbar-content-height: 56px;
         --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
-        --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+        --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
     }
 
     .sidebar-top-row {
@@ -2014,12 +2043,30 @@
 
     .sidebar-bottom-user {
         min-height: auto;
-        padding-top: 0;
+        padding-top: 5px;
     }
 
     .sidebar-bottom-main,
     .sidebar-profile-card {
-        min-height: var(--mobile-tabbar-content-height, 50px);
+        min-height: 48px;
+    }
+
+    @media (display-mode: standalone), (display-mode: fullscreen) {
+        .sidebar {
+            --mobile-tabbar-pwa-bottom-gap: max(2px, calc(var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)) - 10px));
+            --mobile-tabbar-content-height: 50px;
+            --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
+            --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+        }
+
+        .sidebar-bottom-user {
+            padding-top: 0;
+        }
+
+        .sidebar-bottom-main,
+        .sidebar-profile-card {
+            min-height: var(--mobile-tabbar-content-height, 50px);
+        }
     }
 
     .sidebar-status-bar--compact {
