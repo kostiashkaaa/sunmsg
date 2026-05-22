@@ -112,6 +112,8 @@ export function initVoiceRecorder({
     let lastRecordingUiState = false;
     let composerTransitionHandle = null;
     let composerTransitionSeq = 0;
+    let voiceLifecycleSeq = 0;
+    let isStarting = false;
     let lastActionIconClass = '';
     let actionIconMotionSeq = 0;
     let handledTextSubmitPointer = false;
@@ -344,16 +346,30 @@ export function initVoiceRecorder({
         voiceRecordTimer.textContent = formatVoiceSeconds(elapsed);
     }
 
-    function stopStream() {
-        if (!recordStream) return;
+    function stopStreamTracks(stream) {
+        if (!stream) return;
         try {
-            recordStream.getTracks().forEach((track) => {
+            stream.getTracks().forEach((track) => {
                 try {
                     track.stop();
                 } catch (_) {}
             });
         } catch (_) {}
+    }
+
+    function stopStream() {
+        if (!recordStream) return;
+        stopStreamTracks(recordStream);
         recordStream = null;
+    }
+
+    function isVoiceLifecycleCurrent(seq, chatIdAtStart) {
+        const currentChatId = getCurrentChatId?.();
+        return seq === voiceLifecycleSeq
+            && String(currentChatId || '') === String(chatIdAtStart || '')
+            && !isChatBlocked()
+            && !isSendingMessage()
+            && !isStopping;
     }
 
     function runComposerTransition(recording) {
@@ -656,6 +672,8 @@ export function initVoiceRecorder({
         const activeRecorder = recorder;
         if (!activeRecorder) return null;
         if (isStopping) return null;
+        const stopSeq = voiceLifecycleSeq;
+        const chatIdAtStop = getCurrentChatId?.();
         isStopping = true;
         updateButtonState();
 
@@ -677,6 +695,11 @@ export function initVoiceRecorder({
                     finish();
                 }
             });
+
+            if (stopSeq !== voiceLifecycleSeq || recorder !== activeRecorder) {
+                recordChunks = [];
+                return null;
+            }
 
             recorder = null;
             stopTimer();
@@ -712,6 +735,9 @@ export function initVoiceRecorder({
                 type: normalizedMime || 'audio/webm',
             });
             recordChunks = [];
+            if (stopSeq !== voiceLifecycleSeq || String(getCurrentChatId?.() || '') !== String(chatIdAtStop || '')) {
+                return null;
+            }
             await sendFileMessage(file, '', {
                 audioDurationSeconds: recordedSeconds,
                 typingKindHint: 'voice',
@@ -735,12 +761,14 @@ export function initVoiceRecorder({
         if (Date.now() < suppressMicStartUntil) {
             return;
         }
+        if (isStarting) return;
         if (!isSupported()) {
             showToast('\u0411\u0440\u0430\u0443\u0437\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0437\u0430\u043F\u0438\u0441\u044C \u0433\u043E\u043B\u043E\u0441\u0430.', 'warning');
             return;
         }
         if (isActive()) return;
-        if (!getCurrentChatId?.()) {
+        const chatIdAtStart = getCurrentChatId?.();
+        if (!chatIdAtStart) {
             showToast('\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0447\u0430\u0442.', 'warning');
             return;
         }
@@ -749,6 +777,8 @@ export function initVoiceRecorder({
             return;
         }
         if (isSendingMessage() || isStopping) return;
+        const startSeq = ++voiceLifecycleSeq;
+        isStarting = true;
         onComposerStopTyping?.();
         syncVoiceTypingState(true);
 
@@ -756,8 +786,20 @@ export function initVoiceRecorder({
         try {
             stream = await requestMicrophoneStream();
         } catch (err) {
-            syncVoiceTypingState(false);
-            showToast(getMicAccessErrorMessage(err), 'danger');
+            if (startSeq === voiceLifecycleSeq) {
+                syncVoiceTypingState(false);
+                showToast(getMicAccessErrorMessage(err), 'danger');
+                updateButtonState();
+            }
+            isStarting = false;
+            return;
+        }
+
+        if (!isVoiceLifecycleCurrent(startSeq, chatIdAtStart) || isActive()) {
+            stopStreamTracks(stream);
+            if (startSeq === voiceLifecycleSeq) syncVoiceTypingState(false);
+            isStarting = false;
+            updateButtonState();
             return;
         }
 
@@ -786,14 +828,21 @@ export function initVoiceRecorder({
             startTimer();
             updateButtonState();
         } catch (_) {
-            stopStream();
-            syncVoiceTypingState(false);
-            showToast('\u0417\u0430\u043F\u0438\u0441\u044C \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0432 \u044D\u0442\u043E\u043C \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435.', 'danger');
-            updateButtonState();
+            stopStreamTracks(stream);
+            if (startSeq === voiceLifecycleSeq) {
+                stopStream();
+                syncVoiceTypingState(false);
+                showToast('\u0417\u0430\u043F\u0438\u0441\u044C \u0433\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0433\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0432 \u044D\u0442\u043E\u043C \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435.', 'danger');
+                updateButtonState();
+            }
+        } finally {
+            isStarting = false;
         }
     }
 
     function cleanup() {
+        voiceLifecycleSeq += 1;
+        isStarting = false;
         if (isActive()) {
             try {
                 recorder.stop();

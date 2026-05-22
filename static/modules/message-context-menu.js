@@ -214,7 +214,9 @@ export function initMessageContextMenu({
         const items = getVisibleContextMenuItems();
         if (!items.length) return;
         const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+        const focusSeq = menuTransitionSeq;
         window.requestAnimationFrame(() => {
+            if (focusSeq !== menuTransitionSeq || !menuEl?.classList.contains('is-open')) return;
             items[safeIndex]?.focus?.({ preventScroll: true });
         });
     }
@@ -345,11 +347,14 @@ export function initMessageContextMenu({
     });
 
     copyItemEl?.addEventListener('click', async () => {
-        if (!currentMessageId) return;
-        const element = resolveMessageElement(currentMessageId);
+        const msgId = currentMessageId;
+        if (!msgId) return;
+        const copySeq = menuTransitionSeq;
+        const element = resolveMessageElement(msgId);
         const text = element ? (element.getAttribute('data-message-content') || '') : '';
         if (text) {
             const copied = await copyTextToClipboard(text);
+            if (copySeq !== menuTransitionSeq || currentMessageId !== msgId) return;
             if (copied) showToast?.('\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u043E', 'success');
         }
         hideContextMenu();

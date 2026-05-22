@@ -151,6 +151,7 @@ export function createMessageDeleteMotionController({
         });
         requestAnimationFrameFn(() => {
             moved.forEach(({ node }) => {
+                if (node.dataset?.deleteMotionToken && node.dataset.deleteMotionToken !== motionToken) return;
                 node.style.transition = `transform ${removalAnimationMs}ms var(--ease-quick, cubic-bezier(.4, 0, .2, 1))`;
                 node.style.transform = '';
             });

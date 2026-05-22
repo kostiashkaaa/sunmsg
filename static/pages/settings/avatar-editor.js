@@ -20,6 +20,7 @@ export function initAvatarEditor({
     const AVATAR_MAX_SOURCE_PIXELS = 24 * 1000 * 1000;
     let avatarEditorState = null;
     let avatarEditorDrag = null;
+    let avatarEditorLifecycleSeq = 0;
 
     function normalizeRotation(degrees) {
         return ((degrees % 360) + 360) % 360;
@@ -138,6 +139,7 @@ export function initAvatarEditor({
 
     function closeAvatarEditor({ clearInput = true } = {}) {
         if (!avatarEditorEl) return;
+        avatarEditorLifecycleSeq += 1;
         avatarEditorEl.hidden = true;
         avatarEditorEl.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('avatar-editor-open');
@@ -171,6 +173,7 @@ export function initAvatarEditor({
     }
 
     function openAvatarEditor(file) {
+        const openSeq = ++avatarEditorLifecycleSeq;
         if (!avatarEditorEl || !avatarEditorCanvas || !avatarEditorViewport) {
             uploadAvatarBlob(file, file.name || 'avatar.png', avatarFileInputEl);
             return;
@@ -188,6 +191,10 @@ export function initAvatarEditor({
 
         createAvatarImage(file)
             .then(({ image, objectUrl }) => {
+                if (openSeq !== avatarEditorLifecycleSeq) {
+                    URL.revokeObjectURL(objectUrl);
+                    return;
+                }
                 avatarEditorState = {
                     image,
                     objectUrl,
@@ -206,6 +213,7 @@ export function initAvatarEditor({
                 requestAnimationFrame(renderAvatarEditor);
             })
             .catch((error) => {
+                if (openSeq !== avatarEditorLifecycleSeq) return;
                 setAvatarUploadStatus(`${tr('Ошибка:')} ${tr(error.message)}`.trim(), 'var(--danger)');
                 if (avatarFileInputEl) avatarFileInputEl.value = '';
             });
@@ -256,14 +264,17 @@ export function initAvatarEditor({
     avatarEditorClose?.addEventListener('click', () => closeAvatarEditor());
     avatarEditorDone?.addEventListener('click', function () {
         if (!avatarEditorState || avatarEditorDone.disabled) return;
+        const submitSeq = avatarEditorLifecycleSeq;
         avatarEditorDone.disabled = true;
         createCroppedAvatarBlob()
             .then((blob) => {
+                if (submitSeq !== avatarEditorLifecycleSeq || !avatarEditorState) return null;
                 const inputEl = avatarEditorState?.inputEl || avatarFileInputEl;
                 closeAvatarEditor({ clearInput: false });
                 return uploadAvatarBlob(blob, 'avatar.jpg', inputEl);
             })
             .catch((error) => {
+                if (submitSeq !== avatarEditorLifecycleSeq) return;
                 setAvatarUploadStatus(`${tr('Ошибка:')} ${tr(error.message)}`.trim(), 'var(--danger)');
             })
             .finally(() => {

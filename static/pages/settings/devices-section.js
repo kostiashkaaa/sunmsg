@@ -13,6 +13,7 @@ export function initDevicesSection({
     const signOutOtherSessionsBtn = document.getElementById('signOutOtherSessionsBtn');
     const sessionAutoLogoutSelectEl = document.getElementById('sessionAutoLogoutSelect');
     const sessionAutoLogoutSummaryEl = document.getElementById('sessionAutoLogoutSummary');
+    let sessionDevicesLoadSeq = 0;
 
     function formatSessionTimestamp(ts) {
         const value = Number(ts || 0);
@@ -107,9 +108,11 @@ export function initDevicesSection({
 
     async function loadSessionDevices() {
         if (!sessionDevicesListEl) return;
+        const loadSeq = ++sessionDevicesLoadSeq;
         sessionDevicesListEl.innerHTML = `<div class="session-device-empty">${escapeHtml(tr('Загружаем активные сессии…'))}</div>`;
         try {
             const data = await api.getSessionDevices();
+            if (loadSeq !== sessionDevicesLoadSeq) return;
             applySessionAutoLogout(data);
             const devices = Array.isArray(data.devices) ? data.devices : [];
 
@@ -138,6 +141,7 @@ export function initDevicesSection({
             sessionDevicesListEl.innerHTML = sections.join('');
             updateSignOutBtn(otherDevices.length);
         } catch (_err) {
+            if (loadSeq !== sessionDevicesLoadSeq) return;
             sessionDevicesListEl.innerHTML = `<div class="session-device-empty">${escapeHtml(tr('Сетевая ошибка при загрузке сессий.'))}</div>`;
             // Баг 5 fix: скрываем кнопку при ошибке загрузки
             updateSignOutBtn(0);

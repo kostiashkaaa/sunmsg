@@ -12,6 +12,9 @@ let callTopbarResizeHandler = null;
 let callTopbarViewportHandler = null;
 let callMobileTopbarResizeHandler = null;
 let callInfoVisibilityTimer = 0;
+let incomingCallBannerLifecycleSeq = 0;
+let preCallScreenLifecycleSeq = 0;
+let activeCallOverlayLifecycleSeq = 0;
 
 const CALL_INFO_AUTO_HIDE_MS = 3200;
 const CALL_CARD_MIN_WIDTH = 320;
@@ -23,6 +26,7 @@ const CALL_CARD_MAX_HEIGHT = 760;
 
 export function showIncomingCallBanner({ callId, callType, initiator, onAccept, onReject }) {
     removeIncomingCallBanner();
+    const bannerSeq = ++incomingCallBannerLifecycleSeq;
 
     const caller = initiator || {};
     const rawName = caller.display_name || caller.username || 'Собеседник';
@@ -160,7 +164,10 @@ export function showIncomingCallBanner({ callId, callType, initiator, onAccept, 
 
     document.body.appendChild(banner);
     applyFallbackAvatarTint(banner.querySelector('.call-ib__avatar'), rawName);
-    requestAnimationFrame(() => banner.classList.add('call-ib--visible'));
+    requestAnimationFrame(() => {
+        if (bannerSeq !== incomingCallBannerLifecycleSeq || !banner.isConnected) return;
+        banner.classList.add('call-ib--visible');
+    });
 }
 
 export function setIncomingCallBannerStatus(text) {
@@ -170,6 +177,7 @@ export function setIncomingCallBannerStatus(text) {
 }
 
 export function removeIncomingCallBanner() {
+    incomingCallBannerLifecycleSeq += 1;
     const el = document.getElementById('call-incoming-banner');
     if (el) {
         _exitFullscreenForElement(el);
@@ -195,6 +203,7 @@ export function showPreCallScreen({
     onCancel,
 }) {
     removePreCallScreen();
+    const preCallSeq = ++preCallScreenLifecycleSeq;
 
     const name = escapeHtml(partnerName || 'Собеседник');
     const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
@@ -217,6 +226,7 @@ export function showPreCallScreen({
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', 'Подготовка звонка');
+    const isPreCallCurrent = () => _isPreCallScreenCurrent(overlay, preCallSeq);
     overlay.innerHTML = `
         <section class="call-preflight__card">
             <div class="call-preflight__preview">
@@ -300,9 +310,11 @@ export function showPreCallScreen({
     const cancelBtn = overlay.querySelector('#precall-cancel');
 
     const setStatus = (text) => {
+        if (!isPreCallCurrent()) return;
         if (statusEl) statusEl.textContent = String(text || '');
     };
     const setBusy = (busy) => {
+        if (!isPreCallCurrent()) return;
         state.busy = Boolean(busy);
         overlay.classList.toggle('call-preflight--busy', state.busy);
         [audioBtn, videoBtn, switchCameraBtn, startBtn, microphoneSelect, cameraSelect, speakerSelect]
@@ -330,6 +342,7 @@ export function showPreCallScreen({
         overlay.classList.toggle('call-preflight--video-off', !state.videoEnabled);
     };
     const syncPreview = (stream = activeLocalStream, facingMode = '') => {
+        if (!isPreCallCurrent()) return;
         activeLocalStream = stream || activeLocalStream;
         activeLocalFacingMode = facingMode || _localFacingModeFromStream(activeLocalStream) || activeLocalFacingMode;
         const hasVideo = Boolean(state.videoEnabled && activeLocalStream?.getVideoTracks?.().length);
@@ -343,12 +356,14 @@ export function showPreCallScreen({
         syncAudioButton();
     };
     const refreshDevices = async () => {
+        if (!isPreCallCurrent()) return;
         let devices = {};
         try {
             devices = typeof onListDevices === 'function' ? await onListDevices() : {};
         } catch (err) {
             console.warn('[CallUI] pre-call device list failed', err);
         }
+        if (!isPreCallCurrent()) return;
         _syncDeviceSelect(microphoneSelect, devices.audioInputs || [], devices.selected?.audioInputId || '', 'Микрофон по умолчанию');
         _syncDeviceSelect(cameraSelect, devices.videoInputs || [], devices.selected?.videoInputId || '', 'Камера по умолчанию');
         _syncDeviceSelect(speakerSelect, devices.audioOutputs || [], state.speakerDeviceId, 'Системный вывод');
@@ -361,9 +376,11 @@ export function showPreCallScreen({
         setBusy(true);
         try {
             const muted = await onToggleAudio?.();
+            if (!isPreCallCurrent()) return;
             state.audioMuted = Boolean(muted);
             setStatus(state.audioMuted ? 'Микрофон будет выключен' : 'Микрофон включён');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             syncAudioButton();
         }
@@ -372,12 +389,14 @@ export function showPreCallScreen({
         setBusy(true);
         try {
             const result = await onToggleVideo?.(!state.videoEnabled);
+            if (!isPreCallCurrent()) return;
             state.videoEnabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
             state.callType = state.callType === 'video' || state.videoEnabled ? 'video' : 'audio';
             if (result?.localStream) activeLocalStream = result.localStream;
             if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus(state.videoEnabled ? 'Камера включена' : 'Камера будет выключена');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
@@ -388,13 +407,16 @@ export function showPreCallScreen({
         setBusy(true);
         try {
             const result = await onSwitchCamera?.();
+            if (!isPreCallCurrent()) return;
             if (result?.localStream) activeLocalStream = result.localStream;
             if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus('Камера переключена');
         } catch (err) {
+            if (!isPreCallCurrent()) return;
             console.warn('[CallUI] pre-call camera switch failed', err);
             setStatus('Камера недоступна');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
@@ -404,9 +426,11 @@ export function showPreCallScreen({
         setBusy(true);
         try {
             const result = await onSelectMicrophone?.(microphoneSelect.value);
+            if (!isPreCallCurrent()) return;
             if (result?.localStream) activeLocalStream = result.localStream;
             setStatus('Микрофон выбран');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             await refreshDevices();
         }
@@ -415,12 +439,14 @@ export function showPreCallScreen({
         setBusy(true);
         try {
             const result = await onSelectCamera?.(cameraSelect.value);
+            if (!isPreCallCurrent()) return;
             state.videoEnabled = Boolean(result?.enabled ?? true);
             state.callType = 'video';
             if (result?.localStream) activeLocalStream = result.localStream;
             if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             setStatus('Камера выбрана');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
@@ -429,6 +455,7 @@ export function showPreCallScreen({
     speakerSelect?.addEventListener('change', async () => {
         state.speakerDeviceId = String(speakerSelect.value || '');
         await onSelectSpeaker?.(state.speakerDeviceId);
+        if (!isPreCallCurrent()) return;
     });
     cancelBtn?.addEventListener('click', () => {
         removePreCallScreen();
@@ -455,6 +482,7 @@ export function showPreCallScreen({
     syncAudioButton();
     syncVideoButton();
     requestAnimationFrame(() => {
+        if (!isPreCallCurrent()) return;
         overlay.classList.add('call-preflight--visible');
         startBtn?.focus?.({ preventScroll: true });
     });
@@ -467,6 +495,7 @@ export function showPreCallScreen({
                 audioMuted: state.audioMuted,
                 videoEnabled: state.videoEnabled,
             });
+            if (!isPreCallCurrent()) return;
             if (prepared?.localStream) activeLocalStream = prepared.localStream;
             if (prepared?.facingMode) activeLocalFacingMode = prepared.facingMode;
             if (Object.prototype.hasOwnProperty.call(prepared || {}, 'audioMuted')) {
@@ -480,9 +509,11 @@ export function showPreCallScreen({
             }
             setStatus(state.videoEnabled ? 'Проверьте камеру и звук' : 'Проверьте микрофон');
         } catch (err) {
+            if (!isPreCallCurrent()) return;
             console.warn('[CallUI] pre-call media preparation failed', err);
             setStatus('Нет доступа к устройствам');
         } finally {
+            if (!isPreCallCurrent()) return;
             setBusy(false);
             syncPreview(activeLocalStream, activeLocalFacingMode);
             await refreshDevices();
@@ -491,10 +522,14 @@ export function showPreCallScreen({
 }
 
 export function removePreCallScreen() {
+    preCallScreenLifecycleSeq += 1;
     const el = document.getElementById('call-preflight');
     if (!el) return;
+    el.dataset.callUiClosing = '1';
     el.classList.remove('call-preflight--visible');
-    window.setTimeout(() => el.remove(), 180);
+    window.setTimeout(() => {
+        if (el.dataset.callUiClosing === '1') el.remove();
+    }, 180);
 }
 
 // ── Active call overlay ──────────────────────────────────────────────────────
@@ -508,6 +543,7 @@ export function showActiveCallOverlay({
     initialLocalFacingMode = '',
 }) {
     removeActiveCallOverlay({ immediate: true });
+    const overlaySeq = ++activeCallOverlayLifecycleSeq;
 
     const name = escapeHtml(partnerName || 'Собеседник');
     const initial = escapeHtml((partnerName || '?')[0].toUpperCase());
@@ -532,6 +568,7 @@ export function showActiveCallOverlay({
     const overlay = document.createElement('div');
     overlay.id = 'call-active-overlay';
     overlay.className = `call-overlay call-overlay--${safeRole}${isRinging ? ' call-overlay--ringing' : ''}${isVideo ? ' call-overlay--video-active' : ' call-overlay--audio-only'}`;
+    const isOverlayCurrent = () => _isActiveCallOverlayCurrent(overlay, overlaySeq);
     overlay.innerHTML = `
         <div class="call-topbar" id="call-topbar">
             <div class="call-topbar__state">
@@ -719,7 +756,7 @@ export function showActiveCallOverlay({
     applyFallbackAvatarTint(overlay.querySelector('.call-card__avatar'), partnerName);
     applyFallbackAvatarTint(overlay.querySelector('.call-mini__avatar'), partnerName);
     requestAnimationFrame(() => {
-        if (!overlay.isConnected) return;
+        if (!isOverlayCurrent()) return;
         overlay.classList.add('call-overlay--visible');
         _setCallTopbarActive(!isRinging, overlay);
     });
@@ -782,6 +819,7 @@ export function showActiveCallOverlay({
             screenBtn.disabled = true;
             try {
                 const result = await onToggleScreenShare?.();
+                if (!isOverlayCurrent()) return;
                 const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
                 if (result?.localStream) activeLocalStream = result.localStream;
                 if (result?.facingMode) activeLocalFacingMode = result.facingMode;
@@ -789,6 +827,7 @@ export function showActiveCallOverlay({
                 syncVideoControlState(Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled)));
                 _syncLocalVideo(overlay, activeLocalStream, enabled || localVideoEnabled, activeLocalFacingMode);
             } finally {
+                if (!isOverlayCurrent()) return;
                 screenBtn.disabled = false;
             }
         });
@@ -801,6 +840,7 @@ export function showActiveCallOverlay({
 
     overlay.querySelector('#call-btn-video').addEventListener('click', async () => {
         const result = await onToggleVideo();
+        if (!isOverlayCurrent()) return;
         const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
         const stream = typeof result === 'object' ? result?.localStream : activeLocalStream;
         activeLocalStream = stream || activeLocalStream;
@@ -815,6 +855,7 @@ export function showActiveCallOverlay({
         btn.disabled = true;
         try {
             const result = await onSwitchCamera();
+            if (!isOverlayCurrent()) return;
             if (result?.localStream) activeLocalStream = result.localStream;
             if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
@@ -822,6 +863,7 @@ export function showActiveCallOverlay({
             syncVideoControlState(enabled);
             _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
         } finally {
+            if (!isOverlayCurrent()) return;
             btn.disabled = false;
         }
     });
@@ -836,7 +878,7 @@ export function showActiveCallOverlay({
         devicePanel?.remove();
     }
     const refreshDevicePanel = async () => {
-        if (!devicePanel) return;
+        if (!devicePanel || !isOverlayCurrent()) return;
         _setDevicePanelBusy(devicePanel, true);
         try {
             let devices = {};
@@ -845,6 +887,7 @@ export function showActiveCallOverlay({
             } catch (err) {
                 console.warn('[CallUI] device list failed', err);
             }
+            if (!isOverlayCurrent()) return;
             _syncDeviceSelect(microphoneSelect, devices.audioInputs || [], devices.selected?.audioInputId || '', 'Микрофон по умолчанию');
             _syncDeviceSelect(cameraSelect, devices.videoInputs || [], devices.selected?.videoInputId || '', 'Камера по умолчанию');
             const currentSinkId = overlay.querySelector('#call-remote-audio')?.sinkId || '';
@@ -853,6 +896,7 @@ export function showActiveCallOverlay({
                 speakerSelect.disabled = true;
             }
         } finally {
+            if (!isOverlayCurrent()) return;
             _setDevicePanelBusy(devicePanel, false);
         }
     };
@@ -867,8 +911,10 @@ export function showActiveCallOverlay({
         microphoneSelect.disabled = true;
         try {
             await onSelectMicrophone?.(microphoneSelect.value);
+            if (!isOverlayCurrent()) return;
             await refreshDevicePanel();
         } catch (err) {
+            if (!isOverlayCurrent()) return;
             console.warn('[CallUI] microphone selection failed', err);
             microphoneSelect.disabled = false;
         }
@@ -877,6 +923,7 @@ export function showActiveCallOverlay({
         cameraSelect.disabled = true;
         try {
             const result = await onSelectCamera?.(cameraSelect.value);
+            if (!isOverlayCurrent()) return;
             if (result?.localStream) activeLocalStream = result.localStream;
             if (result?.facingMode) activeLocalFacingMode = result.facingMode;
             const enabled = Boolean(activeLocalStream?.getVideoTracks?.().some(track => track.enabled));
@@ -885,6 +932,7 @@ export function showActiveCallOverlay({
             _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
             await refreshDevicePanel();
         } catch (err) {
+            if (!isOverlayCurrent()) return;
             console.warn('[CallUI] camera selection failed', err);
             cameraSelect.disabled = false;
         }
@@ -893,8 +941,10 @@ export function showActiveCallOverlay({
         speakerSelect.disabled = true;
         try {
             await _selectAudioOutputById(overlay.querySelector('#call-remote-audio'), speakerSelect.value);
+            if (!isOverlayCurrent()) return;
             await refreshDevicePanel();
         } catch (err) {
+            if (!isOverlayCurrent()) return;
             console.warn('[CallUI] speaker selection failed', err);
             speakerSelect.disabled = false;
         }
@@ -922,9 +972,11 @@ export function showActiveCallOverlay({
                 const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
                 speakerBtn.disabled = true;
                 try {
-                    const applied = await _setSpeakerMode(enabled, overlay);
+                    const applied = await _setSpeakerMode(enabled, overlay, isOverlayCurrent);
+                    if (!isOverlayCurrent()) return;
                     _syncSpeakerButton(speakerBtn, applied ? enabled : !enabled);
                 } finally {
+                    if (!isOverlayCurrent()) return;
                     speakerBtn.disabled = false;
                 }
             });
@@ -984,6 +1036,7 @@ export function setCallScreenShareActive(enabled) {
 }
 
 export function removeActiveCallOverlay({ immediate = false } = {}) {
+    activeCallOverlayLifecycleSeq += 1;
     _setSpeakerMode(false);
     _setCallTopbarActive(false);
     _setCallMobileTopbarReserve(false);
@@ -992,12 +1045,15 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
     stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
+        el.dataset.callUiClosing = '1';
         if (immediate) {
             el.remove();
             return;
         }
         el.classList.remove('call-overlay--visible');
-        setTimeout(() => el.remove(), 250);
+        setTimeout(() => {
+            if (el.dataset.callUiClosing === '1') el.remove();
+        }, 250);
     });
 }
 
@@ -1139,6 +1195,10 @@ export function attachRemoteTrack(track, remoteStream = null) {
         ? overlay?.querySelector('#call-remote-audio')
         : overlay?.querySelector('#call-remote-video');
     if (!media) return;
+    const remoteTrackSeq = Number(media.dataset?.remoteTrackSeq || 0) + 1;
+    if (media.dataset) {
+        media.dataset.remoteTrackSeq = String(remoteTrackSeq);
+    }
 
     const stream = media.srcObject instanceof MediaStream ? media.srcObject : new MediaStream();
     const remoteTracks = remoteStream instanceof MediaStream
@@ -1158,19 +1218,23 @@ export function attachRemoteTrack(track, remoteStream = null) {
         media.muted = false;
         media.volume = 1;
         if (overlay?.classList.contains('call-overlay--speaker-on')) {
-            void _setSpeakerMode(true, overlay);
+            void _setSpeakerMode(true, overlay, () => _isRemoteTrackCurrent(media, track, remoteTrackSeq, overlay));
         }
     } else if (track.kind === 'video') {
         setRemoteVideoEnabled(media.dataset.remoteVideoExpected !== '0');
     }
     track.addEventListener('unmute', () => {
+        if (!_isRemoteTrackCurrent(media, track, remoteTrackSeq, overlay)) return;
         if (track.kind === 'video' && media.dataset.remoteVideoExpected !== '0') {
             setRemoteVideoEnabled(true);
         }
         _playMedia(media);
     });
     // call_media_state is the source of truth; track.mute can fire during replaceTrack().
-    track.addEventListener('ended', () => removeRemoteTrack(track.kind), { once: true });
+    track.addEventListener('ended', () => {
+        if (!_isRemoteTrackCurrent(media, track, remoteTrackSeq, overlay)) return;
+        removeRemoteTrack(track.kind, track);
+    }, { once: true });
     _playMedia(media);
 }
 
@@ -1210,18 +1274,33 @@ export function setRemoteVideoEnabled(enabled) {
     _syncVideoLayout(overlay);
 }
 
-export function removeRemoteTrack(kind) {
+export function removeRemoteTrack(kind, expectedTrack = null) {
     const overlay = _currentOverlay();
     const media = kind === 'audio'
         ? overlay?.querySelector('#call-remote-audio')
         : overlay?.querySelector('#call-remote-video');
     if (!media || !media.srcObject) return;
-    media.srcObject.getTracks().filter(t => t.kind === kind).forEach(t => {
+    if (!expectedTrack && media.dataset) {
+        const nextSeq = Number(media.dataset.remoteTrackSeq || 0) + 1;
+        media.dataset.remoteTrackSeq = String(nextSeq);
+    }
+    media.srcObject.getTracks().filter(t => (
+        t.kind === kind
+        && (!expectedTrack || t === expectedTrack)
+    )).forEach(t => {
         media.srcObject.removeTrack(t);
         t.stop();
     });
     if (kind === 'video') {
-        overlay?.classList.remove('call-overlay--has-remote-video', 'call-overlay--self-view-primary');
+        const hasVideo = Boolean(media.srcObject.getVideoTracks?.()
+            .some(track => track.readyState !== 'ended'));
+        overlay?.classList.toggle(
+            'call-overlay--has-remote-video',
+            Boolean(hasVideo && media.dataset.remoteVideoExpected !== '0'),
+        );
+        if (!hasVideo) {
+            overlay?.classList.remove('call-overlay--self-view-primary');
+        }
         _syncVideoLayout(overlay);
     }
 }
@@ -1229,6 +1308,39 @@ export function removeRemoteTrack(kind) {
 function _currentOverlay() {
     const overlays = document.querySelectorAll('#call-active-overlay');
     return overlays[overlays.length - 1] || null;
+}
+
+function _isPreCallScreenCurrent(overlay, seq) {
+    return Boolean(
+        overlay
+        && preCallScreenLifecycleSeq === seq
+        && overlay.isConnected
+        && overlay.dataset?.callUiClosing !== '1'
+        && document.getElementById('call-preflight') === overlay
+    );
+}
+
+function _isActiveCallOverlayCurrent(overlay, seq) {
+    return Boolean(
+        overlay
+        && activeCallOverlayLifecycleSeq === seq
+        && overlay.isConnected
+        && overlay.dataset?.callUiClosing !== '1'
+        && _currentOverlay() === overlay
+    );
+}
+
+function _isRemoteTrackCurrent(media, track, seq, overlay) {
+    const stream = media?.srcObject;
+    return Boolean(
+        media
+        && track
+        && overlay
+        && media.isConnected
+        && _currentOverlay() === overlay
+        && media.dataset?.remoteTrackSeq === String(seq)
+        && stream?.getTracks?.().some(candidate => candidate === track)
+    );
 }
 
 function _minimizeCallOverlay(overlay) {
@@ -1691,12 +1803,14 @@ function _makeResizable(card) {
     });
 }
 
-async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
+async function _setSpeakerMode(enabled, overlay = _currentOverlay(), isCurrent = () => true) {
     const remoteAudio = overlay?.querySelector('#call-remote-audio');
     if (!enabled) {
         overlay?.classList.remove('call-overlay--speaker-on');
         await _releaseScreenWakeLock();
     }
+
+    if (!isCurrent()) return false;
 
     if (remoteAudio) {
         remoteAudio.muted = false;
@@ -1704,13 +1818,14 @@ async function _setSpeakerMode(enabled, overlay = _currentOverlay()) {
 
         if (_supportsAudioOutputSelection()) {
             await _selectAudioOutput(remoteAudio, { speaker: enabled });
+            if (!isCurrent()) return false;
         }
 
         overlay?.classList.toggle('call-overlay--speaker-on', enabled);
         _playMedia(remoteAudio);
     }
 
-    if (enabled) await _requestScreenWakeLock();
+    if (enabled) await _requestScreenWakeLock(isCurrent);
     return true;
 }
 
@@ -1796,12 +1911,18 @@ function _uniqueSinkIds(values) {
     return result;
 }
 
-async function _requestScreenWakeLock() {
+async function _requestScreenWakeLock(isCurrent = () => true) {
     if (screenWakeLock) return;
+    if (!isCurrent()) return;
     if (!navigator.wakeLock?.request) return;
     try {
-        screenWakeLock = await navigator.wakeLock.request('screen');
-        screenWakeLock.addEventListener?.('release', () => {
+        const lock = await navigator.wakeLock.request('screen');
+        if (!isCurrent()) {
+            try { await lock.release?.(); } catch (_) {}
+            return;
+        }
+        screenWakeLock = lock;
+        lock.addEventListener?.('release', () => {
             screenWakeLock = null;
         });
     } catch (err) {

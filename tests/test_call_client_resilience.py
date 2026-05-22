@@ -53,3 +53,17 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "'partner_media': _partner_media_state(conn, call_id, user_id)" in handlers
     assert "if status == 'active' else None" in handlers
     assert 'SELECT was_muted, had_video' in handlers
+
+
+def test_call_ui_guards_async_overlay_lifecycle_completions() -> None:
+    ui = (ROOT / 'static' / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
+
+    assert 'let preCallScreenLifecycleSeq = 0;' in ui
+    assert 'let activeCallOverlayLifecycleSeq = 0;' in ui
+    assert 'const isPreCallCurrent = () => _isPreCallScreenCurrent(overlay, preCallSeq);' in ui
+    assert 'const isOverlayCurrent = () => _isActiveCallOverlayCurrent(overlay, overlaySeq);' in ui
+    assert 'if (!isPreCallCurrent()) return;\n            if (prepared?.localStream)' in ui
+    assert 'const result = await onToggleScreenShare?.();\n                if (!isOverlayCurrent()) return;' in ui
+    assert 'const applied = await _setSpeakerMode(enabled, overlay, isOverlayCurrent);' in ui
+    assert 'function _isRemoteTrackCurrent(media, track, seq, overlay)' in ui
+    assert 'removeRemoteTrack(track.kind, track);' in ui

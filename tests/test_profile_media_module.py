@@ -145,6 +145,19 @@ def test_profile_media_grid_no_longer_writes_payload_data_directly_to_src():
     assert '<video src="${escapeHtml(url)}"' not in source
 
 
+def test_profile_media_tab_switch_raf_is_sequence_guarded():
+    source = (ROOT / 'static' / 'modules' / 'profile-media.js').read_text(encoding='utf-8')
+
+    motion_idx = source.index("const motionSeq = Number(contentEl.dataset.tabSwitchSeq || 0) + 1;")
+    raf_idx = source.index('requestAnimationFrame(() => {', motion_idx)
+    guard_idx = source.index(
+        'if (Number(contentEl.dataset.tabSwitchSeq || 0) !== motionSeq) return;',
+        raf_idx,
+    )
+
+    assert motion_idx < raf_idx < guard_idx
+
+
 def test_profile_media_collects_call_messages_into_calls_tab():
     harness_body = """
 const media = moduleApi.collectMediaFromMessages([

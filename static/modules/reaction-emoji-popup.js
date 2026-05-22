@@ -446,7 +446,7 @@ export function initReactionEmojiPopup({
         if (clearSearchEl) {
             clearSearchEl.hidden = true;
         }
-        popupTransitionSeq += 1;
+        const openSeq = ++popupTransitionSeq;
         renderCategoryButtons();
         rebuildGrid();
 
@@ -456,7 +456,7 @@ export function initReactionEmojiPopup({
         popupEl.setAttribute('aria-hidden', 'false');
         position();
         window.requestAnimationFrame(() => {
-            if (!visible) return;
+            if (openSeq !== popupTransitionSeq || !visible) return;
             popupEl.classList.add('active');
             popupEl.classList.remove('is-opening');
         });
@@ -464,7 +464,7 @@ export function initReactionEmojiPopup({
 
         if (!hadBuckets) {
             bucketsPromise.then(() => {
-                if (!visible) return;
+                if (openSeq !== popupTransitionSeq || !visible) return;
                 renderCategoryButtons();
                 rebuildGrid();
                 position();

@@ -2,6 +2,7 @@
 
 let searchMatchedMessageIds = [];
 let searchActiveMatchIndex  = -1;
+let searchUiSeq = 0;
 
 function _escapeRegex(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -122,12 +123,17 @@ export function initMessageSearch() {
     const nextBtn          = document.getElementById('headerSearchNextBtn');
 
     const openSearch = () => {
+        const openSeq = ++searchUiSeq;
         chatHeader?.classList.add('chat-header--search-active');
         headerSearchWrap?.classList.add('active');
-        requestAnimationFrame(() => headerSearchInput?.focus());
+        requestAnimationFrame(() => {
+            if (openSeq !== searchUiSeq || !headerSearchWrap?.classList.contains('active')) return;
+            headerSearchInput?.focus();
+        });
     };
 
     const closeSearch = () => {
+        searchUiSeq += 1;
         chatHeader?.classList.remove('chat-header--search-active');
         headerSearchWrap?.classList.remove('active');
         if (headerSearchInput) headerSearchInput.value = '';

@@ -33,12 +33,13 @@ function applyTabSwitchAnimation(contentEl, previousTabKey, nextTabKey) {
     void contentEl.offsetWidth;
 
     contentEl.classList.add('is-tab-switching', isBackward ? 'is-tab-switch-backward' : 'is-tab-switch-forward');
+    const motionSeq = Number(contentEl.dataset.tabSwitchSeq || 0) + 1;
+    contentEl.dataset.tabSwitchSeq = String(motionSeq);
     requestAnimationFrame(() => {
+        if (Number(contentEl.dataset.tabSwitchSeq || 0) !== motionSeq) return;
         contentEl.classList.add('is-tab-switch-active');
     });
 
-    const motionSeq = Number(contentEl.dataset.tabSwitchSeq || 0) + 1;
-    contentEl.dataset.tabSwitchSeq = String(motionSeq);
     waitForMotionEnd(contentEl, TAB_SWITCH_ANIMATION_MS + 40).then(() => {
         if (Number(contentEl.dataset.tabSwitchSeq || 0) !== motionSeq) return;
         contentEl.classList.remove('is-tab-switching', 'is-tab-switch-active', 'is-tab-switch-forward', 'is-tab-switch-backward');

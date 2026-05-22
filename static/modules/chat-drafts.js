@@ -29,6 +29,7 @@ export function createChatDraftsController(deps = {}) {
     let chatDraftSaveTargetChatId = '';
     let chatDraftSaveQueuedText = '';
     let activeDraftLoadRequestId = 0;
+    const draftSaveSeqByChatId = new Map();
     const lastSavedDraftByChatId = new Map();
     const lastDraftUpdatedAtByChatId = new Map();
 
@@ -175,6 +176,8 @@ export function createChatDraftsController(deps = {}) {
     async function saveDraftForChat(chatId, draftText, { force = false } = {}) {
         const normalizedChatId = String(chatId || '').trim();
         if (!normalizedChatId) return null;
+        const saveSeq = Number(draftSaveSeqByChatId.get(normalizedChatId) || 0) + 1;
+        draftSaveSeqByChatId.set(normalizedChatId, saveSeq);
 
         const normalizedDraft = normalizeDraftText(draftText);
         const nextSavedText = hasMeaningfulDraft(normalizedDraft) ? normalizedDraft : '';
@@ -183,6 +186,9 @@ export function createChatDraftsController(deps = {}) {
         }
 
         const draftTextForServer = await encryptDraftForServer(normalizedDraft);
+        if (draftSaveSeqByChatId.get(normalizedChatId) !== saveSeq) {
+            return null;
+        }
         if (draftTextForServer === null) {
             return null;
         }
@@ -201,10 +207,12 @@ export function createChatDraftsController(deps = {}) {
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) return null;
+            if (draftSaveSeqByChatId.get(normalizedChatId) !== saveSeq) return null;
 
             const savedText = payload.has_draft
                 ? await decryptDraftForLocalDisplay(payload.draft_text || '')
                 : '';
+            if (draftSaveSeqByChatId.get(normalizedChatId) !== saveSeq) return null;
             const savedUpdatedAt = String(payload.updated_at || '').trim();
             lastSavedDraftByChatId.set(normalizedChatId, savedText);
             if (savedUpdatedAt) {
@@ -292,6 +300,8 @@ export function createChatDraftsController(deps = {}) {
             const draftText = payload.has_draft
                 ? await decryptDraftForLocalDisplay(payload.draft_text || '')
                 : '';
+            if (requestId !== activeDraftLoadRequestId) return;
+            if (String(getCurrentChatId?.() || '') !== normalizedChatId) return;
             const draftUpdatedAt = String(payload.updated_at || '');
             lastSavedDraftByChatId.set(normalizedChatId, draftText);
             if (draftUpdatedAt) {

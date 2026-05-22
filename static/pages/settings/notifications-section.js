@@ -33,6 +33,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
 
     let registration = null;
     let pushConfig = null;
+    let pushLifecycleSeq = 0;
 
     async function ensureRegistration() {
         if (!supportAvailable()) return null;
@@ -60,6 +61,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
     }
 
     async function loadPushState() {
+        const loadSeq = ++pushLifecycleSeq;
         if (!supportAvailable()) {
             permissionEl.textContent = tr('Недоступно в этом браузере или в небезопасном контексте.');
             subscriptionEl.textContent = tr('Недоступно');
@@ -70,6 +72,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
         setButtonsState({ busy: true });
         try {
             const config = await ensurePushConfig();
+            if (loadSeq !== pushLifecycleSeq) return;
             if (!config?.enabled) {
                 permissionEl.textContent = tr('Отключено на сервере');
                 subscriptionEl.textContent = tr('Недоступно');
@@ -79,6 +82,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
 
             const permission = Notification.permission;
             const subscription = await getCurrentSubscription();
+            if (loadSeq !== pushLifecycleSeq) return;
 
             permissionEl.textContent = permission;
             subscriptionEl.textContent = subscription
@@ -90,6 +94,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
                 canDisable: Boolean(subscription),
             });
         } catch (_err) {
+            if (loadSeq !== pushLifecycleSeq) return;
             permissionEl.textContent = tr('Ошибка');
             subscriptionEl.textContent = tr('Ошибка');
             setButtonsState({ canEnable: false, canDisable: false });
@@ -97,6 +102,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
     }
 
     async function enablePush() {
+        const actionSeq = ++pushLifecycleSeq;
         if (!supportAvailable()) {
             showAlert('Push не поддерживается в этом браузере.', 'warning');
             return;
@@ -105,6 +111,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
         setButtonsState({ busy: true });
         try {
             const config = await ensurePushConfig();
+            if (actionSeq !== pushLifecycleSeq) return;
             if (!config?.enabled || !config?.publicKey) {
                 showAlert('Push отключен на стороне сервера.', 'warning');
                 await loadPushState();
@@ -114,6 +121,7 @@ export function initNotificationsSection({ api, tr, showAlert }) {
             let permission = Notification.permission;
             if (permission !== 'granted') {
                 permission = await Notification.requestPermission();
+                if (actionSeq !== pushLifecycleSeq) return;
             }
             if (permission !== 'granted') {
                 showAlert('Разрешение на уведомления не выдано.', 'warning');
@@ -123,28 +131,34 @@ export function initNotificationsSection({ api, tr, showAlert }) {
 
             const reg = await ensureRegistration();
             let subscription = await reg.pushManager.getSubscription();
+            if (actionSeq !== pushLifecycleSeq) return;
             if (!subscription) {
                 subscription = await reg.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: base64UrlToUint8Array(config.publicKey),
                 });
+                if (actionSeq !== pushLifecycleSeq) return;
             }
 
             await api.subscribeWebPush(subscription.toJSON());
+            if (actionSeq !== pushLifecycleSeq) return;
             showAlert('Push-уведомления включены.', 'success');
             await loadPushState();
         } catch (err) {
+            if (actionSeq !== pushLifecycleSeq) return;
             showAlert(String(err?.message || 'Не удалось включить push-уведомления.'), 'danger');
             await loadPushState();
         }
     }
 
     async function disablePush() {
+        const actionSeq = ++pushLifecycleSeq;
         if (!supportAvailable()) return;
 
         setButtonsState({ busy: true });
         try {
             const subscription = await getCurrentSubscription();
+            if (actionSeq !== pushLifecycleSeq) return;
             const endpoint = String(subscription?.endpoint || '').trim();
             if (subscription) {
                 try {
@@ -152,9 +166,11 @@ export function initNotificationsSection({ api, tr, showAlert }) {
                 } catch (_) {}
             }
             await api.unsubscribeWebPush(endpoint || undefined);
+            if (actionSeq !== pushLifecycleSeq) return;
             showAlert('Push-уведомления отключены.', 'success');
             await loadPushState();
         } catch (err) {
+            if (actionSeq !== pushLifecycleSeq) return;
             showAlert(String(err?.message || 'Не удалось отключить push-уведомления.'), 'danger');
             await loadPushState();
         }

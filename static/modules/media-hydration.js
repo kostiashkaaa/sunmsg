@@ -34,9 +34,19 @@ export function createMediaHydrationController(options = {}) {
         }
     }
 
-    function assignHydratedSource(element, resolvedSrc) {
+    function nextHydrationSeq(element) {
+        const seq = Number(element.dataset?.mediaHydrationSeq || 0) + 1;
+        if (element.dataset) {
+            element.dataset.mediaHydrationSeq = String(seq);
+        }
+        return seq;
+    }
+
+    function assignHydratedSource(element, resolvedSrc, expectedDataSrc = '', expectedSeq = 0) {
         if (!(element instanceof HTMLElement)) return;
         if (!resolvedSrc) return;
+        if (expectedSeq && element.dataset?.mediaHydrationSeq !== String(expectedSeq)) return;
+        if (expectedDataSrc && String(element.getAttribute('data-src') || '').trim() !== expectedDataSrc) return;
         const currentSrc = String(element.getAttribute('src') || '').trim();
         if (currentSrc) return;
         element.setAttribute('src', resolvedSrc);
@@ -85,9 +95,10 @@ export function createMediaHydrationController(options = {}) {
             wireAlbumCellLoadEvent(imageEl);
         }
 
+        const hydrationSeq = nextHydrationSeq(imageEl);
         resolveHydratedSource(dataSrc, resolveMediaKindByElement(imageEl))
-            .then((resolvedSrc) => { assignHydratedSource(imageEl, resolvedSrc); })
-            .catch(() => { assignHydratedSource(imageEl, dataSrc); });
+            .then((resolvedSrc) => { assignHydratedSource(imageEl, resolvedSrc, dataSrc, hydrationSeq); })
+            .catch(() => { assignHydratedSource(imageEl, dataSrc, dataSrc, hydrationSeq); });
         return true;
     }
 
@@ -104,9 +115,10 @@ export function createMediaHydrationController(options = {}) {
 
         if (isAudio && !force) return false;
         if (isAudio) {
+            const hydrationSeq = nextHydrationSeq(mediaEl);
             resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
-                .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc); })
-                .catch(() => { assignHydratedSource(mediaEl, dataSrc); });
+                .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc, dataSrc, hydrationSeq); })
+                .catch(() => { assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq); });
             return true;
         }
 
@@ -120,9 +132,10 @@ export function createMediaHydrationController(options = {}) {
 
         if (isAlbumVideo) wireAlbumCellLoadEvent(mediaEl);
 
+        const hydrationSeq = nextHydrationSeq(mediaEl);
         resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
-            .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc); })
-            .catch(() => { assignHydratedSource(mediaEl, dataSrc); });
+            .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc, dataSrc, hydrationSeq); })
+            .catch(() => { assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq); });
         return true;
     }
 

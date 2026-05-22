@@ -6,6 +6,7 @@
 
 let lightboxEl = null;
 let closeTimer = 0;
+let lightboxLifecycleSeq = 0;
 
 function buildLightbox() {
     const el = document.createElement('div');
@@ -64,6 +65,7 @@ function describeAvatarDate(src) {
 
 function openLightbox(src) {
     const box = ensureLightbox();
+    const openSeq = ++lightboxLifecycleSeq;
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = 0; }
     const img = box.querySelector('.avatar-lightbox-img');
     const sub = box.querySelector('.avatar-lightbox-sub');
@@ -73,16 +75,21 @@ function openLightbox(src) {
     sub.style.display = dateText ? '' : 'none';
 
     box.removeAttribute('hidden');
-    requestAnimationFrame(() => box.classList.add('is-open'));
+    requestAnimationFrame(() => {
+        if (openSeq !== lightboxLifecycleSeq || box.hasAttribute('hidden')) return;
+        box.classList.add('is-open');
+    });
 }
 
 function closeLightbox() {
     if (!lightboxEl) return;
+    const closeSeq = ++lightboxLifecycleSeq;
     lightboxEl.classList.remove('is-open');
     // Надёжное скрытие по таймеру — не ждём transitionend, который может
     // не сработать. Это устраняет «залипание» курсора и невидимый оверлей.
     if (closeTimer) clearTimeout(closeTimer);
     closeTimer = window.setTimeout(() => {
+        if (closeSeq !== lightboxLifecycleSeq) return;
         if (!lightboxEl) return;
         lightboxEl.setAttribute('hidden', '');
         const img = lightboxEl.querySelector('.avatar-lightbox-img');
