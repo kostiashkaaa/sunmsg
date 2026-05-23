@@ -3301,9 +3301,10 @@ body.settings-detail-open .settings-overlay-frame {
         .sidebar-bottom-main {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: var(--sidebar-bottom-main-gap, 6px);
             width: 100%;
             min-width: 0;
+            min-height: var(--sidebar-bottom-main-min-height, auto);
         }
 
 
@@ -3313,11 +3314,12 @@ body.settings-detail-open .settings-overlay-frame {
             gap: 0;
             width: 100%;
             min-width: 0;
-            padding: 8px;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border);
-            background: var(--surface);
-            box-shadow: none;
+            min-height: var(--sidebar-profile-card-min-height, auto);
+            padding: var(--sidebar-profile-card-padding, 8px);
+            border-radius: var(--sidebar-profile-card-radius, var(--radius-lg));
+            border: var(--sidebar-profile-card-border, 1px solid var(--border));
+            background: var(--sidebar-profile-card-bg, var(--surface));
+            box-shadow: var(--sidebar-profile-card-shadow, none);
             -webkit-backdrop-filter: none;
             backdrop-filter: none;
             pointer-events: auto;
@@ -3330,8 +3332,9 @@ body.settings-detail-open .settings-overlay-frame {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 10px;
-            border-radius: var(--radius-md);
+            min-height: var(--sidebar-bottom-identity-min-height, auto);
+            padding: var(--sidebar-bottom-identity-padding, 8px 10px);
+            border-radius: var(--sidebar-bottom-identity-radius, var(--radius-md));
             border: 1px solid transparent;
             background: transparent;
             color: inherit;

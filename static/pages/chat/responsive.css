@@ -772,6 +772,17 @@
                 --mobile-tabbar-content-height: 64px;
                 --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));
                 --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+                --sidebar-bottom-user-bg: var(--sidebar-bg, var(--bg));
+                --sidebar-profile-card-min-height: 54px;
+                --sidebar-profile-card-padding: 6px;
+                --sidebar-profile-card-radius: 18px;
+                --sidebar-profile-card-border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+                --sidebar-profile-card-bg: color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%);
+                --sidebar-bottom-main-gap: 10px;
+                --sidebar-bottom-main-min-height: 48px;
+                --sidebar-bottom-identity-min-height: 46px;
+                --sidebar-bottom-identity-padding: 5px 8px;
+                --sidebar-bottom-identity-radius: 12px;
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -926,7 +937,7 @@
                 padding: 6px max(10px, env(safe-area-inset-right, 0px))
                     max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)))
                     max(10px, env(safe-area-inset-left, 0px));
-                background: transparent;
+                background: var(--sidebar-bottom-user-bg, var(--sidebar-bg, var(--bg)));
                 border-top: 0;
                 box-shadow: none;
                 backdrop-filter: none;
@@ -976,6 +987,9 @@
                     --mobile-tabbar-content-height: 58px;
                     --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
                     --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+                    --sidebar-profile-card-min-height: var(--mobile-tabbar-content-height);
+                    --sidebar-bottom-main-min-height: 46px;
+                    --sidebar-bottom-identity-min-height: 46px;
                 }
                 .sidebar-bottom-user {
                     padding: 0 max(10px, env(safe-area-inset-right, 0px))
@@ -985,18 +999,18 @@
                 }
                 .sidebar-profile-card {
                     min-height: var(--mobile-tabbar-content-height, 58px);
-                    padding: 0;
-                    border: 0;
-                    border-radius: 0;
-                    background: transparent;
+                    padding: var(--sidebar-profile-card-padding, 6px);
+                    border: var(--sidebar-profile-card-border, 1px solid color-mix(in srgb, var(--border) 82%, transparent));
+                    border-radius: var(--sidebar-profile-card-radius, 18px);
+                    background: var(--sidebar-profile-card-bg, color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%));
                 }
                 .sidebar-bottom-main {
-                    min-height: var(--mobile-tabbar-content-height, 58px);
+                    min-height: var(--sidebar-bottom-main-min-height, 46px);
                 }
                 .sidebar-bottom-identity {
-                    min-height: 52px;
-                    padding: 4px 8px 4px 0;
-                    border-radius: 0;
+                    min-height: var(--sidebar-bottom-identity-min-height, 46px);
+                    padding: var(--sidebar-bottom-identity-padding, 5px 8px);
+                    border-radius: var(--sidebar-bottom-identity-radius, 12px);
                 }
             }
             html.sun-pwa-standalone .sidebar {
@@ -1004,6 +1018,9 @@
                 --mobile-tabbar-content-height: 58px;
                 --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-pwa-bottom-gap));
                 --sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);
+                --sidebar-profile-card-min-height: var(--mobile-tabbar-content-height);
+                --sidebar-bottom-main-min-height: 46px;
+                --sidebar-bottom-identity-min-height: 46px;
             }
             html.sun-pwa-standalone .sidebar-bottom-user {
                 padding: 0 max(10px, env(safe-area-inset-right, 0px))
@@ -1013,18 +1030,18 @@
             }
             html.sun-pwa-standalone .sidebar-profile-card {
                 min-height: var(--mobile-tabbar-content-height, 58px);
-                padding: 0;
-                border: 0;
-                border-radius: 0;
-                background: transparent;
+                padding: var(--sidebar-profile-card-padding, 6px);
+                border: var(--sidebar-profile-card-border, 1px solid color-mix(in srgb, var(--border) 82%, transparent));
+                border-radius: var(--sidebar-profile-card-radius, 18px);
+                background: var(--sidebar-profile-card-bg, color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%));
             }
             html.sun-pwa-standalone .sidebar-bottom-main {
-                min-height: var(--mobile-tabbar-content-height, 58px);
+                min-height: var(--sidebar-bottom-main-min-height, 46px);
             }
             html.sun-pwa-standalone .sidebar-bottom-identity {
-                min-height: 52px;
-                padding: 4px 8px 4px 0;
-                border-radius: 0;
+                min-height: var(--sidebar-bottom-identity-min-height, 46px);
+                padding: var(--sidebar-bottom-identity-padding, 5px 8px);
+                border-radius: var(--sidebar-bottom-identity-radius, 12px);
             }
             .chat-area.mobile-open {
                 display: flex;

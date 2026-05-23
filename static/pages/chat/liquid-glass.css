@@ -1126,10 +1126,10 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
 
     html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent !important;
+        padding: var(--sidebar-profile-card-padding, 6px);
+        border: var(--sidebar-profile-card-border, 1px solid color-mix(in srgb, var(--border) 82%, transparent));
+        border-radius: var(--sidebar-profile-card-radius, 18px);
+        background: var(--sidebar-profile-card-bg, color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%)) !important;
         box-shadow: none;
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
@@ -1151,10 +1151,10 @@ html[data-interface-surface="glass"] .sidebar-brand-dot.sidebar-brand-dot--setti
 
     html.sun-pwa-standalone[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,
     html.sun-pwa-standalone[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent !important;
+        padding: var(--sidebar-profile-card-padding, 6px);
+        border: var(--sidebar-profile-card-border, 1px solid color-mix(in srgb, var(--border) 82%, transparent));
+        border-radius: var(--sidebar-profile-card-radius, 18px);
+        background: var(--sidebar-profile-card-bg, color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%)) !important;
         box-shadow: none;
         -webkit-backdrop-filter: none;
         backdrop-filter: none;

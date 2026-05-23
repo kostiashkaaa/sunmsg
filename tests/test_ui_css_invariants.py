@@ -1601,6 +1601,8 @@ def test_mobile_viewport_uses_visual_height_for_keyboard_model() -> None:
 def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     """Mobile PWA shell must paint safe areas and keep scroll inside app containers."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    components_css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
+    layout_css = (STATIC / 'pages' / 'chat' / 'layout.css').read_text(encoding='utf-8')
     liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
     pwa_css = (STATIC / 'pages' / 'pwa.css').read_text(encoding='utf-8')
     pwa_head = (ROOT / 'templates' / '_pwa_head.html').read_text(encoding='utf-8')
@@ -1625,13 +1627,17 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'padding-bottom: var(--sidebar-bottom-user-reserve' in css
     assert 'touch-action: pan-y;' in css
     assert '-webkit-overflow-scrolling: touch;' in css
+    assert 'background: var(--sidebar-bottom-user-bg, var(--sidebar-bg, var(--bg)));' in components_css
+    assert 'border-top: 0;' in components_css
+    assert 'border: var(--sidebar-profile-card-border, 1px solid var(--border));' in layout_css
+    assert 'background: var(--sidebar-profile-card-bg, var(--surface));' in layout_css
     assert '@media (display-mode: standalone), (display-mode: fullscreen)' in css
     assert '--mobile-tabbar-pwa-bottom-gap: max(0px, calc(var(--mobile-tabbar-safe-bottom) - 18px));' in css
     assert 'html.sun-pwa-standalone .sidebar {' in css
     assert '--mobile-tabbar-content-height: 58px;' in css
     assert '--sidebar-bottom-user-reserve: var(--mobile-tabbar-block-size);' in css
     assert 'background: var(--sidebar-bg, var(--bg));' in css
-    assert 'border-radius: 0;' in css
+    assert 'border-radius: var(--sidebar-profile-card-radius, 18px);' in css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {\n    padding: 12px;' in liquid_glass_css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {\n    border: 1px solid var(--border);' in liquid_glass_css
     assert '@media (max-width: 768px) and (display-mode: standalone),' in liquid_glass_css
@@ -1639,7 +1645,7 @@ def test_mobile_pwa_shell_locks_body_scroll_bleed_and_safe_tabbar() -> None:
     assert 'html.sun-pwa-standalone[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user' in liquid_glass_css
     assert 'html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card,' in liquid_glass_css
     assert 'html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {' in liquid_glass_css
-    assert 'background: transparent !important;' in liquid_glass_css
+    assert 'background: var(--sidebar-profile-card-bg, color-mix(in srgb, var(--surface) 96%, var(--sidebar-bg) 4%)) !important;' in liquid_glass_css
     assert 'sun-pwa-standalone' in pwa_head
     assert "root.dataset.pwaDisplayMode = standalone ? 'standalone' : 'browser';" in pwa_head
     assert '--pwa-vh: 100dvh;' in pwa_css
