@@ -1,0 +1,325 @@
+import logging
+
+from flask import Blueprint, current_app, jsonify, request, session
+from flask_wtf.csrf import generate_csrf
+
+from app.database import get_db_connection
+from app.extensions import limiter, socketio
+from app.routes.contacts import fetch_contacts_for_user
+from app.services.call_feature_access import can_user_use_calls
+from app.services.chat_members import get_chat_type
+from app.services.chat_page_state import build_socketio_client_config, fetch_chat_page_context
+from app.services.crypto import is_valid_chat_id, looks_like_ciphertext
+from app.services.locale import language_from_user_row
+from app.services.session_state import clear_invalid_session_user
+
+logger = logging.getLogger(__name__)
+
+mobile_bp = Blueprint('mobile', __name__, url_prefix='/api/mobile')
+
+
+def _to_unix(ts) -> float:
+    """Convert a DB timestamp (datetime, str, or numeric) to a Unix epoch float."""
+    if ts is None:
+        return 0.0
+    if hasattr(ts, 'timestamp'):
+        return ts.timestamp()
+    if isinstance(ts, (int, float)):
+        return float(ts)
+    # datetime string from psycopg — e.g. "2026-05-25 18:59:12" or "2026-05-25 18:59:12+03:00"
+    from datetime import datetime, timezone
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f%z', '%Y-%m-%d %H:%M:%S%z',
+                '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+        try:
+            dt = datetime.strptime(str(ts).strip(), fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            continue
+    return 0.0
+
+MOBILE_BOOTSTRAP_CONTACTS_LIMIT = 50
+
+
+def _unauthorized_response(message: str = 'Authorization required.'):
+    return jsonify({'success': False, 'error': message}), 401
+
+
+def _session_user_id() -> int | None:
+    raw_user_id = session.get('user_id')
+    if raw_user_id is None:
+        return None
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        return None
+    return user_id if user_id > 0 else None
+
+
+def _resolve_calls_feature(conn, *, user_id: int) -> bool:
+    try:
+        return bool(can_user_use_calls(conn, user_id=user_id))
+    except Exception:  # noqa: BLE001
+        logger.exception('Failed to resolve mobile calls feature for user_id=%s', user_id)
+        return False
+
+
+def _build_mobile_bootstrap_payload(
+    *,
+    page_context: dict,
+    user_id: int,
+    calls_enabled: bool,
+) -> dict:
+    socketio_config = build_socketio_client_config(current_app.config)
+    socketio_config.setdefault('path', '/socket.io')
+
+    return {
+        'success': True,
+        'csrf_token': generate_csrf(),
+        'user': {
+            'id': user_id,
+            'username': str(page_context.get('current_username') or ''),
+            'display_name': str(page_context.get('current_display_name') or ''),
+            'public_key': str(page_context.get('current_public_key') or ''),
+            'avatar_url': str(page_context.get('current_avatar_url') or ''),
+            'ui_language': str(page_context.get('ui_language') or session.get('ui_language') or 'ru'),
+            'mute_dialog_requests': bool(page_context.get('mute_dialog_requests')),
+            'client_preferences': page_context.get('client_preferences') or {},
+        },
+        'session': {
+            'auto_logout_seconds': int(session.get('session_auto_logout_seconds') or 2592000),
+            'expires_at': int(session.get('session_expires_at') or 0),
+        },
+        'socketio': socketio_config,
+        'features': {
+            'calls': bool(calls_enabled),
+            'groups': True,
+            'media': True,
+            'push_apns': False,
+        },
+        'contacts': page_context.get('initial_contacts') or [],
+        'has_more_contacts': bool(page_context.get('has_more_initial_contacts')),
+    }
+
+
+@mobile_bp.route('/csrf', methods=['GET'])
+@limiter.limit('120 per minute')
+def mobile_csrf():
+    """Returns a CSRF token for use by the native app before login."""
+    return jsonify({'csrf_token': generate_csrf()})
+
+
+@mobile_bp.route('/bootstrap', methods=['GET'])
+@limiter.limit('120 per minute')
+def mobile_bootstrap():
+    user_id = _session_user_id()
+    if user_id is None or not session.get('public_key_pem'):
+        clear_invalid_session_user(session)
+        return _unauthorized_response()
+
+    conn = get_db_connection()
+    try:
+        page_context = fetch_chat_page_context(
+            conn=conn,
+            user_id=user_id,
+            fetch_contacts_for_user=fetch_contacts_for_user,
+            language_from_user_row=language_from_user_row,
+            initial_contacts_limit=MOBILE_BOOTSTRAP_CONTACTS_LIMIT,
+        )
+        if not page_context:
+            logger.info('Clearing stale session for missing user_id=%s on mobile bootstrap', user_id)
+            clear_invalid_session_user(session)
+            return _unauthorized_response('User not found.')
+
+        session['ui_language'] = page_context['ui_language']
+        calls_enabled = _resolve_calls_feature(conn, user_id=user_id)
+        return jsonify(
+            _build_mobile_bootstrap_payload(
+                page_context=page_context,
+                user_id=user_id,
+                calls_enabled=calls_enabled,
+            )
+        )
+    finally:
+        conn.close()
+
+
+@mobile_bp.route('/start_chat', methods=['POST'])
+@limiter.limit('30 per minute')
+def mobile_start_chat():
+    """Open or create a direct chat with a user by username."""
+    user_id = _session_user_id()
+    if user_id is None or not session.get('public_key_pem'):
+        clear_invalid_session_user(session)
+        return _unauthorized_response()
+
+    data = request.get_json(silent=True) or {}
+    target_username = str(data.get('username') or '').strip().lower().lstrip('@')
+    if not target_username:
+        return jsonify({'success': False, 'error': 'username is required.'}), 400
+
+    conn = get_db_connection()
+    try:
+        target = conn.execute(
+            'SELECT id, username, display_name, public_key FROM users WHERE username = %s',
+            (target_username,),
+        ).fetchone()
+        if not target:
+            return jsonify({'success': False, 'error': 'User not found.'}), 404
+        if target['id'] == user_id:
+            return jsonify({'success': False, 'error': 'Cannot chat with yourself.'}), 400
+
+        # Check existing contact/chat
+        existing = conn.execute(
+            'SELECT chat_id FROM contacts WHERE user_id = %s AND contact_id = %s',
+            (user_id, target['id']),
+        ).fetchone()
+        if existing:
+            return jsonify({
+                'success': True,
+                'status': 'existing',
+                'chat_id': existing['chat_id'],
+                'contact': {
+                    'chatId': existing['chat_id'],
+                    'userId': target['id'],
+                    'username': target['username'],
+                    'display_name': target['display_name'],
+                    'public_key': target['public_key'],
+                },
+            })
+
+        # Check for pending outgoing dialog request
+        pending = conn.execute(
+            "SELECT id FROM dialog_requests WHERE sender_id = %s AND receiver_id = %s AND status = 'pending'",
+            (user_id, target['id']),
+        ).fetchone()
+        if pending:
+            return jsonify({'success': True, 'status': 'request_pending'})
+
+        # Send a new dialog request
+        conn.execute(
+            'INSERT INTO dialog_requests (sender_id, receiver_id, status) VALUES (%s, %s, %s)',
+            (user_id, target['id'], 'pending'),
+        )
+        conn.commit()
+
+        # Notify target via Socket.IO (their public key room)
+        if target['public_key']:
+            socketio.emit('dialog_request_updated', {
+                'sender_id': user_id,
+                'receiver_id': target['id'],
+                'status': 'pending',
+            }, room=target['public_key'])
+
+        return jsonify({'success': True, 'status': 'request_sent'})
+    except Exception:
+        logger.exception('mobile_start_chat error for user_id=%s', user_id)
+        return jsonify({'success': False, 'error': 'Failed to start chat.'}), 500
+    finally:
+        conn.close()
+
+
+@mobile_bp.route('/send', methods=['POST'])
+@limiter.limit('60 per minute')
+def mobile_send():
+    """Send an encrypted message from the native iOS app via HTTP (no Socket.IO required)."""
+    user_id = _session_user_id()
+    if user_id is None or not session.get('public_key_pem'):
+        clear_invalid_session_user(session)
+        return _unauthorized_response()
+
+    data = request.get_json(silent=True) or {}
+    chat_id = str(data.get('chat_id') or '').strip()
+    message = str(data.get('message') or '').strip()
+    message_type = str(data.get('message_type') or 'text').strip()
+    request_id = str(data.get('request_id') or '').strip()[:64]
+
+    if not chat_id or not message:
+        return jsonify({'success': False, 'error': 'chat_id and message are required.'}), 400
+    if not is_valid_chat_id(chat_id):
+        return jsonify({'success': False, 'error': 'Invalid chat_id.'}), 400
+    if not looks_like_ciphertext(message):
+        return jsonify({'success': False, 'error': 'Message must be encrypted ciphertext.'}), 400
+
+    sender_pub = session.get('public_key_pem', '')
+
+    conn = get_db_connection()
+    try:
+        chat_type = get_chat_type(conn, chat_id)
+
+        receiver_id = None
+        receiver_pub = ''
+        if chat_type != 'group':
+            contact = conn.execute(
+                '''SELECT c.contact_id, u.public_key
+                   FROM contacts c
+                   LEFT JOIN users u ON u.id = c.contact_id
+                   WHERE c.user_id = %s AND c.chat_id = %s''',
+                (user_id, chat_id),
+            ).fetchone()
+            if not contact:
+                # Fallback: saved messages (self-chat) — contact_id == user_id
+                # The chat_id is derived from the user's own public key via saved_messages_chat_id()
+                from app.services.favorites_chat import saved_messages_chat_id
+                self_user = conn.execute(
+                    'SELECT public_key FROM users WHERE id = %s', (user_id,)
+                ).fetchone()
+                if self_user and chat_id == saved_messages_chat_id(self_user['public_key']):
+                    receiver_id = user_id
+                    receiver_pub = self_user['public_key'] or ''
+                else:
+                    return jsonify({'success': False, 'error': 'Chat not found or not a contact.'}), 404
+            else:
+                receiver_id = contact['contact_id']
+                receiver_pub = contact['public_key'] or ''
+
+        sender_row = conn.execute(
+            'SELECT display_name, username FROM users WHERE id = %s', (user_id,)
+        ).fetchone()
+        sender_display_name = sender_row['display_name'] if sender_row else ''
+        sender_username = sender_row['username'] if sender_row else ''
+
+        cur = conn.execute(
+            '''INSERT INTO messages
+               (chat_id, sender_id, receiver_id, message, message_type, request_id)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               RETURNING id, created_at''',
+            (chat_id, user_id, receiver_id, message, message_type, request_id or None),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        msg_id = row['id']
+        created_at = row['created_at']
+    except Exception:
+        logger.exception('mobile_send: DB error for user_id=%s chat_id=%s', user_id, chat_id)
+        return jsonify({'success': False, 'error': 'Failed to save message.'}), 500
+    finally:
+        conn.close()
+
+    payload = {
+        'id': msg_id,
+        'chat_id': chat_id,
+        'sender_user_id': user_id,
+        'sender_public_key': sender_pub,
+        'sender_display_name': sender_display_name,
+        'sender_username': sender_username,
+        'message': message,
+        'message_type': message_type,
+        'is_read': False,
+        'is_delivered': False,
+        'created_at': _to_unix(created_at),
+        'request_id': request_id,
+        'reply_to_id': None,
+        'reactions': [],
+        'expires_at': None,
+    }
+
+    # Broadcast to the receiver's Socket.IO room (public key room)
+    if receiver_pub:
+        socketio.emit('receive_message', payload, room=receiver_pub)
+    # Echo back to sender so other sessions update
+    if sender_pub and sender_pub != receiver_pub:
+        socketio.emit('message_sent', payload, room=sender_pub)
+
+    return jsonify({'success': True, 'message': payload})
