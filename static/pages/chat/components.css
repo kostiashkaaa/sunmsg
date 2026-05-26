@@ -2100,6 +2100,7 @@
             scroll-behavior: smooth;
             scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 12px);
             overscroll-behavior-y: contain;
+            overflow-x: hidden;
             scrollbar-gutter: stable;
         }
 
