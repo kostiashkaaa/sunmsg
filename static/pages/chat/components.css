@@ -2102,6 +2102,14 @@
             overscroll-behavior-y: contain;
             overflow-x: hidden;
             scrollbar-gutter: stable;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        #sidebarScrollArea::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+            display: none;
         }
 
 
@@ -2394,9 +2402,12 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding: 6px 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
-        .contacts-list::-webkit-scrollbar:horizontal {
+        .contacts-list::-webkit-scrollbar {
+            width: 0;
             height: 0 !important;
             display: none;
         }

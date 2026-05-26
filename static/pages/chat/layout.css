@@ -423,6 +423,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--read-tick-color); }
     width: 1px;
     height: 100%;
     background: var(--border);
+    opacity: 0;
     transition:
         background-color var(--dur-quick) var(--ease-quick),
         opacity var(--dur-quick) var(--ease-quick);
@@ -431,6 +432,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--read-tick-color); }
 .side-resizer.active::after {
     background: var(--accent);
     width: 2px;
+    opacity: 1;
 }
 .profile-drawer {
     position: absolute;
