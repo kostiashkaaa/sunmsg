@@ -2395,7 +2395,8 @@
 
         /* --- Список контактов --- */
         .contacts-list {
-            flex: 0 0 auto;
+            flex: 0 1 auto;
+            min-height: 0;
             overflow-y: auto;
             overflow-x: hidden;
             padding: 6px 0;
