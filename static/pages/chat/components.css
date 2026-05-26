@@ -2392,7 +2392,13 @@
         .contacts-list {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 6px 0;
+        }
+
+        .contacts-list::-webkit-scrollbar:horizontal {
+            height: 0 !important;
+            display: none;
         }
 
         .contacts-list.is-hydrating-contacts,
