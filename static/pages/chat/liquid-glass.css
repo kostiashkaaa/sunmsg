@@ -123,11 +123,20 @@ html[data-interface-surface="glass"].is-interface-surface-transitioning #message
 }
 
 html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-top-card {
-    border-radius: 0 0 16px 16px;
+    border-radius: 0;
+}
+
+html[data-interface-surface="solid"] #sidebarScrollArea {
+    padding-right: 0;
+    padding-left: 0;
+    scrollbar-gutter: auto;
 }
 
 html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
     padding: 12px;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
 }
 
 html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-profile-card {
