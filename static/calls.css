@@ -1634,16 +1634,16 @@
     background: #ef4444;
     width: 58px;
     height: 58px;
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.40);
+    box-shadow: none;
 }
 .call-ctrl--end:hover .call-ctrl__icon {
     background: #dc2626;
-    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.52);
+    box-shadow: none;
 }
 .call-ctrl--end:active .call-ctrl__icon {
     background: #b91c1c;
     transform: scale(.88);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.30);
+    box-shadow: none;
 }
 
 .profile-call-list {

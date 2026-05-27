@@ -9,6 +9,7 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     ui = (ROOT / 'static' / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
     webrtc = (ROOT / 'static' / 'modules' / 'call-webrtc.js').read_text(encoding='utf-8')
     media = (ROOT / 'static' / 'modules' / 'call-media.js').read_text(encoding='utf-8')
+    motion = (ROOT / 'static' / 'modules' / 'motion.js').read_text(encoding='utf-8')
     css = (ROOT / 'static' / 'calls.css').read_text(encoding='utf-8')
     handlers = (ROOT / 'app' / 'sockets' / 'call_handlers.py').read_text(encoding='utf-8')
 
@@ -51,6 +52,7 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'remoteVideo.dataset.remoteVideoSource = source;' in ui
     assert 'function _bindCallButton(button, handler)' in ui
     assert 'function _setCallMobileViewportSync(active, overlay = _currentOverlay())' in ui
+    assert "'.call-ctrl'," in motion
 
     assert '--call-local-camera-x' in css
     assert '--call-preview-camera-x' in css
@@ -59,6 +61,7 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert '.call-overlay--ringing .call-ctrl__icon' in css
     assert '.call-overlay--info-hidden .call-card__audio-status' not in css
     assert 'max-width: min(112px, 28vw);' in css
+    assert '.call-ctrl--end .call-ctrl__icon {\n    background: #ef4444;\n    width: 58px;\n    height: 58px;\n    box-shadow: none;' in css
     assert '.call-connectivity' in css
     assert '.call-overlay--connection-lost [data-call-status]' in css
     assert '@keyframes callConnectivityPulse' in css

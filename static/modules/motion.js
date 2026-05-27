@@ -428,6 +428,7 @@ const RIPPLE_SKIP_SELECTOR = [
     '[data-no-ripple]',
     '[aria-disabled="true"]',
     '.disabled',
+    '.call-ctrl',
     '.profile-media-tab',
     '.search-overlay__tab',
     'input',
