@@ -806,7 +806,9 @@ html[data-interface-surface="glass"] .chat-date-picker-panel__day.is-today {
         scroll-padding-top: calc(var(--sidebar-top-card-height, 54px) + var(--sun-glass-sidebar-tabs-cover) + 12px);
     }
 
+    html[data-interface-surface="solid"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user,
     html[data-interface-surface="glass"] .sidebar:not(.sidebar--compact) .sidebar-bottom-user {
+        padding-top: 0;
         padding-bottom: 0;
     }
 }
