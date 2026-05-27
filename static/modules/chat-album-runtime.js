@@ -79,10 +79,13 @@ function areConsecutiveInDOM(a, b) {
 function extractMediaFromNode(node) {
     const img = node.querySelector('.file-msg-img');
     const vid = node.querySelector('.file-msg-video-preview');
+    const mediaEl = img || vid;
     const wrapper = node.querySelector('.image-wrapper, .video-preview');
     const isVideo = Boolean(vid);
 
     const src = img?.getAttribute('data-src') || vid?.getAttribute('data-src') || '';
+    const resolvedSrc = getRestorableMediaSource(mediaEl);
+    const isLoaded = isMediaLoaded(mediaEl);
     const trigger = node.querySelector('.file-msg-media-trigger');
     const aspectRatio = parseFloat(
         wrapper?.style.getPropertyValue('--media-aspect-ratio')
@@ -104,7 +107,30 @@ function extractMediaFromNode(node) {
     const durationEl = node.querySelector('.video-preview-duration');
     const duration = durationEl?.textContent?.trim() || '';
 
-    return { src, mediaSrc, aspectRatio, kind, caption, isVideo, isUploading, uploadProgress, duration };
+    return { src, resolvedSrc, isLoaded, mediaSrc, aspectRatio, kind, caption, isVideo, isUploading, uploadProgress, duration };
+}
+
+function normalizeMediaSource(src) {
+    return String(src || '').trim();
+}
+
+function isEncryptedMediaSource(src) {
+    return String(src || '').includes('sun_media_e2ee=');
+}
+
+function getRestorableMediaSource(mediaEl) {
+    const resolvedSrc = normalizeMediaSource(mediaEl?.currentSrc)
+        || normalizeMediaSource(mediaEl?.getAttribute?.('src'));
+    return resolvedSrc && !isEncryptedMediaSource(resolvedSrc) ? resolvedSrc : '';
+}
+
+function isMediaLoaded(mediaEl) {
+    if (!mediaEl) return false;
+    if (normalizeMediaSource(mediaEl.getAttribute?.('data-loaded'))) return true;
+    if (mediaEl.classList?.contains?.('is-loaded')) return true;
+    if (mediaEl.closest?.('.image-wrapper, .video-preview, .album-cell')?.classList?.contains?.('is-loaded')) return true;
+    if (mediaEl.complete === true && Number(mediaEl.naturalWidth) > 0) return true;
+    return Number(mediaEl.readyState) >= 1;
 }
 
 /**
@@ -125,8 +151,12 @@ function buildAlbumGridHtml(items) {
     for (let i = 0; i < count; i++) {
         const item = items[i];
         const cell = cells[i];
-        const { src, mediaSrc, kind, caption, isVideo, duration } = item;
+        const { src, resolvedSrc, isLoaded, mediaSrc, kind, caption, isVideo, duration } = item;
         const { row, col, rowspan = 1, colspan = 1 } = cell;
+        const restoredSrc = getSafeRestoredAlbumSource(resolvedSrc);
+        const loadedClass = restoredSrc && isLoaded ? ' is-loaded' : '';
+        const loadedAttr = restoredSrc && isLoaded ? ' data-loaded="1"' : '';
+        const restoredSrcAttr = restoredSrc ? ` src="${escapeAttr(restoredSrc)}"` : '';
 
         const triggerAttrs = [
             `data-media-aspect-ratio="1"`,
@@ -140,14 +170,14 @@ function buildAlbumGridHtml(items) {
         ].join(' ');
 
         const mediaEl = isVideo
-            ? `<video class="album-cell-video" data-src="${escapeAttr(src)}" preload="none" playsinline muted></video>
+            ? `<video class="album-cell-video${loadedClass}" data-src="${escapeAttr(src)}"${restoredSrcAttr}${loadedAttr} preload="none" playsinline muted></video>
                <div class="video-preview-gradient" aria-hidden="true"></div>
                <button class="video-preview-play" type="button" tabindex="-1" aria-hidden="true"><i class="bi bi-play-fill"></i></button>
                ${duration ? `<span class="video-duration video-preview-duration">${escapeAttr(duration)}</span>` : ''}`
-            : `<img class="album-cell-img" data-src="${escapeAttr(src)}" loading="lazy" decoding="async" alt="">`;
+            : `<img class="album-cell-img${loadedClass}" data-src="${escapeAttr(src)}"${restoredSrcAttr}${loadedAttr} loading="lazy" decoding="async" alt="">`;
 
         gridHtml += `
-            <div class="album-cell file-msg-media-trigger" ${triggerAttrs}>
+            <div class="album-cell file-msg-media-trigger${loadedClass}" ${triggerAttrs}>
                 ${mediaEl}
                 <div class="album-cell-count-badge" aria-hidden="true"></div>
             </div>`;
@@ -221,6 +251,11 @@ function resolveGridCells(count) {
 
 function escapeAttr(str) {
     return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function getSafeRestoredAlbumSource(src) {
+    const restoredSrc = normalizeMediaSource(src);
+    return restoredSrc && !isEncryptedMediaSource(restoredSrc) ? restoredSrc : '';
 }
 
 function escapeHtmlText(str) {

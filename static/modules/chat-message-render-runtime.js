@@ -322,6 +322,91 @@ export function createChatMessageRenderRuntime({
         });
     }
 
+    const hydratedMediaSelector = [
+        '.file-msg-img[data-src]',
+        '.file-msg-video-preview[data-src]',
+        '.album-cell-img[data-src]',
+        '.album-cell-video[data-src]',
+    ].join(', ');
+
+    function normalizeHydratedMediaSource(value) {
+        return String(value || '').trim();
+    }
+
+    function isEncryptedMediaSource(source) {
+        return String(source || '').includes('sun_media_e2ee=');
+    }
+
+    function getMediaDataSource(mediaEl) {
+        return normalizeHydratedMediaSource(mediaEl?.getAttribute?.('data-src'));
+    }
+
+    function getRestorableMediaSource(mediaEl) {
+        const source = normalizeHydratedMediaSource(mediaEl?.currentSrc)
+            || normalizeHydratedMediaSource(mediaEl?.getAttribute?.('src'));
+        return source && !isEncryptedMediaSource(source) ? source : '';
+    }
+
+    function isHydratedMediaLoaded(mediaEl) {
+        if (!mediaEl) return false;
+        if (normalizeHydratedMediaSource(mediaEl.getAttribute?.('data-loaded'))) return true;
+        if (mediaEl.classList?.contains?.('is-loaded')) return true;
+        if (mediaEl.closest?.('.image-wrapper, .video-preview, .album-cell')?.classList?.contains?.('is-loaded')) return true;
+        if (mediaEl.complete === true && Number(mediaEl.naturalWidth) > 0) return true;
+        return Number(mediaEl.readyState) >= 1;
+    }
+
+    function captureHydratedMediaState(chatMessages) {
+        const stateByMessageKey = new Map();
+        chatMessages?.querySelectorAll?.('.message[data-message-key]')?.forEach((messageNode) => {
+            const messageKey = String(messageNode.getAttribute?.('data-message-key') || '');
+            if (!messageKey) return;
+            const mediaByDataSrc = new Map();
+            messageNode.querySelectorAll?.(hydratedMediaSelector)?.forEach((mediaEl) => {
+                const dataSrc = getMediaDataSource(mediaEl);
+                const source = getRestorableMediaSource(mediaEl);
+                if (!dataSrc || !source) return;
+                const backgroundImage = normalizeHydratedMediaSource(
+                    mediaEl.closest?.('.bubble')?.querySelector?.('.background-layer')?.style?.getPropertyValue?.('background-image')
+                );
+                mediaByDataSrc.set(dataSrc, {
+                    source,
+                    loaded: isHydratedMediaLoaded(mediaEl),
+                    backgroundImage,
+                });
+            });
+            if (mediaByDataSrc.size) {
+                stateByMessageKey.set(messageKey, mediaByDataSrc);
+            }
+        });
+        return stateByMessageKey;
+    }
+
+    function buildBackgroundImageValue(source) {
+        const safeSource = String(source || '').replace(/'/g, "\\'");
+        return safeSource ? `url('${safeSource}')` : '';
+    }
+
+    function restoreHydratedMediaState(messageNode, mediaByDataSrc) {
+        if (!messageNode || !mediaByDataSrc?.size) return;
+        messageNode.querySelectorAll?.(hydratedMediaSelector)?.forEach((mediaEl) => {
+            const snapshot = mediaByDataSrc.get(getMediaDataSource(mediaEl));
+            if (!snapshot?.source) return;
+            if (!normalizeHydratedMediaSource(mediaEl.getAttribute?.('src'))) {
+                mediaEl.setAttribute?.('src', snapshot.source);
+            }
+            if (!snapshot.loaded) return;
+            mediaEl.setAttribute?.('data-loaded', '1');
+            mediaEl.classList?.add?.('is-loaded');
+            mediaEl.closest?.('.image-wrapper, .video-preview, .album-cell')?.classList?.add?.('is-loaded');
+            const bgLayer = mediaEl.closest?.('.bubble')?.querySelector?.('.background-layer');
+            const backgroundImage = snapshot.backgroundImage || buildBackgroundImageValue(snapshot.source);
+            if (bgLayer?.style?.setProperty && backgroundImage) {
+                bgLayer.style.setProperty('background-image', backgroundImage);
+            }
+        });
+    }
+
     function measureRenderedMessageHeights(state, renderedNodes = null) {
         const chatMessages = getCurrentMessagesElement();
         if (!chatMessages) return;
@@ -460,6 +545,7 @@ export function createChatMessageRenderRuntime({
             return;
         }
 
+        const hydratedMediaState = needsForcedRender ? captureHydratedMediaState(chatMessages) : null;
         const reusableMessageNodesByKey = new Map();
         if (!options.force || options.reuseExistingNodes) {
             chatMessages.querySelectorAll('.message[data-message-key]').forEach((node) => {
@@ -511,6 +597,7 @@ export function createChatMessageRenderRuntime({
                 if (msg.id && hasSelectedMessage?.(String(msg.id))) {
                     messageNode.classList.add('selected');
                 }
+                restoreHydratedMediaState(messageNode, hydratedMediaState?.get(msgKey));
             }
             syncMessageBubbleLayoutClasses?.(messageNode);
             state.renderedKeys.add(msgKey);

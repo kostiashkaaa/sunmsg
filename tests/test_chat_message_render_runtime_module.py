@@ -254,3 +254,178 @@ if (!chatMessages.childNodes.includes(existingNode)) {
 """
     result = _run_render_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_force_render_preserves_loaded_media_state_for_same_message_source():
+    harness_body = """
+const frames = [];
+const state = {
+  initialized: true,
+  messages: [{ id: 1, created_at: '2026-01-01 00:00:00' }],
+  lastRenderRange: { start: 0, end: 1 },
+  messageHeights: new Map([['id:1', 120]]),
+  averageMessageHeight: 120,
+  renderedKeys: new Set(['id:1']),
+};
+function makeClassList(initial = []) {
+  const names = new Set(initial);
+  return {
+    add: (name) => names.add(name),
+    remove: (name) => names.delete(name),
+    toggle: (name, enabled) => enabled ? names.add(name) : names.delete(name),
+    contains: (name) => names.has(name),
+  };
+}
+function makeStyle(initial = {}) {
+  const props = new Map(Object.entries(initial));
+  return {
+    setProperty: (name, value) => props.set(name, String(value)),
+    getPropertyValue: (name) => props.get(name) || '',
+  };
+}
+function makeImage({ dataSrc, src = '', loaded = false, background = '' }) {
+  const attrs = new Map([['data-src', dataSrc]]);
+  if (src) attrs.set('src', src);
+  if (loaded) attrs.set('data-loaded', '1');
+  const wrapper = { classList: makeClassList(loaded ? ['is-loaded'] : []) };
+  const bgLayer = { style: makeStyle(background ? { 'background-image': background } : {}) };
+  const bubble = { querySelector: (selector) => selector === '.background-layer' ? bgLayer : null };
+  const classList = makeClassList(['file-msg-img']);
+  if (loaded) classList.add('is-loaded');
+  const image = {
+    currentSrc: src,
+    complete: loaded,
+    naturalWidth: loaded ? 320 : 0,
+    readyState: 0,
+    classList,
+    getAttribute: (name) => attrs.get(name) || '',
+    setAttribute: (name, value) => {
+      attrs.set(name, String(value));
+      if (name === 'src') image.currentSrc = String(value);
+    },
+    closest: (selector) => {
+      if (selector.includes('image-wrapper') || selector.includes('album-cell')) return wrapper;
+      if (selector.includes('.bubble')) return bubble;
+      return null;
+    },
+    attrs,
+    wrapper,
+    bgLayer,
+  };
+  return image;
+}
+function makeMessageNode(key, mediaEl) {
+  return {
+    isMessage: true,
+    offsetHeight: 120,
+    classList: makeClassList(),
+    style: { removeProperty: () => {} },
+    getAttribute: (name) => (name === 'data-message-key' ? key : ''),
+    querySelector: () => null,
+    querySelectorAll: (selector) => selector.includes('.file-msg-img') ? [mediaEl] : [],
+    getBoundingClientRect: () => ({ height: 120 }),
+  };
+}
+const oldImage = makeImage({
+  dataSrc: '/media/photo.jpg?sun_media_e2ee=1',
+  src: 'blob:cached-photo',
+  loaded: true,
+  background: "url('blob:cached-photo')",
+});
+const existingNode = makeMessageNode('id:1', oldImage);
+const newImage = makeImage({ dataSrc: '/media/photo.jpg?sun_media_e2ee=1' });
+const newNode = makeMessageNode('id:1', newImage);
+const documentRef = {
+  createDocumentFragment: () => ({
+    children: [],
+    appendChild(node) {
+      if (node) this.children.push(node);
+      return node;
+    },
+  }),
+};
+const chatMessages = {
+  scrollTop: 0,
+  scrollHeight: 240,
+  clientHeight: 120,
+  childNodes: [existingNode],
+  classList: { contains: () => false },
+  get firstElementChild() { return this.childNodes[0] || null; },
+  get lastElementChild() { return this.childNodes[this.childNodes.length - 1] || null; },
+  querySelector: () => null,
+  querySelectorAll: (selector) => (
+    selector === '.message[data-message-key]'
+      ? chatMessages.childNodes.filter((node) => node?.isMessage)
+      : []
+  ),
+  insertBefore(node, before) {
+    const currentIndex = this.childNodes.indexOf(node);
+    if (currentIndex >= 0) this.childNodes.splice(currentIndex, 1);
+    const beforeIndex = before ? this.childNodes.indexOf(before) : -1;
+    if (beforeIndex >= 0) this.childNodes.splice(beforeIndex, 0, node);
+    else this.childNodes.push(node);
+    return node;
+  },
+  removeChild(node) {
+    const index = this.childNodes.indexOf(node);
+    if (index >= 0) this.childNodes.splice(index, 1);
+    return node;
+  },
+};
+
+const runtime = moduleApi.createChatMessageRenderRuntime({
+  documentRef,
+  requestAnimationFrameFn: (callback) => {
+    frames.push(callback);
+    return frames.length;
+  },
+  cancelAnimationFrameFn: () => {},
+  getCurrentChatId: () => 'chat-1',
+  getCurrentContactId: () => 'contact-1',
+  getChatMessages: () => chatMessages,
+  getChatState: () => state,
+  getMessageKey: (msg) => `id:${msg.id}`,
+  getMessageDayKey: () => '',
+  sumEstimatedHeights: () => 120,
+  getDesiredRenderRange: () => ({ start: 0, end: 1 }),
+  createVirtualSpacer: (height) => ({
+    isSpacer: true,
+    style: { height: `${height}px` },
+    classList: { contains: (name) => name === 'chat-virtual-spacer' },
+  }),
+  createDaySeparatorNode: () => ({ isSeparator: true }),
+  messageGroup: () => ({ groupClass: 'group-single' }),
+  messageItem: () => newNode,
+  applyMessageEnterAnimation: () => {},
+  syncMessageBubbleLayoutClasses: () => {},
+  isSelectionMode: () => false,
+  hasSelectedMessage: () => false,
+  registerMediaElementsForLazyHydration: () => {},
+  unregisterMediaElementsForLazyHydration: () => {},
+  schedulePostRenderUiRefresh: () => {},
+  saveChatScrollPosition: () => {},
+  resizeComposerInput: () => {},
+  updateChatMessagesBottomInset: () => {},
+  isMobileViewport: () => false,
+  prefersReducedMotionSetting: () => false,
+  scrollToBottom: () => {},
+  syncSavedMessagesMeta: () => {},
+});
+
+runtime.renderChatMessages('chat-1', { force: true, scrollTop: 0 });
+
+if (newImage.getAttribute('src') !== 'blob:cached-photo') {
+  throw new Error(`Expected restored media src, got ${newImage.getAttribute('src')}`);
+}
+if (newImage.getAttribute('data-loaded') !== '1') {
+  throw new Error('Expected loaded media state to be restored');
+}
+if (!newImage.wrapper.classList.contains('is-loaded')) {
+  throw new Error('Expected media wrapper loaded class to be restored');
+}
+if (newImage.bgLayer.style.getPropertyValue('background-image') !== "url('blob:cached-photo')") {
+  throw new Error('Expected background layer to keep the loaded photo');
+}
+"""
+    result = _run_render_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
