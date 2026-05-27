@@ -67,7 +67,7 @@ export function createVisualViewportCssSyncer(_options = {}) {
             const now = Date.now();
             if (keyboardActive) {
                 keyboardReleaseUntil = 0;
-            } else if (wasKeyboardActive || lastKeyboardActive === true) {
+            } else if (wasKeyboardActive || lastKeyboardActive === true || keyboardReleaseUntil > now) {
                 keyboardReleaseUntil = Math.max(keyboardReleaseUntil, now + KEYBOARD_RELEASE_LOCK_MS);
             }
             const keyboardReleaseActive = keyboardReleaseUntil > now;

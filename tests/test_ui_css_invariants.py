@@ -1532,6 +1532,9 @@ def test_chatjs_syncs_visual_viewport_css_vars() -> None:
     assert 'keyboardReleaseActive' in viewport, (
         'mobile-viewport.js: app height must remain visualViewport-bound while the keyboard is releasing.'
     )
+    assert 'wasKeyboardActive || lastKeyboardActive === true || keyboardReleaseUntil > now' in viewport, (
+        'mobile-viewport.js: keyboard release must extend across scheduled blur/viewport frames.'
+    )
     assert "root.classList.contains('mobile-emoji-keyboard-handoff')" in viewport, (
         'mobile-viewport.js: emoji-to-keyboard handoff must keep visual viewport height locked.'
     )
