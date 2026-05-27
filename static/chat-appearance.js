@@ -1,5 +1,7 @@
 (function (global) {
     const STORAGE_KEY = 'sun.chatAppearance.v2';
+    const READ_TICK_BLUE = '#0b3d78';
+    const READ_TICK_YELLOW = '#ffd166';
     const BASE_BUBBLE_PALETTES = {
         light: { inBg: '#fffaf1', inText: '#17130d', outBg: '#2b2417', outText: '#fff4dc' },
         dark: { inBg: '#242016', inText: '#f4ecd9', outBg: '#d7a84d', outText: '#1d160b' },
@@ -174,6 +176,19 @@
             return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
         });
         return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+    }
+
+    function contrastRatio(luminanceA, luminanceB) {
+        const lighter = Math.max(luminanceA, luminanceB);
+        const darker = Math.min(luminanceA, luminanceB);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function resolveReadTickColor(outBg) {
+        const bgLuminance = luminanceFromRgb(cssColorToRgb(outBg));
+        const blueContrast = contrastRatio(bgLuminance, luminanceFromRgb(cssColorToRgb(READ_TICK_BLUE)));
+        const yellowContrast = contrastRatio(bgLuminance, luminanceFromRgb(cssColorToRgb(READ_TICK_YELLOW)));
+        return blueContrast >= yellowContrast ? READ_TICK_BLUE : READ_TICK_YELLOW;
     }
 
     async function estimateImageLuminance(dataUrl) {
@@ -455,6 +470,7 @@
             inText: palette.inText,
             outBg: rgbaFromHex(palette.outBg, bubbleOpacity),
             outText: palette.outText,
+            readTickColor: resolveReadTickColor(palette.outBg),
             contrastMode: luminance >= 0.72 ? 'high' : 'normal'
         };
     }
@@ -473,6 +489,7 @@
         target.style.setProperty('--chat-bubble-in-text', bubblePalette.inText);
         target.style.setProperty('--chat-bubble-out-bg', bubblePalette.outBg);
         target.style.setProperty('--chat-bubble-out-text', bubblePalette.outText);
+        target.style.setProperty('--read-tick-color', bubblePalette.readTickColor);
 
         if (bubblePalette.contrastMode === 'high') {
             target.setAttribute('data-chat-contrast', 'high');

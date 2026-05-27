@@ -71,7 +71,7 @@
     --warn:            oklch(70% 0.12 50);
 
     /* Semantic UI tokens */
-    --read-tick-color:  oklch(72% 0.14 155);
+    --read-tick-color:  #ffd166;
     --online-dot-color: oklch(68% 0.17 155);
     --link-color:       oklch(72% 0.13 230);
     --link-hover-color: oklch(82% 0.10 230);

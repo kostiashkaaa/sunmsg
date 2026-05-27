@@ -142,6 +142,17 @@ def test_outgoing_message_bubbles_use_chat_appearance_tokens() -> None:
     assert 'body:not(.dark-mode) .message.self .bubble {\n            color: #fff;' not in css
 
 
+def test_read_tick_color_follows_outgoing_bubble_palette() -> None:
+    appearance = (STATIC / 'chat-appearance.js').read_text(encoding='utf-8')
+    tokens = (STATIC / 'styles' / 'tokens.css').read_text(encoding='utf-8')
+    bundled_style = (STATIC / 'style.css').read_text(encoding='utf-8')
+
+    assert "readTickColor: resolveReadTickColor(palette.outBg)" in appearance
+    assert "target.style.setProperty('--read-tick-color', bubblePalette.readTickColor);" in appearance
+    assert 'oklch(72% 0.14 155)' not in tokens
+    assert 'oklch(72% 0.14 155)' not in bundled_style
+
+
 def test_chat_css_aggregator_contains_only_import_directives() -> None:
     css = CHAT_CSS.read_text(encoding='utf-8')
     non_directive_lines = []
