@@ -294,7 +294,13 @@ function bindMessageInteractiveHandlers(messageDiv) {
             }
         };
         toggleBtn.addEventListener('mousedown', preventFocusSteal);
-        toggleBtn.addEventListener('pointerdown', preventFocusSteal);
+        toggleBtn.addEventListener('pointerdown', (event) => {
+            if (event.pointerType && event.pointerType !== 'mouse') {
+                window._prepareAudioPlayerSource?.(toggleBtn);
+                return;
+            }
+            preventFocusSteal(event);
+        });
         toggleBtn.addEventListener('click', (event) => {
             if (isMessageSelectionActive(messageDiv)) return;
             event.preventDefault();

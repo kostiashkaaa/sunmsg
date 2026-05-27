@@ -1,3 +1,5 @@
+import { createMobileVoicePlaybackController, isEncryptedVoiceSource } from './mobile-voice-playback.js';
+
 export function formatAudioPlayerTime(totalSeconds) {
     const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
     const mins = Math.floor(safe / 60);
@@ -82,6 +84,7 @@ export function initChatMediaRuntime(deps = {}) {
     const runWithStableChatScroll = typeof withStableChatScroll === 'function'
         ? withStableChatScroll
         : (_referenceNode, mutateFn) => (typeof mutateFn === 'function' ? mutateFn() : undefined);
+    const mobileVoicePlayback = createMobileVoicePlaybackController({ windowRef: window });
 
     function applyLoadedMediaAspectRatio(mediaWrap, naturalWidth, naturalHeight) {
         if (!mediaWrap) return null;
@@ -132,7 +135,7 @@ export function initChatMediaRuntime(deps = {}) {
     }
 
     function isEncryptedMediaSource(source) {
-        return String(source || '').includes('sun_media_e2ee=');
+        return isEncryptedVoiceSource(source);
     }
 
     function isEncryptedPreviewThumbSource(source) {
@@ -593,6 +596,7 @@ export function initChatMediaRuntime(deps = {}) {
         const audio = resolveActiveVoicePlaybackAudio();
         if (audio && pause && !audio.paused) {
             audio.dataset.playRequested = '0';
+            delete audio.dataset.voicePreparing;
             try { audio.pause(); } catch (_) {}
             stopAudioPlayerUiLoop(audio);
             scheduleAudioPlayerUiSync(audio);
@@ -664,12 +668,14 @@ export function initChatMediaRuntime(deps = {}) {
         syncVoicePlaybackTimeText(activeAudio, roundedPercent, { force: true });
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
+        const isPreparing = activeAudio.dataset?.voicePreparing === '1';
         const playIconUse = voicePlaybackPlayBtn.querySelector('use');
         if (playIconUse) {
-            playIconUse.setAttribute('href', isPlaying ? '#sun-i-pause' : '#sun-i-play');
+            playIconUse.setAttribute('href', isPreparing ? '#sun-i-arrow-repeat' : (isPlaying ? '#sun-i-pause' : '#sun-i-play'));
         }
-        voicePlaybackPlayBtn.setAttribute('aria-label', isPlaying ? 'Пауза' : 'Воспроизвести');
-        voicePlaybackPlayBtn.setAttribute('title', isPlaying ? 'Пауза' : 'Воспроизвести');
+        const playButtonLabel = isPreparing ? 'Загрузка' : (isPlaying ? 'Пауза' : 'Воспроизвести');
+        voicePlaybackPlayBtn.setAttribute('aria-label', playButtonLabel);
+        voicePlaybackPlayBtn.setAttribute('title', playButtonLabel);
         const preferredRate = getPreferredAudioPlaybackRate();
         voicePlaybackSpeedBtn.textContent = formatAudioPlaybackRateLabel(preferredRate);
         syncVoicePlaybackRepeatButton();
@@ -958,9 +964,11 @@ export function initChatMediaRuntime(deps = {}) {
         const playRequested = audio.dataset.playRequested === '1';
         if (isPlaying && playRequested) {
             audio.dataset.playRequested = '0';
+            delete audio.dataset.voicePreparing;
         }
-        const isStarting = !isPlaying && playRequested && !audio.ended;
-        const isPlaybackActive = isPlaying || (audio.dataset.playRequested === '1' && !audio.ended);
+        const isPreparing = audio.dataset.voicePreparing === '1';
+        const isStarting = !isPlaying && (playRequested || isPreparing) && !audio.ended;
+        const isPlaybackActive = isPlaying || ((audio.dataset.playRequested === '1' || isPreparing) && !audio.ended);
         const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
         const knownDuration = resolveKnownAudioDuration(audio, durationLabel);
         const playedPercent = knownDuration > 0 ? (current / knownDuration) * 100 : 0;
@@ -1182,8 +1190,10 @@ export function initChatMediaRuntime(deps = {}) {
         if (!audioEl) return;
         if (audioEl.ended) {
             audioEl.dataset.playRequested = '0';
+            delete audioEl.dataset.voicePreparing;
         }
         if (!audioEl.paused && !audioEl.ended) {
+            delete audioEl.dataset.voicePreparing;
             startAudioPlayerUiLoop(audioEl);
         } else {
             stopAudioPlayerUiLoop(audioEl);
@@ -1318,6 +1328,13 @@ export function initChatMediaRuntime(deps = {}) {
         syncVoicePlaybackBar();
     };
 
+    window._prepareAudioPlayerSource = function(target) {
+        const { audio } = resolveAudioPlayerElements(target);
+        if (!audio) return { status: 'missing' };
+        ensureMediaElementHydrated(audio, { force: true });
+        return mobileVoicePlayback.prepareAudioSource(audio);
+    };
+
     window._toggleAudioPlayer = function(toggleBtn) {
         // \u0412\u0410\u0416\u041D\u041E: \u0442\u0435\u043B\u043E \u044D\u0442\u043E\u0439 \u0444\u0443\u043D\u043A\u0446\u0438\u0438 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u043C \u0434\u043E audio.play(),
         // \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E iOS Safari \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u0447\u0442\u043E\u0431\u044B play() \u0432\u044B\u0437\u044B\u0432\u0430\u043B\u0441\u044F \u043F\u0440\u044F\u043C\u043E \u0438\u0437 user gesture
@@ -1327,22 +1344,58 @@ export function initChatMediaRuntime(deps = {}) {
         if (!audio) return;
 
         if (audio.paused) {
-            ensureMediaElementHydrated(audio, { force: true });
-            if (!audio.getAttribute('src')) {
-                const dataSrc = String(audio.getAttribute('data-src') || audio.dataset?.src || '').trim();
-                if (dataSrc && !isEncryptedMediaSource(dataSrc)) {
-                    audio.setAttribute('src', dataSrc);
-                }
+            if (audio.dataset.voicePreparing === '1') {
+                syncAudioPlayerUi(audio);
+                syncVoicePlaybackBar(audio);
+                return;
             }
-            if (!audio.getAttribute('src')) {
+            ensureMediaElementHydrated(audio, { force: true });
+            const sourceState = mobileVoicePlayback.prepareAudioSource(audio);
+            if (sourceState.status === 'pending') {
+                audio.dataset.playRequested = '1';
+                audio.dataset.voicePreparing = '1';
+                setActiveVoicePlaybackAudio(audio);
+                scheduleAudioPlayerUiSync(audio);
+                syncAudioPlayerUi(audio);
+                syncVoicePlaybackBar(audio);
+                sourceState.promise.then((isReady) => {
+                    delete audio.dataset.voicePreparing;
+                    if (audio.dataset.playRequested !== '1') {
+                        scheduleAudioPlayerUiSync(audio);
+                        syncVoicePlaybackBar(audio);
+                        return;
+                    }
+                    if (!isReady || !audio.getAttribute('src')) {
+                        audio.dataset.playRequested = '0';
+                        stopAudioPlayerUiLoop(audio);
+                        scheduleAudioPlayerUiSync(audio);
+                        syncVoicePlaybackBar(audio);
+                        showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
+                        return;
+                    }
+                    window._toggleAudioPlayer(toggleBtn);
+                }).catch(() => {
+                    delete audio.dataset.voicePreparing;
+                    if (audio.dataset.playRequested !== '1') return;
+                    audio.dataset.playRequested = '0';
+                    stopAudioPlayerUiLoop(audio);
+                    scheduleAudioPlayerUiSync(audio);
+                    syncVoicePlaybackBar(audio);
+                    showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
+                });
+                return;
+            }
+            if (sourceState.status !== 'ready' || !audio.getAttribute('src')) {
                 showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
                 return;
             }
+            delete audio.dataset.voicePreparing;
 
             // \u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C \u0432\u0441\u0435 \u043E\u0441\u0442\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u0443\u0434\u0438\u043E \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u043E.
             const activeAudio = resolveActiveVoicePlaybackAudio();
             if (activeAudio && activeAudio !== audio) {
                 activeAudio.dataset.playRequested = '0';
+                delete activeAudio.dataset.voicePreparing;
                 try { activeAudio.pause(); } catch (_) {}
                 stopAudioPlayerUiLoop(activeAudio);
                 scheduleAudioPlayerUiSync(activeAudio);
@@ -1352,6 +1405,7 @@ export function initChatMediaRuntime(deps = {}) {
             all.forEach((candidate) => {
                 if (candidate !== audio) {
                     candidate.dataset.playRequested = '0';
+                    delete candidate.dataset.voicePreparing;
                     try { candidate.pause(); } catch (_) {}
                     stopAudioPlayerUiLoop(candidate);
                     scheduleAudioPlayerUiSync(candidate);
@@ -1385,13 +1439,21 @@ export function initChatMediaRuntime(deps = {}) {
                 playPromise = audio.play();
             } catch (err) {
                 audio.dataset.playRequested = '0';
+                delete audio.dataset.voicePreparing;
                 stopAudioPlayerUiLoop(audio);
                 showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
             }
             if (playPromise && typeof playPromise.then === 'function') {
-                playPromise.catch((err) => {
+                playPromise.then(() => {
+                    delete audio.dataset.voicePreparing;
+                    scheduleAudioPlayerUiSync(audio);
+                    if (resolveActiveVoicePlaybackAudio() === audio) {
+                        syncVoicePlaybackBar(audio);
+                    }
+                }).catch((err) => {
                     // AbortError \u0432\u043E\u0437\u043D\u0438\u043A\u0430\u0435\u0442 \u043A\u043E\u0433\u0434\u0430 play() \u043F\u0440\u0435\u0440\u0432\u0430\u043D pause()/load().
                     // \u042D\u0442\u043E \u043D\u043E\u0440\u043C\u0430\u043B\u044C\u043D\u043E \u2014 \u041D\u0415 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u043C \u0442\u043E\u0441\u0442.
+                    delete audio.dataset.voicePreparing;
                     if (err && (err.name === 'AbortError' || err.code === 20)) {
                         if (audio.paused && audio.dataset.playRequested === '1') {
                             audio.dataset.playRequested = '0';
@@ -1410,6 +1472,7 @@ export function initChatMediaRuntime(deps = {}) {
             }
         } else {
             audio.dataset.playRequested = '0';
+            delete audio.dataset.voicePreparing;
             try { audio.pause(); } catch (_) {}
             stopAudioPlayerUiLoop(audio);
             scheduleGeneratedAudioWaveform(audio);
@@ -1466,6 +1529,7 @@ export function initChatMediaRuntime(deps = {}) {
         // Останавливаем текущее и запускаем соседнее.
         try { current.pause(); } catch (_) {}
         current.dataset.playRequested = '0';
+        delete current.dataset.voicePreparing;
         const targetToggle = targetAudio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
         if (!targetToggle) return;
         // Прокручиваем сообщение в зону видимости.
@@ -1616,6 +1680,7 @@ export function initChatMediaRuntime(deps = {}) {
             const audio = resolveActiveVoicePlaybackAudio();
             if (audio) {
                 audio.dataset.playRequested = '0';
+                delete audio.dataset.voicePreparing;
                 try { audio.pause(); } catch (_) {}
                 try { audio.currentTime = 0; } catch (_) {}
                 stopAudioPlayerUiLoop(audio);

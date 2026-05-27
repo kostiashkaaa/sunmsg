@@ -125,8 +125,11 @@ export function createMediaHydrationController(options = {}) {
                 return true;
             }
             resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
-                .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc, dataSrc, hydrationSeq); })
-                .catch(() => { assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq); });
+                .then((resolvedSrc) => {
+                    if (!resolvedSrc || isEncryptedMediaSource(resolvedSrc)) return;
+                    assignHydratedSource(mediaEl, resolvedSrc, dataSrc, hydrationSeq);
+                })
+                .catch(() => {});
             return true;
         }
 

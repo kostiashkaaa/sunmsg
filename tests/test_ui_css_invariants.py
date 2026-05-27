@@ -1832,6 +1832,7 @@ def test_voice_audio_first_tap_hydrates_source_before_play() -> None:
     assert "const audioSelector = '.file-msg-audio-el[data-src]';" in hydration
     assert 'const allVidSel = `${videoSelector}, ${albumVideoSelector}, ${audioSelector}`;' in hydration
     assert 'if (!isEncryptedMediaSource(dataSrc)) {\n                assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq);' in hydration
+    assert 'if (!resolvedSrc || isEncryptedMediaSource(resolvedSrc)) return;' in hydration
     assert "const viewportTarget = videoEl.classList.contains('file-msg-audio-el')" in hydration
     assert "videoEl.closest('.message') || videoEl.closest('.file-msg-audio-player') || videoEl" in hydration
 
@@ -1839,10 +1840,20 @@ def test_voice_audio_first_tap_hydrates_source_before_play() -> None:
     toggle_end = media_runtime.index('function seekActiveVoicePlaybackByPercent(percent)', toggle_start)
     toggle_block = media_runtime[toggle_start:toggle_end]
 
-    assert "audio.setAttribute('src', dataSrc);" in toggle_block
+    assert "import { createMobileVoicePlaybackController, isEncryptedVoiceSource } from './mobile-voice-playback.js';" in media_runtime
+    assert 'const mobileVoicePlayback = createMobileVoicePlaybackController({ windowRef: window });' in media_runtime
+    assert 'window._prepareAudioPlayerSource = function(target)' in media_runtime
+    assert 'const sourceState = mobileVoicePlayback.prepareAudioSource(audio);' in toggle_block
+    assert "sourceState.status === 'pending'" in toggle_block
+    assert "audio.dataset.voicePreparing = '1';" in toggle_block
+    assert "window._toggleAudioPlayer(toggleBtn);" in toggle_block
     assert 'void ensureGeneratedAudioWaveform(audio);' not in toggle_block
     assert 'function scheduleGeneratedAudioWaveform(audioEl)' in media_runtime
     assert "audio.dataset.playRequested = '0';\n                            stopAudioPlayerUiLoop(audio);" in media_runtime
+    rendering = (STATIC / 'modules' / 'message-rendering.js').read_text(encoding='utf-8')
+    assert "if (event.pointerType && event.pointerType !== 'mouse')" in rendering
+    assert "window._prepareAudioPlayerSource?.(toggleBtn);" in rendering
+    assert "preventFocusSteal(event);" in rendering
 
     progress_start = css.index('.voice-playback-bar__progress {')
     progress_end = css.index('.voice-playback-bar__progress::-webkit-slider-runnable-track', progress_start)

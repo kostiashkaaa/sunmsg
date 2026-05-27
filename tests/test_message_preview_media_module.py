@@ -95,6 +95,7 @@ if (!html.includes('data-src="https://sun.test/chat_media/photo.jpg"')) {{
 
 def test_chat_media_runtime_hydrates_preview_thumb_with_media_resolver():
     module_path = ROOT / 'static' / 'modules' / 'chat-media-runtime.js'
+    voice_module_path = ROOT / 'static' / 'modules' / 'mobile-voice-playback.js'
     node_harness = f"""
 import {{ readFile }} from 'node:fs/promises';
 
@@ -173,7 +174,13 @@ Object.defineProperty(globalThis, 'window', {{
 }});
 
 const source = await readFile({str(module_path)!r}, 'utf8');
-const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const voiceSource = await readFile({str(voice_module_path)!r}, 'utf8');
+const voiceModuleUrl = 'data:text/javascript;base64,' + Buffer.from(voiceSource, 'utf8').toString('base64');
+const patchedSource = source.replace(
+  "import {{ createMobileVoicePlaybackController, isEncryptedVoiceSource }} from './mobile-voice-playback.js';",
+  `import {{ createMobileVoicePlaybackController, isEncryptedVoiceSource }} from '${{voiceModuleUrl}}';`,
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(patchedSource, 'utf8').toString('base64');
 const mediaRuntime = await import(moduleUrl);
 mediaRuntime.initChatMediaRuntime({{}});
 await new Promise((resolve) => setTimeout(resolve, 0));
