@@ -536,13 +536,6 @@ export function initSettingsNavShell({
         });
     });
 
-    panelCloseBtn?.addEventListener('click', (event) => {
-        if (!detailViewOpen || !isCompactNav()) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showHome(true);
-    }, true);
-
     syncCompactNavState();
     const initialSection = normalizeHashSection(window.location.hash.substring(1));
     if (initialSection) {
