@@ -132,3 +132,57 @@ if (!audio.loaded) throw new Error('audio.load should reset the removed encrypte
 """
     result = _run_node_harness(node_harness)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_mobile_voice_playback_times_out_stalled_encrypted_source() -> None:
+    module_path = ROOT / 'static' / 'modules' / 'mobile-voice-playback.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+import {{ setTimeout as delay }} from 'node:timers/promises';
+
+const source = await readFile({str(module_path)!r}, 'utf8');
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ createMobileVoicePlaybackController }} = await import(moduleUrl);
+
+const rawSrc = '/chat_media/17#sun_media_e2ee=encoded';
+const attrs = new Map([['data-src', rawSrc]]);
+const audio = {{
+  dataset: {{}},
+  currentSrc: '',
+  getAttribute(name) {{ return attrs.get(name) || ''; }},
+  setAttribute(name, value) {{ attrs.set(name, String(value)); }},
+  removeAttribute(name) {{ attrs.delete(name); }},
+  load() {{ this.loaded = true; }},
+}};
+let resolverCalls = 0;
+let resolveStalled;
+const controller = createMobileVoicePlaybackController({{
+  windowRef: {{
+    setTimeout,
+    clearTimeout,
+    __sunMediaCacheResolveSource() {{
+      resolverCalls += 1;
+      return new Promise((resolve) => {{ resolveStalled = resolve; }});
+    }},
+  }},
+  sourceResolveTimeoutMs: 5,
+}});
+
+const stalled = controller.prepareAudioSource(audio);
+if (stalled.status !== 'pending') throw new Error(`expected pending, got ${{stalled.status}}`);
+
+const ready = await stalled.promise;
+if (ready) throw new Error('stalled encrypted source must time out as not ready');
+if (attrs.has('src')) throw new Error(`timed-out source must not assign src: ${{attrs.get('src')}}`);
+
+resolveStalled('blob:https://sun.test/late-voice');
+await delay(0);
+if (attrs.has('src')) throw new Error(`late source must not assign after timeout: ${{attrs.get('src')}}`);
+
+const retry = controller.prepareAudioSource(audio);
+if (retry.status !== 'pending') throw new Error(`retry should start fresh pending resolve, got ${{retry.status}}`);
+if (retry.promise === stalled.promise) throw new Error('retry reused timed-out pending promise');
+if (resolverCalls !== 2) throw new Error(`expected a fresh resolver call after timeout, got ${{resolverCalls}}`);
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout

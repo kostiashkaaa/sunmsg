@@ -2,6 +2,29 @@ export function isEncryptedVoiceSource(source) {
     return String(source || '').includes('sun_media_e2ee=');
 }
 
+const DEFAULT_SOURCE_RESOLVE_TIMEOUT_MS = 12_000;
+
+function normalizeSourceResolveTimeoutMs(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0
+        ? numeric
+        : DEFAULT_SOURCE_RESOLVE_TIMEOUT_MS;
+}
+
+function resolveTimerApi(windowRef) {
+    const timeoutHost = windowRef && typeof windowRef.setTimeout === 'function'
+        ? windowRef
+        : globalThis;
+    return {
+        setTimeout: typeof timeoutHost?.setTimeout === 'function'
+            ? timeoutHost.setTimeout.bind(timeoutHost)
+            : null,
+        clearTimeout: typeof timeoutHost?.clearTimeout === 'function'
+            ? timeoutHost.clearTimeout.bind(timeoutHost)
+            : null,
+    };
+}
+
 function readAudioSource(audioEl) {
     return String(
         audioEl?.getAttribute?.('src')
@@ -34,8 +57,15 @@ function assignResolvedVoiceSource(audioEl, resolvedSrc, expectedDataSrc, expect
     return true;
 }
 
-export function createMobileVoicePlaybackController({ windowRef = window } = {}) {
+export function createMobileVoicePlaybackController({
+    windowRef = window,
+    sourceResolveTimeoutMs = DEFAULT_SOURCE_RESOLVE_TIMEOUT_MS,
+} = {}) {
     const pendingSourceByAudio = new WeakMap();
+    const normalizedSourceResolveTimeoutMs = normalizeSourceResolveTimeoutMs(
+        sourceResolveTimeoutMs,
+    );
+    const timerApi = resolveTimerApi(windowRef);
 
     function prepareAudioSource(audioEl) {
         if (!audioEl || typeof audioEl.getAttribute !== 'function') {
@@ -85,15 +115,41 @@ export function createMobileVoicePlaybackController({ windowRef = window } = {})
                 : { status: 'error', reason: 'resolver-empty' };
         }
 
-        const promise = Promise.resolve(resolvedValue)
-            .then((resolvedSrc) => assignResolvedVoiceSource(audioEl, resolvedSrc, dataSrc, nextSeq))
+        let didTimeout = false;
+        let timeoutId = null;
+        const resolvePromise = Promise.resolve(resolvedValue)
+            .then((resolvedSrc) => (
+                didTimeout
+                    ? false
+                    : assignResolvedVoiceSource(audioEl, resolvedSrc, dataSrc, nextSeq)
+            ))
             .catch(() => false)
             .finally(() => {
                 const current = pendingSourceByAudio.get(audioEl);
-                if (current?.promise === promise) {
+                if (current?.promise === promise && !didTimeout) {
                     pendingSourceByAudio.delete(audioEl);
                 }
             });
+        const timeoutPromise = timerApi.setTimeout
+            ? new Promise((resolve) => {
+                timeoutId = timerApi.setTimeout(() => {
+                    didTimeout = true;
+                    const current = pendingSourceByAudio.get(audioEl);
+                    if (current?.promise === promise) {
+                        pendingSourceByAudio.delete(audioEl);
+                    }
+                    resolve(false);
+                }, normalizedSourceResolveTimeoutMs);
+            })
+            : null;
+        const promise = timeoutPromise
+            ? Promise.race([resolvePromise, timeoutPromise])
+                .finally(() => {
+                    if (timeoutId != null && timerApi.clearTimeout) {
+                        timerApi.clearTimeout(timeoutId);
+                    }
+                })
+            : resolvePromise;
 
         pendingSourceByAudio.set(audioEl, { dataSrc, promise });
         return { status: 'pending', promise };
