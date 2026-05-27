@@ -1709,6 +1709,21 @@ def test_chat_uses_single_mobile_message_gesture_runtime() -> None:
     assert 'button,a[href],[role="button"],' in touch_context
 
 
+def test_mobile_outgoing_swipe_reply_moves_left_not_right() -> None:
+    """Outgoing messages sit on the right edge; reply drag must not push them further right."""
+    touch_context = (STATIC / 'chat' / 'message-touch-context.js').read_text(encoding='utf-8')
+
+    assert 'function getSwipeReplyDirection(gesture)' in touch_context
+    assert 'return gesture?.isSelf ? -1 : 1;' in touch_context
+    assert 'const swipeDirection = getSwipeReplyDirection(gesture);' in touch_context
+    assert touch_context.count('const directionalDx = dx * swipeDirection;') == 2
+    assert 'const shouldDrag = directionalDx > 10 && directionalDx > (absDy * 1.2);' in touch_context
+    assert 'const visualShift = Math.max(0, Math.min(SWIPE_REPLY_MAX_SHIFT_PX, directionalDx * 0.82));' in touch_context
+    assert 'const shift = visualShift * swipeDirection;' in touch_context
+    assert "gesture.messageEl.style.setProperty('--swipe-reply-shift', `${shift.toFixed(1)}px`);" in touch_context
+    assert '&& directionalDx >= SWIPE_REPLY_TRIGGER_PX' in touch_context
+
+
 def test_message_interactive_clicks_are_scoped() -> None:
     """Message media and reply controls must not also trigger selection/context handlers."""
     rendering = (STATIC / 'modules' / 'message-rendering.js').read_text(encoding='utf-8')

@@ -283,6 +283,10 @@ export function initMessageTouchContext(options = {}) {
         startReply(gesture.msgId, gesture.content, sender);
     }
 
+    function getSwipeReplyDirection(gesture) {
+        return gesture?.isSelf ? -1 : 1;
+    }
+
     function handleMessageTouchStart(event) {
         if (!prefersTouchMessageGestures()) return;
         if (messageSelectionController.isSelectionMode()) return;
@@ -361,6 +365,8 @@ export function initMessageTouchContext(options = {}) {
         const dy = touch.clientY - gesture.startY;
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
+        const swipeDirection = getSwipeReplyDirection(gesture);
+        const directionalDx = dx * swipeDirection;
 
         if (!gesture.dragging && absDy > 12 && absDy > absDx) {
             if (gesture.longPressTimer) {
@@ -371,7 +377,7 @@ export function initMessageTouchContext(options = {}) {
         }
         if (gesture.longPressTriggered) return;
 
-        const shouldDrag = dx > 10 && absDx > (absDy * 1.2);
+        const shouldDrag = directionalDx > 10 && directionalDx > (absDy * 1.2);
         if (!gesture.dragging && !shouldDrag) return;
 
         if (gesture.longPressTimer) {
@@ -383,10 +389,11 @@ export function initMessageTouchContext(options = {}) {
             bindSwipeReplyBlockingMove();
         }
         gesture.dragging = true;
-        const shift = Math.max(0, Math.min(SWIPE_REPLY_MAX_SHIFT_PX, dx * 0.82));
+        const visualShift = Math.max(0, Math.min(SWIPE_REPLY_MAX_SHIFT_PX, directionalDx * 0.82));
+        const shift = visualShift * swipeDirection;
         gesture.messageEl.style.setProperty('--swipe-reply-shift', `${shift.toFixed(1)}px`);
         gesture.messageEl.classList.add('swipe-reply-dragging');
-        gesture.messageEl.classList.toggle('swipe-reply-ready', shift >= SWIPE_REPLY_TRIGGER_PX);
+        gesture.messageEl.classList.toggle('swipe-reply-ready', visualShift >= SWIPE_REPLY_TRIGGER_PX);
         if (allowPreventDefault && event.cancelable) event.preventDefault();
     }
 
@@ -409,9 +416,11 @@ export function initMessageTouchContext(options = {}) {
 
         const dx = gesture.lastX - gesture.startX;
         const dy = Math.abs(gesture.lastY - gesture.startY);
+        const swipeDirection = getSwipeReplyDirection(gesture);
+        const directionalDx = dx * swipeDirection;
         const canReply = gesture.dragging
             && !gesture.longPressTriggered
-            && dx >= SWIPE_REPLY_TRIGGER_PX
+            && directionalDx >= SWIPE_REPLY_TRIGGER_PX
             && dy <= SWIPE_REPLY_MAX_VERTICAL_PX
             && !isChatBlocked();
 
