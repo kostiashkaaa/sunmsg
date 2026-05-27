@@ -813,6 +813,9 @@
                 transform: translateZ(0);
                 contain: layout paint style;
             }
+            .search-overlay {
+                z-index: 31;
+            }
             #sidebarScrollArea {
                 flex: 1 1 auto;
                 min-height: 0;
