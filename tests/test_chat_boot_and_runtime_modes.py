@@ -265,6 +265,32 @@ if (alertEl.style.display !== '') {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_chat_runtime_keeps_realtime_locked_until_private_key_activation() -> None:
+    runtime_src = (Path(__file__).resolve().parents[1] / 'static' / 'chat-runtime.js').read_text(encoding='utf-8')
+    socket_src = (Path(__file__).resolve().parents[1] / 'static' / 'modules' / 'chat-socket-client.js').read_text(encoding='utf-8')
+    guard_src = (Path(__file__).resolve().parents[1] / 'static' / 'modules' / 'e2e-activation-guard.js').read_text(encoding='utf-8')
+
+    assert 'autoConnect: !isE2eActivationLocked()' in runtime_src
+    assert 'canEmit: () => !isE2eActivationLocked()' in runtime_src
+    assert 'syncE2eActivationRealtime();' in runtime_src
+    assert "window.addEventListener('sun-private-key-status-changed'" in runtime_src
+    assert 'socketEmit: (event, data) => emitSocket(event, data)' in runtime_src
+    assert 'socketConnect: () => {\n            if (isE2eActivationLocked())' in runtime_src
+    assert 'if (isE2eActivationLocked()) return;\n        loadDialogRequests();' in runtime_src
+    assert 'if (isE2eActivationLocked()) {\n            hideAppBootOverlay();\n            return Promise.resolve(false);' in runtime_src
+    assert 'if (isE2eActivationLocked()) {\n        hideAppBootOverlay();\n    } else if (hasSsrContacts)' in runtime_src
+    assert 'void loadContacts({ immediate: true });\n            void loadDialogRequests();' in runtime_src
+    assert 'const _refreshCallFeatureAccess = async () => {\n        if (isE2eActivationLocked())' in runtime_src
+
+    assert 'autoConnect: socketClientConfig.autoConnect !== false' in socket_src
+    assert 'createSocketEmitter(socket, { canEmit = () => true } = {})' in socket_src
+    assert "if (typeof canEmit === 'function' && !canEmit(eventName, payload)) return false;" in socket_src
+
+    assert 'export function syncE2eActivationSocket' in guard_src
+    assert 'socket.disconnect();' in guard_src
+    assert 'socket.connect();' in guard_src
+
+
 def test_manage_cli_dispatches_runtime_modes(monkeypatch):
     calls = []
 

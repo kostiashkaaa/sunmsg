@@ -22,3 +22,30 @@ export function requestE2eActivation({
     }
     return false;
 }
+
+export function syncE2eActivationSocket({
+    socket,
+    isLocked,
+    syncSidebarStatusBar,
+    syncChatConnectionStatus,
+    reportActivity,
+    documentRef = typeof document !== 'undefined' ? document : null,
+} = {}) {
+    const locked = typeof isLocked === 'function' ? Boolean(isLocked()) : true;
+    if (locked) {
+        if (socket?.connected || socket?.active) {
+            socket.disconnect();
+        }
+        syncSidebarStatusBar?.();
+        syncChatConnectionStatus?.();
+        return false;
+    }
+
+    if (socket && socket.connected !== true) {
+        socket.connect();
+    }
+    reportActivity?.(documentRef?.visibilityState === 'visible', { immediate: true });
+    syncSidebarStatusBar?.();
+    syncChatConnectionStatus?.();
+    return true;
+}

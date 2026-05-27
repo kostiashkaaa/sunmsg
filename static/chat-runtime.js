@@ -129,6 +129,7 @@ import { getPrivateKeyPem, restoreWrappedPrivateKey } from './modules/private-ke
 import {
     isE2eActivationLocked as isE2eActivationLockedFlow,
     requestE2eActivation as requestE2eActivationFlow,
+    syncE2eActivationSocket,
 } from './modules/e2e-activation-guard.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
 import { createChatUpdatesSyncController } from './modules/chat-updates-sync.js';
@@ -238,15 +239,20 @@ export const initChatPage = async () => {
         restoreWrappedPrivateKey,
         initSunRipple,
     });
-    // \u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A Socket.IO (same-origin, with reconnection support).
-    // Threading + Werkzeug is more reliable with polling-first transport config.
-    const socket = createChatSocketClient(bootstrapSocketConfig);
     const browserEnv = createChatBrowserEnv(window, fetch);
     const isE2eActivationLocked = () => isE2eActivationLockedFlow(getPrivateKeyPem);
     const requestE2eActivation = () => requestE2eActivationFlow({ showToast, windowRef: window });
+    // Socket.IO starts only after the local E2E key is restored.
+    // Locked tabs must not receive realtime events or buffer outgoing emits.
+    const socket = createChatSocketClient({
+        ...bootstrapSocketConfig,
+        autoConnect: !isE2eActivationLocked(),
+    });
     let hasSocketConnectedOnce = false;
     let hasSocketConnectionIssue = false;
-    const emitSocket = createSocketEmitter(socket);
+    const emitSocket = createSocketEmitter(socket, {
+        canEmit: () => !isE2eActivationLocked(),
+    });
     const chatUpdatesSyncController = createChatUpdatesSyncController({
         socket,
         fetchImpl: browserEnv.getFetch(),
@@ -773,7 +779,7 @@ export const initChatPage = async () => {
     });
 
     disappearingMessagesController = createDisappearingMessagesController({
-        socketEmit: (event, data) => socket.emit(event, data),
+        socketEmit: (event, data) => emitSocket(event, data),
         getCsrfToken,
         getCurrentChatId: () => currentChatId,
     });
@@ -1305,6 +1311,7 @@ export const initChatPage = async () => {
         onListUpdated: () => updateDialogRequestsBadge(),
     });
     scheduleNonCriticalTask(() => {
+        if (isE2eActivationLocked()) return;
         loadDialogRequests();
     });
     initLightbox();
@@ -1361,7 +1368,13 @@ export const initChatPage = async () => {
         setSocketConnectionIssue: (value) => {
             hasSocketConnectionIssue = Boolean(value);
         },
-        socketConnect: () => socket.connect(),
+        socketConnect: () => {
+            if (isE2eActivationLocked()) {
+                requestE2eActivation();
+                return;
+            }
+            socket.connect();
+        },
         reportActivity,
         getVisibilityState: () => document.visibilityState,
         getHasPrivateKey: () => Boolean(getPrivateKeyPem()),
@@ -1392,6 +1405,18 @@ export const initChatPage = async () => {
     function syncSidebarStatusBar() {
         sidebarStatusController?.syncSidebarStatusBar();
     }
+
+    function syncE2eActivationRealtime() {
+        return syncE2eActivationSocket({
+            socket,
+            isLocked: isE2eActivationLocked,
+            syncSidebarStatusBar,
+            syncChatConnectionStatus,
+            reportActivity,
+            documentRef: document,
+        });
+    }
+    syncE2eActivationRealtime();
 
     // \u041A\u043D\u043E\u043F\u043A\u0430 "\u041D\u0430\u0437\u0430\u0434" (\u043C\u043E\u0431\u0438\u043B\u044C\u043D\u0430\u044F)
     // \u0410\u043B\u0438\u0430\u0441\u044B \u043C\u043E\u0434\u0443\u043B\u044C\u043D\u044B\u0445 \u0444\u0443\u043D\u043A\u0446\u0438\u0439 (\u0431\u0435\u0437 _ prefix) - \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u0435, \u0447\u0442\u043E \u043D\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u044E\u0442 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 chatStates Map
@@ -3707,6 +3732,10 @@ export const initChatPage = async () => {
 
     // \u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0441\u043F\u0438\u0441\u043A\u0430 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432 (debounce + \u0437\u0430\u0449\u0438\u0442\u0430 \u043E\u0442 \u043F\u0430\u0440\u0430\u043B\u043B\u0435\u043B\u044C\u043D\u044B\u0445 \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432)
     function loadContacts(options = {}) {
+        if (isE2eActivationLocked()) {
+            hideAppBootOverlay();
+            return Promise.resolve(false);
+        }
         return contactsSidebarController.loadContacts(options);
     }
 
@@ -3718,7 +3747,9 @@ export const initChatPage = async () => {
     ) === '1';
     const needsInitialContactsSync = contactsSidebarController.isInitialSyncRequired?.() === true
         || hasMoreInitialContacts;
-    if (hasSsrContacts) {
+    if (isE2eActivationLocked()) {
+        hideAppBootOverlay();
+    } else if (hasSsrContacts) {
         sortContactsList();
         if (needsInitialContactsSync) {
             loadContacts({ immediate: true });
@@ -4290,6 +4321,10 @@ export const initChatPage = async () => {
     };
 
     const _refreshCallFeatureAccess = async () => {
+        if (isE2eActivationLocked()) {
+            _hideCallButtons();
+            return undefined;
+        }
         if (_callFeatureAccessRequest) return _callFeatureAccessRequest;
         _callFeatureAccessRequest = browserEnv.getFetch()('/call/feature-access', {
             credentials: 'same-origin',
@@ -4368,8 +4403,11 @@ export const initChatPage = async () => {
         _syncCallButtonState();
     });
     window.addEventListener('sun-private-key-status-changed', () => {
+        syncE2eActivationRealtime();
         _syncCallButtonState();
         if (!isE2eActivationLocked()) {
+            void loadContacts({ immediate: true });
+            void loadDialogRequests();
             void _refreshCallFeatureAccess();
         }
     });

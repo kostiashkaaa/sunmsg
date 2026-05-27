@@ -309,15 +309,17 @@ export function createChatSocketClient(socketClientConfig = {}) {
         upgrade: socketClientConfig.upgrade !== false,
         withCredentials: true,
         reconnection: true,
+        autoConnect: socketClientConfig.autoConnect !== false,
         timeout: 10000,
         auth: (cb) => cb({ csrf_token: getCsrfToken() }),
     });
     return patchSocketListeners(socket);
 }
 
-export function createSocketEmitter(socket) {
+export function createSocketEmitter(socket, { canEmit = () => true } = {}) {
     return function emitSocket(eventName, payload = {}, { requireConnected = false } = {}) {
         if (!socket) return false;
+        if (typeof canEmit === 'function' && !canEmit(eventName, payload)) return false;
         if (requireConnected) {
             const hasNetwork = (typeof navigator === 'undefined') ? true : navigator.onLine !== false;
             if (!socket.connected || !hasNetwork) return false;
