@@ -1770,6 +1770,32 @@ def test_voice_wave_and_static_media_layers_avoid_layout_animation() -> None:
     assert 'will-change: transform, filter;' not in css
 
 
+def test_voice_playback_progress_avoids_per_frame_native_range_and_clip_path() -> None:
+    """Voice playback RAF should update compositor-friendly visuals, not native range or clip-path."""
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+    media_runtime = (STATIC / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+    rendering = (STATIC / 'modules' / 'message-rendering.js').read_text(encoding='utf-8')
+
+    tick_start = media_runtime.index('function tickAudioProgressOnly(audioEl)')
+    tick_end = media_runtime.index('function startAudioPlayerUiLoop(audioEl)', tick_start)
+    tick_block = media_runtime[tick_start:tick_end]
+    played_layer_start = css.index('.audio-wave-layer--played')
+    played_layer_end = css.index('.audio-wave-bar', played_layer_start)
+    played_layer_block = css[played_layer_start:played_layer_end]
+
+    assert 'voicePlaybackProgress.value = String(percent)' not in tick_block
+    assert 'setVoicePlaybackProgressVisual(percent)' in tick_block
+    assert "voicePlaybackProgressFill.style.setProperty('--voice-playback-progress'" in media_runtime
+    assert "voicePlaybackProgressFill.style.setProperty('--voice-playback-progress-pct'" in media_runtime
+
+    assert '<div class="audio-wave-layer__inner">' in rendering
+    assert 'setAudioWavePlayedPercent(wave, percent)' in tick_block
+    assert 'clip-path:' not in played_layer_block
+    assert 'will-change: clip-path' not in played_layer_block
+    assert 'transform: scaleX(var(--audio-played-scale, 0));' in css
+    assert 'transform: scaleX(var(--audio-played-inverse-scale, 1));' in css
+
+
 def test_profile_spotify_progress_uses_transform_not_width_animation() -> None:
     """Profile Spotify progress is RAF-updated, so it must avoid width layout writes."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')

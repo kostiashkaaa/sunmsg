@@ -654,11 +654,8 @@ export function initChatMediaRuntime(deps = {}) {
             ? clampAudioSeekPercent((current / knownDuration) * 100)
             : 0;
         const roundedPercent = Math.round(percent * 10) / 10;
-        if (voicePlaybackProgress.dataset.seeking !== '1') {
-            voicePlaybackProgress.value = String(roundedPercent);
-        }
+        setVoicePlaybackProgressVisual(roundedPercent, { forceNative: true });
         voicePlaybackProgress.setAttribute('aria-valuenow', String(Math.round(roundedPercent)));
-        voicePlaybackProgressFill?.style.setProperty('--voice-playback-progress', String(roundedPercent));
         syncVoicePlaybackTimeText(activeAudio, roundedPercent, { force: true });
         voicePlaybackSender.textContent = resolveVoicePlaybackSenderLabel(activeAudio);
         const isPlaying = !activeAudio.paused && !activeAudio.ended;
@@ -775,9 +772,10 @@ export function initChatMediaRuntime(deps = {}) {
         const baseLayer = waveEl.querySelector('.audio-wave-layer--base');
         const playedLayer = waveEl.querySelector('.audio-wave-layer--played');
         if (!baseLayer || !playedLayer) return;
+        const playedLayerInner = playedLayer.querySelector('.audio-wave-layer__inner') || playedLayer;
         const html = buildAudioWaveBarsHtml(heights);
         baseLayer.innerHTML = html;
-        playedLayer.innerHTML = html;
+        playedLayerInner.innerHTML = html;
     }
 
     function resolveAudioPlayerElements(sourceEl) {
@@ -867,6 +865,40 @@ export function initChatMediaRuntime(deps = {}) {
         return Math.max(0, Math.min(100, numeric));
     }
 
+    function setAudioWavePlayedPercent(wave, nextPercent) {
+        if (!wave) return;
+        const percent = clampAudioSeekPercent(nextPercent);
+        const previousPercent = Number(wave.dataset.playedPercent || -1);
+        if (Number.isFinite(previousPercent) && Math.abs(previousPercent - percent) < 0.1) return;
+        const scale = percent / 100;
+        const inverseScale = scale > 0.001 ? 1 / scale : 1;
+        wave.style.setProperty('--audio-played-percent', String(percent));
+        wave.style.setProperty('--audio-played-scale', scale.toFixed(4));
+        wave.style.setProperty('--audio-played-inverse-scale', inverseScale.toFixed(3));
+        wave.dataset.playedPercent = String(percent);
+    }
+
+    function setVoicePlaybackProgressVisual(nextPercent, { forceNative = false } = {}) {
+        const percent = Math.round(clampAudioSeekPercent(nextPercent) * 10) / 10;
+        if (voicePlaybackProgressFill) {
+            voicePlaybackProgressFill.style.setProperty('--voice-playback-progress', String(percent));
+            voicePlaybackProgressFill.style.setProperty('--voice-playback-progress-pct', `${percent}%`);
+        }
+        if (!voicePlaybackProgress || voicePlaybackProgress.dataset.seeking === '1') return;
+        const previousNativePercent = Number(voicePlaybackProgress.dataset.nativeProgress);
+        const shouldUpdateNative = forceNative
+            || !Number.isFinite(previousNativePercent)
+            || Math.abs(previousNativePercent - percent) >= 1
+            || percent <= 0
+            || percent >= 100;
+        if (!shouldUpdateNative) return;
+        const nextValue = String(percent);
+        if (voicePlaybackProgress.value !== nextValue) {
+            voicePlaybackProgress.value = nextValue;
+        }
+        voicePlaybackProgress.dataset.nativeProgress = nextValue;
+    }
+
     function seekAudioPlayerToPercent(rangeEl, nextPercent) {
         const { audio, progress, wave } = resolveAudioPlayerElements(rangeEl);
         if (!audio || !progress) return;
@@ -887,10 +919,7 @@ export function initChatMediaRuntime(deps = {}) {
         } else {
             try { audio.load(); } catch (_) {}
         }
-        if (wave) {
-            wave.style.setProperty('--audio-played-percent', String(percent));
-            wave.dataset.playedPercent = String(percent);
-        }
+        setAudioWavePlayedPercent(wave, percent);
         syncAudioPlayerUi(audio);
     }
 
@@ -938,13 +967,7 @@ export function initChatMediaRuntime(deps = {}) {
                 progress.removeAttribute('aria-valuetext');
             }
         }
-        if (wave) {
-            const previousPercent = Number(wave.dataset.playedPercent || -1);
-            if (!Number.isFinite(previousPercent) || Math.abs(previousPercent - visualPercent) >= 0.1) {
-                wave.style.setProperty('--audio-played-percent', String(visualPercent));
-                wave.dataset.playedPercent = String(visualPercent);
-            }
-        }
+        setAudioWavePlayedPercent(wave, visualPercent);
         syncAudioDurationLabel(audio, durationLabel, {
             mode: (isSeeking || isPlaybackActive) ? 'current' : 'duration',
             percent: effectivePercent,
@@ -1061,15 +1084,12 @@ export function initChatMediaRuntime(deps = {}) {
         const wave = player?.querySelector('.audio-player-wave');
         const durationLabel = player?.closest('.bubble')?.querySelector('.audio-message-duration');
         const percent = getInterpolatedAudioPercent(audioEl);
-        if (wave) {
-            wave.style.setProperty('--audio-played-percent', String(percent));
-        }
+        setAudioWavePlayedPercent(wave, percent);
         syncAudioDurationLabel(audioEl, durationLabel, { mode: 'current', percent });
         if (resolveActiveVoicePlaybackAudio() === audioEl && voicePlaybackProgress) {
             const isSeeking = voicePlaybackProgress.dataset?.seeking === '1';
             if (!isSeeking) {
-                voicePlaybackProgress.value = String(percent);
-                voicePlaybackProgressFill?.style.setProperty('--voice-playback-progress', String(percent));
+                setVoicePlaybackProgressVisual(percent);
             }
             syncVoicePlaybackTimeText(audioEl, percent);
         }
@@ -1524,6 +1544,8 @@ export function initChatMediaRuntime(deps = {}) {
             const localX = Number(clientX) - rect.left;
             const percent = clampAudioSeekPercent((localX / rect.width) * 100);
             voicePlaybackProgress.value = String(percent);
+            voicePlaybackProgress.dataset.nativeProgress = String(percent);
+            setVoicePlaybackProgressVisual(percent, { forceNative: true });
             seekActiveVoicePlaybackByPercent(percent);
         };
         voicePlaybackProgress.addEventListener('pointerdown', (event) => {

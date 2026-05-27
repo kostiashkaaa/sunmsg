@@ -751,7 +751,9 @@ function buildFileBubble(filePayload) {
                                         ${waveBars}
                                     </div>
                                     <div class="audio-wave-layer audio-wave-layer--played">
-                                        ${waveBars}
+                                        <div class="audio-wave-layer__inner">
+                                            ${waveBars}
+                                        </div>
                                     </div>
                                 </div>
                                 <input

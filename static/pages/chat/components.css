@@ -6176,7 +6176,7 @@
             border-radius: 999px;
             background: color-mix(in srgb, var(--sub-text) 20%, transparent);
             pointer-events: none;
-            overflow: hidden;
+            overflow: visible;
         }
         .voice-playback-bar__progress-fill::before {
             content: '';
@@ -6189,6 +6189,18 @@
             transform-origin: left center;
             transform: scaleX(calc(var(--voice-playback-progress, 0) / 100));
             will-change: transform;
+        }
+
+        .voice-playback-bar__progress-fill::after {
+            content: '';
+            position: absolute;
+            left: var(--voice-playback-progress-pct, 0%);
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            transform: translate(-50%, -50%);
         }
 
         .voice-playback-bar__progress {
@@ -6215,7 +6227,7 @@
             margin-top: 2px;
             border-radius: 50%;
             border: none;
-            background: var(--accent);
+            background: transparent;
         }
 
         .voice-playback-bar__progress::-moz-range-track {
@@ -6229,7 +6241,7 @@
             height: 10px;
             border-radius: 50%;
             border: none;
-            background: var(--accent);
+            background: transparent;
         }
 
 
@@ -7442,10 +7454,27 @@
 .audio-wave-layer--played {
     width: 100%;
     overflow: hidden;
-    will-change: clip-path;
-    clip-path: inset(0 calc(100% - (var(--audio-played-percent, 0) * 1%)) 0 0);
+    transform-origin: left center;
+    transform: scaleX(var(--audio-played-scale, 0));
+    will-change: transform;
     transition: none;
 }
+
+        .audio-wave-layer__inner {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: flex-end;
+            gap: 1.2px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .audio-wave-layer--played .audio-wave-layer__inner {
+            transform-origin: left center;
+            transform: scaleX(var(--audio-played-inverse-scale, 1));
+            will-change: transform;
+        }
 
 
         .audio-wave-bar {
