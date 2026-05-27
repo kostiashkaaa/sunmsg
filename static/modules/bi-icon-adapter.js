@@ -78,6 +78,7 @@
         'bi-pin-angle': 'sun-i-pin-angle',
         'bi-pin-angle-fill': 'sun-i-pin-angle',
         'bi-play-fill': 'sun-i-play',
+        'bi-plus-lg': 'sun-i-plus',
         'bi-qr-code': 'sun-i-qr',
         'bi-qr-code-scan': 'sun-i-qr',
         'bi-reply-fill': 'sun-i-chat',

@@ -6,6 +6,7 @@ import {
     resolveSidebarFolder,
     toggleChatInFolder,
 } from '../../modules/chat-folders.js';
+import { initHorizontalDragScroll } from '../../modules/horizontal-drag-scroll.js';
 
 export function initChatShellSidebar({
     clientPreferences = {},
@@ -25,6 +26,8 @@ export function initChatShellSidebar({
         || [],
     );
     let pendingFolderChatId = '';
+
+    initHorizontalDragScroll(sidebarTabs);
 
     function scheduleGroupLabelsUpdate() {
         // Group labels were removed from sidebar; keep a no-op for existing call sites.

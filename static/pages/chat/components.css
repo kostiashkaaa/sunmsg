@@ -502,6 +502,7 @@
             overflow-x: auto;
             overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
+            touch-action: pan-y pinch-zoom;
             scrollbar-width: none;
             /* Fade edges to hint horizontal scroll */
             mask-image: linear-gradient(
