@@ -57,6 +57,8 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert '--call-mobile-vh' in css
     assert 'touch-action: manipulation;' in css
     assert '.call-overlay--ringing .call-ctrl__icon' in css
+    assert '.call-overlay--info-hidden .call-card__audio-status' not in css
+    assert 'max-width: min(112px, 28vw);' in css
     assert '.call-connectivity' in css
     assert '.call-overlay--connection-lost [data-call-status]' in css
     assert '@keyframes callConnectivityPulse' in css

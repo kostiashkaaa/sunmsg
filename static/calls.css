@@ -1302,7 +1302,6 @@
     white-space: nowrap;
 }
 
-.call-overlay--info-hidden .call-card__audio-status,
 .call-overlay--info-hidden .call-overlay__verify,
 .call-overlay--info-hidden .call-quality,
 .call-overlay--info-hidden .call-remote-muted {
@@ -2249,12 +2248,14 @@
         height: 54px;
     }
     .call-ctrl__label {
-        max-width: 70px;
+        max-width: min(112px, 28vw);
         overflow: hidden;
         text-overflow: ellipsis;
     }
     .call-overlay--ringing .call-ctrl {
-        min-width: 74px;
+        flex: 1 1 clamp(74px, 28vw, 104px);
+        min-width: 0;
+        max-width: 112px;
         gap: 9px;
     }
     .call-overlay--ringing .call-ctrl__icon {
@@ -2266,7 +2267,7 @@
         height: 64px;
     }
     .call-overlay--ringing .call-ctrl__label {
-        max-width: 86px;
+        max-width: 100%;
         font-size: 13px;
     }
     .call-overlay--self-view-primary.call-overlay--has-local-video.call-overlay--has-remote-video .call-overlay__remote-video {
