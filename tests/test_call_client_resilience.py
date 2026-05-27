@@ -8,10 +8,13 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     manager = (ROOT / 'static' / 'modules' / 'call-manager.js').read_text(encoding='utf-8')
     ui = (ROOT / 'static' / 'modules' / 'call-ui.js').read_text(encoding='utf-8')
     webrtc = (ROOT / 'static' / 'modules' / 'call-webrtc.js').read_text(encoding='utf-8')
+    media = (ROOT / 'static' / 'modules' / 'call-media.js').read_text(encoding='utf-8')
     css = (ROOT / 'static' / 'calls.css').read_text(encoding='utf-8')
     handlers = (ROOT / 'app' / 'sockets' / 'call_handlers.py').read_text(encoding='utf-8')
 
     assert 'const DISCONNECT_TIMEOUT_MS = 45_000;' in manager
+    assert 'const ICE_RESTART_RETRY_DELAYS_MS = [0, 3_000, 8_000, 15_000, 28_000];' in manager
+    assert 'const ICE_CONFIG_TIMEOUT_MS = 5_000;' in manager
     assert 'const SIGNAL_ACK_TIMEOUT_MS = 12_000;' in manager
     assert 'const ACCEPT_SYNC_GRACE_MS = 5_000;' in manager
     assert "this._emit('call_initiate', { chat_id: this._chatId, call_type: this._callType }, { requireConnected: true })" in manager
@@ -22,6 +25,10 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "setCallConnectionState('reconnecting')" in manager
     assert "setCallConnectionState('lost')" in manager
     assert "this._handleRecoverableDisconnect(state)" in manager
+    assert 'this._scheduleIceRestartBackoff();' in manager
+    assert 'controller.abort()' in manager
+    assert 'this._runVideoOperation(' in manager
+    assert 'falling back to audio-only' in manager
     assert 'this._partnerMediaState = {' in manager
     assert '_applyPartnerMediaState()' in manager
     assert '_partnerMediaStateFromActiveCall(activeCall)' in manager
@@ -50,6 +57,10 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'mirrorVideo: this._shouldMirrorOutgoingVideo()' in manager
     assert '_isMobileCallClient()' in manager
     assert "return mode === 'user';" in manager
+
+    assert 'const MEDIA_ACCESS_TIMEOUT_MS = 10_000;' in media
+    assert 'function _withMediaAccessTimeout' in media
+    assert "err.name = 'TimeoutError';" in media
 
     assert "'partner_media': _partner_media_state(conn, call_id, user_id)" in handlers
     assert "if status == 'active' else None" in handlers

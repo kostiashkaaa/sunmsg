@@ -3,6 +3,8 @@
  * Manages microphone/camera access, local track lifecycle, and device swaps.
  */
 
+const MEDIA_ACCESS_TIMEOUT_MS = 10_000;
+
 export class CallMedia {
     constructor() {
         this._localStream = null;
@@ -23,10 +25,13 @@ export class CallMedia {
     }
 
     async acquireAudio() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: this._audioConstraints(),
-            video: false,
-        });
+        const stream = await _withMediaAccessTimeout(
+            navigator.mediaDevices.getUserMedia({
+                audio: this._audioConstraints(),
+                video: false,
+            }),
+            'audio',
+        );
         this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
@@ -40,10 +45,13 @@ export class CallMedia {
     }
 
     async acquireVideo() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: this._audioConstraints(),
-            video: this._videoConstraints(),
-        });
+        const stream = await _withMediaAccessTimeout(
+            navigator.mediaDevices.getUserMedia({
+                audio: this._audioConstraints(),
+                video: this._videoConstraints(),
+            }),
+            'audio/video',
+        );
         this._releaseStream();
         this._localStream = stream;
         this._audioTrack = stream.getAudioTracks()[0] || null;
@@ -160,12 +168,15 @@ export class CallMedia {
             err.name = 'NotSupportedError';
             throw err;
         }
-        const newStream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-                frameRate: { ideal: 15, max: 24 },
-            },
-            audio: false,
-        });
+        const newStream = await _withMediaAccessTimeout(
+            navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    frameRate: { ideal: 15, max: 24 },
+                },
+                audio: false,
+            }),
+            'screen',
+        );
         const track = newStream.getVideoTracks()[0] || null;
         newStream.getTracks().filter(t => t !== track).forEach(t => t.stop());
         if (!track) throw new Error('No screen share track');
@@ -280,10 +291,13 @@ export class CallMedia {
     }
 
     async _newAudioTrack(audioConstraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            audio: audioConstraints,
-            video: false,
-        });
+        const newStream = await _withMediaAccessTimeout(
+            navigator.mediaDevices.getUserMedia({
+                audio: audioConstraints,
+                video: false,
+            }),
+            'audio',
+        );
         const newTrack = newStream.getAudioTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement audio track');
@@ -292,10 +306,13 @@ export class CallMedia {
     }
 
     async _newVideoTrack(videoConstraints) {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: videoConstraints,
-        });
+        const newStream = await _withMediaAccessTimeout(
+            navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: videoConstraints,
+            }),
+            'video',
+        );
         const newTrack = newStream.getVideoTracks()[0] || null;
         newStream.getTracks().filter(t => t !== newTrack).forEach(t => t.stop());
         if (!newTrack) throw new Error('No replacement video track');
@@ -402,4 +419,45 @@ export class CallMedia {
         if (kind === 'audiooutput') return `\u0414\u0438\u043d\u0430\u043c\u0438\u043a ${index}`;
         return `\u0423\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u043e ${index}`;
     }
+}
+
+function _withMediaAccessTimeout(streamPromise, label) {
+    let settled = false;
+    let timeoutId = null;
+    const source = Promise.resolve(streamPromise).then((stream) => {
+        if (settled) {
+            _stopStreamTracks(stream);
+            return null;
+        }
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        return stream;
+    }, (err) => {
+        if (settled) return null;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        throw err;
+    });
+
+    const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(_mediaAccessTimeoutError(label));
+        }, MEDIA_ACCESS_TIMEOUT_MS);
+    });
+
+    return Promise.race([source, timeout]);
+}
+
+function _mediaAccessTimeoutError(label) {
+    const err = new Error(`${label || 'media'} access timed out`);
+    err.name = 'TimeoutError';
+    return err;
+}
+
+function _stopStreamTracks(stream) {
+    stream?.getTracks?.().forEach((track) => {
+        try { track.stop(); } catch (_) { /* ignore late media cleanup failures */ }
+    });
 }
