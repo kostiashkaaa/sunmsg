@@ -11,6 +11,7 @@ let callDurationStartedAt = 0;
 let callTopbarResizeHandler = null;
 let callTopbarViewportHandler = null;
 let callMobileTopbarResizeHandler = null;
+let callMobileViewportSync = null;
 let callInfoVisibilityTimer = 0;
 let incomingCallBannerLifecycleSeq = 0;
 let preCallScreenLifecycleSeq = 0;
@@ -681,7 +682,7 @@ export function showActiveCallOverlay({
 
             <div class="call-overlay__controls">
                 <div class="call-overlay__ctrl-group">
-                    <button class="call-ctrl" id="call-btn-video" aria-label="Камера">
+                    <button class="call-ctrl" id="call-btn-video" type="button" aria-label="Камера">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                                 <path d="M15 10.5L21 7v10l-6-3.5V10.5z" fill="currentColor" stroke="none"/>
@@ -690,7 +691,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Камера</span>
                     </button>
-                    <button class="call-ctrl call-ctrl--switch-camera" id="call-btn-switch-camera" aria-label="Сменить камеру">
+                    <button class="call-ctrl call-ctrl--switch-camera" id="call-btn-switch-camera" type="button" aria-label="Сменить камеру">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M4 7h3l2-2h6l2 2h3v11H4z"/>
@@ -700,7 +701,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Сменить</span>
                     </button>
-                    <button class="call-ctrl call-ctrl--screen" id="call-btn-screen" aria-label="Демонстрация экрана" aria-pressed="false">
+                    <button class="call-ctrl call-ctrl--screen" id="call-btn-screen" type="button" aria-label="Демонстрация экрана" aria-pressed="false">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="3" y="4" width="18" height="12" rx="2"/>
@@ -710,7 +711,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Экран</span>
                     </button>
-                    <button class="call-ctrl" id="call-btn-audio" aria-label="Микрофон">
+                    <button class="call-ctrl" id="call-btn-audio" type="button" aria-label="Микрофон">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                                 <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
@@ -721,7 +722,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Звук</span>
                     </button>
-                    <button class="call-ctrl call-ctrl--devices" id="call-btn-devices" aria-label="Устройства" aria-expanded="false">
+                    <button class="call-ctrl call-ctrl--devices" id="call-btn-devices" type="button" aria-label="Устройства" aria-expanded="false">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                                 <path d="M4 7h10"/>
@@ -734,7 +735,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Устройства</span>
                     </button>
-                    <button class="call-ctrl" id="call-btn-speaker" aria-label="Динамик" aria-pressed="false">
+                    <button class="call-ctrl" id="call-btn-speaker" type="button" aria-label="Динамик" aria-pressed="false">
                         <span class="call-ctrl__icon">
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M4 9v6h4l5 4V5L8 9H4z"/>
@@ -744,7 +745,7 @@ export function showActiveCallOverlay({
                         </span>
                         <span class="call-ctrl__label">Динамик</span>
                     </button>
-                    <button class="call-ctrl call-ctrl--end" id="call-btn-end" aria-label="${escapeHtml(endActionLabel)}">
+                    <button class="call-ctrl call-ctrl--end" id="call-btn-end" type="button" aria-label="${escapeHtml(endActionLabel)}">
                         <span class="call-ctrl__icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M6.54 5c.06.89.21 1.76.45 2.59l-1.2 1.2c-.41-1.2-.67-2.47-.76-3.79h1.51m9.86 12.02c.85.24 1.72.39 2.6.45v1.49c-1.32-.09-2.59-.35-3.8-.75l1.2-1.19M7.5 3H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.49c0-.55-.45-1-1-1-1.24 0-2.45-.2-3.57-.57a.84.84 0 00-.31-.05c-.26 0-.51.1-.71.29l-2.2 2.2a15.149 15.149 0 01-6.59-6.59l2.2-2.2c.28-.28.36-.67.25-1.02A11.36 11.36 0 018.5 4c0-.55-.45-1-1-1z" fill="white"/>
@@ -759,6 +760,7 @@ export function showActiveCallOverlay({
     `;
 
     document.body.appendChild(overlay);
+    _setCallMobileViewportSync(isMobile, overlay);
     applyFallbackAvatarTint(overlay.querySelector('.call-card__avatar'), partnerName);
     applyFallbackAvatarTint(overlay.querySelector('.call-mini__avatar'), partnerName);
     requestAnimationFrame(() => {
@@ -809,7 +811,7 @@ export function showActiveCallOverlay({
         const card = overlay.querySelector('#call-card');
         _makeDraggable(card, overlay.querySelector('.call-card__drag'));
         _makeResizable(card);
-        overlay.querySelector('#call-fullscreen-btn')?.addEventListener('click', (event) => {
+        _bindCallButton(overlay.querySelector('#call-fullscreen-btn'), (event) => {
             event.stopPropagation();
             _toggleCallOverlayFullscreen(overlay);
         });
@@ -821,7 +823,7 @@ export function showActiveCallOverlay({
     if (!supportsScreenShare) {
         screenBtn?.remove();
     } else {
-        screenBtn?.addEventListener('click', async () => {
+        _bindCallButton(screenBtn, async () => {
             screenBtn.disabled = true;
             try {
                 const result = await onToggleScreenShare?.();
@@ -839,12 +841,12 @@ export function showActiveCallOverlay({
         });
     }
 
-    overlay.querySelector('#call-btn-audio').addEventListener('click', () => {
+    _bindCallButton(overlay.querySelector('#call-btn-audio'), () => {
         const muted = onToggleAudio();
         syncAudioControlState(muted);
     });
 
-    overlay.querySelector('#call-btn-video').addEventListener('click', async () => {
+    _bindCallButton(overlay.querySelector('#call-btn-video'), async () => {
         const result = await onToggleVideo();
         if (!isOverlayCurrent()) return;
         const enabled = typeof result === 'object' ? Boolean(result?.enabled) : Boolean(result);
@@ -856,7 +858,7 @@ export function showActiveCallOverlay({
         _syncLocalVideo(overlay, activeLocalStream, enabled, activeLocalFacingMode);
     });
 
-    overlay.querySelector('#call-btn-switch-camera').addEventListener('click', async () => {
+    _bindCallButton(overlay.querySelector('#call-btn-switch-camera'), async () => {
         const btn = overlay.querySelector('#call-btn-switch-camera');
         btn.disabled = true;
         try {
@@ -907,7 +909,7 @@ export function showActiveCallOverlay({
         }
     };
 
-    devicesBtn?.addEventListener('click', async () => {
+    _bindCallButton(devicesBtn, async () => {
         const willOpen = Boolean(devicePanel?.hidden || devicePanel?.dataset.callPanelClosing === '1');
         _setCallDevicePanelOpen(devicePanel, willOpen);
         devicesBtn.setAttribute('aria-expanded', String(willOpen));
@@ -974,7 +976,7 @@ export function showActiveCallOverlay({
             // by the system based on connected audio devices. Hide the button.
             speakerBtn.remove();
         } else {
-            speakerBtn.addEventListener('click', async () => {
+            _bindCallButton(speakerBtn, async () => {
                 const enabled = speakerBtn.getAttribute('aria-pressed') !== 'true';
                 speakerBtn.disabled = true;
                 try {
@@ -991,13 +993,13 @@ export function showActiveCallOverlay({
         speakerBtn?.remove();
     }
 
-    overlay.querySelector('#call-btn-end').addEventListener('click', () => onEnd(callId));
-    overlay.querySelector('.call-topbar__end').addEventListener('click', () => onEnd(callId));
-    overlay.querySelector('#call-mini-end')?.addEventListener('click', (event) => {
+    _bindCallButton(overlay.querySelector('#call-btn-end'), () => onEnd(callId));
+    _bindCallButton(overlay.querySelector('.call-topbar__end'), () => onEnd(callId));
+    _bindCallButton(overlay.querySelector('#call-mini-end'), (event) => {
         event.stopPropagation();
         onEnd(callId);
     });
-    overlay.querySelector('#call-mini-mute')?.addEventListener('click', (event) => {
+    _bindCallButton(overlay.querySelector('#call-mini-mute'), (event) => {
         event.stopPropagation();
         const muted = onToggleAudio();
         syncAudioControlState(muted);
@@ -1011,7 +1013,7 @@ export function showActiveCallOverlay({
         event.preventDefault();
         _restoreCallOverlay(overlay);
     });
-    overlay.querySelector('#call-minimize-btn')?.addEventListener('click', (event) => {
+    _bindCallButton(overlay.querySelector('#call-minimize-btn'), (event) => {
         event.stopPropagation();
         _minimizeCallOverlay(overlay);
     });
@@ -1046,6 +1048,7 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
     _setSpeakerMode(false);
     _setCallTopbarActive(false);
     _setCallMobileTopbarReserve(false);
+    _setCallMobileViewportSync(false);
     _clearCallInfoVisibilityTimer();
     _exitFullscreenForElement(_currentOverlay());
     stopCallDurationTimer();
@@ -1469,6 +1472,117 @@ function _bindCallInfoVisibility(overlay) {
     overlay.addEventListener('pointermove', reveal, { passive: true });
     overlay.addEventListener('focusin', reveal);
     _showCallInfoTemporarily(overlay);
+}
+
+function _bindCallButton(button, handler) {
+    if (!button || typeof handler !== 'function') return;
+    let suppressClickUntil = 0;
+    const run = (event) => {
+        if (button.disabled || button.getAttribute('aria-disabled') === 'true') return undefined;
+        return handler(event);
+    };
+
+    if (_isMobileCallUi() && typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined') {
+        button.addEventListener('pointerup', (event) => {
+            if (!_isPrimaryTouchPointer(event)) return;
+            if (!_isPointerInsideElement(event, button)) return;
+            suppressClickUntil = Date.now() + 500;
+            event.preventDefault();
+            event.stopPropagation();
+            void run(event);
+        });
+        button.addEventListener('click', (event) => {
+            if (Date.now() <= suppressClickUntil) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            void run(event);
+        });
+        return;
+    }
+
+    button.addEventListener('click', (event) => {
+        void run(event);
+    });
+}
+
+function _isPrimaryTouchPointer(event) {
+    if (event?.isPrimary === false) return false;
+    const pointerType = String(event?.pointerType || '');
+    return pointerType === 'touch' || pointerType === 'pen' || pointerType === '';
+}
+
+function _isPointerInsideElement(event, element) {
+    const rect = element?.getBoundingClientRect?.();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+    const x = Number(event?.clientX);
+    const y = Number(event?.clientY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return true;
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function _setCallMobileViewportSync(active, overlay = _currentOverlay()) {
+    if (callMobileViewportSync) {
+        callMobileViewportSync.dispose();
+        callMobileViewportSync = null;
+    }
+    if (!active || !overlay || !_isMobileCallUi()) return;
+
+    let frame = 0;
+    const clearFrame = () => {
+        if (!frame) return;
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+    };
+    const clearStyles = () => {
+        overlay.style.removeProperty('--call-mobile-vh');
+        overlay.style.removeProperty('--call-mobile-top-offset');
+        overlay.style.removeProperty('--call-mobile-bottom-inset');
+    };
+    const sync = () => {
+        if (!overlay.isConnected || _currentOverlay() !== overlay || !_isMobileCallUi()) {
+            _setCallMobileViewportSync(false);
+            return;
+        }
+
+        const viewport = window.visualViewport;
+        const layoutHeight = _roundedPositivePx(window.innerHeight || document.documentElement?.clientHeight || 0);
+        const viewportHeight = _roundedPositivePx(viewport?.height || layoutHeight);
+        const viewportTop = _roundedPositivePx(viewport?.offsetTop || 0);
+        const bottomInset = Math.max(0, layoutHeight - viewportTop - viewportHeight);
+
+        if (viewportHeight > 0) {
+            overlay.style.setProperty('--call-mobile-vh', `${viewportHeight}px`);
+        }
+        overlay.style.setProperty('--call-mobile-top-offset', `${viewportTop}px`);
+        overlay.style.setProperty('--call-mobile-bottom-inset', `${bottomInset}px`);
+    };
+    const schedule = () => {
+        if (frame) return;
+        frame = window.requestAnimationFrame(() => {
+            frame = 0;
+            sync();
+        });
+    };
+    const dispose = () => {
+        clearFrame();
+        window.removeEventListener('resize', schedule);
+        window.visualViewport?.removeEventListener?.('resize', schedule);
+        window.visualViewport?.removeEventListener?.('scroll', schedule);
+        clearStyles();
+    };
+
+    callMobileViewportSync = { dispose };
+    sync();
+    schedule();
+    window.addEventListener('resize', schedule, { passive: true });
+    window.visualViewport?.addEventListener?.('resize', schedule, { passive: true });
+    window.visualViewport?.addEventListener?.('scroll', schedule, { passive: true });
+}
+
+function _roundedPositivePx(value) {
+    return Math.max(0, Math.round(Number(value) || 0));
 }
 
 function _toggleElementFullscreen(element) {

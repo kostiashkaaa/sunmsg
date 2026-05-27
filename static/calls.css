@@ -1464,6 +1464,8 @@
     -webkit-appearance: none;
     appearance: none;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
     outline: none;
     box-shadow: none;
 }
@@ -1538,6 +1540,7 @@
     text-overflow: ellipsis;
     font-size: 12px;
     font-weight: 600;
+    line-height: 1.15;
     color: var(--call-muted);
     white-space: nowrap;
 }
@@ -2125,11 +2128,11 @@
     }
     .call-card {
         inset: 0;
-        top: 0;
+        top: var(--call-mobile-top-offset, 0px);
         left: 0;
         width: 100vw;
         width: 100dvw;
-        height: var(--app-vh, 100dvh);
+        height: var(--call-mobile-vh, var(--app-vh, 100dvh));
         min-height: 0;
         max-height: none;
         aspect-ratio: auto;
@@ -2147,11 +2150,11 @@
     }
     .call-overlay--ringing .call-card {
         inset: 0;
-        top: 0;
+        top: var(--call-mobile-top-offset, 0px);
         left: 0;
         width: 100vw;
         width: 100dvw;
-        height: var(--app-vh, 100dvh);
+        height: var(--call-mobile-vh, var(--app-vh, 100dvh));
         min-height: 0;
         max-height: none;
         aspect-ratio: auto;
@@ -2163,12 +2166,13 @@
         min-height: 0;
     }
     .call-overlay--ringing .call-overlay__controls {
-        padding: 18px 12px max(22px, env(safe-area-inset-bottom, 0px));
+        padding: 16px 16px max(28px, calc(env(safe-area-inset-bottom, 0px) + var(--call-mobile-bottom-inset, 0px) + 14px));
     }
     .call-overlay--ringing .call-overlay__ctrl-group {
         width: 100%;
         justify-content: center;
-        gap: clamp(18px, 7vw, 34px);
+        flex-wrap: nowrap;
+        gap: clamp(24px, 8vw, 40px);
     }
     .call-card__stage {
         cursor: default;
@@ -2213,7 +2217,7 @@
         right: 156px;
     }
     .call-overlay__controls {
-        padding: 18px 14px max(22px, env(safe-area-inset-bottom, 0px));
+        padding: 18px 14px max(24px, calc(env(safe-area-inset-bottom, 0px) + var(--call-mobile-bottom-inset, 0px) + 10px));
         background: linear-gradient(
             180deg,
             transparent 0%,
@@ -2248,6 +2252,22 @@
         max-width: 70px;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .call-overlay--ringing .call-ctrl {
+        min-width: 74px;
+        gap: 9px;
+    }
+    .call-overlay--ringing .call-ctrl__icon {
+        width: 58px;
+        height: 58px;
+    }
+    .call-overlay--ringing .call-ctrl--end .call-ctrl__icon {
+        width: 64px;
+        height: 64px;
+    }
+    .call-overlay--ringing .call-ctrl__label {
+        max-width: 86px;
+        font-size: 13px;
     }
     .call-overlay--self-view-primary.call-overlay--has-local-video.call-overlay--has-remote-video .call-overlay__remote-video {
         right: 14px;

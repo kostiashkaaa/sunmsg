@@ -49,9 +49,14 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1" in ui
     assert 'call-overlay--remote-screen-sharing' in ui
     assert 'remoteVideo.dataset.remoteVideoSource = source;' in ui
+    assert 'function _bindCallButton(button, handler)' in ui
+    assert 'function _setCallMobileViewportSync(active, overlay = _currentOverlay())' in ui
 
     assert '--call-local-camera-x' in css
     assert '--call-preview-camera-x' in css
+    assert '--call-mobile-vh' in css
+    assert 'touch-action: manipulation;' in css
+    assert '.call-overlay--ringing .call-ctrl__icon' in css
     assert '.call-connectivity' in css
     assert '.call-overlay--connection-lost [data-call-status]' in css
     assert '@keyframes callConnectivityPulse' in css
