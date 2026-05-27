@@ -16,6 +16,7 @@
 
 const ALBUM_ATTR = 'data-album-id';
 const ALBUM_PROCESSED_ATTR = 'data-album-processed';
+const ALBUM_SIGNATURE_ATTR = 'data-album-signature';
 
 /**
  * Collect groups of consecutive .message nodes with the same album-id
@@ -131,6 +132,17 @@ function isMediaLoaded(mediaEl) {
     if (mediaEl.closest?.('.image-wrapper, .video-preview, .album-cell')?.classList?.contains?.('is-loaded')) return true;
     if (mediaEl.complete === true && Number(mediaEl.naturalWidth) > 0) return true;
     return Number(mediaEl.readyState) >= 1;
+}
+
+function buildAlbumSignature(items) {
+    return JSON.stringify(items.map((item) => [
+        item.kind,
+        item.src,
+        item.mediaSrc,
+        item.resolvedSrc,
+        item.caption,
+        item.duration,
+    ].map((value) => String(value || ''))));
 }
 
 /**
@@ -273,13 +285,13 @@ function processAlbumGroup(group) {
     const { nodes } = group;
     const [primary, ...rest] = nodes;
 
-    // Already processed and up-to-date?
+    const items = nodes.map(extractMediaFromNode);
+    const signature = buildAlbumSignature(items);
+
     const existingGrid = primary.querySelector('.message-album-grid');
     const processedCount = primary.getAttribute(ALBUM_PROCESSED_ATTR);
-    if (existingGrid && processedCount === String(nodes.length)) return;
-
-    // Extract media from each node
-    const items = nodes.map(extractMediaFromNode);
+    const processedSignature = primary.getAttribute(ALBUM_SIGNATURE_ATTR);
+    if (existingGrid && processedCount === String(nodes.length) && processedSignature === signature) return;
 
     // Build grid
     const { gridHtml, captionHtml } = buildAlbumGridHtml(items);
@@ -346,6 +358,7 @@ function processAlbumGroup(group) {
 
     // Mark processed
     primary.setAttribute(ALBUM_PROCESSED_ATTR, String(nodes.length));
+    primary.setAttribute(ALBUM_SIGNATURE_ATTR, signature);
 
     // Hide rest of the album nodes but keep them in DOM for data
     for (const node of rest) {
@@ -391,6 +404,7 @@ export function resetAlbums(container) {
     });
     container.querySelectorAll(`[${ALBUM_PROCESSED_ATTR}]`).forEach((n) => {
         n.removeAttribute(ALBUM_PROCESSED_ATTR);
+        n.removeAttribute(ALBUM_SIGNATURE_ATTR);
         n.querySelector('.message-album-grid')?.remove();
         n.querySelector('.album-caption')?.remove();
     });
