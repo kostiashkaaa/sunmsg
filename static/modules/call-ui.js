@@ -21,6 +21,9 @@ const CALL_CARD_MIN_WIDTH = 320;
 const CALL_CARD_MIN_HEIGHT = 430;
 const CALL_CARD_MAX_WIDTH = 820;
 const CALL_CARD_MAX_HEIGHT = 760;
+const CALL_UI_EXIT_MS = 260;
+const CALL_PRECALL_EXIT_MS = 240;
+const CALL_DEVICE_PANEL_EXIT_MS = 190;
 
 // ── Incoming call banner ─────────────────────────────────────────────────────
 
@@ -179,10 +182,13 @@ export function setIncomingCallBannerStatus(text) {
 export function removeIncomingCallBanner() {
     incomingCallBannerLifecycleSeq += 1;
     const el = document.getElementById('call-incoming-banner');
-    if (el) {
-        _exitFullscreenForElement(el);
-        el.remove();
-    }
+    if (!el) return;
+    _exitFullscreenForElement(el);
+    _animateCallElementExit(el, {
+        visibleClass: 'call-ib--visible',
+        closingClass: 'call-ib--closing',
+        delayMs: CALL_UI_EXIT_MS,
+    });
 }
 
 // ── Pre-call setup ───────────────────────────────────────────────────────────
@@ -525,11 +531,11 @@ export function removePreCallScreen() {
     preCallScreenLifecycleSeq += 1;
     const el = document.getElementById('call-preflight');
     if (!el) return;
-    el.dataset.callUiClosing = '1';
-    el.classList.remove('call-preflight--visible');
-    window.setTimeout(() => {
-        if (el.dataset.callUiClosing === '1') el.remove();
-    }, 180);
+    _animateCallElementExit(el, {
+        visibleClass: 'call-preflight--visible',
+        closingClass: 'call-preflight--closing',
+        delayMs: CALL_PRECALL_EXIT_MS,
+    });
 }
 
 // ── Active call overlay ──────────────────────────────────────────────────────
@@ -902,8 +908,8 @@ export function showActiveCallOverlay({
     };
 
     devicesBtn?.addEventListener('click', async () => {
-        const willOpen = Boolean(devicePanel?.hidden);
-        if (devicePanel) devicePanel.hidden = !willOpen;
+        const willOpen = Boolean(devicePanel?.hidden || devicePanel?.dataset.callPanelClosing === '1');
+        _setCallDevicePanelOpen(devicePanel, willOpen);
         devicesBtn.setAttribute('aria-expanded', String(willOpen));
         if (willOpen) await refreshDevicePanel();
     });
@@ -1045,15 +1051,12 @@ export function removeActiveCallOverlay({ immediate = false } = {}) {
     stopCallDurationTimer();
     const overlays = document.querySelectorAll('#call-active-overlay');
     overlays.forEach((el) => {
-        el.dataset.callUiClosing = '1';
-        if (immediate) {
-            el.remove();
-            return;
-        }
-        el.classList.remove('call-overlay--visible');
-        setTimeout(() => {
-            if (el.dataset.callUiClosing === '1') el.remove();
-        }, 250);
+        _animateCallElementExit(el, {
+            visibleClass: 'call-overlay--visible',
+            closingClass: 'call-overlay--closing',
+            delayMs: CALL_UI_EXIT_MS,
+            immediate,
+        });
     });
 }
 
@@ -1325,6 +1328,66 @@ export function removeRemoteTrack(kind, expectedTrack = null) {
 function _currentOverlay() {
     const overlays = document.querySelectorAll('#call-active-overlay');
     return overlays[overlays.length - 1] || null;
+}
+
+function _animateCallElementExit(
+    element,
+    { visibleClass, closingClass, delayMs = CALL_UI_EXIT_MS, immediate = false } = {},
+) {
+    if (!element) return;
+    element.dataset.callUiClosing = '1';
+    if (element.id) {
+        element.dataset.callUiClosingId = element.id;
+        element.removeAttribute('id');
+    }
+    if (visibleClass) element.classList.remove(visibleClass);
+    if (closingClass) element.classList.add(closingClass);
+    if (immediate || _prefersReducedCallMotion()) {
+        element.remove();
+        return;
+    }
+    window.setTimeout(() => {
+        if (element.dataset.callUiClosing === '1') element.remove();
+    }, delayMs);
+}
+
+function _setCallDevicePanelOpen(panel, open) {
+    if (!panel) return;
+    if (open) {
+        delete panel.dataset.callPanelClosing;
+        panel.hidden = false;
+        panel.classList.remove('call-device-panel--closing');
+        requestAnimationFrame(() => {
+            if (!panel.hidden && panel.dataset.callPanelClosing !== '1') {
+                panel.classList.add('call-device-panel--visible');
+            }
+        });
+        return;
+    }
+
+    panel.dataset.callPanelClosing = '1';
+    panel.classList.remove('call-device-panel--visible');
+    panel.classList.add('call-device-panel--closing');
+    if (_prefersReducedCallMotion()) {
+        panel.hidden = true;
+        panel.classList.remove('call-device-panel--closing');
+        delete panel.dataset.callPanelClosing;
+        return;
+    }
+    window.setTimeout(() => {
+        if (panel.dataset.callPanelClosing !== '1') return;
+        panel.hidden = true;
+        panel.classList.remove('call-device-panel--closing');
+        delete panel.dataset.callPanelClosing;
+    }, CALL_DEVICE_PANEL_EXIT_MS);
+}
+
+function _prefersReducedCallMotion() {
+    return Boolean(
+        typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
 }
 
 function _isPreCallScreenCurrent(overlay, seq) {

@@ -59,6 +59,12 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'object-fit: contain;' in css
     assert 'html.call-minimized-active #partnerProfileDrawer.active .profile-sheet--sun' in css
     assert '.call-topbar__state [data-call-status]' in css
+    assert '.call-ib--closing' in css
+    assert '.call-preflight--closing' in css
+    assert '.call-overlay--closing' in css
+    assert '.call-device-panel--visible' in css
+    assert '@keyframes callControlPop' in css
+    assert '@media (prefers-reduced-motion: reduce)' in css
 
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
@@ -88,6 +94,7 @@ def test_call_ui_guards_async_overlay_lifecycle_completions() -> None:
 
     assert 'let preCallScreenLifecycleSeq = 0;' in ui
     assert 'let activeCallOverlayLifecycleSeq = 0;' in ui
+    assert 'const CALL_UI_EXIT_MS = 260;' in ui
     assert 'const isPreCallCurrent = () => _isPreCallScreenCurrent(overlay, preCallSeq);' in ui
     assert 'const isOverlayCurrent = () => _isActiveCallOverlayCurrent(overlay, overlaySeq);' in ui
     assert 'if (!isPreCallCurrent()) return;\n            if (prepared?.localStream)' in ui
@@ -95,3 +102,9 @@ def test_call_ui_guards_async_overlay_lifecycle_completions() -> None:
     assert 'const applied = await _setSpeakerMode(enabled, overlay, isOverlayCurrent);' in ui
     assert 'function _isRemoteTrackCurrent(media, track, seq, overlay)' in ui
     assert 'removeRemoteTrack(track.kind, track);' in ui
+    assert 'function _animateCallElementExit(' in ui
+    assert "closingClass: 'call-ib--closing'" in ui
+    assert "closingClass: 'call-preflight--closing'" in ui
+    assert "closingClass: 'call-overlay--closing'" in ui
+    assert 'function _setCallDevicePanelOpen(panel, open)' in ui
+    assert "'(prefers-reduced-motion: reduce)'" in ui
