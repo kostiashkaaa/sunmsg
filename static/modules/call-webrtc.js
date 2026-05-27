@@ -117,6 +117,14 @@ export class CallWebRTC {
         this._pc.onconnectionstatechange = () => {
             this._onConnectionState(this._pc.connectionState);
         };
+        this._pc.oniceconnectionstatechange = () => {
+            const iceState = this._pc?.iceConnectionState;
+            if (iceState === 'connected' || iceState === 'completed') {
+                this._onConnectionState('connected');
+            } else if (iceState === 'disconnected' || iceState === 'failed') {
+                this._onConnectionState(iceState === 'failed' ? 'failed' : 'disconnected');
+            }
+        };
 
         // Perfect negotiation: re-offer on negotiation needed
         this._pc.onnegotiationneeded = async () => {
@@ -229,6 +237,14 @@ export class CallWebRTC {
         } catch (err) {
             console.warn('[CallWebRTC] restartIce failed', err);
         }
+    }
+
+    getConnectionState() {
+        return this._pc?.connectionState || '';
+    }
+
+    getIceConnectionState() {
+        return this._pc?.iceConnectionState || '';
     }
 
     async _drainPendingIceCandidates() {

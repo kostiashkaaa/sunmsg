@@ -25,6 +25,8 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "setCallConnectionState('reconnecting')" in manager
     assert "setCallConnectionState('lost')" in manager
     assert "this._handleRecoverableDisconnect(state)" in manager
+    assert 'this._isPeerConnectionRecovered()' in manager
+    assert '_markConnectionRecovered({ playSound = true } = {})' in manager
     assert 'this._scheduleIceRestartBackoff();' in manager
     assert 'this._socketReconnectNeedsIceRestart = true;' in manager
     assert 'controller.abort()' in manager
@@ -61,6 +63,8 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
     assert 'const requiredSamples = isDowngrade' in webrtc
+    assert 'oniceconnectionstatechange' in webrtc
+    assert 'getIceConnectionState()' in webrtc
     assert '_createMirroredVideoTrack(sourceTrack)' in webrtc
     assert 'canvas.captureStream(fps)' in webrtc
     assert 'ctx.scale(-1, 1)' in webrtc

@@ -84,6 +84,8 @@ source = source.replace(
     setVideoEnabled() {}
     updateIceServers() {}
     restartIce() { globalThis.__restartIceCalls = (globalThis.__restartIceCalls || 0) + 1; }
+    getConnectionState() { return globalThis.__mockConnectionState || ''; }
+    getIceConnectionState() { return globalThis.__mockIceConnectionState || ''; }
     close() {}
   }`
 );
@@ -98,8 +100,8 @@ const showActiveCallOverlay = (options) => {
   globalThis.__lastOverlayOptions = options;
 };
 const removeActiveCallOverlay = () => {};
-const setCallStatusText = () => {};
-const setCallConnectionState = () => {};
+const setCallStatusText = (text) => { globalThis.__callStatusTexts?.push?.(text); };
+const setCallConnectionState = (state) => { globalThis.__callConnectionStates?.push?.(state); };
 const setCallVerificationCode = () => {};
 const attachRemoteTrack = () => {};
 const removeRemoteTrack = () => {};
@@ -592,6 +594,90 @@ if (globalThis.__restartIceCalls < 1) {
   throw new Error('Expected ICE restart after active call sync confirmed reconnect');
 }
 manager._onConnectionState('connected');
+"""
+    result = _run_call_manager_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_active_call_socket_reconnect_clears_reconnecting_when_peer_already_connected():
+    harness_body = """
+globalThis.window = {
+  addEventListener() {},
+  location: { origin: 'https://example.test' },
+};
+globalThis.document = {
+  addEventListener() {},
+};
+globalThis.navigator = { onLine: true };
+globalThis.sessionStorage = {
+  getItem() { return null; },
+  setItem() {},
+  removeItem() {},
+};
+globalThis.__createdMedia = [];
+globalThis.__releasedMedia = [];
+globalThis.__overlayShown = 0;
+globalThis.__webrtcCreated = 0;
+globalThis.__webrtcAddVideoTrack = 0;
+globalThis.__committedTracks = [];
+globalThis.__discardedTracks = [];
+globalThis.__restartIceCalls = 0;
+globalThis.__callConnectionStates = [];
+globalThis.__callStatusTexts = [];
+globalThis.fetch = async () => { throw new Error('offline'); };
+globalThis.__mediaGate = Promise.resolve();
+globalThis.__mediaGate.promise = globalThis.__mediaGate;
+globalThis.__videoGate = Promise.resolve();
+globalThis.__videoGate.promise = globalThis.__videoGate;
+
+const socket = {
+  connected: true,
+  on() {},
+  emit() {},
+};
+const manager = new moduleApi.CallManager({
+  socket,
+  getCsrfToken: () => 'csrf',
+});
+
+manager._state = 'active';
+manager._callId = 'call-network-switch';
+manager._chatId = 'chat-network-switch';
+manager._callType = 'audio';
+manager._webrtc = {
+  updateIceServers() {},
+  restartIce() { globalThis.__restartIceCalls += 1; },
+  getConnectionState() { return 'connected'; },
+  getIceConnectionState() { return 'completed'; },
+};
+
+manager._onSocketDisconnected();
+if (!manager._socketReconnectNeedsIceRestart) {
+  throw new Error('Expected socket reconnect ICE restart flag after active disconnect');
+}
+
+await manager._onCallSync({
+  active_call: {
+    call_id: 'call-network-switch',
+    chat_id: 'chat-network-switch',
+    status: 'active',
+    call_type: 'audio',
+    role: 'initiator',
+  },
+});
+
+if (manager._socketReconnectNeedsIceRestart) {
+  throw new Error('Expected socket reconnect ICE restart flag to clear after sync');
+}
+if (globalThis.__restartIceCalls !== 0) {
+  throw new Error('Expected no ICE restart when peer connection is already recovered');
+}
+if (globalThis.__callConnectionStates.at(-1) !== 'connected') {
+  throw new Error('Expected reconnecting banner to clear after recovered sync');
+}
+if (globalThis.__callStatusTexts.at(-1) !== 'Соединено') {
+  throw new Error('Expected connected status text after recovered sync');
+}
 """
     result = _run_call_manager_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout

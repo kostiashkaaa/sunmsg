@@ -533,6 +533,10 @@ export class CallManager {
             this._applyPartnerMediaState();
             if (this._socketReconnectNeedsIceRestart) {
                 this._socketReconnectNeedsIceRestart = false;
+                if (this._isPeerConnectionRecovered()) {
+                    this._markConnectionRecovered({ playSound: false });
+                    return;
+                }
                 setCallConnectionState('reconnecting');
                 setCallStatusText('Переподключение...');
                 this._scheduleIceRestartBackoff();
@@ -1292,22 +1296,32 @@ export class CallManager {
 
     _onConnectionState(state) {
         if (state === 'connected') {
-            clearTimeout(this._disconnectTimeout);
-            this._disconnectTimeout = null;
-            if (this._connectionLostEndTimeout) {
-                clearTimeout(this._connectionLostEndTimeout);
-                this._connectionLostEndTimeout = null;
-            }
-            this._clearIceRestartRetryTimeouts();
-            setCallConnectionState('connected');
-            setCallStatusText('Соединено');
-            startCallDurationTimer();
-            playConnectedSound();
+            this._markConnectionRecovered();
             return;
         }
         if (state === 'disconnected' || state === 'failed') {
             this._handleRecoverableDisconnect(state);
         }
+    }
+
+    _isPeerConnectionRecovered() {
+        const connectionState = this._webrtc?.getConnectionState?.();
+        const iceState = this._webrtc?.getIceConnectionState?.();
+        return connectionState === 'connected' || iceState === 'connected' || iceState === 'completed';
+    }
+
+    _markConnectionRecovered({ playSound = true } = {}) {
+        clearTimeout(this._disconnectTimeout);
+        this._disconnectTimeout = null;
+        if (this._connectionLostEndTimeout) {
+            clearTimeout(this._connectionLostEndTimeout);
+            this._connectionLostEndTimeout = null;
+        }
+        this._clearIceRestartRetryTimeouts();
+        setCallConnectionState('connected');
+        setCallStatusText('Соединено');
+        startCallDurationTimer();
+        if (playSound) playConnectedSound();
     }
 
     _handleRecoverableDisconnect(connectionState = 'disconnected') {
@@ -1444,6 +1458,9 @@ export class CallManager {
                 console.warn('[CallManager] ICE config refresh failed before restart', err);
             }
             this._webrtc?.restartIce();
+            if (this._isPeerConnectionRecovered()) {
+                this._markConnectionRecovered({ playSound: false });
+            }
         } finally {
             this._iceRestarting = false;
         }
