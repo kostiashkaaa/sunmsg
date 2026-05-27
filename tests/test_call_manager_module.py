@@ -513,3 +513,84 @@ if (manager._iceRestartRetryTimeouts.length !== 0) {
 """
     result = _run_call_manager_harness(harness_body)
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_active_call_socket_reconnect_restarts_ice_after_sync_confirms_call():
+    harness_body = """
+globalThis.window = {
+  addEventListener() {},
+  location: { origin: 'https://example.test' },
+};
+globalThis.document = {
+  addEventListener() {},
+};
+globalThis.navigator = { onLine: true };
+globalThis.sessionStorage = {
+  getItem() { return null; },
+  setItem() {},
+  removeItem() {},
+};
+globalThis.__createdMedia = [];
+globalThis.__releasedMedia = [];
+globalThis.__overlayShown = 0;
+globalThis.__webrtcCreated = 0;
+globalThis.__webrtcAddVideoTrack = 0;
+globalThis.__committedTracks = [];
+globalThis.__discardedTracks = [];
+globalThis.__restartIceCalls = 0;
+globalThis.fetch = async () => { throw new Error('offline'); };
+globalThis.__mediaGate = Promise.resolve();
+globalThis.__mediaGate.promise = globalThis.__mediaGate;
+globalThis.__videoGate = Promise.resolve();
+globalThis.__videoGate.promise = globalThis.__videoGate;
+
+const socket = {
+  connected: true,
+  on() {},
+  emit() {},
+};
+const manager = new moduleApi.CallManager({
+  socket,
+  getCsrfToken: () => 'csrf',
+});
+
+manager._state = 'active';
+manager._callId = 'call-network-switch';
+manager._chatId = 'chat-network-switch';
+manager._callType = 'audio';
+manager._webrtc = {
+  updateIceServers() {},
+  restartIce() { globalThis.__restartIceCalls += 1; },
+};
+
+manager._onSocketDisconnected();
+if (!manager._socketReconnectNeedsIceRestart) {
+  throw new Error('Expected socket reconnect ICE restart flag after active disconnect');
+}
+if (globalThis.__restartIceCalls !== 0) {
+  throw new Error('Expected no ICE restart until server sync confirms the active call');
+}
+
+await manager._onCallSync({
+  active_call: {
+    call_id: 'call-network-switch',
+    chat_id: 'chat-network-switch',
+    status: 'active',
+    call_type: 'audio',
+    role: 'initiator',
+  },
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+await Promise.resolve();
+await Promise.resolve();
+
+if (manager._socketReconnectNeedsIceRestart) {
+  throw new Error('Expected socket reconnect ICE restart flag to clear after sync');
+}
+if (globalThis.__restartIceCalls < 1) {
+  throw new Error('Expected ICE restart after active call sync confirmed reconnect');
+}
+manager._onConnectionState('connected');
+"""
+    result = _run_call_manager_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout

@@ -88,6 +88,7 @@ export class CallManager {
         this._connectionLostEndTimeout = null;
         this._iceRestartRetryTimeouts = [];
         this._iceRestarting = false;
+        this._socketReconnectNeedsIceRestart = false;
 
         // Queue for WebRTC signals that arrive before _webrtc is initialised
         this._pendingSignals = [];
@@ -483,6 +484,17 @@ export class CallManager {
         }
         if (this._state === STATES.IDLE && status === 'active' && this._shouldRecoverActiveCall(activeCall)) {
             await this._recoverActiveCall(activeCall);
+            return;
+        }
+        if (this._state === STATES.ACTIVE && status === 'active' && callId === this._callId) {
+            this._rememberCallSession('active');
+            this._applyPartnerMediaState();
+            if (this._socketReconnectNeedsIceRestart) {
+                this._socketReconnectNeedsIceRestart = false;
+                setCallConnectionState('reconnecting');
+                setCallStatusText('Переподключение...');
+                this._scheduleIceRestartBackoff();
+            }
         }
     }
 
@@ -1230,6 +1242,7 @@ export class CallManager {
             return;
         }
         if (this._state === STATES.ACTIVE) {
+            this._socketReconnectNeedsIceRestart = true;
             setCallConnectionState('reconnecting');
             setCallStatusText('Переподключение...');
         }
@@ -1456,6 +1469,7 @@ export class CallManager {
         this._cameraSwitchInProgress = false;
         this._videoOperation = Promise.resolve();
         this._iceRestarting = false;
+        this._socketReconnectNeedsIceRestart = false;
         this._iceServers  = null;
         this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;

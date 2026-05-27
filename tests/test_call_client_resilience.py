@@ -26,6 +26,7 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "setCallConnectionState('lost')" in manager
     assert "this._handleRecoverableDisconnect(state)" in manager
     assert 'this._scheduleIceRestartBackoff();' in manager
+    assert 'this._socketReconnectNeedsIceRestart = true;' in manager
     assert 'controller.abort()' in manager
     assert 'this._runVideoOperation(' in manager
     assert 'falling back to audio-only' in manager
