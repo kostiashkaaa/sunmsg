@@ -6,7 +6,8 @@
             {% set contacts_initial_sync.required = true %}
         {% endif %}
     {% endfor %}
-    <aside class="sidebar{% if contacts_initial_sync.required %} sidebar--loading{% endif %}" id="sidebar" data-sidebar-loading="{{ '1' if contacts_initial_sync.required else '0' }}">
+    {% set e2e_activation_initial_locked = true %}
+    <aside class="sidebar{% if contacts_initial_sync.required or e2e_activation_initial_locked %} sidebar--loading{% endif %}" id="sidebar" data-sidebar-loading="{{ '1' if contacts_initial_sync.required or e2e_activation_initial_locked else '0' }}" data-e2e-activation-locked="1">
         <div class="side-resizer" id="sideResizer"></div>
 
         <div class="sidebar-top-card">
@@ -51,6 +52,15 @@
             </div>
         </div>
 
+        <button type="button" class="e2e-lock-alert e2e-lock-alert--reset" id="e2eLockAlert" aria-live="polite">
+            <i class="bi bi-shield-slash"></i>
+            <div class="e2e-lock-alert-content">
+                <div class="e2e-lock-alert-title">Введите 24 слова для активации чатов</div>
+                <div class="e2e-lock-alert-sub">История, звонки и вход в чаты откроются после восстановления ключа.</div>
+            </div>
+            <i class="bi bi-chevron-right e2e-lock-alert-chevron"></i>
+        </button>
+
         <div class="dialog-request-attention" id="dialogRequestAttention" role="status" aria-live="polite" aria-hidden="true" hidden>
             <div class="dialog-request-attention__icon" aria-hidden="true">
                 <i class="bi bi-person-plus-fill"></i>
@@ -68,15 +78,6 @@
             </div>
         </div>
 
-        <button type="button" class="e2e-lock-alert e2e-lock-alert--hidden e2e-lock-alert--reset" id="e2eLockAlert">
-            <i class="bi bi-shield-slash"></i>
-            <div class="e2e-lock-alert-content">
-                <div class="e2e-lock-alert-title">История заблокирована — нажмите для восстановления</div>
-                <div class="e2e-lock-alert-sub">Введите 24 слова прямо здесь, чтобы расшифровать сообщения.</div>
-            </div>
-            <i class="bi bi-chevron-right e2e-lock-alert-chevron"></i>
-        </button>
-
         <div id="sidebarScrollArea" class="sidebar-scroll-area">
             <div class="dialog-requests-section" id="dialogRequestsSection">
                 <div class="requests-header">
@@ -85,13 +86,14 @@
                 <div id="dialogRequestsList"></div>
             </div>
             <div id="contactsList"
-                 class="contacts-list{% if contacts_initial_sync.required %} contacts-list--loading{% endif %}"
+                 class="contacts-list{% if contacts_initial_sync.required or e2e_activation_initial_locked %} contacts-list--loading{% endif %}"
                  data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}"
                  data-initial-sync-required="{{ '1' if contacts_initial_sync.required else '0' }}"
                  data-contacts-loading="{{ '1' if contacts_initial_sync.required else '0' }}"
                  data-contacts-loading-partial="0"
                  data-contacts-loading-shell="{{ '1' if contacts_initial_sync.required else '0' }}"
-                 aria-busy="{{ 'true' if contacts_initial_sync.required else 'false' }}">
+                 data-e2e-activation-locked="1"
+                 aria-busy="{{ 'true' if contacts_initial_sync.required or e2e_activation_initial_locked else 'false' }}">
                 {% for contact in initial_contacts %}
                 {% set display_name = contact.display_name or contact.username or '' %}
                 {% set initials = (display_name[:1] or '?')|upper %}

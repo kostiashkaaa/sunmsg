@@ -66,11 +66,20 @@ export class CallManager {
      * @param {function(): string} opts.getCsrfToken
      * @param {string} opts.iceConfigUrl  - Flask endpoint that returns {iceServers:[…]}
      */
-    constructor({ socket, getCsrfToken, iceConfigUrl = '/call/ice-config', resolvePartnerInfo = null }) {
+    constructor({
+        socket,
+        getCsrfToken,
+        iceConfigUrl = '/call/ice-config',
+        resolvePartnerInfo = null,
+        isAccessBlocked = null,
+        requestAccess = null,
+    }) {
         this._socket       = socket;
         this._getCsrfToken = getCsrfToken;
         this._iceConfigUrl = iceConfigUrl;
         this._resolvePartnerInfo = typeof resolvePartnerInfo === 'function' ? resolvePartnerInfo : null;
+        this._isAccessBlocked = typeof isAccessBlocked === 'function' ? isAccessBlocked : () => false;
+        this._requestAccess = typeof requestAccess === 'function' ? requestAccess : null;
 
         this._state    = STATES.IDLE;
         this._callId   = null;
@@ -165,6 +174,10 @@ export class CallManager {
     // ── Public API ───────────────────────────────────────────────────────────
 
     async startCall(chatId, callType = 'audio', partnerInfo = null) {
+        if (this._isCallAccessBlocked()) {
+            this._showAccessBlockedNotice();
+            return;
+        }
         if (this._state !== STATES.IDLE) {
             showToast('Уже есть активный звонок', 'warning');
             return;
@@ -231,6 +244,11 @@ export class CallManager {
 
     async acceptCall(callId, callType, mediaOptions = {}) {
         if (this._state !== STATES.RINGING_IN || String(callId || '') !== String(this._callId || '')) return;
+        if (this._isCallAccessBlocked()) {
+            this.rejectCall(callId);
+            this._showAccessBlockedNotice();
+            return false;
+        }
         if (!this._canEmitRealtime()) {
             showToast('Связь с сервером не восстановлена. Попробуйте через пару секунд.', 'warning');
             return false;
@@ -260,6 +278,10 @@ export class CallManager {
 
     _onIncoming({ call_id, chat_id, call_type, initiator }) {
         if (String(call_id || '') && String(call_id || '') === String(this._callId || '')) {
+            return;
+        }
+        if (this._isCallAccessBlocked()) {
+            this._socket.emit('call_reject', { call_id, csrf_token: this._getCsrfToken() });
             return;
         }
         if (this._state !== STATES.IDLE) {
@@ -438,6 +460,17 @@ export class CallManager {
 
     async _onCallSync({ active_call }) {
         const activeCall = active_call || null;
+        if (activeCall && this._isCallAccessBlocked()) {
+            if (String(activeCall.status || '') === 'ringing' && activeCall.role === 'callee') {
+                this._socket.emit('call_reject', {
+                    call_id: activeCall.call_id,
+                    csrf_token: this._getCsrfToken(),
+                });
+            }
+            if (this._state !== STATES.IDLE) this._cleanup();
+            this._clearRememberedCallSession(String(activeCall.call_id || ''));
+            return;
+        }
         if (!activeCall) {
             if (this._state !== STATES.IDLE) {
                 showToast('Состояние звонка обновлено', 'info');
@@ -1429,6 +1462,19 @@ export class CallManager {
     _canEmitRealtime() {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
         return this._socket?.connected !== false;
+    }
+
+    _isCallAccessBlocked() {
+        try {
+            return Boolean(this._isAccessBlocked());
+        } catch (_) {
+            return false;
+        }
+    }
+
+    _showAccessBlockedNotice() {
+        if (this._requestAccess?.()) return;
+        showToast('Введите 24 слова, чтобы активировать звонки', 'warning');
     }
 
     _isCallSessionCurrent(callId, lifecycleSeq, media = this._media) {

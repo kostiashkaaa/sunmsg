@@ -32,6 +32,23 @@ function hasPrivateKeyForUi() {
     return Boolean(api.getPrivateKeyPem());
 }
 
+function syncActivationShell(locked) {
+    const contactsList = document.getElementById('contactsList');
+    const sidebar = document.getElementById('sidebar') || contactsList?.closest?.('.sidebar');
+    if (!contactsList || !sidebar) return;
+
+    contactsList.dataset.e2eActivationLocked = locked ? '1' : '0';
+    sidebar.setAttribute('data-e2e-activation-locked', locked ? '1' : '0');
+    const contactsLoadingShell = contactsList.dataset.contactsLoading === '1'
+        && contactsList.dataset.contactsLoadingPartial !== '1'
+        && contactsList.dataset.contactsLoadingShell !== '0';
+    const shouldShowShell = locked || contactsLoadingShell;
+    contactsList.classList?.toggle?.('contacts-list--loading', shouldShowShell);
+    contactsList.setAttribute?.('aria-busy', shouldShowShell ? 'true' : 'false');
+    sidebar.classList?.toggle?.('sidebar--loading', shouldShowShell);
+    sidebar.setAttribute('data-sidebar-loading', shouldShowShell ? '1' : '0');
+}
+
 async function persistPrivateKeyPem(privateKeyPem) {
     const api = getPrivateKeySessionApi();
     if (!api || typeof api.stagePrivateKeyForRedirect !== 'function') {
@@ -45,8 +62,14 @@ async function persistPrivateKeyPem(privateKeyPem) {
 
 function syncLockAlertVisibility() {
     const alertEl = document.getElementById('e2eLockAlert');
-    if (!alertEl) return;
-    alertEl.style.display = 'none';
+    const locked = !hasPrivateKeyForUi();
+    if (alertEl) {
+        alertEl.classList?.toggle?.('e2e-lock-alert--hidden', !locked);
+        alertEl.hidden = !locked;
+        alertEl.setAttribute?.('aria-hidden', locked ? 'false' : 'true');
+        alertEl.style.display = locked ? '' : 'none';
+    }
+    syncActivationShell(locked);
 }
 
 syncLockAlertVisibility();

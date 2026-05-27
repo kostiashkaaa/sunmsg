@@ -245,10 +245,12 @@ def test_sidebar_loading_shell_is_shared_for_initial_contact_sync() -> None:
     assert "CustomEvent('sun-sidebar-preview-loading-change'" not in contacts_src
     assert "contactsList.closest('.sidebar')" in sidebar_runtime_src
     assert "sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading)" in sidebar_runtime_src
+    assert 'shouldLockForE2eActivation()' in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingPartial" in sidebar_runtime_src
     assert "contactsList.dataset.contactsLoadingShell" in sidebar_runtime_src
     assert "function isInitialSyncRequired()" in sidebar_runtime_src
     assert "!hasStableContactRows || isInitialSyncRequired()" in sidebar_runtime_src
+    assert "&& !shouldLockForE2eActivation()" in sidebar_runtime_src
     assert "const SIDEBAR_PREVIEW_LOADING_EVENT = 'sun-sidebar-preview-loading-change'" not in sidebar_runtime_src
     assert "contactsList?.addEventListener(SIDEBAR_PREVIEW_LOADING_EVENT" not in sidebar_runtime_src
     assert "querySelector('.contact-item--preview-loading, .contact-last-msg-loading')" not in sidebar_runtime_src
@@ -259,7 +261,9 @@ def test_sidebar_loading_shell_is_shared_for_initial_contact_sync() -> None:
     assert decrypt_idx < clear_idx
     assert 'contact-item--preview-loading' in sidebar_template_src
     assert 'data-initial-sync-required="{{ \'1\' if contacts_initial_sync.required else \'0\' }}"' in sidebar_template_src
-    assert '<aside class="sidebar{% if contacts_initial_sync.required %} sidebar--loading{% endif %}"' in sidebar_template_src
+    assert '{% set e2e_activation_initial_locked = true %}' in sidebar_template_src
+    assert '<aside class="sidebar{% if contacts_initial_sync.required or e2e_activation_initial_locked %} sidebar--loading{% endif %}"' in sidebar_template_src
+    assert 'data-e2e-activation-locked="1"' in sidebar_template_src
     assert (
         "{% set preview_loading = (not has_draft) and "
         "contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}"

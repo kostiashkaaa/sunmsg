@@ -126,6 +126,10 @@ import { computeSidebarStatusSnapshot as _computeSidebarStatusSnapshot, runSideb
 import { showConfirmDialog } from './modules/confirm-dialog.js';
 import { initVoiceRecorder } from './modules/voice-recorder.js';
 import { getPrivateKeyPem, restoreWrappedPrivateKey } from './modules/private-key-session.js';
+import {
+    isE2eActivationLocked as isE2eActivationLockedFlow,
+    requestE2eActivation as requestE2eActivationFlow,
+} from './modules/e2e-activation-guard.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
 import { createChatUpdatesSyncController } from './modules/chat-updates-sync.js';
 import { getCsrfToken } from './modules/csrf.js';
@@ -238,6 +242,8 @@ export const initChatPage = async () => {
     // Threading + Werkzeug is more reliable with polling-first transport config.
     const socket = createChatSocketClient(bootstrapSocketConfig);
     const browserEnv = createChatBrowserEnv(window, fetch);
+    const isE2eActivationLocked = () => isE2eActivationLockedFlow(getPrivateKeyPem);
+    const requestE2eActivation = () => requestE2eActivationFlow({ showToast, windowRef: window });
     let hasSocketConnectedOnce = false;
     let hasSocketConnectionIssue = false;
     const emitSocket = createSocketEmitter(socket);
@@ -1133,6 +1139,7 @@ export const initChatPage = async () => {
         clearStoredLastActiveChatId,
         getStoredLastActiveChatId,
         closeChatUI,
+        isE2eActivationLocked,
         onContactRendered: (item, contact) => {
             const chatId = contact?.chatId || item?.getAttribute('data-chat-id');
             applyContactMuteState(item, isChatMuted(chatId));
@@ -2557,7 +2564,12 @@ export const initChatPage = async () => {
         joinChatRoom,
         openChat,
         restoreLastActiveChatSelection,
-        isInitialChatRestoreDeferred: () => contactsSidebarController.isInitialSyncRequired?.() === true,
+        isInitialChatRestoreDeferred: () => (
+            contactsSidebarController.isInitialSyncRequired?.() === true
+            || isE2eActivationLocked()
+        ),
+        isE2eActivationLocked,
+        requestE2eActivation,
         getHasAttemptedInitialChatRestore: () => hasAttemptedInitialChatRestore,
         setHasAttemptedInitialChatRestore: (value) => { hasAttemptedInitialChatRestore = value; },
     });
@@ -4206,6 +4218,8 @@ export const initChatPage = async () => {
         getCsrfToken,
         iceConfigUrl: '/call/ice-config',
         resolvePartnerInfo: (seed) => _resolvePartnerInfo(seed),
+        isAccessBlocked: isE2eActivationLocked,
+        requestAccess: requestE2eActivation,
     });
 
     const _callBtnWrap  = document.getElementById('callBtnWrap');
@@ -4268,7 +4282,7 @@ export const initChatPage = async () => {
     };
 
     const _syncCallButtonState = () => {
-        if (callsFeatureEnabled && _currentCallChatIsDirect && _currentCallChatId) {
+        if (!isE2eActivationLocked() && callsFeatureEnabled && _currentCallChatIsDirect && _currentCallChatId) {
             _showCallButtons();
             return;
         }
@@ -4295,6 +4309,11 @@ export const initChatPage = async () => {
     };
 
     const _startHeaderCall = async (callType = 'audio') => {
+        if (isE2eActivationLocked()) {
+            _hideCallButtons();
+            requestE2eActivation();
+            return;
+        }
         if (!callsFeatureEnabled) {
             await _refreshCallFeatureAccess();
             if (!callsFeatureEnabled) {
@@ -4347,6 +4366,12 @@ export const initChatPage = async () => {
         _currentCallChatId = null;
         _currentCallChatIsDirect = false;
         _syncCallButtonState();
+    });
+    window.addEventListener('sun-private-key-status-changed', () => {
+        _syncCallButtonState();
+        if (!isE2eActivationLocked()) {
+            void _refreshCallFeatureAccess();
+        }
     });
     window.addEventListener('focus', () => {
         void _refreshCallFeatureAccess();

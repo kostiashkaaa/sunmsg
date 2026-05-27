@@ -33,6 +33,7 @@ export function initChatContactsSidebar({
     clearStoredLastActiveChatId,
     getStoredLastActiveChatId,
     onContactRendered,
+    isE2eActivationLocked = () => false,
     contactsReloadDebounceMs = 180,
 } = {}) {
     let contactsReloadTimer = null;
@@ -76,24 +77,42 @@ export function initChatContactsSidebar({
         }
     }
 
+    function shouldLockForE2eActivation() {
+        try {
+            return Boolean(isE2eActivationLocked());
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function shouldShowContactsLoadingShell(isLoading, { partial = false, shell = true } = {}) {
+        return shouldLockForE2eActivation()
+            || (Boolean(isLoading) && !partial && shell);
+    }
+
     function syncSidebarLoadingShellState() {
         if (!contactsList) return;
         const sidebar = contactsList.closest('.sidebar');
         if (!sidebar) return;
-        const shouldShowShellLoading = contactsList.dataset.contactsLoading === '1'
+        const locked = shouldLockForE2eActivation();
+        contactsList.dataset.e2eActivationLocked = locked ? '1' : '0';
+        sidebar.setAttribute('data-e2e-activation-locked', locked ? '1' : '0');
+        const shouldShowShellLoading = locked || (contactsList.dataset.contactsLoading === '1'
             && contactsList.dataset.contactsLoadingPartial !== '1'
-            && contactsList.dataset.contactsLoadingShell !== '0';
+            && contactsList.dataset.contactsLoadingShell !== '0');
+        contactsList.classList.toggle('contacts-list--loading', shouldShowShellLoading);
+        contactsList.setAttribute('aria-busy', shouldShowShellLoading ? 'true' : 'false');
         sidebar.classList.toggle('sidebar--loading', shouldShowShellLoading);
         sidebar.setAttribute('data-sidebar-loading', shouldShowShellLoading ? '1' : '0');
     }
 
     function setContactsLoadingState(isLoading, { partial = false, shell = true } = {}) {
         if (!contactsList) return;
-        const shouldShowShellLoading = Boolean(isLoading) && !partial && shell;
+        const shouldShowShellLoading = shouldShowContactsLoadingShell(isLoading, { partial, shell });
         contactsList.dataset.contactsLoading = isLoading ? '1' : '0';
         contactsList.dataset.contactsLoadingPartial = partial ? '1' : '0';
         contactsList.dataset.contactsLoadingShell = shouldShowShellLoading ? '1' : '0';
-        contactsList.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        contactsList.setAttribute('aria-busy', shouldShowShellLoading || isLoading ? 'true' : 'false');
         contactsList.classList.toggle('contacts-list--loading', shouldShowShellLoading);
         syncSidebarLoadingShellState();
         try {
@@ -119,6 +138,7 @@ export function initChatContactsSidebar({
     }
 
     syncSidebarLoadingShellState();
+    window.addEventListener?.('sun-private-key-status-changed', syncSidebarLoadingShellState);
 
     function animateContactEntry(item, renderIndex = 0) {
         if (!item || prefersReducedMotion()) return;
@@ -357,6 +377,7 @@ export function initChatContactsSidebar({
             const isBlocked = blockedByMe || blockedMe;
             const privateKeyPem = getPrivateKeyPem();
             const privateKeyReady = Boolean(privateKeyPem);
+            const e2eActivationLocked = shouldLockForE2eActivation();
             const currentChatId = getCurrentChatId();
             const renderSignature = buildContactRenderSignature(contact, {
                 currentChatId,
@@ -367,7 +388,9 @@ export function initChatContactsSidebar({
                 return;
             }
             let displayLastMessage = contact.last_message || '';
-            if (isBlocked) {
+            if (e2eActivationLocked) {
+                displayLastMessage = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+            } else if (isBlocked) {
                 displayLastMessage = blockedByMe ? '🚫 \u0412\u044B \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043B\u0438 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F' : '🚫 \u0412\u044B \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D\u044B';
             }
 
@@ -386,7 +409,9 @@ export function initChatContactsSidebar({
             const isSavedMessagesContact = Boolean(contact?.is_saved_messages ?? contact?.isSavedMessages);
             const hasDraft = hasContactDraft(contact);
             let draftText = hasDraft ? String(contact.draft_text || '') : '';
-            if (!isBlocked && hasDraft && isEncryptedPayload(draftText)) {
+            if (e2eActivationLocked && hasDraft) {
+                draftText = ENCRYPTED_PREVIEW_LOADING_TOKEN;
+            } else if (!isBlocked && hasDraft && isEncryptedPayload(draftText)) {
                 if (privateKeyPem) {
                     try {
                         draftText = await decryptForDisplay(privateKeyPem, draftText, true);
@@ -568,9 +593,9 @@ export function initChatContactsSidebar({
             const hasStableContactRows = Boolean(
                 contactsList?.querySelector('.contact-item[data-chat-id]'),
             );
-            const shouldShowBlockingShell = shouldBatchHydrate && (
+            const shouldShowBlockingShell = shouldLockForE2eActivation() || (shouldBatchHydrate && (
                 !hasStableContactRows || isInitialSyncRequired()
-            );
+            ));
             setContactsLoadingState(true, {
                 partial: isPartialLoad,
                 shell: shouldShowBlockingShell,
@@ -607,7 +632,7 @@ export function initChatContactsSidebar({
                                     && nextSignature === lastFullContactsPayloadSignature
                                     && (!hasPendingEncryptedPreview || !canRetryEncryptedPreviewDecrypt)
                                 ) {
-                                    if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore()) {
+                                    if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore() && !shouldLockForE2eActivation()) {
                                         setHasAttemptedInitialChatRestore(true);
                                         restoreLastActiveChatSelection();
                                     }
@@ -634,7 +659,7 @@ export function initChatContactsSidebar({
                                     : Math.max(0, previousScrollTop + scrollDelta);
                             }
                             clearInitialSyncRequired();
-                            if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore()) {
+                            if (attemptInitialChatRestore && !hasAttemptedInitialChatRestore() && !shouldLockForE2eActivation()) {
                                 setHasAttemptedInitialChatRestore(true);
                                 restoreLastActiveChatSelection();
                             }

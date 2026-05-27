@@ -62,6 +62,8 @@ export function bindChatContactSelectionRuntime({
     openChat = () => {},
     restoreLastActiveChatSelection = () => false,
     isInitialChatRestoreDeferred = () => false,
+    isE2eActivationLocked = () => false,
+    requestE2eActivation = () => {},
     getHasAttemptedInitialChatRestore = () => false,
     setHasAttemptedInitialChatRestore = () => {},
 } = {}) {
@@ -71,6 +73,12 @@ export function bindChatContactSelectionRuntime({
         const contactItem = event.target.closest('.contact-item');
         if (!contactItem) return;
         if (String(contactItem.getAttribute('data-request-kind') || '') === 'dialog') return;
+        if (isE2eActivationLocked()) {
+            event.preventDefault();
+            event.stopPropagation();
+            requestE2eActivation();
+            return;
+        }
 
         closeCommandPalette();
         setActiveContactItem(contactItem);
