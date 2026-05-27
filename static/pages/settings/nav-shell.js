@@ -17,6 +17,7 @@ export function initSettingsNavShell({
 }) {
     const navItems = document.querySelectorAll('.nav-item[data-section]');
     const sections = document.querySelectorAll('section[id^="section-"]');
+    sections.forEach((section) => section.classList.add('settings-section'));
     const settingsContentEl = document.querySelector('.settings-content');
     const panelTitleEl = document.getElementById('settingsPanelTitle');
     const panelCloseBtn = document.getElementById('settingsPanelCloseBtn');
