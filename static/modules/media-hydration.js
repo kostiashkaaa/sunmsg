@@ -4,6 +4,7 @@ export function createMediaHydrationController(options = {}) {
     const imageSelector = '.file-msg-img[data-src]';
     const albumImgSelector = '.album-cell-img[data-src]';
     const albumVideoSelector = '.album-cell-video[data-src]';
+    const audioSelector = '.file-msg-audio-el[data-src]';
     let lazyHydrationObserver = null;
     const observedLazyMedia = new Set();
 
@@ -21,6 +22,10 @@ export function createMediaHydrationController(options = {}) {
         if (element?.classList?.contains('file-msg-video-preview')) return 'video';
         if (element?.classList?.contains('file-msg-audio-el')) return 'audio';
         return 'other';
+    }
+
+    function isEncryptedMediaSource(source) {
+        return String(source || '').includes('sun_media_e2ee=');
     }
 
     async function resolveHydratedSource(dataSrc, kind) {
@@ -113,9 +118,12 @@ export function createMediaHydrationController(options = {}) {
         if (!dataSrc) return false;
         if (String(mediaEl.getAttribute('src') || '').trim()) return true;
 
-        if (isAudio && !force) return false;
         if (isAudio) {
             const hydrationSeq = nextHydrationSeq(mediaEl);
+            if (!isEncryptedMediaSource(dataSrc)) {
+                assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq);
+                return true;
+            }
             resolveHydratedSource(dataSrc, resolveMediaKindByElement(mediaEl))
                 .then((resolvedSrc) => { assignHydratedSource(mediaEl, resolvedSrc, dataSrc, hydrationSeq); })
                 .catch(() => { assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq); });
@@ -177,7 +185,7 @@ export function createMediaHydrationController(options = {}) {
                 if (!entry.isIntersecting && entry.intersectionRatio <= 0) return;
                 if (target.matches(`${imageSelector}, ${albumImgSelector}`)) {
                     hydrateImage(target);
-                } else if (target.matches(`${videoSelector}, ${albumVideoSelector}`)) {
+                } else if (target.matches(`${videoSelector}, ${albumVideoSelector}, ${audioSelector}`)) {
                     hydrateVideo(target);
                 }
                 observer.unobserve(target);
@@ -216,7 +224,7 @@ export function createMediaHydrationController(options = {}) {
 
     function collectLazyMediaElements(root = rootElement) {
         const allImgSel = `${imageSelector}, ${albumImgSelector}`;
-        const allVidSel = `${videoSelector}, ${albumVideoSelector}`;
+        const allVidSel = `${videoSelector}, ${albumVideoSelector}, ${audioSelector}`;
         const images = [];
         const videos = [];
 
@@ -255,7 +263,10 @@ export function createMediaHydrationController(options = {}) {
         videos.forEach((videoEl) => {
             if (!(videoEl instanceof HTMLMediaElement)) return;
             if (videoEl.getAttribute('src')) { unobserveLazyMediaElement(videoEl); return; }
-            if (isNearViewport(videoEl, 600)) {
+            const viewportTarget = videoEl.classList.contains('file-msg-audio-el')
+                ? (videoEl.closest('.message') || videoEl.closest('.file-msg-audio-player') || videoEl)
+                : videoEl;
+            if (isNearViewport(viewportTarget, 600)) {
                 unobserveLazyMediaElement(videoEl);
                 hydrateVideo(videoEl);
             } else if (observer) {

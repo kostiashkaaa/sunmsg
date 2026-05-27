@@ -1358,8 +1358,8 @@ def test_message_alignment_self_vs_other_on_chat_page() -> None:
     assert 'transform-origin: left bottom' in other_body, (
         'chat.css: incoming messages should keep a left-edge transform origin'
     )
-    assert '--chat-mobile-outgoing-edge-offset: calc(var(--composer-action-size) + 8px)' in css, (
-        'chat.css: mobile outgoing messages should align to the composer input right edge'
+    assert '--chat-mobile-outgoing-edge-offset: 0px' in css, (
+        'chat.css: mobile outgoing messages should not shrink against composer action controls'
     )
     assert 'padding-right: var(--chat-mobile-outgoing-edge-offset, 12px)' in css, (
         'chat.css: mobile outgoing row track should apply the outgoing edge inset'
@@ -1727,6 +1727,33 @@ def test_link_preview_and_media_share_scroll_stabilizer() -> None:
     assert 'runWithStableChatScroll(videoEl, () => {' in media
 
 
+def test_chat_chrome_bars_preserve_message_scroll_anchor() -> None:
+    """Non-message chrome must not move the visible message anchor when it opens or closes."""
+    runtime = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
+    thread_runtime = (STATIC / 'modules' / 'chat-thread-bars-runtime.js').read_text(encoding='utf-8')
+    actions = (STATIC / 'modules' / 'message-actions-bar.js').read_text(encoding='utf-8')
+    banners = (STATIC / 'modules' / 'message-thread-banners.js').read_text(encoding='utf-8')
+    link_draft = (STATIC / 'modules' / 'link-draft-banner.js').read_text(encoding='utf-8')
+    forward = (STATIC / 'modules' / 'chat-forward-flow.js').read_text(encoding='utf-8')
+
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in actions
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in banners
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in link_draft
+    assert "import { withStableChatScroll } from './chat-scroll-stability.js';" in forward
+    assert 'withStableChatScroll(chatMessages || barEl, () => {' in actions
+    assert 'withStableChatScroll(chatMessages || barEl, () => {' in banners
+    assert 'withStableChatScroll(chatMessages || barEl, () => {' in link_draft
+    assert 'withStableChatScroll(chatMessages || forwardDraftBar, () => {' in forward
+    assert 'const messageActionsBarController = initMessageActionsBar({' in runtime
+    assert 'forwardController = createChatForwardFlow({' in runtime
+    assert 'chatMessages,' in runtime[runtime.index('const messageActionsBarController = initMessageActionsBar({'):runtime.index('});', runtime.index('const messageActionsBarController = initMessageActionsBar({'))]
+    assert 'chatMessages,' in runtime[runtime.index('forwardController = createChatForwardFlow({'):runtime.index('});', runtime.index('forwardController = createChatForwardFlow({'))]
+    assert 'chatMessages,' in thread_runtime[thread_runtime.index('const replyBarController = initReplyBar({'):thread_runtime.index('});', thread_runtime.index('const replyBarController = initReplyBar({'))]
+    assert 'chatMessages,' in thread_runtime[thread_runtime.index('const linkDraftBarController = initLinkDraftBar({'):thread_runtime.index('});', thread_runtime.index('const linkDraftBarController = initLinkDraftBar({'))]
+    assert 'chatMessages,' in thread_runtime[thread_runtime.index('const pinnedBarController = initPinnedBar({'):thread_runtime.index('});', thread_runtime.index('const pinnedBarController = initPinnedBar({'))]
+    assert 'chatMessages,' in thread_runtime[thread_runtime.index('const favoriteBarController = initPinnedBar({'):thread_runtime.index('});', thread_runtime.index('const favoriteBarController = initPinnedBar({'))]
+
+
 def test_automatic_bottom_scroll_is_instant_by_default() -> None:
     """Automatic bottom pinning must not animate during mobile viewport/composer changes."""
     render_runtime = (STATIC / 'modules' / 'chat-message-render-runtime.js').read_text(encoding='utf-8')
@@ -1794,6 +1821,34 @@ def test_voice_playback_progress_avoids_per_frame_native_range_and_clip_path() -
     assert 'will-change: clip-path' not in played_layer_block
     assert 'transform: scaleX(var(--audio-played-scale, 0));' in css
     assert 'transform: scaleX(var(--audio-played-inverse-scale, 1));' in css
+
+
+def test_voice_audio_first_tap_hydrates_source_before_play() -> None:
+    """Voice playback must not require a second tap because audio src is assigned asynchronously."""
+    hydration = (STATIC / 'modules' / 'media-hydration.js').read_text(encoding='utf-8')
+    media_runtime = (STATIC / 'modules' / 'chat-media-runtime.js').read_text(encoding='utf-8')
+    css = _read_css_text(STATIC / 'pages' / 'chat.css')
+
+    assert "const audioSelector = '.file-msg-audio-el[data-src]';" in hydration
+    assert 'const allVidSel = `${videoSelector}, ${albumVideoSelector}, ${audioSelector}`;' in hydration
+    assert 'if (!isEncryptedMediaSource(dataSrc)) {\n                assignHydratedSource(mediaEl, dataSrc, dataSrc, hydrationSeq);' in hydration
+    assert "const viewportTarget = videoEl.classList.contains('file-msg-audio-el')" in hydration
+    assert "videoEl.closest('.message') || videoEl.closest('.file-msg-audio-player') || videoEl" in hydration
+
+    toggle_start = media_runtime.index('window._toggleAudioPlayer = function(toggleBtn)')
+    toggle_end = media_runtime.index('function seekActiveVoicePlaybackByPercent(percent)', toggle_start)
+    toggle_block = media_runtime[toggle_start:toggle_end]
+
+    assert "audio.setAttribute('src', dataSrc);" in toggle_block
+    assert 'void ensureGeneratedAudioWaveform(audio);' not in toggle_block
+    assert 'function scheduleGeneratedAudioWaveform(audioEl)' in media_runtime
+    assert "audio.dataset.playRequested = '0';\n                            stopAudioPlayerUiLoop(audio);" in media_runtime
+
+    progress_start = css.index('.voice-playback-bar__progress {')
+    progress_end = css.index('.voice-playback-bar__progress::-webkit-slider-runnable-track', progress_start)
+    progress_block = css[progress_start:progress_end]
+    assert 'opacity: 0;' in progress_block
+    assert 'touch-action: none;' in progress_block
 
 
 def test_profile_spotify_progress_uses_transform_not_width_animation() -> None:

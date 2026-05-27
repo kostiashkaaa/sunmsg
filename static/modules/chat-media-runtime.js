@@ -131,8 +131,12 @@ export function initChatMediaRuntime(deps = {}) {
         return tagName === 'VIDEO' ? 'video' : 'image';
     }
 
-    function isEncryptedPreviewThumbSource(source) {
+    function isEncryptedMediaSource(source) {
         return String(source || '').includes('sun_media_e2ee=');
+    }
+
+    function isEncryptedPreviewThumbSource(source) {
+        return isEncryptedMediaSource(source);
     }
 
     function normalizePreviewThumbSource(source) {
@@ -329,6 +333,7 @@ export function initChatMediaRuntime(deps = {}) {
     const audioUiPlaybackLoopByElement = new WeakMap();
     const audioWaveformCacheBySource = new Map();
     const audioWaveformJobByPlayer = new WeakMap();
+    const audioWaveformScheduleByElement = new WeakMap();
     const AUDIO_PLAYBACK_RATES = Object.freeze([1, 1.25, 1.5, 2]);
     const AUDIO_PLAYBACK_RATE_STORAGE_KEY = 'sun_audio_playback_rate';
     const AUDIO_VOLUME_STORAGE_KEY = 'sun_audio_volume';
@@ -830,6 +835,24 @@ export function initChatMediaRuntime(deps = {}) {
         }
     }
 
+    function scheduleGeneratedAudioWaveform(audioEl) {
+        const { player, audio } = resolveAudioPlayerElements(audioEl);
+        if (!player || !audio) return;
+        if (audioWaveformScheduleByElement.has(audio)) return;
+
+        const run = () => {
+            audioWaveformScheduleByElement.delete(audio);
+            if (!audio || (!audio.isConnected && audio !== activeVoicePlaybackAudioEl)) return;
+            if (!audio.paused && !audio.ended) return;
+            void ensureGeneratedAudioWaveform(audio);
+        };
+
+        const scheduleId = typeof window.requestIdleCallback === 'function'
+            ? window.requestIdleCallback(run, { timeout: 2000 })
+            : window.setTimeout(run, 250);
+        audioWaveformScheduleByElement.set(audio, scheduleId);
+    }
+
     function resolveKnownAudioDuration(audio, durationLabel) {
         const duration = Number.isFinite(audio?.duration) && audio.duration > 0 ? audio.duration : 0;
         if (duration > 0) return duration;
@@ -1137,7 +1160,7 @@ export function initChatMediaRuntime(deps = {}) {
                 } catch (_) {}
             }
         }
-        void ensureGeneratedAudioWaveform(audioEl);
+        scheduleGeneratedAudioWaveform(audioEl);
         syncAudioPlayerUi(audioEl);
     };
 
@@ -1145,7 +1168,7 @@ export function initChatMediaRuntime(deps = {}) {
         initAudioMessageListenState(audioEl);
         audioEl.playbackRate = getPreferredAudioPlaybackRate();
         applyPreferredVolumeToAudio(audioEl);
-        void ensureGeneratedAudioWaveform(audioEl);
+        scheduleGeneratedAudioWaveform(audioEl);
         syncAudioPlayerUi(audioEl);
     };
 
@@ -1164,6 +1187,7 @@ export function initChatMediaRuntime(deps = {}) {
             startAudioPlayerUiLoop(audioEl);
         } else {
             stopAudioPlayerUiLoop(audioEl);
+            scheduleGeneratedAudioWaveform(audioEl);
         }
         scheduleAudioPlayerUiSync(audioEl);
 
@@ -1305,10 +1329,15 @@ export function initChatMediaRuntime(deps = {}) {
         if (audio.paused) {
             ensureMediaElementHydrated(audio, { force: true });
             if (!audio.getAttribute('src')) {
+                const dataSrc = String(audio.getAttribute('data-src') || audio.dataset?.src || '').trim();
+                if (dataSrc && !isEncryptedMediaSource(dataSrc)) {
+                    audio.setAttribute('src', dataSrc);
+                }
+            }
+            if (!audio.getAttribute('src')) {
                 showToast('\u0410\u0443\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E \u0434\u043B\u044F \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F.', 'warning');
                 return;
             }
-            void ensureGeneratedAudioWaveform(audio);
 
             // \u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C \u0432\u0441\u0435 \u043E\u0441\u0442\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u0443\u0434\u0438\u043E \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u043E.
             const activeAudio = resolveActiveVoicePlaybackAudio();
@@ -1363,7 +1392,17 @@ export function initChatMediaRuntime(deps = {}) {
                 playPromise.catch((err) => {
                     // AbortError \u0432\u043E\u0437\u043D\u0438\u043A\u0430\u0435\u0442 \u043A\u043E\u0433\u0434\u0430 play() \u043F\u0440\u0435\u0440\u0432\u0430\u043D pause()/load().
                     // \u042D\u0442\u043E \u043D\u043E\u0440\u043C\u0430\u043B\u044C\u043D\u043E \u2014 \u041D\u0415 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u043C \u0442\u043E\u0441\u0442.
-                    if (err && (err.name === 'AbortError' || err.code === 20)) return;
+                    if (err && (err.name === 'AbortError' || err.code === 20)) {
+                        if (audio.paused && audio.dataset.playRequested === '1') {
+                            audio.dataset.playRequested = '0';
+                            stopAudioPlayerUiLoop(audio);
+                            scheduleAudioPlayerUiSync(audio);
+                            if (resolveActiveVoicePlaybackAudio() === audio) {
+                                syncVoicePlaybackBar(audio);
+                            }
+                        }
+                        return;
+                    }
                     audio.dataset.playRequested = '0';
                     stopAudioPlayerUiLoop(audio);
                     showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0430\u0443\u0434\u0438\u043E.', 'warning');
@@ -1373,6 +1412,7 @@ export function initChatMediaRuntime(deps = {}) {
             audio.dataset.playRequested = '0';
             try { audio.pause(); } catch (_) {}
             stopAudioPlayerUiLoop(audio);
+            scheduleGeneratedAudioWaveform(audio);
         }
         syncAudioPlayerUi(audio);
         syncVoicePlaybackBar(audio);
