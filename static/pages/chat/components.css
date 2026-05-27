@@ -1696,7 +1696,7 @@
 
         /* ?????????????? SIDEBAR ?????????????? */
         .sidebar {
-            --sidebar-bottom-user-reserve: 104px;
+            --sidebar-bottom-user-reserve: 78px;
             width: var(--sidebar-width, 332px);
             min-width: var(--sidebar-width, 332px);
             max-width: var(--sidebar-width, 332px);
@@ -2056,7 +2056,7 @@
             z-index: auto;
             pointer-events: auto;
             display: flex;
-            padding: 8px 6px 10px;
+            padding: 0 6px 10px;
             gap: 6px;
         }
 
@@ -2097,9 +2097,9 @@
         }
 
         #sidebarScrollArea {
-            padding: 4px 10px calc(var(--sidebar-bottom-user-reserve, 104px) + 12px);
+            padding: 4px 10px var(--sidebar-bottom-user-reserve, 78px);
             scroll-behavior: smooth;
-            scroll-padding-bottom: calc(var(--sidebar-bottom-user-reserve, 104px) + 12px);
+            scroll-padding-bottom: var(--sidebar-bottom-user-reserve, 78px);
             overscroll-behavior-y: contain;
             overflow-x: hidden;
             scrollbar-gutter: stable;

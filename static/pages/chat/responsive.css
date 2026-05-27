@@ -771,7 +771,7 @@
                 --mobile-tabbar-safe-bottom: env(safe-area-inset-bottom, 0px);
                 --mobile-tabbar-content-height: 64px;
                 --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom));
-                --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+                --sidebar-bottom-user-reserve: calc(var(--sidebar-profile-card-min-height, 54px) + max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))));
                 --sidebar-bottom-user-bg: var(--sidebar-bg, var(--bg));
                 --sidebar-profile-card-min-height: 54px;
                 --sidebar-profile-card-padding: 6px;
@@ -1916,7 +1916,7 @@
     }
 
     .sidebar-bottom-user {
-        padding: 8px 14px;
+        padding: 0 14px 8px;
     }
 
     .sidebar-bottom-avatar {
@@ -2060,7 +2060,7 @@
     .sidebar {
         --mobile-tabbar-content-height: 56px;
         --mobile-tabbar-block-size: calc(var(--mobile-tabbar-content-height) + var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
-        --sidebar-bottom-user-reserve: calc(var(--mobile-tabbar-block-size) + 6px);
+        --sidebar-bottom-user-reserve: calc(48px + max(8px, var(--mobile-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))));
     }
 
     .sidebar-top-row {
@@ -2087,7 +2087,7 @@
 
     .sidebar-bottom-user {
         min-height: auto;
-        padding-top: 5px;
+        padding-top: 0;
     }
 
     .sidebar-bottom-main,
