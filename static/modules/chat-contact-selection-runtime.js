@@ -69,6 +69,23 @@ export function bindChatContactSelectionRuntime({
 } = {}) {
     if (!contactsList) return;
 
+    function scrollContactIntoViewIfClipped(contactItem) {
+        const scrollParent = contactItem?.closest?.('#sidebarScrollArea');
+        if (!scrollParent) return;
+
+        const itemRect = contactItem.getBoundingClientRect();
+        const parentRect = scrollParent.getBoundingClientRect();
+        const topDelta = itemRect.top - parentRect.top;
+        const bottomDelta = itemRect.bottom - parentRect.bottom;
+        const tolerancePx = 1;
+
+        if (topDelta < -tolerancePx) {
+            scrollParent.scrollTop += topDelta;
+        } else if (bottomDelta > tolerancePx) {
+            scrollParent.scrollTop += bottomDelta;
+        }
+    }
+
     contactsList.addEventListener('click', (event) => {
         const contactItem = event.target.closest('.contact-item');
         if (!contactItem) return;
@@ -82,11 +99,7 @@ export function bindChatContactSelectionRuntime({
 
         closeCommandPalette();
         setActiveContactItem(contactItem);
-        try {
-            contactItem.scrollIntoView({ block: 'nearest' });
-        } catch (_) {
-            contactItem.scrollIntoView({ block: 'nearest' });
-        }
+        scrollContactIntoViewIfClipped(contactItem);
 
         const previousChatId = getCurrentChatId();
         const previousDraftValue = String(messageInput?.value || '');

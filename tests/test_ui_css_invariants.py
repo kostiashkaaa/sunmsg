@@ -513,6 +513,8 @@ def test_mobile_chatjs_skips_inner_thread_reveal_motion() -> None:
 
     assert 'const useDesktopSwitchMotion = !isMobileViewport() && !reduceMotion' in selection_runtime
     assert 'if (chatArea && useDesktopSwitchMotion)' in selection_runtime
+    assert 'function scrollContactIntoViewIfClipped(contactItem)' in selection_runtime
+    assert 'contactItem.scrollIntoView' not in selection_runtime
 
 
 def test_icon_button_press_keeps_glyph_centered() -> None:
@@ -1363,6 +1365,9 @@ def test_message_alignment_self_vs_other_on_chat_page() -> None:
     )
     assert 'padding-right: var(--chat-mobile-outgoing-edge-offset, 12px)' in css, (
         'chat.css: mobile outgoing row track should apply the outgoing edge inset'
+    )
+    assert 'padding-right: max(6px, env(safe-area-inset-right, 0px));' in css, (
+        'chat.css: mobile outgoing messages should share the same edge gutter as the left side'
     )
 
     self_avatar_slot_block = re.search(
