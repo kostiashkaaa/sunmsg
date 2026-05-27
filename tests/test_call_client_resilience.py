@@ -11,6 +11,7 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     css = (ROOT / 'static' / 'calls.css').read_text(encoding='utf-8')
     handlers = (ROOT / 'app' / 'sockets' / 'call_handlers.py').read_text(encoding='utf-8')
 
+    assert 'const DISCONNECT_TIMEOUT_MS = 45_000;' in manager
     assert 'const SIGNAL_ACK_TIMEOUT_MS = 12_000;' in manager
     assert 'const ACCEPT_SYNC_GRACE_MS = 5_000;' in manager
     assert "this._emit('call_initiate', { chat_id: this._chatId, call_type: this._callType }, { requireConnected: true })" in manager

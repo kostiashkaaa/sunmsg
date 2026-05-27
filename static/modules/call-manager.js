@@ -42,7 +42,7 @@ const STATES = {
 };
 
 // How long to wait in 'disconnected' state before giving up
-const DISCONNECT_TIMEOUT_MS = 15_000;
+const DISCONNECT_TIMEOUT_MS = 45_000;
 const RING_TIMEOUT_MS = 60_000;
 const SIGNAL_ACK_TIMEOUT_MS = 12_000;
 const ACCEPT_SYNC_GRACE_MS = 5_000;
