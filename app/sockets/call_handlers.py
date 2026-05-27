@@ -591,6 +591,8 @@ def handle_call_media_state(
     call_id       = str(data.get('call_id')      or '').strip()
     audio_muted   = bool(data.get('audio_muted',   False))
     video_enabled = bool(data.get('video_enabled', False))
+    video_source_raw = str(data.get('video_source') or '').strip().lower()
+    video_source = 'screen' if video_enabled and video_source_raw == 'screen' else 'camera'
 
     conn = get_db_connection_func(request_scoped=False)
     try:
@@ -612,6 +614,7 @@ def handle_call_media_state(
             emit_func('call_media_state', {
                 'call_id': call_id, 'user_id': user_id,
                 'audio_muted': audio_muted, 'video_enabled': video_enabled,
+                'video_source': video_source,
             }, to=f'user_{pid}')
     except Exception:
         logger.exception('Error in handle_call_media_state')

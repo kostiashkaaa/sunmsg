@@ -33,6 +33,9 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'this._partnerMediaState = {' in manager
     assert '_applyPartnerMediaState()' in manager
     assert '_partnerMediaStateFromActiveCall(activeCall)' in manager
+    assert 'function _normalizeCallVideoSource(value)' in manager
+    assert 'video_source:  this._media.getVideoSource(),' in manager
+    assert 'setRemoteVideoEnabled(this._partnerMediaState.videoEnabled, this._partnerMediaState.videoSource)' in manager
 
     assert 'data-call-incoming-status' in ui
     assert "setIncomingBusy(true, 'Подключение...')" in ui
@@ -42,12 +45,18 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'initialLocalFacingMode' in ui
     assert '_localCameraX(facingMode)' in ui
     assert "String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1" in ui
+    assert 'call-overlay--remote-screen-sharing' in ui
+    assert 'remoteVideo.dataset.remoteVideoSource = source;' in ui
 
     assert '--call-local-camera-x' in css
     assert '--call-preview-camera-x' in css
     assert '.call-connectivity' in css
     assert '.call-overlay--connection-lost [data-call-status]' in css
     assert '@keyframes callConnectivityPulse' in css
+    assert '.call-overlay--remote-screen-sharing .call-overlay__remote-video' in css
+    assert 'object-fit: contain;' in css
+    assert 'html.call-minimized-active #partnerProfileDrawer.active .profile-sheet--sun' in css
+    assert '.call-topbar__state [data-call-status]' in css
 
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
@@ -66,6 +75,8 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert "'partner_media': _partner_media_state(conn, call_id, user_id)" in handlers
     assert "if status == 'active' else None" in handlers
     assert 'SELECT was_muted, had_video' in handlers
+    assert "video_source_raw = str(data.get('video_source') or '').strip().lower()" in handlers
+    assert "'video_source': video_source" in handlers
 
 
 def test_call_ui_guards_async_overlay_lifecycle_completions() -> None:

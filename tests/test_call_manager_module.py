@@ -24,6 +24,7 @@ source = source.replace(
     getLocalStream() { return this._localStream; }
     getVideoFacingMode() { return 'user'; }
     isScreenSharing() { return false; }
+    getVideoSource() { return 'camera'; }
     isVideoEnabled() { return false; }
     isAudioMuted() { return false; }
     setAudioMuted() {}

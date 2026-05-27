@@ -514,8 +514,18 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+    overflow: hidden;
     font-size: 13px;
     font-weight: 700;
+}
+.call-topbar__state svg {
+    flex: 0 0 auto;
+}
+.call-topbar__state [data-call-status] {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .call-topbar__name {
     min-width: 0;
@@ -529,6 +539,7 @@
 .call-topbar__end {
     justify-self: end;
     width: 34px;
+    min-width: 34px;
     height: 30px;
     border: none;
     border-radius: 50%;
@@ -541,6 +552,7 @@
 }
 .call-topbar__end:hover { background: rgba(255,255,255,.16); }
 .call-topbar__duration {
+    flex: 0 0 auto;
     padding-left: 2px;
     color: var(--call-muted);
     font-variant-numeric: tabular-nums;
@@ -899,6 +911,15 @@
 #call-remote-video { transform: none !important; }
 .call-overlay--has-remote-video .call-overlay__remote-video {
     opacity: 1;
+}
+.call-overlay--remote-screen-sharing .call-card__stage,
+.call-overlay--screen-sharing .call-card__stage {
+    background: #000;
+}
+.call-overlay--remote-screen-sharing .call-overlay__remote-video,
+.call-overlay--screen-sharing .call-overlay__local-video {
+    object-fit: contain;
+    background: #000;
 }
 .call-overlay--has-remote-video .call-card__audio-bg {
     opacity: 0;
@@ -1741,7 +1762,12 @@
     .call-overlay--minimized .call-topbar {
         left: 0;
         width: 100vw;
+        width: 100dvw;
         height: calc(52px + env(safe-area-inset-top, 0px));
+        grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) 38px;
+        gap: 8px;
+        padding-right: calc(10px + env(safe-area-inset-right, 0px));
+        padding-left: calc(10px + env(safe-area-inset-left, 0px));
         padding-top: env(safe-area-inset-top, 0px);
         display: grid;
         cursor: pointer;
@@ -1767,19 +1793,38 @@
     html.call-minimized-active .sidebar {
         padding-top: var(--call-mobile-topbar-offset, 52px);
     }
+    html.call-minimized-active #partnerProfileDrawer.active .profile-sheet--sun,
+    html.call-minimized-active #partnerProfileDrawer.is-opening .profile-sheet--sun,
+    html.call-minimized-active #partnerProfileDrawer.is-closing .profile-sheet--sun {
+        top: var(--call-mobile-topbar-offset, 52px);
+        bottom: auto;
+        height: calc(var(--app-vh, 100dvh) - var(--call-mobile-topbar-offset, 52px));
+    }
     .call-topbar__state {
         gap: 8px;
         font-size: 13px;
     }
+    .call-overlay--minimized .call-topbar__state {
+        min-width: 0;
+        overflow: hidden;
+    }
     .call-topbar__name {
-        max-width: 34vw;
+        width: 100%;
+        max-width: none;
+        justify-self: center;
+        text-align: center;
         font-size: 14px;
+    }
+    .call-topbar__end {
+        width: 38px;
+        min-width: 38px;
     }
     .call-card {
         inset: 0;
         top: 0;
         left: 0;
         width: 100vw;
+        width: 100dvw;
         height: var(--app-vh, 100dvh);
         min-height: 0;
         max-height: none;
@@ -1816,6 +1861,10 @@
     }
     .call-card__stage {
         cursor: default;
+    }
+    .call-overlay__remote-video {
+        object-fit: contain;
+        background: #000;
     }
     .call-card__drag {
         display: none;
@@ -1895,5 +1944,32 @@
         width: 74px;
         height: 104px;
         border-radius: 10px;
+    }
+}
+
+@media (max-width: 768px) and (orientation: landscape),
+    (max-height: 480px) and (orientation: landscape),
+    (pointer: coarse) and (orientation: landscape) {
+    .call-overlay--visible:not(.call-overlay--minimized) .call-overlay__controls {
+        padding: 10px 12px max(10px, env(safe-area-inset-bottom, 0px));
+    }
+    .call-overlay--visible:not(.call-overlay--minimized) .call-ctrl {
+        min-width: 48px;
+    }
+    .call-overlay--visible:not(.call-overlay--minimized) .call-ctrl__icon {
+        width: 42px;
+        height: 42px;
+    }
+    .call-overlay--visible:not(.call-overlay--minimized) .call-ctrl--end .call-ctrl__icon {
+        width: 48px;
+        height: 48px;
+    }
+    .call-overlay--visible:not(.call-overlay--minimized) .call-ctrl__label {
+        display: none;
+    }
+    .call-overlay--visible:not(.call-overlay--minimized) .call-overlay__local-video,
+    .call-overlay--visible:not(.call-overlay--minimized).call-overlay--self-view-primary.call-overlay--has-local-video.call-overlay--has-remote-video .call-overlay__remote-video {
+        width: 92px;
+        height: 60px;
     }
 }

@@ -1252,20 +1252,32 @@ function _callConnectionLabel(state) {
     return 'Соединение...';
 }
 
+function _normalizeCallVideoSource(source) {
+    return String(source || '').trim().toLowerCase() === 'screen' ? 'screen' : 'camera';
+}
+
 export function setLocalVideoEnabled(stream, enabled, facingMode = '') {
     _syncLocalVideo(_currentOverlay(), stream, enabled, facingMode);
 }
 
-export function setRemoteVideoEnabled(enabled) {
+export function setRemoteVideoEnabled(enabled, videoSource = '') {
     const overlay = _currentOverlay();
     const remoteVideo = overlay?.querySelector('#call-remote-video');
+    const source = _normalizeCallVideoSource(videoSource || remoteVideo?.dataset?.remoteVideoSource);
     if (remoteVideo) {
         remoteVideo.dataset.remoteVideoExpected = enabled ? '1' : '0';
+        if (enabled) {
+            remoteVideo.dataset.remoteVideoSource = source;
+        } else {
+            delete remoteVideo.dataset.remoteVideoSource;
+        }
     }
     const hasTrack = Boolean(remoteVideo?.srcObject?.getVideoTracks?.()
         .some(track => track.readyState !== 'ended'));
-    overlay?.classList.toggle('call-overlay--has-remote-video', Boolean(enabled && hasTrack));
-    if (enabled && hasTrack) {
+    const showVideo = Boolean(enabled && hasTrack);
+    overlay?.classList.toggle('call-overlay--has-remote-video', showVideo);
+    overlay?.classList.toggle('call-overlay--remote-screen-sharing', showVideo && source === 'screen');
+    if (showVideo) {
         _playMedia(remoteVideo);
         _showCallInfoTemporarily(overlay);
     } else {
@@ -1294,12 +1306,17 @@ export function removeRemoteTrack(kind, expectedTrack = null) {
     if (kind === 'video') {
         const hasVideo = Boolean(media.srcObject.getVideoTracks?.()
             .some(track => track.readyState !== 'ended'));
+        const showVideo = Boolean(hasVideo && media.dataset.remoteVideoExpected !== '0');
+        const source = _normalizeCallVideoSource(media.dataset.remoteVideoSource);
         overlay?.classList.toggle(
             'call-overlay--has-remote-video',
-            Boolean(hasVideo && media.dataset.remoteVideoExpected !== '0'),
+            showVideo,
         );
+        overlay?.classList.toggle('call-overlay--remote-screen-sharing', showVideo && source === 'screen');
         if (!hasVideo) {
             overlay?.classList.remove('call-overlay--self-view-primary');
+            overlay?.classList.remove('call-overlay--remote-screen-sharing');
+            delete media.dataset.remoteVideoSource;
         }
         _syncVideoLayout(overlay);
     }

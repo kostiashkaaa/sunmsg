@@ -55,6 +55,10 @@ function _normalizeIceTransportPolicy(value) {
     return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
 }
 
+function _normalizeCallVideoSource(value) {
+    return String(value || '').trim().toLowerCase() === 'screen' ? 'screen' : 'camera';
+}
+
 export class CallManager {
     /**
      * @param {object} opts
@@ -418,11 +422,16 @@ export class CallManager {
         if (this._state !== STATES.IDLE) this._cleanup();
     }
 
-    _onPartnerMediaState({ call_id, audio_muted, video_enabled }) {
+    _onPartnerMediaState(payload = {}) {
+        const { call_id, audio_muted, video_enabled, video_source } = payload;
         if (call_id !== this._callId) return;
+        const hasVideoSource = Object.prototype.hasOwnProperty.call(payload, 'video_source');
         this._partnerMediaState = {
             audioMuted: Boolean(audio_muted),
             videoEnabled: Boolean(video_enabled),
+            videoSource: hasVideoSource
+                ? _normalizeCallVideoSource(video_source)
+                : (this._partnerMediaState?.videoSource || 'camera'),
         };
         this._applyPartnerMediaState();
     }
@@ -1294,6 +1303,7 @@ export class CallManager {
             call_id:       this._callId,
             audio_muted:   this._media.isAudioMuted(),
             video_enabled: this._media.isVideoEnabled(),
+            video_source:  this._media.getVideoSource(),
         });
     }
 
@@ -1314,16 +1324,20 @@ export class CallManager {
         if (!media || typeof media !== 'object') return null;
         const hasAudioState = Object.prototype.hasOwnProperty.call(media, 'audio_muted');
         const hasVideoState = Object.prototype.hasOwnProperty.call(media, 'video_enabled');
+        const hasVideoSource = Object.prototype.hasOwnProperty.call(media, 'video_source');
         if (!hasAudioState && !hasVideoState) return null;
         return {
             audioMuted: Boolean(media.audio_muted),
             videoEnabled: Boolean(media.video_enabled),
+            videoSource: hasVideoSource
+                ? _normalizeCallVideoSource(media.video_source)
+                : (this._partnerMediaState?.videoSource || 'camera'),
         };
     }
 
     _applyPartnerMediaState() {
         if (!this._partnerMediaState) return;
-        setRemoteVideoEnabled(this._partnerMediaState.videoEnabled);
+        setRemoteVideoEnabled(this._partnerMediaState.videoEnabled, this._partnerMediaState.videoSource);
         setRemoteAudioMuted(this._partnerMediaState.audioMuted);
     }
 
