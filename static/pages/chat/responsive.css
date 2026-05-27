@@ -1893,7 +1893,7 @@
     .contact-item {
         gap: 14px;
         padding: 8px 16px;
-        margin: 0 0 6px;
+        margin: 0;
     }
 
     .contact-avatar {
