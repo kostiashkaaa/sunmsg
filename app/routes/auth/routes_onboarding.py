@@ -18,11 +18,11 @@ _ONBOARDING_COPY = {
         'steps': [
             {
                 'title': 'Откройте вкладку «Создать аккаунт»',
-                'text': 'На главной странице переключитесь на регистрацию и введите username и отображаемое имя.',
+                'text': 'На главной странице переключитесь на регистрацию и выберите @ник.',
             },
             {
-                'title': 'Сохраните 24 слова',
-                'text': 'После создания аккаунта вы получите мнемоническую фразу из 24 слов. Это ваш ключ восстановления.',
+                'title': 'Сохраните 12 слов',
+                'text': 'После выбора @ника вы получите фразу из 12 слов. Это ваш ключ восстановления.',
             },
             {
                 'title': 'Подключите приложение-аутентификатор',
@@ -30,14 +30,14 @@ _ONBOARDING_COPY = {
             },
             {
                 'title': 'Проверьте вход',
-                'text': 'Войти можно через QR или по 24 словам. Для полной расшифровки истории на новом устройстве нужны именно 24 слова.',
+                'text': 'Войти можно через QR или по словам восстановления. Для расшифровки истории на новом устройстве нужны именно эти слова.',
             },
         ],
         'tips': [
             'Не используйте пробелы и заглавные буквы в username: допустимы только `a-z`, `0-9`, `_`.',
-            'Не храните 24 слова только в заметках телефона: сделайте офлайн-копию.',
+            'Не храните слова восстановления только в заметках телефона: сделайте офлайн-копию.',
             'Если код TOTP не подходит, проверьте точность времени на телефоне.',
-            'Если потеряли доступ, сначала попробуйте вход по 24 словам, затем напишите в поддержку через блок «Обратная связь».',
+            'Если потеряли доступ, сначала попробуйте вход по словам восстановления, затем напишите в поддержку через блок «Обратная связь».',
         ],
     },
     'en': {
@@ -53,11 +53,11 @@ _ONBOARDING_COPY = {
         'steps': [
             {
                 'title': 'Open the “Create account” tab',
-                'text': 'On the main auth page, switch to registration and enter your username and display name.',
+                'text': 'On the main auth page, switch to registration and choose your @handle.',
             },
             {
-                'title': 'Save your 24 words',
-                'text': 'After registration you will get a 24-word mnemonic. This is your recovery key.',
+                'title': 'Save your 12 words',
+                'text': 'After choosing your @handle, you will get a 12-word phrase. This is your recovery key.',
             },
             {
                 'title': 'Connect an authenticator app',
@@ -65,14 +65,14 @@ _ONBOARDING_COPY = {
             },
             {
                 'title': 'Validate sign in',
-                'text': 'You can sign in via QR or 24 words. On a new device, full history decryption requires the 24 words.',
+                'text': 'You can sign in via QR or recovery words. On a new device, full history decryption requires those words.',
             },
         ],
         'tips': [
             'Do not use spaces or uppercase letters in username: only `a-z`, `0-9`, `_` are valid.',
-            'Do not store the 24 words only in phone notes: keep an offline backup.',
+            'Do not store recovery words only in phone notes: keep an offline backup.',
             'If TOTP code fails, check your phone time sync.',
-            'If access is lost, try 24-word sign in first, then contact support from the "Feedback" block.',
+            'If access is lost, try recovery-word sign in first, then contact support from the "Feedback" block.',
         ],
     },
 }

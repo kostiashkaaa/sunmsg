@@ -416,6 +416,49 @@ def test_register_client_rejects_too_long_username_and_display_name(monkeypatch,
         'error': 'Отображаемое имя не должно превышать 50 символов.',
     }
 
+
+def test_register_username_status_normalizes_and_reports_availability(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-register-username-status.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    client = app.test_client()
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.commit()
+
+    taken_response = client.post('/api/register_username_status', json={'username': '@Alice'})
+    assert taken_response.status_code == 200
+    assert taken_response.get_json() == {
+        'success': True,
+        'username': 'alice',
+        'available': False,
+        'error': 'Имя пользователя уже занято.',
+    }
+
+    available_response = client.post('/api/register_username_status', json={'username': 'bob_2'})
+    assert available_response.status_code == 200
+    assert available_response.get_json() == {
+        'success': True,
+        'username': 'bob_2',
+        'available': True,
+        'error': '',
+    }
+
+    invalid_response = client.post('/api/register_username_status', json={'username': 'bad-name'})
+    assert invalid_response.status_code == 400
+    assert invalid_response.get_json() == {
+        'success': False,
+        'error': 'Никнейм может содержать только a–z, 0–9, _',
+    }
+
+
 def test_register_client_success_keeps_totp_optional_and_allows_direct_login(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-register-optional-totp.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -435,7 +478,6 @@ def test_register_client_success_keeps_totp_optional_and_allows_direct_login(mon
         '/api/register_client',
         json={
             'username': 'alice',
-            'display_name': 'Alice',
             'public_key': public_key,
             'login_vault': login_vault,
             'register_challenge': register_challenge,
@@ -452,7 +494,7 @@ def test_register_client_success_keeps_totp_optional_and_allows_direct_login(mon
 
     with _connect(db_path) as conn:
         user = conn.execute(
-            'SELECT id, username, public_key, totp_secret, totp_enabled_at FROM users WHERE username = ?',
+            'SELECT id, username, display_name, public_key, totp_secret, totp_enabled_at FROM users WHERE username = ?',
             ('alice',),
         ).fetchone()
         user_id = int(user['id']) if user else 0
@@ -467,6 +509,7 @@ def test_register_client_success_keeps_totp_optional_and_allows_direct_login(mon
         ).fetchone()
     assert user
     assert user['public_key'] == public_key
+    assert user['display_name'] == 'alice'
     assert user['totp_secret'] is None
     assert user['totp_enabled_at'] is None
     assert saved_chat
@@ -608,7 +651,7 @@ def test_login_totp_and_get_login_vault_cover_success_and_invalid_storage(monkey
         json={'username': 'alice', 'totp_code': pyotp.TOTP(totp_secret).now()},
     )
     assert standalone_response.status_code == 401
-    assert standalone_response.get_json() == {'success': False, 'error': 'Сначала подтвердите вход 24 словами.'}
+    assert standalone_response.get_json() == {'success': False, 'error': 'Сначала подтвердите вход словами восстановления.'}
 
     _stage_pending_totp(client, user_id=1, public_key='pk-1', remember=True)
 

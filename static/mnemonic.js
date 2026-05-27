@@ -31,26 +31,25 @@
         return bytes.buffer;
     }
 
-    async function generateMnemonic() {
+    async function generateMnemonic(wordCount = 12) {
         const cryptoApi = getWebCryptoOrThrow();
-        const entropy = new Uint8Array(32); // 256 bits for 24 words
+        const wordsCount = Number(wordCount) === 24 ? 24 : 12;
+        const entropyBytes = wordsCount === 24 ? 32 : 16;
+        const checksumBitsLength = entropyBytes * 8 / 32;
+        const entropy = new Uint8Array(entropyBytes);
         cryptoApi.getRandomValues(entropy);
         
-        // Calculate SHA-256 hash of entropy
         const hashBuffer = await cryptoApi.subtle.digest("SHA-256", entropy);
         const hashArray = new Uint8Array(hashBuffer);
-        const checksum = hashArray[0]; // first 8 bits (1 byte) for 256-bit entropy
         
-        // Convert to bits
         let bits = "";
         for (const byte of entropy) {
             bits += byte.toString(2).padStart(8, '0');
         }
-        bits += checksum.toString(2).padStart(8, '0');
+        bits += hashArray[0].toString(2).padStart(8, '0').slice(0, checksumBitsLength);
         
-        // Split into groups of 11 bits
         const words = [];
-        for (let i = 0; i < 24; i++) {
+        for (let i = 0; i < wordsCount; i++) {
             const index = parseInt(bits.slice(i * 11, (i + 1) * 11), 2);
             words.push(BIP39_WORDS[index]);
         }
@@ -67,7 +66,7 @@
 
     async function validateMnemonic(mnemonic) {
         const words = normalizeMnemonicWords(mnemonic);
-        if (words.length !== 24) return false;
+        if (![12, 24].includes(words.length)) return false;
         
         try {
             let bits = "";
@@ -77,19 +76,20 @@
                 bits += index.toString(2).padStart(11, '0');
             }
             
-            const entropyBits = bits.slice(0, 256);
-            const checksumBits = bits.slice(256);
+            const entropyBitsLength = words.length === 24 ? 256 : 128;
+            const entropyBytes = entropyBitsLength / 8;
+            const checksumBitsLength = entropyBitsLength / 32;
+            const entropyBits = bits.slice(0, entropyBitsLength);
+            const checksumBits = bits.slice(entropyBitsLength);
             
-            // Reconstruct entropy bytes
-            const entropy = new Uint8Array(32);
-            for (let i = 0; i < 32; i++) {
+            const entropy = new Uint8Array(entropyBytes);
+            for (let i = 0; i < entropyBytes; i++) {
                 entropy[i] = parseInt(entropyBits.slice(i * 8, (i + 1) * 8), 2);
             }
             
-            // Recalculate checksum
             const hashBuffer = await getWebCryptoOrThrow().subtle.digest("SHA-256", entropy);
             const hashArray = new Uint8Array(hashBuffer);
-            const actualChecksum = hashArray[0].toString(2).padStart(8, '0');
+            const actualChecksum = hashArray[0].toString(2).padStart(8, '0').slice(0, checksumBitsLength);
             
             return actualChecksum === checksumBits;
         } catch (e) {
@@ -108,7 +108,7 @@
         }
 
         const strictChecksum = options?.strictChecksum === true;
-        if (strictChecksum && words.length === 24) {
+        if (strictChecksum && [12, 24].includes(words.length)) {
             const isValid = await validateMnemonic(words.join(' '));
             if (!isValid) {
                 throw new Error("\u041D\u0435\u0432\u0435\u0440\u043D\u0430\u044F \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u0430\u044F \u0441\u0443\u043C\u043C\u0430 \u0444\u0440\u0430\u0437\u044B. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E\u0441\u0442\u044C \u0441\u043B\u043E\u0432.");

@@ -123,7 +123,7 @@
                                 <button class="auth-method-btn auth-method-btn-card" id="methodKeyBtn" type="button">
                                     <span class="auth-method-btn-icon"><i class="bi bi-journal-text"></i></span>
                                     <span class="auth-method-btn-copy">
-                                        <span class="auth-method-btn-title" id="methodKeyBtnLabel">Войти 24 словами</span>
+                                        <span class="auth-method-btn-title" id="methodKeyBtnLabel">Войти по словам</span>
                                         <span class="auth-method-btn-sub" id="methodKeyBtnSub">Если потерян телефон</span>
                                     </span>
                                     <span class="auth-method-btn-arrow">&rarr;</span>
@@ -150,7 +150,7 @@
                                            pattern="[a-z0-9_]+" maxlength="50">
                                     <i class="bi bi-at auth-input-icon"></i>
                                 </div>
-                                <label class="auth-label" id="loginMnemonicLabel" for="loginMnemonicTextarea">24 слова через пробел</label>
+                                <label class="auth-label" id="loginMnemonicLabel" for="loginMnemonicTextarea">12 или 24 слова через пробел</label>
                                 <div class="auth-input-wrap auth-input-wrap-textarea">
                                     <textarea class="auth-input auth-input-textarea auth-mnemonic-textarea" id="loginMnemonicTextarea"
                                               rows="4" placeholder="river quiet north..." autocomplete="off"></textarea>
@@ -190,20 +190,19 @@
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
-                        <span class="auth-register-progress-dot"></span>
                     </div>
-                    <div class="auth-register-progress-text" id="registerFlowProgressText">Шаг 1 из 4 — Данные аккаунта</div>
+                    <div class="auth-register-progress-text" id="registerFlowProgressText">Шаг 1 из 3 — Данные аккаунта</div>
                 </div>
                 <form id="ajaxRegisterForm" class="auth-register-step1" autocomplete="off">
                     <div class="auth-key-box-header auth-key-box-header--intro">
                         <div class="auth-key-box-icon"><i class="bi bi-person-circle"></i></div>
                         <div>
-                            <div class="auth-key-box-title" id="registerStep1Title">Знакомимся</div>
-                            <div class="auth-key-box-sub" id="registerStep1Sub">Имя видят ваши собеседники. @ник — по нему вас находят.</div>
+                            <div class="auth-key-box-title" id="registerStep1Title">Выберите @ник</div>
+                            <div class="auth-key-box-sub" id="registerStep1Sub">По нему вас найдут. Имя для чатов можно добавить позже.</div>
                         </div>
                     </div>
                     <div class="auth-form-group">
-                        <label class="auth-label" for="reg_username">Имя пользователя</label>
+                        <label class="auth-label" for="reg_username">@ ник</label>
                         <div class="auth-input-wrap">
                             <input type="text" class="auth-input" id="reg_username"
                                    placeholder="ваш_username" autocomplete="username"
@@ -214,22 +213,11 @@
                             Допустимые символы: a-z, 0-9, _
                         </div>
                         <p class="auth-field-note" id="registerUsernameNote">
-                            Username используется для входа и должен быть уникальным.
-                        </p>
-                    </div>
-                    <div class="auth-form-group">
-                        <label class="auth-label" for="reg_display_name">Отображаемое имя</label>
-                        <div class="auth-input-wrap">
-                            <input type="text" class="auth-input" id="reg_display_name"
-                                   placeholder="Ваше имя" maxlength="50" required>
-                            <i class="bi bi-person-badge auth-input-icon"></i>
-                        </div>
-                        <p class="auth-field-note" id="registerDisplayNameNote">
-                            Отображаемое имя видят ваши контакты в чатах.
+                            Нужен для входа и поиска контактов.
                         </p>
                     </div>
                     <button type="submit" class="auth-btn auth-btn-primary" id="registerSubmitBtn">
-                        <span id="registerBtnText">Показать фразу</span>
+                        <span id="registerBtnText">Продолжить</span>
                         <span class="auth-btn-arrow">&rarr;</span>
                     </button>
                 </form>
@@ -244,14 +232,13 @@
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
-                        <span class="auth-register-progress-dot"></span>
                     </div>
                 </div>
                 <div class="auth-key-box-header auth-key-box-header--qrfirst">
                     <div class="auth-key-box-icon"><i class="bi bi-key"></i></div>
                     <div>
-                        <div class="auth-key-box-title" id="registerStep2Title">Фраза восстановления, 24 слова</div>
-                        <div class="auth-key-box-sub" id="registerStep2Sub">Запишите слова на бумаге. Аккаунт будет создан только после проверки этой фразы.</div>
+                        <div class="auth-key-box-title" id="registerStep2Title">Фраза восстановления, 12 слов</div>
+                        <div class="auth-key-box-sub" id="registerStep2Sub">Эти слова возвращают доступ к зашифрованным чатам. SUN не сможет восстановить их за вас.</div>
                     </div>
                 </div>
                 <div class="auth-form-group auth-private-key-group">
@@ -268,7 +255,7 @@
                     <i class="bi bi-clipboard"></i> <span id="copyPrivateKeyBtnLabel">Скопировать</span>
                 </button>
                 <button type="button" class="auth-btn auth-btn-primary" id="registerStep2NextBtn">
-                    <span id="registerStep2NextLabel">Я записал, дальше</span>
+                    <span id="registerStep2NextLabel">Сохранил, проверить</span>
                     <span class="auth-btn-arrow">&rarr;</span>
                 </button>
             </section>
@@ -280,14 +267,13 @@
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
                         <span class="auth-register-progress-dot"></span>
-                        <span class="auth-register-progress-dot"></span>
                     </div>
                 </div>
                 <div class="auth-key-box-header auth-key-box-header--qrfirst">
                     <div class="auth-key-box-icon"><i class="bi bi-check2-circle"></i></div>
                     <div>
-                        <div class="auth-key-box-title" id="registerStep3Title">Маленькая проверка</div>
-                        <div class="auth-key-box-sub" id="registerStep3Sub">Хотим убедиться, что вы записали слова, а не пролистали.</div>
+                        <div class="auth-key-box-title" id="registerStep3Title">Проверка фразы</div>
+                        <div class="auth-key-box-sub" id="registerStep3Sub">Введите два слова, чтобы подтвердить сохранение.</div>
                     </div>
                 </div>
                 <div class="auth-register-confirm-grid">

@@ -72,7 +72,7 @@ export function initMnemonicSection({
             if (value) wordsArr.push(value);
         });
         if (wordsArr.length < 12) {
-            showAlert('Введите минимум 12 слов (для старых аккаунтов) или все 24', 'warning');
+            showAlert('Введите 12 или 24 слова восстановления', 'warning');
             return;
         }
 

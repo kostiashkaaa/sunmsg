@@ -390,7 +390,7 @@ def login_totp():
     backup_code = str(data.get('backup_code') or '').strip()
 
     if not pending:
-        return jsonify({'success': False, 'error': 'Сначала подтвердите вход 24 словами.'}), 401
+        return jsonify({'success': False, 'error': 'Сначала подтвердите вход словами восстановления.'}), 401
     if not totp_code and not backup_code:
         return jsonify({'success': False, 'error': 'Введите 6-значный код или резервный код.'}), 400
     if totp_code and backup_code:

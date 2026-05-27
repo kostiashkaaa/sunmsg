@@ -264,7 +264,7 @@ export function initLoginFlow({
         setLoginMethod('key');
     });
     methodTotpCardBtn?.addEventListener('click', () => {
-        showToast(pickCopy('Этот способ доступен после ввода 24 слов.', 'This method is available after entering your 24 words.'), 'info');
+        showToast(pickCopy('Этот способ доступен после ввода слов восстановления.', 'This method is available after entering your recovery words.'), 'info');
     });
     loginOtherBackBtn?.addEventListener('click', () => {
         setLoginMethod('qr');
@@ -329,7 +329,7 @@ export function initLoginFlow({
             btnText.textContent = tr('Получение ключа...');
             const mnemonicInput = getMnemonicFromGrid();
             if (mnemonicInput.split(' ').length < 12) {
-                throw new Error(tr('Введите все 24 слова (или минимум 12 для старых аккаунтов)'));
+                throw new Error(pickCopy('Введите 12 или 24 слова восстановления', 'Enter 12 or 24 recovery words'));
             }
 
             const challengeRes = await fetch(withAppRoot('/api/get_challenge'), {
@@ -353,7 +353,7 @@ export function initLoginFlow({
             } catch (decryptErr) {
                 const decryptMessage = String(decryptErr?.message || '');
                 if (decryptMessage.includes('Неверная фраза')) {
-                    throw new Error(tr('Не удалось расшифровать ключ. Проверьте 24 слова и имя пользователя.'));
+                    throw new Error(pickCopy('Не удалось расшифровать ключ. Проверьте слова и имя пользователя.', 'Could not decrypt the key. Check your words and @handle.'));
                 }
                 throw decryptErr;
             }

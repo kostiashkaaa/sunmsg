@@ -33,6 +33,25 @@ from .context import (
     auth_bp,
 )
 
+_USERNAME_PATTERN = re.compile(r'[a-z0-9_]+')
+
+
+def _normalize_registration_username(value) -> str:
+    return str(value or '').strip().lower().lstrip('@').strip()
+
+
+def _registration_username_error(username: str) -> str:
+    if not username:
+        return 'Введите @ник.'
+    if len(username) < 2:
+        return 'Никнейм должен содержать не менее 2 символов.'
+    if len(username) > USERNAME_MAX_LENGTH:
+        return 'Никнейм не должен превышать 50 символов.'
+    if not _USERNAME_PATTERN.fullmatch(username):
+        return 'Никнейм может содержать только a–z, 0–9, _'
+    return ''
+
+
 @auth_bp.route('/api/get_register_challenge', methods=['POST'])
 @limiter.limit("10 per minute")
 def get_register_challenge():
@@ -40,12 +59,39 @@ def get_register_challenge():
     challenge = issue_register_challenge_for_session(session)
     return jsonify({'success': True, 'challenge': challenge})
 
+
+@auth_bp.route('/api/register_username_status', methods=['POST'])
+@limiter.limit("30 per minute")
+def register_username_status():
+    data = request.get_json(silent=True) or {}
+    username = _normalize_registration_username(data.get('username'))
+    validation_error = _registration_username_error(username)
+    if validation_error:
+        return jsonify({'success': False, 'error': validation_error}), 400
+
+    conn = get_db_connection()
+    try:
+        existing = conn.execute(
+            'SELECT 1 FROM users WHERE username = ? LIMIT 1',
+            (username,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return jsonify({
+        'success': True,
+        'username': username,
+        'available': existing is None,
+        'error': '' if existing is None else 'Имя пользователя уже занято.',
+    })
+
+
 @auth_bp.route('/api/register_client', methods=['POST'])
 @limiter.limit("5 per minute")
 def register_client():  # noqa: C901, PLR0915 - registration orchestration with validation gates
     """Registers a new user without enabling TOTP by default."""
     data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip()
+    username = _normalize_registration_username(data.get('username'))
     display_name = (data.get('display_name') or '').strip()
     public_key_pem = data.get('public_key')
     login_vault = data.get('login_vault')
@@ -53,19 +99,17 @@ def register_client():  # noqa: C901, PLR0915 - registration orchestration with 
     register_signature = str(data.get('register_signature') or '').strip()
     requested_language = data.get('language')
 
-    if not username or not display_name or not public_key_pem:
-        return jsonify({'success': False, 'error': 'Все поля обязательны.'}), 400
+    if not username or not public_key_pem:
+        return jsonify({'success': False, 'error': 'Никнейм и публичный ключ обязательны.'}), 400
     if not register_challenge or not register_signature:
         return jsonify({'success': False, 'error': 'Не подтверждено владение приватным ключом.'}), 400
-    if len(username) < 2:
-        return jsonify({'success': False, 'error': 'Никнейм должен содержать не менее 2 символов.'}), 400
-    if len(username) > USERNAME_MAX_LENGTH:
-        return jsonify({'success': False, 'error': 'Никнейм не должен превышать 50 символов.'}), 400
+    username_error = _registration_username_error(username)
+    if username_error:
+        return jsonify({'success': False, 'error': username_error}), 400
+    if not display_name:
+        display_name = username
     if len(display_name) > DISPLAY_NAME_MAX_LENGTH:
         return jsonify({'success': False, 'error': 'Отображаемое имя не должно превышать 50 символов.'}), 400
-
-    if not re.fullmatch(r'[a-z0-9_]+', username):
-        return jsonify({'success': False, 'error': 'Никнейм может содержать только a–z, 0–9, _'}), 400
 
     expected_challenge, challenge_issued_at = consume_register_challenge_from_session(session)
     if not expected_challenge or expected_challenge != register_challenge:

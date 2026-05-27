@@ -51,15 +51,15 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
             : '<span id="loginIntroTitleMain">Войти</span><em class="auth-login-intro-em" id="loginIntroTitleAccent">без лишних шагов.</em>',
     );
 
-    setText('registerStep1Title', isEn ? 'Quick intro' : 'Знакомимся');
+    setText('registerStep1Title', isEn ? 'Choose @handle' : 'Выберите @ник');
     setText(
         'registerStep1Sub',
         isEn
-            ? 'Your name is shown to contacts. @handle is how people find you.'
-            : 'Имя видят ваши собеседники. @ник — по нему вас находят.',
+            ? 'People will find you by this handle. You can add your display name later.'
+            : 'По нему вас найдут. Имя для чатов можно добавить позже.',
     );
     setText('loginUsernameLabel', isEn ? '@ handle' : '@ ник');
-    setText('loginMnemonicLabel', isEn ? '24 words separated by spaces' : '24 слова через пробел');
+    setText('loginMnemonicLabel', isEn ? '12 or 24 words separated by spaces' : '12 или 24 слова через пробел');
     setText('loginTotpCodeLabel', isEn ? 'Code from authenticator app' : 'Код из приложения-аутентификатора');
     setText(
         'loginTotpHelpText',
@@ -73,37 +73,32 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     );
     setText(
         'registerUsernameNote',
-        isEn ? 'Username is used for sign-in and must be unique.' : 'Username используется для входа и должен быть уникальным.',
-    );
-    setText(
-        'registerDisplayNameNote',
-        isEn ? 'Your contacts see this display name in chats.' : 'Отображаемое имя видят ваши контакты в чатах.',
+        isEn ? 'Used for sign-in and contact search.' : 'Нужен для входа и поиска контактов.',
     );
     setAttr('reg_username', 'placeholder', isEn ? 'your_username' : 'ваш_username');
-    setAttr('reg_display_name', 'placeholder', isEn ? 'Your name' : 'Ваше имя');
 
-    setText('registerBtnText', isEn ? 'Show recovery phrase' : 'Показать фразу');
+    setText('registerBtnText', isEn ? 'Continue' : 'Продолжить');
     setHtml('loginOtherBackBtn', isEn ? '&larr; Back' : '&larr; Назад');
     setHtml('registerStep2BackBtn', isEn ? '&larr; Back' : '&larr; Назад');
     setHtml('registerStep3BackBtn', isEn ? '&larr; Back' : '&larr; Назад');
 
-    setText('registerStep2Title', isEn ? 'Recovery phrase, 24 words' : 'Фраза восстановления, 24 слова');
+    setText('registerStep2Title', isEn ? 'Recovery phrase, 12 words' : 'Фраза восстановления, 12 слов');
     setText(
         'registerStep2Sub',
         isEn
-            ? 'Write the words on paper. The account will be created only after this phrase is checked.'
-            : 'Запишите слова на бумаге. Аккаунт будет создан только после проверки этой фразы.',
+            ? 'These words restore encrypted chats. SUN cannot recover them for you.'
+            : 'Эти слова возвращают доступ к зашифрованным чатам. SUN не сможет восстановить их за вас.',
     );
     setText('registerMnemonicRevealText', isEn ? 'Reveal' : 'Показать');
     setText('copyPrivateKeyBtnLabel', isEn ? 'Copy' : 'Скопировать');
-    setText('registerStep2NextLabel', isEn ? 'I wrote them down, next' : 'Я записал, дальше');
+    setText('registerStep2NextLabel', isEn ? 'Saved, check words' : 'Сохранил, проверить');
 
-    setText('registerStep3Title', isEn ? 'Quick check' : 'Маленькая проверка');
+    setText('registerStep3Title', isEn ? 'Check recovery words' : 'Проверка фразы');
     setText(
         'registerStep3Sub',
         isEn
-            ? 'Just confirming you wrote the words down and did not skip this step.'
-            : 'Хотим убедиться, что вы записали слова, а не пролистали.',
+            ? 'Enter two words so we know recovery was saved.'
+            : 'Введите два слова, чтобы подтвердить сохранение.',
     );
     setText('registerStep3ContinueLabel', isEn ? 'Continue' : 'Продолжить');
     setText('registerStep3ShowWordsBtn', isEn ? 'Show the words again' : 'Показать слова ещё раз');
@@ -195,12 +190,13 @@ function syncRegisterFlowCopy(language = ui.activeLanguage()) {
     const progressTextNode = document.getElementById('registerFlowProgressText');
     if (progressTextNode) {
         const step = Number(document.querySelector('.auth-register-progress')?.dataset.step || '1');
-        const ru = { 1: 'Данные аккаунта', 2: 'Фраза восстановления', 3: 'Маленькая проверка', 4: 'Готово' };
-        const en = { 1: 'Account details', 2: 'Recovery phrase', 3: 'Quick check', 4: 'Done' };
-        const safeStep = Math.min(4, Math.max(1, Number.isFinite(step) ? step : 1));
+        const totalSteps = 3;
+        const ru = { 1: 'Данные аккаунта', 2: '12 слов', 3: 'Проверка' };
+        const en = { 1: 'Account details', 2: '12 words', 3: 'Check' };
+        const safeStep = Math.min(totalSteps, Math.max(1, Number.isFinite(step) ? step : 1));
         progressTextNode.textContent = isEn
-            ? `Step ${safeStep} of 4 — ${en[safeStep]}`
-            : `Шаг ${safeStep} из 4 — ${ru[safeStep]}`;
+            ? `Step ${safeStep} of ${totalSteps} — ${en[safeStep]}`
+            : `Шаг ${safeStep} из ${totalSteps} — ${ru[safeStep]}`;
     }
 }
 

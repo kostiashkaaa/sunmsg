@@ -817,6 +817,8 @@
     margin-top: 4px;
     display: none;
 }
+.auth-username-hint[data-status="success"] { color: var(--success); }
+.auth-username-hint[data-status="error"] { color: var(--danger); }
 .auth-input-icon {
     position: absolute;
     left: 13px;
@@ -2339,7 +2341,6 @@ body[data-ui-language="en"] #registerStep1Sub::before {
     border-bottom-width: 1.5px !important;
 }
 
-#reg_username_hint,
 .auth-register-step1 .auth-field-note {
     display: none !important;
 }
@@ -3654,8 +3655,7 @@ body.auth-page-body--sunrise-v3 .auth-register-step1 #registerSubmitBtn {
     margin-top: auto;
 }
 
-body.auth-page-body--sunrise-v3 .auth-register-step1 .auth-field-note,
-body.auth-page-body--sunrise-v3 #reg_username_hint {
+body.auth-page-body--sunrise-v3 .auth-register-step1 .auth-field-note {
     display: none !important;
 }
 

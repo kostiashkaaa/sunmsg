@@ -129,7 +129,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
             ? 'Other ways to sign in'
             : 'Другие способы войти';
         if (methodQrBtnLabelEl) methodQrBtnLabelEl.textContent = isEn ? 'QR sign in' : 'QR вход';
-        if (methodKeyBtnLabelEl) methodKeyBtnLabelEl.textContent = isEn ? 'Sign in with 24 words' : 'Войти 24 словами';
+        if (methodKeyBtnLabelEl) methodKeyBtnLabelEl.textContent = isEn ? 'Sign in with words' : 'Войти по словам';
         if (methodKeyBtnSubEl) methodKeyBtnSubEl.textContent = isEn ? 'If your phone is lost' : 'Если потерян телефон';
         if (methodTotpTitleEl) methodTotpTitleEl.textContent = isEn ? '6-digit code only' : 'Только 6-значный код';
         if (methodTotpSubEl) methodTotpSubEl.textContent = 'Authenticator';
@@ -453,7 +453,7 @@ export function initAuthUi({ withAppRoot, getCsrfToken }) {
         }
 
         if (copied) {
-            showToast('24 слова скопированы!', 'success');
+            showToast('Слова восстановления скопированы!', 'success');
         } else {
             showToast('Не удалось скопировать. Скопируйте вручную.', 'error');
         }

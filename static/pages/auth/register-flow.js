@@ -53,6 +53,9 @@ export function initRegisterFlow({
     const registerDoneName = document.getElementById('registerDoneName');
     const registerDoneUsername = document.getElementById('registerDoneUsername');
     const registerDoneAvatar = document.getElementById('registerDoneAvatar');
+    const REGISTER_TOTAL_STEPS = 3;
+    let usernameCheckTimer = 0;
+    let usernameCheckSeq = 0;
 
     const flowState = {
         step: 1,
@@ -137,12 +140,101 @@ export function initRegisterFlow({
         );
     }
 
+    function setUsernameStatus(message, type = 'neutral') {
+        if (!regUsernameHint) return;
+        const text = String(message || '').trim();
+        regUsernameHint.textContent = text;
+        regUsernameHint.style.display = text ? 'block' : 'none';
+        regUsernameHint.dataset.status = type;
+    }
+
+    function validateUsernameForRegistration(username) {
+        const value = String(username || '').trim().toLowerCase().replace(/^@+/, '');
+        if (!value) {
+            return isEnglish() ? 'Choose your @handle.' : 'Введите @ник.';
+        }
+        if (value.length < 2) {
+            return isEnglish() ? '@handle must be at least 2 characters.' : 'Никнейм должен содержать не менее 2 символов.';
+        }
+        if (value.length > 50) {
+            return isEnglish() ? '@handle must be 50 characters or fewer.' : 'Никнейм не должен превышать 50 символов.';
+        }
+        if (!/^[a-z0-9_]+$/.test(value)) {
+            return isEnglish() ? 'Use only a-z, 0-9 and _.' : 'Никнейм может содержать только a-z, 0-9 и _.';
+        }
+        return '';
+    }
+
+    async function checkUsernameAvailability(rawUsername, { silent = false, expectedSeq = 0 } = {}) {
+        const username = String(rawUsername || '').trim().toLowerCase().replace(/^@+/, '');
+        const validationError = validateUsernameForRegistration(username);
+        if (validationError) {
+            if (expectedSeq && usernameCheckSeq !== expectedSeq) return username;
+            regUsernameInput?.setCustomValidity(validationError);
+            if (!silent || username) setUsernameStatus(validationError, 'error');
+            throw new Error(validationError);
+        }
+
+        if (!silent) {
+            setUsernameStatus(isEnglish() ? 'Checking availability...' : 'Проверяем доступность...', 'neutral');
+        }
+
+        const response = await fetch(withAppRoot('/api/register_username_status'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ username }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (expectedSeq && usernameCheckSeq !== expectedSeq) return username;
+        if (!response.ok || !data.success) {
+            const message = tr(data.error || (isEnglish() ? 'Could not check @handle.' : 'Не удалось проверить @ник.'));
+            regUsernameInput?.setCustomValidity(message);
+            if (!silent) setUsernameStatus(message, 'error');
+            throw new Error(message);
+        }
+        if (!data.available) {
+            const message = tr(data.error || (isEnglish() ? 'This @handle is already taken.' : 'Этот @ник уже занят.'));
+            regUsernameInput?.setCustomValidity(message);
+            if (!silent) setUsernameStatus(message, 'error');
+            throw new Error(message);
+        }
+
+        regUsernameInput?.setCustomValidity('');
+        setUsernameStatus(isEnglish() ? 'Available.' : 'Свободен.', 'success');
+        return String(data.username || username);
+    }
+
+    function scheduleUsernameAvailabilityCheck(username) {
+        window.clearTimeout(usernameCheckTimer);
+        const currentSeq = usernameCheckSeq + 1;
+        usernameCheckSeq = currentSeq;
+        const validationError = validateUsernameForRegistration(username);
+        if (!username) {
+            regUsernameInput?.setCustomValidity('');
+            setUsernameStatus('', 'neutral');
+            return;
+        }
+        if (validationError) {
+            regUsernameInput?.setCustomValidity(validationError);
+            setUsernameStatus(validationError, 'error');
+            return;
+        }
+        setUsernameStatus(isEnglish() ? 'Checking availability...' : 'Проверяем доступность...', 'neutral');
+        usernameCheckTimer = window.setTimeout(() => {
+            checkUsernameAvailability(username, { expectedSeq: currentSeq }).catch(() => {});
+        }, 350);
+    }
+
     async function prepareLocalRegistrationDraft(username, displayName) {
         assertWebCryptoSupport();
 
         flowState.profile = {
             username,
-            displayName,
+            displayName: displayName || username,
             avatarUrl: '',
         };
 
@@ -179,11 +271,11 @@ export function initRegisterFlow({
 
     async function createAccountAfterRecoveryCheck() {
         const username = String(flowState.profile.username || '').trim();
-        const displayName = String(flowState.profile.displayName || '').trim();
-        if (!username || !displayName || !hasLocalRegistrationDraft()) {
+        const displayName = String(flowState.profile.displayName || username).trim();
+        if (!username || !hasLocalRegistrationDraft()) {
             throw new Error(isEnglish()
-                ? 'Return to account details and fill in the required fields.'
-                : 'Вернитесь к данным аккаунта и заполните обязательные поля.');
+                ? 'Return to account details and choose your @handle.'
+                : 'Вернитесь к данным аккаунта и выберите @ник.');
         }
 
         const challengeRes = await fetch(withAppRoot('/api/get_register_challenge'), {
@@ -293,21 +385,20 @@ export function initRegisterFlow({
     function updateProgress(step) {
         const ru = {
             1: 'Данные аккаунта',
-            2: 'Фраза восстановления',
-            3: 'Маленькая проверка',
-            4: 'Готово',
+            2: '12 слов',
+            3: 'Проверка',
         };
         const en = {
             1: 'Account details',
-            2: 'Recovery phrase',
-            3: 'Quick check',
-            4: 'Done',
+            2: '12 words',
+            3: 'Check',
         };
         const language = activeLanguage() === 'en' ? 'en' : 'ru';
-        const title = language === 'en' ? en[step] : ru[step];
+        const safeStep = Math.min(REGISTER_TOTAL_STEPS, Math.max(1, Number(step || 1)));
+        const title = language === 'en' ? en[safeStep] : ru[safeStep];
         const progressText = language === 'en'
-            ? `Step ${step} of 4 — ${title}`
-            : `Шаг ${step} из 4 — ${title}`;
+            ? `Step ${safeStep} of ${REGISTER_TOTAL_STEPS} — ${title}`
+            : `Шаг ${safeStep} из ${REGISTER_TOTAL_STEPS} — ${title}`;
 
         document.querySelectorAll('.auth-register-progress').forEach((node) => {
             node.dataset.step = String(step);
@@ -406,15 +497,13 @@ export function initRegisterFlow({
     }
 
     regUsernameInput?.addEventListener('input', function onUsernameInput() {
-        const clean = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        const clean = this.value.toLowerCase().replace(/^@+/, '').replace(/[^a-z0-9_]/g, '');
         if (clean !== this.value) {
             const pos = this.selectionStart - (this.value.length - clean.length);
             this.value = clean;
             this.setSelectionRange(pos, pos);
         }
-        if (regUsernameHint) {
-            regUsernameHint.style.display = this.value.length > 0 ? 'block' : 'none';
-        }
+        scheduleUsernameAvailabilityCheck(this.value);
     });
 
     registerStep1BackBtn?.addEventListener('click', () => {
@@ -448,8 +537,8 @@ export function initRegisterFlow({
         if (!flowState.wordsRevealed) {
             showToast(
                 isEnglish()
-                    ? 'Reveal and save all 24 words first.'
-                    : 'Сначала откройте и сохраните 24 слова.',
+                    ? 'Reveal and save all 12 words first.'
+                    : 'Сначала откройте и сохраните 12 слов.',
                 'error',
             );
             return;
@@ -474,8 +563,8 @@ export function initRegisterFlow({
             );
             showToast(
                 isEnglish()
-                    ? 'Check your saved 24 words and try again.'
-                    : 'Проверьте сохранённые 24 слова и повторите ввод.',
+                    ? 'Check your saved 12 words and try again.'
+                    : 'Проверьте сохранённые 12 слов и повторите ввод.',
                 'error',
             );
             return;
@@ -485,14 +574,13 @@ export function initRegisterFlow({
         setRegisterConfirmState(true);
         try {
             await createAccountAfterRecoveryCheck();
-            setRegisterStep(4);
             showToast(
                 isEnglish()
-                    ? 'Account created. You can open the messenger.'
-                    : 'Аккаунт создан. Можно открыть мессенджер.',
+                    ? 'Account created. Opening the messenger...'
+                    : 'Аккаунт создан. Открываем мессенджер...',
                 'success',
             );
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            await openMessengerAfterRegister();
         } catch (err) {
             const message = tr(err?.message || 'Ошибка регистрации');
             setConfirmError(message);
@@ -513,8 +601,8 @@ export function initRegisterFlow({
             if (!staged) {
                 showToast(
                     isEnglish()
-                        ? 'Signed in, but key activation on this device did not complete. Open chat and restore access with your 24 words.'
-                        : 'Вход выполнен, но ключ на этом устройстве не активирован. Откройте чат и восстановите доступ по 24 словам.',
+                        ? 'Signed in, but key activation on this device did not complete. Open chat and restore access with your 12 words.'
+                        : 'Вход выполнен, но ключ на этом устройстве не активирован. Откройте чат и восстановите доступ по 12 словам.',
                     'info',
                 );
             }
@@ -553,19 +641,22 @@ export function initRegisterFlow({
         if (!registerSubmitBtn || !registerBtnText) return;
 
         registerSubmitBtn.disabled = true;
-        registerBtnText.textContent = tr('Генерация фразы...');
+        registerBtnText.textContent = tr(isEnglish() ? 'Checking @handle...' : 'Проверяем @ник...');
         setSubmitButtonState(registerSubmitBtn, true);
 
         try {
             const username = document.getElementById('reg_username')?.value.trim() || '';
-            const displayName = document.getElementById('reg_display_name')?.value.trim() || '';
-            await prepareLocalRegistrationDraft(username, displayName);
+            registerBtnText.textContent = tr(isEnglish() ? 'Checking @handle...' : 'Проверяем @ник...');
+            const checkedUsername = await checkUsernameAvailability(username);
+            const displayName = checkedUsername;
+            registerBtnText.textContent = tr(isEnglish() ? 'Generating words...' : 'Генерация фразы...');
+            await prepareLocalRegistrationDraft(checkedUsername, displayName);
             setRegisterStep(2);
 
             showToast(
                 isEnglish()
-                    ? 'Save the recovery phrase first. The account will be created after the word check.'
-                    : 'Сначала сохраните фразу восстановления. Аккаунт создадим после проверки слов.',
+                    ? 'Save the 12 recovery words first. The account will be created after the word check.'
+                    : 'Сначала сохраните 12 слов восстановления. Аккаунт создадим после проверки слов.',
                 'info',
             );
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -574,7 +665,7 @@ export function initRegisterFlow({
         } finally {
             registerSubmitBtn.disabled = false;
             setSubmitButtonState(registerSubmitBtn, false);
-            registerBtnText.textContent = tr(isEnglish() ? 'Show recovery phrase' : 'Показать фразу');
+            registerBtnText.textContent = tr(isEnglish() ? 'Continue' : 'Продолжить');
         }
     });
 
