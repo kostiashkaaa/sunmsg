@@ -1,4 +1,5 @@
 import { waitForMotionEnd } from './motion.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 export function initMessageActionsBar({
     barEl,
@@ -8,6 +9,7 @@ export function initMessageActionsBar({
     copyButtonEl,
     deleteButtonEl,
     selectButtonEl,
+    chatMessages,
     isChatBlocked,
 } = {}) {
     const state = {
@@ -48,9 +50,11 @@ export function initMessageActionsBar({
         if (deleteButtonEl) deleteButtonEl.style.display = blocked ? 'none' : 'inline-flex';
         if (selectButtonEl) selectButtonEl.style.display = blocked ? 'none' : 'inline-flex';
 
-        barEl.classList.remove('message-actions-bar--hidden', 'is-closing');
-        barEl.style.display = 'flex';
-        barEl.setAttribute('aria-hidden', 'false');
+        withStableChatScroll(chatMessages || barEl, () => {
+            barEl.classList.remove('message-actions-bar--hidden', 'is-closing');
+            barEl.style.display = 'flex';
+            barEl.setAttribute('aria-hidden', 'false');
+        });
         const seq = ++barMotionSeq;
         requestAnimationFrame(() => {
             if (seq !== barMotionSeq) return;
@@ -63,22 +67,30 @@ export function initMessageActionsBar({
         if (!barEl) return;
 
         const seq = ++barMotionSeq;
-        barEl.classList.remove('is-visible');
-        barEl.setAttribute('aria-hidden', 'true');
+        withStableChatScroll(chatMessages || barEl, () => {
+            barEl.classList.remove('is-visible');
+            barEl.setAttribute('aria-hidden', 'true');
+        });
 
         if (immediate) {
-            barEl.classList.remove('is-closing');
-            barEl.classList.add('message-actions-bar--hidden');
-            barEl.style.display = 'none';
+            withStableChatScroll(chatMessages || barEl, () => {
+                barEl.classList.remove('is-closing');
+                barEl.classList.add('message-actions-bar--hidden');
+                barEl.style.display = 'none';
+            });
             return;
         }
 
-        barEl.classList.add('is-closing');
+        withStableChatScroll(chatMessages || barEl, () => {
+            barEl.classList.add('is-closing');
+        });
         waitForMotionEnd(barEl, 300).then(() => {
             if (seq !== barMotionSeq) return;
-            barEl.classList.remove('is-closing');
-            barEl.classList.add('message-actions-bar--hidden');
-            barEl.style.display = 'none';
+            withStableChatScroll(chatMessages || barEl, () => {
+                barEl.classList.remove('is-closing');
+                barEl.classList.add('message-actions-bar--hidden');
+                barEl.style.display = 'none';
+            });
         });
     }
 

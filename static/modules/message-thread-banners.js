@@ -1,3 +1,5 @@
+import { withStableChatScroll } from './chat-scroll-stability.js';
+
 export function initReplyBar({
     barEl,
     textEl,
@@ -5,6 +7,7 @@ export function initReplyBar({
     inputEl,
     inputAreaEl,
     formEl,
+    chatMessages,
     renderMessagePreviewHtml,
     applyEmojiGraphics,
 } = {}) {
@@ -25,11 +28,14 @@ export function initReplyBar({
     function mountReplyBar() {
         if (!barEl) return;
         clearHideTimer();
-        const seq = ++replyMotionSeq;
-        barEl.classList.remove('is-closing');
-        barEl.style.display = 'flex';
-        barEl.setAttribute('aria-hidden', 'false');
-        inputAreaEl?.classList.add('has-reply-banner');
+        let seq = 0;
+        withStableChatScroll(chatMessages || barEl, () => {
+            seq = ++replyMotionSeq;
+            barEl.classList.remove('is-closing');
+            barEl.style.display = 'flex';
+            barEl.setAttribute('aria-hidden', 'false');
+            inputAreaEl?.classList.add('has-reply-banner');
+        });
         requestAnimationFrame(() => {
             if (seq !== replyMotionSeq) return;
             barEl.classList.add('is-visible');
@@ -39,17 +45,22 @@ export function initReplyBar({
     function unmountReplyBar() {
         if (!barEl) return;
         clearHideTimer();
-        const seq = ++replyMotionSeq;
-        barEl.classList.remove('is-visible');
-        barEl.classList.add('is-closing');
-        barEl.setAttribute('aria-hidden', 'true');
-        inputAreaEl?.classList.remove('has-reply-banner');
+        let seq = 0;
+        withStableChatScroll(chatMessages || barEl, () => {
+            seq = ++replyMotionSeq;
+            barEl.classList.remove('is-visible');
+            barEl.classList.add('is-closing');
+            barEl.setAttribute('aria-hidden', 'true');
+            inputAreaEl?.classList.remove('has-reply-banner');
+        });
         waitForBannerMotionEnd(barEl, 300).then(() => {
             if (seq !== replyMotionSeq) return;
             if (replyToId) return;
-            barEl.classList.remove('is-closing');
-            barEl.style.display = 'none';
-            hideTimerId = 0;
+            withStableChatScroll(chatMessages || barEl, () => {
+                barEl.classList.remove('is-closing');
+                barEl.style.display = 'none';
+                hideTimerId = 0;
+            });
         });
     }
 
@@ -101,6 +112,7 @@ export function initPinnedBar({
     labelEl,
     textEl,
     unpinButtonEl,
+    chatMessages,
     renderMessagePreviewHtml,
     applyEmojiGraphics,
     singularLabel = 'Закреплённое сообщение',
@@ -151,27 +163,32 @@ export function initPinnedBar({
             return;
         }
 
-        if (labelNode) {
-            labelNode.textContent = pinnedMessages.length > 1
-                ? String(pluralLabelTemplate || '')
-                    .replace('{current}', String(currentIndex + 1))
-                    .replace('{total}', String(pinnedMessages.length))
-                : String(singularLabel || '');
-        }
-        if (textEl) {
-            textEl.innerHTML = renderMessagePreviewHtml(currentPinnedMessage.preview, {
-                maxLen: 90,
-                emptyText: '',
-                mediaTokenStyle: 'plain',
-            });
-            applyEmojiGraphics(textEl);
-            window._hydrateMediaPreviewThumbs?.(textEl);
-        }
+        let seq = 0;
+        withStableChatScroll(chatMessages || barEl, () => {
+            if (labelNode) {
+                labelNode.textContent = pinnedMessages.length > 1
+                    ? String(pluralLabelTemplate || '')
+                        .replace('{current}', String(currentIndex + 1))
+                        .replace('{total}', String(pinnedMessages.length))
+                    : String(singularLabel || '');
+            }
+            if (textEl) {
+                textEl.innerHTML = renderMessagePreviewHtml(currentPinnedMessage.preview, {
+                    maxLen: 90,
+                    emptyText: '',
+                    mediaTokenStyle: 'plain',
+                });
+                applyEmojiGraphics(textEl);
+                window._hydrateMediaPreviewThumbs?.(textEl);
+            }
+            if (barEl) {
+                seq = ++pinnedMotionSeq;
+                barEl.classList.remove('is-closing', 'pinned-bar--hidden');
+                barEl.style.display = 'flex';
+                barEl.setAttribute('aria-hidden', 'false');
+            }
+        });
         if (barEl) {
-            const seq = ++pinnedMotionSeq;
-            barEl.classList.remove('is-closing', 'pinned-bar--hidden');
-            barEl.style.display = 'flex';
-            barEl.setAttribute('aria-hidden', 'false');
             requestAnimationFrame(() => {
                 if (seq !== pinnedMotionSeq) return;
                 barEl.classList.add('is-visible');
@@ -183,15 +200,20 @@ export function initPinnedBar({
         pinnedMessages = [];
         currentIndex = 0;
         if (!barEl) return;
-        const seq = ++pinnedMotionSeq;
-        barEl.classList.remove('is-visible');
-        barEl.classList.add('is-closing');
-        barEl.setAttribute('aria-hidden', 'true');
+        let seq = 0;
+        withStableChatScroll(chatMessages || barEl, () => {
+            seq = ++pinnedMotionSeq;
+            barEl.classList.remove('is-visible');
+            barEl.classList.add('is-closing');
+            barEl.setAttribute('aria-hidden', 'true');
+        });
         waitForBannerMotionEnd(barEl, 300).then(() => {
             if (seq !== pinnedMotionSeq) return;
-            barEl.classList.remove('is-closing');
-            barEl.classList.add('pinned-bar--hidden');
-            barEl.style.display = 'none';
+            withStableChatScroll(chatMessages || barEl, () => {
+                barEl.classList.remove('is-closing');
+                barEl.classList.add('pinned-bar--hidden');
+                barEl.style.display = 'none';
+            });
         });
     }
 

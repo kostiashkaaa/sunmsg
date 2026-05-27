@@ -27,6 +27,7 @@ export function initChatThreadBarsRuntime({
         inputEl: messageInput,
         inputAreaEl: chatInputArea,
         formEl: messageForm,
+        chatMessages,
         renderMessagePreviewHtml,
         applyEmojiGraphics,
     });
@@ -39,6 +40,7 @@ export function initChatThreadBarsRuntime({
         closeBtnEl: documentRef.getElementById('cancelLinkDraftBtn'),
         inputEl: messageInput,
         formEl: messageForm,
+        chatMessages,
         resizeComposerInput,
         scheduleComposerFocus,
     });
@@ -47,6 +49,7 @@ export function initChatThreadBarsRuntime({
         labelEl: documentRef.querySelector('#pinnedBar .pinned-bar__label'),
         textEl: documentRef.getElementById('pinnedBarText'),
         unpinButtonEl: documentRef.getElementById('unpinBtn'),
+        chatMessages,
         renderMessagePreviewHtml,
         applyEmojiGraphics,
         onScrollToMessage: (msgId) => focusMessageById(msgId),
@@ -62,6 +65,7 @@ export function initChatThreadBarsRuntime({
         labelEl: documentRef.querySelector('#favoriteBar .pinned-bar__label'),
         textEl: documentRef.getElementById('favoriteBarText'),
         unpinButtonEl: documentRef.getElementById('unfavoriteBtn'),
+        chatMessages,
         renderMessagePreviewHtml,
         applyEmojiGraphics,
         singularLabel: '\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435',

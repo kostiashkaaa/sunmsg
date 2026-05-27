@@ -1796,7 +1796,7 @@
 
 @media (max-width: 768px) {
     .chat-area {
-        --chat-mobile-outgoing-edge-offset: calc(var(--composer-action-size) + 8px);
+        --chat-mobile-outgoing-edge-offset: 0px;
         --chat-bubble-max-width: min(92%, 680px);
         --chat-message-font-size: calc(14px * var(--chat-message-scale));
         --chat-message-line-height: 1.3;

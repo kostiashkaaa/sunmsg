@@ -1890,6 +1890,7 @@ export const initChatPage = async () => {
         copyButtonEl: barCopyBtn,
         deleteButtonEl: barDeleteBtn,
         selectButtonEl: barSelectBtn,
+        chatMessages,
         isChatBlocked,
     });
     const messageSelectionController = initMessageSelection({
@@ -1910,6 +1911,7 @@ export const initChatPage = async () => {
         forwardDraftBar,
         forwardDraftLabel,
         forwardDraftText,
+        chatMessages,
         cancelForwardDraftBtn,
         messageForwardModal,
         messageForwardSearchInput,

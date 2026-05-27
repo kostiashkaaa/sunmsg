@@ -15,6 +15,10 @@ const buildAvatarInitials = () => 'A';
 const escapeHtml = (value) => String(value ?? '');
 const generateRequestId = () => 'req-test';`
 );
+source = source.replace(
+  /import\\s*\\{{\\s*withStableChatScroll\\s*\\}}\\s*from\\s*['"]\\.\\/chat-scroll-stability\\.js['"];\\s*/,
+  'const withStableChatScroll = (_referenceNode, mutateFn) => mutateFn();'
+);
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
 const moduleApi = await import(moduleUrl);
 

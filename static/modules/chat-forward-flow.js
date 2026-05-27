@@ -3,6 +3,7 @@
 // поведения — все внешние зависимости приходят через deps.
 
 import { applyEmojiGraphics, buildAvatarInitials, escapeHtml, generateRequestId } from './utils.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 const FORWARD_ALLOWED_MESSAGE_TYPES = new Set(['text', 'link', 'photo', 'video', 'audio', 'file', 'voice']);
 
@@ -13,6 +14,7 @@ export function createChatForwardFlow(deps = {}) {
         forwardDraftBar,
         forwardDraftLabel,
         forwardDraftText,
+        chatMessages,
         cancelForwardDraftBtn,
         messageForwardModal,
         messageForwardSearchInput,
@@ -188,9 +190,11 @@ export function createChatForwardFlow(deps = {}) {
     function showForwardDraftBar() {
         if (!forwardDraftBar) return;
         const motionSeq = ++forwardDraftMotionSeq;
-        forwardDraftBar.classList.remove('link-draft-bar--hidden', 'is-closing');
-        forwardDraftBar.style.display = 'flex';
-        forwardDraftBar.setAttribute('aria-hidden', 'false');
+        withStableChatScroll(chatMessages || forwardDraftBar, () => {
+            forwardDraftBar.classList.remove('link-draft-bar--hidden', 'is-closing');
+            forwardDraftBar.style.display = 'flex';
+            forwardDraftBar.setAttribute('aria-hidden', 'false');
+        });
         requestAnimationFrame(() => {
             if (motionSeq !== forwardDraftMotionSeq) return;
             forwardDraftBar.classList.add('is-visible');
@@ -200,15 +204,19 @@ export function createChatForwardFlow(deps = {}) {
     function hideForwardDraftBar() {
         if (!forwardDraftBar) return;
         const motionSeq = ++forwardDraftMotionSeq;
-        forwardDraftBar.classList.remove('is-visible');
-        forwardDraftBar.classList.add('is-closing');
-        forwardDraftBar.setAttribute('aria-hidden', 'true');
+        withStableChatScroll(chatMessages || forwardDraftBar, () => {
+            forwardDraftBar.classList.remove('is-visible');
+            forwardDraftBar.classList.add('is-closing');
+            forwardDraftBar.setAttribute('aria-hidden', 'true');
+        });
         waitForMotionEnd(forwardDraftBar, 220).then(() => {
             if (motionSeq !== forwardDraftMotionSeq) return;
             if (forwardDraftBar.classList.contains('is-visible')) return;
-            forwardDraftBar.classList.add('link-draft-bar--hidden');
-            forwardDraftBar.classList.remove('is-closing');
-            forwardDraftBar.style.display = 'none';
+            withStableChatScroll(chatMessages || forwardDraftBar, () => {
+                forwardDraftBar.classList.add('link-draft-bar--hidden');
+                forwardDraftBar.classList.remove('is-closing');
+                forwardDraftBar.style.display = 'none';
+            });
         });
     }
 

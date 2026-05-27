@@ -1,6 +1,7 @@
 import { waitForMotionEnd } from './motion.js';
 import { requestLinkPreviewPayload } from './link-preview-shared.js';
 import { withAppRoot } from './app-url.js';
+import { withStableChatScroll } from './chat-scroll-stability.js';
 
 const LINK_URL_PATTERN = /\bhttps?:\/\/[^\s<>"'`]+|\bwww\.[^\s<>"'`]+/i;
 const TRAILING_PUNCTUATION_RE = /[),.;:!?\]]+$/;
@@ -77,6 +78,7 @@ export function initLinkDraftBar({
     closeBtnEl,
     inputEl,
     formEl,
+    chatMessages,
     resizeComposerInput,
     scheduleComposerFocus,
 } = {}) {
@@ -96,9 +98,11 @@ export function initLinkDraftBar({
 
     function showBar() {
         const motionSeq = ++hideMotionSeq;
-        barEl.classList.remove('link-draft-bar--hidden', 'is-closing');
-        barEl.style.display = 'flex';
-        barEl.setAttribute('aria-hidden', 'false');
+        withStableChatScroll(chatMessages || barEl, () => {
+            barEl.classList.remove('link-draft-bar--hidden', 'is-closing');
+            barEl.style.display = 'flex';
+            barEl.setAttribute('aria-hidden', 'false');
+        });
         requestAnimationFrame(() => {
             if (motionSeq !== hideMotionSeq) return;
             barEl.classList.add('is-visible');
@@ -107,15 +111,19 @@ export function initLinkDraftBar({
 
     function hideBar() {
         const motionSeq = ++hideMotionSeq;
-        barEl.classList.remove('is-visible');
-        barEl.classList.add('is-closing');
-        barEl.setAttribute('aria-hidden', 'true');
+        withStableChatScroll(chatMessages || barEl, () => {
+            barEl.classList.remove('is-visible');
+            barEl.classList.add('is-closing');
+            barEl.setAttribute('aria-hidden', 'true');
+        });
         waitForMotionEnd(barEl, 220).then(() => {
             if (motionSeq !== hideMotionSeq) return;
             if (barEl.classList.contains('is-visible')) return;
-            barEl.classList.add('link-draft-bar--hidden');
-            barEl.classList.remove('is-closing');
-            barEl.style.display = 'none';
+            withStableChatScroll(chatMessages || barEl, () => {
+                barEl.classList.add('link-draft-bar--hidden');
+                barEl.classList.remove('is-closing');
+                barEl.style.display = 'none';
+            });
         });
     }
 
