@@ -58,11 +58,24 @@ export function initMnemonicSection({
     mnemonicGrid.addEventListener('paste', (event) => {
         event.preventDefault();
         const text = (event.clipboardData || window.clipboardData).getData('text');
-        const words = text.trim().split(/\s+/);
-        const inputs = mnemonicGrid.querySelectorAll('input');
-        words.forEach((word, idx) => {
-            if (inputs[idx]) inputs[idx].value = word.toLowerCase();
+        const words = text.trim().split(/\s+/).filter(Boolean);
+        if (!words.length) return;
+
+        const inputs = Array.from(mnemonicGrid.querySelectorAll('input'));
+        // Раскладку начинаем с того поля, в которое реально вставляют
+        // (а не всегда с первого). Если фокуса нет — с первого.
+        const target = event.target.closest('.mnemonic-word-input');
+        const startIdx = target ? inputs.indexOf(target) : 0;
+
+        words.forEach((word, offset) => {
+            const input = inputs[startIdx + offset];
+            if (input) input.value = word.toLowerCase();
         });
+
+        // Курсор переводим на следующее незаполненное поле, чтобы
+        // продолжить ввод/вставку дальше по сетке.
+        const next = inputs[startIdx + words.length] || inputs[inputs.length - 1];
+        next?.focus();
     });
 
     document.getElementById('activateDecryptionBtn')?.addEventListener('click', async function () {
