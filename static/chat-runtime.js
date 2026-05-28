@@ -1699,8 +1699,8 @@ export const initChatPage = async () => {
         return mobileViewportRuntime?.resizeComposerInput();
     }
 
-    function openChat() {
-        return mobileViewportRuntime?.openChat();
+    function openChat(options = {}) {
+        return mobileViewportRuntime?.openChat(options);
     }
 
     function isMobileViewport() {

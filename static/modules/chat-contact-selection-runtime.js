@@ -139,6 +139,8 @@ export function bindChatContactSelectionRuntime({
             return;
         }
 
+        const isInitialRestoreActivation = contactItem.dataset?.chatInitialRestore === '1';
+
         closeCommandPalette();
         setActiveContactItem(contactItem);
         scrollContactIntoViewIfClipped(contactItem);
@@ -296,7 +298,7 @@ export function bindChatContactSelectionRuntime({
         }
 
         if (isMobileViewport()) {
-            openChat();
+            openChat({ animated: !isInitialRestoreActivation });
         }
 
         documentRef.dispatchEvent(new CustomEvent('sun:chat:opened', {

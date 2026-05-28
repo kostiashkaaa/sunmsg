@@ -233,6 +233,88 @@ if (stageLoader.classList.contains('active')) {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_mobile_open_can_skip_reveal_motion_for_initial_restore():
+    harness_body = """
+const pendingMotion = [];
+globalThis.waitForMotionEnd = (element, fallbackMs) => new Promise((resolve) => {
+  pendingMotion.push({ element, fallbackMs, resolve });
+});
+
+function createClassList(initial = []) {
+  const names = new Set(initial);
+  return {
+    add: (...items) => items.forEach((item) => names.add(item)),
+    remove: (...items) => items.forEach((item) => names.delete(item)),
+    contains: (item) => names.has(item),
+    values: () => Array.from(names).sort(),
+  };
+}
+
+function createStyle(initial = {}) {
+  const data = { ...initial };
+  return {
+    get display() {
+      return data.display || '';
+    },
+    set display(value) {
+      data.display = String(value || '');
+    },
+    setProperty(name, value) {
+      data[name] = String(value);
+    },
+    removeProperty(name) {
+      delete data[name];
+    },
+  };
+}
+
+const chatArea = {
+  classList: createClassList(),
+  style: createStyle(),
+  get offsetWidth() {
+    throw new Error('Initial mobile restore must not force reveal reflow');
+  },
+};
+const sidebar = {
+  classList: createClassList(),
+  style: createStyle(),
+};
+
+const focusCalls = [];
+const shell = moduleApi.createMobileThreadShell({
+  chatArea,
+  sidebar,
+  prefersReducedMotion: () => false,
+  scheduleComposerFocus: (options) => { focusCalls.push(options); },
+  leaveCurrentChatRoom: () => {},
+  isMobileViewport: () => true,
+});
+
+shell.openChat({ animated: false });
+
+if (!chatArea.classList.contains('mobile-open')) {
+  throw new Error('Instant open should mark chat mobile-open');
+}
+if (chatArea.classList.contains('mobile-revealing')) {
+  throw new Error(`Instant open should not add mobile-revealing: ${chatArea.classList.values().join(',')}`);
+}
+if (sidebar.classList.contains('mobile-hiding')) {
+  throw new Error(`Instant open should not animate sidebar hiding: ${sidebar.classList.values().join(',')}`);
+}
+if (sidebar.style.display !== 'none') {
+  throw new Error(`Instant open should hide sidebar immediately, got ${sidebar.style.display}`);
+}
+if (pendingMotion.length !== 0) {
+  throw new Error(`Instant open should not wait for motion, got ${pendingMotion.length}`);
+}
+if (focusCalls.length !== 1 || focusCalls[0].delay !== 0 || focusCalls[0].force !== true) {
+  throw new Error(`Instant open should schedule immediate composer focus: ${JSON.stringify(focusCalls)}`);
+}
+"""
+    result = _run_thread_shell_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_mobile_close_ignores_stale_open_transition():
     harness_body = """
 const pendingMotion = [];
