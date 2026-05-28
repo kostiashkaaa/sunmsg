@@ -112,7 +112,12 @@ function applyPreviewState(node, {
         const safeImageAspectRatio = String(imageAspectRatio || '').trim();
 
         if (anchor) {
-            anchor.href = safeHref || '#';
+            // Defense-in-depth: only ever assign an http(s) href so a tampered
+            // server payload cannot smuggle a javascript:/data: scheme into the
+            // anchor. normalizePreviewUrl already enforces this on the input
+            // side; re-check here because href comes from the server response.
+            const httpHref = /^https?:\/\//i.test(safeHref) ? safeHref : '';
+            anchor.href = httpHref || '#';
         }
         if (siteEl) {
             siteEl.textContent = safeSiteName || hostLabel(safeHref);

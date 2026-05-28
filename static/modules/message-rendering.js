@@ -601,7 +601,10 @@ function applyCspSafeMessageStyles(messageDiv) {
     messageDiv.querySelectorAll('[data-bg-image]').forEach((el) => {
         const imageUrl = String(el.getAttribute('data-bg-image') || '').trim();
         if (!imageUrl) return;
-        el.style.setProperty('background-image', `url("${imageUrl}")`);
+        // Escape quotes/backslashes so a hostile URL cannot break out of the
+        // CSS url() literal and inject extra declarations.
+        const safeImageUrl = imageUrl.replace(/[\\"]/g, '\\$&');
+        el.style.setProperty('background-image', `url("${safeImageUrl}")`);
     });
 }
 

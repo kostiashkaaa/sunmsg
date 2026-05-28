@@ -346,6 +346,11 @@ def socket_rate_ok(  # noqa: PLR0913 - injected rate-limit storage contract
             event_key,
             exc,
         )
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001
+                pass
         return False
     finally:
         if conn is not None:
@@ -423,6 +428,11 @@ def socket_rate_ok_legacy(  # noqa: PLR0913 - legacy storage fallback contract
             user_id,
             exc,
         )
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001
+                pass
         return False
     finally:
         if conn is not None:
