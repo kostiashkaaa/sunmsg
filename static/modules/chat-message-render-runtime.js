@@ -370,6 +370,7 @@ export function createChatMessageRenderRuntime({
                     mediaEl.closest?.('.bubble')?.querySelector?.('.background-layer')?.style?.getPropertyValue?.('background-image')
                 );
                 mediaByDataSrc.set(dataSrc, {
+                    element: mediaEl,
                     source,
                     loaded: isHydratedMediaLoaded(mediaEl),
                     backgroundImage,
@@ -380,6 +381,45 @@ export function createChatMessageRenderRuntime({
             }
         });
         return stateByMessageKey;
+    }
+
+    function syncPreservedMediaElementAttributes(preservedEl, freshEl) {
+        if (!preservedEl || !freshEl) return;
+        const preservedSrc = normalizeHydratedMediaSource(preservedEl.getAttribute?.('src'));
+        const preservedLoaded = normalizeHydratedMediaSource(preservedEl.getAttribute?.('data-loaded'));
+        const preservedSeq = normalizeHydratedMediaSource(preservedEl.getAttribute?.('data-media-hydration-seq'));
+        const wasLoaded = isHydratedMediaLoaded(preservedEl);
+        const freshAttrNames = new Set();
+
+        Array.from(freshEl.attributes || []).forEach((attr) => {
+            freshAttrNames.add(attr.name);
+            if (attr.name === 'src' || attr.name === 'data-loaded' || attr.name === 'data-media-hydration-seq') return;
+            preservedEl.setAttribute(attr.name, attr.value);
+        });
+
+        Array.from(preservedEl.attributes || []).forEach((attr) => {
+            if (attr.name === 'src' || attr.name === 'data-loaded' || attr.name === 'data-media-hydration-seq') return;
+            if (!freshAttrNames.has(attr.name)) {
+                preservedEl.removeAttribute(attr.name);
+            }
+        });
+
+        if (preservedSrc) preservedEl.setAttribute('src', preservedSrc);
+        if (preservedLoaded || wasLoaded) preservedEl.setAttribute('data-loaded', preservedLoaded || '1');
+        if (preservedSeq) preservedEl.setAttribute('data-media-hydration-seq', preservedSeq);
+        if (wasLoaded) preservedEl.classList?.add?.('is-loaded');
+    }
+
+    function preserveHydratedMediaNodes(messageNode, mediaByDataSrc) {
+        if (!messageNode || !mediaByDataSrc?.size) return;
+        messageNode.querySelectorAll?.(hydratedMediaSelector)?.forEach((freshEl) => {
+            const snapshot = mediaByDataSrc.get(getMediaDataSource(freshEl));
+            const preservedEl = snapshot?.element;
+            if (!preservedEl || preservedEl === freshEl || !preservedEl.parentNode) return;
+            if (String(preservedEl.tagName || '') !== String(freshEl.tagName || '')) return;
+            syncPreservedMediaElementAttributes(preservedEl, freshEl);
+            freshEl.replaceWith(preservedEl);
+        });
     }
 
     function buildBackgroundImageValue(source) {
@@ -597,6 +637,9 @@ export function createChatMessageRenderRuntime({
                 if (msg.id && hasSelectedMessage?.(String(msg.id))) {
                     messageNode.classList.add('selected');
                 }
+                if (options.preserveHydratedMediaNodes) {
+                    preserveHydratedMediaNodes(messageNode, hydratedMediaState?.get(msgKey));
+                }
                 restoreHydratedMediaState(messageNode, hydratedMediaState?.get(msgKey));
             }
             syncMessageBubbleLayoutClasses?.(messageNode);
@@ -806,7 +849,7 @@ export function createChatMessageRenderRuntime({
             if (currentMessages && String(chatId) === String(getCurrentChatId?.())) {
                 const afterAvg = state?.averageMessageHeight || beforeAvg;
                 const drift = Math.abs(afterAvg - beforeAvg) / Math.max(beforeAvg, 1);
-                if (drift > 0.15 && !isMobileViewport?.()) {
+                if (drift > 0.15 && !options?.suppressHeightDriftRerender && !isMobileViewport?.()) {
                     updateChatMessagesBottomInset?.({ immediate: true });
                     renderChatMessages(chatId, { ...options, force: true });
                     await waitForPaintFrames(options.scrollToBottom ? 2 : 1);

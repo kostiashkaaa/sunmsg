@@ -525,6 +525,15 @@ export function createChatHistoryRuntime(ctx = {}) {
             return;
         }
 
+        let restoredFromPersistentSnapshot = false;
+        if (!state.initialized && typeof ctx.restorePersistentChatDomSnapshot === 'function') {
+            restoredFromPersistentSnapshot = Boolean(ctx.restorePersistentChatDomSnapshot(chatId));
+            if (restoredFromPersistentSnapshot) {
+                ctx.setChatStageLoading(false);
+                ctx.setHistoryLoading(false);
+            }
+        }
+
         let restoredFromCache = false;
         if (!state.initialized && await ctx.ensureChatIdbReady()) {
             const cached = await ctx.readCachedMessages(chatId).catch(() => null);
@@ -545,6 +554,9 @@ export function createChatHistoryRuntime(ctx = {}) {
                     await ctx.renderChatMessagesStable(chatId, {
                         scrollToBottom: true,
                         animateReveal: shouldAnimateHistoryReveal(),
+                        suppressHydrationMask: restoredFromPersistentSnapshot,
+                        preserveHydratedMediaNodes: restoredFromPersistentSnapshot,
+                        suppressHeightDriftRerender: restoredFromPersistentSnapshot,
                     });
                     ctx.setKeepChatPinnedToBottom(true);
                     ctx.resetOpenChatUnreadCounter();
@@ -562,7 +574,7 @@ export function createChatHistoryRuntime(ctx = {}) {
             chatId,
         );
         state.isLoadingInitial = true;
-        const shouldShowNetworkLoading = !restoredFromCache;
+        const shouldShowNetworkLoading = !restoredFromCache && !restoredFromPersistentSnapshot;
         if (String(chatId) === String(ctx.getCurrentChatId())) {
             if (shouldShowNetworkLoading) {
                 ctx.setChatStageLoading(true);
@@ -641,6 +653,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 const firstUnreadId = firstUnreadMsg?.id ?? null;
 
                 if (shouldRerenderMessages) {
+                    const preserveInitialSnapshotMedia = restoredFromCache || restoredFromPersistentSnapshot;
                     ctx.setChatMessages(chatId, decodedMessages, { resetHeights: true });
                     decodedMessages.forEach((msg) => state.renderedKeys.add(ctx.getMessageKey(msg)));
                     state.hasMoreBefore = Boolean(response.has_more_before);
@@ -653,14 +666,18 @@ export function createChatHistoryRuntime(ctx = {}) {
                         await ctx.renderChatMessagesStable(chatId, {
                             scrollTop: storedTop,
                             animateReveal: shouldAnimateHistoryReveal(),
-                            suppressHydrationMask: restoredFromCache,
+                            suppressHydrationMask: preserveInitialSnapshotMedia,
+                            preserveHydratedMediaNodes: preserveInitialSnapshotMedia,
+                            suppressHeightDriftRerender: preserveInitialSnapshotMedia,
                         });
                         ctx.setKeepChatPinnedToBottom(ctx.isChatNearBottom());
                     } else {
                         await ctx.renderChatMessagesStable(chatId, {
                             scrollToBottom: !firstUnreadId,
                             animateReveal: shouldAnimateHistoryReveal(),
-                            suppressHydrationMask: restoredFromCache,
+                            suppressHydrationMask: preserveInitialSnapshotMedia,
+                            preserveHydratedMediaNodes: preserveInitialSnapshotMedia,
+                            suppressHeightDriftRerender: preserveInitialSnapshotMedia,
                         });
                         ctx.setKeepChatPinnedToBottom(!firstUnreadId);
                     }

@@ -39,10 +39,14 @@ export function wireBeforeUnloadCleanup({
     isChatIdbReady,
     chatIdbRuntime,
     getExistingChatHistoryRuntime,
+    captureCurrentChatDomSnapshot,
     disposeMediaCacheRuntime,
     disconnectSocket,
 }) {
     window.addEventListener('beforeunload', () => {
+        if (typeof captureCurrentChatDomSnapshot === 'function') {
+            captureCurrentChatDomSnapshot();
+        }
         tabAlertController.stopBlinking();
         dateNavigatorController.destroy();
         reportActivity(false, { immediate: true });

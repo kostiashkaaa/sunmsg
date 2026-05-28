@@ -1553,6 +1553,8 @@ export const initChatPage = async () => {
         disconnectLazyMediaHydrationObserver,
         registerMediaElementsForLazyHydration,
         requestAnimationFrameFn: requestAnimationFrame,
+        persistentStorage: browserEnv.getSessionStorage(),
+        currentUserId: CURRENT_USER_ID,
     });
 
     function getKeepChatPinnedToBottom() {
@@ -1788,6 +1790,10 @@ export const initChatPage = async () => {
 
     function restoreChatDomSnapshot(chatId) {
         return Boolean(chatDomSnapshotRuntime?.restoreChatDomSnapshot(chatId));
+    }
+
+    function restorePersistentChatDomSnapshot(chatId) {
+        return Boolean(chatDomSnapshotRuntime?.restorePersistentChatDomSnapshot(chatId));
     }
 
     function resolveSavedChatScrollTop(chatId = currentChatId) {
@@ -3870,6 +3876,7 @@ export const initChatPage = async () => {
             setChatStageLoading,
             setHistoryLoading,
             restoreChatDomSnapshot,
+            restorePersistentChatDomSnapshot,
             schedulePostRenderUiRefresh,
             resolveSavedChatScrollTop,
             renderChatMessages,
@@ -4464,6 +4471,11 @@ export const initChatPage = async () => {
         isChatIdbReady,
         chatIdbRuntime,
         getExistingChatHistoryRuntime: () => chatHistoryRuntime,
+        captureCurrentChatDomSnapshot: () => {
+            if (!currentChatId) return;
+            saveChatScrollPosition(currentChatId);
+            captureChatDomSnapshot(currentChatId);
+        },
         disposeMediaCacheRuntime,
         disconnectSocket: () => {
             try {

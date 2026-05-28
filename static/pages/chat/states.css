@@ -873,7 +873,11 @@
         .chat-messages.is-hydrating .message,
         .chat-messages.is-hydrating .message-avatar-slot,
         .chat-messages.is-hydrating .message-avatar,
-        .chat-messages.is-hydrating .message-stack {
+        .chat-messages.is-hydrating .message-stack,
+        .chat-messages.is-hydrating .file-msg-img,
+        .chat-messages.is-hydrating .file-msg-video-preview,
+        .chat-messages.is-hydrating .album-cell-img,
+        .chat-messages.is-hydrating .album-cell-video {
             transition: none !important;
         }
 
