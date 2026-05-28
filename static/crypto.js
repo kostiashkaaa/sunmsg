@@ -432,12 +432,6 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf, exp
         if (signatureStatus === false) {
             return "[\u041F\u043E\u0434\u043F\u0438\u0441\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043D\u0435 \u043F\u0440\u043E\u0448\u043B\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443]";
         }
-        if (signatureStatus === 'unsigned' && expectedSenderPublicKey) {
-            return "[\u041F\u043E\u0434\u043F\u0438\u0441\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442]";
-        }
-        if (signatureStatus === 'no-pubkey' && payload.signature) {
-            return "[\u041D\u0435\u0442 \u043A\u043B\u044E\u0447\u0430 \u0434\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u043F\u043E\u0434\u043F\u0438\u0441\u0438]";
-        }
 
         const privKey = await importPrivateKeyForDecryption(pemPrivateKey);
 
