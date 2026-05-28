@@ -17,6 +17,7 @@ from app.services.calls import (
     terminate_call_on_disconnect,
 )
 from app.services.call_feature_access import can_user_use_calls
+from app.services.call_metrics import record_call_quality_sample
 from app.services.user import get_safe_avatar_url
 from app.services.user_privacy import can_receive_call
 
@@ -618,6 +619,36 @@ def handle_call_media_state(
             }, to=f'user_{pid}')
     except Exception:
         logger.exception('Error in handle_call_media_state')
+    finally:
+        conn.close()
+
+
+def handle_call_quality(
+    data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
+    socket_rate_ok_func, get_db_connection_func, logger=logger,
+):
+    user_id = session_store.get('user_id')
+    if not require_payload_dict_func(data):
+        return
+    if not socket_csrf_ok_func(data):
+        return
+    if not socket_rate_ok_func(user_id, 'call_quality'):
+        return
+
+    call_id = str(data.get('call_id') or '').strip()
+    if not call_id:
+        return
+
+    conn = get_db_connection_func(request_scoped=False)
+    try:
+        call = get_call_session(conn, call_id)
+        if call is None or call['status'] != 'active':
+            return
+        if not _is_call_participant(conn, call_id, user_id):
+            return
+        record_call_quality_sample(call_id=call_id, user_id=int(user_id), payload=data)
+    except Exception:
+        logger.exception('Error in handle_call_quality')
     finally:
         conn.close()
 

@@ -841,9 +841,16 @@ export function showActiveCallOverlay({
         });
     }
 
-    _bindCallButton(overlay.querySelector('#call-btn-audio'), () => {
-        const muted = onToggleAudio();
-        syncAudioControlState(muted);
+    _bindCallButton(overlay.querySelector('#call-btn-audio'), async () => {
+        const btn = overlay.querySelector('#call-btn-audio');
+        if (btn) btn.disabled = true;
+        try {
+            const muted = await onToggleAudio();
+            if (!isOverlayCurrent()) return;
+            syncAudioControlState(muted);
+        } finally {
+            if (btn && isOverlayCurrent()) btn.disabled = false;
+        }
     });
 
     _bindCallButton(overlay.querySelector('#call-btn-video'), async () => {
@@ -999,10 +1006,17 @@ export function showActiveCallOverlay({
         event.stopPropagation();
         onEnd(callId);
     });
-    _bindCallButton(overlay.querySelector('#call-mini-mute'), (event) => {
+    _bindCallButton(overlay.querySelector('#call-mini-mute'), async (event) => {
         event.stopPropagation();
-        const muted = onToggleAudio();
-        syncAudioControlState(muted);
+        const btn = overlay.querySelector('#call-mini-mute');
+        if (btn) btn.disabled = true;
+        try {
+            const muted = await onToggleAudio();
+            if (!isOverlayCurrent()) return;
+            syncAudioControlState(muted);
+        } finally {
+            if (btn && isOverlayCurrent()) btn.disabled = false;
+        }
     });
     overlay.querySelector('#call-mini')?.addEventListener('click', (event) => {
         if (event.target.closest('button')) return;
@@ -1147,11 +1161,22 @@ export function setCallQualityIndicator(stats = {}) {
     const packetLoss = Number(stats.packetLossPercent || 0);
     const rtt = Math.max(0, Math.round(Number(stats.rttMs || 0)));
     const jitter = Math.max(0, Math.round(Number(stats.jitterMs || 0)));
+    const jitterBuffer = Math.max(0, Math.round(Number(stats.jitterBufferDelayMs || 0)));
+    const concealment = Number(stats.concealmentPercent || 0);
+    const dropped = Number(stats.videoFramesDroppedPercent || 0);
+    const route = String(stats.selectedCandidateRoute || stats.selectedCandidatePair?.route || '').trim().toLowerCase();
+    const codecs = stats.codecs || {};
     const label = level === 'poor' ? 'Слабая связь' : level === 'fair' ? 'Нестабильно' : 'Хорошая связь';
     const details = [
         `потери ${packetLoss.toFixed(packetLoss % 1 === 0 ? 0 : 1)}%`,
         rtt ? `задержка ${rtt} мс` : '',
         jitter ? `джиттер ${jitter} мс` : '',
+        jitterBuffer ? `буфер ${jitterBuffer} мс` : '',
+        concealment ? `маскировка ${concealment.toFixed(concealment % 1 === 0 ? 0 : 1)}%` : '',
+        dropped ? `дроп кадров ${dropped.toFixed(dropped % 1 === 0 ? 0 : 1)}%` : '',
+        route ? `маршрут ${route === 'relay' ? 'TURN' : route}` : '',
+        codecs.inbound_audio ? `аудио ${codecs.inbound_audio}` : '',
+        codecs.inbound_video ? `видео ${codecs.inbound_video}` : '',
     ].filter(Boolean).join(' · ');
     const textEl = el.querySelector('.call-quality__text');
     const changed = Boolean(el.hidden)

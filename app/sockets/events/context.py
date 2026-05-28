@@ -69,6 +69,7 @@ _SOCKET_EVENT_RATE_LIMITS = {
     'call_end': (20, 60),
     'call_sync': (20, 60),
     'call_media_state': (60, 60),
+    'call_quality': (20, 60),
     'call_offer': (10, 60),
     'call_answer': (10, 60),
     'call_ice_candidate': (300, 60),

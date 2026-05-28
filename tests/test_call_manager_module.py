@@ -16,6 +16,7 @@ source = source.replace(
       this._audioTrack = null;
       this._videoTrack = null;
       this._localStream = { id: 'local-stream' };
+      this._audioMuted = false;
       globalThis.__createdMedia.push(this);
     }
     setTrackLifecycleHandlers() {}
@@ -26,9 +27,9 @@ source = source.replace(
     isScreenSharing() { return false; }
     getVideoSource() { return 'camera'; }
     isVideoEnabled() { return false; }
-    isAudioMuted() { return false; }
-    setAudioMuted() {}
-    toggleAudio() { return false; }
+    isAudioMuted() { return this._audioMuted; }
+    setAudioMuted(muted) { this._audioMuted = Boolean(muted); }
+    toggleAudio() { this._audioMuted = !this._audioMuted; return this._audioMuted; }
     toggleVideo() { return true; }
     getAudioDeviceId() { return ''; }
     getVideoDeviceId() { return ''; }
@@ -38,6 +39,14 @@ source = source.replace(
       await globalThis.__mediaGate.promise;
       this._audioTrack = { kind: 'audio', stop() {} };
       return this._localStream;
+    }
+    async prepareAudioInput(deviceId) {
+      await (globalThis.__audioGate?.promise || Promise.resolve());
+      return { track: globalThis.__preparedAudioTrack || { kind: 'audio', stop() {} }, deviceId };
+    }
+    commitPreparedAudioTrack(track) {
+      this._audioTrack = track;
+      if (Array.isArray(globalThis.__committedAudioTracks)) globalThis.__committedAudioTracks.push(track);
     }
     async acquireVideo() {
       globalThis.__acquireVideoCalls = (globalThis.__acquireVideoCalls || 0) + 1;
@@ -79,7 +88,7 @@ source = source.replace(
     init() {}
     async addVideoTrack() { globalThis.__webrtcAddVideoTrack += 1; }
     async replaceVideoTrack() {}
-    async replaceAudioTrack() {}
+    async replaceAudioTrack(track) { globalThis.__webrtcReplaceAudioTrackCalls?.push?.(track || null); }
     setAudioEnabled() {}
     setVideoEnabled() {}
     updateIceServers() {}
@@ -203,6 +212,166 @@ if (manager.getState() !== 'idle') {
 const staleMedia = globalThis.__createdMedia[0];
 if (!staleMedia || staleMedia.releaseCount < 1) {
   throw new Error('Expected stale media instance to be released');
+}
+"""
+    result = _run_call_manager_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_audio_unmute_reacquires_track_after_mid_call_permission_loss():
+    harness_body = """
+globalThis.window = {
+  addEventListener() {},
+  location: { origin: 'https://example.test' },
+};
+globalThis.document = {
+  addEventListener() {},
+};
+globalThis.navigator = { onLine: true };
+globalThis.sessionStorage = {
+  getItem() { return null; },
+  setItem() {},
+  removeItem() {},
+};
+globalThis.__createdMedia = [];
+globalThis.__releasedMedia = [];
+globalThis.__overlayShown = 0;
+globalThis.__webrtcCreated = 0;
+globalThis.__webrtcAddVideoTrack = 0;
+globalThis.__webrtcReplaceAudioTrackCalls = [];
+globalThis.__committedTracks = [];
+globalThis.__committedAudioTracks = [];
+globalThis.__discardedTracks = [];
+globalThis.__mediaGate = Promise.resolve();
+globalThis.__mediaGate.promise = globalThis.__mediaGate;
+globalThis.__videoGate = Promise.resolve();
+globalThis.__videoGate.promise = globalThis.__videoGate;
+globalThis.__audioGate = Promise.resolve();
+globalThis.__audioGate.promise = globalThis.__audioGate;
+globalThis.__preparedAudioTrack = { kind: 'audio', id: 'new-audio', stop() {} };
+
+const socket = {
+  connected: true,
+  on() {},
+  emit() {},
+};
+const manager = new moduleApi.CallManager({
+  socket,
+  getCsrfToken: () => 'csrf',
+});
+
+manager._state = 'active';
+manager._callId = 'call-audio-reacquire';
+manager._chatId = 'chat-audio-reacquire';
+manager._callType = 'audio';
+manager._iceServers = [{ urls: 'stun:example.test' }];
+manager._iceServersExpiresAt = Date.now() + 10 * 60_000;
+manager._pendingMediaOptions = { callType: 'audio', audioMuted: false, videoEnabled: false };
+
+await manager._startMedia(manager._pendingMediaOptions);
+const media = manager._media;
+media._audioTrack = null;
+media._audioMuted = true;
+
+const muted = await globalThis.__lastOverlayOptions.onToggleAudio();
+
+if (muted !== false) {
+  throw new Error('Expected reacquired microphone to return unmuted state');
+}
+if (globalThis.__webrtcReplaceAudioTrackCalls[0] !== globalThis.__preparedAudioTrack) {
+  throw new Error('Expected WebRTC sender to receive the reacquired audio track');
+}
+if (globalThis.__committedAudioTracks[0] !== globalThis.__preparedAudioTrack) {
+  throw new Error('Expected media state to commit the reacquired audio track');
+}
+if (media.isAudioMuted()) {
+  throw new Error('Expected media state to be unmuted after successful reacquire');
+}
+"""
+    result = _run_call_manager_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_quality_stats_emit_relay_telemetry_with_codecs():
+    harness_body = """
+globalThis.window = {
+  addEventListener() {},
+  location: { origin: 'https://example.test' },
+};
+globalThis.document = {
+  addEventListener() {},
+};
+globalThis.navigator = { onLine: true };
+globalThis.sessionStorage = {
+  getItem() { return null; },
+  setItem() {},
+  removeItem() {},
+};
+globalThis.__createdMedia = [];
+globalThis.__releasedMedia = [];
+globalThis.__overlayShown = 0;
+globalThis.__webrtcCreated = 0;
+globalThis.__webrtcAddVideoTrack = 0;
+globalThis.__committedTracks = [];
+globalThis.__discardedTracks = [];
+globalThis.__emitted = [];
+globalThis.__mediaGate = Promise.resolve();
+globalThis.__mediaGate.promise = globalThis.__mediaGate;
+globalThis.__videoGate = Promise.resolve();
+globalThis.__videoGate.promise = globalThis.__videoGate;
+
+const socket = {
+  connected: true,
+  on() {},
+  emit(event, payload) { globalThis.__emitted.push([event, payload]); },
+};
+const manager = new moduleApi.CallManager({
+  socket,
+  getCsrfToken: () => 'csrf',
+});
+
+manager._state = 'active';
+manager._callId = 'call-quality';
+manager._chatId = 'chat-quality';
+manager._callType = 'video';
+
+manager._sendCallQualityTelemetry({
+  level: 'fair',
+  sendLevel: 'poor',
+  packetLossPercent: 3.25,
+  remoteLossPercent: 4.5,
+  rttMs: 275.4,
+  jitterMs: 45.2,
+  jitterBufferDelayMs: 88.9,
+  concealmentPercent: 2.5,
+  videoFramesDroppedPercent: 6.5,
+  selectedCandidateRoute: 'relay',
+  selectedCandidatePair: {
+    route: 'relay',
+    localCandidateType: 'relay',
+    remoteCandidateType: 'srflx',
+    relayProtocol: 'tcp',
+    networkType: 'wifi',
+  },
+  codecs: {
+    inbound_audio: 'audio/opus 48000Hz/2ch',
+    inbound_video: 'video/VP8 90000Hz',
+  },
+});
+
+const event = globalThis.__emitted.find(([name]) => name === 'call_quality');
+if (!event) {
+  throw new Error('Expected call_quality telemetry event');
+}
+const payload = event[1];
+if (payload.selected_candidate_route !== 'relay' || payload.local_candidate_type !== 'relay') {
+  throw new Error(`Expected relay route telemetry, got ${JSON.stringify(payload)}`);
+}
+if (payload.audio_codec !== 'audio/opus 48000Hz/2ch' || payload.video_codec !== 'video/VP8 90000Hz') {
+  throw new Error(`Expected codec telemetry, got ${JSON.stringify(payload)}`);
+}
+if (payload.csrf_token !== 'csrf') {
+  throw new Error('Expected CSRF token on telemetry emit');
 }
 """
     result = _run_call_manager_harness(harness_body)

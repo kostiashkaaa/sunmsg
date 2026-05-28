@@ -351,6 +351,7 @@ def test_moderation_console_and_metrics(monkeypatch, tmp_path):
     assert 'time_to_action_p95_seconds' in payload
     assert 'queue' in payload
     assert 'server' in payload
+    assert 'call_quality' in payload
     assert 'cpu' in payload['server']
     assert 'memory' in payload['server']
     assert 'disk' in payload['server']
@@ -362,6 +363,7 @@ def test_moderation_console_and_metrics(monkeypatch, tmp_path):
     text = response.get_data(as_text=True)
     assert 'moderation_time_to_action_p95_seconds' in text
     assert 'moderation_queue_jobs{status="pending"}' in text
+    assert 'call_webrtc_relay_ratio' in text
     assert 'server_disk_used_ratio' in text
 
 

@@ -2075,6 +2075,42 @@ def moderation_metrics_prometheus_text(metrics: dict[str, Any]) -> str:
                 int(row.get('decisions') or 0),
             )
         )
+    call_quality = metrics.get('call_quality') or {}
+    call_window_seconds = int(call_quality.get('window_seconds') or window_hours * 3600)
+    lines.append('# HELP call_webrtc_quality_samples_total Number of WebRTC quality samples in window.')
+    lines.append('# TYPE call_webrtc_quality_samples_total gauge')
+    lines.append(
+        f'call_webrtc_quality_samples_total{{window_seconds="{call_window_seconds}"}} '
+        f'{int(call_quality.get("samples_total") or 0)}'
+    )
+    lines.append('# HELP call_webrtc_relay_samples_total Number of samples whose selected ICE route used TURN relay.')
+    lines.append('# TYPE call_webrtc_relay_samples_total gauge')
+    lines.append(
+        f'call_webrtc_relay_samples_total{{window_seconds="{call_window_seconds}"}} '
+        f'{int(call_quality.get("relay_samples") or 0)}'
+    )
+    lines.append('# HELP call_webrtc_relay_ratio Ratio of WebRTC samples using TURN relay.')
+    lines.append('# TYPE call_webrtc_relay_ratio gauge')
+    lines.append(
+        f'call_webrtc_relay_ratio{{window_seconds="{call_window_seconds}"}} '
+        f'{float(call_quality.get("relay_ratio") or 0.0)}'
+    )
+    for route, count in sorted((call_quality.get('routes') or {}).items()):
+        lines.append(
+            f'call_webrtc_route_samples{{route="{str(route)}",window_seconds="{call_window_seconds}"}} '
+            f'{int(count or 0)}'
+        )
+    for level, count in sorted((call_quality.get('quality') or {}).items()):
+        lines.append(
+            f'call_webrtc_quality_samples{{level="{str(level)}",window_seconds="{call_window_seconds}"}} '
+            f'{int(count or 0)}'
+        )
+    lines.append('# HELP call_webrtc_jitter_buffer_delay_ms Average reported jitter buffer delay in milliseconds.')
+    lines.append('# TYPE call_webrtc_jitter_buffer_delay_ms gauge')
+    lines.append(
+        f'call_webrtc_jitter_buffer_delay_ms{{window_seconds="{call_window_seconds}"}} '
+        f'{float(call_quality.get("avg_jitter_buffer_delay_ms") or 0.0)}'
+    )
     server = metrics.get('server') or {}
     cpu = server.get('cpu') or {}
     cpu_percent = cpu.get('usage_percent')

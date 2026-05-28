@@ -50,6 +50,7 @@ const SIGNAL_ACK_TIMEOUT_MS = 12_000;
 const ACCEPT_SYNC_GRACE_MS = 5_000;
 const MAX_PENDING_SIGNALS = 128;
 const CALL_SESSION_STORAGE_KEY = 'sun.call.session.v1';
+const QUALITY_TELEMETRY_MIN_INTERVAL_MS = 15_000;
 
 function _normalizeIceTransportPolicy(value) {
     return String(value || '').trim().toLowerCase() === 'relay' ? 'relay' : 'all';
@@ -113,6 +114,8 @@ export class CallManager {
         this._cameraSwitchInProgress = false;
         this._videoOperation = Promise.resolve();
         this._callLifecycleSeq = 0;
+        this._lastQualityTelemetrySentAt = 0;
+        this._lastQualityTelemetryKey = '';
 
         this._bindSocketEvents();
         this._bindUnloadHandler();
@@ -707,10 +710,13 @@ export class CallManager {
                 this._iceServersExpiresAt = Date.now() + ttlMs;
             } catch (err) {
                 if (!isCurrentCallSession()) return;
-                console.warn('[CallManager] ICE config fetch failed, using STUN only', err);
+                console.warn('[CallManager] ICE config fetch failed', err);
                 if (!this._iceServers) {
-                    this._iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
-                    this._iceServersExpiresAt = Date.now() + 55 * 60 * 1000;
+                    const message = 'Не удалось получить сетевые настройки звонка';
+                    setCallStatusText(message);
+                    showToast(message, 'error');
+                    this.endCall();
+                    return;
                 }
             }
         }
@@ -753,10 +759,10 @@ export class CallManager {
             initialVideoEnabled: normalizedMediaOptions.videoEnabled,
             initialSpeakerDeviceId: normalizedMediaOptions.speakerDeviceId,
             initialLocalFacingMode: media.getVideoFacingMode(),
-            onToggleAudio: () => {
+            onToggleAudio: async () => {
                 if (!isCurrentCallSession()) return media.isAudioMuted();
-                const muted = media.toggleAudio();
-                this._webrtc?.setAudioEnabled(!muted);
+                const muted = await this._toggleAudio(media, isCurrentCallSession);
+                if (!isCurrentCallSession()) return media.isAudioMuted();
                 this._notifyMediaState();
                 return muted;
             },
@@ -869,7 +875,10 @@ export class CallManager {
                     startCallDurationTimer();
                 },
                 onVerificationCode: (code) => setCallVerificationCode(code),
-                onQualityStats: (stats) => setCallQualityIndicator(stats),
+                onQualityStats: (stats) => {
+                    setCallQualityIndicator(stats);
+                    this._sendCallQualityTelemetry(stats);
+                },
                 onConnectionState: (state) => this._onConnectionState(state),
             });
 
@@ -896,6 +905,45 @@ export class CallManager {
             .then(() => operation());
         this._videoOperation = run.catch(() => {});
         return run;
+    }
+
+    async _toggleAudio(media = this._media, isCurrentCallSession = () => true) {
+        if (!isCurrentCallSession()) return media.isAudioMuted();
+        if (media.getAudioTrack()) {
+            const muted = media.toggleAudio();
+            this._webrtc?.setAudioEnabled(!muted);
+            return muted;
+        }
+
+        let prepared = null;
+        try {
+            prepared = await media.prepareAudioInput(media.getAudioDeviceId?.() || '');
+            if (!isCurrentCallSession()) {
+                media.discardTrack(prepared?.track);
+                return media.isAudioMuted();
+            }
+            await this._webrtc?.replaceAudioTrack(prepared.track);
+            if (!isCurrentCallSession()) {
+                media.discardTrack(prepared.track);
+                return media.isAudioMuted();
+            }
+            media.commitPreparedAudioTrack(prepared.track, prepared);
+            media.setAudioMuted(false);
+            this._webrtc?.setAudioEnabled(true);
+            setCallStatusText('Микрофон включён');
+            return false;
+        } catch (err) {
+            if (!isCurrentCallSession()) {
+                media.discardTrack(prepared?.track);
+                return media.isAudioMuted();
+            }
+            try { await this._webrtc?.replaceAudioTrack(null); } catch (_) { /* keep current sender detached */ }
+            media.discardTrack(prepared?.track);
+            const message = _mediaAccessMessage(err, 'audio');
+            setCallStatusText(message);
+            showToast(message, 'error');
+            return true;
+        }
     }
 
     async _toggleVideo(media = this._media, isCurrentCallSession = () => true) {
@@ -1354,6 +1402,34 @@ export class CallManager {
         });
     }
 
+    _sendCallQualityTelemetry(stats = {}) {
+        if (this._state !== STATES.ACTIVE || !this._callId) return;
+        const payload = _normalizeQualityTelemetryStats(stats);
+        const key = [
+            payload.level,
+            payload.send_level,
+            payload.selected_candidate_route,
+            payload.local_candidate_type,
+            payload.remote_candidate_type,
+            payload.audio_codec,
+            payload.video_codec,
+        ].join('|');
+        const now = Date.now();
+        if (
+            key === this._lastQualityTelemetryKey
+            && now - this._lastQualityTelemetrySentAt < QUALITY_TELEMETRY_MIN_INTERVAL_MS
+        ) {
+            return;
+        }
+        const emitted = this._emit('call_quality', {
+            call_id: this._callId,
+            ...payload,
+        }, { requireConnected: true });
+        if (!emitted) return;
+        this._lastQualityTelemetryKey = key;
+        this._lastQualityTelemetrySentAt = now;
+    }
+
     _shouldMirrorOutgoingVideo(track = this._media.getVideoTrack(), facingMode = '') {
         if (this._media.isScreenSharing()) return false;
         if (!_isMobileCallClient()) return false;
@@ -1547,6 +1623,8 @@ export class CallManager {
         this._videoOperation = Promise.resolve();
         this._iceRestarting = false;
         this._socketReconnectNeedsIceRestart = false;
+        this._lastQualityTelemetrySentAt = 0;
+        this._lastQualityTelemetryKey = '';
         this._iceServers  = null;
         this._iceTransportPolicy = 'all';
         this._iceServersExpiresAt = 0;
@@ -1561,6 +1639,49 @@ export class CallManager {
     isIdle()    { return this._state === STATES.IDLE; }
     getState()  { return this._state; }
     getCallId() { return this._callId; }
+}
+
+function _normalizeQualityTelemetryStats(stats = {}) {
+    const pair = stats.selectedCandidatePair || {};
+    const codecs = stats.codecs || {};
+    return {
+        level: _qualityLevelValue(stats.level),
+        send_level: _qualityLevelValue(stats.sendLevel),
+        packet_loss_percent: _boundedMetricNumber(stats.packetLossPercent, 0, 100),
+        remote_loss_percent: _boundedMetricNumber(stats.remoteLossPercent, 0, 100),
+        rtt_ms: _boundedMetricNumber(stats.rttMs, 0, 60_000),
+        jitter_ms: _boundedMetricNumber(stats.jitterMs, 0, 60_000),
+        jitter_buffer_delay_ms: _boundedMetricNumber(stats.jitterBufferDelayMs, 0, 60_000),
+        concealment_percent: _boundedMetricNumber(stats.concealmentPercent, 0, 100),
+        video_frames_dropped_percent: _boundedMetricNumber(stats.videoFramesDroppedPercent, 0, 100),
+        selected_candidate_route: _candidateRouteValue(stats.selectedCandidateRoute || pair.route),
+        local_candidate_type: _candidateRouteValue(pair.localCandidateType),
+        remote_candidate_type: _candidateRouteValue(pair.remoteCandidateType),
+        relay_protocol: _shortTelemetryString(pair.relayProtocol),
+        network_type: _shortTelemetryString(pair.networkType),
+        audio_codec: _shortTelemetryString(codecs.inbound_audio || codecs.outbound_audio),
+        video_codec: _shortTelemetryString(codecs.inbound_video || codecs.outbound_video),
+    };
+}
+
+function _qualityLevelValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ['good', 'fair', 'poor'].includes(normalized) ? normalized : 'unknown';
+}
+
+function _candidateRouteValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ['host', 'srflx', 'prflx', 'relay'].includes(normalized) ? normalized : 'unknown';
+}
+
+function _boundedMetricNumber(value, min, max) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.round(Math.min(max, Math.max(min, numeric)) * 10) / 10;
+}
+
+function _shortTelemetryString(value) {
+    return String(value || '').replace(/[^\w .:/+-]/g, '').slice(0, 80);
 }
 
 function _formatDuration(sec) {

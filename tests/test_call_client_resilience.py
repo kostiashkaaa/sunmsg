@@ -30,6 +30,9 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert '_markConnectionRecovered({ playSound = true } = {})' in manager
     assert 'this._scheduleIceRestartBackoff();' in manager
     assert 'this._socketReconnectNeedsIceRestart = true;' in manager
+    assert 'const QUALITY_TELEMETRY_MIN_INTERVAL_MS = 15_000;' in manager
+    assert "this._emit('call_quality', {" in manager
+    assert 'await this._toggleAudio(media, isCurrentCallSession)' in manager
     assert 'controller.abort()' in manager
     assert 'this._runVideoOperation(' in manager
     assert 'falling back to audio-only' in manager
@@ -45,6 +48,8 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
     assert 'acceptInProgress' in ui
     assert 'id="call-connectivity"' in ui
     assert 'export function setCallConnectionState' in ui
+    assert 'jitterBufferDelayMs' in ui
+    assert 'selectedCandidateRoute' in ui
     assert 'initialLocalFacingMode' in ui
     assert '_localCameraX(facingMode)' in ui
     assert "String(facingMode || '').trim().toLowerCase() === 'user' ? -1 : 1" in ui
@@ -78,6 +83,11 @@ def test_call_manager_guards_unstable_realtime_states() -> None:
 
     assert 'const SEND_QUALITY_DOWNGRADE_SAMPLES = 2;' in webrtc
     assert 'const SEND_QUALITY_UPGRADE_SAMPLES = 4;' in webrtc
+    assert 'const PREFERRED_CODEC_MIME_TYPES' in webrtc
+    assert 'setCodecPreferences' in webrtc
+    assert 'jitterBufferDelay' in webrtc
+    assert '_candidateRoute(report, reportsById)' in webrtc
+    assert '_rememberCodec(codecs' in webrtc
     assert 'const requiredSamples = isDowngrade' in webrtc
     assert 'oniceconnectionstatechange' in webrtc
     assert 'getIceConnectionState()' in webrtc

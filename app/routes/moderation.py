@@ -11,6 +11,7 @@ from app.services import call_feature_access
 from app.services import liquid_glass_feature_access
 from app.services import moderation as moderation_service
 from app.services import server_metrics
+from app.services.call_metrics import call_quality_metrics
 
 moderation_bp = Blueprint('moderation', __name__)
 
@@ -82,6 +83,7 @@ def _server_metrics_disk_path() -> str:
 def _moderation_metrics_with_server(conn, *, since_hours: int) -> dict:
     metrics = moderation_service.moderation_metrics(conn, since_hours=since_hours)
     metrics['server'] = server_metrics.collect_server_metrics(disk_path=_server_metrics_disk_path())
+    metrics['call_quality'] = call_quality_metrics(window_seconds=since_hours * 60 * 60)
     return metrics
 
 

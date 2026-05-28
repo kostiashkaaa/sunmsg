@@ -33,6 +33,16 @@ const SEND_QUALITY_PROFILES = Object.freeze({
     fair: { maxBitrate: 450_000, scaleResolutionDownBy: 2, maxFramerate: 15 },
     poor: { maxBitrate: 180_000, scaleResolutionDownBy: 4, maxFramerate: 10 },
 });
+const PREFERRED_CODEC_MIME_TYPES = Object.freeze({
+    audio: ['audio/opus'],
+    video: ['video/VP8', 'video/H264', 'video/VP9'],
+});
+const JITTER_BUFFER_FAIR_MS = 60;
+const JITTER_BUFFER_POOR_MS = 120;
+const CONCEALMENT_FAIR_PERCENT = 2;
+const CONCEALMENT_POOR_PERCENT = 5;
+const VIDEO_DROP_FAIR_PERCENT = 5;
+const VIDEO_DROP_POOR_PERCENT = 10;
 
 export class CallWebRTC {
     /**
@@ -155,6 +165,7 @@ export class CallWebRTC {
             const sender = this._pc.addTrack(track, localStream);
             if (track.kind === 'audio') this._audioSender = sender;
         }
+        this._applyCodecPreferences();
 
         this._startStatsMonitor();
     }
@@ -325,7 +336,36 @@ export class CallWebRTC {
         const targetStream = outgoing.stream || stream || this._localStream || new MediaStream([outgoing.track]);
         this._videoSender = this._pc.addTrack(outgoing.track, targetStream);
         this._videoTransformCleanup = outgoing.cleanup || null;
+        this._applyCodecPreferencesForSender(this._videoSender);
         this._queueAdaptiveSendProfile(this._sendQualityLevel || 'good');
+    }
+
+    _applyCodecPreferences() {
+        const transceivers = typeof this._pc?.getTransceivers === 'function'
+            ? this._pc.getTransceivers()
+            : [];
+        transceivers.forEach(transceiver => this._applyCodecPreferencesForTransceiver(transceiver));
+    }
+
+    _applyCodecPreferencesForSender(sender) {
+        if (!sender || typeof this._pc?.getTransceivers !== 'function') return;
+        const transceiver = this._pc.getTransceivers().find(candidate => candidate.sender === sender);
+        this._applyCodecPreferencesForTransceiver(transceiver);
+    }
+
+    _applyCodecPreferencesForTransceiver(transceiver) {
+        const kind = transceiver?.sender?.track?.kind || transceiver?.receiver?.track?.kind || '';
+        if (!kind || typeof transceiver?.setCodecPreferences !== 'function') return;
+        const capabilities = globalThis.RTCRtpSender?.getCapabilities?.(kind)
+            || globalThis.RTCRtpReceiver?.getCapabilities?.(kind)
+            || null;
+        const codecs = Array.isArray(capabilities?.codecs) ? capabilities.codecs : [];
+        if (!codecs.length) return;
+        try {
+            transceiver.setCodecPreferences(_orderedCodecPreferences(kind, codecs));
+        } catch (err) {
+            console.warn('[CallWebRTC] codec preference setup failed', err);
+        }
     }
 
     _prepareOutgoingVideoTrack(sourceTrack, { mirror = false } = {}) {
@@ -375,12 +415,21 @@ export class CallWebRTC {
     }
 
     _readQualityStats(stats) {
+        const reportsById = new Map();
+        stats.forEach((report) => {
+            if (report?.id) reportsById.set(report.id, report);
+        });
         let deltaLost = 0;
         let deltaReceived = 0;
         let jitterMs = 0;
+        let jitterBufferDelayMs = 0;
         let rttMs = 0;
         let hasInbound = false;
         let remoteLossPercent = 0;
+        let concealmentPercent = 0;
+        let videoFramesDroppedPercent = 0;
+        let selectedRoute = null;
+        const codecs = {};
 
         stats.forEach((report) => {
             if (report.type === 'inbound-rtp' && !report.isRemote) {
@@ -396,8 +445,58 @@ export class CallWebRTC {
                     deltaLost += Math.max(0, lost);
                     deltaReceived += Math.max(0, received);
                 }
-                this._lastInboundStats.set(key, { lost, received });
+                const jitterBufferDelay = Number(report.jitterBufferDelay || 0);
+                const jitterBufferEmitted = Number(report.jitterBufferEmittedCount || 0);
+                const concealedSamples = Number(report.concealedSamples || 0);
+                const totalSamplesReceived = Number(report.totalSamplesReceived || 0);
+                const framesDropped = Number(report.framesDropped || 0);
+                const framesDecoded = Number(report.framesDecoded || 0);
+                if (jitterBufferEmitted > 0) {
+                    const deltaDelay = previous
+                        ? Math.max(0, jitterBufferDelay - Number(previous.jitterBufferDelay || 0))
+                        : jitterBufferDelay;
+                    const deltaEmitted = previous
+                        ? Math.max(0, jitterBufferEmitted - Number(previous.jitterBufferEmitted || 0))
+                        : jitterBufferEmitted;
+                    if (deltaEmitted > 0) {
+                        jitterBufferDelayMs = Math.max(jitterBufferDelayMs, (deltaDelay / deltaEmitted) * 1000);
+                    }
+                }
+                if (totalSamplesReceived > 0) {
+                    const deltaConcealed = previous
+                        ? Math.max(0, concealedSamples - Number(previous.concealedSamples || 0))
+                        : concealedSamples;
+                    const deltaSamples = previous
+                        ? Math.max(0, totalSamplesReceived - Number(previous.totalSamplesReceived || 0))
+                        : totalSamplesReceived;
+                    if (deltaSamples > 0) {
+                        concealmentPercent = Math.max(concealmentPercent, (deltaConcealed / deltaSamples) * 100);
+                    }
+                }
+                const deltaFramesDropped = previous
+                    ? Math.max(0, framesDropped - Number(previous.framesDropped || 0))
+                    : framesDropped;
+                const deltaFramesDecoded = previous
+                    ? Math.max(0, framesDecoded - Number(previous.framesDecoded || 0))
+                    : framesDecoded;
+                const totalVideoFrames = deltaFramesDropped + deltaFramesDecoded;
+                if (totalVideoFrames > 0) {
+                    videoFramesDroppedPercent = Math.max(videoFramesDroppedPercent, (deltaFramesDropped / totalVideoFrames) * 100);
+                }
+                this._lastInboundStats.set(key, {
+                    lost,
+                    received,
+                    jitterBufferDelay,
+                    jitterBufferEmitted,
+                    concealedSamples,
+                    totalSamplesReceived,
+                    framesDropped,
+                    framesDecoded,
+                });
                 jitterMs = Math.max(jitterMs, Number(report.jitter || 0) * 1000);
+                _rememberCodec(codecs, 'inbound', report, reportsById);
+            } else if (report.type === 'outbound-rtp' && !report.isRemote) {
+                _rememberCodec(codecs, 'outbound', report, reportsById);
             } else if (report.type === 'remote-inbound-rtp') {
                 if (report.roundTripTime != null) {
                     rttMs = Math.max(rttMs, Number(report.roundTripTime || 0) * 1000);
@@ -406,23 +505,41 @@ export class CallWebRTC {
             } else if (
                 report.type === 'candidate-pair'
                 && (report.nominated || report.selected)
-                && report.currentRoundTripTime != null
             ) {
-                rttMs = Math.max(rttMs, Number(report.currentRoundTripTime || 0) * 1000);
+                if (report.currentRoundTripTime != null) {
+                    rttMs = Math.max(rttMs, Number(report.currentRoundTripTime || 0) * 1000);
+                }
+                selectedRoute = _candidateRoute(report, reportsById) || selectedRoute;
             }
         });
 
         const totalPackets = deltaLost + deltaReceived;
-        if (!hasInbound && !rttMs && !jitterMs) return;
+        if (!hasInbound && !rttMs && !jitterMs && !selectedRoute && Object.keys(codecs).length === 0) return;
         const packetLossPercent = totalPackets > 0 ? (deltaLost / totalPackets) * 100 : 0;
-        const level = packetLossPercent >= 5 || rttMs >= 400 || jitterMs >= 80
+        let level = packetLossPercent >= 5 || rttMs >= 400 || jitterMs >= 80
             ? 'poor'
             : packetLossPercent >= 2 || rttMs >= 250 || jitterMs >= 40
                 ? 'fair'
                 : 'good';
+        level = _worseQualityLevel(level, _thresholdQuality(jitterBufferDelayMs, JITTER_BUFFER_FAIR_MS, JITTER_BUFFER_POOR_MS));
+        level = _worseQualityLevel(level, _thresholdQuality(concealmentPercent, CONCEALMENT_FAIR_PERCENT, CONCEALMENT_POOR_PERCENT));
+        level = _worseQualityLevel(level, _thresholdQuality(videoFramesDroppedPercent, VIDEO_DROP_FAIR_PERCENT, VIDEO_DROP_POOR_PERCENT));
         const sendLevel = _worseQualityLevel(level, _qualityLevel(remoteLossPercent, rttMs, 0));
         this._queueAdaptiveSendProfile(sendLevel);
-        this._onQualityStats({ level, sendLevel, packetLossPercent, remoteLossPercent, rttMs, jitterMs });
+        this._onQualityStats({
+            level,
+            sendLevel,
+            packetLossPercent,
+            remoteLossPercent,
+            rttMs,
+            jitterMs,
+            jitterBufferDelayMs,
+            concealmentPercent,
+            videoFramesDroppedPercent,
+            selectedCandidateRoute: selectedRoute?.route || '',
+            selectedCandidatePair: selectedRoute,
+            codecs,
+        });
     }
 
     _queueAdaptiveSendProfile(level) {
@@ -542,6 +659,89 @@ function _qualityLevel(packetLossPercent, rttMs, jitterMs) {
 
 function _worseQualityLevel(left, right) {
     return SEND_QUALITY_ORDER[left] <= SEND_QUALITY_ORDER[right] ? left : right;
+}
+
+function _thresholdQuality(value, fairThreshold, poorThreshold) {
+    const normalized = Number(value || 0);
+    if (!Number.isFinite(normalized) || normalized <= 0) return 'good';
+    if (normalized >= poorThreshold) return 'poor';
+    if (normalized >= fairThreshold) return 'fair';
+    return 'good';
+}
+
+function _orderedCodecPreferences(kind, codecs) {
+    const preferred = PREFERRED_CODEC_MIME_TYPES[kind] || [];
+    if (!preferred.length) return codecs;
+    const preferredPayloadRanks = new Map();
+    codecs.forEach((codec) => {
+        const mime = String(codec?.mimeType || '').toLowerCase();
+        const rank = preferred.findIndex(item => item.toLowerCase() === mime);
+        if (rank >= 0 && codec?.payloadType != null) {
+            preferredPayloadRanks.set(Number(codec.payloadType), rank * 10);
+        }
+    });
+    return [...codecs].sort((left, right) => (
+        _codecPreferenceRank(kind, left, preferred, preferredPayloadRanks)
+        - _codecPreferenceRank(kind, right, preferred, preferredPayloadRanks)
+    ));
+}
+
+function _codecPreferenceRank(kind, codec, preferred, preferredPayloadRanks) {
+    const mime = String(codec?.mimeType || '').toLowerCase();
+    const directRank = preferred.findIndex(item => item.toLowerCase() === mime);
+    if (directRank >= 0) return directRank * 10;
+    if (kind === 'video' && mime === 'video/rtx') {
+        const apt = Number(codec?.parameters?.apt);
+        if (preferredPayloadRanks.has(apt)) return preferredPayloadRanks.get(apt) + 1;
+    }
+    if (kind === 'video' && (mime === 'video/red' || mime === 'video/ulpfec')) {
+        return preferred.length * 10 + 2;
+    }
+    return preferred.length * 10 + 10;
+}
+
+function _rememberCodec(target, direction, report, reportsById) {
+    const codec = report?.codecId ? reportsById.get(report.codecId) : null;
+    const label = _codecLabel(codec);
+    if (!label) return;
+    const kind = String(report.kind || report.mediaType || '').trim().toLowerCase();
+    if (kind !== 'audio' && kind !== 'video') return;
+    target[`${direction}_${kind}`] = label;
+}
+
+function _codecLabel(codec) {
+    const mime = String(codec?.mimeType || '').trim();
+    if (!mime) return '';
+    const clockRate = Number(codec.clockRate || 0);
+    const channels = Number(codec.channels || 0);
+    const suffix = [
+        clockRate > 0 ? `${clockRate}Hz` : '',
+        channels > 0 ? `${channels}ch` : '',
+    ].filter(Boolean).join('/');
+    return suffix ? `${mime} ${suffix}` : mime;
+}
+
+function _candidateRoute(pair, reportsById) {
+    const local = pair?.localCandidateId ? reportsById.get(pair.localCandidateId) : null;
+    const remote = pair?.remoteCandidateId ? reportsById.get(pair.remoteCandidateId) : null;
+    const localCandidateType = _candidateType(local);
+    const remoteCandidateType = _candidateType(remote);
+    const route = localCandidateType === 'relay' || remoteCandidateType === 'relay'
+        ? 'relay'
+        : (localCandidateType || remoteCandidateType || 'unknown');
+    return {
+        route,
+        localCandidateType,
+        remoteCandidateType,
+        protocol: String(local?.protocol || remote?.protocol || pair?.protocol || '').toLowerCase(),
+        relayProtocol: String(local?.relayProtocol || remote?.relayProtocol || '').toLowerCase(),
+        networkType: String(local?.networkType || remote?.networkType || '').toLowerCase(),
+    };
+}
+
+function _candidateType(candidate) {
+    const value = String(candidate?.candidateType || '').trim().toLowerCase();
+    return ['host', 'srflx', 'prflx', 'relay'].includes(value) ? value : '';
 }
 
 function _normalizeIceTransportPolicy(value) {
