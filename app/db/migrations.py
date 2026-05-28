@@ -1084,7 +1084,7 @@ def _run_moderation_audit_append_only_migration(conn, cursor) -> None:
         CREATE OR REPLACE FUNCTION moderation_audit_log_append_only()
         RETURNS TRIGGER AS $$
         BEGIN
-            RAISE EXCEPTION 'moderation_audit_log is append-only (operation %% blocked)',
+            RAISE EXCEPTION 'moderation_audit_log is append-only (operation % blocked)',
                 TG_OP USING ERRCODE = 'insufficient_privilege';
         END;
         $$ LANGUAGE plpgsql
