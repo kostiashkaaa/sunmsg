@@ -464,6 +464,10 @@ body.settings-detail-open .settings-profile-section .settings-save-row {
                 0 0 0 3px color-mix(in srgb, var(--sx-accent, var(--accent)) 22%, transparent) !important;
 }
 .settings-scene .mnemonic-num {
+    /* Возвращаем номер в flex-поток — иначе абсолютное позиционирование
+       из sections.css кладёт его поверх инпута, и текст наезжает на цифру. */
+    position: static !important;
+    left: auto !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     color: var(--sx-ink-3, var(--text-muted)) !important;
