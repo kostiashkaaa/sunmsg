@@ -305,6 +305,38 @@ def test_sidebar_loading_shell_is_shared_for_initial_contact_sync() -> None:
     assert 'html[data-motion-level="lite"] .sidebar.sidebar--loading .search-input-wrapper::before' in responsive_css
 
 
+def test_sidebar_loading_contact_rows_keep_layout_metrics() -> None:
+    components_css = (STATIC / 'pages' / 'chat' / 'components.css').read_text(encoding='utf-8')
+    selector_blocks = [
+        (selector, body)
+        for selector, body in re.findall(r'([^{}]+)\{([^{}]+)\}', components_css)
+    ]
+    checked_selectors = [
+        '.contact-item.contact-item--preview-loading .contact-name',
+        '.contact-item.contact-item--preview-loading .contact-time-meta',
+        '.sidebar.sidebar--loading #contactsList .contact-item .contact-name',
+        '.sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta',
+        '.sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg',
+    ]
+    layout_declaration = re.compile(
+        r'(?:^|;)\s*'
+        r'(?:width|max-width|min-width|height|max-height|min-height|'
+        r'margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|flex(?:-[\w-]+)?)\s*:',
+    )
+
+    for checked_selector in checked_selectors:
+        matching_blocks = [
+            (selector, body)
+            for selector, body in selector_blocks
+            if checked_selector in selector
+        ]
+        assert matching_blocks, f'{checked_selector} loading selector not found'
+        for selector, body in matching_blocks:
+            assert not layout_declaration.search(body), (
+                f'{checked_selector} must stay paint-only during loading: {selector.strip()}'
+            )
+
+
 def test_liquid_glass_does_not_override_sidebar_loading_shell() -> None:
     liquid_glass_css = (STATIC / 'pages' / 'chat' / 'liquid-glass.css').read_text(encoding='utf-8')
 

@@ -2806,20 +2806,6 @@
         }
 
 
-        .contact-item.contact-item--preview-loading .contact-name {
-            width: min(132px, 72%);
-            height: 16px;
-        }
-
-
-        .contact-item.contact-item--preview-loading .contact-time-meta {
-            width: 42px;
-            height: 10px;
-            flex: 0 0 42px;
-            padding: 0;
-        }
-
-
         .contact-item.contact-item--preview-loading .contact-name::after,
         .contact-item.contact-item--preview-loading .contact-time-meta::after {
             content: "";
@@ -2983,27 +2969,6 @@
         @keyframes sidebarLoadingSurfaceSweep {
             from { background-position: 180% 0; }
             to { background-position: -180% 0; }
-        }
-
-        .sidebar.sidebar--loading #contactsList .contact-item .contact-name {
-            width: min(132px, 72%);
-            height: 16px;
-        }
-
-        .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta {
-            width: 42px;
-            height: 10px;
-            flex: 0 0 42px;
-            padding: 0;
-        }
-
-        .sidebar.sidebar--loading #contactsList .contact-item .contact-last-msg {
-            width: min(122px, 64%) !important;
-            max-width: min(122px, 64%) !important;
-            min-width: 92px;
-            flex: 0 1 122px !important;
-            height: 8px;
-            margin-top: 3px;
         }
 
         .sidebar.sidebar--loading #contactsList .contact-item .contact-time-meta > *,
