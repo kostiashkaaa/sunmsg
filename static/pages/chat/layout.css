@@ -357,8 +357,11 @@ body:not(.dark-mode) .msg-tick.read { color: var(--read-tick-color); }
 
 .status-dot {
     position: absolute;
-    bottom: -1px;
-    right: -1px;
+    /* Telegram-style: dot sits on the round avatar's lower-right diagonal edge,
+       overlapping it slightly. For a 40px circle, ~2px inset puts the dot's
+       center just inside the rim so it reads as "on" the avatar. */
+    bottom: 2px;
+    right: 2px;
     width: 12px;
     height: 12px;
     border: none;
@@ -368,6 +371,7 @@ body:not(.dark-mode) .msg-tick.read { color: var(--read-tick-color); }
     box-shadow: 0 0 0 2.5px var(--sidebar-bg);
     opacity: 0;
     transform: scale(0.55);
+    transform-origin: center;
     pointer-events: none;
     transition: opacity var(--dur-quick) var(--ease-spring), transform var(--dur-quick) var(--ease-spring);
     z-index: 2;
