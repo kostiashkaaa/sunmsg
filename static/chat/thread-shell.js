@@ -1,5 +1,4 @@
 import { waitForMotionEnd } from '../modules/motion.js';
-import { showChatSkeleton } from '../modules/chat-skeleton-ui.js';
 
 export function createThreadShell({
     historyLoadingIndicator,
@@ -7,7 +6,6 @@ export function createThreadShell({
     getCurrentChatId,
     getChatMessagesElement,
 }) {
-    let removeSkeleton = null;
     function isChatSurfaceVisible(chatMessages = getChatMessagesElement()) {
         return Boolean(
             getCurrentChatId()
@@ -44,16 +42,8 @@ export function createThreadShell({
         if (chatMessages) {
             if (shouldShow) {
                 chatMessages.setAttribute('aria-busy', 'true');
-                // Show skeleton only when messages list is empty
-                if (!chatMessages.querySelector('.message') && !removeSkeleton) {
-                    removeSkeleton = showChatSkeleton(chatMessages);
-                }
             } else {
                 chatMessages.removeAttribute('aria-busy');
-                if (removeSkeleton) {
-                    removeSkeleton();
-                    removeSkeleton = null;
-                }
             }
         }
         if (shouldShow) {

@@ -14,7 +14,7 @@ source = source.replace(
 );
 source = source.replace(
   /import\\s*\\{{\\s*showChatSkeleton\\s*\\}}\\s*from\\s*['"]\\.\\.\\/modules\\/chat-skeleton-ui\\.js['"];\\s*/,
-  'const showChatSkeleton = () => () => {{}};'
+  'const showChatSkeleton = (chatMessages) => {{ const row = {{ className: "chat-skeleton-row", remove() {{ const index = chatMessages.childNodes.indexOf(row); if (index >= 0) chatMessages.childNodes.splice(index, 1); }} }}; chatMessages.prepend(row); return () => row.remove(); }};'
 );
 source = source.replace(
   /export\\s+function\\s+createThreadShell/,
@@ -132,6 +132,101 @@ if (leaveCalls !== 0) {
 }
 if (focusCalls !== 1) {
   throw new Error(`Expected reopen to schedule one composer focus, got ${focusCalls}`);
+}
+"""
+    result = _run_thread_shell_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_stage_loading_does_not_mutate_message_scroll_container():
+    harness_body = """
+function createClassList(initial = []) {
+  const names = new Set(initial);
+  return {
+    add: (...items) => items.forEach((item) => names.add(item)),
+    remove: (...items) => items.forEach((item) => names.delete(item)),
+    contains: (item) => names.has(item),
+    toggle: (item, force) => {
+      const enabled = force === undefined ? !names.has(item) : Boolean(force);
+      if (enabled) names.add(item);
+      else names.delete(item);
+      return enabled;
+    },
+  };
+}
+
+function createStyle(initial = {}) {
+  const data = { ...initial };
+  return {
+    get display() {
+      return data.display || '';
+    },
+    set display(value) {
+      data.display = String(value || '');
+    },
+  };
+}
+
+function createElement(initialClasses = []) {
+  const attrs = new Map();
+  return {
+    childNodes: [],
+    classList: createClassList(initialClasses),
+    style: createStyle(),
+    setAttribute(name, value) {
+      attrs.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attrs.has(name) ? attrs.get(name) : null;
+    },
+    removeAttribute(name) {
+      attrs.delete(name);
+    },
+    querySelector(selector) {
+      if (selector !== '.message') return null;
+      return this.childNodes.find((node) => node.classList?.contains('message')) || null;
+    },
+    prepend(...nodes) {
+      this.childNodes.unshift(...nodes);
+    },
+  };
+}
+
+const chatMessages = createElement(['chat-messages']);
+const stageLoader = createElement();
+const historyLoader = createElement();
+const shell = moduleApi.createThreadShell({
+  historyLoadingIndicator: historyLoader,
+  chatStageLoader: stageLoader,
+  getCurrentChatId: () => 'chat-1',
+  getChatMessagesElement: () => chatMessages,
+});
+
+shell.setChatStageLoading(true);
+
+if (chatMessages.childNodes.length !== 0) {
+  throw new Error(`Stage loading mutated chatMessages children: ${chatMessages.childNodes.length}`);
+}
+if (chatMessages.getAttribute('aria-busy') !== 'true') {
+  throw new Error('Stage loading should mark chatMessages aria-busy');
+}
+if (!stageLoader.classList.contains('active')) {
+  throw new Error('Stage loader should become active');
+}
+if (historyLoader.classList.contains('active')) {
+  throw new Error('History loader should be hidden while stage loader is active');
+}
+
+shell.setChatStageLoading(false);
+
+if (chatMessages.childNodes.length !== 0) {
+  throw new Error(`Stage loading cleanup mutated chatMessages children: ${chatMessages.childNodes.length}`);
+}
+if (chatMessages.getAttribute('aria-busy') !== null) {
+  throw new Error('Stage loading should clear chatMessages aria-busy');
+}
+if (stageLoader.classList.contains('active')) {
+  throw new Error('Stage loader should become inactive');
 }
 """
     result = _run_thread_shell_harness(harness_body)
