@@ -220,13 +220,13 @@
                 padding: 18px 0 12px;
             }
             .avatar-editor-viewport {
-                width: min(calc(100vw - 28px), 520px);
-                height: min(58vh, 520px);
+                width: min(calc(100vw - 28px), 52vh, 460px);
+                aspect-ratio: 1;
+                max-height: 52vh;
                 min-width: 0;
-                min-height: 260px;
             }
             .avatar-editor-crop-frame {
-                width: min(78%, 360px);
+                width: 80%;
             }
             .avatar-editor-zoom {
                 width: min(86vw, 360px);

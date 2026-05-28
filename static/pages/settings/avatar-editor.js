@@ -15,6 +15,21 @@ export function initAvatarEditor({
     const avatarEditorRotateRight = document.getElementById('avatarEditorRotateRight');
     const avatarEditorCropFrame = avatarEditorEl?.querySelector('.avatar-editor-crop-frame') || null;
 
+    // The editor markup lives inside the settings overlay panel, which is a
+    // transformed element (it animates with translate3d/scale). A transformed
+    // ancestor becomes the containing block for `position: fixed` descendants,
+    // so the editor would be clipped to the panel instead of covering the
+    // whole viewport. Re-parenting it to <body> the first time it opens frees
+    // it from that containing block and from the panel's `overflow: hidden`.
+    let avatarEditorPortaled = false;
+    function portalAvatarEditor() {
+        if (avatarEditorPortaled || !avatarEditorEl) return;
+        if (avatarEditorEl.parentElement !== document.body) {
+            document.body.appendChild(avatarEditorEl);
+        }
+        avatarEditorPortaled = true;
+    }
+
     const AVATAR_OUTPUT_SIZE = 512;
     const AVATAR_MAX_FILE_SIZE = 10 * 1024 * 1024;
     const AVATAR_MAX_SOURCE_PIXELS = 24 * 1000 * 1000;
@@ -206,6 +221,7 @@ export function initAvatarEditor({
                     offsetX: 0,
                     offsetY: 0,
                 };
+                portalAvatarEditor();
                 avatarEditorEl.hidden = false;
                 avatarEditorEl.setAttribute('aria-hidden', 'false');
                 document.body.classList.add('avatar-editor-open');
