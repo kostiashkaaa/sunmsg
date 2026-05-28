@@ -2112,7 +2112,23 @@
     }
     .call-overlay--minimized .call-topbar__state {
         min-width: 0;
+        display: grid;
+        grid-template-columns: 18px minmax(0, auto);
+        grid-template-rows: auto auto;
+        column-gap: 8px;
+        row-gap: 0;
+        align-items: center;
         overflow: hidden;
+        line-height: 1.05;
+    }
+    .call-overlay--minimized .call-topbar__state svg {
+        grid-row: 1 / 3;
+    }
+    .call-overlay--minimized .call-topbar__duration {
+        grid-column: 2;
+        padding-left: 0;
+        font-size: 11px;
+        line-height: 1;
     }
     .call-topbar__name {
         width: 100%;
