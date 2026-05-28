@@ -542,6 +542,8 @@ def delete_chat_for_user(
     if not row:
         return {'status': 'forbidden'}
     is_group_chat = get_chat_type(conn, chat_id) == 'group'
+    if is_group_chat:
+        return {'status': 'group_leave_required'}
 
     if mode == 'for_both' and not is_group_chat:
         others = conn.execute(

@@ -239,6 +239,7 @@ export async function probeVisualMediaMetadata(file, {
 export function uploadChatMedia(file, {
     chatId = '',
     csrfToken = '',
+    mediaHint = '',
     onProgress,
     onRequestReady,
 } = {}) {
@@ -297,6 +298,7 @@ export function uploadChatMedia(file, {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('chat_id', chatId || '');
+        if (mediaHint) formData.append('media_hint', mediaHint);
         xhr.send(formData);
     });
 }

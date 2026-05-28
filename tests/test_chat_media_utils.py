@@ -1,3 +1,4 @@
+import sqlite3
 from io import BytesIO
 from types import SimpleNamespace
 from zipfile import ZipFile
@@ -277,3 +278,58 @@ def test_upload_chat_media_releases_auth_db_connection_before_av_scan(tmp_path):
     assert opened_connections == [auth_conn, insert_conn]
     assert insert_conn.closed is True
     assert insert_conn.commits == 1
+
+
+def test_upload_chat_media_rejects_group_member_when_media_disabled(tmp_path):
+    media_dir = tmp_path / 'group-media'
+    media_dir.mkdir()
+    conn = sqlite3.connect(':memory:')
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        '''
+        CREATE TABLE chats (
+            chat_id TEXT PRIMARY KEY,
+            group_perm_send_messages INTEGER DEFAULT 1,
+            group_perm_send_media INTEGER DEFAULT 1
+        );
+        CREATE TABLE chat_members (
+            user_id INTEGER,
+            chat_id TEXT,
+            role TEXT
+        );
+        '''
+    )
+    conn.execute(
+        '''
+        INSERT INTO chats (chat_id, group_perm_send_messages, group_perm_send_media)
+        VALUES ('group-1', 1, 0)
+        '''
+    )
+    conn.execute("INSERT INTO chat_members (user_id, chat_id, role) VALUES (2, 'group-1', 'member')")
+
+    result = upload_chat_media_for_user(
+        conn,
+        user_id=2,
+        chat_id='group-1',
+        uploaded_file=_UploadFile(b'hello media'),
+        chat_media_folder=str(media_dir),
+        allowed_extensions={'txt'},
+        max_chat_media_size=1024,
+        validate_chat_media_content_func=lambda uploaded, ext: True,
+        get_chat_partner_func=lambda conn, user_id, chat_id: {'contact_id': None, 'chat_type': 'group', 'is_group': True},
+        build_block_state_func=lambda conn, user_id, contact_id: {'blocked_by_me': False, 'blocked_me': False},
+        serialize_block_state_func=serialize_block_state,
+        ensure_chat_exists_func=lambda conn, chat_id: None,
+        normalize_chat_media_mime_func=lambda mimetype, filename, ext: 'text/plain',
+        detect_chat_media_type_func=lambda mime: 'file',
+        scan_file_func=lambda path, **kwargs: SimpleNamespace(infected=False, signature='', output=''),
+        av_scan_enabled=False,
+        av_fail_closed=True,
+        av_command_template='scanner --scan {path}',
+        av_timeout_seconds=20,
+        av_scan_extensions={'txt'},
+    )
+
+    assert result['status'] == 'forbidden'
+    assert result['error'] == 'Participants cannot send media in this group.'
+    assert list(media_dir.iterdir()) == []

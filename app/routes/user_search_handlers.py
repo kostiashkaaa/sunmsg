@@ -17,6 +17,13 @@ def _build_search_result(user, *, viewer_id: int, get_safe_avatar_url_func, incl
     pending_incoming = coerce_bool_flag(user['has_pending_incoming_request'], default=False)
     pending_outgoing = coerce_bool_flag(user['has_pending_outgoing_request'], default=False)
     contact_chat_id = str(user['contact_chat_id'] or '').strip()
+    group_invite_privacy = str(user['group_invite_privacy'] or 'all').strip().lower()
+    if group_invite_privacy == 'nobody':
+        group_invite_action = 'deny'
+    elif group_invite_privacy == 'contacts' and not is_contact:
+        group_invite_action = 'request'
+    else:
+        group_invite_action = 'add'
     result = {
         'userId': user['id'],
         'user_id': user['id'],
@@ -24,6 +31,7 @@ def _build_search_result(user, *, viewer_id: int, get_safe_avatar_url_func, incl
         'display_name': user['display_name'],
         'avatar_url': get_safe_avatar_url_func(user, viewer_id),
         'can_group_add_direct': coerce_bool_flag(user['can_group_add_direct'], default=True),
+        'group_invite_action': group_invite_action,
         'is_contact': is_contact,
         'pending_incoming_request': pending_incoming,
         'pending_outgoing_request': pending_outgoing,
@@ -135,6 +143,7 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
         users = conn.execute(
             f'''
             SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
+                   group_invite_privacy,
                    public_key_search_privacy,
                    (SELECT contact_chat.chat_id
                     FROM contacts contact_chat
@@ -224,6 +233,7 @@ def build_search_users_payload(  # noqa: PLR0913 - dependency-injected payload b
     users = conn.execute(
         f'''
         SELECT id, username, display_name, public_key, avatar_url, avatar_visibility,
+               group_invite_privacy,
                (SELECT contact_chat.chat_id
                 FROM contacts contact_chat
                 WHERE contact_chat.user_id = ? AND contact_chat.contact_id = users.id

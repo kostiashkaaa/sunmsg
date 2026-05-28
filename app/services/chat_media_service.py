@@ -2,7 +2,10 @@ import os
 import uuid
 
 from app.db_backend import DatabaseError
+from app.services import moderation as moderation_service
 from app.services.av_scan import AVScanError
+from app.services.chat_members import get_group_member_role
+from app.services.group_permissions import load_group_permissions, role_uses_member_permissions
 from app.services.image_sanitizer import (
     ImageSanitizationError,
     is_sanitizable_extension,
@@ -66,6 +69,71 @@ def _voice_upload_forbidden_result():
         'error': 'Голосовые сообщения временно недоступны.',
         'code': 403,
     }
+
+
+def _row_value(row, key: str, default=None):
+    try:
+        return row[key]
+    except Exception:  # noqa: BLE001
+        return default
+
+
+def _is_group_partner(partner) -> bool:
+    return bool(_row_value(partner, 'is_group', False)) or str(_row_value(partner, 'chat_type', '') or '').lower() == 'group'
+
+
+def _active_group_upload_restriction(conn, *, chat_id: str, user_id: int) -> dict | None:
+    conn.execute('SAVEPOINT chat_media_group_restriction')
+    try:
+        restriction = moderation_service.active_group_restriction(
+            conn,
+            chat_id=str(chat_id),
+            user_id=int(user_id),
+        )
+        conn.execute('RELEASE SAVEPOINT chat_media_group_restriction')
+    except Exception:  # noqa: BLE001 - legacy isolated tests can omit moderation tables
+        try:
+            conn.execute('ROLLBACK TO SAVEPOINT chat_media_group_restriction')
+            conn.execute('RELEASE SAVEPOINT chat_media_group_restriction')
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+    if not restriction:
+        return None
+    action_type = str(restriction.get('action_type') or '').strip().lower()
+    if action_type not in {'mute_temp', 'ban_temp', 'ban_perma'}:
+        return None
+    return restriction
+
+
+def _group_media_upload_forbidden_result(conn, *, chat_id: str, user_id: int) -> dict | None:
+    restriction = _active_group_upload_restriction(conn, chat_id=chat_id, user_id=user_id)
+    if restriction:
+        return {
+            'status': 'forbidden',
+            'error': 'Messaging is restricted in this group by moderation.',
+            'code': 403,
+            'restriction': restriction,
+        }
+
+    role = get_group_member_role(conn, int(user_id), str(chat_id))
+    if not role_uses_member_permissions(role):
+        return None
+
+    permissions = load_group_permissions(conn, chat_id=str(chat_id))
+    if not bool(permissions.get('members_can_send_messages')):
+        return {
+            'status': 'forbidden',
+            'error': 'Participants cannot send messages in this group.',
+            'code': 403,
+        }
+    if not bool(permissions.get('members_can_send_media')):
+        return {
+            'status': 'forbidden',
+            'error': 'Participants cannot send media in this group.',
+            'code': 403,
+        }
+    return None
 
 
 def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload contract
@@ -198,17 +266,24 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
             {'status': 'forbidden', 'error': 'Доступ к чату запрещен.', 'code': 403},
             owns_connections,
         )
-    block_state = serialize_block_state_func(build_block_state_func(active_conn, user_id, partner['contact_id']))
-    if block_state['is_blocked']:
-        return _close_connection_and_return(
-            active_conn,
-            {
-                'status': 'blocked',
-                'error': 'Нельзя загружать медиа: пользователь заблокирован.',
-                'block_state': block_state,
-            },
-            owns_connections,
-        )
+    is_group_chat = _is_group_partner(partner)
+    if not is_group_chat:
+        block_state = serialize_block_state_func(build_block_state_func(active_conn, user_id, partner['contact_id']))
+        if block_state['is_blocked']:
+            return _close_connection_and_return(
+                active_conn,
+                {
+                    'status': 'blocked',
+                    'error': 'Нельзя загружать медиа: пользователь заблокирован.',
+                    'block_state': block_state,
+                },
+                owns_connections,
+            )
+    if is_group_chat:
+        group_forbidden = _group_media_upload_forbidden_result(active_conn, chat_id=chat_id, user_id=int(user_id))
+        if group_forbidden:
+            return _close_connection_and_return(active_conn, group_forbidden, owns_connections)
+
     if not uploaded_file or not uploaded_file.filename:
         return _close_connection_and_return(
             active_conn,
@@ -226,7 +301,7 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
         )
     normalized_media_hint = str(media_hint or '').strip().lower()
     is_voice_upload = normalized_media_hint in {'voice', 'voice_message'} or filename.lower().startswith('voice-')
-    if is_voice_upload and not can_send_direct_message(
+    if not is_group_chat and is_voice_upload and not can_send_direct_message(
         active_conn,
         receiver_id=partner['contact_id'],
         sender_id=user_id,

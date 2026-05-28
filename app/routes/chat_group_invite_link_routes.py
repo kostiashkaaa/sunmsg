@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import jsonify, request, session
 
+from app.routes.chat_group_events import emit_group_event
 from app.routes.trust_limits import trust_ramped_limit
 from app.services.chat_members import get_chat_type, is_chat_member, CHAT_TYPE_GROUP
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS
@@ -159,14 +160,28 @@ def register_chat_group_invite_link_routes(
             result = consume_invite_link(conn, token, user_id)
             if not result:
                 return jsonify({'success': False, 'error': 'Link is expired, invalid, or has reached its usage limit.'}), 404
+            if result.get('blocked_by_group_ban'):
+                return jsonify(
+                    {
+                        'success': False,
+                        'error': 'You are banned from this group.',
+                        'restriction': result.get('restriction'),
+                    }
+                ), 403
             conn.commit()
             chat_id = result['chat_id']
             already_member = result.get('already_member', False)
             if not already_member:
-                socketio_emit_func('group_member_joined', {
-                    'chat_id': chat_id,
-                    'user_id': user_id,
-                }, room=chat_id)
+                emit_group_event(
+                    conn,
+                    chat_id=chat_id,
+                    event_name='group_members_added',
+                    payload={
+                        'chat_id': chat_id,
+                        'added_member_ids': [int(user_id)],
+                    },
+                    socketio_emit_func=socketio_emit_func,
+                )
         finally:
             conn.close()
         return jsonify({'success': True, 'chat_id': chat_id, 'already_member': already_member})

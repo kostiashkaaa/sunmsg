@@ -31,6 +31,7 @@ from app.services.group_invite_requests import (
     GROUP_INVITE_ACTION_REQUEST,
     build_group_invite_request_payload,
     ensure_group_invite_request,
+    has_group_invite_block,
     resolve_group_invite_privacy_action,
 )
 from app.services.group_authorization import ACTION_CHANGE_SETTINGS, ACTION_INVITE
@@ -127,6 +128,18 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             requested_member_ids: list[int] = []
             denied_member_ids: list[int] = []
             for candidate_user_id in member_ids:
+                if has_group_invite_block(
+                    conn,
+                    inviter_user_id=creator_id,
+                    invitee_user_id=int(candidate_user_id),
+                ):
+                    return jsonify(
+                        {
+                            'success': False,
+                            'error': 'User is blocked and cannot be invited to the group.',
+                            'target_user_id': int(candidate_user_id),
+                        }
+                    ), 403
                 invite_action = resolve_group_invite_privacy_action(
                     conn,
                     inviter_user_id=creator_id,
@@ -311,6 +324,18 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
             request_only_ids: list[int] = []
             denied_member_ids: list[int] = []
             for candidate_user_id in resolved_ids:
+                if has_group_invite_block(
+                    conn,
+                    inviter_user_id=user_id,
+                    invitee_user_id=int(candidate_user_id),
+                ):
+                    return jsonify(
+                        {
+                            'success': False,
+                            'error': 'User is blocked and cannot be invited to the group.',
+                            'target_user_id': int(candidate_user_id),
+                        }
+                    ), 403
                 invite_action = resolve_group_invite_privacy_action(
                     conn,
                     inviter_user_id=user_id,
@@ -495,22 +520,15 @@ def register_chat_group_management_routes(  # noqa: C901,PLR0913,PLR0915
                 return jsonify({'success': False, 'error': 'Group chat not found.'}), 404
             if not is_chat_member(conn, user_id, chat_id):
                 return jsonify({'success': False, 'error': 'Forbidden.'}), 403
-            actor_role = get_group_member_role(conn, user_id, chat_id)
-            group_permissions = load_group_permissions(conn, chat_id=chat_id)
-            can_member_change_info = bool(
-                role_uses_member_permissions(actor_role)
-                and group_permissions.get('members_can_change_info'),
+            _, auth_error = authorize_group_action_or_error_func(
+                conn,
+                actor_user_id=user_id,
+                chat_id=chat_id,
+                action=ACTION_CHANGE_SETTINGS,
+                denied_message='Only owner/admin can change group settings.',
             )
-            if not can_member_change_info:
-                _, auth_error = authorize_group_action_or_error_func(
-                    conn,
-                    actor_user_id=user_id,
-                    chat_id=chat_id,
-                    action=ACTION_CHANGE_SETTINGS,
-                    denied_message='Only owner/admin can change group settings.',
-                )
-                if auth_error:
-                    return auth_error
+            if auth_error:
+                return auth_error
 
             chat_row = conn.execute(
                 '''

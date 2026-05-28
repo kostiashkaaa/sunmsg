@@ -8,6 +8,7 @@ import {
     groupRoleLabel,
     formatGroupSanctionSummary,
 } from './chat-group-moderation.js';
+import { tr } from './utils.js';
 
 export function createChatGroupProfileRuntime({
     documentRef = document,
@@ -203,7 +204,7 @@ export function createChatGroupProfileRuntime({
         const myUserId = Number(currentUserId || 0);
         const pendingAppealId = Number(profile?.my_pending_group_appeal?.appeal_id || 0);
 
-        profileGroupMembers.innerHTML = members.map((member) => {
+        const membersHtml = members.map((member) => {
             const memberUserId = Number(member?.user_id || 0);
             const displayName = resolveMemberDisplayName(member);
             const username = String(member.username || '').trim();
@@ -231,7 +232,7 @@ export function createChatGroupProfileRuntime({
                 activeSanction
                 && memberUserId === myUserId
                 && pendingAppealId > 0
-            ) ? '<div class="profile-group-member-meta">Appeal is pending review.</div>' : '';
+            ) ? '<div class="profile-group-member-meta">Апелляция ожидает рассмотрения.</div>' : '';
             return `
                 <div class="profile-group-member${memberRowClickable ? ' profile-group-member--clickable' : ''}"${memberRowClickable ? ` data-group-member-user-id="${memberUserId}" data-group-member-username="${escapeHtml(username)}" role="button" tabindex="0"` : ''}>
                     <div class="profile-group-member-avatar">${avatarHtml}</div>
@@ -247,6 +248,12 @@ export function createChatGroupProfileRuntime({
                 </div>
             `;
         }).join('');
+        const totalCount = Number(profile?.members_count || 0);
+        const hasMoreMembers = Boolean(profile?.members_has_more) || totalCount > members.length;
+        const moreHtml = hasMoreMembers
+            ? `<div class="profile-group-members-empty">${escapeHtml(tr('Показаны первые участники из списка.'))}</div>`
+            : '';
+        profileGroupMembers.innerHTML = membersHtml + moreHtml;
     }
 
     function setGroupProfileTab(tabKey) {

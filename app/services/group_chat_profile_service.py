@@ -13,6 +13,8 @@ from app.services.group_permissions import extract_group_permissions_from_chat_r
 from app.services.group_permissions import role_uses_member_permissions
 from app.services.user_privacy import PRIVACY_ALL, PRIVACY_NOBODY, is_privacy_allowed, normalize_privacy_choice
 
+GROUP_PROFILE_MEMBER_PREVIEW_LIMIT = 500
+
 
 def _fetch_chat_row(conn, chat_id: str):
     return conn.execute(
@@ -37,7 +39,19 @@ def _fetch_my_role(conn, *, chat_id: str, viewer_user_id: int) -> str:
     return str(my_role_row['role'] or 'member') if my_role_row else 'member'
 
 
-def _fetch_member_rows(conn, *, chat_id: str):
+def _count_group_members(conn, *, chat_id: str) -> int:
+    row = conn.execute(
+        '''
+        SELECT COUNT(*) AS cnt
+        FROM chat_members
+        WHERE chat_id = ?
+        ''',
+        (chat_id,),
+    ).fetchone()
+    return int(row['cnt'] or 0) if row else 0
+
+
+def _fetch_member_rows(conn, *, chat_id: str, limit: int = GROUP_PROFILE_MEMBER_PREVIEW_LIMIT):
     return conn.execute(
         '''
         SELECT
@@ -64,8 +78,9 @@ def _fetch_member_rows(conn, *, chat_id: str):
             END,
             LOWER(COALESCE(u.display_name, u.username, '')) ASC,
             u.id ASC
+        LIMIT ?
         ''',
-        (chat_id,),
+        (chat_id, int(limit)),
     ).fetchall()
 
 
@@ -223,7 +238,7 @@ def _build_group_permissions_payload(*, my_role: str, chat_row) -> tuple[dict, d
     can_invite_effective = can_invite or (
         member_scoped and bool(group_permissions.get('members_can_add_members'))
     )
-    can_change_settings_effective = can_change_group_settings or (
+    can_change_info_effective = can_change_group_settings or (
         member_scoped and bool(group_permissions.get('members_can_change_info'))
     )
     can_pin_effective = can_role_perform_action(my_role, 'pin') or (
@@ -235,10 +250,11 @@ def _build_group_permissions_payload(*, my_role: str, chat_row) -> tuple[dict, d
         'can_ban': can_ban,
         'can_pin': can_pin_effective,
         'can_delete_messages': can_role_perform_action(my_role, 'delete_messages'),
-        'can_change_group_settings': can_change_settings_effective,
+        'can_change_group_info': can_change_info_effective,
+        'can_change_group_settings': can_change_group_settings,
         'can_manage_roles': can_manage_roles,
     }
-    return permissions, group_permissions, can_change_settings_effective
+    return permissions, group_permissions, can_change_info_effective
 
 
 def build_group_chat_profile_payload(
@@ -254,6 +270,7 @@ def build_group_chat_profile_payload(
         return None
 
     my_role = _fetch_my_role(conn, chat_id=chat_id, viewer_user_id=viewer_user_id)
+    total_members_count = _count_group_members(conn, chat_id=chat_id)
     member_rows = _fetch_member_rows(conn, chat_id=chat_id)
     sanctions_by_user_id = _load_active_sanctions_by_user_id(
         conn,
@@ -278,7 +295,7 @@ def build_group_chat_profile_payload(
             viewer_user_id=viewer_user_id,
         )
 
-    permissions, group_permissions, can_change_settings_effective = _build_group_permissions_payload(
+    permissions, group_permissions, can_change_info_effective = _build_group_permissions_payload(
         my_role=my_role,
         chat_row=chat_row,
     )
@@ -297,10 +314,12 @@ def build_group_chat_profile_payload(
         'last_seen': None,
         'created_at': None,
         'stats': {'photos': 0, 'files': 0, 'links': 0},
-        'members_count': len(members),
+        'members_count': total_members_count,
+        'members_preview_limit': GROUP_PROFILE_MEMBER_PREVIEW_LIMIT,
+        'members_has_more': total_members_count > len(members),
         'members': members,
         'my_role': my_role,
-        'can_edit_group': can_change_settings_effective,
+        'can_edit_group': can_change_info_effective,
         'can_manage_admins': can_manage_roles,
         'permissions': permissions,
         'group_permissions': group_permissions,

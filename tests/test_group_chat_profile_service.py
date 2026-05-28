@@ -148,6 +148,51 @@ def test_build_group_chat_profile_payload_includes_members_permissions_and_appea
     assert payload['members'][1]['online'] is True
 
 
+def test_member_change_info_permission_does_not_grant_settings_permission():
+    conn = _connect_in_memory()
+    chat_id = 'b' * 64
+    try:
+        conn.execute('ALTER TABLE chats ADD COLUMN group_perm_change_info INTEGER DEFAULT 0')
+        conn.execute(
+            '''
+            INSERT INTO chats (chat_id, chat_name, chat_description, chat_avatar_url, created_by_user_id, group_perm_change_info)
+            VALUES (?, 'Core Team', 'desc', '', 1, 1)
+            ''',
+            (chat_id,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO users (id, username, display_name, public_key, avatar_url, avatar_visibility, is_online, last_seen, hide_online_status, last_seen_visibility)
+            VALUES
+                (1, 'alice', 'Alice', 'pk-1', '', 'public', 0, NULL, 0, 'all'),
+                (2, 'bob', 'Bob', 'pk-2', '', 'public', 0, NULL, 0, 'all')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES
+                (1, ?, 'owner'),
+                (2, ?, 'member')
+            ''',
+            (chat_id, chat_id),
+        )
+        conn.commit()
+
+        payload = build_group_chat_profile_payload(
+            conn=conn,
+            chat_id=chat_id,
+            viewer_user_id=2,
+        )
+    finally:
+        conn.close()
+
+    assert payload is not None
+    assert payload['can_edit_group'] is True
+    assert payload['permissions']['can_change_group_info'] is True
+    assert payload['permissions']['can_change_group_settings'] is False
+
+
 def test_build_group_chat_profile_payload_returns_none_when_chat_missing():
     conn = _connect_in_memory()
     try:

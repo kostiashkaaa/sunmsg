@@ -3,6 +3,8 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from app.services.group_invite_requests import active_group_ban_for_user
+
 
 def _generate_token() -> str:
     return secrets.token_urlsafe(16)
@@ -104,6 +106,10 @@ def consume_invite_link(conn, token: str, user_id: int) -> dict | None:
     ).fetchone()
     if already:
         return {'chat_id': chat_id, 'already_member': True}
+
+    restriction = active_group_ban_for_user(conn, chat_id=chat_id, user_id=int(user_id))
+    if restriction:
+        return {'chat_id': chat_id, 'already_member': False, 'blocked_by_group_ban': True, 'restriction': restriction}
 
     insert_result = conn.execute(
         '''

@@ -1,3 +1,5 @@
+import { escapeHtml, tr } from './utils.js';
+
 export function normalizeGroupReaders(rawReaders) {
     if (!Array.isArray(rawReaders)) return [];
     const normalized = [];
@@ -68,17 +70,45 @@ export function applyGroupReadUpdateToMessage(message, rawUpdate) {
 }
 
 export function buildGroupReadMetaHtml(message, { isGroupChat = false, isSelf = false } = {}) {
-    void message;
-    void isGroupChat;
-    void isSelf;
-    return '';
+    if (!isGroupChat || !isSelf) return '';
+    const readers = normalizeGroupReaders(message?.group_readers);
+    const rawCount = Number(message?.group_read_count);
+    const readCount = Number.isFinite(rawCount) && rawCount >= 0
+        ? Math.floor(rawCount)
+        : readers.length;
+    if (readCount <= 0) return '';
+
+    const readerNames = readers
+        .slice(0, 5)
+        .map((reader) => String(reader.display_name || reader.username || '').trim())
+        .filter(Boolean);
+    const title = readerNames.length
+        ? readerNames.join(', ')
+        : `${readCount} ${tr('прочитали')}`;
+    return `<span class="msg-group-readers" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"><i class="bi bi-eye-fill" aria-hidden="true"></i><span>${readCount}</span></span>`;
 }
 
 export function applyGroupReadMetaToElement(messageEl, message, { isGroupChat = false } = {}) {
     if (!messageEl) return;
     const metaEl = messageEl.querySelector('.msg-meta, .message-meta');
     if (!metaEl) return;
-    void message;
-    void isGroupChat;
-    metaEl.querySelector('.msg-group-readers')?.remove();
+    const nextHtml = buildGroupReadMetaHtml(message, {
+        isGroupChat,
+        isSelf: message?.sender === 'self',
+    });
+    const current = metaEl.querySelector('.msg-group-readers');
+    if (!nextHtml) {
+        current?.remove();
+        return;
+    }
+    if (current) {
+        current.outerHTML = nextHtml;
+        return;
+    }
+    const timeEl = metaEl.querySelector('.msg-time');
+    if (timeEl) {
+        timeEl.insertAdjacentHTML('beforebegin', nextHtml);
+        return;
+    }
+    metaEl.insertAdjacentHTML('afterbegin', nextHtml);
 }

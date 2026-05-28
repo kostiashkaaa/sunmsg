@@ -141,6 +141,18 @@ def _handle_group_invite_accept(conn, *, data: dict, user_id: int):
         return jsonify({'success': False}), 404
     if processed_group['status'] == 'chat_missing':
         return jsonify({'success': False, 'error': CHAT_NOT_FOUND_ERROR}), 404
+    if processed_group['status'] == 'blocked':
+        return jsonify({'success': False, 'error': BLOCKED_REQUEST_ERROR}), 403
+    if processed_group['status'] == 'banned':
+        return jsonify(
+            {
+                'success': False,
+                'error': 'You are banned from this group.',
+                'restriction': processed_group.get('restriction'),
+            }
+        ), 403
+    if processed_group['status'] == 'invite_denied':
+        return jsonify({'success': False, 'error': 'Group invites are disabled for this account.'}), 403
 
     conn.commit()
     chat_id = str(processed_group['chat_id'])

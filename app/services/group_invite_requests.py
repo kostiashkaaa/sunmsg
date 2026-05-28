@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.services import moderation as moderation_service
 from app.services.chat_members import CHAT_TYPE_GROUP, ensure_chat_members
 
 GROUP_INVITE_PRIVACY_ALL = 'all'
@@ -33,6 +34,54 @@ def _is_contact(conn, *, owner_user_id: int, contact_user_id: int) -> bool:
         (int(owner_user_id), int(contact_user_id)),
     ).fetchone()
     return row is not None
+
+
+def has_group_invite_block(conn, *, inviter_user_id: int, invitee_user_id: int) -> bool:
+    conn.execute('SAVEPOINT group_invite_block_lookup')
+    try:
+        row = conn.execute(
+            '''
+            SELECT 1
+            FROM block_list
+            WHERE (blocker_id = ? AND blocked_id = ?)
+               OR (blocker_id = ? AND blocked_id = ?)
+            LIMIT 1
+            ''',
+            (int(inviter_user_id), int(invitee_user_id), int(invitee_user_id), int(inviter_user_id)),
+        ).fetchone()
+        conn.execute('RELEASE SAVEPOINT group_invite_block_lookup')
+    except Exception:  # noqa: BLE001 - legacy isolated tests can omit block_list
+        try:
+            conn.execute('ROLLBACK TO SAVEPOINT group_invite_block_lookup')
+            conn.execute('RELEASE SAVEPOINT group_invite_block_lookup')
+        except Exception:  # noqa: BLE001
+            pass
+        return False
+    return row is not None
+
+
+def active_group_ban_for_user(conn, *, chat_id: str, user_id: int) -> dict | None:
+    conn.execute('SAVEPOINT group_invite_ban_lookup')
+    try:
+        restriction = moderation_service.active_group_restriction(
+            conn,
+            chat_id=str(chat_id),
+            user_id=int(user_id),
+        )
+        conn.execute('RELEASE SAVEPOINT group_invite_ban_lookup')
+    except Exception:  # noqa: BLE001 - legacy isolated tests can omit moderation tables
+        try:
+            conn.execute('ROLLBACK TO SAVEPOINT group_invite_ban_lookup')
+            conn.execute('RELEASE SAVEPOINT group_invite_ban_lookup')
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+    if not restriction:
+        return None
+    action_type = str(restriction.get('action_type') or '').strip().lower()
+    if action_type not in {'ban_temp', 'ban_perma'}:
+        return None
+    return restriction
 
 
 def resolve_group_invite_privacy_action(
@@ -268,6 +317,33 @@ def accept_group_invite_request(
 
     if str(row['chat_type'] or '').strip().lower() != CHAT_TYPE_GROUP:
         return {'status': 'chat_missing'}
+
+    if has_group_invite_block(
+        conn,
+        inviter_user_id=int(row['inviter_user_id']),
+        invitee_user_id=int(invitee_user_id),
+    ):
+        return {'status': 'blocked'}
+
+    restriction = active_group_ban_for_user(
+        conn,
+        chat_id=str(row['chat_id']),
+        user_id=int(invitee_user_id),
+    )
+    if restriction:
+        return {
+            'status': 'banned',
+            'chat_id': str(row['chat_id']),
+            'restriction': restriction,
+        }
+
+    invite_action = resolve_group_invite_privacy_action(
+        conn,
+        inviter_user_id=int(row['inviter_user_id']),
+        invitee_user_id=int(invitee_user_id),
+    )
+    if invite_action == GROUP_INVITE_ACTION_DENY:
+        return {'status': 'invite_denied'}
 
     ensure_chat_members(
         conn,

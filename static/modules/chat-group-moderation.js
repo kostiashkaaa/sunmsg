@@ -13,10 +13,10 @@ export function normalizeGroupRole(role) {
 
 export function groupRoleLabel(role) {
     const normalized = normalizeGroupRole(role);
-    if (normalized === 'owner') return 'Owner';
-    if (normalized === 'admin') return 'Admin';
-    if (normalized === 'moderator') return 'Moderator';
-    return 'Member';
+    if (normalized === 'owner') return 'Владелец';
+    if (normalized === 'admin') return 'Администратор';
+    if (normalized === 'moderator') return 'Модератор';
+    return 'Участник';
 }
 
 export function formatGroupSanctionSummary(sanction, { formatLastSeenText } = {}) {
@@ -25,16 +25,16 @@ export function formatGroupSanctionSummary(sanction, { formatLastSeenText } = {}
     const expiresAt = String(sanction.expires_at || '').trim();
     if (actionType === 'mute_temp') {
         return expiresAt && typeof formatLastSeenText === 'function'
-            ? `Muted until ${formatLastSeenText(expiresAt)}`
-            : 'Muted';
+            ? `Мут до ${formatLastSeenText(expiresAt)}`
+            : 'Мут';
     }
     if (actionType === 'ban_temp') {
         return expiresAt && typeof formatLastSeenText === 'function'
-            ? `Banned until ${formatLastSeenText(expiresAt)}`
-            : 'Banned';
+            ? `Бан до ${formatLastSeenText(expiresAt)}`
+            : 'Бан';
     }
-    if (actionType === 'ban_perma') return 'Banned permanently';
-    return actionType || 'Restricted';
+    if (actionType === 'ban_perma') return 'Бан навсегда';
+    return actionType || 'Ограничение';
 }
 
 async function parseJsonSafe(response) {
@@ -101,13 +101,13 @@ export function createGroupModerationApi({
             });
             const payload = await parseJsonSafe(response);
             if (!response.ok || !payload?.success) {
-                throw new Error(payload?.error || 'Failed to remove member.');
+                throw new Error(payload?.error || 'Не удалось удалить участника.');
             }
-            showToast('Member removed.', 'success');
+            showToast('Участник удалён.', 'success');
             await loadContacts({ immediate: true, attemptInitialChatRestore: false });
             refreshCurrentGroupProfileIfVisible?.();
         } catch (error) {
-            showToast(error?.message || 'Failed to remove member.', 'danger');
+            showToast(error?.message || 'Не удалось удалить участника.', 'danger');
         }
     }
 
@@ -134,13 +134,13 @@ export function createGroupModerationApi({
             });
             const payload = await parseJsonSafe(response);
             if (!response.ok || !payload?.success) {
-                throw new Error(payload?.error || 'Failed to apply group sanction.');
+                throw new Error(payload?.error || 'Не удалось применить санкцию.');
             }
-            showToast('Sanction applied.', 'success');
+            showToast('Санкция применена.', 'success');
             await loadContacts({ immediate: true, attemptInitialChatRestore: false });
             refreshCurrentGroupProfileIfVisible?.();
         } catch (error) {
-            showToast(error?.message || 'Failed to apply group sanction.', 'danger');
+            showToast(error?.message || 'Не удалось применить санкцию.', 'danger');
         }
     }
 
@@ -157,17 +157,17 @@ export function createGroupModerationApi({
                 },
                 body: JSON.stringify({
                     sanction_id: parsedSanctionId,
-                    text: 'Please review this group sanction.',
+                    text: 'Прошу пересмотреть санкцию в группе.',
                 }),
             });
             const payload = await parseJsonSafe(response);
             if (!response.ok || !payload?.success) {
-                throw new Error(payload?.error || 'Failed to submit appeal.');
+                throw new Error(payload?.error || 'Не удалось отправить апелляцию.');
             }
-            showToast('Appeal submitted.', 'success');
+            showToast('Апелляция отправлена.', 'success');
             refreshCurrentGroupProfileIfVisible?.();
         } catch (error) {
-            showToast(error?.message || 'Failed to submit appeal.', 'danger');
+            showToast(error?.message || 'Не удалось отправить апелляцию.', 'danger');
         }
     }
 

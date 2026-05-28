@@ -164,7 +164,7 @@ export function createChatGroupPermissionsController(deps = {}) {
     function openPermissionsPanel() {
         if (!groupPermissionsPanel) return;
         const profile = getCurrentGroupProfile?.();
-        const canManage = Boolean(profile?.permissions?.can_change_group_settings || profile?.can_edit_group);
+        const canManage = Boolean(profile?.permissions?.can_change_group_settings);
         if (!canManage) {
             showToast?.('У вас нет прав на изменение разрешений группы.', 'warning');
             return;

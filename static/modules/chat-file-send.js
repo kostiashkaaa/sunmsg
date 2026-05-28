@@ -233,6 +233,7 @@ export async function sendFileMessageFlow({
             uploadChatMedia(uploadBlob, {
                 chatId: currentChatId || '',
                 csrfToken: getCsrfToken(),
+                mediaHint: String(options?.typingKindHint || sourceCategory || ''),
                 onRequestReady: (cancelUpload) => {
                     setActiveComposerUpload?.({
                         clientId,

@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
+from app.services import moderation as moderation_service
 from app.services.group_invite_links import consume_invite_link
 
 
@@ -92,5 +93,42 @@ def test_consume_invite_link_removes_pending_member_if_link_expires_before_reser
 
     member = conn.execute('SELECT 1 FROM chat_members WHERE user_id = ? AND chat_id = ?', (2, 'g1')).fetchone()
     link = conn.execute('SELECT uses_count FROM group_invite_links WHERE token = ?', ('tok',)).fetchone()
+    assert member is None
+    assert int(link['uses_count']) == 0
+
+
+def test_consume_invite_link_rejects_active_group_ban():
+    conn = _conn()
+    conn.execute(
+        '''
+        CREATE TABLE moderation_sanctions (
+            id INTEGER PRIMARY KEY,
+            subject_type TEXT,
+            subject_id TEXT,
+            action_type TEXT,
+            reason_code TEXT,
+            expires_at TEXT,
+            status TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        INSERT INTO moderation_sanctions (subject_type, subject_id, action_type, reason_code, status)
+        VALUES (?, ?, 'ban_perma', 'manual', 'active')
+        ''',
+        (
+            moderation_service.GROUP_MEMBER_SUBJECT_TYPE,
+            moderation_service.make_group_member_subject_id('g1', 2),
+        ),
+    )
+
+    result = consume_invite_link(conn, 'tok', 2)
+
+    member = conn.execute('SELECT 1 FROM chat_members WHERE user_id = ? AND chat_id = ?', (2, 'g1')).fetchone()
+    link = conn.execute('SELECT uses_count FROM group_invite_links WHERE token = ?', ('tok',)).fetchone()
+    assert result is not None
+    assert result['blocked_by_group_ban'] is True
     assert member is None
     assert int(link['uses_count']) == 0

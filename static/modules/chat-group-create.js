@@ -31,12 +31,17 @@ function normalizeCandidate(user) {
     const username = String(user.username || '').trim().replace(/^@+/, '');
     const avatarUrl = String(user.avatar_url || '').trim();
     const canGroupAddDirect = readBooleanFlag(user.can_group_add_direct, true);
+    const rawInviteAction = String(user.group_invite_action || '').trim().toLowerCase();
+    const groupInviteAction = ['add', 'request', 'deny'].includes(rawInviteAction)
+        ? rawInviteAction
+        : (canGroupAddDirect ? 'add' : 'request');
     return {
         user_id: parsedId,
         display_name: displayName || buildFallbackUserName(parsedId),
         username,
         avatar_url: avatarUrl,
         can_group_add_direct: canGroupAddDirect,
+        group_invite_action: groupInviteAction,
     };
 }
 
@@ -90,6 +95,7 @@ export function createChatGroupCreateController(deps = {}) {
                 username,
                 avatar_url: avatarUrl,
                 can_group_add_direct: canGroupAddDirect,
+                group_invite_action: canGroupAddDirect ? 'add' : 'request',
             });
         }
 
@@ -201,25 +207,31 @@ export function createChatGroupCreateController(deps = {}) {
                 .filter(Boolean)
                 .filter((entry) => !groupCreateMembers.has(entry.user_id))
             : [];
-        const normalizedUsers = normalizedUsersRaw.filter((entry) => entry.can_group_add_direct !== false);
+        const normalizedUsers = normalizedUsersRaw;
 
         if (!normalizedUsers.length) {
             groupCreateSearchResults.innerHTML = `<p class="text-center">${escapeHtml(tr('Пользователи не найдены.'))}</p>`;
             return;
         }
 
-        const addLabel = escapeHtml(tr('Добавить'));
         groupCreateSearchResults.innerHTML = normalizedUsers
-            .map((user) => `
-                <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}" data-can-group-add-direct="${user.can_group_add_direct === false ? '0' : '1'}">
+            .map((user) => {
+                const inviteAction = String(user.group_invite_action || (user.can_group_add_direct === false ? 'request' : 'add')).trim().toLowerCase();
+                const isDenied = inviteAction === 'deny';
+                const actionLabel = isDenied
+                    ? tr('Недоступно')
+                    : (inviteAction === 'request' ? tr('Запрос') : tr('Добавить'));
+                return `
+                <button type="button" class="group-create-result-item" data-group-add-member-id="${user.user_id}" data-can-group-add-direct="${user.can_group_add_direct === false ? '0' : '1'}" data-group-invite-action="${escapeHtml(inviteAction)}"${isDenied ? ' disabled aria-disabled="true"' : ''}>
                     <span class="group-create-result-avatar">${buildResultAvatarHtml(user)}</span>
                     <span class="group-create-result-copy">
                         <span class="group-create-result-name">${escapeHtml(user.display_name)}</span>
                         <span class="group-create-result-username">@${escapeHtml(user.username || 'user')}</span>
                     </span>
-                    <span class="group-create-result-add">${addLabel}</span>
+                    <span class="group-create-result-add">${escapeHtml(actionLabel)}</span>
                 </button>
-            `)
+            `;
+            })
             .join('');
     }
 
@@ -365,7 +377,8 @@ export function createChatGroupCreateController(deps = {}) {
     groupCreateSearchResults?.addEventListener('click', (event) => {
         const addButton = event.target.closest('[data-group-add-member-id]');
         if (!addButton) return;
-        if (readBooleanFlag(addButton.getAttribute('data-can-group-add-direct'), true) === false) return;
+        const inviteAction = String(addButton.getAttribute('data-group-invite-action') || '').trim().toLowerCase();
+        if (inviteAction === 'deny') return;
         const memberId = readInt(addButton.getAttribute('data-group-add-member-id'));
         if (memberId <= 0 || groupCreateMembers.has(memberId)) return;
 
@@ -379,6 +392,8 @@ export function createChatGroupCreateController(deps = {}) {
             display_name: resultName || buildFallbackUserName(memberId),
             username: resultUsername,
             avatar_url: resultAvatar,
+            can_group_add_direct: readBooleanFlag(addButton.getAttribute('data-can-group-add-direct'), true),
+            group_invite_action: inviteAction || 'add',
         });
         renderGroupCreateSelectedMembers();
         updateGroupCreateSubmitState();

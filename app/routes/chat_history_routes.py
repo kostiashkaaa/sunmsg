@@ -444,6 +444,8 @@ def register_chat_history_routes(  # noqa: C901,PLR0913,PLR0915
             )
             if result['status'] == 'forbidden':
                 return jsonify({'success': False, 'error': 'Вы не участник этого чата.'}), 403
+            if result['status'] == 'group_leave_required':
+                return jsonify({'success': False, 'error': 'Для выхода из группы используйте маршрут группы.'}), 409
             return jsonify({'success': True}), 200
         except Exception:
             logger.exception('delete_chat error')
