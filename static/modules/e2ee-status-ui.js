@@ -2,7 +2,7 @@
  * E2EE Status UI — бейдж в заголовке чата + диалог верификации ключей.
  *
  * Публичный API: window.e2eeStatusUI
- *   .setStatus(proto)   — 'dr' | 'mls' | 'x3dh' | 'legacy' | 'none' | null
+ *   .setStatus(proto)   — 'dr' | 'mls' | 'x3dh' | 'legacy' | 'downgraded' | 'none' | null
  *   .setKeys(myEd, peerEd, peerName) — обновить отпечатки в диалоге верификации
  *   .hide()             — скрыть бейдж (при переключении чата без v2)
  */
@@ -53,6 +53,13 @@
             badgeClass: 'e2ee-badge--legacy',
             icon: '#sun-i-shield',
             protoDesc: 'RSA-OAEP (2048) + AES-256-GCM — устаревший протокол. Нет forward secrecy.',
+        },
+        downgraded: {
+            label: 'RSA (откат)',
+            title: 'Внимание: современное шифрование (Double Ratchet/MLS) дало сбой,\nсообщение отправлено по устаревшему RSA. Forward secrecy потерян.\nПерезагрузите страницу или переустановите ключи.',
+            badgeClass: 'e2ee-badge--legacy',
+            icon: '#sun-i-shield-x',
+            protoDesc: 'Откат на RSA-OAEP из-за сбоя Double Ratchet/MLS. Это нештатная ситуация — современное шифрование не сработало. Forward secrecy отсутствует.',
         },
         none: {
             label: 'Нет E2EE',

@@ -273,6 +273,9 @@ async function decryptPackage(state, payloadStr) {
     const payload = JSON.parse(payloadStr);
     if (payload.v !== 3 || payload.proto !== 'dr') throw new Error('not_dr_v3');
 
+    // Подпись Ed25519 в DR-payload обязательна: encryptAndPackage всегда её
+    // ставит. Её отсутствие означает stripping → помечаем непроверенным.
+    let unverified = false;
     if (payload.sig && payload.sender_ed_pub) {
         const pubKey = await cv2.importEd25519Public(payload.sender_ed_pub);
         const toVerify = JSON.stringify({
@@ -284,10 +287,12 @@ async function decryptPackage(state, payloadStr) {
         });
         const ok = await cv2.ed25519Verify(pubKey, toVerify, payload.sig);
         if (!ok) return { state, plaintext: '[Подпись сообщения не прошла проверку]' };
+    } else {
+        unverified = true;
     }
 
     const plaintext = await decrypt(state, { header: payload.header, ciphertext: payload.ct, iv: payload.iv });
-    return { state, plaintext };
+    return { state, plaintext: unverified ? '⚠️ [не проверено] ' + plaintext : plaintext };
 }
 
 // ── Сериализация состояния ────────────────────────────────────────────────────

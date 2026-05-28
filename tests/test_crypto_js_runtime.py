@@ -15,7 +15,15 @@ def _run_node_harness(source: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_legacy_unsigned_messages_decrypt_instead_of_rendering_signature_warning():
+def test_unsigned_messages_are_marked_unverified_when_sender_key_is_known():
+    """Политика безопасности (audit C4):
+
+    Сообщение без подписи всё ещё расшифровывается, но если публичный ключ
+    отправителя нам известен — оно ДОЛЖНО быть помечено как непроверенное
+    (маркер '[не проверено]'), а не молча показано как доверенное. Тампер
+    подписи по-прежнему блокирует показ. По-настоящему старые сообщения без
+    известного ключа отправителя маркером не помечаются.
+    """
     crypto_path = ROOT / 'static' / 'crypto.js'
     node_harness = f"""
 import {{ readFile }} from 'node:fs/promises';
@@ -65,14 +73,29 @@ const unsignedPayload = await context.window.e2e.encryptMessageE2E(
 if (unsignedPayload.includes('signature')) {{
   throw new Error('Expected legacy payload without signature');
 }}
+// Ключ отправителя известен, подписи нет → расшифровать и пометить непроверенным.
 const decryptedUnsigned = await context.window.e2e.decryptMessageE2E(
   receiver.privatePem,
   unsignedPayload,
   false,
   sender.publicPem,
 );
-if (decryptedUnsigned !== 'legacy plaintext') {{
-  throw new Error(`Unsigned legacy message rendered incorrectly: ${{decryptedUnsigned}}`);
+if (!decryptedUnsigned.includes('legacy plaintext')) {{
+  throw new Error(`Unsigned message lost its plaintext: ${{decryptedUnsigned}}`);
+}}
+if (!decryptedUnsigned.includes('[не проверено]')) {{
+  throw new Error(`Unsigned message was not marked unverified: ${{decryptedUnsigned}}`);
+}}
+
+// Ключ отправителя неизвестен (старое сообщение) → расшифровать БЕЗ маркера.
+const decryptedNoKey = await context.window.e2e.decryptMessageE2E(
+  receiver.privatePem,
+  unsignedPayload,
+  false,
+  '',
+);
+if (decryptedNoKey !== 'legacy plaintext') {{
+  throw new Error(`Legacy message without known key rendered incorrectly: ${{decryptedNoKey}}`);
 }}
 
 const signedPayload = await context.window.e2e.encryptMessageE2E(

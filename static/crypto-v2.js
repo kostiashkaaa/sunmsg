@@ -268,7 +268,11 @@ async function decryptMessageX3DH(
     const payload = JSON.parse(payloadStr);
     if (payload.v !== 3 || payload.proto !== 'x3dh') throw new Error('not_x3dh_v3');
 
-    if (senderEd25519PubB64u) {
+    // X3DH-payload всегда подписывается отправителем (см. encryptMessageX3DH).
+    // Если ключ известен, но подписи/её валидности нет — помечаем непроверенным,
+    // вместо того чтобы молча доверять.
+    let unverified = false;
+    if (senderEd25519PubB64u && payload.sig) {
         const pubKey = await importEd25519Public(senderEd25519PubB64u);
         const toVerify = JSON.stringify({
             v: payload.v,
@@ -281,6 +285,8 @@ async function decryptMessageX3DH(
         });
         const ok = await ed25519Verify(pubKey, toVerify, payload.sig);
         if (!ok) return '[Подпись сообщения не прошла проверку]';
+    } else if (senderEd25519PubB64u) {
+        unverified = true;
     }
 
     const masterSecret = await x3dhResponderSecret(
@@ -294,7 +300,8 @@ async function decryptMessageX3DH(
     const encKey = masterSecret.slice(0, 32);
     try {
         const pt = await aesGcmDecrypt(encKey, b64uDecode(payload.ct), b64uDecode(payload.iv));
-        return new TextDecoder().decode(pt);
+        const text = new TextDecoder().decode(pt);
+        return unverified ? '⚠️ [не проверено] ' + text : text;
     } catch {
         return '⚠️ [Ошибка расшифровки сообщения]';
     }

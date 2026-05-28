@@ -80,6 +80,7 @@ export function createChatEncryptionRuntime({
         if (!normalizedPeerUserId) return null;
         if (!windowRef.DoubleRatchet) return null;
         const session = await _loadDrSession(chatId);
+        // Нет DR-сессии — штатный fallback на RSA, не сигнализируем о тревоге.
         if (!session) return null;
         try {
             const v2keys = windowRef.deviceKey?.loadV2PrivateKeys ? await windowRef.deviceKey.loadV2PrivateKeys() : null;
@@ -92,12 +93,20 @@ export function createChatEncryptionRuntime({
             await _saveDrSession(chatId, newState, normalizedPeerUserId);
             windowRef.e2eeStatusUI?.setStatus('dr');
             return cipherPayload;
-        } catch (_) { return null; }
+        } catch (err) {
+            // Сессия БЫЛА, но DR-шифрование упало → это нештатный откат на RSA.
+            // Раньше ошибка молча проглатывалась и пользователь видел обычный
+            // legacy-бейдж — теперь явно сигнализируем о понижении (H1).
+            console.warn('[E2EE] DR encrypt failed, falling back to RSA', err);
+            windowRef.e2eeStatusUI?.setStatus('downgraded');
+            return null;
+        }
     }
 
     async function _tryEncryptMls(chatId, plainText) {
         if (!windowRef.MLSClient) return null;
         const groupState = await _loadMlsGroup(chatId);
+        // Нет MLS-группы — штатный fallback на RSA, не сигнализируем о тревоге.
         if (!groupState) return null;
         try {
             const v2keys = windowRef.deviceKey?.loadV2PrivateKeys ? await windowRef.deviceKey.loadV2PrivateKeys() : null;
@@ -110,7 +119,12 @@ export function createChatEncryptionRuntime({
             await _saveMlsGroup(chatId, newState);
             windowRef.e2eeStatusUI?.setStatus('mls');
             return cipherPayload;
-        } catch (_) { return null; }
+        } catch (err) {
+            // Группа БЫЛА, но MLS-шифрование упало → нештатный откат на RSA (H1).
+            console.warn('[E2EE] MLS encrypt failed, falling back to RSA', err);
+            windowRef.e2eeStatusUI?.setStatus('downgraded');
+            return null;
+        }
     }
 
     function createEncryptForChatSnapshot({
