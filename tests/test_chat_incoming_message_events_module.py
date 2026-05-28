@@ -15,6 +15,109 @@ def _run_node_harness(source: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def test_active_chat_incoming_media_preserves_album_id_for_rendering():
+    module_path = ROOT / 'static' / 'modules' / 'chat-incoming-message-events.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  /import \\{{[\\s\\S]*?\\}} from '\\.\\/chat-mentions\\.js';/,
+  `const isCurrentUserMentioned = () => false;
+const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];`,
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ registerIncomingMessageSocketHandlers }} = await import(moduleUrl);
+const handlers = new Map();
+const calls = [];
+let appendedMessage = null;
+let appendedOptions = null;
+
+registerIncomingMessageSocketHandlers({{
+  socket: {{
+    on(event, handler) {{
+      handlers.set(event, handler);
+    }},
+  }},
+  isBlockedChat: () => false,
+  getCurrentChatId: () => 'chat-1',
+  currentUserPublicKey: 'pk-self',
+  getPrivateKeyPem: () => 'private-key',
+  decryptForDisplay: async (_privateKey, payload) => payload,
+  getChatState: () => ({{ messages: [], messageHeights: new Map(), renderedKeys: new Set() }}),
+  findMessageIndex: (targetState, predicate) => targetState.messages.findIndex(predicate),
+  cancelPendingTimeout: () => {{}},
+  normalizeChatMessageOrder: () => {{}},
+  updateActiveContactLastMessage: (...args) => calls.push(['last', ...args]),
+  isChatNearBottom: () => true,
+  isWindowActiveForUnreadHandling: () => true,
+  getCurrentChatScrollTop: () => 120,
+  getCurrentChatScrollHeight: () => 400,
+  appendMessage: (message, options) => {{
+    appendedMessage = message;
+    appendedOptions = options;
+  }},
+  isEncryptedPayload: () => false,
+  normalizeMessageReactions: (value) => value || [],
+  getCurrentPartnerDisplayName: () => 'Partner',
+  markCurrentChatSeenIfPossible: () => calls.push(['seen']),
+  markOutgoingReadByPartnerMessage: (...args) => calls.push(['read-by-partner', ...args]),
+  setKeepChatPinnedToBottom: (value) => calls.push(['pin', value]),
+  incrementOpenChatUnreadCount: () => calls.push(['unread']),
+  updateJumpToNewMessagesButton: () => calls.push(['jump']),
+  setContactUnreadBadge: () => calls.push(['badge']),
+  upsertChatMessage: () => calls.push(['upsert']),
+  updateSidebarForOtherChat: () => calls.push(['sidebar-other']),
+  showToast: (...args) => calls.push(['toast', ...args]),
+  updateMessageContent: () => {{}},
+  rerenderCurrentChat: () => calls.push(['rerender']),
+  resolveMessageElement: () => null,
+  getMessageKey: (msg) => msg.id ? `id:${{msg.id}}` : `client:${{msg.clientId}}`,
+  confirmPendingMessageDom: () => false,
+  loadContacts: () => {{}},
+  isChatMuted: () => false,
+  enrichVisualMediaMessage: async (value) => value,
+  notifyIncomingMessage: () => calls.push(['notify']),
+  onIncomingRawMessage: () => {{}},
+  prewarmMessageLinkPreview: async () => {{}},
+  getCurrentUserId: () => '1',
+  getCurrentUsername: () => 'self',
+}});
+
+await handlers.get('receive_message')({{
+  id: 50,
+  chat_id: 'chat-1',
+  sender_public_key: 'pk-other',
+  sender_user_id: 2,
+  sender_display_name: 'Partner',
+  message: '{{"name":"a.jpg","mime":"image/jpeg","data":"/media/a.jpg"}}',
+  message_type: 'file',
+  album_id: 'album-live',
+  created_at: '2026-05-14T23:00:01Z',
+  reactions: [],
+}});
+
+if (!appendedMessage) {{
+  throw new Error(`Expected message append, got ${{JSON.stringify(calls)}}`);
+}}
+if (appendedMessage.album_id !== 'album-live') {{
+  throw new Error(`Expected album_id to reach render state, got ${{JSON.stringify(appendedMessage)}}`);
+}}
+if (!appendedOptions?.renderOptions?.scrollToBottom) {{
+  throw new Error(`Expected near-bottom incoming media to stay pinned: ${{JSON.stringify(appendedOptions)}}`);
+}}
+if (!calls.some((call) => call[0] === 'pin' && call[1] === true)) {{
+  throw new Error(`Expected bottom pin to remain active: ${{JSON.stringify(calls)}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_self_echo_keeps_pending_plaintext_when_decrypt_returns_ciphertext():
     module_path = ROOT / 'static' / 'modules' / 'chat-incoming-message-events.js'
     node_harness = f"""

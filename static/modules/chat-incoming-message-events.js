@@ -71,6 +71,7 @@ function buildIncomingMessageState({
         senderAvatarUrl: String(data.sender_avatar_url || '').trim(),
         message: decryptedMessage,
         message_type: data.message_type || 'text',
+        album_id: String(data.album_id || '').trim() || null,
         encrypted: isEncryptedPayload(data.message),
         is_read: Boolean(data.is_read),
         read_at: String(data.read_at || '').trim() || null,
