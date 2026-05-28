@@ -940,6 +940,10 @@ select {
     html[data-motion-level="lite"] .chat-area.is-switching .chat-title {
         opacity: 1 !important;
     }
+    /* Stop the drop-zone icon from bobbing for users who opt out of motion. */
+    .drag-drop-overlay__inner {
+        animation: none;
+    }
 }
 
 /* Desktop motion standard.
