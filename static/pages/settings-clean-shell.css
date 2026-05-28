@@ -2,7 +2,7 @@
 
 .settings-scene {
     --settings-clean-nav-w: 236px;
-    --settings-clean-panel-w: 980px;
+    --settings-clean-panel-w: calc(var(--settings-clean-nav-w) + var(--settings-clean-content-w) + 48px);
     --settings-clean-content-w: 650px;
     --settings-clean-line: color-mix(in srgb, var(--sx-line, var(--rule)) 72%, transparent);
     --settings-clean-soft-line: color-mix(in srgb, var(--sx-line, var(--rule)) 42%, transparent);
@@ -802,5 +802,58 @@
     .settings-scene .settings-card-header > i,
     .settings-scene .settings-privacy-item > svg.sun-icon:not(.settings-privacy-chevron) {
         color: var(--settings-clean-icon) !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .settings-scene .sp-connect-btn,
+    .settings-scene .sp-save-btn,
+    .settings-scene .sp-disconnect-btn,
+    .settings-scene .mnemonic-paste-all-btn,
+    .settings-scene .chat-style-mode-btn,
+    .settings-scene .chat-scale-chip {
+        min-height: 34px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        font-size: 12.5px !important;
+        line-height: 1.1 !important;
+        box-sizing: border-box !important;
+    }
+
+    .settings-scene .btn-settings:hover,
+    .settings-scene .btn-settings:active,
+    .settings-scene a.btn-settings:hover,
+    .settings-scene a.btn-settings:active,
+    .settings-scene label.btn-settings:hover,
+    .settings-scene label.btn-settings:active,
+    .settings-scene button.btn-settings:hover,
+    .settings-scene button.btn-settings:active,
+    .settings-scene .settings-panel-close:hover,
+    .settings-scene .settings-panel-close:active,
+    .settings-scene .settings-panel-tool-btn:hover,
+    .settings-scene .settings-panel-tool-btn:active,
+    .settings-scene .nav-item:hover,
+    .settings-scene .nav-item:active,
+    .settings-scene .settings-nav-profile-action:hover,
+    .settings-scene .settings-nav-profile-action:active,
+    .settings-scene .settings-privacy-back:hover,
+    .settings-scene .settings-privacy-back:active,
+    .settings-scene .settings-privacy-item:hover,
+    .settings-scene .settings-privacy-item:active,
+    .settings-scene .chat-style-mode-btn:hover,
+    .settings-scene .chat-style-mode-btn:active,
+    .settings-scene .chat-scale-chip:hover,
+    .settings-scene .chat-scale-chip:active,
+    .settings-scene .theme-preview:hover,
+    .settings-scene .theme-preview:active,
+    .settings-scene .sp-connect-btn:hover,
+    .settings-scene .sp-connect-btn:active,
+    .settings-scene .sp-save-btn:hover,
+    .settings-scene .sp-save-btn:active,
+    .settings-scene .sp-disconnect-btn:hover,
+    .settings-scene .sp-disconnect-btn:active,
+    .settings-scene .mnemonic-paste-all-btn:hover,
+    .settings-scene .mnemonic-paste-all-btn:active {
+        transform: none !important;
     }
 }
