@@ -17,6 +17,7 @@ import time
 from flask import Blueprint, current_app, jsonify
 
 from app.database import get_db_connection
+from app.db.connection import collect_pool_metrics
 from app.extensions import limiter
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ def ready():
                 'detail': redis_detail,
             },
         },
+        'pool': collect_pool_metrics(),
     }
     if not overall_ok:
         # Log once so ops can correlate with monitoring alerts.

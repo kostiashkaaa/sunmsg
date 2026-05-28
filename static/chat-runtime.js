@@ -132,6 +132,7 @@ import {
     syncE2eActivationSocket,
 } from './modules/e2e-activation-guard.js';
 import { createChatSocketClient, createSocketEmitter } from './modules/chat-socket-client.js';
+import { attachConnectionBanner } from './modules/connection-banner.js';
 import { createChatUpdatesSyncController } from './modules/chat-updates-sync.js';
 import { getCsrfToken } from './modules/csrf.js';
 import * as ChatIdb from './modules/chat-idb.js';
@@ -248,6 +249,9 @@ export const initChatPage = async () => {
         ...bootstrapSocketConfig,
         autoConnect: !isE2eActivationLocked(),
     });
+    // Global connection-loss banner. Stays visible above modals/overlays so
+    // users always know when the app is in a degraded state.
+    attachConnectionBanner(socket);
     let hasSocketConnectedOnce = false;
     let hasSocketConnectionIssue = false;
     const emitSocket = createSocketEmitter(socket, {

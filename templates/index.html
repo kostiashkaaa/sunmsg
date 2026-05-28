@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="{{ asset_url('pages/auth.css') }}">
     <link rel="stylesheet" href="{{ asset_url('pages/qr-brand.css') }}">
     <link rel="stylesheet" href="{{ asset_url('motion.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('modules/cookie-notice.css') }}">
 </head>
 
 <body id="authBody" class="auth-page-body auth-page-body--sunrise-v3" data-ui-language="{{ ui_language|default('ru') }}">
@@ -462,5 +463,6 @@
 <script src="{{ asset_url('modules/bi-icon-adapter.js') }}" nonce="{{ csp_nonce }}"></script>
 
 <script type="module" src="{{ asset_url('pages/auth.js') }}" nonce="{{ csp_nonce }}"></script>
+<script type="module" src="{{ asset_url('modules/cookie-notice.js') }}" nonce="{{ csp_nonce }}"></script>
 </body>
 </html>

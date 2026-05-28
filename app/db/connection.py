@@ -16,8 +16,18 @@ from app.db_backend import (
 _REQUEST_CONNECTION_KEY = '_sun_request_db_connection'
 _POOL_REGISTRY_LOCK = threading.Lock()
 _POOL_REGISTRY: dict[tuple[str, str], '_PostgresAdapterPool'] = {}
+# Default pool size targets a single-worker dev environment. Production
+# deployments override via DB_POOL_MAX_SIZE; see .env.example and the
+# release-checklist for sizing guidance (rule of thumb: 4–8 per gunicorn
+# worker plus headroom for SocketIO long-lived handlers).
 _DEFAULT_DB_POOL_MAX_SIZE = 12
 _DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS = 5.0
+# Log a warning when in-flight connections exceed this fraction of max_size,
+# so ops can correlate slow-request alerts with pool pressure.
+_POOL_PRESSURE_WARN_RATIO = 0.8
+_POOL_PRESSURE_WARN_INTERVAL_SECONDS = 60.0
+
+logger = __import__('logging').getLogger(__name__)
 
 
 def database_url() -> str:
@@ -128,6 +138,8 @@ class _PostgresAdapterPool:
         if acquire_timeout_seconds is None:
             acquire_timeout_seconds = _DEFAULT_DB_POOL_ACQUIRE_TIMEOUT_SECONDS
         self._acquire_timeout_seconds = max(0.0, float(acquire_timeout_seconds))
+        self._last_pressure_warning_at = 0.0
+        self._exhaustion_total = 0
 
     def acquire(self) -> _PooledConnection:
         deadline = time.monotonic() + self._acquire_timeout_seconds
@@ -145,10 +157,20 @@ class _PostgresAdapterPool:
                 if self._total_connections < self._max_size:
                     self._total_connections += 1
                     should_create_new = True
+                    self._emit_pressure_warning_locked_if_needed()
                     break
 
                 remaining_seconds = deadline - time.monotonic()
                 if remaining_seconds <= 0:
+                    self._exhaustion_total += 1
+                    logger.error(
+                        'Database pool exhausted: %d/%d connections in use, '
+                        'waited %.3fs (total exhaustions=%d)',
+                        self._total_connections,
+                        self._max_size,
+                        self._acquire_timeout_seconds,
+                        self._exhaustion_total,
+                    )
                     raise TimeoutError(
                         f'Database connection pool exhausted after '
                         f'{self._acquire_timeout_seconds:.3f}s '
@@ -171,6 +193,35 @@ class _PostgresAdapterPool:
     def _decrement_total_connections_locked(self) -> None:
         self._total_connections = max(0, self._total_connections - 1)
         self._condition.notify()
+
+    def _emit_pressure_warning_locked_if_needed(self) -> None:
+        # Lock is held by the caller.
+        if self._max_size <= 0:
+            return
+        ratio = self._total_connections / float(self._max_size)
+        if ratio < _POOL_PRESSURE_WARN_RATIO:
+            return
+        now = time.monotonic()
+        if now - self._last_pressure_warning_at < _POOL_PRESSURE_WARN_INTERVAL_SECONDS:
+            return
+        self._last_pressure_warning_at = now
+        logger.warning(
+            'Database pool pressure: %d/%d connections in use (%.0f%%). '
+            'Raise DB_POOL_MAX_SIZE if this persists.',
+            self._total_connections,
+            self._max_size,
+            ratio * 100,
+        )
+
+    def metrics(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                'max_size': self._max_size,
+                'in_use': max(0, self._total_connections - len(self._idle_raw_connections)),
+                'idle': len(self._idle_raw_connections),
+                'total': self._total_connections,
+                'exhaustions_total': self._exhaustion_total,
+            }
 
     def _rollback_raw_connection(self, raw_connection) -> bool:
         try:
@@ -232,6 +283,41 @@ class _PostgresAdapterPool:
                 raw_connection.close()
             except Exception:  # noqa: BLE001
                 pass
+
+
+def collect_pool_metrics() -> list[dict]:
+    """
+    Snapshot every active pool's saturation. Safe to call from /ready or
+    a /metrics endpoint without taking the registry lock for longer than
+    necessary (each pool snapshot acquires only its own lock).
+    """
+    snapshot: list[dict] = []
+    with _POOL_REGISTRY_LOCK:
+        pools = list(_POOL_REGISTRY.items())
+    for (database_url_value, schema_name), pool in pools:
+        try:
+            metrics = pool.metrics()
+        except Exception:  # noqa: BLE001 — metrics must never throw
+            continue
+        metrics['schema'] = schema_name or 'public'
+        # Strip credentials from the URL key before exposing it.
+        sanitized_url = database_url_value
+        try:
+            from urllib.parse import urlparse, urlunparse
+
+            parsed = urlparse(database_url_value)
+            if parsed.password:
+                netloc = parsed.hostname or ''
+                if parsed.port:
+                    netloc = f'{netloc}:{parsed.port}'
+                if parsed.username:
+                    netloc = f'{parsed.username}@{netloc}'
+                sanitized_url = urlunparse(parsed._replace(netloc=netloc))
+        except Exception:  # noqa: BLE001
+            pass
+        metrics['database_url'] = sanitized_url
+        snapshot.append(metrics)
+    return snapshot
 
 
 def _pool_for(database_url_value: str, schema_name: str) -> _PostgresAdapterPool:

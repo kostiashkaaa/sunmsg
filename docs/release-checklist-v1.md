@@ -44,7 +44,19 @@ CHAT_MEDIA_AV_SCAN_ENABLED=1
 CHAT_MEDIA_AV_FAIL_CLOSED=1
 CHAT_MEDIA_AV_COMMAND=clamdscan --fdpass --no-summary {path} || clamscan --no-summary --infected --stdout {path}
 CHAT_MEDIA_AV_SCAN_EXTENSIONS=zip,rar,7z
+
+# Pool sizing for multi-worker gunicorn + long-lived SocketIO handlers.
+DB_POOL_MAX_SIZE=40
+DB_POOL_ACQUIRE_TIMEOUT_SECONDS=5
+
+# Observability — Sentry.
+SENTRY_DSN=<your-sentry-dsn>
+SENTRY_TRACES_SAMPLE_RATE=0.05
 ```
+
+После рестарта проверьте `/ready` — в payload должна быть секция `pool`
+с `in_use`/`max_size`/`exhaustions_total`. Если `exhaustions_total > 0`
+после warmup — поднимайте `DB_POOL_MAX_SIZE`.
 
 Генерация секретов:
 
