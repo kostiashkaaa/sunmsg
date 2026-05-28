@@ -1,7 +1,7 @@
 import { setMotionOriginFromPoint, waitForMotionEnd } from './motion.js';
 import { REACTION_PICKER_EMOJIS } from './reactions.js';
 import { initReactionEmojiPopup } from './reaction-emoji-popup.js';
-import { applyEmojiGraphics } from './utils.js';
+import { applyEmojiGraphics, tr } from './utils.js';
 
 export function initReactionPickerController({
     pickerEl,
@@ -50,7 +50,7 @@ export function initReactionPickerController({
         button.type = 'button';
         button.className = 'reaction-picker__item';
         button.setAttribute('data-emoji', normalized);
-        button.setAttribute('aria-label', `Reaction ${normalized}`);
+        button.setAttribute('aria-label', `${tr('Реакция')} ${normalized}`);
         button.textContent = normalized;
         return button;
     }
@@ -114,7 +114,7 @@ export function initReactionPickerController({
             expandToggleEl.setAttribute('data-reaction-expand-toggle', '1');
             expandToggleEl.setAttribute('aria-expanded', 'false');
             expandToggleEl.setAttribute('aria-haspopup', 'dialog');
-            expandToggleEl.setAttribute('aria-label', 'More reactions');
+            expandToggleEl.setAttribute('aria-label', tr('Больше реакций'));
             expandToggleEl.innerHTML = '<i class="bi bi-chevron-down" aria-hidden="true"></i>';
             rowEl.append(expandToggleEl);
         }

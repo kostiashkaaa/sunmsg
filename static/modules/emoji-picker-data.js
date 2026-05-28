@@ -76,6 +76,9 @@ export const EMOJI_PICKER_I18N = {
         emptySearch: 'Ничего не найдено',
         emptyRecent: 'Недавние эмодзи появятся после выбора',
         noEmojiData: 'Не удалось загрузить эмодзи',
+        clearSearch: 'Очистить поиск',
+        reactionCategories: 'Категории реакций',
+        reactionLabel: 'Реакция',
     },
     en: {
         searchPlaceholder: 'Search emoji',
@@ -83,6 +86,9 @@ export const EMOJI_PICKER_I18N = {
         emptySearch: 'No results found',
         emptyRecent: 'Recent emojis will appear after selection',
         noEmojiData: 'Failed to load emojis',
+        clearSearch: 'Clear search',
+        reactionCategories: 'Reaction categories',
+        reactionLabel: 'Reaction',
     },
 };
 

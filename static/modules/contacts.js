@@ -4,6 +4,7 @@ import {
     formatSidebarTime,
     renderMessagePreviewHtml,
     applyEmojiGraphics,
+    tr,
 } from './utils.js';
 import {
     STANDARD_SINGLE_CHECK_TICK_HTML,
@@ -77,7 +78,7 @@ function resolveDraftLabelText(explicitLabel) {
 
 function buildEncryptedPreviewLoadingHtml() {
     return `
-        <span class="contact-last-msg-loading" role="status" aria-live="polite" aria-label="Decrypting message">
+        <span class="contact-last-msg-loading" role="status" aria-live="polite" aria-label="${escapeHtml(tr('Расшифровка сообщения'))}">
             <span class="contact-last-msg-loading__lines" aria-hidden="true">
                 <span class="contact-last-msg-loading__line contact-last-msg-loading__line--main"></span>
                 <span class="contact-last-msg-loading__line contact-last-msg-loading__line--tail"></span>
@@ -217,7 +218,7 @@ export function buildContactItemHtml(contact, currentChatId) {
     const previewLoadingClass = isPreviewLoading ? ' contact-item--preview-loading' : '';
 
     return `
-<div class="contact-item ripple-target${isActive ? ' active' : ''}${previewLoadingClass}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-display-name="${escapeHtml(String(contact?.display_name || ''))}" data-username="${escapeHtml(String(contact?.username || ''))}" data-avatar-url="${escapeHtml(String(contact?.avatar_url || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-message-count="${escapeHtml(String(messageCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-saved-messages="${isSavedMessages ? '1' : '0'}" data-can-group-add-direct="${contact?.can_group_add_direct === false ? '0' : '1'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-preview-loading="${isPreviewLoading ? '1' : '0'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}" data-draft-preview-hidden="${hasDraft && !shouldRenderDraftPreview ? '1' : '0'}">
+<div class="contact-item ripple-target${isActive ? ' active' : ''}${previewLoadingClass}" role="option" aria-selected="${isActive ? 'true' : 'false'}" tabindex="${isActive ? '0' : '-1'}" data-chat-id="${escapeHtml(String(chatId))}" data-contact-id="${escapeHtml(String(contact?.userId || ''))}" data-display-name="${escapeHtml(String(contact?.display_name || ''))}" data-username="${escapeHtml(String(contact?.username || ''))}" data-avatar-url="${escapeHtml(String(contact?.avatar_url || ''))}" data-contact-username="${escapeHtml(String(contact?.username || ''))}" data-public-key="${escapeHtml(String(contact?.public_key || ''))}" data-is-group="${isGroup ? '1' : '0'}" data-members-count="${escapeHtml(String(membersCount))}" data-message-count="${escapeHtml(String(messageCount))}" data-blocked-by-me="${blockedByMe ? '1' : '0'}" data-blocked-me="${blockedMe ? '1' : '0'}" data-muted="${muted ? '1' : '0'}" data-saved-messages="${isSavedMessages ? '1' : '0'}" data-can-group-add-direct="${contact?.can_group_add_direct === false ? '0' : '1'}" data-pinned="${contact?.is_pinned ? '1' : '0'}"${pinOrderAttr} draggable="${contact?.is_pinned ? 'true' : 'false'}" data-preview-loading="${isPreviewLoading ? '1' : '0'}" data-raw-last-message="${escapeHtml(rawLastMsg)}" data-raw-last-message-time="${escapeHtml(lastMessageTimeRaw)}" data-last-sender-id="${escapeHtml(rawLastSenderId)}" data-last-seen="${escapeHtml(String(contact?.last_seen || ''))}" data-last-message-is-read="${isStatusTrueFlag(contact?.last_message_is_read) ? '1' : '0'}" data-last-message-is-delivered="${isStatusTrueFlag(contact?.last_message_is_delivered) ? '1' : '0'}" data-last-message-time="${escapeHtml(previewTimestampRaw)}" data-last-message-ts="${escapeHtml(lastMessageTimestamp)}" data-has-draft="${hasDraft ? '1' : '0'}" data-draft-text="${escapeHtml(draftText)}" data-draft-updated-at="${escapeHtml(draftUpdatedAtRaw)}" data-draft-preview-hidden="${hasDraft && !shouldRenderDraftPreview ? '1' : '0'}">
     <div class="contact-avatar${hasAvatar ? ' avatar-loading' : ''}">
         ${avatarHtml}
         ${avatarLoadingBarsHtml}

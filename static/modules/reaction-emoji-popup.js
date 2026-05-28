@@ -113,11 +113,12 @@ async function loadCategoryBuckets(allowedEmojis, allowedSet) {
 }
 
 function createEmojiButton(emoji) {
+    const { strings } = getLocaleStrings();
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'reaction-emoji-popup__item';
     button.setAttribute('data-reaction-emoji', emoji);
-    button.setAttribute('aria-label', `Reaction ${emoji}`);
+    button.setAttribute('aria-label', `${strings.reactionLabel || 'Реакция'} ${emoji}`);
     button.textContent = emoji;
     return button;
 }
@@ -188,6 +189,7 @@ export function initReactionEmojiPopup({
 
     function ensurePopupElement() {
         if (popupEl) return;
+        const { strings } = getLocaleStrings();
         popupEl = document.createElement('div');
         popupEl.className = 'reaction-emoji-popup sun-popup';
         popupEl.setAttribute('aria-hidden', 'true');
@@ -196,11 +198,11 @@ export function initReactionEmojiPopup({
                 <label class="reaction-emoji-popup__search" for="reactionEmojiSearchInput">
                     <i class="bi bi-search" aria-hidden="true"></i>
                     <input id="reactionEmojiSearchInput" type="search" autocomplete="off" spellcheck="false" />
-                    <button type="button" class="reaction-emoji-popup__search-clear" aria-label="Clear" hidden>
+                    <button type="button" class="reaction-emoji-popup__search-clear" hidden>
                         <i class="bi bi-x" aria-hidden="true"></i>
                     </button>
                 </label>
-                <div class="reaction-emoji-popup__categories" role="tablist" aria-label="Reaction categories"></div>
+                <div class="reaction-emoji-popup__categories" role="tablist"></div>
             </div>
             <div class="reaction-emoji-popup__viewport">
                 <div class="reaction-emoji-popup__grid"></div>
@@ -213,6 +215,8 @@ export function initReactionEmojiPopup({
         categoriesEl = popupEl.querySelector('.reaction-emoji-popup__categories');
         viewportEl = popupEl.querySelector('.reaction-emoji-popup__viewport');
         gridEl = popupEl.querySelector('.reaction-emoji-popup__grid');
+        clearSearchEl?.setAttribute('aria-label', strings.clearSearch || 'Очистить поиск');
+        categoriesEl?.setAttribute('aria-label', strings.reactionCategories || 'Категории реакций');
 
         searchInputEl?.addEventListener('input', () => {
             searchQuery = String(searchInputEl.value || '').trim().toLowerCase();

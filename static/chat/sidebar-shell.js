@@ -16,18 +16,69 @@ export function createSidebarShell(options = {}) {
         return null;
     }
 
+    function getContactItems() {
+        if (!contactsList) return [];
+        return Array.from(contactsList.querySelectorAll('.contact-item[data-chat-id]'));
+    }
+
+    function isContactItemVisible(item) {
+        if (!(item instanceof HTMLElement)) return false;
+        if (item.hidden) return false;
+        if (item.getAttribute('aria-hidden') === 'true') return false;
+        if (item.style.display === 'none') return false;
+        return true;
+    }
+
+    function ensureContactItemId(item, index) {
+        if (item.id) return item.id;
+        const token = String(item.getAttribute('data-chat-id') || index || 'chat')
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '') || String(index || 'chat');
+        item.id = `chat-contact-option-${token}`;
+        return item.id;
+    }
+
+    function syncContactItemsA11y({ focusItem = null } = {}) {
+        const items = getContactItems();
+        const activeItem = getActiveContactItem() || items.find((item) => item.classList.contains('active')) || null;
+        if (activeItem) activeContactItem = activeItem;
+        const tabbableItem = focusItem && items.includes(focusItem)
+            ? focusItem
+            : activeItem || items.find(isContactItemVisible) || items[0] || null;
+
+        items.forEach((item, index) => {
+            item.setAttribute('role', 'option');
+            const isSelected = item === activeItem;
+            item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            item.tabIndex = item === tabbableItem ? 0 : -1;
+            ensureContactItemId(item, index + 1);
+        });
+
+        if (activeItem) {
+            contactsList?.setAttribute('aria-activedescendant', ensureContactItemId(activeItem, 1));
+        } else {
+            contactsList?.removeAttribute('aria-activedescendant');
+        }
+    }
+
     function setActiveContactItem(nextItem) {
         const currentItem = getActiveContactItem();
-        if (currentItem === nextItem) return currentItem;
+        if (currentItem === nextItem) {
+            syncContactItemsA11y({ focusItem: currentItem });
+            return currentItem;
+        }
         if (currentItem) currentItem.classList.remove('active');
 
         if (nextItem && contactsList?.contains(nextItem)) {
             activeContactItem = nextItem;
             activeContactItem.classList.add('active');
+            syncContactItemsA11y({ focusItem: activeContactItem });
             return activeContactItem;
         }
 
         activeContactItem = null;
+        syncContactItemsA11y();
         return null;
     }
 
@@ -119,9 +170,12 @@ export function createSidebarShell(options = {}) {
         );
     }
 
+    syncContactItemsA11y();
+
     return {
         getActiveContactItem,
         setActiveContactItem,
+        syncContactItemsA11y,
         resolveContactItemByDataAttribute,
         resolveContactItemByChatId,
         resolveContactItemByUserId,

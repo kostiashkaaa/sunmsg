@@ -1,5 +1,6 @@
 import { lockPageScroll } from '../../modules/modal-scroll-lock.js';
 import { getMotionDurationMs, waitForMotionEnd } from '../../modules/motion.js';
+import { activateFocusTrap, deactivateFocusTrap } from '../../modules/focus-trap.js';
 
 export function initChatShellSettingsOverlay(options = {}) {
     const withAppRoot = options.withAppRoot || ((value) => value);
@@ -18,6 +19,7 @@ export function initChatShellSettingsOverlay(options = {}) {
     let settingsOverlayPhase = 'closed';
     let settingsOverlayTransitionSeq = 0;
     let unlockSettingsOverlayPageScroll = null;
+    let settingsOverlayFocusTrapActive = false;
     let settingsPanelInitialized = false;
     let settingsPanelInitPromise = null;
     let commandPaletteOpenPromise = null;
@@ -133,6 +135,28 @@ export function initChatShellSettingsOverlay(options = {}) {
         unlockSettingsOverlayPageScroll = null;
     }
 
+    function activateSettingsOverlayFocusTrap() {
+        if (!settingsOverlay || settingsOverlayFocusTrapActive) return;
+        activateFocusTrap(settingsOverlay);
+        settingsOverlayFocusTrapActive = true;
+    }
+
+    function deactivateSettingsOverlayFocusTrap() {
+        if (!settingsOverlay || !settingsOverlayFocusTrapActive) return;
+        deactivateFocusTrap(settingsOverlay);
+        settingsOverlayFocusTrapActive = false;
+    }
+
+    function focusSettingsOverlayEntry() {
+        if (!settingsOverlay || settingsOverlay.getAttribute('aria-hidden') === 'true') return;
+        const target = settingsOverlay.querySelector(
+            '#settingsPanelCloseBtn, .settings-panel-close, [data-settings-initial-focus], .settings-overlay-panel',
+        );
+        if (target instanceof HTMLElement) {
+            try { target.focus({ preventScroll: true }); } catch (_) {}
+        }
+    }
+
     function setSettingsBrandGlow(active) {
         if (!sidebarBrandDot) return;
         if (!active) {
@@ -244,6 +268,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         settingsOverlay.classList.remove('active');
         settingsOverlay.classList.add('is-closing');
         settingsOverlay.setAttribute('aria-hidden', 'true');
+        deactivateSettingsOverlayFocusTrap();
 
         const transitionTarget = settingsOverlay.querySelector('.settings-overlay-panel') || settingsOverlay;
         waitForAnimationEnd(transitionTarget, maxTransitionMs(transitionTarget, 280)).then(() => {
@@ -270,6 +295,7 @@ export function initChatShellSettingsOverlay(options = {}) {
         if (settingsOverlay.classList.contains('active')) {
             setSettingsBrandGlow(true);
             primeSettingsSurfaceState(targetSection);
+            activateSettingsOverlayFocusTrap();
             navigateSettingsPanelToSection(targetSection);
             markFirstRunCompleted();
             return;
@@ -289,10 +315,15 @@ export function initChatShellSettingsOverlay(options = {}) {
             settingsOverlay.classList.add('active');
             settingsOverlay.classList.remove('is-opening');
             settingsOverlayPhase = 'open';
+            activateSettingsOverlayFocusTrap();
             void readyPromise.then(() => {
-                window.requestAnimationFrame(() => scrollSettingsPanelToSection(targetSection));
+                window.requestAnimationFrame(() => {
+                    scrollSettingsPanelToSection(targetSection);
+                    focusSettingsOverlayEntry();
+                });
             }).catch(() => {
                 scrollSettingsPanelToSection(targetSection);
+                focusSettingsOverlayEntry();
             });
         });
 

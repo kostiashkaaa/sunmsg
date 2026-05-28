@@ -74,7 +74,14 @@ export function showConfirmDialog({
         if (titleEl) titleEl.textContent = title;
         if (messageEl) {
             messageEl.textContent = message;
-            messageEl.style.display = message ? '' : 'none';
+            const hasMessage = Boolean(String(message || '').trim());
+            messageEl.hidden = !hasMessage;
+            messageEl.style.display = '';
+            if (hasMessage && messageEl.id) {
+                dialog.setAttribute('aria-describedby', messageEl.id);
+            } else {
+                dialog.removeAttribute('aria-describedby');
+            }
         }
         if (okBtn) okBtn.textContent = confirmText;
         if (cancelBtn) cancelBtn.textContent = cancelText;

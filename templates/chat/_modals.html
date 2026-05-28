@@ -101,7 +101,8 @@
 
 <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
     <button type="button" class="settings-overlay-backdrop" id="settingsOverlayBackdrop" aria-label="Закрыть настройки"></button>
-    <section class="settings-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settingsOverlayTitle">
+    <section class="settings-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="settingsOverlayTitle" tabindex="-1">
+        <h2 id="settingsOverlayTitle" class="visually-hidden">Настройки</h2>
         <div class="settings-overlay-frame" id="settingsOverlayFrame">
             {% with settings_panel_embed=true %}
                 {% include 'settings/_panel.html' %}
@@ -166,13 +167,13 @@
 </dialog>
 
 <dialog id="confirmActionModal" data-animated-dialog role="alertdialog"
-        aria-labelledby="confirmActionTitle" data-variant="danger">
+        aria-labelledby="confirmActionTitle" aria-describedby="confirmActionMessage" data-variant="danger">
     <div class="confirm-dialog-body">
         <div class="confirm-dialog-icon-wrap">
             <i class="bi bi-slash-circle" data-confirm-icon></i>
         </div>
         <h5 class="confirm-dialog-title" id="confirmActionTitle" data-confirm-title>Подтвердите действие</h5>
-        <p class="confirm-dialog-message" data-confirm-message></p>
+        <p class="confirm-dialog-message" id="confirmActionMessage" data-confirm-message></p>
         <div class="confirm-dialog-actions">
             <button type="button" class="dialog-surface-btn confirm-action-btn confirm-action-btn--cancel" data-confirm-cancel>Отмена</button>
             <button type="button" class="dialog-danger-btn confirm-action-btn confirm-action-btn--ok" data-confirm-ok>Подтвердить</button>

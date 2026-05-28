@@ -87,6 +87,8 @@
             </div>
             <div id="contactsList"
                  class="contacts-list{% if contacts_initial_sync.required or e2e_activation_initial_locked %} contacts-list--loading{% endif %}"
+                 role="listbox"
+                 aria-label="{{ 'Chats' if ui_lang == 'en' else 'Чаты' }}"
                  data-has-more-initial-contacts="{{ '1' if has_more_initial_contacts else '0' }}"
                  data-initial-sync-required="{{ '1' if contacts_initial_sync.required else '0' }}"
                  data-contacts-loading="{{ '1' if contacts_initial_sync.required else '0' }}"
@@ -105,6 +107,9 @@
                 {% set preview_time = contact.draft_updated_at if has_draft else (contact.last_message_time or '') %}
                 {% set preview_loading = (not has_draft) and contact.initial_last_message_preview == '__SUN_ENCRYPTED_LOADING__' %}
                 <div class="contact-item ripple-target{% if preview_loading %} contact-item--preview-loading{% endif %}"
+                     role="option"
+                     aria-selected="false"
+                     tabindex="-1"
                      data-chat-id="{{ contact.chatId }}"
                      data-contact-id="{{ contact.userId or '' }}"
                      data-display-name="{{ (contact.display_name or '')|e }}"

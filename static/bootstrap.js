@@ -1271,6 +1271,7 @@
             },
             assets: {
                 qrcodeSrc: asString(assetsPayload.qrcodeSrc || DEFAULT_QRCODE_SRC),
+                chatRuntimeSrc: asString(assetsPayload.chatRuntimeSrc || ''),
             },
         };
     }

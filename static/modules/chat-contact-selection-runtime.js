@@ -86,13 +86,55 @@ export function bindChatContactSelectionRuntime({
         }
     }
 
-    contactsList.addEventListener('click', (event) => {
-        const contactItem = event.target.closest('.contact-item');
-        if (!contactItem) return;
-        if (String(contactItem.getAttribute('data-request-kind') || '') === 'dialog') return;
+    function isSelectableContactItem(contactItem) {
+        return Boolean(
+            contactItem
+            && contactsList.contains(contactItem)
+            && contactItem.matches('.contact-item[data-chat-id]')
+            && String(contactItem.getAttribute('data-request-kind') || '') !== 'dialog',
+        );
+    }
+
+    function getVisibleContactItems() {
+        return Array.from(contactsList.querySelectorAll('.contact-item[data-chat-id]'))
+            .filter((item) => isSelectableContactItem(item))
+            .filter((item) => !item.hidden && item.style.display !== 'none' && item.getAttribute('aria-hidden') !== 'true');
+    }
+
+    function setContactFocus(contactItem) {
+        if (!isSelectableContactItem(contactItem)) return;
+        const items = getVisibleContactItems();
+        items.forEach((item) => {
+            item.tabIndex = item === contactItem ? 0 : -1;
+        });
+        try {
+            contactItem.focus({ preventScroll: true });
+        } catch (_) {
+            contactItem.focus?.();
+        }
+        scrollContactIntoViewIfClipped(contactItem);
+    }
+
+    function moveContactFocus(currentItem, direction) {
+        const items = getVisibleContactItems();
+        if (!items.length) return;
+        const currentIndex = Math.max(0, items.indexOf(currentItem));
+        let nextIndex = currentIndex;
+        if (direction === 'first') {
+            nextIndex = 0;
+        } else if (direction === 'last') {
+            nextIndex = items.length - 1;
+        } else {
+            nextIndex = (currentIndex + direction + items.length) % items.length;
+        }
+        setContactFocus(items[nextIndex]);
+    }
+
+    function activateContactItem(contactItem, event = null) {
+        if (!isSelectableContactItem(contactItem)) return;
         if (isE2eActivationLocked()) {
-            event.preventDefault();
-            event.stopPropagation();
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
             requestE2eActivation();
             return;
         }
@@ -260,6 +302,36 @@ export function bindChatContactSelectionRuntime({
         documentRef.dispatchEvent(new CustomEvent('sun:chat:opened', {
             detail: { chatId: nextChatId, chatType: isGroupChat || isSavedMessagesChat ? 'group' : 'direct' },
         }));
+    }
+
+    contactsList.addEventListener('click', (event) => {
+        const contactItem = event.target.closest('.contact-item');
+        activateContactItem(contactItem, event);
+    });
+
+    contactsList.addEventListener('keydown', (event) => {
+        const contactItem = event.target.closest('.contact-item');
+        if (!isSelectableContactItem(contactItem)) return;
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            activateContactItem(contactItem, event);
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveContactFocus(contactItem, 1);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveContactFocus(contactItem, -1);
+        } else if (event.key === 'Home') {
+            event.preventDefault();
+            moveContactFocus(contactItem, 'first');
+        } else if (event.key === 'End') {
+            event.preventDefault();
+            moveContactFocus(contactItem, 'last');
+        }
     });
 
     if (!getHasAttemptedInitialChatRestore() && !isInitialChatRestoreDeferred()) {
