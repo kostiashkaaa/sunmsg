@@ -298,7 +298,8 @@ export function bindChatContactSelectionRuntime({
         }
 
         if (isMobileViewport()) {
-            openChat({ animated: !isInitialRestoreActivation });
+            const shouldAnimateMobileOpen = Boolean(previousChatId) && !isInitialRestoreActivation;
+            openChat({ animated: shouldAnimateMobileOpen });
         }
 
         documentRef.dispatchEvent(new CustomEvent('sun:chat:opened', {

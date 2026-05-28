@@ -518,15 +518,16 @@ def test_mobile_chatjs_skips_inner_thread_reveal_motion() -> None:
     assert 'if (chatArea && useDesktopSwitchMotion)' in selection_runtime
 
 
-def test_initial_mobile_restore_skips_outer_thread_reveal_motion() -> None:
-    """Automatic first-open restore should not slide loaded self messages from the right."""
+def test_initial_mobile_open_skips_outer_thread_reveal_motion() -> None:
+    """First mobile chat open should not slide loaded self messages from the right."""
     selection_runtime = (STATIC / 'modules' / 'chat-contact-selection-runtime.js').read_text(encoding='utf-8')
     last_active_runtime = (STATIC / 'modules' / 'chat-last-active-chat.js').read_text(encoding='utf-8')
     mobile_runtime = (STATIC / 'modules' / 'chat-mobile-viewport-runtime.js').read_text(encoding='utf-8')
     chat_runtime = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
 
     assert "contactItem.dataset?.chatInitialRestore === '1'" in selection_runtime
-    assert 'openChat({ animated: !isInitialRestoreActivation })' in selection_runtime
+    assert 'const shouldAnimateMobileOpen = Boolean(previousChatId) && !isInitialRestoreActivation' in selection_runtime
+    assert 'openChat({ animated: shouldAnimateMobileOpen })' in selection_runtime
     assert "contactItem.dataset.chatInitialRestore = '1'" in last_active_runtime
     assert 'mobileThreadShell.openChat(options)' in mobile_runtime
     assert 'mobileViewportRuntime?.openChat(options)' in chat_runtime
