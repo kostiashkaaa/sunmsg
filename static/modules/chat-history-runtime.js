@@ -459,6 +459,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 String(msg?.senderAvatarUrl || ''),
                 String(msg?.message || ''),
                 String(msg?.message_type || ''),
+                String(msg?.album_id || ''),
                 String(Boolean(msg?.encrypted)),
                 String(Boolean(msg?.is_read)),
                 String(msg?.read_at || ''),

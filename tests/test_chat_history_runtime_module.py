@@ -310,6 +310,144 @@ if (restoreCalls.length !== 1 || restoreCalls[0] !== 'chat-ready') {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_cached_history_rerenders_when_album_id_arrives_from_network():
+    module_path = ROOT / 'static' / 'modules' / 'chat-history-runtime.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  "import {{ withAppRoot }} from './app-url.js';",
+  "const withAppRoot = (value) => value;",
+);
+source = source.replace(
+  "import {{ normalizeMentionUserIds }} from './chat-mentions.js';",
+  "const normalizeMentionUserIds = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ normalizeGroupReaders }} from './chat-group-read-receipts.js';",
+  "const normalizeGroupReaders = (value) => Array.isArray(value) ? value : [];",
+);
+source = source.replace(
+  "import {{ insertUnreadDivider, removeUnreadDivider }} from './chat-skeleton-ui.js';",
+  "const insertUnreadDivider = () => {{}}; const removeUnreadDivider = () => {{}};",
+);
+source = source.replace(
+  "import {{ captureChatViewportAnchor }} from './chat-scroll-stability.js';",
+  "const captureChatViewportAnchor = () => null;",
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const {{ createChatHistoryRuntime }} = await import(moduleUrl);
+
+const state = {{
+  initialized: false,
+  isLoadingInitial: false,
+  historyRequestToken: 0,
+  messages: [],
+  renderedKeys: new Set(),
+  pins: [],
+  favorites: [],
+  blockState: {{}},
+  hasMoreBefore: false,
+  savedScrollTop: 0,
+  hasSavedScrollTop: false,
+}};
+const setCalls = [];
+const stableRenderCalls = [];
+const cachedMessage = {{
+  id: 10,
+  sender_user_id: 2,
+  sender_public_key: 'pk-other',
+  message: '{{"name":"a.jpg","mime":"image/jpeg","data":"/media/a.jpg"}}',
+  message_type: 'file',
+  created_at: '2026-01-02T00:00:00Z',
+  reactions: [],
+  album_id: null,
+}};
+const networkMessage = {{
+  ...cachedMessage,
+  album_id: 'album-1',
+}};
+
+const runtime = createChatHistoryRuntime({{
+  chatHistoryPageSize: 50,
+  chatHistoryMaxPageSize: 100,
+  chatDecryptConcurrency: 2,
+  chatDecryptWorkerTimeoutMs: 100,
+  fetchImpl: async () => ({{
+    ok: true,
+    json: async () => ({{
+      success: true,
+      messages: [networkMessage],
+      has_more_before: false,
+      pins: [],
+      favorites: [],
+      block_state: {{}},
+    }}),
+  }}),
+  getChatState: () => state,
+  getCurrentChatId: () => 'chat-album',
+  getPrivateKeyPem: () => 'private-key',
+  getCurrentUserPublicKey: () => 'pk-current',
+  getCurrentUserId: () => '1',
+  getCurrentPartnerData: () => ({{ display_name: 'Partner' }}),
+  isEncryptedPayload: () => false,
+  decryptForDisplay: async (_privateKey, payload) => payload,
+  normalizeMessageReactions: (value) => value || [],
+  enrichDecodedMessagesVisualMeta: async (messages) => messages,
+  ensureChatIdbReady: async () => true,
+  isChatIdbReady: () => true,
+  readCachedMessages: async () => ({{ messages: [cachedMessage] }}),
+  writeCachedMessages: async () => {{}},
+  pruneCachedChats: async () => {{}},
+  createHistoryAbortController: () => ({{ signal: undefined }}),
+  releaseHistoryAbortController: () => {{}},
+  historyInitialAbortControllers: new Map(),
+  applyChatBlockState: () => {{}},
+  resetOpenChatUnreadCounter: () => {{}},
+  setChatStageLoading: () => {{}},
+  setHistoryLoading: () => {{}},
+  hidePinnedBar: () => {{}},
+  hideFavoriteBar: () => {{}},
+  setChatPinnedMessages: () => {{}},
+  setChatFavoriteMessages: () => {{}},
+  normalizePinnedMessages: () => [],
+  normalizeFavoriteMessages: () => [],
+  normalizeBlockState: (value) => value,
+  resolveSavedChatScrollTop: () => NaN,
+  getMessageKey: (msg) => `id:${{msg.id}}`,
+  setChatMessages: (_chatId, messages) => {{
+    setCalls.push(messages.map((message) => message.album_id || null));
+    state.messages = messages;
+  }},
+  renderChatMessagesStable: async (_chatId, options) => {{
+    stableRenderCalls.push(options);
+  }},
+  setKeepChatPinnedToBottom: () => {{}},
+  resolveContactItemByChatId: () => null,
+  isAbortError: () => false,
+  showToast: (message) => {{
+    throw new Error(`Unexpected toast: ${{message}}`);
+  }},
+  chatMessagesEl: {{ querySelectorAll: () => [], querySelector: () => null }},
+}});
+
+await runtime.fetchChatHistory('chat-album');
+
+if (setCalls.length !== 2) {{
+  throw new Error(`Expected cached render and network rerender, got ${{JSON.stringify(setCalls)}}`);
+}}
+if (setCalls[0][0] !== null || setCalls[1][0] !== 'album-1') {{
+  throw new Error(`Expected network album_id to update message state: ${{JSON.stringify(setCalls)}}`);
+}}
+if (stableRenderCalls.length !== 2) {{
+  throw new Error(`Expected two stable renders, got ${{stableRenderCalls.length}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_load_older_messages_anchors_current_viewport_after_async_fetch():
     module_path = ROOT / 'static' / 'modules' / 'chat-history-runtime.js'
     node_harness = f"""
