@@ -304,8 +304,10 @@ export const initChatPage = async () => {
         syncChatConnectionStatus: () => syncChatConnectionStatus?.(),
         getCurrentChatId: () => currentChatId,
         isChatBlocked: () => isChatBlocked(),
+        isChatNearBottom: () => isChatNearBottom(),
         joinChatRoom: (chatId) => joinChatRoom(chatId),
         markCurrentChatSeenIfPossible: () => markCurrentChatSeenIfPossible(),
+        retryPendingDraftSaves: () => retryPendingDraftSaves({ includeCurrentComposer: true }),
         refreshCurrentPresence: () => {
             const activeContactId = String(currentContactId || '').trim();
             if (!activeContactId) return;
@@ -431,6 +433,7 @@ export const initChatPage = async () => {
     function applyComposerDraftText(...args) { return draftsController?.applyComposerDraftText(...args); }
     function hasMeaningfulDraft(value) { return Boolean(draftsController?.hasMeaningfulDraft(value)); }
     function clearLocalDraftStateForChat(chatId) { return draftsController?.clearLocalDraftStateForChat(chatId); }
+    function retryPendingDraftSaves(...args) { return draftsController?.retryPendingDraftSaves?.(...args); }
 
     // Report flow controller — initialised below.
     var reportController;

@@ -9,10 +9,18 @@ own independent state and online status will be wrong.
 
 import logging
 import os
+import threading
 
 logger = logging.getLogger(__name__)
 
-_REDIS_TTL = 86400  # 24 h - safety expiry for orphaned keys
+def _presence_ttl_seconds() -> int:
+    try:
+        return max(60, int(os.environ.get('PRESENCE_REDIS_TTL_SECONDS') or 900))
+    except (TypeError, ValueError):
+        return 900
+
+
+_REDIS_TTL = _presence_ttl_seconds()
 
 
 def _make_redis_store(redis_url: str):
@@ -38,10 +46,74 @@ _configured_env_name = None
 # in-process fallback
 _connected: dict[str, set] = {}
 _active: dict[str, set] = {}
+_store_lock = threading.Lock()
 
 # Redis key helpers
 _PREFIX_CONN = 'presence:conn:'
 _PREFIX_ACT = 'presence:act:'
+_PREFIX_CONN_SID = 'presence:conn:sid:'
+_PREFIX_ACT_SID = 'presence:act:sid:'
+
+
+def _sid_key(prefix: str, pub: str, sid: str) -> str:
+    return f'{prefix}{pub}:{sid}'
+
+
+def _sid_key_prefix(prefix: str, pub: str) -> str:
+    return f'{prefix}{pub}:'
+
+
+def _prune_redis_set(set_key: str, sid_prefix: str) -> int:
+    members = _redis.smembers(set_key)
+    stale_members = [sid for sid in members if not _redis.exists(sid_prefix + sid)]
+    if stale_members:
+        _redis.srem(set_key, *stale_members)
+    count = int(_redis.scard(set_key) or 0)
+    if count <= 0:
+        _redis.delete(set_key)
+    else:
+        _redis.expire(set_key, _REDIS_TTL)
+    return count
+
+
+def _add_redis_sid_with_limit(set_key: str, sid_key: str, sid_prefix: str, sid: str, max_connections: int) -> int:
+    return int(
+        _redis.eval(
+            '''
+            local set_key = KEYS[1]
+            local sid_key = KEYS[2]
+            local sid = ARGV[1]
+            local ttl = tonumber(ARGV[2])
+            local max_connections = tonumber(ARGV[3])
+            local sid_prefix = ARGV[4]
+
+            local members = redis.call('SMEMBERS', set_key)
+            for _, member in ipairs(members) do
+                if redis.call('EXISTS', sid_prefix .. member) == 0 then
+                    redis.call('SREM', set_key, member)
+                end
+            end
+
+            local already_present = redis.call('SISMEMBER', set_key, sid)
+            local count = redis.call('SCARD', set_key)
+            if max_connections > 0 and already_present == 0 and count >= max_connections then
+                return -1
+            end
+
+            redis.call('SADD', set_key, sid)
+            redis.call('SET', sid_key, '1', 'EX', ttl)
+            redis.call('EXPIRE', set_key, ttl)
+            return redis.call('SCARD', set_key)
+            ''',
+            2,
+            set_key,
+            sid_key,
+            sid,
+            _REDIS_TTL,
+            max(0, int(max_connections or 0)),
+            sid_prefix,
+        )
+    )
 
 
 def _normalize_redis_url(redis_url: str | None = None) -> str:
@@ -91,94 +163,117 @@ def _ensure_configured() -> None:
         configure_presence(normalized_redis_url, normalized_env_name)
 
 
-def add_connected(pub: str, sid: str) -> int:
+def add_connected(pub: str, sid: str, *, max_connections: int = 0) -> int:
     """Register a new SID for pub. Returns total connected-SID count."""
     _ensure_configured()
-    if _redis:
-        key = _PREFIX_CONN + pub
-        pipe = _redis.pipeline()
-        pipe.sadd(key, sid)
-        pipe.expire(key, _REDIS_TTL)
-        pipe.scard(key)
-        results = pipe.execute()
-        return results[2]
-    _connected.setdefault(pub, set()).add(sid)
-    return len(_connected[pub])
+    if _redis is not None:
+        return _add_redis_sid_with_limit(
+            _PREFIX_CONN + pub,
+            _sid_key(_PREFIX_CONN_SID, pub, sid),
+            _sid_key_prefix(_PREFIX_CONN_SID, pub),
+            sid,
+            max_connections,
+        )
+    with _store_lock:
+        sid_set = _connected.setdefault(pub, set())
+        limit = max(0, int(max_connections or 0))
+        if limit > 0 and sid not in sid_set and len(sid_set) >= limit:
+            return -1
+        sid_set.add(sid)
+        return len(sid_set)
 
 
 def remove_connected(pub: str, sid: str) -> int:
     """Remove a SID. Returns remaining connected-SID count."""
     _ensure_configured()
-    if _redis:
+    if _redis is not None:
         key = _PREFIX_CONN + pub
         active_key = _PREFIX_ACT + pub
-        _redis.srem(key, sid)
-        _redis.srem(active_key, sid)
-        count = _redis.scard(key)
-        if count == 0:
-            _redis.delete(key)
-            _redis.delete(active_key)
+        pipe = _redis.pipeline()
+        pipe.srem(key, sid)
+        pipe.srem(active_key, sid)
+        pipe.delete(_sid_key(_PREFIX_CONN_SID, pub, sid))
+        pipe.delete(_sid_key(_PREFIX_ACT_SID, pub, sid))
+        pipe.execute()
+        count = _prune_redis_set(key, _sid_key_prefix(_PREFIX_CONN_SID, pub))
+        _prune_redis_set(active_key, _sid_key_prefix(_PREFIX_ACT_SID, pub))
         return count
-    sid_set = _connected.get(pub)
-    if sid_set:
-        sid_set.discard(sid)
-        if not sid_set:
-            _connected.pop(pub, None)
-    active_set = _active.get(pub)
-    if active_set:
-        active_set.discard(sid)
-        if not active_set:
-            _active.pop(pub, None)
-    return len(_connected.get(pub, set()))
+    with _store_lock:
+        sid_set = _connected.get(pub)
+        if sid_set:
+            sid_set.discard(sid)
+            if not sid_set:
+                _connected.pop(pub, None)
+        active_set = _active.get(pub)
+        if active_set:
+            active_set.discard(sid)
+            if not active_set:
+                _active.pop(pub, None)
+        return len(_connected.get(pub, set()))
 
 
 def count_connected(pub: str) -> int:
     """Return number of connected tabs (active or background) for pub."""
     _ensure_configured()
-    if _redis:
-        return _redis.scard(_PREFIX_CONN + pub)
-    return len(_connected.get(pub, set()))
+    if _redis is not None:
+        return _prune_redis_set(_PREFIX_CONN + pub, _sid_key_prefix(_PREFIX_CONN_SID, pub))
+    with _store_lock:
+        return len(_connected.get(pub, set()))
 
 
 def add_active(pub: str, sid: str) -> int:
     """Mark tab as visible/active. Returns active-tab count."""
     _ensure_configured()
-    if _redis:
+    if _redis is not None:
+        connected_key = _PREFIX_CONN + pub
         key = _PREFIX_ACT + pub
         pipe = _redis.pipeline()
+        pipe.sadd(connected_key, sid)
+        pipe.set(_sid_key(_PREFIX_CONN_SID, pub, sid), '1', ex=_REDIS_TTL)
+        pipe.expire(connected_key, _REDIS_TTL)
         pipe.sadd(key, sid)
+        pipe.set(_sid_key(_PREFIX_ACT_SID, pub, sid), '1', ex=_REDIS_TTL)
         pipe.expire(key, _REDIS_TTL)
         pipe.scard(key)
         results = pipe.execute()
-        return results[2]
-    _active.setdefault(pub, set()).add(sid)
-    return len(_active[pub])
+        return int(results[-1] or 0)
+    with _store_lock:
+        _connected.setdefault(pub, set()).add(sid)
+        _active.setdefault(pub, set()).add(sid)
+        return len(_active[pub])
 
 
 def remove_active(pub: str, sid: str) -> int:
     """Mark tab as hidden/inactive. Returns remaining active-tab count."""
     _ensure_configured()
-    if _redis:
+    if _redis is not None:
+        connected_key = _PREFIX_CONN + pub
         key = _PREFIX_ACT + pub
-        _redis.srem(key, sid)
-        count = _redis.scard(key)
-        if count == 0:
-            _redis.delete(key)
-        return count
-    sid_set = _active.get(pub)
-    if sid_set:
-        sid_set.discard(sid)
-        if not sid_set:
-            _active.pop(pub, None)
-    return len(_active.get(pub, set()))
+        pipe = _redis.pipeline()
+        pipe.sadd(connected_key, sid)
+        pipe.set(_sid_key(_PREFIX_CONN_SID, pub, sid), '1', ex=_REDIS_TTL)
+        pipe.expire(connected_key, _REDIS_TTL)
+        pipe.srem(key, sid)
+        pipe.delete(_sid_key(_PREFIX_ACT_SID, pub, sid))
+        pipe.execute()
+        return _prune_redis_set(key, _sid_key_prefix(_PREFIX_ACT_SID, pub))
+    with _store_lock:
+        _connected.setdefault(pub, set()).add(sid)
+        sid_set = _active.get(pub)
+        if sid_set:
+            sid_set.discard(sid)
+            if not sid_set:
+                _active.pop(pub, None)
+        return len(_active.get(pub, set()))
 
 
 def count_active(pub: str) -> int:
     """Return number of active (visible) tabs for pub."""
     _ensure_configured()
-    if _redis:
-        return _redis.scard(_PREFIX_ACT + pub)
-    return len(_active.get(pub, set()))
+    if _redis is not None:
+        return _prune_redis_set(_PREFIX_ACT + pub, _sid_key_prefix(_PREFIX_ACT_SID, pub))
+    with _store_lock:
+        return len(_active.get(pub, set()))
 
 
 def is_effectively_online(pub: str | None, *, persisted: bool = False) -> bool:

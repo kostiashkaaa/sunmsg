@@ -1,8 +1,10 @@
 export function createActivityReporter({
     emitSocket,
     debounceMs = 1000,
+    heartbeatMs = 60000,
 } = {}) {
     let activityDebounceTimer = null;
+    let heartbeatTimer = null;
 
     function clearPendingActivityUpdate() {
         if (!activityDebounceTimer) return;
@@ -29,9 +31,25 @@ export function createActivityReporter({
         }, debounceMs);
     }
 
+    if (
+        heartbeatMs > 0
+        && typeof setInterval === 'function'
+        && typeof document !== 'undefined'
+    ) {
+        heartbeatTimer = setInterval(() => {
+            reportActivity(document.visibilityState === 'visible', { immediate: true });
+        }, heartbeatMs);
+    }
+
     return {
         reportActivity,
-        dispose: clearPendingActivityUpdate,
+        dispose() {
+            clearPendingActivityUpdate();
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        },
     };
 }
 

@@ -60,6 +60,7 @@ _SOCKET_EVENT_RATE_LIMITS = {
     'unpin_message': (20, 60),
     'favorite_message': (30, 60),
     'unfavorite_message': (30, 60),
+    'set_chat_auto_delete': (10, 60),
     # Calls signalling
     'call_initiate': (5, 60),
     'call_accept': (15, 60),

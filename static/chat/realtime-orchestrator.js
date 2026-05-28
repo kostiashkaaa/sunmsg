@@ -4,8 +4,10 @@ export function wireSocketLifecycleHandlers({
     syncChatConnectionStatus,
     getCurrentChatId,
     isChatBlocked,
+    isChatNearBottom = () => false,
     joinChatRoom,
     markCurrentChatSeenIfPossible,
+    retryPendingDraftSaves,
     syncSidebarStatusBar,
     loadContacts,
     loadDialogRequests,
@@ -23,13 +25,16 @@ export function wireSocketLifecycleHandlers({
         const currentChatId = getCurrentChatId();
         if (currentChatId && !isChatBlocked()) {
             joinChatRoom(currentChatId);
-            markCurrentChatSeenIfPossible();
+            if (isChatNearBottom()) {
+                markCurrentChatSeenIfPossible();
+            }
             refreshCurrentPresence?.();
         }
 
         syncSidebarStatusBar();
 
         if (getHasSocketConnectedOnce()) {
+            retryPendingDraftSaves?.();
             loadContacts();
             loadDialogRequests();
             if (currentChatId && typeof syncOnReconnect === 'function') {

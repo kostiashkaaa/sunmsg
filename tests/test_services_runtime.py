@@ -284,6 +284,7 @@ def test_presence_in_process_store_and_effective_online(monkeypatch):
 
     assert presence.add_connected('pk-1', 'sid-1') == 1
     assert presence.add_connected('pk-1', 'sid-2') == 2
+    assert presence.add_connected('pk-1', 'sid-3', max_connections=2) == -1
     assert presence.count_connected('pk-1') == 2
 
     assert presence.add_active('pk-1', 'sid-1') == 1

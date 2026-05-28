@@ -61,6 +61,7 @@ def _prepare_group_schema(conn):
             delivered_at TEXT,
             is_read INTEGER NOT NULL DEFAULT 0,
             read_at TEXT,
+            voice_listened INTEGER NOT NULL DEFAULT 0,
             deleted_for_user INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT
         )
@@ -467,3 +468,64 @@ def test_handle_messages_seen_event_group_emits_detailed_updates(tmp_path):
         and event[2].get('room') == 'group-a'
         for event in emitted
     )
+
+
+def test_handle_voice_message_listened_event_group_requires_message_chat_match(tmp_path):
+    db_path = tmp_path / 'socket-read-receipt-voice-group-chat-match.db'
+    with _connect(db_path) as conn:
+        _prepare_group_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO users (id, username, display_name)
+            VALUES
+                (1, 'alice', 'Alice'),
+                (2, 'bob', 'Bob')
+            '''
+        )
+        conn.execute("INSERT INTO chats (chat_id, chat_type) VALUES ('group-a', 'group'), ('group-b', 'group')")
+        conn.execute(
+            '''
+            INSERT INTO chat_members (user_id, chat_id, role)
+            VALUES
+                (1, 'group-a', 'member'),
+                (2, 'group-a', 'member'),
+                (1, 'group-b', 'member'),
+                (2, 'group-b', 'member')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO messages (id, chat_id, sender_id, receiver_id, created_at)
+            VALUES (200, 'group-b', 2, NULL, '2025-01-01 10:00:00')
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO message_receipts (message_id, user_id, is_delivered, is_read, voice_listened, deleted_for_user)
+            VALUES (200, 1, 1, 0, 0, 0)
+            '''
+        )
+        conn.commit()
+
+    emitted = []
+
+    handle_voice_message_listened_event(
+        {'chat_id': 'group-a', 'msg_id': 200},
+        session_store={'user_id': 1},
+        require_payload_dict_func=lambda payload: payload,
+        socket_csrf_ok_func=lambda payload: True,
+        positive_int_func=lambda value: int(value) if str(value).isdigit() else None,
+        is_valid_chat_id_func=lambda chat_id: True,
+        socket_rate_ok_func=lambda uid, event_name=None: True,
+        get_db_connection_func=lambda: _connect(db_path),
+        chat_partner_state_func=lambda conn, uid, chat_id: ({'contact_id': None, 'public_key': ''}, {'is_blocked': False}),
+        emit_func=lambda name, payload, **kwargs: emitted.append((name, payload, kwargs)),
+    )
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT voice_listened FROM message_receipts WHERE message_id = 200 AND user_id = 1'
+        ).fetchone()
+
+    assert int(row['voice_listened']) == 0
+    assert not any(event[0] == 'voice_message_listened' for event in emitted)

@@ -32,6 +32,7 @@ export function createChatDraftsController(deps = {}) {
     const draftSaveSeqByChatId = new Map();
     const lastSavedDraftByChatId = new Map();
     const lastDraftUpdatedAtByChatId = new Map();
+    const pendingDraftSaveByChatId = new Map();
 
     function normalizeDraftText(value) {
         return String(value ?? '').replace(/\r\n/g, '\n');
@@ -206,7 +207,15 @@ export function createChatDraftsController(deps = {}) {
                 }),
             });
             const payload = await response.json();
-            if (!response.ok || !payload?.success) return null;
+            if (!response.ok || !payload?.success) {
+                if (draftSaveSeqByChatId.get(normalizedChatId) === saveSeq) {
+                    pendingDraftSaveByChatId.set(normalizedChatId, {
+                        text: normalizedDraft,
+                        force: true,
+                    });
+                }
+                return null;
+            }
             if (draftSaveSeqByChatId.get(normalizedChatId) !== saveSeq) return null;
 
             const savedText = payload.has_draft
@@ -218,9 +227,16 @@ export function createChatDraftsController(deps = {}) {
             if (savedUpdatedAt) {
                 lastDraftUpdatedAtByChatId.set(normalizedChatId, toDraftTimestampMs(savedUpdatedAt));
             }
+            pendingDraftSaveByChatId.delete(normalizedChatId);
             syncDraftPreviewForContact(normalizedChatId, savedText, savedUpdatedAt);
             return payload;
         } catch (_) {
+            if (draftSaveSeqByChatId.get(normalizedChatId) === saveSeq) {
+                pendingDraftSaveByChatId.set(normalizedChatId, {
+                    text: normalizedDraft,
+                    force: true,
+                });
+            }
             return null;
         }
     }
@@ -351,6 +367,24 @@ export function createChatDraftsController(deps = {}) {
         if (!normalizedChatId) return;
         lastSavedDraftByChatId.set(normalizedChatId, '');
         lastDraftUpdatedAtByChatId.set(normalizedChatId, Date.now());
+        pendingDraftSaveByChatId.delete(normalizedChatId);
+    }
+
+    function retryPendingDraftSaves({ includeCurrentComposer = false } = {}) {
+        if (includeCurrentComposer && messageInput) {
+            const currentChatId = String(getCurrentChatId?.() || '').trim();
+            if (currentChatId && !getIsEditingMessageId?.() && !isChatBlocked?.()) {
+                pendingDraftSaveByChatId.set(currentChatId, {
+                    text: normalizeDraftText(messageInput.value || ''),
+                    force: true,
+                });
+            }
+        }
+        for (const [chatId, pending] of pendingDraftSaveByChatId) {
+            void saveDraftForChat(chatId, pending?.text || '', {
+                force: pending?.force !== false,
+            });
+        }
     }
 
     return {
@@ -363,5 +397,6 @@ export function createChatDraftsController(deps = {}) {
         applyComposerDraftText,
         hasMeaningfulDraft,
         clearLocalDraftStateForChat,
+        retryPendingDraftSaves,
     };
 }

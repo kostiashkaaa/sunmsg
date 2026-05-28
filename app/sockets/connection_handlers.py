@@ -61,24 +61,36 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
             clear_invalid_session_user_func()
             raise connection_refused_error_cls('user not found')
 
-        if (
-            count_connected_func is not None
-            and int(max_connections_per_user or 0) > 0
-        ):
-            current_tabs = int(count_connected_func(pub) or 0)
-            if current_tabs >= int(max_connections_per_user):
-                logger.warning(
-                    'Socket connect rejected by tab cap user_id=%s sid=%s tabs=%s limit=%s',
-                    uid,
-                    request_sid,
-                    current_tabs,
-                    max_connections_per_user,
-                )
-                raise connection_refused_error_cls('too many concurrent connections')
+        connection_limit = int(max_connections_per_user or 0)
+        if connection_limit > 0:
+            try:
+                total = add_connected_func(pub, request_sid, max_connections=connection_limit)
+            except TypeError:
+                current_tabs = int(count_connected_func(pub) or 0) if count_connected_func is not None else 0
+                if current_tabs >= connection_limit:
+                    logger.warning(
+                        'Socket connect rejected by tab cap user_id=%s sid=%s tabs=%s limit=%s',
+                        uid,
+                        request_sid,
+                        current_tabs,
+                        max_connections_per_user,
+                    )
+                    raise connection_refused_error_cls('too many concurrent connections')
+                total = add_connected_func(pub, request_sid)
+        else:
+            total = add_connected_func(pub, request_sid)
+        if int(total or 0) < 0:
+            logger.warning(
+                'Socket connect rejected by tab cap user_id=%s sid=%s tabs=%s limit=%s',
+                uid,
+                request_sid,
+                count_connected_func(pub) if count_connected_func is not None else '-',
+                max_connections_per_user,
+            )
+            raise connection_refused_error_cls('too many concurrent connections')
 
         join_room_func(pub)
         join_room_func(user_room)
-        total = add_connected_func(pub, request_sid)
         logger.info('User %s connected (sid: %s). Total connected tabs: %s', uid, request_sid, total)
 
         delivered_rows = collect_and_mark_delivered_func(conn, uid)

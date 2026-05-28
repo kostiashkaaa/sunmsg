@@ -55,6 +55,14 @@ def test_chat_drafts_save_and_load_async_completions_are_sequence_guarded() -> N
     assert source.count('if (requestId !== activeDraftLoadRequestId) return;') >= 2
 
 
+def test_realtime_reconnect_does_not_mark_seen_when_chat_is_not_near_bottom() -> None:
+    source = (ROOT / 'static' / 'chat' / 'realtime-orchestrator.js').read_text(encoding='utf-8')
+
+    assert 'isChatNearBottom = () => false,' in source
+    assert 'if (isChatNearBottom()) {' in source
+    assert 'retryPendingDraftSaves?.();' in source
+
+
 def test_settings_devices_loads_ignore_stale_responses() -> None:
     source = (ROOT / 'static' / 'pages' / 'settings' / 'devices-section.js').read_text(encoding='utf-8')
 

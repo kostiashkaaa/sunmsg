@@ -284,6 +284,10 @@ def handle_set_chat_auto_delete(data):
     if not ctx._socket_csrf_ok(data):
         return
     user_id = int(session.get('user_id', 0))
+    if not ctx._socket_rate_ok(user_id, 'set_chat_auto_delete'):
+        ctx._emit_socket_event('error', socket_error_payload('Too many messages. Please wait a little.'))
+        return
+
     chat_id = str(data.get('chat_id') or '').strip()
     if not chat_id or not is_valid_chat_id(chat_id):
         ctx._emit_socket_event('error', socket_error_payload('Invalid chat_id.'))

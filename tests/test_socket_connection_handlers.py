@@ -149,6 +149,40 @@ def test_handle_connect_event_rejects_too_many_tabs(tmp_path):
     assert added == []
 
 
+def test_handle_connect_event_rejects_atomic_add_limit(tmp_path):
+    db_path = tmp_path / 'socket-connection-connect-atomic-limit.db'
+    with _connect(db_path) as conn:
+        _prepare_user_schema(conn)
+        conn.execute('INSERT INTO users (id, hide_online_status) VALUES (1, 0)')
+        conn.commit()
+
+    joined = []
+
+    with pytest.raises(ConnectionRefusedError, match='too many concurrent connections'):
+        handle_connect_event(
+            None,
+            session_store={'user_id': 1, 'public_key_pem': 'pk-1'},
+            request_sid='sid-1',
+            clear_invalid_session_user_func=lambda: None,
+            socket_connect_csrf_ok_func=lambda auth: True,
+            socket_connect_ip_rate_ok_func=lambda ip, *, limit, window_seconds: True,
+            socket_connect_ip_limit=10,
+            socket_connect_ip_window_seconds=60,
+            get_db_connection_func=lambda: _connect(db_path),
+            join_room_func=lambda room: joined.append(room),
+            count_connected_func=lambda pub: 3,
+            add_connected_func=lambda pub, sid, *, max_connections=0: -1,
+            max_connections_per_user=3,
+            collect_and_mark_delivered_func=lambda conn, uid: [],
+            emit_delivered_events_func=lambda rows: None,
+            logger=_logger(),
+            database_error_cls=DatabaseError,
+            connection_refused_error_cls=ConnectionRefusedError,
+        )
+
+    assert joined == []
+
+
 def test_handle_connect_event_success_joins_and_emits_delivered(tmp_path):
     db_path = tmp_path / 'socket-connection-connect-ok.db'
     with _connect(db_path) as conn:

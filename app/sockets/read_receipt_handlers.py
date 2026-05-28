@@ -258,14 +258,17 @@ def _apply_voice_listened_update(
     if is_group_chat:
         cursor = conn.execute(
             '''
-            UPDATE message_receipts
+            UPDATE message_receipts AS mr
             SET voice_listened = 1,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE message_id = ?
-              AND user_id = ?
-              AND voice_listened = 0
+            FROM messages AS m
+            WHERE mr.message_id = m.id
+              AND mr.message_id = ?
+              AND m.chat_id = ?
+              AND mr.user_id = ?
+              AND mr.voice_listened = 0
             ''',
-            (message_id, user_id),
+            (message_id, chat_id, user_id),
         )
     else:
         cursor = conn.execute(
