@@ -12,11 +12,22 @@ from app.routes.chat_media_utils import (
     read_stream_head,
     serialize_block_state,
     validate_chat_media_content,
+    validate_image_payload,
     validate_magic,
     validate_openxml_package,
     validate_text_like_payload,
 )
 from app.services.chat_media_service import upload_chat_media_for_user
+
+
+# Minimal valid 1x1 PNG. Used wherever a test needs a payload that passes
+# both magic-bytes and Pillow.verify(). Generated once via Pillow and frozen
+# so the suite does not need to rebuild the bytes on every run.
+_VALID_PNG_1X1 = bytes.fromhex(
+    '89504e470d0a1a0a0000000d4948445200000001000000010802000000907753'
+    'de0000000c49444154789c63f8ffff3f0005fe02fe0def46b80000000049454e'
+    '44ae426082'
+)
 
 
 _MAGIC_BYTES = {
@@ -89,18 +100,30 @@ def test_allowed_file_and_canonical_username():
 
 
 def test_validate_magic_and_read_stream_helpers():
-    png = b'\x89PNG\r\n\x1a\n' + b'\x00' * 16
+    # Use a real 1×1 PNG so the Pillow-backed deep validation pass also accepts it.
+    png = _VALID_PNG_1X1
     jpg = b'\xff\xd8\xff' + b'\x00' * 16
     stream = BytesIO(png)
 
     assert validate_magic(stream, 'png', magic_bytes_map=_MAGIC_BYTES) is True
     assert validate_magic(BytesIO(jpg), 'png', magic_bytes_map=_MAGIC_BYTES) is False
     assert validate_magic(BytesIO(png), 'unknown', magic_bytes_map=_MAGIC_BYTES) is False
+    # SVG and other XML-ish image-like extensions must be rejected outright.
+    assert validate_magic(BytesIO(b'<svg/>'), 'svg', magic_bytes_map=_MAGIC_BYTES) is False
+    # Synthetic PNG with valid header but broken payload is rejected by Pillow.verify().
+    broken_png = b'\x89PNG\r\n\x1a\n' + b'\x00' * 16
+    assert validate_magic(BytesIO(broken_png), 'png', magic_bytes_map=_MAGIC_BYTES) is False
 
     stream.seek(5)
     head = read_stream_head(stream, size=8)
     assert head == png[:8]
     assert stream.tell() == 5
+
+
+def test_validate_image_payload_directly():
+    assert validate_image_payload(BytesIO(_VALID_PNG_1X1)) is True
+    assert validate_image_payload(BytesIO(b'\x89PNG\r\n\x1a\n' + b'\x00' * 16)) is False
+    assert validate_image_payload(BytesIO(b'not-an-image-at-all')) is False
 
 
 def test_matches_rules_and_text_payload_validation():
@@ -118,7 +141,8 @@ def test_validate_openxml_package_and_chat_media_content():
     docx_bytes = _build_openxml_bytes('word')
     xlsx_bytes = _build_openxml_bytes('xl')
     bad_zip = b'PK\x03\x04not-a-valid-zip'
-    png = b'\x89PNG\r\n\x1a\n' + b'\x00' * 16
+    # Real 1×1 PNG passes Pillow.verify(); a header-only payload would not.
+    png = _VALID_PNG_1X1
     mp3_id3 = b'ID3\x04\x00\x00' + b'\x00' * 16
     mp3_fffb = b'\xff\xfb\x90\x64' + b'\x00' * 16
     mp3_fffa = b'\xff\xfa\x90\x64' + b'\x00' * 16

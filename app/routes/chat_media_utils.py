@@ -1,7 +1,28 @@
+import logging
 import mimetypes
 from zipfile import BadZipFile, ZipFile
 
 from app.routes.username_utils import canonical_username as canonical_username
+
+logger = logging.getLogger(__name__)
+
+# Image extensions where we can run a deep Pillow.verify() pass. SVG is
+# intentionally excluded: it is parsed as XML, not raster, and we never
+# accept it via uploads (see _IMAGE_EXTENSIONS_BLOCKLIST).
+#
+# HEIC/HEIF/AVIF would require pillow-heif (a separate native dependency);
+# without it Pillow raises UnidentifiedImageError on valid files, producing
+# false negatives. We rely on magic-bytes alone for those — install
+# pillow-heif and add it here if needed in the future.
+_PILLOW_VERIFIABLE_EXTENSIONS = {
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp',
+}
+
+# Extensions we refuse to accept as images even if a caller mis-declares them
+# as image MIME. SVG can carry inline <script> and event handlers; allowing
+# it as an avatar or chat-media file opens stored XSS. Everything in this
+# set is rejected at validate_image_payload() and at validate_magic().
+_IMAGE_EXTENSIONS_BLOCKLIST = frozenset({'svg', 'svgz', 'xml', 'html', 'htm'})
 
 _FORCED_MIME_BY_EXTENSION = {
     'ogg': 'audio/ogg',
@@ -15,7 +36,8 @@ _FORCED_MIME_BY_EXTENSION = {
     'avif': 'image/avif',
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
-    'svg': 'image/svg+xml',
+    # NB: 'svg' intentionally absent — SVG uploads are rejected
+    # at validate_magic()/validate_image_payload() (XSS via inline <script>).
     'sunenc': 'application/octet-stream',
 }
 
@@ -62,13 +84,67 @@ def allowed_file(filename, *, allowed_extensions) -> bool:
 
 
 def validate_magic(file_obj, ext, *, magic_bytes_map) -> bool:
-    checks = magic_bytes_map.get(ext, [])
+    normalized_ext = str(ext or '').strip().lower()
+    if normalized_ext in _IMAGE_EXTENSIONS_BLOCKLIST:
+        return False
+    checks = magic_bytes_map.get(normalized_ext, [])
     if not checks:
         return False
     required_size = max((offset + len(magic) for offset, magic in checks), default=0)
     header = file_obj.read(max(64, required_size))
     file_obj.seek(0)
-    return all(header[offset:offset + len(magic)] == magic for offset, magic in checks)
+    if not all(header[offset:offset + len(magic)] == magic for offset, magic in checks):
+        return False
+    if normalized_ext in _PILLOW_VERIFIABLE_EXTENSIONS:
+        return validate_image_payload(file_obj)
+    return True
+
+
+def validate_image_payload(file_obj) -> bool:
+    """
+    Deep image validation via Pillow.verify(). Catches files that have a
+    correct magic header but a broken payload (truncated, malicious polyglots,
+    decompression bombs). Pillow is required in production; in dev it may be
+    missing — degrade to magic-only.
+
+    The stream is consumed and rewound to position 0 on both success and
+    failure paths.
+    """
+    try:
+        from PIL import Image, UnidentifiedImageError
+    except ImportError:
+        # Pillow missing → keep dev/test envs working with magic-only checks.
+        logger.warning(
+            'Pillow not installed; skipping deep image validation. '
+            'Install Pillow for production-grade upload safety.'
+        )
+        try:
+            file_obj.seek(0)
+        except (OSError, ValueError):
+            pass
+        return True
+
+    pos = 0
+    try:
+        pos = file_obj.tell()
+    except (OSError, ValueError):
+        pos = 0
+    try:
+        file_obj.seek(0)
+        with Image.open(file_obj) as image:
+            image.verify()
+        return True
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as exc:
+        logger.info('Image payload rejected by Pillow.verify: %s', exc)
+        return False
+    finally:
+        try:
+            file_obj.seek(pos)
+        except (OSError, ValueError):
+            try:
+                file_obj.seek(0)
+            except (OSError, ValueError):
+                pass
 
 
 def read_stream_head(stream, size=8192):
@@ -110,20 +186,27 @@ def validate_text_like_payload(stream) -> bool:
 
 
 def validate_chat_media_content(uploaded, ext: str, *, chat_media_magic_rules) -> bool:
-    rules = chat_media_magic_rules.get(ext)
+    normalized_ext = str(ext or '').strip().lower()
+    if normalized_ext in _IMAGE_EXTENSIONS_BLOCKLIST:
+        return False
+    rules = chat_media_magic_rules.get(normalized_ext)
     if rules:
         head = read_stream_head(uploaded.stream, size=8192)
         if not matches_magic_rules(head, rules):
             return False
 
-    if ext in {'txt', 'csv'}:
+    if normalized_ext in {'txt', 'csv'}:
         return validate_text_like_payload(uploaded.stream)
-    if ext == 'docx':
+    if normalized_ext == 'docx':
         return validate_openxml_package(uploaded.stream, 'word/')
-    if ext == 'xlsx':
+    if normalized_ext == 'xlsx':
         return validate_openxml_package(uploaded.stream, 'xl/')
 
-    return ext in chat_media_magic_rules
+    if normalized_ext in _PILLOW_VERIFIABLE_EXTENSIONS:
+        if not validate_image_payload(uploaded.stream):
+            return False
+
+    return normalized_ext in chat_media_magic_rules
 
 
 def detect_chat_media_type(mime_type: str) -> str:

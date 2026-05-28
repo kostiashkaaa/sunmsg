@@ -1,2 +1,3 @@
 -r requirements.txt
 gunicorn==23.0.0
+sentry-sdk[flask]==2.18.0

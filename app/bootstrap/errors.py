@@ -1,5 +1,13 @@
 from flask import Flask, render_template, request, session
-from werkzeug.exceptions import BadRequest, HTTPException, InternalServerError, RequestEntityTooLarge
+from werkzeug.exceptions import (
+    BadRequest,
+    Forbidden,
+    HTTPException,
+    InternalServerError,
+    NotFound,
+    RequestEntityTooLarge,
+    TooManyRequests,
+)
 
 
 def _request_prefers_json():
@@ -39,6 +47,58 @@ def register_error_handlers(app: Flask, logger) -> None:
         return _json_error(
             "\u0424\u0430\u0439\u043b \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0431\u043e\u043b\u044c\u0448\u043e\u0439. \u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c 100 \u041c\u0411.",
             413,
+        )
+
+    @app.errorhandler(NotFound)
+    def handle_not_found(_err):
+        if _request_prefers_json():
+            return _json_error("Ресурс не найден.", 404)
+        return (
+            _render_error_page(
+                404,
+                "Страница не найдена",
+                "Ссылка могла устареть или страница была удалена.",
+                detail="",
+                icon="bi-compass",
+            ),
+            404,
+        )
+
+    @app.errorhandler(Forbidden)
+    def handle_forbidden(_err):
+        if _request_prefers_json():
+            return _json_error("Доступ запрещён.", 403)
+        return (
+            _render_error_page(
+                403,
+                "Доступ запрещён",
+                "У вас нет прав на этот раздел. Войдите или вернитесь на главную.",
+                detail="",
+                icon="bi-shield-lock",
+            ),
+            403,
+        )
+
+    @app.errorhandler(TooManyRequests)
+    def handle_too_many_requests(err):
+        # Flask-Limiter sets `description` to the limit string when known.
+        retry_after = getattr(err, 'retry_after', None) or err.get_response().headers.get('Retry-After', '')
+        if _request_prefers_json():
+            response_payload, status_code = _json_error(
+                "Слишком много запросов. Повторите позже.",
+                429,
+            )
+            response_payload['retry_after'] = str(retry_after or '')
+            return response_payload, status_code
+        return (
+            _render_error_page(
+                429,
+                "Слишком много запросов",
+                "Подождите несколько секунд и повторите попытку.",
+                detail=f"Retry-After: {retry_after}" if retry_after else "",
+                icon="bi-hourglass-split",
+            ),
+            429,
         )
 
     @app.errorhandler(BadRequest)

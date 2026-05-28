@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% set _card_username = profile.username if profile else stub_username %}
+    {% set _card_display = (profile.display_name if profile and profile.display_name else _card_username) %}
+    <meta name="description" content="{{ _card_display }} в SUN Messenger — напишите безопасно через end-to-end шифрование.">
+    {% set og_title = _card_display ~ ' · @' ~ _card_username %}
+    {% set og_description = 'Карточка пользователя SUN Messenger. Напишите через сквозное шифрование.' %}
+    {% set og_image = profile.avatar_url if profile and profile.avatar_url else asset_url('icons/1024x1024.png') %}
+    {% set og_type = 'profile' %}
+    {% include '_social_meta.html' %}
     <title>sun - {% if profile %}@{{ profile.username }}{% else %}@{{ stub_username }}{% endif %}</title>
     <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">

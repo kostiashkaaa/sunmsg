@@ -15,6 +15,7 @@ from app.bootstrap.env_boot import (
     sync_runtime_environment,
 )
 from app.bootstrap.errors import register_error_handlers
+from app.bootstrap.observability import init_sentry
 from app.bootstrap.security import (
     apply_proxy_fix_if_enabled,
     require_production_realtime_backing_services,
@@ -27,6 +28,7 @@ from app.routes.call_routes import call_bp
 from app.routes.chat import chat_bp
 from app.routes.contacts import contacts_bp
 from app.routes.crypto_v2_routes import crypto_v2_bp
+from app.routes.health import health_bp
 from app.routes.mobile import mobile_bp
 from app.routes.moderation import moderation_bp
 from app.routes.spotify import spotify_bp
@@ -56,6 +58,10 @@ def create_app(config_name=None, overrides=None):
     enforce_production_runtime_guards(app, overrides=overrides)
     sync_runtime_environment(app)
 
+    # Initialise Sentry as early as possible so subsequent bootstrap errors
+    # (extensions, blueprint loading) are captured.
+    init_sentry(app)
+
     Compress(app)
     app.secret_key = app.config["SECRET_KEY"]
     is_production = app.config["ENV_NAME"] == "production"
@@ -70,6 +76,8 @@ def create_app(config_name=None, overrides=None):
         if request.path.startswith('/static/') or request.path == '/favicon.ico':
             return None
         if request.path in {'/api/refresh', '/logout', '/api/logout'}:
+            return None
+        if request.path in {'/health', '/healthz', '/ready', '/readyz'}:
             return None
         user_id = session.get('user_id')
         if not user_id:
@@ -119,6 +127,8 @@ def create_app(config_name=None, overrides=None):
     app.register_blueprint(chat_bp)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(crypto_v2_bp)
+    app.register_blueprint(health_bp)
+    csrf.exempt(health_bp)  # Probes are unauthenticated GETs; CSRF is not applicable
     app.register_blueprint(mobile_bp)
     csrf.exempt(mobile_bp)  # Mobile API uses session-cookie auth; CSRF via header is optional
     app.register_blueprint(moderation_bp)

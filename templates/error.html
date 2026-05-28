@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta charset="UTF-8">
     <meta name="description" content="SUN Messenger — страница ошибки {{ status_code }}">
+    {% set og_title = 'SUN Messenger · ошибка ' ~ status_code %}
+    {% set og_description = description %}
+    {% include '_social_meta.html' %}
     <title>sun · {{ status_code }}</title>
     <link rel="stylesheet" href="{{ asset_url('pages/chat/svg-icons.css') }}">
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">

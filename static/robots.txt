@@ -1,0 +1,28 @@
+User-agent: *
+
+# Публичные страницы: лендинг, юридические доки, FAQ, help — индексируем.
+Allow: /$
+Allow: /about
+Allow: /privacy
+Allow: /terms
+Allow: /trust
+Allow: /security-faq
+Allow: /help/
+
+# Приватные / служебные разделы — никогда не индексируем.
+Disallow: /chat
+Disallow: /api/
+Disallow: /mobile/
+Disallow: /settings
+Disallow: /moderation
+Disallow: /support
+Disallow: /u/
+Disallow: /spotify/
+Disallow: /call/
+Disallow: /health
+Disallow: /ready
+Disallow: /healthz
+Disallow: /readyz
+Disallow: /reset-client
+
+Sitemap: https://sunmessenger.ru/sitemap.xml

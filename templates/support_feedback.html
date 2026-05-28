@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="SUN Messenger — поддержка и обратная связь">
+    {% set og_title = 'SUN Messenger — поддержка' %}
+    {% set og_description = 'Свяжитесь с командой SUN. Мы читаем каждое обращение.' %}
+    {% include '_social_meta.html' %}
     <title>sun · Поддержка</title>
     <link rel="stylesheet" href="{{ asset_url('vendor/fonts.css') }}">
     <link rel="stylesheet" href="{{ asset_url('style.css') }}">

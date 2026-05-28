@@ -83,6 +83,12 @@ def _require_config_non_empty(config, config_key: str, message: str) -> None:
 
 def _require_web_push_vapid_baseline(config) -> None:
     if not bool(config.get("WEB_PUSH_ENABLED")):
+        logger.warning(
+            "WEB_PUSH_ENABLED is disabled in production. Users will not receive "
+            "background notifications about new messages, which materially hurts "
+            "retention for a messenger. Configure VAPID keys and set "
+            "WEB_PUSH_ENABLED=1 before public launch."
+        )
         return
     required_fields = (
         ("WEB_PUSH_VAPID_PUBLIC_KEY", "WEB_PUSH_VAPID_PUBLIC_KEY must be configured in production."),
@@ -91,6 +97,14 @@ def _require_web_push_vapid_baseline(config) -> None:
     )
     for config_key, message in required_fields:
         _require_config_non_empty(config, config_key, message)
+    subject = str(config.get("WEB_PUSH_VAPID_SUBJECT") or "").strip().lower()
+    # Only block the literal BaseConfig default. Real test/staging envs may
+    # legitimately use *.sunmessenger.local addresses.
+    if subject == "mailto:noreply@sunmessenger.local":
+        raise RuntimeError(
+            "WEB_PUSH_VAPID_SUBJECT must be a real mailto: or https:// URL in production "
+            "(the default 'mailto:noreply@sunmessenger.local' will be rejected by push services)."
+        )
 
 
 def require_production_security_baseline(config) -> None:

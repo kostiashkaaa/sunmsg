@@ -1,0 +1,21 @@
+{# Open Graph / Twitter meta tags. Каждая страница может переопределить
+   og_title / og_description / og_image / og_type / og_url через переменные
+   шаблона. Дефолты подходят для лендинга / публичных доков. #}
+{% set _og_title = og_title|default('SUN Messenger — личная связь без лишнего шума') %}
+{% set _og_description = og_description|default('Безопасный мессенджер со сквозным шифрованием. Сервер не видит сообщения — только вы и тот, с кем вы говорите.') %}
+{% set _og_type = og_type|default('website') %}
+{% set _og_image = og_image|default(asset_url('icons/1024x1024.png')) %}
+{% set _og_url = og_url|default(request.url) %}
+{% set _og_site_name = og_site_name|default('SUN Messenger') %}
+{% set _og_locale = og_locale|default('ru_RU' if (ui_language|default('ru')) == 'ru' else 'en_US') %}
+<meta property="og:type" content="{{ _og_type }}">
+<meta property="og:site_name" content="{{ _og_site_name }}">
+<meta property="og:title" content="{{ _og_title }}">
+<meta property="og:description" content="{{ _og_description }}">
+<meta property="og:image" content="{{ _og_image }}">
+<meta property="og:url" content="{{ _og_url }}">
+<meta property="og:locale" content="{{ _og_locale }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ _og_title }}">
+<meta name="twitter:description" content="{{ _og_description }}">
+<meta name="twitter:image" content="{{ _og_image }}">
