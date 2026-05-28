@@ -2011,6 +2011,10 @@ select.settings-select-control:focus-visible {
     margin-bottom: 12px;
 }
 
+.settings-key-rotation-copy {
+    margin-top: 8px;
+}
+
 .settings-qr-stack {
     display: flex;
     flex-direction: column;

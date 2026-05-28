@@ -1,4 +1,5 @@
 import json
+import logging
 import secrets
 import time
 
@@ -18,6 +19,22 @@ from app.routes.auth_helpers_key_transfer import (
     stage_pending_login_qr,
 )
 from .context import auth_bp
+
+logger = logging.getLogger(__name__)
+
+
+def _notify_key_transfer_submitted(user_id: int) -> None:
+    try:
+        from app.services.web_push import send_security_event_to_user
+
+        send_security_event_to_user(
+            user_id=int(user_id),
+            event='key_transfer_submitted',
+            message='Ваш приватный ключ передан на новое устройство. Если это были не вы — немедленно ротируйте ключ.',
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception('key_transfer: security notification failed user_id=%s', user_id)
+
 
 @auth_bp.route('/api/key_transfer/sessions', methods=['POST'])
 @limiter.limit("20 per minute")
@@ -204,6 +221,8 @@ def key_transfer_submit_login_payload(session_id):
     finally:
         conn.close()
 
+    _notify_key_transfer_submitted(submitter_user_id)
+
     return jsonify({'success': True})
 
 @auth_bp.route('/api/key_transfer/login/sessions/<session_id>', methods=['GET'])
@@ -298,6 +317,8 @@ def key_transfer_submit_payload(session_id):
         conn.commit()
     finally:
         conn.close()
+
+    _notify_key_transfer_submitted(user_id)
 
     return jsonify({'success': True})
 

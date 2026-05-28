@@ -14,6 +14,31 @@ function getCurrentPublicKeyPem() {
     return String(textarea.value || '').trim();
 }
 
+function stripPemHeaders(pem) {
+    return window.keyRotation?.stripPemHeaders
+        ? window.keyRotation.stripPemHeaders(pem)
+        : String(pem || '')
+            .replace(/-----BEGIN [^-]+-----/g, '')
+            .replace(/-----END [^-]+-----/g, '')
+            .replace(/\s+/g, '');
+}
+
+function getRecoveryPhraseFromSettingsGrid() {
+    const words = Array.from(document.querySelectorAll('.mnemonic-word-input'))
+        .map((input) => String(input.value || '').trim().toLowerCase())
+        .filter(Boolean);
+    return (words.length === 12 || words.length === 24) ? words.join(' ') : '';
+}
+
+function requireRecoveryPhrase() {
+    const phrase = getRecoveryPhraseFromSettingsGrid();
+    if (phrase) return phrase;
+    const card = document.getElementById('mnemonicUnlockCard');
+    card?.classList.add('mnemonic-card-reunlock');
+    document.querySelector('.mnemonic-word-input')?.focus();
+    throw new Error('Введите текущие 12 или 24 слова восстановления в блоке «Восстановление истории», затем повторите ротацию.');
+}
+
 async function unwrapOldPrivateKey() {
     if (!window.deviceKey || typeof window.deviceKey.unwrapPrivateKey !== 'function') {
         throw new Error('Хранилище ключа недоступно.');
@@ -50,6 +75,17 @@ function findApi() {
 
 function buildAdHocApi() {
     return {
+        getLoginVault: async () => {
+            const response = await fetch('/api/get_login_vault', {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Сейф не найден.');
+            }
+            return data;
+        },
         rotateKeys: async ({ newPublicKey, signature, ts, newLoginVault }) => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const response = await fetch('/api/keys/rotate', {
@@ -64,7 +100,7 @@ function buildAdHocApi() {
                     new_public_key: newPublicKey,
                     signature,
                     ts,
-                    new_login_vault: newLoginVault || null,
+                    new_login_vault: newLoginVault,
                 }),
             });
             const data = await response.json().catch(() => ({}));
@@ -76,16 +112,37 @@ function buildAdHocApi() {
     };
 }
 
+function buildNewLoginVaultFactory({ api, oldPrivateKeyPem }) {
+    return async ({ newPrivateKeyPem }) => {
+        if (!window.mnemonic || typeof window.mnemonic.decryptVault !== 'function' || typeof window.mnemonic.createVault !== 'function') {
+            throw new Error('Модуль recovery words не загружен.');
+        }
+        if (!api || typeof api.getLoginVault !== 'function') {
+            throw new Error('API сейфа недоступен.');
+        }
+        const phrase = requireRecoveryPhrase();
+        const vaultData = await api.getLoginVault();
+        if (!vaultData.login_vault) {
+            throw new Error('Сейф не найден.');
+        }
+        const currentVaultPrivateKey = await window.mnemonic.decryptVault(phrase, vaultData.login_vault);
+        if (stripPemHeaders(currentVaultPrivateKey) !== stripPemHeaders(oldPrivateKeyPem)) {
+            throw new Error('Слова восстановления не соответствуют текущему ключу.');
+        }
+        return window.mnemonic.createVault(phrase, stripPemHeaders(newPrivateKeyPem));
+    };
+}
+
 async function handleRotateClick(event) {
     const button = event.currentTarget;
     if (button.disabled) return;
 
     const confirmed = await showConfirmDialog({
         title: 'Перевыпустить ключ?',
-        body: 'Все ваши устройства выйдут из системы. Войдите заново после ротации; для разблокировки сейфа понадобятся текущие слова восстановления.',
+        message: 'Все ваши устройства выйдут из системы. Войдите заново после ротации; для разблокировки сейфа понадобятся текущие слова восстановления.',
         confirmText: 'Перевыпустить',
         cancelText: 'Отмена',
-        confirmTone: 'danger',
+        variant: 'danger',
     }).catch(() => false);
     if (!confirmed) return;
 
@@ -97,6 +154,7 @@ async function handleRotateClick(event) {
         if (!window.keyRotation || typeof window.keyRotation.rotateUserKey !== 'function') {
             throw new Error('Модуль ротации не загружен.');
         }
+        const api = findApi() || buildAdHocApi();
         const oldPublicKeyPem = getCurrentPublicKeyPem();
         if (!oldPublicKeyPem) throw new Error('Текущий публичный ключ не найден на странице.');
         const oldPrivateKeyPem = await unwrapOldPrivateKey();
@@ -105,14 +163,9 @@ async function handleRotateClick(event) {
         await window.keyRotation.rotateUserKey({
             oldPrivateKeyPem,
             oldPublicKeyPem,
-            // No login_vault re-encryption in this UI revision. The server
-            // accepts null and keeps the old vault; the user will still be
-            // able to log in with the new key, but the vault-based recovery
-            // path stays bound to the old keypair until they regenerate it
-            // via the recovery flow. A future revision wires this in.
-            buildNewLoginVault: null,
+            buildNewLoginVault: buildNewLoginVaultFactory({ api, oldPrivateKeyPem }),
             persistNewPrivateKey,
-            api: findApi() || buildAdHocApi(),
+            api,
         });
 
         button.textContent = 'Готово, выходим...';

@@ -81,6 +81,22 @@ def _require_config_non_empty(config, config_key: str, message: str) -> None:
         raise RuntimeError(message)
 
 
+def _require_pillow_available() -> None:
+    """Pillow underpins image sanitization (EXIF strip, decompression-bomb
+    guard, polyglot defense). Without it, validate_image_payload() and
+    sanitize_inplace() silently degrade, which is acceptable in dev but
+    unacceptable in production. Fail boot rather than ship hidden weakness.
+    """
+    try:
+        import PIL  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "Pillow must be installed in production: image sanitization "
+            "(EXIF strip, decompression-bomb guard, polyglot detection) "
+            "relies on it. Install via `pip install Pillow`."
+        ) from exc
+
+
 def _require_web_push_vapid_baseline(config) -> None:
     if not bool(config.get("WEB_PUSH_ENABLED")):
         logger.warning(
@@ -167,6 +183,7 @@ def require_production_security_baseline(config) -> None:
     )
 
     _require_web_push_vapid_baseline(config)
+    _require_pillow_available()
 
 
 def apply_proxy_fix_if_enabled(app: Flask) -> None:

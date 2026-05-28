@@ -2,6 +2,8 @@ from io import BytesIO
 from types import SimpleNamespace
 from zipfile import ZipFile
 
+import pytest
+
 from app.routes import chat as chat_routes
 from app.routes.chat_media_utils import (
     allowed_file,
@@ -18,6 +20,7 @@ from app.routes.chat_media_utils import (
     validate_text_like_payload,
 )
 from app.services.chat_media_service import upload_chat_media_for_user
+from app.services.image_sanitizer import sanitize_image_to_path
 
 
 # Minimal valid 1x1 PNG. Used wherever a test needs a payload that passes
@@ -124,6 +127,28 @@ def test_validate_image_payload_directly():
     assert validate_image_payload(BytesIO(_VALID_PNG_1X1)) is True
     assert validate_image_payload(BytesIO(b'\x89PNG\r\n\x1a\n' + b'\x00' * 16)) is False
     assert validate_image_payload(BytesIO(b'not-an-image-at-all')) is False
+
+
+def test_image_sanitizer_strips_metadata_and_trailing_payload(tmp_path):
+    try:
+        from PIL import Image, PngImagePlugin
+    except ImportError:
+        pytest.skip('Pillow is not installed')
+
+    source = BytesIO()
+    metadata = PngImagePlugin.PngInfo()
+    metadata.add_text('gps', 'secret-location')
+    Image.new('RGB', (1, 1), (255, 0, 0)).save(source, format='PNG', pnginfo=metadata)
+    raw_with_payload = source.getvalue() + b'PKTRAILING-PAYLOAD'
+
+    dest = tmp_path / 'clean.png'
+    size = sanitize_image_to_path(BytesIO(raw_with_payload), str(dest), ext='png')
+    clean = dest.read_bytes()
+
+    assert size == len(clean)
+    assert b'secret-location' not in clean
+    assert b'PKTRAILING-PAYLOAD' not in clean
+    assert validate_image_payload(BytesIO(clean)) is True
 
 
 def test_matches_rules_and_text_payload_validation():

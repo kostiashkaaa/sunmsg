@@ -11,7 +11,8 @@ def _seed_users(conn):
         VALUES
             (1, 'pk-1', 'alice', 'Alice'),
             (2, 'pk-2', 'bob', 'Bob'),
-            (99, 'pk-99', 'moderator', 'Moderator')
+            (99, 'pk-99', 'moderator', 'Moderator'),
+            (100, 'pk-100', 'reviewer', 'Reviewer')
         '''
     )
     conn.commit()
@@ -211,9 +212,11 @@ def test_moderation_case_action_and_appeal(monkeypatch, tmp_path):
     with _connect(db_path) as conn:
         _seed_users(conn)
         _grant_moderator_role(conn, user_id=99)
+        _grant_moderator_role(conn, user_id=100)
 
     reporter_client = _authed_client(app, 1, 'pk-1')
     moderator_client = _authed_client(app, 99, 'pk-99')
+    reviewer_client = _authed_client(app, 100, 'pk-100')
     target_client = _authed_client(app, 2, 'pk-2')
 
     report_response = reporter_client.post(
@@ -278,7 +281,7 @@ def test_moderation_case_action_and_appeal(monkeypatch, tmp_path):
     assert payload['success'] is True
     assert any(int(item['id']) == appeal_id for item in payload['appeals'])
 
-    response = moderator_client.post(
+    response = reviewer_client.post(
         f'/api/moderation/appeals/{appeal_id}/resolve',
         json={
             'resolution': 'reversed',
@@ -379,9 +382,11 @@ def test_moderation_appeals_console(monkeypatch, tmp_path):
     with _connect(db_path) as conn:
         _seed_users(conn)
         _grant_moderator_role(conn, user_id=99)
+        _grant_moderator_role(conn, user_id=100)
 
     reporter_client = _authed_client(app, 1, 'pk-1')
     moderator_client = _authed_client(app, 99, 'pk-99')
+    reviewer_client = _authed_client(app, 100, 'pk-100')
     target_client = _authed_client(app, 2, 'pk-2')
 
     response = reporter_client.post(
@@ -424,7 +429,7 @@ def test_moderation_appeals_console(monkeypatch, tmp_path):
     assert f'#{appeal_id}' in html
     assert 'Refresh (sec)' in html
 
-    response = moderator_client.post(
+    response = reviewer_client.post(
         f'/moderation/console/appeals/{appeal_id}/resolve',
         data={
             'resolution': 'upheld',

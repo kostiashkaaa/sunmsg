@@ -1,7 +1,9 @@
 import logging
 import json
+import re
 import secrets
 
+import pyotp
 from flask import current_app, jsonify, request, session
 from flask_wtf.csrf import generate_csrf
 
@@ -9,6 +11,7 @@ from app.database import get_db_connection
 from app.db_backend import IntegrityError
 from app.extensions import limiter
 from app.services.locale import language_from_user_row
+from app.services.totp_secret_store import decode_totp_secret, has_totp_secret
 from .context import (
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
@@ -39,6 +42,31 @@ from .context import (
 )
 
 logger = logging.getLogger(__name__)
+_MAX_PASSKEYS_PER_USER = 10
+
+
+def _user_passkey_count(conn, user_id: int) -> int:
+    row = conn.execute(
+        'SELECT COUNT(*) AS cnt FROM user_passkeys WHERE user_id = ?',
+        (int(user_id),),
+    ).fetchone()
+    return int(row['cnt'] or 0) if row else 0
+
+
+def _totp_step_up_error(conn, *, user_id: int, totp_code: str) -> tuple[str, int] | None:
+    row = conn.execute(
+        'SELECT totp_secret FROM users WHERE id = ?',
+        (int(user_id),),
+    ).fetchone()
+    if not row or not has_totp_secret(row['totp_secret']):
+        return None
+    normalized_code = str(totp_code or '').strip()
+    if not re.fullmatch(r'\d{6}', normalized_code):
+        return ('Введите 6-значный TOTP-код для подтверждения.', 400)
+    secret = decode_totp_secret(row['totp_secret'])
+    if not secret or not pyotp.TOTP(secret).verify(normalized_code, valid_window=1):
+        return ('Неверный TOTP-код.', 401)
+    return None
 
 
 @auth_bp.route('/api/passkeys', methods=['GET'])
@@ -101,6 +129,8 @@ def passkeys_register_options():
             'SELECT credential_id FROM user_passkeys WHERE user_id = ?',
             (user['id'],),
         ).fetchall()
+        if len(existing_rows) >= _MAX_PASSKEYS_PER_USER:
+            return jsonify({'success': False, 'error': 'Достигнут лимит passkey для аккаунта.'}), 400
     finally:
         conn.close()
 
@@ -191,6 +221,8 @@ def passkeys_register_verify():  # noqa: C901 - passkey verification flow and pe
 
     conn = get_db_connection()
     try:
+        if _user_passkey_count(conn, int(session['user_id'])) >= _MAX_PASSKEYS_PER_USER:
+            return jsonify({'success': False, 'error': 'Достигнут лимит passkey для аккаунта.'}), 400
         conn.execute(
             '''
             INSERT INTO user_passkeys (user_id, credential_id, credential_public_key, sign_count, transports, label)
@@ -221,11 +253,16 @@ def passkeys_delete():
 
     data = request.get_json(silent=True) or {}
     credential_id = str(data.get('credential_id') or '').strip()
+    totp_code = str(data.get('totp_code') or '').strip()
     if not credential_id:
         return jsonify({'success': False, 'error': 'Не указан credential_id.'}), 400
 
     conn = get_db_connection()
     try:
+        step_up_error = _totp_step_up_error(conn, user_id=int(session['user_id']), totp_code=totp_code)
+        if step_up_error is not None:
+            message, status_code = step_up_error
+            return jsonify({'success': False, 'error': message}), status_code
         existing = conn.execute(
             'SELECT id FROM user_passkeys WHERE user_id = ? AND credential_id = ?',
             (session['user_id'], credential_id),
@@ -239,6 +276,16 @@ def passkeys_delete():
         conn.commit()
     finally:
         conn.close()
+
+    # Deleting a passkey shrinks the user's 2nd-factor surface. Revoke all
+    # refresh tokens so the user must re-authenticate on every device with
+    # the remaining factors. Imposes a small UX hit but blocks the
+    # "stolen-session deletes passkey then plants its own" scenario.
+    try:
+        from app.services.refresh_tokens import revoke_all_for_user
+        revoke_all_for_user(int(session['user_id']))
+    except Exception:  # noqa: BLE001
+        pass
 
     return jsonify({'success': True})
 

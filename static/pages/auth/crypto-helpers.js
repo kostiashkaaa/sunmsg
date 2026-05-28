@@ -96,16 +96,48 @@ export function concatBytes(a, b) {
     return out;
 }
 
-export async function deriveTransferKey({ privateKey, publicKey, sessionId }) {
+// Derive the AES-GCM key for cross-device key transfer. The default path uses
+// HKDF-SHA256 per RFC 5869:
+//   IKM  = ECDH shared secret bits
+//   salt = constant per-protocol label (binds the derivation to this app)
+//   info = `sun-key-transfer-v1:<sessionId>` (contextual binding)
+// The legacy path (`scheme: 'legacy-sha256-concat'`) computes SHA-256(IKM || info)
+// and stays available so a sender on a new build can still complete a transfer
+// against a receiver on an older build that hasn't refreshed. Default to HKDF
+// for new sessions; fall back only when the peer signals legacy.
+const TRANSFER_HKDF_SALT = utf8Bytes('sun-key-transfer-v1');
+
+export async function deriveTransferKey({ privateKey, publicKey, sessionId, scheme = 'hkdf-v1' }) {
     const sharedBits = await crypto.subtle.deriveBits(
         { name: 'ECDH', public: publicKey },
         privateKey,
         256,
     );
-    const context = utf8Bytes(`sun-key-transfer-v1:${sessionId}`);
-    const digestInput = concatBytes(new Uint8Array(sharedBits), context);
-    const digest = await crypto.subtle.digest('SHA-256', digestInput);
-    return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['decrypt']);
+    if (scheme === 'legacy-sha256-concat') {
+        const context = utf8Bytes(`sun-key-transfer-v1:${sessionId}`);
+        const digestInput = concatBytes(new Uint8Array(sharedBits), context);
+        const digest = await crypto.subtle.digest('SHA-256', digestInput);
+        return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['decrypt']);
+    }
+    const ikm = await crypto.subtle.importKey(
+        'raw',
+        sharedBits,
+        { name: 'HKDF' },
+        false,
+        ['deriveKey'],
+    );
+    return crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: TRANSFER_HKDF_SALT,
+            info: utf8Bytes(`sun-key-transfer-v1:${sessionId}`),
+        },
+        ikm,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt'],
+    );
 }
 
 export async function decryptPrivateKeyPem({ cipherText, iv, aesKey }) {

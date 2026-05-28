@@ -32,6 +32,7 @@ from app.services.refresh_tokens import (
     REFRESH_COOKIE_NAME,
     clear_refresh_cookie,
     refresh_cookie_max_age_from_expiry,
+    revoke_all_for_user,
     rotate_refresh_token,
     set_refresh_cookie,
 )
@@ -134,7 +135,10 @@ def index():
         ui_language=ui_language,
     ))
     if request.args.get('reset_client') == '1':
-        response.headers['Clear-Site-Data'] = '"cache"'
+        # Clear cache plus client-side storage so the reset truly drops session
+        # cookies, localStorage, IndexedDB, and ServiceWorker registrations
+        # (the cache directive alone leaves stateful entries behind).
+        response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage", "executionContexts"'
     return response
 
 
@@ -227,7 +231,10 @@ def reset_client_state():
 </html>"""
     response = make_response(html)
     response.headers['Content-Type'] = 'text/html; charset=utf-8'
-    response.headers['Clear-Site-Data'] = '"cache"'
+    # Clear cache plus client-side storage so the reset truly drops session
+    # cookies, localStorage, IndexedDB, and ServiceWorker registrations
+    # (the cache directive alone leaves stateful entries behind).
+    response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage", "executionContexts"'
     return response
 
 
@@ -411,6 +418,7 @@ def login_totp():
             if not verify_and_consume_backup_code(conn, int(user['id']), backup_code):
                 return jsonify({'success': False, 'error': 'Неверный или уже использованный резервный код.'}), 401
             conn.commit()
+            revoke_all_for_user(int(user['id']))
         else:
             totp_secret = decode_totp_secret(user['totp_secret'])
             if not totp_secret:

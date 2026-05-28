@@ -1,6 +1,8 @@
 import argparse
 import json
 import logging
+import os
+import socket
 
 from app.database import get_db_connection
 from app.services import moderation as moderation_service
@@ -11,6 +13,17 @@ from app.services.production_config_runtime import run_production_config_check
 from app.services.scheduler_runtime import run_scheduler_forever
 from app.services.security_runtime import run_security_check
 from app.services.web_runtime import run_web_server
+
+
+def _moderation_cli_actor_id() -> str:
+    operator = (
+        os.environ.get('SUDO_USER')
+        or os.environ.get('USER')
+        or os.environ.get('USERNAME')
+        or 'unknown'
+    )
+    host = socket.gethostname() or 'unknown-host'
+    return f'{operator}@{host}'[:128]
 
 
 def build_parser():
@@ -105,6 +118,12 @@ def build_parser():
                 dest='role',
                 default='moderator',
                 help='Role name (default: moderator).',
+            )
+            subparser.add_argument(
+                '--force',
+                dest='force',
+                action='store_true',
+                help='Bypass the last-moderator safety check on revoke.',
             )
     return parser
 
@@ -241,21 +260,75 @@ def main(argv=None):  # noqa: C901, PLR0915 - CLI command dispatcher with guarde
                 return 2
 
             if action == 'grant':
+                actor_id = _moderation_cli_actor_id()
                 moderation_service.assign_user_role(
                     conn,
                     user_id=int(user_id),
                     role=role,
                     granted_by_user_id=None,
                 )
+                moderation_service.add_audit_log(
+                    conn,
+                    actor_type='system',
+                    actor_id=actor_id,
+                    action='moderation_role_granted',
+                    entity_type='user',
+                    entity_id=str(int(user_id)),
+                    details_json=json.dumps({'role': role, 'operator': actor_id}, ensure_ascii=False),
+                )
                 conn.commit()
-                print(json.dumps({'status': 'ok', 'action': 'grant', 'user_id': int(user_id), 'role': role}, ensure_ascii=False))
+                print(json.dumps({'status': 'ok', 'action': 'grant', 'user_id': int(user_id), 'role': role, 'operator': actor_id}, ensure_ascii=False))
                 return 0
 
             if action == 'revoke':
+                # Anti-lockout: refuse to revoke the last remaining holder of
+                # the moderator role unless --force is passed. Otherwise an
+                # operator can accidentally remove the final administrator
+                # and lock everyone out of the moderation tools.
+                if role == moderation_service.MODERATOR_ROLE and not bool(getattr(args, 'force', False)):
+                    holders_row = conn.execute(
+                        '''
+                        SELECT COUNT(*) AS cnt
+                        FROM moderation_user_roles
+                        WHERE role = ?
+                        ''',
+                        (role,),
+                    ).fetchone()
+                    holder_count = int(holders_row['cnt'] or 0) if holders_row else 0
+                    target_is_holder = conn.execute(
+                        '''
+                        SELECT 1 FROM moderation_user_roles
+                        WHERE user_id = ? AND role = ?
+                        LIMIT 1
+                        ''',
+                        (int(user_id), role),
+                    ).fetchone() is not None
+                    if target_is_holder and holder_count <= 1:
+                        print(
+                            json.dumps(
+                                {
+                                    'status': 'failed',
+                                    'error': 'last_moderator_lockout',
+                                    'detail': 'Refusing to revoke the only remaining moderator. Re-run with --force to override.',
+                                },
+                                ensure_ascii=False,
+                            )
+                        )
+                        return 2
+                actor_id = _moderation_cli_actor_id()
                 removed = moderation_service.revoke_user_role(
                     conn,
                     user_id=int(user_id),
                     role=role,
+                )
+                moderation_service.add_audit_log(
+                    conn,
+                    actor_type='system',
+                    actor_id=actor_id,
+                    action='moderation_role_revoked',
+                    entity_type='user',
+                    entity_id=str(int(user_id)),
+                    details_json=json.dumps({'role': role, 'operator': actor_id, 'removed': bool(removed)}, ensure_ascii=False),
                 )
                 conn.commit()
                 print(
@@ -266,6 +339,7 @@ def main(argv=None):  # noqa: C901, PLR0915 - CLI command dispatcher with guarde
                             'user_id': int(user_id),
                             'role': role,
                             'removed': bool(removed),
+                            'operator': actor_id,
                         },
                         ensure_ascii=False,
                     )

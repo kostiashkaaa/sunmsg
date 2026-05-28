@@ -10,7 +10,11 @@
     const KEY_ID = 'device-aes-gcm-v1';
     const LS_WRAPPED_PERSISTENT = 'e2e_private_key_wrapped';
     const SS_WRAPPED_SESSION = 'e2e_private_key_wrapped_session';
-    const DEFAULT_PERSISTENT_TTL_SECONDS = 30 * 24 * 60 * 60;
+    // Persistent wrap defaults to 7 days (was 30). Users who want the
+    // longer 30-day window must opt in via ttlSeconds at wrap time. The
+    // shorter default reduces the window where a stolen device still
+    // holds an unwrapping path to the user's private key.
+    const DEFAULT_PERSISTENT_TTL_SECONDS = 7 * 24 * 60 * 60;
 
     function openDb() {
         return new Promise((resolve, reject) => {
@@ -351,12 +355,21 @@
             new TextEncoder().encode(privJson)
         );
 
+        const created = nowSeconds();
+        const ttlSeconds = persistent
+            ? (positiveInteger(options.ttlSeconds) || DEFAULT_PERSISTENT_TTL_SECONDS)
+            : 0;
         const wrapped = JSON.stringify({
             v: 1,
             iv: b64encode(iv.buffer),
             data: b64encode(ct),
             persistent,
-            createdAt: nowSeconds(),
+            createdAt: created,
+            // Mirror the V1 wrap format: persistent stores get an explicit
+            // expiry so loadV2PrivateKeys can drop stale material instead
+            // of trusting it indefinitely.
+            ttlSeconds,
+            expiresAt: persistent ? (created + ttlSeconds) : 0,
         });
 
         const storageKey = persistent ? LS_V2_PRIVATE_KEYS_PERSISTENT : SS_V2_PRIVATE_KEYS_SESSION;
@@ -381,6 +394,13 @@
         try {
             const payload = JSON.parse(raw);
             if (!payload?.v || !payload.iv || !payload.data) return null;
+            // Honor explicit expiry on persistent wraps. Session-scoped
+            // wraps have expiresAt === 0 and skip this check.
+            const expiresAt = positiveInteger(payload.expiresAt);
+            if (payload.persistent && expiresAt && expiresAt <= nowSeconds()) {
+                try { localStorage.removeItem(LS_V2_PRIVATE_KEYS_PERSISTENT); } catch (_) {}
+                return null;
+            }
             const deviceKey = await getOrCreateDeviceKey();
             const pt = await window.crypto.subtle.decrypt(
                 { name: 'AES-GCM', iv: b64decode(payload.iv) },

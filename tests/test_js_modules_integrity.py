@@ -215,6 +215,7 @@ def test_no_duplicate_exports_in_modules() -> None:
 # Они загружаются как <script> до chat.js и не участвуют в ES module системе.
 _IIFE_MODULES = {
     'device-key.js',              # exposes window.deviceKey
+    'key-rotation.js',            # exposes window.keyRotation
     'private-key-session-bridge.js',  # exposes window.sunPrivateKeySession
     'bi-icon-adapter.js',  # adapts legacy bootstrap icon classes at runtime
     'e2ee-status-ui.js',  # exposes window.e2eeStatusUI (E2EE badge + verify dialog)

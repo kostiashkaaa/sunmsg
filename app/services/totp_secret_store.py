@@ -4,16 +4,55 @@ import base64
 import hashlib
 from typing import Any
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from flask import current_app
 
 _PREFIX = 'fernet:'
 
 
-def _fernet() -> Fernet:
-    secret_key = str(current_app.config.get('SECRET_KEY') or '').encode('utf-8')
-    derived = hashlib.sha256(secret_key).digest()
+def _derive_fernet_from_str(secret: str) -> Fernet:
+    derived = hashlib.sha256(str(secret or '').encode('utf-8')).digest()
     return Fernet(base64.urlsafe_b64encode(derived))
+
+
+def _fernet() -> MultiFernet:
+    """Build the TOTP encryption stack.
+
+    Preference order:
+      1. `TOTP_ENCRYPTION_KEY` — a dedicated secret. When present, this is
+         the *only* key used for new encryptions. Rotate by setting
+         `TOTP_ENCRYPTION_KEY_OLD` to the previous value; the old key stays
+         available for decryption until you re-encrypt everything.
+      2. `SECRET_KEY` — historical fallback. New deployments should set
+         TOTP_ENCRYPTION_KEY and never let it drift from SECRET_KEY again.
+
+    MultiFernet picks the first key for encrypt() and tries each in turn for
+    decrypt(), giving us painless key rotation without a flag day.
+    """
+    primary = str(current_app.config.get('TOTP_ENCRYPTION_KEY') or '').strip()
+    legacy = str(current_app.config.get('TOTP_ENCRYPTION_KEY_OLD') or '').strip()
+    secret_key_fallback = str(current_app.config.get('SECRET_KEY') or '').strip()
+
+    chain: list[Fernet] = []
+    if primary:
+        chain.append(_derive_fernet_from_str(primary))
+        if legacy:
+            chain.append(_derive_fernet_from_str(legacy))
+        # Even when a dedicated key is set, fall back to SECRET_KEY for
+        # records encrypted before the migration; otherwise users with
+        # pre-existing TOTP would be locked out the moment the dedicated
+        # key is introduced.
+        if secret_key_fallback and secret_key_fallback != primary:
+            chain.append(_derive_fernet_from_str(secret_key_fallback))
+    else:
+        if not secret_key_fallback:
+            raise RuntimeError(
+                'TOTP encryption key not configured: set TOTP_ENCRYPTION_KEY '
+                '(preferred) or SECRET_KEY.'
+            )
+        chain.append(_derive_fernet_from_str(secret_key_fallback))
+
+    return MultiFernet(chain)
 
 
 def encode_totp_secret(secret: str) -> str:

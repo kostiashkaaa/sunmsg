@@ -8,6 +8,17 @@ const CRYPTO_CONFIG = {
     hashAlgo: "SHA-256",
     signAlgo: "RSASSA-PKCS1-v1_5"
 };
+
+// RSA-PSS is the modern signature padding. We keep PKCS1-v1.5 as the default
+// because: (a) the server-side challenge verifier still expects it, and
+// (b) old payloads in the wild are signed with PKCS1. Reading PSS-signed
+// payloads is enabled unconditionally via the signature_alg dispatch in
+// verifyCiphertextPayloadSignature; writing PSS-signed payloads is opt-in
+// via window.cryptoConfig.useRsaPssForNewMessages once we're ready to
+// migrate. Until then this constant documents the target algorithm.
+const SIGN_ALG_PSS = "RSA-PSS";
+const SIGN_ALG_PKCS1 = "RSASSA-PKCS1-v1_5";
+const PSS_SALT_LENGTH = 32;  // matches SHA-256 digest size
 const KEY_CACHE_TTL_MS = 10 * 60 * 1000;
 const KEY_CACHE_MAX_ENTRIES = 64;
 
@@ -186,6 +197,30 @@ async function importPrivateKeyForSigning(pem) {
     return key;
 }
 
+async function _importPrivateKeyForPssSigning(pem) {
+    const cacheKey = `pss:${pem}`;
+    const cached = _cacheGet(KeyCache.privateSign, cacheKey);
+    if (cached) return cached;
+
+    const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
+    const key = await crypto.subtle.importKey(
+        "pkcs8",
+        binaryDer,
+        { name: SIGN_ALG_PSS, hash: CRYPTO_CONFIG.hashAlgo },
+        false,
+        ["sign"]
+    );
+    _cacheSet(KeyCache.privateSign, cacheKey, key);
+    return key;
+}
+
+function _newMessageSignatureAlg() {
+    const cfg = (typeof window !== 'undefined' && window.cryptoConfig) || {};
+    return cfg.useRsaPssForNewMessages === true
+        ? "RSA-PSS/SHA-256"
+        : "RSASSA-PKCS1-v1_5/SHA-256";
+}
+
 /**
  * \u041F\u043E\u0434\u043F\u0438\u0441\u0430\u0442\u044C \u0432\u044B\u0437\u043E\u0432
  */
@@ -218,29 +253,84 @@ function buildCiphertextSignatureMessage(payload) {
     });
 }
 
-async function signCiphertextPayload(pemPrivateKeySender, payload) {
+async function signCiphertextPayload(pemPrivateKeySender, payload, signatureAlg = _newMessageSignatureAlg()) {
     if (!pemPrivateKeySender) return '';
-    const privKey = await importPrivateKeyForSigning(pemPrivateKeySender);
+    const signParams = _verifyParamsForAlg(signatureAlg);
+    const privKey = signParams.name === SIGN_ALG_PSS
+        ? await _importPrivateKeyForPssSigning(pemPrivateKeySender)
+        : await importPrivateKeyForSigning(pemPrivateKeySender);
     const data = new TextEncoder().encode(buildCiphertextSignatureMessage(payload));
     const signature = await crypto.subtle.sign(
-        CRYPTO_CONFIG.signAlgo,
+        signParams,
         privKey,
         data
     );
     return arrayBufferToBase64(signature);
 }
 
+/**
+ * Verify the integrity signature on an E2E ciphertext payload.
+ *
+ * Returns one of:
+ *   - `true`            — signature checked and valid
+ *   - `false`           — signature present but mismatch (treat as tampered)
+ *   - `'unsigned'`      — payload carries no signature; the sender either is
+ *                         a legacy client or the server stripped the field.
+ *                         Callers MUST surface this in UI rather than
+ *                         conflate it with verification success.
+ *   - `'no-pubkey'`     — caller did not provide the sender's pubkey, so we
+ *                         can't verify; same UI treatment as 'unsigned'.
+ *
+ * Historical contract returned `true` for both genuinely unsigned messages
+ * and verification failures with missing inputs — that let a hostile relay
+ * silently drop signatures. The bool|string union forces callers to handle
+ * the ambiguous states explicitly.
+ */
+function _verifyParamsForAlg(signatureAlg) {
+    const alg = String(signatureAlg || '').toLowerCase();
+    if (alg.startsWith('rsa-pss') || alg.startsWith('rsassa-pss')) {
+        return { name: SIGN_ALG_PSS, saltLength: PSS_SALT_LENGTH };
+    }
+    return { name: SIGN_ALG_PKCS1 };
+}
+
 async function verifyCiphertextPayloadSignature(pemPublicKeySender, payload) {
-    if (!payload?.signature || !pemPublicKeySender) return true;
-    const pubKey = await importPublicKeyForVerification(pemPublicKeySender);
+    if (!payload?.signature) return 'unsigned';
+    if (!pemPublicKeySender) return 'no-pubkey';
+    const verifyParams = _verifyParamsForAlg(payload.signature_alg);
+    // The verification key import is algorithm-agnostic for our import path
+    // because spki + RSASSA-PKCS1-v1_5 and RSA-PSS use the same SubjectPublicKeyInfo
+    // structure; the algorithm comes from the `algorithm` parameter on verify().
+    // But WebCrypto requires the imported key's `algorithm.name` to match the
+    // verify call — so re-import per algorithm when PSS is requested.
+    const pubKey = verifyParams.name === SIGN_ALG_PSS
+        ? await _importPublicKeyForPssVerification(pemPublicKeySender)
+        : await importPublicKeyForVerification(pemPublicKeySender);
     const signature = base64ToArrayBuffer(payload.signature);
     const data = new TextEncoder().encode(buildCiphertextSignatureMessage(payload));
-    return crypto.subtle.verify(
-        CRYPTO_CONFIG.signAlgo,
+    const ok = await crypto.subtle.verify(
+        verifyParams,
         pubKey,
         signature,
         data
     );
+    return ok === true;
+}
+
+async function _importPublicKeyForPssVerification(pem) {
+    const cacheKey = `pss:${pem}`;
+    const cached = _cacheGet(KeyCache.publicVerify, cacheKey);
+    if (cached) return cached;
+    const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
+    const key = await crypto.subtle.importKey(
+        "spki",
+        binaryDer,
+        { name: SIGN_ALG_PSS, hash: CRYPTO_CONFIG.hashAlgo },
+        true,
+        ["verify"]
+    );
+    _cacheSet(KeyCache.publicVerify, cacheKey, key);
+    return key;
 }
 
 async function encryptMessageWithRecipientKeys(recipientPublicKeys, plaintext) {
@@ -300,10 +390,11 @@ async function encryptMessageE2E(pemPublicKeyReceiver, pemPublicKeySender, plain
         encrypted_key_sender: basePayload.encrypted_keys[1] || basePayload.encrypted_keys[0],
         iv: basePayload.iv
     };
-    const signature = await signCiphertextPayload(pemPrivateKeySender, payload);
+    const signatureAlg = _newMessageSignatureAlg();
+    const signature = await signCiphertextPayload(pemPrivateKeySender, payload, signatureAlg);
     if (signature) {
         payload.signature = signature;
-        payload.signature_alg = "RSASSA-PKCS1-v1_5/SHA-256";
+        payload.signature_alg = signatureAlg;
     }
     return JSON.stringify(payload);
 }
@@ -317,10 +408,11 @@ async function encryptMessageE2EForRecipients(recipientPublicKeys, pemPublicKeyS
         v: 2,
         ...(await encryptMessageWithRecipientKeys(recipients, plaintext))
     };
-    const signature = await signCiphertextPayload(pemPrivateKeySender, payload);
+    const signatureAlg = _newMessageSignatureAlg();
+    const signature = await signCiphertextPayload(pemPrivateKeySender, payload, signatureAlg);
     if (signature) {
         payload.signature = signature;
-        payload.signature_alg = "RSASSA-PKCS1-v1_5/SHA-256";
+        payload.signature_alg = signatureAlg;
     }
     return JSON.stringify(payload);
 }
@@ -336,9 +428,15 @@ async function decryptMessageE2E(pemPrivateKey, encryptedPayloadStr, isSelf, exp
             return encryptedPayloadStr; // \u041D\u0430 \u0441\u043B\u0443\u0447\u0430\u0439 \u0435\u0441\u043B\u0438 \u044D\u0442\u043E \u0441\u0442\u0430\u0440\u044B\u0439 plaintext
         }
 
-        const signatureOk = await verifyCiphertextPayloadSignature(expectedSenderPublicKey, payload);
-        if (!signatureOk) {
+        const signatureStatus = await verifyCiphertextPayloadSignature(expectedSenderPublicKey, payload);
+        if (signatureStatus === false) {
             return "[\u041F\u043E\u0434\u043F\u0438\u0441\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043D\u0435 \u043F\u0440\u043E\u0448\u043B\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443]";
+        }
+        if (signatureStatus === 'unsigned' && expectedSenderPublicKey) {
+            return "[\u041F\u043E\u0434\u043F\u0438\u0441\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442]";
+        }
+        if (signatureStatus === 'no-pubkey' && payload.signature) {
+            return "[\u041D\u0435\u0442 \u043A\u043B\u044E\u0447\u0430 \u0434\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u043F\u043E\u0434\u043F\u0438\u0441\u0438]";
         }
 
         const privKey = await importPrivateKeyForDecryption(pemPrivateKey);

@@ -489,7 +489,7 @@ def create_report_only(  # noqa: PLR0913 - explicit report-creation contract
         action='report_submitted',
         entity_type='report',
         entity_id=str(report_id),
-        details_json=('{"target_type":"%s","target_id":"%s"}' % (target_type, target_id)),
+        details_json=json.dumps({'target_type': target_type, 'target_id': target_id}, ensure_ascii=False),
     )
     conn.commit()
     return {
@@ -673,9 +673,13 @@ def _triage_report(  # noqa: PLR0913 - explicit report-triage contract
             action='auto_sanction_applied',
             entity_type='case',
             entity_id=str(case_id),
-            details_json=(
-                '{"action":"%s","risk_score":%.4f,"confidence":%.4f}'
-                % (auto_action, risk_score, confidence)
+            details_json=json.dumps(
+                {
+                    'action': auto_action,
+                    'risk_score': round(risk_score, 4),
+                    'confidence': round(confidence, 4),
+                },
+                ensure_ascii=False,
             ),
         )
 
@@ -702,9 +706,13 @@ def _triage_report(  # noqa: PLR0913 - explicit report-triage contract
         action='report_triaged',
         entity_type='report',
         entity_id=str(report_id),
-        details_json=(
-            '{"case_id":%d,"target_type":"%s","risk_score":%.4f}'
-            % (case_id, str(report['target_type']), risk_score)
+        details_json=json.dumps(
+            {
+                'case_id': int(case_id),
+                'target_type': str(report['target_type']),
+                'risk_score': round(risk_score, 4),
+            },
+            ensure_ascii=False,
         ),
     )
     return {
@@ -1175,9 +1183,12 @@ def resolve_appeal(
         action='appeal_resolved',
         entity_type='appeal',
         entity_id=str(appeal_id),
-        details_json=(
-            '{"resolution":"%s","sanction_id":%d}'
-            % (normalized_resolution, int(appeal['sanction_id']))
+        details_json=json.dumps(
+            {
+                'resolution': normalized_resolution,
+                'sanction_id': int(appeal['sanction_id']),
+            },
+            ensure_ascii=False,
         ),
     )
     conn.commit()
@@ -1302,9 +1313,13 @@ def apply_case_action(  # noqa: PLR0913 - explicit case-action contract
         action='case_action_applied',
         entity_type='case',
         entity_id=str(case_id),
-        details_json=(
-            '{"action":"%s","reason":"%s","sanction_id":%s}'
-            % (action, reason_code, str(sanction_id or 'null'))
+        details_json=json.dumps(
+            {
+                'action': action,
+                'reason': reason_code,
+                'sanction_id': int(sanction_id) if sanction_id is not None else None,
+            },
+            ensure_ascii=False,
         ),
     )
     conn.commit()
@@ -1603,7 +1618,7 @@ def submit_appeal(
         action='appeal_submitted',
         entity_type='appeal',
         entity_id=str(appeal_id),
-        details_json=('{"sanction_id":%d}' % sanction_id),
+        details_json=json.dumps({'sanction_id': int(sanction_id)}, ensure_ascii=False),
     )
     conn.commit()
     return {

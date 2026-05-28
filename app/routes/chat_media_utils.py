@@ -129,6 +129,12 @@ def validate_image_payload(file_obj) -> bool:
         pos = file_obj.tell()
     except (OSError, ValueError):
         pos = 0
+
+    # 50 megapixels matches image_sanitizer.MAX_IMAGE_PIXELS — tighter than
+    # Pillow's 89 MP default. Block decompression bombs (50000x50000 JPEG
+    # that expands to GB of RAM).
+    previous_pixel_cap = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = (50 * 1024 * 1024) + 1
     try:
         file_obj.seek(0)
         with Image.open(file_obj) as image:
@@ -138,6 +144,7 @@ def validate_image_payload(file_obj) -> bool:
         logger.info('Image payload rejected by Pillow.verify: %s', exc)
         return False
     finally:
+        Image.MAX_IMAGE_PIXELS = previous_pixel_cap
         try:
             file_obj.seek(pos)
         except (OSError, ValueError):

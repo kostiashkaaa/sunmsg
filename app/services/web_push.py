@@ -323,6 +323,64 @@ def _send_push_to_subscription(
         return False
 
 
+def send_security_event_to_user(
+    *,
+    user_id: int,
+    event: str,
+    message: str,
+) -> int:
+    """Best-effort security notification fan-out to all active push endpoints.
+
+    Used for high-stakes events (key transfer, 2FA disable, sensitive
+    settings changes) so the user has a chance to spot an unauthorized
+    action even when they're not actively in the app. Returns the count of
+    endpoints that accepted the push.
+    """
+    from app.database import get_db_connection
+
+    try:
+        from pywebpush import WebPushException, webpush  # noqa: PLC0415
+    except ImportError:
+        return 0
+
+    cfg = web_push_config()
+    if not (cfg.get('enabled') and cfg.get('private_key') and cfg.get('subject')):
+        return 0
+
+    payload = json.dumps(
+        {
+            'title': 'SUN: проверка безопасности',
+            'body': str(message or ''),
+            'url': '/settings#security',
+            'tag': f'security:{event}',
+            'kind': 'security',
+            'requireInteraction': True,
+        },
+        ensure_ascii=False,
+    )
+
+    conn = get_db_connection()
+    delivered = 0
+    try:
+        subs = _active_subscriptions_for_user(conn, user_id=int(user_id))
+        for subscription in subs:
+            ok = _send_push_to_subscription(context={
+                'webpush_func': webpush,
+                'webpush_exception_cls': WebPushException,
+                'subscription': subscription,
+                'payload': payload,
+                'cfg': cfg,
+                'conn': conn,
+                'ttl': 24 * 3_600,
+            })
+            if ok:
+                delivered += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return delivered
+
+
 def send_chat_message_push(  # noqa: PLR0913 - explicit push-delivery contract
     *,
     receiver_user_id: int,

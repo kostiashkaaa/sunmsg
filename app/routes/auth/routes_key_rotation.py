@@ -131,7 +131,7 @@ def api_keys_rotate():  # noqa: C901, PLR0911 - guarded validation chain
         return jsonify({'success': False, 'error': 'Некорректная подпись.'}), 400
 
     normalized_new_vault = normalize_login_vault_payload(new_login_vault_raw)
-    if new_login_vault_raw is not None and normalized_new_vault is None:
+    if normalized_new_vault is None:
         return jsonify({'success': False, 'error': 'Некорректный формат нового login_vault.'}), 400
 
     old_pem_session = str(session.get('public_key_pem') or '').strip()

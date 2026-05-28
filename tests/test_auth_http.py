@@ -10,7 +10,8 @@ import pyotp
 from app import create_app
 from app.routes import auth as auth_routes
 from app.services.crypto import generate_chat_id, generate_keys, normalize_public_key
-from app.services.refresh_tokens import REFRESH_COOKIE_NAME, issue_refresh_token
+from app.services.refresh_tokens import REFRESH_COOKIE_NAME, issue_refresh_token, rotate_refresh_token
+from app.services.totp_backup_codes import store_backup_codes
 from app.db_backend import DatabaseError
 from tests._pg_test_db import connect_test_db
 
@@ -88,6 +89,20 @@ def _signed_login_challenge(challenge: str, private_key_pem: str) -> str:
         hashes.SHA256(),
     )
     return base64.b64encode(signature).decode('ascii')
+
+
+def _signed_key_rotation_payload(*, old_private_key_pem: str, old_public_key: str, new_public_key: str, ts: int) -> str:
+    payload = json.dumps(
+        {
+            'op': 'key_rotation_v1',
+            'old_public_key': normalize_public_key(old_public_key),
+            'new_public_key': normalize_public_key(new_public_key),
+            'ts': int(ts),
+        },
+        separators=(',', ':'),
+        sort_keys=True,
+    )
+    return _signed_login_challenge(payload, old_private_key_pem)
 
 
 def test_get_challenge_returns_user_vault_and_decoy_for_unknown_user(monkeypatch, tmp_path):
@@ -683,6 +698,39 @@ def test_login_totp_and_get_login_vault_cover_success_and_invalid_storage(monkey
     assert response.get_json() == {'success': False, 'error': 'Повреждённые данные сейфа.'}
 
 
+def test_login_totp_backup_code_revokes_existing_refresh_tokens(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-totp-backup-revoke.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    totp_secret = pyotp.random_base32()
+    backup_code = 'ABCD1234EF'
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, totp_secret, login_vault)
+            VALUES (1, 'pk-1', 'alice', 'Alice', ?, ?)
+            ''',
+            (totp_secret, _valid_login_vault()),
+        )
+        with app.app_context():
+            store_backup_codes(conn, 1, [backup_code])
+        conn.commit()
+
+    with app.test_request_context('/api/refresh', headers={'User-Agent': 'old-device'}):
+        old_raw, _ = issue_refresh_token(1, family_id='family-old')
+
+    client = app.test_client()
+    _stage_pending_totp(client, user_id=1, public_key='pk-1', remember=True)
+    response = client.post('/api/login_totp', json={'backup_code': backup_code})
+
+    assert response.status_code == 200
+    assert response.get_json()['success'] is True
+    with app.test_request_context('/api/refresh', headers={'User-Agent': 'old-device'}):
+        assert rotate_refresh_token(old_raw) is None
+
+
 def test_login_totp_without_remember_uses_cookie_session_policy(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-totp-no-remember.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
@@ -716,6 +764,113 @@ def test_login_totp_without_remember_uses_cookie_session_policy(monkeypatch, tmp
     with client.session_transaction() as sess:
         assert sess.permanent is True
         assert sess['ui_language'] == 'ru'
+
+
+def test_key_rotation_requires_new_login_vault(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-key-rotation-requires-vault.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    old_private_key, old_public_key = generate_keys()
+    _new_private_key, new_public_key = generate_keys()
+    old_public_normalized = normalize_public_key(old_public_key)
+    new_public_normalized = normalize_public_key(new_public_key)
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, login_vault)
+            VALUES (1, ?, 'alice', 'Alice', ?)
+            ''',
+            (old_public_normalized, _valid_login_vault()),
+        )
+        conn.commit()
+
+    ts = int(time.time())
+    signature = _signed_key_rotation_payload(
+        old_private_key_pem=old_private_key,
+        old_public_key=old_public_normalized,
+        new_public_key=new_public_normalized,
+        ts=ts,
+    )
+    client = _authed_client(app, 1, old_public_normalized)
+    response = client.post(
+        '/api/keys/rotate',
+        json={
+            'new_public_key': new_public_normalized,
+            'signature': signature,
+            'ts': ts,
+            'new_login_vault': None,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['success'] is False
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT public_key FROM users WHERE id = 1').fetchone()
+    assert row['public_key'] == old_public_normalized
+
+
+def test_key_rotation_updates_public_key_vault_and_clears_session(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-key-rotation-success.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    old_private_key, old_public_key = generate_keys()
+    _new_private_key, new_public_key = generate_keys()
+    old_public_normalized = normalize_public_key(old_public_key)
+    new_public_normalized = normalize_public_key(new_public_key)
+    old_vault = _valid_login_vault()
+    new_vault = json.dumps(
+        {
+            'v': 1,
+            'iv': base64.b64encode(b'abcdef012345').decode('ascii'),
+            'data': base64.b64encode(b'new-encrypted-vault').decode('ascii'),
+        }
+    )
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, login_vault)
+            VALUES (1, ?, 'alice', 'Alice', ?)
+            ''',
+            (old_public_normalized, old_vault),
+        )
+        conn.commit()
+
+    with app.test_request_context('/api/refresh', headers={'User-Agent': 'old-device'}):
+        old_raw, _ = issue_refresh_token(1, family_id='family-old')
+
+    ts = int(time.time())
+    signature = _signed_key_rotation_payload(
+        old_private_key_pem=old_private_key,
+        old_public_key=old_public_normalized,
+        new_public_key=new_public_normalized,
+        ts=ts,
+    )
+    client = _authed_client(app, 1, old_public_normalized)
+    response = client.post(
+        '/api/keys/rotate',
+        json={
+            'new_public_key': new_public_normalized,
+            'signature': signature,
+            'ts': ts,
+            'new_login_vault': new_vault,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()['success'] is True
+    with _connect(db_path) as conn:
+        row = conn.execute('SELECT public_key, login_vault FROM users WHERE id = 1').fetchone()
+    assert row['public_key'] == new_public_normalized
+    assert json.loads(row['login_vault']) == json.loads(new_vault)
+    with client.session_transaction() as sess:
+        assert 'user_id' not in sess
+        assert 'public_key_pem' not in sess
+    with app.test_request_context('/api/refresh', headers={'User-Agent': 'old-device'}):
+        assert rotate_refresh_token(old_raw) is None
 
 
 def test_expired_cookie_session_is_cleared_by_auto_logout(monkeypatch, tmp_path):
@@ -864,15 +1019,17 @@ def test_auth_index_detects_language_by_country(monkeypatch, tmp_path):
     assert b'<html lang="en">' in global_response.data
 
 
-def test_auth_index_reset_client_only_clears_browser_cache(monkeypatch, tmp_path):
+def test_auth_index_reset_client_clears_browser_state(monkeypatch, tmp_path):
     db_path = tmp_path / 'auth-index-reset-client.db'
     monkeypatch.delenv('DATABASE_PATH', raising=False)
 
     app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    plain_response = app.test_client().get('/')
     response = app.test_client().get('/?reset_client=1')
 
+    assert 'Clear-Site-Data' not in plain_response.headers
     assert response.status_code == 200
-    assert response.headers['Clear-Site-Data'] == '"cache"'
+    assert response.headers['Clear-Site-Data'] == '"cache", "cookies", "storage", "executionContexts"'
 
 
 def test_reset_client_page_unregisters_service_workers(monkeypatch, tmp_path):
@@ -883,7 +1040,7 @@ def test_reset_client_page_unregisters_service_workers(monkeypatch, tmp_path):
     response = app.test_client().get('/reset-client')
 
     assert response.status_code == 200
-    assert response.headers['Clear-Site-Data'] == '"cache"'
+    assert response.headers['Clear-Site-Data'] == '"cache", "cookies", "storage", "executionContexts"'
     assert b'navigator.serviceWorker.getRegistrations' in response.data
     assert b'caches.keys' in response.data
     assert b'window.location.replace' in response.data

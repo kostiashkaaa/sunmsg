@@ -106,9 +106,10 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
                 new_public_key: newPublicKey,
                 signature,
                 ts,
-                new_login_vault: newLoginVault || null,
+                new_login_vault: newLoginVault,
             },
         }, 'Не удалось перевыпустить ключ.'),
+        getLoginVault: () => requestSuccess('/api/get_login_vault', {}, 'Сейф не найден.'),
         getChallenge: (username) => requestSuccess('/api/get_challenge', {
             method: 'POST',
             json: { username },

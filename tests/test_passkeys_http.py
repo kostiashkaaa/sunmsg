@@ -1,6 +1,8 @@
 import time
 from pathlib import Path
 
+import pyotp
+
 from app import create_app
 from app.routes import auth as auth_routes
 from app.services.refresh_tokens import REFRESH_COOKIE_NAME
@@ -264,6 +266,43 @@ def test_passkeys_register_options_stages_pending_context(tmp_path, monkeypatch)
         assert int(sess.get('pending_passkey_register_issued_at') or 0) > 0
 
 
+def test_passkeys_register_options_rejects_account_cap(tmp_path, monkeypatch):
+    app, db_path = _create_test_app(tmp_path, 'passkeys-register-options-cap.db')
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        for index in range(10):
+            conn.execute(
+                '''
+                INSERT INTO user_passkeys (user_id, credential_id, credential_public_key, sign_count)
+                VALUES (1, ?, ?, 1)
+                ''',
+                (f'cred-{index}', f'pub-{index}'),
+            )
+        conn.commit()
+
+    called = {'generate': False}
+
+    def _fake_generate_registration_options(**_kwargs):
+        called['generate'] = True
+        return object()
+
+    monkeypatch.setattr(auth_routes, 'generate_registration_options', _fake_generate_registration_options)
+
+    client = _authed_client(app, user_id=1, public_key='pk-1')
+    response = client.post('/api/passkeys/register/options', json={})
+    payload = response.get_json()
+
+    assert response.status_code == 400
+    assert payload['success'] is False
+    assert called['generate'] is False
+
+
 def test_passkeys_register_verify_requires_pending_context(tmp_path):
     app, db_path = _create_test_app(tmp_path, 'passkeys-register-verify-pending.db')
 
@@ -386,6 +425,51 @@ def test_passkeys_delete_not_found_and_success(tmp_path):
     ok_payload = ok_response.get_json()
     assert ok_response.status_code == 200
     assert ok_payload['success'] is True
+
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM user_passkeys WHERE user_id = 1 AND credential_id = 'cred-del'"
+        ).fetchone()
+    assert row is None
+
+
+def test_passkeys_delete_requires_totp_step_up_when_enabled(tmp_path):
+    app, db_path = _create_test_app(tmp_path, 'passkeys-delete-totp-step-up.db')
+    totp_secret = pyotp.random_base32()
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name, totp_secret)
+            VALUES (1, 'pk-1', 'alice', 'Alice', ?)
+            ''',
+            (totp_secret,),
+        )
+        conn.execute(
+            '''
+            INSERT INTO user_passkeys (user_id, credential_id, credential_public_key, sign_count)
+            VALUES (1, 'cred-del', 'pub-key-del', 1)
+            '''
+        )
+        conn.commit()
+
+    client = _authed_client(app, user_id=1, public_key='pk-1')
+
+    missing_response = client.post('/api/passkeys/delete', json={'credential_id': 'cred-del'})
+    assert missing_response.status_code == 400
+
+    bad_response = client.post(
+        '/api/passkeys/delete',
+        json={'credential_id': 'cred-del', 'totp_code': '000000'},
+    )
+    assert bad_response.status_code == 401
+
+    ok_response = client.post(
+        '/api/passkeys/delete',
+        json={'credential_id': 'cred-del', 'totp_code': pyotp.TOTP(totp_secret).now()},
+    )
+    assert ok_response.status_code == 200
+    assert ok_response.get_json()['success'] is True
 
     with _connect(db_path) as conn:
         row = conn.execute(

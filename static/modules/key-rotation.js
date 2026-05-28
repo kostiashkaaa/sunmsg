@@ -106,9 +106,10 @@
      *        (unwrap with window.deviceKey.unwrapPrivateKey before calling).
      * @param {string} opts.oldPublicKeyPem - current public PEM (with or without headers).
      * @param {(args: {newPublicKeyPem: string, newPrivateKeyPem: string}) =>
-     *         Promise<object|null>} [opts.buildNewLoginVault] - optional builder
+     *         Promise<object|null>} [opts.buildNewLoginVault] - vault builder
      *        that re-encrypts the recovery-words-protected vault for the new
-     *        key. Return null to leave the vault untouched on the server.
+     *        key. The server requires this so recovery words still work after
+     *        rotation.
      * @param {(args: {newPublicKeyPem: string, newPrivateKeyPem: string}) =>
      *         Promise<void>} opts.persistNewPrivateKey - store the new private
      *        key client-side (e.g. via deviceKey.wrapPrivateKey).
@@ -139,13 +140,18 @@
             ts,
         });
 
+        if (typeof buildNewLoginVault !== 'function') {
+            throw new Error('Перешифрование сейфа недоступно.');
+        }
+
         let newLoginVault = null;
-        if (typeof buildNewLoginVault === 'function') {
-            try {
-                newLoginVault = await buildNewLoginVault({ newPublicKeyPem, newPrivateKeyPem });
-            } catch (err) {
-                throw new Error(`Не удалось перешифровать сейф: ${err && err.message ? err.message : err}`);
-            }
+        try {
+            newLoginVault = await buildNewLoginVault({ newPublicKeyPem, newPrivateKeyPem });
+        } catch (err) {
+            throw new Error(`Не удалось перешифровать сейф: ${err && err.message ? err.message : err}`);
+        }
+        if (!newLoginVault) {
+            throw new Error('Новый сейф не создан.');
         }
 
         // Persist the new private key on this device BEFORE the server call

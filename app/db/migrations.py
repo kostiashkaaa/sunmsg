@@ -49,6 +49,7 @@ SPOTIFY_PRIVACY_MIGRATION = (33, 'add_spotify_privacy_and_explicit_fields')
 USER_EXTENDED_PRIVACY_MIGRATION = (34, 'add_extended_user_privacy_controls')
 LIQUID_GLASS_FEATURE_ACCESS_MIGRATION = (35, 'create_liquid_glass_feature_access_tables')
 MESSAGE_SEND_IDEMPOTENCY_MIGRATION = (36, 'add_message_send_idempotency_columns')
+MODERATION_AUDIT_APPEND_ONLY_MIGRATION = (37, 'enforce_moderation_audit_log_append_only')
 
 _chat_pins_schema_lock = threading.Lock()
 _chat_pins_schema_checked = False
@@ -1065,6 +1066,51 @@ def _run_liquid_glass_feature_access_migration(conn, cursor) -> None:
     logger.info('Migration: created liquid glass feature access tables')
 
 
+def _run_moderation_audit_append_only_migration(conn, cursor) -> None:
+    """Make moderation_audit_log append-only at the database level.
+
+    Application code only ever INSERTs into this table, but we want
+    defense-in-depth: a SQL-injection vector or a buggy maintenance script
+    must not be able to rewrite history. Postgres trigger raises an
+    exception on UPDATE or DELETE attempts regardless of the role.
+    """
+    if migration_applied(cursor, MODERATION_AUDIT_APPEND_ONLY_MIGRATION[0]):
+        return
+    # Function is idempotent — CREATE OR REPLACE keeps it in sync if we
+    # tweak the message later. The trigger is dropped first to avoid
+    # 'already exists' on re-runs from older snapshots.
+    cursor.execute(
+        '''
+        CREATE OR REPLACE FUNCTION moderation_audit_log_append_only()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            RAISE EXCEPTION 'moderation_audit_log is append-only (operation %% blocked)',
+                TG_OP USING ERRCODE = 'insufficient_privilege';
+        END;
+        $$ LANGUAGE plpgsql
+        '''
+    )
+    cursor.execute('DROP TRIGGER IF EXISTS moderation_audit_log_no_update ON moderation_audit_log')
+    cursor.execute('DROP TRIGGER IF EXISTS moderation_audit_log_no_delete ON moderation_audit_log')
+    cursor.execute(
+        '''
+        CREATE TRIGGER moderation_audit_log_no_update
+        BEFORE UPDATE ON moderation_audit_log
+        FOR EACH ROW EXECUTE FUNCTION moderation_audit_log_append_only()
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE TRIGGER moderation_audit_log_no_delete
+        BEFORE DELETE ON moderation_audit_log
+        FOR EACH ROW EXECUTE FUNCTION moderation_audit_log_append_only()
+        '''
+    )
+    _record_migration(cursor, MODERATION_AUDIT_APPEND_ONLY_MIGRATION)
+    conn.commit()
+    logger.info('Migration: moderation_audit_log is now append-only')
+
+
 def run_migrations() -> None:
     global _chat_pins_schema_checked
 
@@ -1100,6 +1146,7 @@ def run_migrations() -> None:
         _run_spotify_privacy_migration(conn, cursor)
         _run_extended_user_privacy_migration(conn, cursor)
         _run_liquid_glass_feature_access_migration(conn, cursor)
+        _run_moderation_audit_append_only_migration(conn, cursor)
         conn.commit()
 
         _chat_pins_schema_checked = chat_pins_supports_multiple(cursor)

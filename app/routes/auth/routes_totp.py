@@ -17,6 +17,7 @@ from app.services.totp_backup_codes import (
     generate_backup_codes,
     store_backup_codes,
 )
+from app.services.refresh_tokens import revoke_all_for_user
 from app.services.totp_secret_store import (
     decode_totp_secret,
     encode_totp_secret,
@@ -94,6 +95,14 @@ def api_totp_manage():
             conn.commit()
             clear_pending_totp(session)
             clear_pending_totp_setup(session)
+            # Disabling 2FA is a security-sensitive transition. Invalidate
+            # all refresh tokens so other devices must re-authenticate;
+            # otherwise a long-lived session can keep operating without
+            # the second factor being intact.
+            try:
+                revoke_all_for_user(int(user['id']))
+            except Exception:  # noqa: BLE001
+                pass
             return jsonify({'success': True, 'enabled': False, 'totp_enabled_at': '', 'setup_pending': False})
 
         # enable/regenerate: issue a fresh secret and wait for verification.

@@ -146,8 +146,50 @@ def register_security_headers(app: Flask, *, is_production: bool) -> None:
         )
         response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_settings_embed else "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(self)"
+        # Cross-Origin-Opener-Policy: isolate our window's browsing context
+        # from any opener with a different origin. Blocks a family of
+        # cross-window XS-Leaks and tightens what an attacker site could
+        # inspect about a logged-in tab if it happens to open SUN.
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Referrer-Policy"] = "same-origin"
+        # Deny every powerful feature we don't intentionally use. `=()` means
+        # "no origin may use this feature". The three features we *do* use
+        # (camera/microphone for calls, geolocation for the optional weather
+        # widget) are limited to same-origin only. `browsing-topics` and
+        # `interest-cohort` opt out of Google's Topics/FLoC inference.
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), "
+            "ambient-light-sensor=(), "
+            "autoplay=(self), "
+            "battery=(), "
+            "bluetooth=(), "
+            "browsing-topics=(), "
+            "camera=(self), "
+            "clipboard-read=(self), "
+            "clipboard-write=(self), "
+            "display-capture=(self), "
+            "encrypted-media=(), "
+            "fullscreen=(self), "
+            "gamepad=(), "
+            "geolocation=(self), "
+            "gyroscope=(), "
+            "hid=(), "
+            "idle-detection=(), "
+            "interest-cohort=(), "
+            "keyboard-map=(), "
+            "magnetometer=(), "
+            "microphone=(self), "
+            "midi=(), "
+            "otp-credentials=(), "
+            "payment=(), "
+            "picture-in-picture=(self), "
+            "publickey-credentials-get=(self), "
+            "screen-wake-lock=(self), "
+            "serial=(), "
+            "speaker-selection=(self), "
+            "usb=(), "
+            "xr-spatial-tracking=()"
+        )
         if is_production:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         csp_nonce = str(getattr(g, "csp_nonce", "") or "").strip()

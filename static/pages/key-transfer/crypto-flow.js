@@ -40,14 +40,7 @@ function utf8Bytes(value) {
     return new TextEncoder().encode(String(value || ''));
 }
 
-function concatBytes(a, b) {
-    const first = a instanceof Uint8Array ? a : new Uint8Array(a);
-    const second = b instanceof Uint8Array ? b : new Uint8Array(b);
-    const out = new Uint8Array(first.length + second.length);
-    out.set(first, 0);
-    out.set(second, first.length);
-    return out;
-}
+const TRANSFER_HKDF_SALT = utf8Bytes('sun-key-transfer-v1');
 
 export function parseTransferCode(rawValue) {
     const text = String(rawValue || '').trim();
@@ -94,10 +87,25 @@ export async function deriveTransferKey({ privateKey, publicKey, sessionId }) {
         privateKey,
         256,
     );
-    const context = utf8Bytes(`${TRANSFER_CONTEXT_PREFIX}${sessionId}`);
-    const digestInput = concatBytes(new Uint8Array(sharedBits), context);
-    const digest = await crypto.subtle.digest('SHA-256', digestInput);
-    return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    const ikm = await crypto.subtle.importKey(
+        'raw',
+        sharedBits,
+        { name: 'HKDF' },
+        false,
+        ['deriveKey'],
+    );
+    return crypto.subtle.deriveKey(
+        {
+            name: 'HKDF',
+            hash: 'SHA-256',
+            salt: TRANSFER_HKDF_SALT,
+            info: utf8Bytes(`${TRANSFER_CONTEXT_PREFIX}${sessionId}`),
+        },
+        ikm,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt'],
+    );
 }
 
 export async function encryptPrivateKeyPem({ privateKeyPem, aesKey }) {
