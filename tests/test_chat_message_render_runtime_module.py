@@ -126,6 +126,134 @@ if (frames.length === 0) {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_initial_stable_render_suppresses_message_enter_animation():
+    harness_body = """
+const state = {
+  initialized: true,
+  messages: [{ id: 1, sender: 'self', created_at: '2026-05-23 02:37:00' }],
+  lastRenderRange: null,
+  messageHeights: new Map(),
+  averageMessageHeight: 72,
+  renderedKeys: new Set(),
+};
+
+function makeClassList(initial = []) {
+  const names = new Set(initial);
+  return {
+    add: (...items) => items.forEach((item) => names.add(item)),
+    remove: (...items) => items.forEach((item) => names.delete(item)),
+    toggle: (name, enabled) => enabled ? names.add(name) : names.delete(name),
+    contains: (name) => names.has(name),
+  };
+}
+
+const messageNode = {
+  isMessage: true,
+  offsetHeight: 44,
+  classList: makeClassList(),
+  style: { removeProperty: () => {} },
+  dataset: {},
+  getAttribute: (name) => (name === 'data-message-key' ? 'id:1' : ''),
+  querySelector: () => null,
+  querySelectorAll: () => [],
+  getBoundingClientRect: () => ({ height: 44 }),
+};
+
+const chatMessages = {
+  scrollTop: 0,
+  scrollHeight: 160,
+  clientHeight: 100,
+  childNodes: [],
+  style: { visibility: '' },
+  classList: makeClassList(),
+  get firstElementChild() { return this.childNodes[0] || null; },
+  get lastElementChild() { return this.childNodes[this.childNodes.length - 1] || null; },
+  querySelector(selector) {
+    if (selector === '.message[data-message-key]') {
+      return this.childNodes.find((node) => node?.isMessage) || null;
+    }
+    return null;
+  },
+  querySelectorAll(selector) {
+    if (selector === '.message[data-message-key]') {
+      return this.childNodes.filter((node) => node?.isMessage);
+    }
+    return [];
+  },
+  insertBefore(node, before) {
+    const currentIndex = this.childNodes.indexOf(node);
+    if (currentIndex >= 0) this.childNodes.splice(currentIndex, 1);
+    const beforeIndex = before ? this.childNodes.indexOf(before) : -1;
+    if (beforeIndex >= 0) this.childNodes.splice(beforeIndex, 0, node);
+    else this.childNodes.push(node);
+    return node;
+  },
+  removeChild(node) {
+    const index = this.childNodes.indexOf(node);
+    if (index >= 0) this.childNodes.splice(index, 1);
+    return node;
+  },
+};
+
+let enterAnimationCalls = 0;
+const documentRef = {
+  createDocumentFragment: () => ({
+    appendChild: () => {},
+  }),
+};
+const runtime = moduleApi.createChatMessageRenderRuntime({
+  documentRef,
+  requestAnimationFrameFn: (callback) => { callback(); return 1; },
+  cancelAnimationFrameFn: () => {},
+  getCurrentChatId: () => 'chat-1',
+  getCurrentContactId: () => 'contact-1',
+  getChatMessages: () => chatMessages,
+  getChatState: () => state,
+  getMessageKey: (msg) => `id:${msg.id}`,
+  getMessageDayKey: () => '',
+  sumEstimatedHeights: () => 44,
+  getDesiredRenderRange: () => ({ start: 0, end: 1 }),
+  createVirtualSpacer: (height) => ({
+    isSpacer: true,
+    style: { height: `${height}px` },
+    classList: { contains: (name) => name === 'chat-virtual-spacer' },
+  }),
+  createDaySeparatorNode: () => null,
+  messageGroup: () => ({ groupClass: 'group-single' }),
+  messageItem: () => messageNode,
+  applyMessageEnterAnimation: () => { enterAnimationCalls += 1; },
+  syncMessageBubbleLayoutClasses: () => {},
+  isSelectionMode: () => false,
+  hasSelectedMessage: () => false,
+  registerMediaElementsForLazyHydration: () => {},
+  unregisterMediaElementsForLazyHydration: () => {},
+  schedulePostRenderUiRefresh: () => {},
+  saveChatScrollPosition: () => {},
+  resizeComposerInput: () => {},
+  updateChatMessagesBottomInset: () => {},
+  isMobileViewport: () => false,
+  triggerChatHistoryRevealAnimation: () => {},
+  prefersReducedMotionSetting: () => false,
+  scrollToBottom: () => {},
+  syncSavedMessagesMeta: () => {},
+});
+
+await runtime.renderChatMessagesStable('chat-1', { scrollToBottom: true });
+
+if (enterAnimationCalls !== 0) {
+  throw new Error(`Initial stable render should not animate loaded messages, got ${enterAnimationCalls}`);
+}
+if (chatMessages.style.visibility !== '') {
+  throw new Error('Hydration visibility mask should be cleared after stable render');
+}
+if (!chatMessages.childNodes.includes(messageNode)) {
+  throw new Error('Expected message node to render');
+}
+"""
+    result = _run_render_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_force_prepend_render_can_reuse_existing_message_nodes():
     harness_body = """
 const frames = [];

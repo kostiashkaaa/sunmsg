@@ -452,14 +452,11 @@ def test_open_chat_uses_animated_path() -> None:
     src = (STATIC / 'chat' / 'thread-shell.js').read_text(encoding='utf-8')
     # Берём первый openChat функцию
     func = re.search(
-        r'function openChat\(\{ animated = true \} = \{\}\)\s*\{([\s\S]+?)\n    \}\n',
+        r'function openChat\(\)\s*\{([\s\S]+?)\n    \}\n',
         src,
     )
     assert func, 'chat/thread-shell.js: функция openChat() не найдена'
     body = func.group(1)
-    assert 'if (!animated || reduceMotion)' in body, (
-        'openChat: initial restore must be able to skip reveal motion without disabling manual animations'
-    )
     assert 'mobile-revealing' in body, (
         'openChat: не выставляет .mobile-revealing — нет анимации входа'
     )

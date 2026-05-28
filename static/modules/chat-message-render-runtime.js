@@ -613,7 +613,8 @@ export function createChatMessageRenderRuntime({
         let previousDayKey = range.start > 0
             ? getMessageDayKey?.(state.messages[range.start - 1]?.created_at)
             : '';
-        const suppressEnterAnimation = chatMessages.classList.contains('is-loading-history');
+        const suppressEnterAnimation = Boolean(options.suppressEnterAnimation)
+            || chatMessages.classList.contains('is-loading-history');
         const renderedMessageNodes = [];
         state.messages.slice(range.start, range.end).forEach((msg, localIndex) => {
             const absoluteIndex = range.start + localIndex;
@@ -842,7 +843,11 @@ export function createChatMessageRenderRuntime({
             const state = getChatState?.(chatId);
             const beforeAvg = state?.averageMessageHeight || chatDefaultMessageHeight;
 
-            renderChatMessages(chatId, { ...options, force: true });
+            renderChatMessages(chatId, {
+                ...options,
+                force: true,
+                suppressEnterAnimation: options?.suppressEnterAnimation || shouldMaskHydration,
+            });
             await waitForPaintFrames(1);
 
             const currentMessages = getCurrentMessagesElement();

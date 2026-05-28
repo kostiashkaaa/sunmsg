@@ -71,7 +71,7 @@ def test_chat_page_renders_initial_contacts_and_local_vendor_assets(monkeypatch,
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert 'id="appBootOverlay"' in html
+    assert 'id="appBootOverlay"' not in html
     assert 'id="contactsList"' in html
     assert 'data-chat-id="chat-1"' in html
     assert '/static/modules/bi-icon-adapter.js' in html
@@ -107,7 +107,7 @@ def test_chat_page_renders_saved_messages_for_user_without_contacts(monkeypatch,
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert 'id="appBootOverlay"' in html
+    assert 'id="appBootOverlay"' not in html
     assert 'id="contactsList"' in html
     assert 'data-contact-id="1"' in html
 
@@ -277,8 +277,8 @@ def test_chat_runtime_keeps_realtime_locked_until_private_key_activation() -> No
     assert 'socketEmit: (event, data) => emitSocket(event, data)' in runtime_src
     assert 'socketConnect: () => {\n            if (isE2eActivationLocked())' in runtime_src
     assert 'if (isE2eActivationLocked()) return;\n        loadDialogRequests();' in runtime_src
-    assert 'if (isE2eActivationLocked()) {\n            releaseInitialChatRestoreDecision();\n            hideAppBootOverlay();\n            return Promise.resolve(false);' in runtime_src
-    assert 'if (isE2eActivationLocked()) {\n        releaseInitialChatRestoreDecision();\n        hideAppBootOverlay();\n    } else if (hasSsrContacts)' in runtime_src
+    assert 'if (isE2eActivationLocked()) {\n            hideAppBootOverlay();\n            return Promise.resolve(false);' in runtime_src
+    assert 'if (isE2eActivationLocked()) {\n        hideAppBootOverlay();\n    } else if (hasSsrContacts)' in runtime_src
     assert 'void loadContacts({ immediate: true });\n            void loadDialogRequests();' in runtime_src
     assert 'const _refreshCallFeatureAccess = async () => {\n        if (isE2eActivationLocked())' in runtime_src
 

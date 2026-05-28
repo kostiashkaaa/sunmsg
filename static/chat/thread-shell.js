@@ -74,7 +74,7 @@ export function createMobileThreadShell({
         sidebar.style.display = 'none';
     }
 
-    function openChat({ animated = true } = {}) {
+    function openChat() {
         const reduceMotion = prefersReducedMotion();
         mobileCloseTransitionSeq += 1;
         chatArea.classList.remove('mobile-closing', 'mobile-swipe-back-dragging');
@@ -90,7 +90,7 @@ export function createMobileThreadShell({
             return;
         }
 
-        if (!animated || reduceMotion) {
+        if (reduceMotion) {
             completeMobileChatOpen();
             scheduleComposerFocus({ delay: 0, force: true });
             return;

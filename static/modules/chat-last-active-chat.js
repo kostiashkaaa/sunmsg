@@ -12,20 +12,6 @@ export function createLastActiveChatController({
     resolveContactItemByUsername = () => null,
     syncBrowserUrlForActiveChat = () => {},
 } = {}) {
-    function clickRestoredContactItem(contactItem) {
-        if (!contactItem) return;
-        if (contactItem.dataset) {
-            contactItem.dataset.chatInitialRestore = '1';
-        }
-        try {
-            contactItem.click();
-        } finally {
-            if (contactItem.dataset) {
-                delete contactItem.dataset.chatInitialRestore;
-            }
-        }
-    }
-
     function getStoredLastActiveChatId() {
         return getStoredString(storageKey, storage);
     }
@@ -52,7 +38,7 @@ export function createLastActiveChatController({
                 return String(item?.getAttribute('data-chat-id') || '').trim() === normalizedRequestedChatId;
             }) || null;
             if (preferredContactItem) {
-                clickRestoredContactItem(preferredContactItem);
+                preferredContactItem.click();
                 syncBrowserUrlForActiveChat(preferredContactItem);
                 return true;
             }
@@ -60,7 +46,7 @@ export function createLastActiveChatController({
         if (initialRequestedContactUserId) {
             const preferredContactItem = resolveContactItemByUserId(initialRequestedContactUserId);
             if (preferredContactItem) {
-                clickRestoredContactItem(preferredContactItem);
+                preferredContactItem.click();
                 syncBrowserUrlForActiveChat(preferredContactItem);
                 return true;
             }
@@ -68,7 +54,7 @@ export function createLastActiveChatController({
         if (initialRequestedContactUsername) {
             const preferredContactItem = resolveContactItemByUsername(initialRequestedContactUsername);
             if (preferredContactItem) {
-                clickRestoredContactItem(preferredContactItem);
+                preferredContactItem.click();
                 syncBrowserUrlForActiveChat(preferredContactItem);
                 return true;
             }
