@@ -1,0 +1,66 @@
+groups:
+  - name: sunmessenger-operations
+    rules:
+      - alert: SunMessengerHigh5xxRate
+        expr: sum(increase(sun_http_requests_total{status_class="5xx"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: SUNmessenger 5xx responses are rising
+          description: More than 5 server errors were recorded in the last 5 minutes.
+
+      - alert: SunMessengerHttpLatencyHigh
+        expr: |
+          (
+            sum(rate(sun_http_request_duration_seconds_sum[5m]))
+            /
+            clamp_min(sum(rate(sun_http_request_duration_seconds_count[5m])), 1)
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: SUNmessenger HTTP latency is high
+          description: Average HTTP handler latency has stayed above 1 second for 10 minutes.
+
+      - alert: SunMessengerSocketIOLatencyHigh
+        expr: |
+          (
+            sum(rate(sun_socketio_event_duration_seconds_sum[5m]))
+            /
+            clamp_min(sum(rate(sun_socketio_event_duration_seconds_count[5m])), 1)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: SUNmessenger Socket.IO latency is high
+          description: Average Socket.IO handler latency has stayed above 500 ms for 10 minutes.
+
+      - alert: SunMessengerRedisUnavailable
+        expr: sun_redis_up == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: SUNmessenger Redis is unavailable
+          description: The /metrics Redis probe cannot ping Redis.
+
+      - alert: SunMessengerRedisQueueBacklogHigh
+        expr: sun_redis_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: SUNmessenger Redis queue backlog is high
+          description: A configured Redis queue has more than 1000 pending entries.
+
+      - alert: SunMessengerModerationQueueBacklogHigh
+        expr: sun_moderation_jobs{status="pending"} > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: SUNmessenger moderation queue backlog is high
+          description: More than 100 moderation jobs have been pending for 15 minutes.

@@ -22,9 +22,10 @@ ARTIFACTS_DIR="$BASE_DIR/artifacts"
 SHARED_DIR="$BASE_DIR/shared"
 CURRENT_LINK="$BASE_DIR/current"
 PREVIOUS_LINK="$BASE_DIR/previous"
-VENV_BIN="$BASE_DIR/venv/bin"
 
 RELEASE_DIR="$RELEASES_DIR/$SHA"
+VENV_DIR="$RELEASE_DIR/.venv"
+VENV_BIN="$VENV_DIR/bin"
 ARTIFACT_FILE="$ARTIFACTS_DIR/$SHA/release.tar.gz"
 BACKUP_DIR="$SHARED_DIR/backups"
 ENV_FILE="$SHARED_DIR/.env"
@@ -43,7 +44,7 @@ ensure_venv() {
   local venv_python="$VENV_BIN/python"
 
   if [[ ! -x "$venv_python" ]]; then
-    python3 -m venv "$BASE_DIR/venv"
+    python3 -m venv "$VENV_DIR"
   fi
 
   if "$venv_python" -m pip --version >/dev/null 2>&1; then
@@ -57,8 +58,8 @@ ensure_venv() {
     return
   fi
 
-  rm -rf "$BASE_DIR/venv"
-  python3 -m venv "$BASE_DIR/venv"
+  rm -rf "$VENV_DIR"
+  python3 -m venv "$VENV_DIR"
 
   if ! "$venv_python" -m pip --version >/dev/null 2>&1; then
     echo "Failed to initialize pip in $BASE_DIR/venv." >&2
@@ -79,6 +80,16 @@ restart_web_service() {
   # The release symlink changes before this call; restart is required so
   # gunicorn's master process gets the new WorkingDirectory target.
   run_systemctl restart sunmessenger-web.service
+}
+
+switch_symlink_atomically() {
+  local target="$1"
+  local link_path="$2"
+  local tmp_link="${link_path}.tmp.$$"
+
+  rm -f "$tmp_link"
+  ln -s "$target" "$tmp_link"
+  mv -Tf "$tmp_link" "$link_path"
 }
 
 systemd_unit_exists() {
@@ -279,7 +290,7 @@ fi
 rollback() {
   if [[ -n "$old_target" && -d "$old_target" ]]; then
     echo "Rollback to previous release: $old_target"
-    ln -sfn "$old_target" "$CURRENT_LINK"
+    switch_symlink_atomically "$old_target" "$CURRENT_LINK"
     restart_web_service || true
     run_systemctl restart sunmessenger-scheduler.service || true
     restart_mediasoup_service_if_present || true
@@ -288,8 +299,6 @@ rollback() {
 trap rollback ERR
 
 mkdir -p "$RELEASES_DIR" "$ARTIFACTS_DIR/$SHA" "$BACKUP_DIR"
-ensure_venv
-"$VENV_BIN/python" -m pip install --upgrade pip
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARTIFACT_FILE" -C "$RELEASE_DIR"
@@ -304,6 +313,8 @@ fi
 ln -sfn "$ENV_FILE" "$RELEASE_DIR/.env"
 
 cd "$RELEASE_DIR"
+ensure_venv
+"$VENV_BIN/python" -m pip install --upgrade pip
 "$VENV_BIN/python" -m pip install -r requirements-production.txt
 install_mediasoup_dependencies_if_enabled
 "$VENV_BIN/python" manage.py production-config-check --env production
@@ -311,9 +322,9 @@ install_mediasoup_dependencies_if_enabled
 "$VENV_BIN/python" manage.py maintenance --env production --backup-dir "$BACKUP_DIR"
 
 if [[ -L "$CURRENT_LINK" ]]; then
-  ln -sfn "$(readlink -f "$CURRENT_LINK")" "$PREVIOUS_LINK"
+  switch_symlink_atomically "$(readlink -f "$CURRENT_LINK")" "$PREVIOUS_LINK"
 fi
-ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
+switch_symlink_atomically "$RELEASE_DIR" "$CURRENT_LINK"
 
 reset_presence_state
 restart_web_service
@@ -322,7 +333,7 @@ restart_mediasoup_service_if_present
 
 health_ok=0
 for _ in $(seq 1 30); do
-  if curl -fsS -H "Host: sun.445231.xyz" "http://127.0.0.1:8000/" >/dev/null; then
+  if curl -fsS -H "Host: sun.445231.xyz" "http://127.0.0.1:8000/ready" >/dev/null; then
     health_ok=1
     break
   fi
@@ -330,7 +341,7 @@ for _ in $(seq 1 30); do
 done
 
 if [[ "$health_ok" -ne 1 ]]; then
-  echo "Health check failed: http://127.0.0.1:8000/" >&2
+  echo "Health check failed: http://127.0.0.1:8000/ready" >&2
   run_systemctl status sunmessenger-web.service --no-pager -l || true
   exit 7
 fi

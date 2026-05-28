@@ -94,7 +94,7 @@ sudo systemctl daemon-reload
 
 ```bash
 cd /srv/sunmessenger/current
-source /srv/sunmessenger/venv/bin/activate
+source /srv/sunmessenger/current/.venv/bin/activate
 ```
 
 Проверить системные утилиты для PostgreSQL backups и AV scan:

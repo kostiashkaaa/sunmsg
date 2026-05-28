@@ -1,9 +1,9 @@
 import argparse
 import json
-import logging
 import os
 import socket
 
+from app.bootstrap.logging_config import configure_logging
 from app.database import get_db_connection
 from app.services import moderation as moderation_service
 from app.services.maintenance_runtime import run_database_maintenance
@@ -131,7 +131,7 @@ def build_parser():
 def main(argv=None):  # noqa: C901, PLR0915 - CLI command dispatcher with guarded branches
     parser = build_parser()
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO)
+    configure_logging({})
     config_name = getattr(args, 'config_name', None) or getattr(args, 'global_config_name', None)
 
     if args.command == 'web':

@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from flask import current_app, has_app_context, request, session
 from flask_socketio import disconnect, emit, join_room, leave_room
 from flask_wtf.csrf import validate_csrf
@@ -33,6 +34,8 @@ from app.services.abuse_protection import (
     has_reciprocal_contact,
     user_trust_profile,
 )
+from app.services.logging_safety import redact_url_for_log
+from app.services.operations_metrics import record_socket_event
 
 from . import chat_access
 from . import errors
@@ -267,7 +270,7 @@ def _get_socket_rate_redis_client():
             _SOCKET_RATE_REDIS_CLIENT = client
             _SOCKET_RATE_REDIS_URL = redis_url
             _SOCKET_RATE_REDIS_LAST_ERROR_URL = ''
-            logger.info('Socket rate-limit store: using Redis (%s)', redis_url)
+            logger.info('Socket rate-limit store: using Redis (%s)', redact_url_for_log(redis_url))
             return _SOCKET_RATE_REDIS_CLIENT
         except Exception as exc:  # noqa: BLE001
             _SOCKET_RATE_REDIS_CLIENT = None
@@ -275,7 +278,7 @@ def _get_socket_rate_redis_client():
             if _SOCKET_RATE_REDIS_LAST_ERROR_URL != redis_url:
                 logger.warning(
                     'Socket rate-limit Redis init failed for %s, using DB fallback outside production: %s',
-                    redis_url,
+                    redact_url_for_log(redis_url),
                     exc,
                 )
                 _SOCKET_RATE_REDIS_LAST_ERROR_URL = redis_url
@@ -332,7 +335,7 @@ def _get_socket_connect_ip_redis_client():
             if _CONNECT_IP_REDIS_LAST_ERROR_URL != redis_url:
                 logger.warning(
                     'Socket connect IP rate-limit Redis init failed for %s, using in-memory fallback: %s',
-                    redis_url,
+                    redact_url_for_log(redis_url),
                     exc,
                 )
                 _CONNECT_IP_REDIS_LAST_ERROR_URL = redis_url
@@ -468,9 +471,38 @@ def authenticated_only(f):
 
     @wraps(f)
     def wrapped(*args, **kwargs):
+        started = time.perf_counter()
+        status = 'ok'
+        event_name = _current_socket_event_name(f.__name__)
         if 'public_key_pem' not in session or 'user_id' not in session:
+            status = 'unauthenticated'
             disconnect()
+            record_socket_event(
+                event_name=event_name,
+                status=status,
+                duration_seconds=time.perf_counter() - started,
+            )
             return
-        return f(*args, **kwargs)
+        try:
+            return f(*args, **kwargs)
+        except Exception:
+            status = 'error'
+            raise
+        finally:
+            record_socket_event(
+                event_name=event_name,
+                status=status,
+                duration_seconds=time.perf_counter() - started,
+            )
 
     return wrapped
+
+
+def _current_socket_event_name(default: str) -> str:
+    try:
+        event = getattr(request, 'event', None)
+        if isinstance(event, dict):
+            return str(event.get('message') or default)
+    except RuntimeError:
+        pass
+    return str(default or 'unknown')

@@ -43,10 +43,10 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
         )
     ):
         logger.warning(
-            'Socket connect rejected by IP rate limit user_id=%s sid=%s ip=%s',
+            'Socket connect rejected by IP rate limit user_id=%s sid=%s ip_present=%s',
             uid,
             request_sid,
-            remote_ip or '-',
+            bool(remote_ip),
         )
         raise connection_refused_error_cls('connect rate limit exceeded')
 
@@ -91,7 +91,7 @@ def handle_connect_event(  # noqa: PLR0913 - dependency-injected socket handler 
 
         join_room_func(pub)
         join_room_func(user_room)
-        logger.info('User %s connected (sid: %s). Total connected tabs: %s', uid, request_sid, total)
+        logger.debug('User connected user_id=%s connected_tabs=%s', uid, total)
 
         delivered_rows = collect_and_mark_delivered_func(conn, uid)
         if delivered_rows:
@@ -192,10 +192,9 @@ def handle_disconnect_event(  # noqa: PLR0913 - dependency-injected socket handl
         finally:
             conn.close()
 
-    logger.info(
-        'User %s SID %s closed. connected_tabs=%s active_tabs=%s',
+    logger.debug(
+        'User disconnected user_id=%s connected_tabs=%s active_tabs=%s',
         uid,
-        request_sid,
         count_connected_func(pub),
         count_active_func(pub),
     )

@@ -73,3 +73,14 @@ jobs:
 
       - name: Dependency audit (production requirements)
         run: python manage.py pip-audit --requirements requirements-production.txt
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: server-mediasoup/package-lock.json
+
+      - name: Dependency audit (mediasoup Node service)
+        working-directory: server-mediasoup
+        run: npm audit --omit=dev --audit-level=moderate

@@ -1,7 +1,5 @@
 'use strict';
 
-const { v4: uuidv4 } = require('uuid');
-
 class Room {
   constructor(roomId, router) {
     this.roomId = roomId;

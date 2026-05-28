@@ -11,6 +11,8 @@ import logging
 import os
 import threading
 
+from app.services.logging_safety import redact_url_for_log
+
 logger = logging.getLogger(__name__)
 
 def _presence_ttl_seconds() -> int:
@@ -29,7 +31,7 @@ def _make_redis_store(redis_url: str):
 
         redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
         redis_client.ping()
-        logger.info('Presence store: using Redis (%s)', redis_url)
+        logger.info('Presence store: using Redis (%s)', redact_url_for_log(redis_url))
         return redis_client
     except Exception as exc:
         logger.warning(

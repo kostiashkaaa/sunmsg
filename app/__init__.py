@@ -15,6 +15,7 @@ from app.bootstrap.env_boot import (
     sync_runtime_environment,
 )
 from app.bootstrap.errors import register_error_handlers
+from app.bootstrap.logging_config import configure_logging
 from app.bootstrap.observability import init_sentry
 from app.bootstrap.security import (
     apply_proxy_fix_if_enabled,
@@ -34,6 +35,7 @@ from app.routes.moderation import moderation_bp
 from app.routes.spotify import spotify_bp
 from app.routes.support import support_bp
 from app.services.presence import configure_presence
+from app.services.operations_metrics import record_http_request
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ _apply_proxy_fix_if_enabled = apply_proxy_fix_if_enabled
 def create_app(config_name=None, overrides=None):
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     load_app_config(app, config_name=config_name, overrides=overrides)
+    configure_logging(app.config)
 
     configure_testing_database_schema(app, overrides=overrides)
     apply_proxy_fix_if_enabled(app)
@@ -70,6 +73,20 @@ def create_app(config_name=None, overrides=None):
     @app.before_request
     def _prepare_request_context():
         g.csp_nonce = secrets.token_urlsafe(16)
+        g.request_started_monotonic = time.perf_counter()
+
+    @app.after_request
+    def _record_request_metrics(response):
+        started = getattr(g, 'request_started_monotonic', None)
+        if started is not None and not request.path.startswith('/static/'):
+            route = request.url_rule.rule if request.url_rule is not None else 'unmatched'
+            record_http_request(
+                method=request.method,
+                route=route,
+                status_code=response.status_code,
+                duration_seconds=time.perf_counter() - float(started),
+            )
+        return response
 
     @app.before_request
     def _enforce_session_auto_logout():

@@ -11,13 +11,16 @@ Both endpoints are CSRF-exempt and bypass rate limiting; they must stay cheap.
 from __future__ import annotations
 
 import logging
+import hmac
 import os
 import time
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, Response, current_app, jsonify, request
 
+from app.db.connection import collect_pool_metrics
 from app.database import get_db_connection
 from app.extensions import limiter
+from app.services.operations_metrics import prometheus_text
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +126,7 @@ def ready():
                 'detail': redis_detail,
             },
         },
+        'pool': collect_pool_metrics(),
     }
     if not overall_ok:
         # Log once so ops can correlate with monitoring alerts.
@@ -131,3 +135,126 @@ def ready():
     response = jsonify(payload)
     response.headers['Cache-Control'] = 'no-store'
     return response, status_code
+
+
+@health_bp.route('/metrics', methods=['GET'])
+@limiter.exempt
+def metrics():
+    if not _metrics_authorized():
+        return Response('unauthorized\n', status=401, mimetype='text/plain')
+
+    body = prometheus_text(
+        db_pool_metrics=collect_pool_metrics(),
+        redis_metrics=_collect_redis_metrics(),
+        moderation_queue=_collect_moderation_queue_metrics(),
+    )
+    response = Response(body, content_type='text/plain; version=0.0.4; charset=utf-8')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+def _metrics_authorized() -> bool:
+    token = str(current_app.config.get('METRICS_TOKEN') or os.environ.get('METRICS_TOKEN') or '').strip()
+    if not token:
+        return True
+    auth_header = str(request.headers.get('Authorization') or '').strip()
+    header_token = str(request.headers.get('X-Metrics-Token') or '').strip()
+    return (
+        hmac.compare_digest(auth_header, f'Bearer {token}')
+        or hmac.compare_digest(header_token, token)
+    )
+
+
+def _collect_redis_metrics() -> dict:
+    redis_url = str(current_app.config.get('REDIS_URL') or '').strip()
+    if not redis_url:
+        return {'up': False}
+    try:
+        import redis as redis_module
+
+        client = redis_module.Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_timeout=1.0,
+            socket_connect_timeout=1.0,
+        )
+        client.ping()
+        info = client.info()
+        metrics_payload = {
+            'up': True,
+            'connected_clients': int(info.get('connected_clients') or 0),
+            'used_memory_bytes': int(info.get('used_memory') or 0),
+            'keyspace_keys': _redis_keyspace_count(info),
+            'pubsub_channels': _safe_redis_count(client.pubsub_channels),
+            'pubsub_patterns': _safe_redis_count(client.pubsub_patterns),
+            'queues': _collect_redis_queue_lengths(client),
+        }
+        return metrics_payload
+    except Exception:  # noqa: BLE001 - metrics endpoint must keep rendering
+        return {'up': False}
+
+
+def _redis_keyspace_count(info: dict) -> int:
+    total = 0
+    for key, value in info.items():
+        if not str(key).startswith('db') or not isinstance(value, dict):
+            continue
+        total += int(value.get('keys') or 0)
+    return total
+
+
+def _safe_redis_count(func) -> int:
+    try:
+        return len(func())
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _collect_redis_queue_lengths(client) -> dict[str, int]:
+    raw_patterns = str(current_app.config.get('REDIS_QUEUE_METRIC_KEYS') or '').strip()
+    if not raw_patterns:
+        return {}
+    queue_lengths: dict[str, int] = {}
+    scanned = 0
+    for pattern in [item.strip() for item in raw_patterns.split(',') if item.strip()]:
+        for key in client.scan_iter(pattern, count=100):
+            scanned += 1
+            if scanned > 1000:
+                return queue_lengths
+            queue_type = str(client.type(key) or '').lower()
+            if queue_type == 'list':
+                queue_lengths[key] = int(client.llen(key) or 0)
+            elif queue_type == 'stream':
+                queue_lengths[key] = int(client.xlen(key) or 0)
+            elif queue_type == 'zset':
+                queue_lengths[key] = int(client.zcard(key) or 0)
+            elif queue_type == 'set':
+                queue_lengths[key] = int(client.scard(key) or 0)
+    return queue_lengths
+
+
+def _collect_moderation_queue_metrics() -> dict[str, int]:
+    try:
+        conn = get_db_connection()
+        try:
+            row = conn.execute(
+                '''
+                SELECT
+                    COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+                    COUNT(*) FILTER (WHERE status = 'processing') AS processing,
+                    COUNT(*) FILTER (WHERE status = 'failed') AS failed
+                FROM moderation_jobs
+                '''
+            ).fetchone()
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        return {}
+
+    if not row:
+        return {}
+    return {
+        'pending': int(row['pending'] or 0),
+        'processing': int(row['processing'] or 0),
+        'failed': int(row['failed'] or 0),
+    }

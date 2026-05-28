@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from flask import current_app, has_app_context
 
+from app.services.logging_safety import redact_url_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,11 @@ def _get_redis_client():
         _REDIS_CLIENT = None
         _REDIS_URL = redis_url
         if _REDIS_LAST_ERROR_URL != redis_url:
-            logger.warning('Socket idempotency Redis init failed for %s: %s', redis_url, exc)
+            logger.warning(
+                'Socket idempotency Redis init failed for %s: %s',
+                redact_url_for_log(redis_url),
+                exc,
+            )
             _REDIS_LAST_ERROR_URL = redis_url
         return None
 

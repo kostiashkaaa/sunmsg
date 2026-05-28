@@ -9,7 +9,7 @@ User=sunmessenger
 Group=sunmessenger
 WorkingDirectory=/srv/sunmessenger/current
 EnvironmentFile=/srv/sunmessenger/shared/.env
-ExecStart=/srv/sunmessenger/venv/bin/python manage.py scheduler
+ExecStart=/srv/sunmessenger/current/.venv/bin/python manage.py scheduler
 Restart=always
 RestartSec=5
 

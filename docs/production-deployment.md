@@ -31,6 +31,9 @@ RATELIMIT_STORAGE_URI=redis://127.0.0.1:6379/1
 SOCKETIO_MESSAGE_QUEUE=redis://127.0.0.1:6379/2
 
 SOCKETIO_CORS_ORIGINS=https://sunmessenger.ru,https://www.sunmessenger.ru
+LOG_FORMAT=json
+METRICS_TOKEN=<prometheus-bearer-token>
+REDIS_QUEUE_METRIC_KEYS=sunmessenger:queue:*
 
 RUN_MIGRATIONS_ON_STARTUP=0
 START_SCHEDULER_IN_WEB=0
@@ -68,11 +71,24 @@ If they are not on `PATH`, set `PG_DUMP_PATH`, `PG_RESTORE_PATH`, or `CHAT_MEDIA
 
 Run each role independently:
 
-1. `python manage.py maintenance`
-2. `gunicorn --worker-class gthread --workers 2 --threads 8 --bind 127.0.0.1:8000 wsgi:app`
-3. `python manage.py scheduler`
+1. `/srv/sunmessenger/current/.venv/bin/python manage.py maintenance`
+2. `/srv/sunmessenger/current/.venv/bin/gunicorn --worker-class gthread --workers 2 --threads 8 --bind 127.0.0.1:8000 wsgi:app`
+3. `/srv/sunmessenger/current/.venv/bin/python manage.py scheduler`
 
 The web role now refuses to start in production through the embedded `socketio.run(...)` server unless `ALLOW_EMBEDDED_WEB_SERVER=1` is set explicitly.
+
+Each deploy creates a release-local `.venv` under `/srv/sunmessenger/releases/<sha>/.venv`. Rolling back the `current` symlink therefore rolls back both code and Python dependencies.
+
+## Observability
+
+`/ready` checks PostgreSQL and Redis before traffic is considered safe. `/metrics` exports Prometheus text for:
+
+- HTTP request counts, 5xx rate inputs, and handler latency.
+- Socket.IO event counts and handler latency.
+- Redis up/keyspace/pubsub/optional queue lengths from `REDIS_QUEUE_METRIC_KEYS`.
+- DB pool saturation and moderation job backlog.
+
+Set `METRICS_TOKEN` and scrape with `Authorization: Bearer <token>`. Reference alert rules live in `deploy/prometheus/sunmessenger-alerts.yml`.
 
 ## Maintenance Operations
 

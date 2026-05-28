@@ -13,6 +13,7 @@ CI runs on pull requests and pushes to `main`:
 2. run `ruff check .`
 3. run `pytest -q`
 4. run `python manage.py pip-audit --requirements requirements-production.txt`
+5. run `npm audit --omit=dev --audit-level=moderate` in `server-mediasoup/`
 
 ## CD
 

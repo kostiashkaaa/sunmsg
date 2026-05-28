@@ -8,5 +8,5 @@ User=sunmessenger
 Group=sunmessenger
 WorkingDirectory=/srv/sunmessenger/current
 EnvironmentFile=/srv/sunmessenger/shared/.env
-ExecStart=/srv/sunmessenger/venv/bin/python manage.py production-config-check --env production
+ExecStart=/srv/sunmessenger/current/.venv/bin/python manage.py production-config-check --env production
 

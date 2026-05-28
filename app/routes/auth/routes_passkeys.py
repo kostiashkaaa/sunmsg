@@ -355,7 +355,7 @@ def passkey_login_options():  # noqa: C901 - passkey login options branching by 
             user_verification=UserVerificationRequirement.REQUIRED,
         )
     except Exception as exc:
-        logger.warning('passkey_login_options failed username=%s: %s', username, exc)
+        logger.warning('passkey_login_options failed for submitted username: %s', exc)
         return jsonify({'success': False, 'error': 'Не удалось подготовить Passkey-вход для этого домена.'}), 400
 
     return jsonify({

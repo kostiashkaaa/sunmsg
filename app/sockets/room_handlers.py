@@ -45,7 +45,7 @@ def handle_join_event(  # noqa: PLR0913 - dependency-injected socket handler con
 
     if partner and block_state and not block_state['is_blocked']:
         join_room_func(chat_id)
-        logger.info('User %s joined secured room: %s', user_id, chat_id)
+        logger.debug('User joined secured room user_id=%s chat_id=%s', user_id, chat_id)
     elif partner and block_state and block_state['is_blocked']:
         emit_func(
             'chat_block_state',

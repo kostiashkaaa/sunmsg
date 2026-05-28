@@ -18,7 +18,8 @@ def test_web_service_uses_restart_after_release_symlink_switch() -> None:
     assert 'kill --signal=HUP' not in script
     assert 'run_systemctl restart sunmessenger-web.service' in script
     assert 'WorkingDirectory=/srv/sunmessenger/current' in unit
-    assert 'gunicorn' in unit
+    assert '/srv/sunmessenger/current/.venv/bin/gunicorn' in unit
+    assert 'http://127.0.0.1:8000/ready' in script
 
 
 def test_deploy_and_rollback_call_web_restart_helper() -> None:
@@ -26,6 +27,9 @@ def test_deploy_and_rollback_call_web_restart_helper() -> None:
 
     assert 'restart_web_service || true' in script
     assert '\nrestart_web_service\n' in script
+    assert 'switch_symlink_atomically "$old_target" "$CURRENT_LINK"' in script
+    assert 'switch_symlink_atomically "$RELEASE_DIR" "$CURRENT_LINK"' in script
+    assert 'VENV_DIR="$RELEASE_DIR/.venv"' in script
 
 
 def test_mediasoup_deploy_tracks_current_release_when_unit_is_installed() -> None:

@@ -1,0 +1,20 @@
+{
+  "js/socket.io.min.js": {
+    "package": "socket.io-client",
+    "version": "4.8.3",
+    "source": "vendored npm browser bundle",
+    "sha256": "ac75786c311462ab6384f7f8be11a5bff5a6534b1d274a745bcdc369fba43d92"
+  },
+  "js/jsQR.min.js": {
+    "package": "jsqr",
+    "version": "1.4.0",
+    "source": "jsDelivr minified npm bundle",
+    "sha256": "1f76f91f977bba2c44998e9929b3bfff0e102c90044c4fcfb3ebf52322fe4c99"
+  },
+  "js/qrcode.min.js": {
+    "package": "qrcodejs",
+    "version": "unknown-vendored",
+    "source": "vendored minified browser bundle without upstream version banner",
+    "sha256": "c541ef06327885a8415bca8df6071e14189b4855336def4f36db54bde8484f36"
+  }
+}

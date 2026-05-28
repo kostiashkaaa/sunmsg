@@ -84,6 +84,9 @@ class BaseConfig:
     CHAT_MEDIA_AV_SCAN_EXTENSIONS = '*'
     RATELIMIT_DEFAULT = '300 per minute'
     RATELIMIT_APPLICATION = '5000 per minute'
+    LOG_FORMAT = ''
+    METRICS_TOKEN = ''
+    REDIS_QUEUE_METRIC_KEYS = ''
     SOCKET_CONNECT_IP_LIMIT = 180
     SOCKET_CONNECT_IP_WINDOW_SECONDS = 60
     SOCKET_MAX_CONNECTIONS_PER_USER = 12
@@ -245,6 +248,12 @@ class BaseConfig:
                 'RATELIMIT_APPLICATION',
                 cls.RATELIMIT_APPLICATION,
             ),
+            'LOG_FORMAT': str(os.environ.get('LOG_FORMAT', cls.LOG_FORMAT) or '').strip(),
+            'METRICS_TOKEN': str(os.environ.get('METRICS_TOKEN', cls.METRICS_TOKEN) or '').strip(),
+            'REDIS_QUEUE_METRIC_KEYS': str(
+                os.environ.get('REDIS_QUEUE_METRIC_KEYS', cls.REDIS_QUEUE_METRIC_KEYS)
+                or ''
+            ).strip(),
             'SOCKETIO_ASYNC_MODE': socketio_async_mode,
             'SOCKETIO_MESSAGE_QUEUE': socketio_message_queue,
             'SOCKETIO_CORS_ORIGINS': os.environ.get(

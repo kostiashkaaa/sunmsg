@@ -166,7 +166,7 @@ def register_client():  # noqa: C901, PLR0915 - registration orchestration with 
             (username,),
         ).fetchone()
         if not inserted_user:
-            logger.error('register_client failed to reload inserted user username=%s', username)
+            logger.error('register_client failed to reload inserted user after commit')
             return jsonify({'success': False, 'error': 'Не удалось завершить регистрацию. Повторите попытку.'}), 500
         created_user_id = int(inserted_user['id'])
         created_user_public_key = str(inserted_user['public_key'] or '')
