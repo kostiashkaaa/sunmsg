@@ -2064,7 +2064,7 @@
         width: 100vw;
         width: 100dvw;
         height: calc(52px + env(safe-area-inset-top, 0px));
-        grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) 38px;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
         gap: 8px;
         padding-right: calc(10px + env(safe-area-inset-right, 0px));
         padding-left: calc(10px + env(safe-area-inset-left, 0px));
