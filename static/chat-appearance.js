@@ -1,6 +1,6 @@
 (function (global) {
     const STORAGE_KEY = 'sun.chatAppearance.v2';
-    const READ_TICK_BLUE = '#0b3d78';
+    const READ_TICK_BLUE = '#2563eb';
     const READ_TICK_YELLOW = '#ffd166';
     const BASE_BUBBLE_PALETTES = {
         light: { inBg: '#fffaf1', inText: '#17130d', outBg: '#2b2417', outText: '#fff4dc' },
