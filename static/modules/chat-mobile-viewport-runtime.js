@@ -99,9 +99,9 @@ export function createChatMobileViewportRuntime({
         applyComposerInputSize();
     }
 
-    function openChat() {
+    function openChat(options = {}) {
         backBtnMobile?.setAttribute('aria-hidden', 'false');
-        mobileThreadShell.openChat();
+        mobileThreadShell.openChat(options);
     }
 
     function isMobileViewport() {

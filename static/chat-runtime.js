@@ -1277,8 +1277,36 @@ export const initChatPage = async () => {
         lastActiveChatController.clearStoredLastActiveChatId(chatId);
     }
 
+    let initialChatRestoreDecisionPending = true;
+    let initialChatRestoreInFlight = false;
+    let appBootOverlayHideQueued = false;
+
+    function flushQueuedAppBootOverlayHide() {
+        if (!appBootOverlayHideQueued) return;
+        if (initialChatRestoreDecisionPending || initialChatRestoreInFlight) return;
+        appBootOverlayHideQueued = false;
+        hideAppBootOverlay({ force: true });
+    }
+
+    function releaseInitialChatRestoreDecision() {
+        initialChatRestoreDecisionPending = false;
+        flushQueuedAppBootOverlayHide();
+    }
+
+    function beginInitialChatRestore() {
+        initialChatRestoreDecisionPending = false;
+        initialChatRestoreInFlight = true;
+    }
+
+    function settleInitialChatRestore() {
+        initialChatRestoreInFlight = false;
+        flushQueuedAppBootOverlayHide();
+    }
+
     function restoreLastActiveChatSelection() {
-        return lastActiveChatController.restoreLastActiveChatSelection();
+        const restored = lastActiveChatController.restoreLastActiveChatSelection();
+        releaseInitialChatRestoreDecision();
+        return restored;
     }
 
     let appBootOverlayHidden = false;
@@ -1292,7 +1320,11 @@ export const initChatPage = async () => {
     const setHistoryLoading = (...args) => threadShell.setHistoryLoading(...args);
     const setChatStageLoading = (...args) => threadShell.setChatStageLoading(...args);
 
-    function hideAppBootOverlay() {
+    function hideAppBootOverlay({ force = false } = {}) {
+        if (!force && (initialChatRestoreDecisionPending || initialChatRestoreInFlight)) {
+            appBootOverlayHideQueued = true;
+            return;
+        }
         appBootOverlayHidden = _hideBootOverlay({
             overlay: appBootOverlay,
             isHidden: appBootOverlayHidden,
@@ -1699,8 +1731,8 @@ export const initChatPage = async () => {
         return mobileViewportRuntime?.resizeComposerInput();
     }
 
-    function openChat() {
-        return mobileViewportRuntime?.openChat();
+    function openChat(options = {}) {
+        return mobileViewportRuntime?.openChat(options);
     }
 
     function isMobileViewport() {
@@ -1885,7 +1917,7 @@ export const initChatPage = async () => {
     });
 
     showChatContent(false);
-    browserEnv.setTimeout(hideAppBootOverlay, APP_BOOT_OVERLAY_FALLBACK_DELAY_MS);
+    browserEnv.setTimeout(() => hideAppBootOverlay({ force: true }), APP_BOOT_OVERLAY_FALLBACK_DELAY_MS);
 
     function normalizeBlockState(state) {
         return _normalizeBlockState(state);
@@ -2603,6 +2635,8 @@ export const initChatPage = async () => {
         isChatBlocked,
         joinChatRoom,
         openChat,
+        onInitialChatRestoreStart: beginInitialChatRestore,
+        onInitialChatRestoreSettled: settleInitialChatRestore,
         restoreLastActiveChatSelection,
         isInitialChatRestoreDeferred: () => (
             contactsSidebarController.isInitialSyncRequired?.() === true
@@ -3748,6 +3782,7 @@ export const initChatPage = async () => {
     // \u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0441\u043F\u0438\u0441\u043A\u0430 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u043E\u0432 (debounce + \u0437\u0430\u0449\u0438\u0442\u0430 \u043E\u0442 \u043F\u0430\u0440\u0430\u043B\u043B\u0435\u043B\u044C\u043D\u044B\u0445 \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432)
     function loadContacts(options = {}) {
         if (isE2eActivationLocked()) {
+            releaseInitialChatRestoreDecision();
             hideAppBootOverlay();
             return Promise.resolve(false);
         }
@@ -3763,6 +3798,7 @@ export const initChatPage = async () => {
     const needsInitialContactsSync = contactsSidebarController.isInitialSyncRequired?.() === true
         || hasMoreInitialContacts;
     if (isE2eActivationLocked()) {
+        releaseInitialChatRestoreDecision();
         hideAppBootOverlay();
     } else if (hasSsrContacts) {
         sortContactsList();
@@ -3772,6 +3808,7 @@ export const initChatPage = async () => {
             hideAppBootOverlay();
         }
     } else {
+        releaseInitialChatRestoreDecision();
         loadContacts({
             limit: CONTACTS_BOOTSTRAP_SYNC_LIMIT,
             attemptInitialChatRestore: false,

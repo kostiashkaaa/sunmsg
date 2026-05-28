@@ -60,6 +60,8 @@ export function bindChatContactSelectionRuntime({
     isChatBlocked = () => false,
     joinChatRoom = () => {},
     openChat = () => {},
+    onInitialChatRestoreStart = () => {},
+    onInitialChatRestoreSettled = () => {},
     restoreLastActiveChatSelection = () => false,
     isInitialChatRestoreDeferred = () => false,
     isE2eActivationLocked = () => false,
@@ -137,6 +139,11 @@ export function bindChatContactSelectionRuntime({
             event?.stopPropagation?.();
             requestE2eActivation();
             return;
+        }
+
+        const isInitialRestoreActivation = contactItem.dataset?.chatInitialRestore === '1';
+        if (isInitialRestoreActivation) {
+            onInitialChatRestoreStart();
         }
 
         closeCommandPalette();
@@ -275,10 +282,15 @@ export function bindChatContactSelectionRuntime({
             loadOnlineStatus(contactId);
         }
 
-        fetchChatHistory(nextChatId).catch((error) => {
+        const historyLoad = fetchChatHistory(nextChatId).catch((error) => {
             consoleRef.error('Failed to fetch chat history:', error);
             showToast('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0438\u0441\u0442\u043E\u0440\u0438\u044E \u0447\u0430\u0442\u0430.', 'danger');
         });
+        if (isInitialRestoreActivation) {
+            historyLoad.finally(() => {
+                onInitialChatRestoreSettled();
+            });
+        }
 
         if (partnerProfileDrawer && partnerProfileDrawer.classList.contains('active')) {
             loadAndShowPartnerProfile();
@@ -296,7 +308,7 @@ export function bindChatContactSelectionRuntime({
         }
 
         if (isMobileViewport()) {
-            openChat();
+            openChat({ animated: !isInitialRestoreActivation });
         }
 
         documentRef.dispatchEvent(new CustomEvent('sun:chat:opened', {
