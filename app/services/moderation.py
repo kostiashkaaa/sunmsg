@@ -819,6 +819,7 @@ def process_next_report_job(  # noqa: PLR0913 - explicit report-job processing c
               AND attempts < ?
             ORDER BY created_at ASC
             LIMIT 1
+            FOR UPDATE SKIP LOCKED
         )
         UPDATE moderation_jobs
         SET
@@ -828,9 +829,12 @@ def process_next_report_job(  # noqa: PLR0913 - explicit report-job processing c
             locked_by = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id IN (SELECT id FROM candidate)
+          AND status IN ('pending', 'failed')
+          AND available_at <= CURRENT_TIMESTAMP
+          AND attempts < ?
         RETURNING id, report_id, attempts
         ''',
-        (max(1, int(max_attempts)), str(worker_id or 'worker')),
+        (max(1, int(max_attempts)), str(worker_id or 'worker'), max(1, int(max_attempts))),
     ).fetchone()
     if not claimed:
         conn.rollback()
@@ -1103,7 +1107,9 @@ def resolve_appeal(
             a.id,
             a.sanction_id,
             a.state,
-            s.status AS sanction_status
+            a.appellant_user_id,
+            s.status AS sanction_status,
+            s.created_by AS sanction_created_by
         FROM moderation_appeals a
         JOIN moderation_sanctions s ON s.id = a.sanction_id
         WHERE a.id = ?
@@ -1116,6 +1122,21 @@ def resolve_appeal(
     current_state = str(appeal['state'] or '')
     if current_state not in {'submitted', 'in_review'}:
         raise ValueError('appeal_already_resolved')
+
+    # Four-eyes principle: the moderator who issued the sanction cannot
+    # adjudicate its appeal, and the appellant cannot review their own
+    # appeal. `sanction_created_by` is formatted as 'moderator:<id>' (see
+    # apply_case_action/apply_manual_user_action) or starts with 'system:'.
+    sanction_creator = str(appeal['sanction_created_by'] or '')
+    if sanction_creator.startswith('moderator:'):
+        try:
+            creator_id = int(sanction_creator.split(':', 1)[1])
+        except (ValueError, IndexError):
+            creator_id = 0
+        if creator_id and creator_id == int(reviewer_user_id):
+            raise ValueError('reviewer_is_sanction_author')
+    if int(appeal['appellant_user_id']) == int(reviewer_user_id):
+        raise ValueError('reviewer_is_appellant')
 
     now_ts = to_db_timestamp(utc_now())
     conn.execute(
@@ -1194,6 +1215,15 @@ def apply_case_action(  # noqa: PLR0913 - explicit case-action contract
     action = str(action_type or '').strip().lower()
     if not action:
         raise ValueError('action_type_required')
+
+    # Anti-self guard: a moderator cannot act on themselves through a case,
+    # whether the subject is a plain user or a group_member tuple.
+    if subject_type == 'user' and subject_id == str(int(moderator_user_id)):
+        raise ValueError('cannot_action_self')
+    if subject_type == GROUP_MEMBER_SUBJECT_TYPE:
+        parsed_subject = parse_group_member_subject_id(subject_id)
+        if parsed_subject and int(parsed_subject[1]) == int(moderator_user_id):
+            raise ValueError('cannot_action_self')
 
     now = utc_now()
     expires_at = None
@@ -1302,6 +1332,17 @@ def apply_manual_user_action(  # noqa: PLR0913 - explicit manual-action contract
     safe_target_user_id = parse_int(target_user_id, min_value=1)
     if safe_target_user_id is None:
         raise ValueError('invalid_target_user_id')
+
+    # Anti-self guard: no moderator may sanction their own account through
+    # the manual flow. CLI-level RBAC changes remain the only escape hatch.
+    if int(safe_target_user_id) == int(moderator_user_id):
+        raise ValueError('cannot_action_self')
+
+    # Anti-coworker guard: moderators cannot sanction other moderators via
+    # this endpoint. Senior moderator vs. peer hierarchy lives outside this
+    # function; it must intervene at the CLI/role-management layer first.
+    if has_user_role(conn, user_id=int(safe_target_user_id), role=MODERATOR_ROLE):
+        raise ValueError('cannot_action_moderator')
 
     user_row = conn.execute(
         '''

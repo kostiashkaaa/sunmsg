@@ -144,6 +144,11 @@ async function importPrivateKeyForDecryption(pem) {
     if (cached) return cached;
 
     const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
+    // extractable=false \u2014 once the CryptoKey lands in our cache, an attacker
+    // with same-origin XSS cannot re-export the PKCS8 via crypto.subtle.exportKey.
+    // The PEM string the caller passed in is still in JS heap until GC'd, so
+    // this is defense-in-depth, not a silver bullet \u2014 minimize PEM lifetime
+    // elsewhere (device-key.js unwraps just-in-time).
     const key = await crypto.subtle.importKey(
         "pkcs8",
         binaryDer,
@@ -151,7 +156,7 @@ async function importPrivateKeyForDecryption(pem) {
             name: CRYPTO_CONFIG.encryptAlgo,
             hash: CRYPTO_CONFIG.hashAlgo
         },
-        true,
+        false,
         ["decrypt"]
     );
     _cacheSet(KeyCache.privateDec, pem, key);
@@ -166,6 +171,7 @@ async function importPrivateKeyForSigning(pem) {
     if (cached) return cached;
 
     const binaryDer = base64ToArrayBuffer(removePemHeaderFooter(pem));
+    // extractable=false: see importPrivateKeyForDecryption for rationale.
     const key = await crypto.subtle.importKey(
         "pkcs8",
         binaryDer,
@@ -173,7 +179,7 @@ async function importPrivateKeyForSigning(pem) {
             name: CRYPTO_CONFIG.signAlgo,
             hash: CRYPTO_CONFIG.hashAlgo
         },
-        true,
+        false,
         ["sign"]
     );
     _cacheSet(KeyCache.privateSign, pem, key);

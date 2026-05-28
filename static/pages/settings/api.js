@@ -100,6 +100,15 @@ export function createSettingsApi({ withAppRoot, getCsrfToken }) {
             method: 'POST',
             json: { totp_code: totpCode },
         }, 'Не удалось обновить резервные коды.'),
+        rotateKeys: ({ newPublicKey, signature, ts, newLoginVault }) => requestSuccess('/api/keys/rotate', {
+            method: 'POST',
+            json: {
+                new_public_key: newPublicKey,
+                signature,
+                ts,
+                new_login_vault: newLoginVault || null,
+            },
+        }, 'Не удалось перевыпустить ключ.'),
         getChallenge: (username) => requestSuccess('/api/get_challenge', {
             method: 'POST',
             json: { username },

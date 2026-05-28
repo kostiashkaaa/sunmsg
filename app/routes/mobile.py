@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from flask_wtf.csrf import generate_csrf
 
 from app.database import get_db_connection
+from app.db_backend import IntegrityError
 from app.extensions import limiter, socketio
 from app.routes.contacts import fetch_contacts_for_user
 from app.services.call_feature_access import can_user_use_calls
@@ -55,6 +56,22 @@ def _session_user_id() -> int | None:
     except (TypeError, ValueError):
         return None
     return user_id if user_id > 0 else None
+
+
+def _fetch_existing_mobile_send(conn, *, sender_id: int, request_id: str):
+    normalized_request_id = str(request_id or '').strip()
+    if not normalized_request_id:
+        return None
+    return conn.execute(
+        '''
+        SELECT id, chat_id, created_at, message, message_type, is_read, is_delivered
+        FROM messages
+        WHERE sender_id = %s AND request_id = %s
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (int(sender_id), normalized_request_id),
+    ).fetchone()
 
 
 def _resolve_calls_feature(conn, *, user_id: int) -> bool:
@@ -280,15 +297,34 @@ def mobile_send():
         sender_display_name = sender_row['display_name'] if sender_row else ''
         sender_username = sender_row['username'] if sender_row else ''
 
-        cur = conn.execute(
-            '''INSERT INTO messages
-               (chat_id, sender_id, receiver_id, message, message_type, request_id)
-               VALUES (%s, %s, %s, %s, %s, %s)
-               RETURNING id, created_at''',
-            (chat_id, user_id, receiver_id, message, message_type, request_id or None),
-        )
-        row = cur.fetchone()
-        conn.commit()
+        duplicate = False
+        row = _fetch_existing_mobile_send(conn, sender_id=user_id, request_id=request_id)
+        if row is not None:
+            conn.rollback()
+            duplicate = True
+            chat_id = row['chat_id']
+            message = row['message']
+            message_type = row['message_type']
+        else:
+            try:
+                cur = conn.execute(
+                    '''INSERT INTO messages
+                       (chat_id, sender_id, receiver_id, message, message_type, request_id)
+                       VALUES (%s, %s, %s, %s, %s, %s)
+                       RETURNING id, created_at, is_read, is_delivered''',
+                    (chat_id, user_id, receiver_id, message, message_type, request_id or None),
+                )
+                row = cur.fetchone()
+                conn.commit()
+            except IntegrityError:
+                conn.rollback()
+                row = _fetch_existing_mobile_send(conn, sender_id=user_id, request_id=request_id)
+                if row is None:
+                    raise
+                duplicate = True
+                chat_id = row['chat_id']
+                message = row['message']
+                message_type = row['message_type']
         msg_id = row['id']
         created_at = row['created_at']
     except Exception:
@@ -306,20 +342,23 @@ def mobile_send():
         'sender_username': sender_username,
         'message': message,
         'message_type': message_type,
-        'is_read': False,
-        'is_delivered': False,
+        'is_read': bool(row['is_read']),
+        'is_delivered': bool(row['is_delivered']),
         'created_at': _to_unix(created_at),
         'request_id': request_id,
         'reply_to_id': None,
         'reactions': [],
         'expires_at': None,
     }
+    if duplicate:
+        payload['duplicate'] = True
 
-    # Broadcast to the receiver's Socket.IO room (public key room)
-    if receiver_pub:
-        socketio.emit('receive_message', payload, room=receiver_pub)
-    # Echo back to sender so other sessions update
-    if sender_pub and sender_pub != receiver_pub:
-        socketio.emit('message_sent', payload, room=sender_pub)
+    if not duplicate:
+        # Broadcast to the receiver's Socket.IO room (public key room)
+        if receiver_pub:
+            socketio.emit('receive_message', payload, room=receiver_pub)
+        # Echo back to sender so other sessions update
+        if sender_pub and sender_pub != receiver_pub:
+            socketio.emit('message_sent', payload, room=sender_pub)
 
     return jsonify({'success': True, 'message': payload})

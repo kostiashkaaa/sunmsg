@@ -130,7 +130,6 @@ def create_app(config_name=None, overrides=None):
     app.register_blueprint(health_bp)
     csrf.exempt(health_bp)  # Probes are unauthenticated GETs; CSRF is not applicable
     app.register_blueprint(mobile_bp)
-    csrf.exempt(mobile_bp)  # Mobile API uses session-cookie auth; CSRF via header is optional
     app.register_blueprint(moderation_bp)
     app.register_blueprint(spotify_bp)
     app.register_blueprint(support_bp)

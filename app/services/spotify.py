@@ -50,6 +50,13 @@ _SCOPES = (
 VALID_PRIVACY_VALUES = frozenset({'all', 'contacts', 'nobody'})
 
 
+def _rollback_read_transaction(conn) -> None:
+    try:
+        conn.rollback()
+    except Exception:  # noqa: BLE001
+        logger.debug('Spotify read transaction rollback failed', exc_info=True)
+
+
 # ---------------------------------------------------------------------------
 # OAuth helpers
 # ---------------------------------------------------------------------------
@@ -224,11 +231,13 @@ def poll_and_update(conn, user_id: int, client_id: str, client_secret: str) -> d
     )
     row = cur.fetchone()
     if row is None:
+        _rollback_read_transaction(conn)
         return None
 
     access_token = row['access_token']
     refresh_token = row['refresh_token']
     expires_at = int(row['expires_at'] or 0)
+    _rollback_read_transaction(conn)
 
     if time.time() >= expires_at:
         try:
@@ -421,9 +430,11 @@ def _get_valid_token(conn, user_id: int, client_id: str, client_secret: str) -> 
     )
     row = cur.fetchone()
     if row is None:
+        _rollback_read_transaction(conn)
         return None
     access_token = row['access_token']
     expires_at = int(row['expires_at'] or 0)
+    _rollback_read_transaction(conn)
     if time.time() >= expires_at:
         try:
             token_data = _refresh_access_token(client_id, client_secret, row['refresh_token'])

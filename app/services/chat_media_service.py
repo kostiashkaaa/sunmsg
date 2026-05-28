@@ -3,6 +3,11 @@ import uuid
 
 from app.db_backend import DatabaseError
 from app.services.av_scan import AVScanError
+from app.services.image_sanitizer import (
+    ImageSanitizationError,
+    is_sanitizable_extension,
+    sanitize_inplace,
+)
 from app.services.user_privacy import can_send_direct_message
 
 
@@ -58,7 +63,7 @@ def _close_connection_and_return(conn, result, should_close: bool):
 def _voice_upload_forbidden_result():
     return {
         'status': 'forbidden',
-        'error': '???????????? ???????? ????????? ?????????.',
+        'error': 'Голосовые сообщения временно недоступны.',
         'code': 403,
     }
 
@@ -96,23 +101,49 @@ def upload_avatar_for_user(  # noqa: PLR0913 - dependency-injected avatar upload
 
     filename = f"{uuid.uuid4().hex}.{ext}"
     filepath = os.path.join(upload_folder, filename)
-    uploaded_file.save(filepath)
-
     avatar_url = f'/static/avatars/{filename}'
+    old_path = ''
 
-    old = conn.execute('SELECT avatar_url FROM users WHERE id = ?', (user_id,)).fetchone()
-    if old and old['avatar_url']:
-        old_path = os.path.join(project_root, old['avatar_url'].lstrip('/'))
-        delete_file_quietly(old_path)
+    try:
+        uploaded_file.save(filepath)
 
-    conn.execute('UPDATE users SET avatar_url = ? WHERE id = ?', (avatar_url, user_id))
-    conn.commit()
+        # Drop EXIF/XMP/IPTC and any trailing polyglot payload by re-encoding
+        # through Pillow. Avatars are always raster images (svg is blocked
+        # upstream), so this is unconditional. `size` is the post-sanitize
+        # value because the file is rewritten in place.
+        try:
+            size = sanitize_inplace(filepath, ext=ext)
+        except ImageSanitizationError as exc:
+            delete_file_quietly(filepath)
+            reason = str(exc)
+            if reason.startswith('image_too_large'):
+                return {'status': 'invalid', 'error': 'Изображение слишком большое (более 50 МП).', 'code': 400}
+            if reason == 'pillow_not_installed':
+                # Production checklist forbids this state; treat as server error.
+                return {'status': 'invalid', 'error': 'Обработка изображений недоступна.', 'code': 500}
+            return {'status': 'invalid', 'error': 'Изображение не удалось обработать.', 'code': 400}
+
+        old = conn.execute('SELECT avatar_url FROM users WHERE id = ?', (user_id,)).fetchone()
+        if old and old['avatar_url']:
+            old_path = os.path.join(project_root, old['avatar_url'].lstrip('/'))
+
+        conn.execute('UPDATE users SET avatar_url = ? WHERE id = ?', (avatar_url, user_id))
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        delete_file_quietly(filepath)
+        raise
 
     updated = conn.execute(
         'SELECT id, username, display_name, public_key, avatar_url FROM users WHERE id = ?',
         (user_id,),
     ).fetchone()
     contacts = list_visible_contact_public_keys_func(conn, user_id)
+    if old_path:
+        delete_file_quietly(old_path)
 
     if updated:
         profile_payload = {
@@ -224,6 +255,21 @@ def upload_chat_media_for_user(  # noqa: PLR0913, C901 - dependency-injected med
     safe_name = f"{uuid.uuid4().hex}.{ext}"
     path = os.path.join(chat_media_folder, safe_name)
     uploaded_file.save(path)
+
+    # Strip EXIF/XMP/IPTC and any trailing payload for raster image uploads.
+    # Non-image media (audio/video/docs) skip this step — they need format-
+    # specific scrubbing handled by the AV scanner.
+    if is_sanitizable_extension(ext):
+        try:
+            size = sanitize_inplace(path, ext=ext)
+        except ImageSanitizationError as exc:
+            delete_file_quietly(path)
+            reason = str(exc)
+            if reason.startswith('image_too_large'):
+                return {'status': 'invalid', 'error': 'Изображение слишком большое (более 50 МП).', 'code': 400}
+            if reason == 'pillow_not_installed':
+                return {'status': 'invalid', 'error': 'Обработка изображений недоступна.', 'code': 500}
+            return {'status': 'invalid', 'error': 'Изображение не удалось обработать.', 'code': 400}
 
     scan_extensions = _normalize_scan_extensions(av_scan_extensions)
     should_scan_this_file = av_scan_enabled and ('*' in scan_extensions or ext in scan_extensions)

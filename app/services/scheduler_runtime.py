@@ -2,6 +2,7 @@ import logging
 import time
 from threading import Lock
 
+from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_socketio import SocketIO
 
@@ -20,6 +21,7 @@ _spotify_poll_client_id = ''
 _spotify_poll_client_secret = ''
 _spotify_socket_message_queue = ''
 _spotify_socket_publisher = None
+_SCHEDULER_LOCK_PREFIX = 'sunscheduler:'
 
 
 def _configure_spotify_polling(config=None) -> int:
@@ -169,38 +171,109 @@ def cleanup_dialog_keys():
         conn.close()
 
 
+def _row_bool(row, key: str) -> bool:
+    if row is None:
+        return False
+    try:
+        return bool(row[key])
+    except (KeyError, TypeError):
+        try:
+            return bool(row[0])
+        except (IndexError, TypeError):
+            return False
+
+
+def _run_singleton_scheduler_job(job_id: str, job_func, *args, **kwargs):
+    lock_name = f'{_SCHEDULER_LOCK_PREFIX}{job_id}'
+    conn = get_db_connection(request_scoped=False)
+    locked = False
+    try:
+        row = conn.execute(
+            'SELECT pg_try_advisory_lock(hashtext(?)) AS locked',
+            (lock_name,),
+        ).fetchone()
+        locked = _row_bool(row, 'locked')
+        if not locked:
+            logger.info('Scheduler job skipped because another process holds the lock: %s', job_id)
+            return None
+        return job_func(*args, **kwargs)
+    except Exception:
+        logger.exception('Scheduler job failed: %s', job_id)
+        raise
+    finally:
+        if locked:
+            try:
+                conn.execute(
+                    'SELECT pg_advisory_unlock(hashtext(?))',
+                    (lock_name,),
+                ).fetchone()
+            except Exception:
+                logger.exception('Scheduler job lock release failed: %s', job_id)
+        conn.close()
+
+
+def _log_scheduler_event(event):
+    if event.code == EVENT_JOB_ERROR:
+        logger.error(
+            'Scheduler job error: job_id=%s scheduled_at=%s exception=%r traceback=%s',
+            event.job_id,
+            getattr(event, 'scheduled_run_time', None),
+            getattr(event, 'exception', None),
+            getattr(event, 'traceback', None),
+        )
+        return
+    if event.code == EVENT_JOB_MISSED:
+        logger.warning(
+            'Scheduler job missed: job_id=%s scheduled_at=%s',
+            event.job_id,
+            getattr(event, 'scheduled_run_time', None),
+        )
+
+
 def create_scheduler(config=None):
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(
+        job_defaults={
+            'coalesce': True,
+            'max_instances': 1,
+            'misfire_grace_time': 60,
+        },
+    )
+    scheduler.add_listener(_log_scheduler_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED)
     scheduler.add_job(
-        func=cleanup_dialog_keys,
+        func=_run_singleton_scheduler_job,
+        args=('cleanup_dialog_keys', cleanup_dialog_keys),
         trigger='interval',
         seconds=60,
         id='cleanup_dialog_keys',
         replace_existing=True,
     )
     scheduler.add_job(
-        func=cleanup_expired_refresh,
+        func=_run_singleton_scheduler_job,
+        args=('cleanup_refresh_tokens', cleanup_expired_refresh),
         trigger='interval',
         hours=6,
         id='cleanup_refresh_tokens',
         replace_existing=True,
     )
     scheduler.add_job(
-        func=cleanup_disappearing_messages_realtime,
+        func=_run_singleton_scheduler_job,
+        args=('cleanup_disappearing_messages', cleanup_disappearing_messages_realtime),
         trigger='interval',
         seconds=30,
         id='cleanup_disappearing_messages',
         replace_existing=True,
     )
     scheduler.add_job(
-        func=cleanup_stale_ringing_calls,
+        func=_run_singleton_scheduler_job,
+        args=('cleanup_stale_ringing_calls', cleanup_stale_ringing_calls),
         trigger='interval',
         seconds=60,
         id='cleanup_stale_ringing_calls',
         replace_existing=True,
     )
     scheduler.add_job(
-        func=cleanup_soft_deleted_messages,
+        func=_run_singleton_scheduler_job,
+        args=('cleanup_soft_deleted_messages', cleanup_soft_deleted_messages),
         trigger='interval',
         hours=6,
         id='cleanup_soft_deleted_messages',
@@ -209,7 +282,8 @@ def create_scheduler(config=None):
     poll_interval = _configure_spotify_polling(config)
     if _spotify_poll_client_id and _spotify_poll_client_secret:
         scheduler.add_job(
-            func=poll_spotify_now_playing,
+            func=_run_singleton_scheduler_job,
+            args=('poll_spotify_now_playing', poll_spotify_now_playing),
             trigger='interval',
             seconds=poll_interval,
             id='poll_spotify_now_playing',

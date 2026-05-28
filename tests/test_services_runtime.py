@@ -752,7 +752,12 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
         'cleanup_stale_ringing_calls',
         'cleanup_soft_deleted_messages',
     }
-    assert scheduler.get_job('cleanup_disappearing_messages').func is scheduler_runtime.cleanup_disappearing_messages_realtime
+    disappearing_job = scheduler.get_job('cleanup_disappearing_messages')
+    assert disappearing_job.func is scheduler_runtime._run_singleton_scheduler_job
+    assert disappearing_job.args == (
+        'cleanup_disappearing_messages',
+        scheduler_runtime.cleanup_disappearing_messages_realtime,
+    )
 
     spotify_scheduler = scheduler_runtime.create_scheduler({
         'SPOTIFY_CLIENT_ID': 'spotify-client',
@@ -808,6 +813,54 @@ def test_scheduler_cleanup_and_runtime(monkeypatch, tmp_path):
 
     scheduler_runtime.run_scheduler_forever('testing')
     assert fake_runtime_scheduler.shutdown_calls == [False]
+
+
+def test_scheduler_singleton_job_uses_advisory_lock(monkeypatch):
+    calls = []
+    queries = []
+
+    class QueryResult:
+        def __init__(self, row=None):
+            self.row = row
+
+        def fetchone(self):
+            return self.row
+
+    class FakeConn:
+        def __init__(self, lock_value):
+            self.lock_value = lock_value
+            self.closed = False
+
+        def execute(self, sql, params=()):
+            queries.append((sql, params))
+            if 'pg_try_advisory_lock' in sql:
+                return QueryResult({'locked': self.lock_value})
+            return QueryResult()
+
+        def close(self):
+            self.closed = True
+
+    locked_conn = FakeConn(True)
+    monkeypatch.setattr(scheduler_runtime, 'get_db_connection', lambda **_kwargs: locked_conn)
+
+    result = scheduler_runtime._run_singleton_scheduler_job('job-a', lambda value: calls.append(value) or 'done', 7)
+
+    assert result == 'done'
+    assert calls == [7]
+    assert any('pg_advisory_unlock' in sql for sql, _params in queries)
+    assert locked_conn.closed is True
+
+    calls.clear()
+    queries.clear()
+    unlocked_conn = FakeConn(False)
+    monkeypatch.setattr(scheduler_runtime, 'get_db_connection', lambda **_kwargs: unlocked_conn)
+
+    result = scheduler_runtime._run_singleton_scheduler_job('job-a', lambda: calls.append('ran'))
+
+    assert result is None
+    assert calls == []
+    assert not any('pg_advisory_unlock' in sql for sql, _params in queries)
+    assert unlocked_conn.closed is True
 
 
 def test_scheduler_disappearing_cleanup_broadcasts_realtime(monkeypatch):

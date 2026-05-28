@@ -17,7 +17,6 @@ import time
 from flask import Blueprint, current_app, jsonify
 
 from app.database import get_db_connection
-from app.db.connection import collect_pool_metrics
 from app.extensions import limiter
 
 logger = logging.getLogger(__name__)
@@ -41,11 +40,12 @@ def _check_database(timeout_seconds: float = 2.0) -> tuple[bool, str]:
             conn.execute('SELECT 1').fetchone()
         finally:
             conn.close()
-    except Exception as exc:  # noqa: BLE001 — probe must not raise
-        return False, f'{type(exc).__name__}: {exc}'
+    except Exception:  # noqa: BLE001 — probe must not raise
+        logger.warning('Readiness database check failed', exc_info=True)
+        return False, 'unavailable'
     elapsed = time.monotonic() - started
     if elapsed > timeout_seconds:
-        return False, f'slow ({elapsed:.2f}s > {timeout_seconds:.2f}s)'
+        return False, 'slow'
     return True, f'{elapsed * 1000:.0f}ms'
 
 
@@ -64,9 +64,12 @@ def _check_redis(timeout_seconds: float = 2.0) -> tuple[bool | None, str]:
             socket_connect_timeout=timeout_seconds,
         )
         client.ping()
-    except Exception as exc:  # noqa: BLE001
-        return False, f'{type(exc).__name__}: {exc}'
+    except Exception:  # noqa: BLE001
+        logger.warning('Readiness Redis check failed', exc_info=True)
+        return False, 'unavailable'
     elapsed = time.monotonic() - started
+    if elapsed > timeout_seconds:
+        return False, 'slow'
     return True, f'{elapsed * 1000:.0f}ms'
 
 
@@ -120,7 +123,6 @@ def ready():
                 'detail': redis_detail,
             },
         },
-        'pool': collect_pool_metrics(),
     }
     if not overall_ok:
         # Log once so ops can correlate with monitoring alerts.

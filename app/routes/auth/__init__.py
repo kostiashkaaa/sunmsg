@@ -9,6 +9,7 @@ from . import routes_register  # noqa: F401
 from . import routes_totp  # noqa: F401
 from . import routes_passkeys  # noqa: F401
 from . import routes_key_transfer  # noqa: F401
+from . import routes_key_rotation  # noqa: F401
 from . import routes_settings  # noqa: F401
 from . import routes_sessions  # noqa: F401
 from . import routes_web_push  # noqa: F401
@@ -22,6 +23,7 @@ _ROUTE_MODULES = (
     routes_totp,
     routes_passkeys,
     routes_key_transfer,
+    routes_key_rotation,
     routes_settings,
     routes_sessions,
     routes_web_push,

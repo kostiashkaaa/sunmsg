@@ -89,8 +89,8 @@ def create_call_session_locked(
     normalized_participants = _normalize_participant_ids(initiator_id, participant_ids)
     _lock_chat_for_calls(conn, chat_id)
     _lock_call_participants(conn, normalized_participants)
-    mark_missed_calls(conn, chat_id)
-    _reap_stale_active_calls(conn, chat_id)
+    mark_missed_calls(conn, chat_id, commit=False)
+    _reap_stale_active_calls(conn, chat_id, commit=False)
     if get_active_call_in_chat(conn, chat_id) is not None:
         conn.commit()
         return None
@@ -308,7 +308,7 @@ def cancel_call(conn, call_id: str) -> bool:
     return updated.rowcount > 0
 
 
-def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
+def mark_missed_calls(conn, chat_id: str | None = None, *, commit: bool = True) -> list[str]:
     """Mark ringing calls older than timeout as missed. Returns list of affected call_ids."""
     cutoff = (
         datetime.now(timezone.utc) - timedelta(seconds=_CALL_RING_TIMEOUT_SECONDS)
@@ -351,12 +351,12 @@ def mark_missed_calls(conn, chat_id: str | None = None) -> list[str]:
         call = get_call_session(conn, call_id)
         if call:
             _create_call_log_message_for_call(conn, call, commit=False)
-    if affected:
+    if affected and commit:
         conn.commit()
     return affected
 
 
-def _reap_stale_active_calls(conn, chat_id: str | None = None) -> list[str]:
+def _reap_stale_active_calls(conn, chat_id: str | None = None, *, commit: bool = True) -> list[str]:
     """Mark 'active' calls abandoned long ago as 'failed'. Without this an
     'active' session whose peers both vanished (closed tab, lost network)
     blocks every future call in the chat via get_active_call_in_chat()."""
@@ -395,7 +395,7 @@ def _reap_stale_active_calls(conn, chat_id: str | None = None) -> list[str]:
         call = get_call_session(conn, call_id)
         if call:
             _create_call_log_message_for_call(conn, call, commit=False)
-    if affected:
+    if affected and commit:
         conn.commit()
     return affected
 
