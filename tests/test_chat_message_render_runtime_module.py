@@ -126,6 +126,195 @@ if (frames.length === 0) {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_bottom_pinned_force_render_skips_anchor_shift_before_bottom_scroll():
+    harness_body = """
+const frames = [];
+const scrollWrites = [];
+let scrollTopValue = 120;
+
+function makeClassList(initial = []) {
+  const names = new Set(initial);
+  return {
+    add: (...items) => items.forEach((item) => names.add(item)),
+    remove: (...items) => items.forEach((item) => names.delete(item)),
+    toggle: (name, enabled) => enabled ? names.add(name) : names.delete(name),
+    contains: (name) => names.has(name),
+  };
+}
+
+function makeStyle(initialHeight = 0) {
+  let height = `${initialHeight}px`;
+  return {
+    get height() {
+      return height;
+    },
+    set height(value) {
+      height = String(value || '0px');
+    },
+    removeProperty: () => {},
+  };
+}
+
+function getNodeHeight(node) {
+  if (node?.isSpacer) return Number.parseFloat(node.style.height || '0') || 0;
+  return Number(node?.offsetHeight || 0);
+}
+
+function makeSpacer(height) {
+  const spacer = {
+    isSpacer: true,
+    style: makeStyle(height),
+    classList: makeClassList(['chat-virtual-spacer']),
+    getBoundingClientRect: () => ({ height: getNodeHeight(spacer) }),
+  };
+  return spacer;
+}
+
+function makeMessageNode(key, height) {
+  return {
+    isMessage: true,
+    offsetHeight: height,
+    classList: makeClassList(['message']),
+    style: { removeProperty: () => {} },
+    getAttribute: (name) => (name === 'data-message-key' ? key : ''),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ height }),
+  };
+}
+
+const state = {
+  initialized: true,
+  messages: [
+    { id: 1, created_at: '2026-01-01 00:00:00' },
+    { id: 2, created_at: '2026-01-01 00:01:00' },
+    { id: 3, created_at: '2026-01-01 00:02:00' },
+  ],
+  lastRenderRange: null,
+  messageHeights: new Map(),
+  averageMessageHeight: 50,
+  renderedKeys: new Set(['id:1', 'id:2', 'id:3']),
+};
+
+const topSpacer = makeSpacer(50);
+const oldSecondMessage = makeMessageNode('id:2', 100);
+const oldThirdMessage = makeMessageNode('id:3', 100);
+const bottomSpacer = makeSpacer(0);
+
+const documentRef = {
+  createDocumentFragment: () => ({
+    children: [],
+    appendChild(node) {
+      if (node) this.children.push(node);
+      return node;
+    },
+  }),
+};
+
+const chatMessages = {
+  clientHeight: 100,
+  childNodes: [topSpacer, oldSecondMessage, oldThirdMessage, bottomSpacer],
+  classList: { contains: () => false },
+  get scrollTop() {
+    return scrollTopValue;
+  },
+  set scrollTop(value) {
+    scrollTopValue = value;
+    scrollWrites.push(value);
+  },
+  get scrollHeight() {
+    return this.childNodes.reduce((total, node) => total + getNodeHeight(node), 0);
+  },
+  get firstElementChild() {
+    return this.childNodes[0] || null;
+  },
+  get lastElementChild() {
+    return this.childNodes[this.childNodes.length - 1] || null;
+  },
+  contains(node) {
+    return this.childNodes.includes(node);
+  },
+  querySelector: () => null,
+  querySelectorAll(selector) {
+    if (selector === '.message[data-message-key]') {
+      return this.childNodes.filter((node) => node?.isMessage);
+    }
+    if (selector === '.chat-virtual-spacer') {
+      return this.childNodes.filter((node) => node?.isSpacer);
+    }
+    return [];
+  },
+  insertBefore(node, before) {
+    const currentIndex = this.childNodes.indexOf(node);
+    if (currentIndex >= 0) this.childNodes.splice(currentIndex, 1);
+    const beforeIndex = before ? this.childNodes.indexOf(before) : -1;
+    if (beforeIndex >= 0) this.childNodes.splice(beforeIndex, 0, node);
+    else this.childNodes.push(node);
+    return node;
+  },
+  removeChild(node) {
+    const index = this.childNodes.indexOf(node);
+    if (index >= 0) this.childNodes.splice(index, 1);
+    return node;
+  },
+};
+
+function estimatedHeight(msg) {
+  return state.messageHeights.get(`id:${msg.id}`) || state.averageMessageHeight;
+}
+
+const runtime = moduleApi.createChatMessageRenderRuntime({
+  documentRef,
+  requestAnimationFrameFn: (callback) => {
+    frames.push(callback);
+    return frames.length;
+  },
+  cancelAnimationFrameFn: () => {},
+  getCurrentChatId: () => 'chat-1',
+  getCurrentContactId: () => 'contact-1',
+  getChatMessages: () => chatMessages,
+  getChatState: () => state,
+  getMessageKey: (msg) => `id:${msg.id}`,
+  getMessageDayKey: () => '',
+  sumEstimatedHeights: (_state, start, end) => state.messages
+    .slice(start, end)
+    .reduce((total, msg) => total + estimatedHeight(msg), 0),
+  getDesiredRenderRange: () => ({ start: 1, end: 3 }),
+  createVirtualSpacer: (height) => makeSpacer(height),
+  createDaySeparatorNode: () => null,
+  messageGroup: () => ({ groupClass: 'group-single' }),
+  messageItem: (msg) => makeMessageNode(`id:${msg.id}`, 100),
+  applyMessageEnterAnimation: () => {},
+  syncMessageBubbleLayoutClasses: () => {},
+  isSelectionMode: () => false,
+  hasSelectedMessage: () => false,
+  registerMediaElementsForLazyHydration: () => {},
+  unregisterMediaElementsForLazyHydration: () => {},
+  schedulePostRenderUiRefresh: () => {},
+  saveChatScrollPosition: () => {},
+  resizeComposerInput: () => {},
+  updateChatMessagesBottomInset: () => {},
+  isMobileViewport: () => false,
+  triggerChatHistoryRevealAnimation: () => {},
+  prefersReducedMotionSetting: () => false,
+  scrollToBottom: () => {},
+  syncSavedMessagesMeta: () => {},
+});
+
+runtime.setKeepChatPinnedToBottom(true);
+runtime.renderChatMessages('chat-1', { force: true, scrollToBottom: true });
+
+if (scrollWrites.length !== 1 || scrollWrites[0] !== 200) {
+  throw new Error(`Expected one final bottom scrollTop write [200], got ${JSON.stringify(scrollWrites)}`);
+}
+if (frames.length === 0) {
+  throw new Error('Expected follow-up frame to keep bottom pinned after layout.');
+}
+"""
+    result = _run_render_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_initial_stable_render_suppresses_message_enter_animation():
     harness_body = """
 const state = {

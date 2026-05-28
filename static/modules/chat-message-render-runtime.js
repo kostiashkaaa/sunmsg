@@ -256,7 +256,7 @@ export function createChatMessageRenderRuntime({
             messageHeightObserverFrame = 0;
             if (!chatId || String(chatId) !== String(getCurrentChatId?.())) return;
             const state = getChatState?.(chatId);
-            updateVirtualSpacerHeights(state);
+            updateVirtualSpacerHeights(state, { preserveScrollAnchor: !keepChatPinnedToBottom });
             if (keepChatPinnedToBottom) {
                 setElementScrollToBottom(getCurrentMessagesElement());
             }
@@ -447,11 +447,12 @@ export function createChatMessageRenderRuntime({
         });
     }
 
-    function measureRenderedMessageHeights(state, renderedNodes = null) {
+    function measureRenderedMessageHeights(state, renderedNodes = null, options = {}) {
         const chatMessages = getCurrentMessagesElement();
         if (!chatMessages) return;
         const rendered = renderedNodes || chatMessages.querySelectorAll('.message[data-message-key]');
         if (!rendered.length) return;
+        const preserveScrollAnchor = options?.preserveScrollAnchor !== false;
 
         let totalHeight = 0;
         let count = 0;
@@ -476,7 +477,7 @@ export function createChatMessageRenderRuntime({
         }
         if (changed) {
             invalidateStateHeightIndex(state);
-            updateVirtualSpacerHeights(state);
+            updateVirtualSpacerHeights(state, { preserveScrollAnchor });
         }
     }
 
@@ -658,7 +659,15 @@ export function createChatMessageRenderRuntime({
         });
         syncSelectedMessageAdjacency(chatMessages);
         registerMediaElementsForLazyHydration?.(chatMessages);
-        measureRenderedMessageHeights(state, renderedMessageNodes);
+        const hasPendingScrollResolution = Boolean(
+            hasScrollAnchor
+            || forcedScrollTop !== null
+            || options.preserveHeightDelta
+            || options.scrollToBottom
+        );
+        measureRenderedMessageHeights(state, renderedMessageNodes, {
+            preserveScrollAnchor: !hasPendingScrollResolution,
+        });
         syncObservedMessageHeights(chatId, state);
 
         if (hasScrollAnchor) {
