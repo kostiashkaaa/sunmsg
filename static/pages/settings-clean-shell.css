@@ -806,6 +806,27 @@
 }
 
 @media (min-width: 769px) {
+    .settings-overlay > .settings-overlay-panel {
+        --settings-clean-nav-w: 236px;
+        --settings-clean-content-w: 650px;
+        --settings-clean-panel-w: calc(var(--settings-clean-nav-w) + var(--settings-clean-content-w) + 48px);
+        --settings-clean-overlay-w: min(var(--settings-clean-panel-w), calc(100vw - 48px));
+        width: var(--settings-clean-overlay-w) !important;
+        min-width: var(--settings-clean-overlay-w) !important;
+        max-width: var(--settings-clean-overlay-w) !important;
+        flex: 0 0 var(--settings-clean-overlay-w) !important;
+        box-sizing: border-box !important;
+    }
+
+    .settings-overlay-frame,
+    .settings-overlay-frame .settings-scene,
+    .settings-overlay-frame .settings-layout {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
     .settings-scene .sp-connect-btn,
     .settings-scene .sp-save-btn,
     .settings-scene .sp-disconnect-btn,
