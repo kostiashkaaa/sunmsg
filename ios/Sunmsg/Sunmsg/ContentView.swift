@@ -2704,9 +2704,7 @@ struct SettingsTransferView: View {
     }
 
     private var exportFilename: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return "sun-settings-\(formatter.string(from: Date())).json"
+        "sun-settings-\(SunDateFormatters.fileDate(from: Date())).json"
     }
 
     private func exportSettings() async {

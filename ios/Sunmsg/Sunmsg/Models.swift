@@ -328,6 +328,12 @@ enum SunDateFormatters {
         return formatter
     }()
 
+    private static let fileDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     private static func string(_ formatter: DateFormatter, from date: Date) -> String {
         lock.lock()
         defer { lock.unlock() }
@@ -370,6 +376,10 @@ enum SunDateFormatters {
 
     static func shortDate(from date: Date) -> String {
         string(shortDateFormatter, from: date)
+    }
+
+    static func fileDate(from date: Date) -> String {
+        string(fileDateFormatter, from: date)
     }
 }
 
