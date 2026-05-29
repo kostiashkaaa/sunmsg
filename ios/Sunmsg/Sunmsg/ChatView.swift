@@ -703,10 +703,14 @@ struct ChatView: View {
             partnerStopTypingTask?.cancel()
 
         case "messages_read":
-            for i in 0..<messages.count where messages[i].senderUserId == myId {
+            var changed: [ChatMessage] = []
+            for i in messages.indices where messages[i].senderUserId == myId && !messages[i].isRead {
                 messages[i].isRead = true
+                changed.append(messages[i])
             }
-            Task { await ChatLocalStore.shared.mergeMessages(messages, chatId: contact.chatId) }
+            if !changed.isEmpty {
+                Task { await ChatLocalStore.shared.mergeMessages(changed, chatId: contact.chatId) }
+            }
 
         case "message_reactions_updated":
             guard let mid = payload["message_id"] as? Int,
