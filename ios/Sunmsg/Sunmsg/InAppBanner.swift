@@ -73,13 +73,13 @@ struct InAppBannerView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(data.senderName)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                     .tracking(-0.2)
 
                 Text(data.preview)
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
                     .tracking(-0.1)
