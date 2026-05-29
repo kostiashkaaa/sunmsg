@@ -3,7 +3,7 @@ import Combine
 
 // MARK: - Session store
 
-enum AppRoute: Equatable { case loading, login, register, main }
+enum AppRoute: Hashable { case loading, login, register, main }
 
 // Call state models
 struct IncomingCallData: Equatable {
@@ -1028,19 +1028,22 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
-            switch session.route {
-            case .loading:
-                SplashView().task { await session.loadBootstrap() }
-            case .login:
-                NativeLoginView()
-            case .register:
-                NativeRegisterView()
-            case .main:
-                MainTabView()
+            Group {
+                switch session.route {
+                case .loading:
+                    SplashView().task { await session.loadBootstrap() }
+                case .login:
+                    NativeLoginView()
+                case .register:
+                    NativeRegisterView()
+                case .main:
+                    MainTabView()
+                }
             }
+            .id(session.route)
+            .transition(.opacity)
         }
         .preferredColorScheme(preferredScheme)
-        .animation(.easeInOut(duration: 0.25), value: session.route)
     }
 }
 
