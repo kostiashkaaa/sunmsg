@@ -119,18 +119,10 @@ struct InAppBannerOverlay: ViewModifier {
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .zIndex(999)
                 .padding(.top, 8)
-                // Listen for socket events
-                .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
-                    handleSocketNote(note)
-                }
-            } else {
-                // Keep the listener active even when no banner is showing
-                Color.clear
-                    .frame(width: 0, height: 0)
-                    .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
-                        handleSocketNote(note)
-                    }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
+            handleSocketNote(note)
         }
     }
 

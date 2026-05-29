@@ -2,6 +2,8 @@ import PhotosUI
 import SwiftUI
 
 struct ChatComposerBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Binding var sendError: String?
     @Binding var decryptionSummary: String?
     @Binding var composerText: String
@@ -172,8 +174,11 @@ struct ChatComposerBar: View {
             Circle()
                 .fill(Color.red)
                 .frame(width: 8, height: 8)
-                .opacity(recordingPulse ? 1.0 : 0.35)
-                .animation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true), value: recordingPulse)
+                .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
+                    value: recordingPulse
+                )
                 .onAppear { recordingPulse = true }
                 .onDisappear { recordingPulse = false }
 
@@ -257,7 +262,7 @@ struct ChatComposerBar: View {
                 composerActionButton(
                     systemName: "arrow.up",
                     fill: canSendSecureMessage ? Color.smAccent : Color.smFaint,
-                    disabled: !canSendSecureMessage && trimmedText.isEmpty,
+                    disabled: !canSendSecureMessage || trimmedText.isEmpty,
                     action: onSend
                 )
             }
