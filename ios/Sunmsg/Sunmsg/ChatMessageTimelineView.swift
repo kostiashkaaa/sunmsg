@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
 
-enum ChatScrollIntent {
+enum ChatScrollIntent: Equatable {
     case bottom(animated: Bool)
     case preserve(id: Int)
     case none
 }
 
-struct ChatMessageTimelineView: View {
+struct ChatMessageTimelineView: View, Equatable {
     let messages: [ChatMessage]
     let decryptedTexts: [Int: String]
     let myId: Int
@@ -32,8 +32,6 @@ struct ChatMessageTimelineView: View {
         let isTail: Bool
         let showsDate: Bool
     }
-
-    private let rows: [MessageRenderRow]
 
     init(
         messages: [ChatMessage],
@@ -65,12 +63,39 @@ struct ChatMessageTimelineView: View {
         self.onLoadOlder = onLoadOlder
         self.onToggleReaction = onToggleReaction
         self.onRequestMenu = onRequestMenu
-        self.rows = Self.makeRows(
-            messages: messages,
-            decryptedTexts: decryptedTexts,
-            myId: myId,
-            isGroup: isGroup
-        )
+    }
+
+    static func == (lhs: ChatMessageTimelineView, rhs: ChatMessageTimelineView) -> Bool {
+        lhs.myId == rhs.myId
+            && lhs.isGroup == rhs.isGroup
+            && lhs.hasOlderMessages == rhs.hasOlderMessages
+            && lhs.isLoading == rhs.isLoading
+            && lhs.isLoadingOlder == rhs.isLoadingOlder
+            && lhs.partnerIsTyping == rhs.partnerIsTyping
+            && lhs.menuTargetId == rhs.menuTargetId
+            && lhs.scrollIntent == rhs.scrollIntent
+            && lhs.isPinnedToBottom == rhs.isPinnedToBottom
+            && lhs.decryptedTexts == rhs.decryptedTexts
+            && Self.messagesEqual(lhs.messages, rhs.messages)
+    }
+
+    private static func messagesEqual(_ lhs: [ChatMessage], _ rhs: [ChatMessage]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        for (left, right) in zip(lhs, rhs) {
+            guard left.id == right.id,
+                  left.chatId == right.chatId,
+                  left.message == right.message,
+                  left.messageType == right.messageType,
+                  left.createdAt == right.createdAt,
+                  left.senderUserId == right.senderUserId,
+                  left.senderDisplayName == right.senderDisplayName,
+                  left.isRead == right.isRead,
+                  left.isDelivered == right.isDelivered,
+                  left.reactions == right.reactions,
+                  left.isEdited == right.isEdited
+            else { return false }
+        }
+        return true
     }
 
     private static func makeRows(
@@ -105,6 +130,14 @@ struct ChatMessageTimelineView: View {
 
     var body: some View {
         GeometryReader { viewportProxy in
+            let rows = Self.makeRows(
+                messages: messages,
+                decryptedTexts: decryptedTexts,
+                myId: myId,
+                isGroup: isGroup
+            )
+            let maxBubbleWidth = Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width)
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -121,7 +154,7 @@ struct ChatMessageTimelineView: View {
                                 isFromMe: row.isFromMe,
                                 showSender: row.showSender,
                                 isTail: row.isTail,
-                                maxBubbleWidth: Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width),
+                                maxBubbleWidth: maxBubbleWidth,
                                 onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
                                 onRequestMenu: { onRequestMenu(row.id) }
                             )

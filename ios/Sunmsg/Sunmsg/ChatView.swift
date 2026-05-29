@@ -31,6 +31,7 @@ struct ChatView: View {
     @State private var recordingURL: URL? = nil
     @State private var recordingDuration: TimeInterval = 0
     @State private var recordingTimerTask: Task<Void, Never>? = nil
+    @State private var recordingStartToken = UUID()
     @State private var scrollIntent: ChatScrollIntent = .bottom(animated: false)
     @State private var isPinnedToBottom = true
     @State private var draftSaveTask: Task<Void, Never>? = nil
@@ -129,6 +130,7 @@ struct ChatView: View {
                 await slowPollLoop()
             }
             .onAppear {
+                ChatHaptics.prepare()
                 refreshPrivateKeyState()
                 session.activeChatId = contact.chatId
                 session.clearUnread(chatId: contact.chatId)
@@ -302,6 +304,7 @@ struct ChatView: View {
                     isFromMe: isFromMe,
                     showSender: !isFromMe && contact.isGroup,
                     isTail: true,
+                    maxBubbleWidth: rect.width,
                     isPreview: true
                 )
                 .frame(width: rect.width)
@@ -331,9 +334,9 @@ struct ChatView: View {
             ForEach(reactionEmojis, id: \.self) { emoji in
                 let active = current.contains { $0.emoji == emoji && $0.reactedByMe }
                 Button(action: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     toggleReaction(messageId: messageId, emoji: emoji)
                     dismissMenu()
+                    ChatHaptics.lightImpact()
                 }) {
                     Text(emoji)
                         .font(.system(size: 27))
@@ -383,12 +386,8 @@ struct ChatView: View {
             let isMine = isFromMe
             dismissMenu()
             deleteDialogTask?.cancel()
-            deleteDialogTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 180_000_000)
-                guard !Task.isCancelled else { return }
-                deleteDialogTask = nil
-                pendingDelete = PendingDelete(id: msg.id, isFromMe: isMine)
-            }
+            deleteDialogTask = nil
+            pendingDelete = PendingDelete(id: msg.id, isFromMe: isMine)
         })
         return items
     }
@@ -433,11 +432,11 @@ struct ChatView: View {
     }
 
     private func presentMenu(for messageId: Int) {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         composerFocused = false
         withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
             menuTargetId = messageId
         }
+        ChatHaptics.mediumImpact()
     }
 
     private func dismissMenu() {
@@ -534,6 +533,7 @@ struct ChatView: View {
             onToggleReaction: { messageId, emoji in toggleReaction(messageId: messageId, emoji: emoji) },
             onRequestMenu: { messageId in presentMenu(for: messageId) }
         )
+        .equatable()
     }
 
     private func shouldAutoScroll(for msg: ChatMessage) -> Bool {
@@ -826,7 +826,10 @@ struct ChatView: View {
     // MARK: - Decryption
 
     private func decryptMessages(_ msgs: [ChatMessage]) async {
-        guard let pem = KeychainService.loadPrivateKey() else {
+        let pem = await Task.detached(priority: .userInitiated) {
+            KeychainService.loadPrivateKey()
+        }.value
+        guard let pem else {
             // Mark every encrypted message with a clear sentinel so the UI never
             // gets stuck on the default "🔐 Encrypted message" placeholder.
             await MainActor.run {
@@ -841,7 +844,7 @@ struct ChatView: View {
         }
         var unresolvedCount = 0
         var v3Msgs: [ChatMessage] = []
-        var decryptedUpdates: [Int: String] = [:]
+        var pendingV2: [(id: Int, json: String, isSelf: Bool)] = []
 
         for msg in msgs where msg.isEncrypted {
             guard decryptedTexts[msg.id] == nil, let json = msg.message else { continue }
@@ -849,35 +852,50 @@ struct ChatView: View {
                 v3Msgs.append(msg)
                 continue
             }
-            let text = SunCrypto.decryptMessageForDisplay(json, isSelf: msg.senderUserId == myId, privateKeyPEM: pem)
-            let id = msg.id
-
-            // ── Critical: ALWAYS populate decryptedTexts so the UI never shows the
-            // default "🔐 Encrypted message" fallback.
-            if text.isEmpty {
-                // Decryption returned nothing — write an unambiguous placeholder.
-                decryptedUpdates[id] = "[пустое сообщение]"
-                unresolvedCount += 1
-            } else if text == json {
-                // Payload didn't match v2 schema and isn't v3. Common causes:
-                // unknown envelope format, or unencrypted JSON (e.g. raw __sunfile)
-                // that happens to start with `{`. Show the raw content if it parses
-                // as a sunfile, otherwise mark as unrecognized.
-                if let _ = parseLegacySunfileMarker(json) {
-                    decryptedUpdates[id] = json
-                } else {
-                    decryptedUpdates[id] = "[неизвестный формат]"
-                    unresolvedCount += 1
-                }
-            } else {
-                if text.hasPrefix("[") { unresolvedCount += 1 }
-                decryptedUpdates[id] = text
-            }
+            pendingV2.append((id: msg.id, json: json, isSelf: msg.senderUserId == myId))
         }
 
-        if !decryptedUpdates.isEmpty {
+        let v2Result = await Task.detached(priority: .userInitiated) {
+            var updates: [Int: String] = [:]
+            var failed = 0
+
+            for item in pendingV2 {
+                let text = SunCrypto.decryptMessageForDisplay(
+                    item.json,
+                    isSelf: item.isSelf,
+                    privateKeyPEM: pem
+                )
+
+                // Critical: ALWAYS populate decryptedTexts so the UI never shows the
+                // default "🔐 Encrypted message" fallback.
+                if text.isEmpty {
+                    updates[item.id] = "[пустое сообщение]"
+                    failed += 1
+                } else if text == item.json {
+                    // Payload didn't match v2 schema and isn't v3. Common causes:
+                    // unknown envelope format, or unencrypted JSON (e.g. raw __sunfile)
+                    // that happens to start with `{`. Show the raw content if it parses
+                    // as a sunfile, otherwise mark as unrecognized.
+                    if Self.parseLegacySunfileMarker(item.json) != nil {
+                        updates[item.id] = item.json
+                    } else {
+                        updates[item.id] = "[неизвестный формат]"
+                        failed += 1
+                    }
+                } else {
+                    if text.hasPrefix("[") { failed += 1 }
+                    updates[item.id] = text
+                }
+            }
+
+            return (updates: updates, failed: failed)
+        }.value
+
+        unresolvedCount += v2Result.failed
+
+        if !v2Result.updates.isEmpty {
             await MainActor.run {
-                decryptedTexts.merge(decryptedUpdates) { _, new in new }
+                decryptedTexts.merge(v2Result.updates) { _, new in new }
             }
         }
 
@@ -896,7 +914,7 @@ struct ChatView: View {
     }
 
     /// Quick check: is this JSON a __sunfile envelope (regardless of encryption)?
-    private func parseLegacySunfileMarker(_ text: String) -> Bool? {
+    private static func parseLegacySunfileMarker(_ text: String) -> Bool? {
         guard let data = text.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }
@@ -904,7 +922,6 @@ struct ChatView: View {
         if obj["url"] is String, obj["mime"] is String { return true }
         return nil
     }
-
     private func decryptV3Messages(_ msgs: [ChatMessage], chatId: String, peerUserId: Int?) async -> Int {
         let sessionJSON: String?
         do { sessionJSON = try await session.api.getDRSession(chatId: chatId) }
@@ -1188,16 +1205,12 @@ struct ChatView: View {
     private func beginEdit(message: ChatMessage, currentText: String) {
         dismissMenu()
         editFocusTask?.cancel()
+        editFocusTask = nil
         withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
             editingMessageId = message.id
             composerText = currentText
         }
-        editFocusTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            guard !Task.isCancelled else { return }
-            editFocusTask = nil
-            composerFocused = true
-        }
+        composerFocused = true
     }
 
     private func cancelEdit() {
@@ -1272,14 +1285,6 @@ struct ChatView: View {
         if editingMessageId != nil { saveEdit(); return }
         let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isSending else { return }
-        if contact.isGroup {
-            sendGroupText(text)
-            return
-        }
-        guard let privateKey = KeychainService.loadPrivateKey(), !contact.publicKey.isEmpty, !myPublicKey.isEmpty else {
-            sendError = "Ключ шифрования не загружен. Войдите заново по секретной фразе."
-            return
-        }
 
         isSending = true
         let requestId = UUID().uuidString
@@ -1288,16 +1293,36 @@ struct ChatView: View {
         typingDebounceTask?.cancel()
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
+        if contact.isGroup {
+            sendGroupText(text, requestId: requestId)
+            return
+        }
+
+        let chatId = contact.chatId
+        let receiverPEM = contact.publicKey
+        let senderPEM = myPublicKey
+
         Task {
             do {
-                let encrypted = try SunCrypto.encryptMessage(
-                    text,
-                    receiverPEM: contact.publicKey,
-                    senderPEM: myPublicKey,
-                    privateKeyPEM: privateKey
-                )
+                let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                    guard let privateKey = KeychainService.loadPrivateKey(),
+                          !receiverPEM.isEmpty,
+                          !senderPEM.isEmpty else {
+                        throw NSError(
+                            domain: "sunmsg.crypto",
+                            code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен. Войдите заново по секретной фразе."]
+                        )
+                    }
+                    return try SunCrypto.encryptMessage(
+                        text,
+                        receiverPEM: receiverPEM,
+                        senderPEM: senderPEM,
+                        privateKeyPEM: privateKey
+                    )
+                }.value
                 let sent = try await APIClient.shared.sendMessage(
-                    chatId: contact.chatId,
+                    chatId: chatId,
                     message: encrypted,
                     requestId: requestId
                 )
@@ -1322,21 +1347,22 @@ struct ChatView: View {
         }
     }
 
-    private func sendGroupText(_ text: String) {
-        guard let privateKey = KeychainService.loadPrivateKey(), !myPublicKey.isEmpty else {
-            sendError = "Ключ шифрования не загружен. Войдите заново по секретной фразе."
-            return
-        }
-
-        isSending = true
-        let requestId = UUID().uuidString
-        composerText = ""
-        clearDraftAfterSend()
-        typingDebounceTask?.cancel()
-        SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
+    private func sendGroupText(_ text: String, requestId: String) {
+        let senderPEM = myPublicKey
 
         Task {
             do {
+                let privateKey = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                    guard let privateKey = KeychainService.loadPrivateKey(),
+                          !senderPEM.isEmpty else {
+                        throw NSError(
+                            domain: "sunmsg.crypto",
+                            code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен. Войдите заново по секретной фразе."]
+                        )
+                    }
+                    return privateKey
+                }.value
                 try await emitEncryptedGroupPayload(
                     text,
                     messageType: "text",
@@ -1362,20 +1388,24 @@ struct ChatView: View {
         privateKey: String,
         mentionedUsernames: [String] = []
     ) async throws {
-        let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
+        let chatId = contact.chatId
+        let senderPEM = myPublicKey
+        let profile = try await session.api.getGroupInfo(chatId: chatId)
         let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
         guard !memberKeys.isEmpty else {
             throw NSError(domain: "sunmsg.group", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не найдены ключи участников группы."])
         }
-        let encrypted = try SunCrypto.encryptMessageForRecipients(
-            plaintext,
-            recipientPEMs: memberKeys,
-            senderPEM: myPublicKey,
-            privateKeyPEM: privateKey
-        )
+        let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+            try SunCrypto.encryptMessageForRecipients(
+                plaintext,
+                recipientPEMs: memberKeys,
+                senderPEM: senderPEM,
+                privateKeyPEM: privateKey
+            )
+        }.value
         let payload: [String: Any] = [
             "message": encrypted,
-            "chat_id": contact.chatId,
+            "chat_id": chatId,
             "message_type": messageType,
             "client_id": requestId,
             "request_id": requestId,
@@ -1412,19 +1442,31 @@ struct ChatView: View {
     // MARK: - Voice recording
 
     private func startVoiceRecording() {
+        guard !isRecording else { return }
+        let token = UUID()
+        recordingStartToken = token
+        sendError = nil
+        audioRecorder?.stop()
+        audioRecorder = nil
+        recordingURL = nil
+        recordingDuration = 0
+        isRecording = true
+        startRecordingTimer()
+
         // AVAudioApplication.requestRecordPermission is the iOS 17+ API.
         AVAudioApplication.requestRecordPermission { granted in
             DispatchQueue.main.async {
+                guard self.recordingStartToken == token, self.isRecording else { return }
                 guard granted else {
-                    self.sendError = "Нет доступа к микрофону. Разрешите в Настройках."
+                    self.failRecordingStart("Нет доступа к микрофону. Разрешите в Настройках.")
                     return
                 }
-                self.beginRecording()
+                self.beginRecording(token: token)
             }
         }
     }
 
-    private func beginRecording() {
+    private func beginRecording(token: UUID) {
         let tmpURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice_\(UUID().uuidString)")
             .appendingPathExtension("m4a")
@@ -1435,33 +1477,80 @@ struct ChatView: View {
             AVEncoderBitRateKey: 64000,
             AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
         ]
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.record, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-            let recorder = try AVAudioRecorder(url: tmpURL, settings: settings)
-            recorder.record()
-            audioRecorder = recorder
-            recordingURL = tmpURL
-            recordingDuration = 0
-            isRecording = true
-            recordingTimerTask?.cancel()
-            recordingTimerTask = Task { @MainActor in
-                while isRecording && !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    if isRecording && !Task.isCancelled { recordingDuration += 1 }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.record, mode: .default)
+                try session.setActive(true)
+                let recorder = try AVAudioRecorder(url: tmpURL, settings: settings)
+                recorder.prepareToRecord()
+                let didStart = recorder.record()
+
+                DispatchQueue.main.async {
+                    guard self.recordingStartToken == token, self.isRecording else {
+                        recorder.stop()
+                        try? FileManager.default.removeItem(at: tmpURL)
+                        return
+                    }
+                    guard didStart else {
+                        recorder.stop()
+                        try? FileManager.default.removeItem(at: tmpURL)
+                        self.failRecordingStart("Не удалось начать запись.")
+                        return
+                    }
+                    self.audioRecorder = recorder
+                    self.recordingURL = tmpURL
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard self.recordingStartToken == token else {
+                        try? FileManager.default.removeItem(at: tmpURL)
+                        return
+                    }
+                    try? FileManager.default.removeItem(at: tmpURL)
+                    self.failRecordingStart("Не удалось начать запись.")
                 }
             }
-        } catch {
-            sendError = "Не удалось начать запись."
         }
     }
 
+    private func startRecordingTimer() {
+        recordingTimerTask?.cancel()
+        recordingTimerTask = Task { @MainActor in
+            while isRecording && !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if isRecording && !Task.isCancelled { recordingDuration += 1 }
+            }
+        }
+    }
+
+    private func stopRecordingTimer() {
+        recordingTimerTask?.cancel()
+        recordingTimerTask = nil
+    }
+
+    private func failRecordingStart(_ message: String) {
+        recordingStartToken = UUID()
+        audioRecorder?.stop()
+        audioRecorder = nil
+        if let url = recordingURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+        recordingURL = nil
+        isRecording = false
+        recordingDuration = 0
+        stopRecordingTimer()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        sendError = message
+    }
+
     private func stopAndSendRecording() {
+        recordingStartToken = UUID()
         audioRecorder?.stop()
         audioRecorder = nil
         isRecording = false
-        recordingTimerTask?.cancel()
-        recordingTimerTask = nil
+        stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = recordingURL else { return }
         recordingURL = nil
@@ -1469,11 +1558,12 @@ struct ChatView: View {
     }
 
     private func cancelRecording() {
+        recordingStartToken = UUID()
         audioRecorder?.stop()
         audioRecorder = nil
         isRecording = false
-        recordingTimerTask?.cancel()
-        recordingTimerTask = nil
+        recordingDuration = 0
+        stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         if let url = recordingURL {
             try? FileManager.default.removeItem(at: url)
@@ -1751,45 +1841,56 @@ struct MessageBubbleView: View {
     private var stackAlignment: HorizontalAlignment { isFromMe ? .trailing : .leading }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            if isFromMe { Spacer(minLength: 46) }
+        Group {
+            if isPreview {
+                bubbleStack
+                    .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
+            } else {
+                HStack(alignment: .bottom, spacing: 0) {
+                    if isFromMe { Spacer(minLength: 46) }
 
-            VStack(alignment: stackAlignment, spacing: 3) {
-                if showSender, let name = message.senderDisplayName, !name.isEmpty {
-                    Text(name)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(senderColor(name))
-                        .padding(.leading, 4)
-                }
-
-                if isTextBubble {
-                    textBubble
-                        .contentShape(Rectangle())
-                        .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
-                } else {
-                    VStack(alignment: stackAlignment, spacing: 2) {
-                        if message.messageType == "call" {
-                            callContent
-                        } else {
-                            mediaContent
+                    bubbleStack
+                        .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
+                        .anchorPreference(key: BubbleAnchorKey.self, value: .bounds) {
+                            [message.id: $0]
                         }
-                        if isTail { timeRow }
-                    }
-                    .contentShape(Rectangle())
-                    .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
 
-                    if !message.reactions.isEmpty {
-                        reactionChips
-                    }
+                    if !isFromMe { Spacer(minLength: 46) }
                 }
             }
-            .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
-
-            if !isFromMe { Spacer(minLength: 46) }
         }
         .padding(.vertical, isTail ? 3 : 1.5)
-        .anchorPreference(key: BubbleAnchorKey.self, value: .bounds) {
-            isPreview ? [:] : [message.id: $0]
+    }
+
+    private var bubbleStack: some View {
+        VStack(alignment: stackAlignment, spacing: 3) {
+            if showSender, let name = message.senderDisplayName, !name.isEmpty {
+                Text(name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(senderColor(name))
+                    .padding(.leading, 4)
+            }
+
+            if isTextBubble {
+                textBubble
+                    .contentShape(Rectangle())
+                    .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
+            } else {
+                VStack(alignment: stackAlignment, spacing: 2) {
+                    if message.messageType == "call" {
+                        callContent
+                    } else {
+                        mediaContent
+                    }
+                    if isTail { timeRow }
+                }
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
+
+                if !message.reactions.isEmpty {
+                    reactionChips
+                }
+            }
         }
     }
 
@@ -1942,8 +2043,8 @@ struct MessageBubbleView: View {
             : (r.reactedByMe ? Color.smAccent2 : Color.smMuted)
 
         return Button(action: {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             onToggleReaction(r.emoji)
+            ChatHaptics.lightImpact()
         }) {
             HStack(spacing: 3) {
                 Text(r.emoji).font(.system(size: 12.5))

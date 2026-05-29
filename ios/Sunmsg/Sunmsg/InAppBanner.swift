@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - In-App Notification Banner
 //
@@ -23,21 +24,29 @@ final class InAppBannerController: ObservableObject {
 
     func show(_ data: InAppBannerData) {
         dismissTask?.cancel()
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-            current = data
-        }
+        updateCurrent(data, animation: .spring(response: 0.35, dampingFraction: 0.78))
         dismissTask = Task {
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.25)) { self.current = nil }
+                self.updateCurrent(nil, animation: .easeInOut(duration: 0.25))
             }
         }
     }
 
     func dismiss() {
         dismissTask?.cancel()
-        withAnimation(.easeInOut(duration: 0.2)) { current = nil }
+        updateCurrent(nil, animation: .easeInOut(duration: 0.2))
+    }
+
+    private func updateCurrent(_ data: InAppBannerData?, animation: Animation) {
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            current = data
+            return
+        }
+        withAnimation(animation) {
+            current = data
+        }
     }
 }
 
