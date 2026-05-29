@@ -7,8 +7,9 @@ import WebRTC
 struct IncomingCallView: View {
     let call: IncomingCallData
     @ObservedObject var session: SessionStore
-    @State private var ringPhase: Double = 0
-    private let ringTimer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var ringsAnimating = false
+    @State private var hapticTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -28,9 +29,14 @@ struct IncomingCallView: View {
                             Circle()
                                 .stroke(Color.smAccent.opacity(0.25 - Double(i) * 0.07), lineWidth: 1.5)
                                 .frame(width: 104 + CGFloat(i) * 22, height: 104 + CGFloat(i) * 22)
-                                .scaleEffect(1 + sin(ringPhase + Double(i) * 0.8) * 0.08)
-                                .opacity(0.5 + sin(ringPhase + Double(i) * 0.8) * 0.3)
-                                .animation(.easeInOut(duration: 0.05), value: ringPhase)
+                                .scaleEffect(reduceMotion ? 1 : (ringsAnimating ? 1.16 : 0.9))
+                                .opacity(reduceMotion ? 0.26 : (ringsAnimating ? 0.16 : 0.58))
+                                .animation(
+                                    reduceMotion ? nil : .easeInOut(duration: 1.25)
+                                        .repeatForever(autoreverses: true)
+                                        .delay(Double(i) * 0.16),
+                                    value: ringsAnimating
+                                )
                         }
 
                         SmAvatarView(name: call.callerName, size: 88)
@@ -95,11 +101,29 @@ struct IncomingCallView: View {
                 Spacer()
             }
         }
-        .onReceive(ringTimer) { _ in
-            ringPhase += 0.08
-            // Pulse haptics roughly once per ring cycle while the banner is up.
-            if Int(ringPhase / 0.08) % 25 == 0 {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        .onAppear {
+            ringsAnimating = !reduceMotion
+            startHapticLoop()
+        }
+        .onDisappear {
+            hapticTask?.cancel()
+            hapticTask = nil
+            ringsAnimating = false
+        }
+        .onChange(of: reduceMotion) { _, value in
+            ringsAnimating = !value
+        }
+    }
+
+    private func startHapticLoop() {
+        hapticTask?.cancel()
+        hapticTask = Task { @MainActor in
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            while !Task.isCancelled {
+                generator.prepare()
+                try? await Task.sleep(nanoseconds: 1_250_000_000)
+                guard !Task.isCancelled else { return }
+                generator.impactOccurred()
             }
         }
     }
