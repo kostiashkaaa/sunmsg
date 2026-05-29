@@ -14,6 +14,12 @@ private struct PeopleChatDestination: Hashable {
     }
 }
 
+private enum PeopleSheetDestination: String, Identifiable {
+    case groupCreate
+
+    var id: String { rawValue }
+}
+
 struct PeopleView: View {
     @EnvironmentObject var session: SessionStore
     @State private var query = ""
@@ -23,7 +29,7 @@ struct PeopleView: View {
     @State private var searchSequence = 0
     @State private var requestSent: Set<Int> = []
     @State private var navigateToContact: PeopleChatDestination?
-    @State private var showGroupCreate = false
+    @State private var activeSheet: PeopleSheetDestination?
     @State private var showUsernameAlert = false
     @FocusState private var searchFocused: Bool
 
@@ -58,9 +64,12 @@ struct PeopleView: View {
         .navigationDestination(item: $navigateToContact) { destination in
             ChatView(contact: destination.contact)
         }
-        .sheet(isPresented: $showGroupCreate) {
-            GroupCreateView { contact in
-                navigateToContact = PeopleChatDestination(contact: contact)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .groupCreate:
+                GroupCreateView { contact in
+                    navigateToContact = PeopleChatDestination(contact: contact)
+                }
             }
         }
         .onDisappear {
@@ -127,7 +136,7 @@ struct PeopleView: View {
         return ScrollView(showsIndicators: false) {
             VStack(spacing: 10) {
                 // Big action cards
-                Button(action: { showGroupCreate = true }) {
+                Button(action: { activeSheet = .groupCreate }) {
                     actionCard(
                         icon: "person.3.fill",
                         title: "Новая группа",
