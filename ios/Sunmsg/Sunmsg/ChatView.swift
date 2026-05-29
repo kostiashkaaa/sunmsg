@@ -68,8 +68,6 @@ struct ChatView: View {
     @State private var lastDraftUpdatedAt: Double = 0
     @State private var isApplyingDraftText = false
     @State private var hasPrivateKeyLoaded = false
-    @State private var deleteDialogTask: Task<Void, Never>? = nil
-    @State private var editFocusTask: Task<Void, Never>? = nil
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -189,10 +187,6 @@ struct ChatView: View {
                 typingDebounceTask?.cancel()
                 typingDebounceTask = nil
                 draftSaveTask?.cancel()
-                deleteDialogTask?.cancel()
-                deleteDialogTask = nil
-                editFocusTask?.cancel()
-                editFocusTask = nil
                 flushDraftSave(force: true)
                 partnerStopTypingTask?.cancel()
                 partnerStopTypingTask = nil
@@ -614,8 +608,6 @@ struct ChatView: View {
         items.append(MessageContextMenuAction(id: "delete", title: "Удалить", systemImage: "trash", role: .destructive) {
             let isMine = isFromMe
             dismissMenu()
-            deleteDialogTask?.cancel()
-            deleteDialogTask = nil
             pendingDelete = PendingDelete(id: msg.id, isFromMe: isMine)
         })
         return items
@@ -1689,8 +1681,6 @@ struct ChatView: View {
     private func beginEdit(message: ChatMessage, currentText: String) {
         dismissMenu()
         replyTarget = nil
-        editFocusTask?.cancel()
-        editFocusTask = nil
         updateWithMotion(.spring(response: 0.32, dampingFraction: 0.82)) {
             editingMessageId = message.id
             composerText = currentText
@@ -1699,8 +1689,6 @@ struct ChatView: View {
     }
 
     private func cancelEdit() {
-        editFocusTask?.cancel()
-        editFocusTask = nil
         editingMessageId = nil
         composerText = ""
         composerFocused = false
