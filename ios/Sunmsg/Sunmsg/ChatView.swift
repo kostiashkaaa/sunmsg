@@ -2372,20 +2372,24 @@ struct MessageBubbleView: View {
                     .contentShape(Rectangle())
                     .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
             } else {
-                VStack(alignment: stackAlignment, spacing: 2) {
+                VStack(alignment: stackAlignment, spacing: 4) {
                     if message.messageType == "call" {
                         callContent
                     } else {
                         mediaContent
                     }
-                    timeRow
+
+                    if !message.reactions.isEmpty {
+                        reactionChips
+                    }
+
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        timeRow
+                    }
                 }
                 .contentShape(Rectangle())
                 .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
-
-                if !message.reactions.isEmpty {
-                    reactionChips
-                }
             }
         }
     }
@@ -2561,7 +2565,7 @@ struct MessageBubbleView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Reaction chips for media/call bubbles (rendered just under the bubble).
+    /// Reaction chips for media/call bubbles live inside the same message block.
     private var reactionChips: some View {
         ViewThatFits(in: .horizontal) {
             reactionRow(onBubble: false)
@@ -2569,7 +2573,7 @@ struct MessageBubbleView: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: maxBubbleWidth, alignment: .leading)
-        .padding(isFromMe ? .trailing : .leading, 4)
+        .padding(.leading, 4)
     }
 
     private func reactionRow(onBubble: Bool) -> some View {
