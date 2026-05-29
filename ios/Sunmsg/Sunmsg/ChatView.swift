@@ -939,7 +939,7 @@ struct ChatView: View {
     }
 
     /// Quick check: is this JSON a __sunfile envelope (regardless of encryption)?
-    private static func parseLegacySunfileMarker(_ text: String) -> Bool? {
+    nonisolated private static func parseLegacySunfileMarker(_ text: String) -> Bool? {
         guard let data = text.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }
@@ -1834,7 +1834,7 @@ struct ChatView: View {
         }
     }
 
-    private static func preparePhotoUpload(_ rawData: Data) -> (data: Data, mime: String) {
+    nonisolated private static func preparePhotoUpload(_ rawData: Data) -> (data: Data, mime: String) {
         let maxPixelSize = 2048
         guard let source = CGImageSourceCreateWithData(rawData as CFData, nil) else {
             return (rawData, "image/jpeg")
