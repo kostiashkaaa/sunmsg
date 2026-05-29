@@ -169,6 +169,7 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.pinnedMessageIds == rhs.pinnedMessageIds
             && lhs.reduceMotion == rhs.reduceMotion
             && lhs.timelineVersion == rhs.timelineVersion
+            && lhs.decryptedTextCount == rhs.decryptedTextCount
             && lhs.scrollIntent == rhs.scrollIntent
             && lhs.isPinnedToBottom == rhs.isPinnedToBottom
     }
