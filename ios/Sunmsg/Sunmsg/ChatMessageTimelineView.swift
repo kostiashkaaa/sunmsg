@@ -169,7 +169,7 @@ struct ChatMessageTimelineView: View, Equatable {
                         if partnerIsTyping {
                             TypingBubbleView()
                                 .id("typing")
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                                .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
                         }
 
                         Color.clear
