@@ -1102,21 +1102,28 @@ struct SplashView: View {
 }
 
 private struct SplashLoadingDotsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private static let stepInterval: TimeInterval = 0.18
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
-            let dotPhase = timeline.date.timeIntervalSinceReferenceDate / Self.stepInterval * 0.20
+        if reduceMotion {
+            dots(dotPhase: nil)
+        } else {
+            TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
+                dots(dotPhase: timeline.date.timeIntervalSinceReferenceDate / Self.stepInterval * 0.20)
+            }
+        }
+    }
 
-            HStack(spacing: 8) {
-                ForEach(0..<4, id: \.self) { i in
-                    let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
-                    Circle()
-                        .fill(Color.smAccent)
-                        .frame(width: 6, height: 6)
-                        .opacity(0.25 + phase * 0.75)
-                        .scaleEffect(0.85 + phase * 0.30)
-                }
+    private func dots(dotPhase: Double?) -> some View {
+        HStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { i in
+                let phase = dotPhase.map { (sin($0 + Double(i) * 0.7) + 1) / 2 } ?? 1
+                Circle()
+                    .fill(Color.smAccent)
+                    .frame(width: 6, height: 6)
+                    .opacity(dotPhase == nil ? 0.75 : 0.25 + phase * 0.75)
+                    .scaleEffect(dotPhase == nil ? 1 : 0.85 + phase * 0.30)
             }
         }
     }
