@@ -1434,7 +1434,7 @@ struct ChatView: View {
         session.applyDraftUpdate(
             chatId: contact.chatId,
             draftText: "",
-            updatedAtRaw: ISO8601DateFormatter().string(from: Date()),
+            updatedAtRaw: SunDateFormatters.isoInternetDateTime(from: Date()),
             hasDraft: false
         )
         Task { await saveDraft("", force: true) }
@@ -2178,6 +2178,7 @@ struct MessageBubbleView: View {
     var onRequestMenu: () -> Void = { }
     private let resolvedBodyText: String
     private let parsedSunfile: SunfileInfo?
+    private let parsedCallInfo: SunCallInfo?
     private let resolvedMediaType: String?
 
     init(
@@ -2202,6 +2203,9 @@ struct MessageBubbleView: View {
         let resolved = Self.resolveBodyText(message: message, decryptedText: decryptedText)
         self.resolvedBodyText = resolved.text
         self.parsedSunfile = resolved.sunfile
+        self.parsedCallInfo = message.messageType == "call"
+            ? Self.parseSunCallRaw(message.message ?? "")
+            : nil
         self.resolvedMediaType = Self.resolveMediaType(
             messageType: message.messageType,
             sunfile: resolved.sunfile
@@ -2413,7 +2417,7 @@ struct MessageBubbleView: View {
         let durationSec: Int?
     }
 
-    private func parseSunCallRaw(_ text: String) -> SunCallInfo? {
+    private static func parseSunCallRaw(_ text: String) -> SunCallInfo? {
         guard let data = text.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               obj["__suncall"] != nil
@@ -2427,7 +2431,7 @@ struct MessageBubbleView: View {
 
     @ViewBuilder
     private var callContent: some View {
-        if let call = parseSunCallRaw(message.message ?? "") {
+        if let call = parsedCallInfo {
             CallBubbleView(
                 callType: call.callType,
                 status: call.status,

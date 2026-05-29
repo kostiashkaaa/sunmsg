@@ -276,6 +276,12 @@ enum SunDateParser {
 enum SunDateFormatters {
     private static let lock = NSLock()
 
+    private static let isoInternetDateTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -326,6 +332,16 @@ enum SunDateFormatters {
         lock.lock()
         defer { lock.unlock() }
         return formatter.string(from: date)
+    }
+
+    private static func string(_ formatter: ISO8601DateFormatter, from date: Date) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return formatter.string(from: date)
+    }
+
+    static func isoInternetDateTime(from date: Date) -> String {
+        string(isoInternetDateTimeFormatter, from: date)
     }
 
     static func time(from date: Date) -> String {
