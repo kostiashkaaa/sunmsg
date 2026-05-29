@@ -1069,7 +1069,10 @@ struct UserQRSheet: View {
     @State private var scanResultTitle = ""
     @State private var scanResultMessage = ""
     @State private var scanResultOpensPeople = false
+    @State private var scanResultOpensUnlock = false
     @State private var showScanResult = false
+    @State private var showMnemonicUnlock = false
+    @State private var pendingTransferCode: QRTransferCode?
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
@@ -1124,11 +1127,23 @@ struct UserQRSheet: View {
                         dismiss()
                     }
                 }
+                if scanResultOpensUnlock {
+                    Button("Разблокировать") {
+                        showScanResult = false
+                        showMnemonicUnlock = true
+                    }
+                }
                 Button("OK", role: .cancel) {
+                    if scanResultOpensUnlock {
+                        pendingTransferCode = nil
+                    }
                     restartScanner()
                 }
             } message: {
                 Text(scanResultMessage)
+            }
+            .sheet(isPresented: $showMnemonicUnlock, onDismiss: handleUnlockDismissed) {
+                MnemonicUnlockSheet()
             }
             .task(id: qrContent) {
                 qrImage = generateQRCodeImage(from: qrContent)
@@ -1269,6 +1284,7 @@ struct UserQRSheet: View {
             scanResultTitle = "QR не распознан"
             scanResultMessage = "Этот код не похож на QR профиля или QR-входа SUN."
             scanResultOpensPeople = false
+            scanResultOpensUnlock = false
             showScanResult = true
             isHandlingScan = true
         }
@@ -1289,6 +1305,7 @@ struct UserQRSheet: View {
                         ? "Чат с @\(code.username) уже доступен в контактах."
                         : "Мы отправили запрос @\(code.username). Ответ появится в разделе запросов."
                     scanResultOpensPeople = true
+                    scanResultOpensUnlock = false
                     showScanResult = true
                     isHandlingScan = false
                 }
@@ -1302,6 +1319,7 @@ struct UserQRSheet: View {
                     scanResultTitle = "Не удалось открыть профиль"
                     scanResultMessage = error.localizedDescription
                     scanResultOpensPeople = false
+                    scanResultOpensUnlock = false
                     showScanResult = true
                     isHandlingScan = false
                 }
@@ -1310,6 +1328,10 @@ struct UserQRSheet: View {
     }
 
     private func handleTransferCode(_ code: QRTransferCode) {
+        guard hasUsableLocalPrivateKey else {
+            promptUnlockForTransfer(code)
+            return
+        }
         isHandlingScan = true
         scanStatus = code.kind == .login ? "Подтверждаем QR-вход..." : "Передаем ключ на новое устройство..."
         let api = session.api
@@ -1322,6 +1344,7 @@ struct UserQRSheet: View {
                         ? "QR-вход подтвержден. Второе устройство завершит вход автоматически."
                         : "Ключ передан на новое устройство."
                     scanResultOpensPeople = false
+                    scanResultOpensUnlock = false
                     showScanResult = true
                     isHandlingScan = false
                 }
@@ -1330,11 +1353,16 @@ struct UserQRSheet: View {
                     dismiss()
                     session.route = .login
                 }
+            } catch QRTransferCryptoError.missingLocalPrivateKey {
+                await MainActor.run {
+                    promptUnlockForTransfer(code)
+                }
             } catch {
                 await MainActor.run {
                     scanResultTitle = "QR-вход не выполнен"
                     scanResultMessage = error.localizedDescription
                     scanResultOpensPeople = false
+                    scanResultOpensUnlock = false
                     showScanResult = true
                     isHandlingScan = false
                 }
@@ -1342,9 +1370,41 @@ struct UserQRSheet: View {
         }
     }
 
+    private var hasUsableLocalPrivateKey: Bool {
+        KeychainService.loadPrivateKey()?.contains("PRIVATE KEY") == true
+    }
+
+    private func promptUnlockForTransfer(_ code: QRTransferCode) {
+        pendingTransferCode = code
+        scanResultTitle = "Нужен ключ на этом устройстве"
+        scanResultMessage = code.kind == .login
+            ? "Сначала разблокируйте историю 24-словной фразой. После этого iPhone подтвердит QR-вход."
+            : "Сначала разблокируйте историю 24-словной фразой. После этого iPhone передаст ключ на новое устройство."
+        scanResultOpensPeople = false
+        scanResultOpensUnlock = true
+        showScanResult = true
+        isHandlingScan = true
+    }
+
+    private func handleUnlockDismissed() {
+        guard let code = pendingTransferCode else {
+            restartScanner()
+            return
+        }
+        if hasUsableLocalPrivateKey {
+            pendingTransferCode = nil
+            scanResultOpensUnlock = false
+            handleTransferCode(code)
+        } else {
+            pendingTransferCode = nil
+            restartScanner()
+        }
+    }
+
     private func restartScanner() {
         isHandlingScan = false
         scanStatus = "Наведите камеру на QR профиля или QR-входа."
+        scanResultOpensUnlock = false
         scannerRestartId = UUID()
     }
 }

@@ -160,6 +160,8 @@ struct KeyTransferLoginClaimResponse: Decodable {
 enum QRTransferCryptoError: LocalizedError {
     case invalidJWK
     case invalidCiphertext
+    case missingLocalPrivateKey
+    case invalidLocalPrivateKey
     case invalidPrivateKeyPayload
     case randomFailed
 
@@ -169,8 +171,12 @@ enum QRTransferCryptoError: LocalizedError {
             return "Некорректный ключ QR-сессии."
         case .invalidCiphertext:
             return "Поврежденные данные QR-сессии."
+        case .missingLocalPrivateKey:
+            return "На этом устройстве не загружен ключ. Разблокируйте историю 24-словной фразой и повторите QR-вход."
+        case .invalidLocalPrivateKey:
+            return "Локальный ключ поврежден. Разблокируйте историю заново 24-словной фразой."
         case .invalidPrivateKeyPayload:
-            return "QR-сессия вернула неверный private key."
+            return "QR-сессия вернула ключ в неверном формате."
         case .randomFailed:
             return "Не удалось создать безопасный IV."
         }
@@ -256,9 +262,12 @@ enum QRTransferCrypto {
 enum QRTransferService {
     static func submitLocalPrivateKey(for code: QRTransferCode, api: APIClient = .shared) async throws {
         guard code.kind == .login || code.kind == .device else { throw QRTransferCryptoError.invalidCiphertext }
-        guard let privateKeyPem = KeychainService.loadPrivateKey(),
-              privateKeyPem.contains("PRIVATE KEY")
-        else { throw QRTransferCryptoError.invalidPrivateKeyPayload }
+        guard let privateKeyPem = KeychainService.loadPrivateKey() else {
+            throw QRTransferCryptoError.missingLocalPrivateKey
+        }
+        guard privateKeyPem.contains("PRIVATE KEY") else {
+            throw QRTransferCryptoError.invalidLocalPrivateKey
+        }
         if api.csrfToken.isEmpty {
             api.csrfToken = try await api.getCsrfToken()
         }
