@@ -533,6 +533,10 @@ struct SessionDevicesRevokeOthersResponse: Decodable {
     let success: Bool
     let revoked: Int
 
+    enum CodingKeys: String, CodingKey {
+        case success, revoked
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
