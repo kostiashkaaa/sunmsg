@@ -46,7 +46,6 @@ struct ChatView: View {
     @State private var audioRecorder: AVAudioRecorder? = nil
     @State private var recordingURL: URL? = nil
     @State private var recordingDuration: TimeInterval = 0
-    @State private var recordingPulse = false
     @State private var recordingTimerTask: Task<Void, Never>? = nil
     @State private var scrollIntent: MessageScrollIntent = .bottom(animated: false)
     @State private var isPinnedToBottom = true
@@ -713,7 +712,6 @@ struct ChatView: View {
             decryptionSummary: $decryptionSummary,
             composerText: $composerText,
             selectedPhotoItem: $selectedPhotoItem,
-            recordingPulse: $recordingPulse,
             composerFocused: $composerFocused,
             isComposerFocused: composerFocused,
             editingMessageId: editingMessageId,
@@ -1622,7 +1620,6 @@ struct ChatView: View {
         audioRecorder?.stop()
         audioRecorder = nil
         isRecording = false
-        recordingPulse = false
         recordingTimerTask?.cancel()
         recordingTimerTask = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -1635,7 +1632,6 @@ struct ChatView: View {
         audioRecorder?.stop()
         audioRecorder = nil
         isRecording = false
-        recordingPulse = false
         recordingTimerTask?.cancel()
         recordingTimerTask = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

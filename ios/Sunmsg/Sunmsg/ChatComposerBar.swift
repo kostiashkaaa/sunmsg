@@ -6,7 +6,6 @@ struct ChatComposerBar: View {
     @Binding var decryptionSummary: String?
     @Binding var composerText: String
     @Binding var selectedPhotoItem: PhotosPickerItem?
-    @Binding var recordingPulse: Bool
     let composerFocused: FocusState<Bool>.Binding
     let isComposerFocused: Bool
 
@@ -24,6 +23,8 @@ struct ChatComposerBar: View {
     let onStartVoiceRecording: () -> Void
     let onCancelRecording: () -> Void
     let onStopAndSendRecording: () -> Void
+
+    @State private var recordingPulse = false
 
     private var trimmedText: String {
         composerText.trimmingCharacters(in: .whitespacesAndNewlines)
