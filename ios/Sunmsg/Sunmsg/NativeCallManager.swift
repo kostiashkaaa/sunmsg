@@ -16,7 +16,8 @@ final class NativeCallManager: NSObject, ObservableObject {
     private var uuidByCallId: [String: UUID] = [:]
 
     private override init() {
-        let config = CXProviderConfiguration(localizedName: "SUN Messenger")
+        let config = CXProviderConfiguration()
+        config.localizedName = "SUN Messenger"
         config.supportsVideo = true
         config.maximumCallsPerCallGroup = 1
         config.maximumCallGroups = 1
@@ -168,7 +169,7 @@ final class NativeCallManager: NSObject, ObservableObject {
     }
 
     private static func incomingCall(from payload: [AnyHashable: Any]) -> IncomingCallData? {
-        let root = dictionary(payload["call"]) ?? dictionary(payload)
+        let root = dictionary(payload["call"]) ?? dictionary(payload) ?? [:]
         guard
             let callId = string(root["call_id"]),
             let chatId = string(root["chat_id"])
