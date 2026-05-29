@@ -1555,11 +1555,25 @@ struct ProfileSettingsView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.dismiss) private var dismiss
     @State private var displayName = ""
+    @State private var username = ""
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var showQRSheet = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
+    private var trimmedDisplayName: String { displayName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var normalizedUsername: String {
+        var value = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        while value.hasPrefix("@") { value.removeFirst() }
+        return value.lowercased()
+    }
+    private var canSaveProfile: Bool {
+        guard let user else { return false }
+        return !isSaving
+            && !trimmedDisplayName.isEmpty
+            && !normalizedUsername.isEmpty
+            && (trimmedDisplayName != user.displayName || normalizedUsername != user.username)
+    }
 
     var body: some View {
         NavigationStack {
@@ -1603,6 +1617,25 @@ struct ProfileSettingsView: View {
                         .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
 
+                        VStack(spacing: 0) {
+                            profileEditRow(label: "Имя", icon: "person.fill") {
+                                TextField("Имя", text: $displayName)
+                                    .textInputAutocapitalization(.words)
+                                    .autocorrectionDisabled(false)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
+                            profileEditRow(label: "Логин", icon: "at") {
+                                TextField("username", text: $username)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled(true)
+                                    .textContentType(.username)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                        }
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+
                         // QR button
                         Button(action: { showQRSheet = true }) {
                             HStack(spacing: 12) {
@@ -1640,14 +1673,9 @@ struct ProfileSettingsView: View {
                                 .foregroundStyle(Color.smDanger)
                                 .multilineTextAlignment(.center)
                         }
-
-                        Text("Изменение профиля доступно в веб-версии")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(Color.smFaint)
-                            .multilineTextAlignment(.center)
-                            .padding(.bottom, 24)
                     }
                     .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
                 }
             }
             .navigationTitle("Профиль")
@@ -1659,10 +1687,18 @@ struct ProfileSettingsView: View {
                     Button("Закрыть") { dismiss() }
                         .foregroundStyle(Color.smMuted)
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Сохранение…" : "Сохранить") {
+                        Task { await saveProfile() }
+                    }
+                    .disabled(!canSaveProfile)
+                    .foregroundStyle(canSaveProfile ? Color.smAccent2 : Color.smFaint)
+                }
             }
             .sheet(isPresented: $showQRSheet) {
                 UserQRSheet()
             }
+            .onAppear { hydrateFieldsFromUser() }
         }
     }
 
@@ -1687,6 +1723,69 @@ struct ProfileSettingsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+    }
+
+    private func profileEditRow<Content: View>(
+        label: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.smAccent.opacity(0.10))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.smAccent2)
+            }
+            Text(label)
+                .font(.system(size: 14.5, weight: .medium))
+                .foregroundStyle(Color.smText)
+            content()
+                .font(.system(size: 14))
+                .foregroundStyle(Color.smText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private func hydrateFieldsFromUser() {
+        displayName = user?.displayName ?? ""
+        username = user?.username ?? ""
+    }
+
+    private func saveProfile() async {
+        let name = trimmedDisplayName
+        let handle = normalizedUsername
+        guard !name.isEmpty else {
+            saveError = "Имя не может быть пустым."
+            return
+        }
+        guard name.count <= 50 else {
+            saveError = "Имя не должно превышать 50 символов."
+            return
+        }
+        guard handle.range(of: #"^[a-z0-9_]{1,50}$"#, options: .regularExpression) != nil else {
+            saveError = "Логин может содержать только a-z, 0-9 и _."
+            return
+        }
+
+        isSaving = true
+        saveError = nil
+        do {
+            try await session.api.saveSettings([
+                "display_name": name,
+                "username": handle,
+            ])
+            await session.loadBootstrap()
+            hydrateFieldsFromUser()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            saveError = error.localizedDescription
+        }
+        isSaving = false
     }
 }
 
