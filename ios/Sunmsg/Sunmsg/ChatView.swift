@@ -3044,17 +3044,30 @@ struct AudioBubbleView: View {
     private func resolveAndPrepare() async {
         player.stop()
         removeDecryptedTempFile()
-        guard let url else { effectiveURL = nil; return }
+        effectiveURL = nil
+        isResolving = false
+        guard let url else { return }
         if let e2ee = SunMediaE2EE.parse(url: url) {
             // Web-encrypted file: fetch, decrypt, save to temp file
             isResolving = true
-            defer { isResolving = false }
+            defer {
+                if self.url == url {
+                    isResolving = false
+                }
+            }
             if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+                guard self.url == url else {
+                    if tmpURL.isFileURL {
+                        try? FileManager.default.removeItem(at: tmpURL)
+                    }
+                    return
+                }
                 decryptedTempURL = tmpURL
                 effectiveURL = tmpURL
                 await player.prepareDuration(url: tmpURL)
             }
         } else {
+            guard self.url == url else { return }
             effectiveURL = url
             await player.prepareDuration(url: url)
         }
@@ -3083,9 +3096,15 @@ final class AudioPlayerController: ObservableObject {
     private var player: AVPlayer?
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
+    private var preparedURL: URL?
 
     func prepareDuration(url: URL?) async {
-        guard let url else { return }
+        guard let url else {
+            preparedURL = nil
+            duration = 0
+            return
+        }
+        preparedURL = url
         // For local file URLs (decrypted temp files) we can load directly.
         // For remote URLs we use an authenticated AVURLAsset.
         let asset: AVAsset = url.isFileURL
@@ -3093,7 +3112,10 @@ final class AudioPlayerController: ObservableObject {
             : AuthenticatedAsset.make(url: url)
         do {
             let d = try await asset.load(.duration).seconds
-            await MainActor.run { self.duration = d.isFinite ? d : 0 }
+            await MainActor.run {
+                guard self.preparedURL == url else { return }
+                self.duration = d.isFinite ? d : 0
+            }
         } catch { }
     }
 
@@ -3143,8 +3165,10 @@ final class AudioPlayerController: ObservableObject {
             endObserver = nil
         }
         player = nil
+        preparedURL = nil
         isPlaying = false
         elapsed = 0
+        duration = 0
     }
 
     deinit {
@@ -3230,8 +3254,9 @@ struct FileBubbleView: View {
         .task(id: url) {
             // Pre-resolve plain (non-encrypted) URLs immediately; encrypted files
             // are resolved on demand when the user taps.
-            guard let url else { return }
             removeDecryptedTempFile()
+            resolvedURL = nil
+            guard let url else { return }
             if SunMediaE2EE.parse(url: url) == nil {
                 resolvedURL = url
             } else {
@@ -3248,13 +3273,24 @@ struct FileBubbleView: View {
     }
 
     private func resolveForShare(url: URL) async {
+        guard self.url == url else { return }
         guard let e2ee = SunMediaE2EE.parse(url: url) else {
             resolvedURL = url; showShare = true; return
         }
         removeDecryptedTempFile()
         isDownloading = true
-        defer { isDownloading = false }
+        defer {
+            if self.url == url {
+                isDownloading = false
+            }
+        }
         if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+            guard self.url == url else {
+                if tmpURL.isFileURL {
+                    try? FileManager.default.removeItem(at: tmpURL)
+                }
+                return
+            }
             decryptedTempURL = tmpURL
             resolvedURL = tmpURL
             showShare = true
