@@ -1742,13 +1742,19 @@ struct ProfileSettingsView: View {
         guard let item else { return }
         do {
             if let data = try await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
+               let image = await Self.makeAvatarEditorImage(from: data) {
                 activeSheet = .avatarEditor(AvatarEditorDraft(image: image))
             }
         } catch {
             saveError = error.localizedDescription
         }
         selectedAvatarItem = nil
+    }
+
+    private static func makeAvatarEditorImage(from data: Data) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            UIImage(data: data)
+        }.value
     }
 
     private func uploadAvatar(_ data: Data) async {
