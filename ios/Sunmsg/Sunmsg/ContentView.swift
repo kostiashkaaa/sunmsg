@@ -1117,11 +1117,11 @@ struct SplashView: View {
                     .padding(.bottom, 24)
 
                 Text("sun")
-                    .font(.system(size: 40, weight: .bold))
+                    .font(.largeTitle.weight(.bold))
                     .foregroundStyle(Color.smText)
 
                 Text("тихие сообщения, тёплый свет")
-                    .font(.custom("Georgia", size: 16).italic())
+                    .font(.custom("Georgia", size: 16, relativeTo: .subheadline).italic())
                     .foregroundStyle(Color.smMuted)
                     .padding(.top, 10)
 
