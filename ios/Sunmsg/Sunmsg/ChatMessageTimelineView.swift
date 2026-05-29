@@ -17,6 +17,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let isLoadingOlder: Bool
     let partnerIsTyping: Bool
     let menuTargetId: Int?
+    let reduceMotion: Bool
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
@@ -43,6 +44,7 @@ struct ChatMessageTimelineView: View, Equatable {
         isLoadingOlder: Bool,
         partnerIsTyping: Bool,
         menuTargetId: Int?,
+        reduceMotion: Bool,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
         onLoadOlder: @escaping () -> Void,
@@ -58,6 +60,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.isLoadingOlder = isLoadingOlder
         self.partnerIsTyping = partnerIsTyping
         self.menuTargetId = menuTargetId
+        self.reduceMotion = reduceMotion
         self._scrollIntent = scrollIntent
         self._isPinnedToBottom = isPinnedToBottom
         self.onLoadOlder = onLoadOlder
@@ -73,6 +76,7 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.isLoadingOlder == rhs.isLoadingOlder
             && lhs.partnerIsTyping == rhs.partnerIsTyping
             && lhs.menuTargetId == rhs.menuTargetId
+            && lhs.reduceMotion == rhs.reduceMotion
             && lhs.scrollIntent == rhs.scrollIntent
             && lhs.isPinnedToBottom == rhs.isPinnedToBottom
             && lhs.decryptedTexts == rhs.decryptedTexts
@@ -205,7 +209,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 }
                 .onChange(of: partnerIsTyping) { _, typing in
                     if typing && isPinnedToBottom {
-                        withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
+                        performScroll(proxy, target: "typing", anchor: .bottom, animated: true)
                     }
                 }
             }
@@ -248,16 +252,29 @@ struct ChatMessageTimelineView: View, Equatable {
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
         if partnerIsTyping {
-            if animated { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
-            else { proxy.scrollTo("typing", anchor: .bottom) }
+            performScroll(proxy, target: "typing", anchor: .bottom, animated: animated)
             isPinnedToBottom = true
             return
         }
 
         guard let last = messages.last else { return }
-        if animated { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
-        else { proxy.scrollTo(last.id, anchor: .bottom) }
+        performScroll(proxy, target: last.id, anchor: .bottom, animated: animated)
         isPinnedToBottom = true
+    }
+
+    private func performScroll<ID: Hashable>(
+        _ proxy: ScrollViewProxy,
+        target: ID,
+        anchor: UnitPoint,
+        animated: Bool
+    ) {
+        guard animated, !reduceMotion else {
+            proxy.scrollTo(target, anchor: anchor)
+            return
+        }
+        withAnimation(.easeOut(duration: 0.22)) {
+            proxy.scrollTo(target, anchor: anchor)
+        }
     }
 
     private func updatePinnedToBottom(bottomY: CGFloat, viewportHeight: CGFloat) {

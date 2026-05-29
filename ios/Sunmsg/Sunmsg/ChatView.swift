@@ -9,6 +9,7 @@ import ImageIO
 struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
@@ -527,6 +528,7 @@ struct ChatView: View {
             isLoadingOlder: isLoadingOlder,
             partnerIsTyping: partnerIsTyping,
             menuTargetId: menuTargetId,
+            reduceMotion: reduceMotion,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
             onLoadOlder: { Task { await loadOlderMessages() } },
