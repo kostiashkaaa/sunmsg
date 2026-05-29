@@ -2869,16 +2869,25 @@ struct VideoBubbleView: View {
             thumbnail = nil
             return
         }
+        effectiveURL = nil
+        thumbnail = nil
         // If the media is web-encrypted, decrypt to a temp file first so
         // both the thumbnail generator and the full-screen player can use it.
         if let e2ee = SunMediaE2EE.parse(url: url),
            let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+            guard self.url == url else {
+                if tmpURL.isFileURL {
+                    try? FileManager.default.removeItem(at: tmpURL)
+                }
+                return
+            }
             decryptedTempURL = tmpURL
             effectiveURL = tmpURL
-            await generateThumbnail(from: AVURLAsset(url: tmpURL))
+            await generateThumbnail(from: AVURLAsset(url: tmpURL), expectedURL: url)
         } else {
+            guard self.url == url else { return }
             effectiveURL = url
-            await generateThumbnail(from: AuthenticatedAsset.make(url: url))
+            await generateThumbnail(from: AuthenticatedAsset.make(url: url), expectedURL: url)
         }
     }
 
@@ -2890,12 +2899,15 @@ struct VideoBubbleView: View {
         }
     }
 
-    private func generateThumbnail(from asset: AVAsset) async {
+    private func generateThumbnail(from asset: AVAsset, expectedURL: URL) async {
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
         do {
             let cg = try await gen.image(at: CMTime(seconds: 0.5, preferredTimescale: 600)).image
-            await MainActor.run { self.thumbnail = UIImage(cgImage: cg) }
+            await MainActor.run {
+                guard self.url == expectedURL else { return }
+                self.thumbnail = UIImage(cgImage: cg)
+            }
         } catch { }
     }
 }
