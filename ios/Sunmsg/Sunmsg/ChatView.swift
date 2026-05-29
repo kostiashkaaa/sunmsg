@@ -240,12 +240,20 @@ struct ChatView: View {
 
     private func showToast(_ text: String) {
         toastDismissTask?.cancel()
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { toast = text }
+        updateWithMotion(.spring(response: 0.32, dampingFraction: 0.8)) { toast = text }
         toastDismissTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             guard !Task.isCancelled, toast == text else { return }
             toastDismissTask = nil
-            withAnimation(.easeOut(duration: 0.25)) { toast = nil }
+            updateWithMotion(.easeOut(duration: 0.25)) { toast = nil }
+        }
+    }
+
+    private func updateWithMotion(_ animation: Animation, _ updates: () -> Void) {
+        if reduceMotion {
+            updates()
+        } else {
+            withAnimation(animation, updates)
         }
     }
 
@@ -467,23 +475,23 @@ struct ChatView: View {
 
     private func presentMenu(for messageId: Int) {
         composerFocused = false
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+        updateWithMotion(.spring(response: 0.34, dampingFraction: 0.82)) {
             menuTargetId = messageId
         }
         ChatHaptics.mediumImpact()
     }
 
     private func dismissMenu() {
-        withAnimation(.easeOut(duration: 0.18)) { menuTargetId = nil }
+        updateWithMotion(.easeOut(duration: 0.18)) { menuTargetId = nil }
     }
 
     private func toggleReaction(messageId: Int, emoji: String) {
         if SocketClient.shared.state != .connected {
             sendError = "Нет соединения — реакция будет отправлена после переподключения."
         }
-        // Optimistic, animated local update so the reaction appears instantly.
+        // Optimistic local update so the reaction appears instantly.
         if let i = messages.firstIndex(where: { $0.id == messageId }) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            updateWithMotion(.spring(response: 0.3, dampingFraction: 0.7)) {
                 applyLocalReactionToggle(index: i, emoji: emoji)
             }
             let updated = messages[i]
@@ -788,7 +796,7 @@ struct ChatView: View {
             let ids = parseDeletedIds(payload)
             guard !ids.isEmpty else { return }
             scrollIntent = .none
-            withAnimation(.easeInOut(duration: 0.22)) {
+            updateWithMotion(.easeInOut(duration: 0.22)) {
                 messages.removeAll { ids.contains($0.id) }
                 invalidateTimeline()
             }
@@ -1276,7 +1284,7 @@ struct ChatView: View {
         dismissMenu()
         editFocusTask?.cancel()
         editFocusTask = nil
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+        updateWithMotion(.spring(response: 0.32, dampingFraction: 0.82)) {
             editingMessageId = message.id
             composerText = currentText
         }
@@ -1365,7 +1373,7 @@ struct ChatView: View {
         ])
         // Optimistic local removal.
         scrollIntent = .none
-        withAnimation(.easeInOut(duration: 0.22)) {
+        updateWithMotion(.easeInOut(duration: 0.22)) {
             messages.removeAll { $0.id == id }
             invalidateTimeline()
         }
