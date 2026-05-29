@@ -1119,7 +1119,6 @@ struct SplashView: View {
                 Text("sun")
                     .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(Color.smText)
-                    .tracking(-1.4)
 
                 Text("тихие сообщения, тёплый свет")
                     .font(.custom("Georgia", size: 16).italic())
@@ -1508,7 +1507,6 @@ struct SettingsView: View {
                     Text(user?.displayName ?? "—")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smText)
-                        .tracking(-0.3)
                         .lineLimit(1)
                     Text("@\(user?.username ?? "—")")
                         .font(.caption.weight(.medium))
@@ -1584,7 +1582,6 @@ struct SettingsView: View {
                     Text(label)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(labelColor)
-                        .tracking(-0.2)
                     if let sub {
                         Text(sub)
                             .font(.caption2)
@@ -1630,7 +1627,6 @@ struct SettingsView: View {
                 Text(label)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smText)
-                    .tracking(-0.2)
                 if let sub {
                     Text(sub)
                         .font(.caption2)
