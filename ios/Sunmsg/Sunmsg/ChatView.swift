@@ -2320,6 +2320,8 @@ struct MessageBubbleView: View {
     private let parsedCallInfo: SunCallInfo?
     private let resolvedMediaType: String?
     @AppStorage(SettingsClientPreferences.messageScaleKey) private var messageScale = 1.0
+    @ScaledMetric(relativeTo: .body) private var messageBodyBaseSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var fallbackBodyBaseSize: CGFloat = 14.5
     @AppStorage(SettingsClientPreferences.bubbleOutKey) private var bubbleOutHex = "#c4943c"
     @AppStorage(SettingsClientPreferences.bubbleInKey) private var bubbleInHex = "#ffffff"
     @AppStorage(SettingsClientPreferences.bubbleOutTextKey) private var bubbleOutTextHex = "#15140e"
@@ -2584,7 +2586,7 @@ struct MessageBubbleView: View {
 
     private var messageText: some View {
         Text(bodyText)
-            .font(.system(size: CGFloat(15 * messageScale)))
+            .font(.system(size: messageBodyBaseSize * CGFloat(messageScale)))
             .foregroundStyle(bubbleTextColor)
             .lineSpacing(1.5)
             .fixedSize(horizontal: false, vertical: true)
@@ -2759,7 +2761,7 @@ struct MessageBubbleView: View {
 
     private var textContent: some View {
         Text(bodyText)
-            .font(.system(size: CGFloat(14.5 * messageScale)))
+            .font(.system(size: fallbackBodyBaseSize * CGFloat(messageScale)))
             .foregroundStyle(bubbleTextColor)
             .lineSpacing(1)
             .tracking(-0.15)
