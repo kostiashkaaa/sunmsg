@@ -70,7 +70,6 @@ struct ChatView: View {
     @State private var hasPrivateKeyLoaded = false
     @State private var deleteDialogTask: Task<Void, Never>? = nil
     @State private var editFocusTask: Task<Void, Never>? = nil
-    @State private var toastDismissTask: Task<Void, Never>? = nil
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -86,6 +85,7 @@ struct ChatView: View {
     @State private var pendingDelete: PendingDelete? = nil
     // A short, transient toast (e.g. "Скопировано").
     @State private var toast: String? = nil
+    @State private var toastDismissToken = 0
     @State private var decodedChatBackgroundImage: UIImage?
 
     /// Quick-pick reactions (subset of the server's allowed set, top-ranked).
@@ -193,8 +193,6 @@ struct ChatView: View {
                 deleteDialogTask = nil
                 editFocusTask?.cancel()
                 editFocusTask = nil
-                toastDismissTask?.cancel()
-                toastDismissTask = nil
                 flushDraftSave(force: true)
                 partnerStopTypingTask?.cancel()
                 partnerStopTypingTask = nil
@@ -220,6 +218,9 @@ struct ChatView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 refreshPrivateKeyState()
+            }
+            .task(id: toastDismissToken) {
+                await dismissToastAfterDelay()
             }
     }
 
@@ -436,13 +437,21 @@ struct ChatView: View {
     }
 
     private func showToast(_ text: String) {
-        toastDismissTask?.cancel()
         updateWithMotion(.spring(response: 0.32, dampingFraction: 0.8)) { toast = text }
-        toastDismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            guard !Task.isCancelled, toast == text else { return }
-            toastDismissTask = nil
+        toastDismissToken += 1
+    }
+
+    @MainActor
+    private func dismissToastAfterDelay() async {
+        guard toast != nil else { return }
+        do {
+            try await Task.sleep(nanoseconds: 1_600_000_000)
+            try Task.checkCancellation()
             updateWithMotion(.easeOut(duration: 0.25)) { toast = nil }
+        } catch is CancellationError {
+            return
+        } catch {
+            return
         }
     }
 
