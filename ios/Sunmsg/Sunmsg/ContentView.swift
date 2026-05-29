@@ -1344,7 +1344,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Основные") {
+            Section {
                 NavigationLink { NotificationSettingsView() } label: {
                     Label("Уведомления", systemImage: "bell")
                 }
@@ -1357,9 +1357,11 @@ struct SettingsView: View {
                 NavigationLink { SecuritySettingsView() } label: {
                     Label("Безопасность", systemImage: "lock.shield")
                 }
+            } header: {
+                Text("Основные")
             }
 
-            Section("Интерфейс") {
+            Section {
                 NavigationLink { AppearanceSettingsView() } label: {
                     Label("Внешний вид и темы", systemImage: "paintpalette")
                 }
@@ -1384,9 +1386,11 @@ struct SettingsView: View {
                 NavigationLink { SidebarLabelSettingsView() } label: {
                     Label("Метка и погода в списке", systemImage: "cloud.sun")
                 }
+            } header: {
+                Text("Интерфейс")
             }
 
-            Section("Аккаунт") {
+            Section {
                 NavigationLink { DevicesView() } label: {
                     Label("Устройства", systemImage: "iphone")
                 }
@@ -1399,6 +1403,8 @@ struct SettingsView: View {
                 NavigationLink { AccountSettingsView() } label: {
                     Label("Аккаунт", systemImage: "person.crop.circle")
                 }
+            } header: {
+                Text("Аккаунт")
             }
 
             Section {
@@ -1746,7 +1752,7 @@ struct ProfileSettingsView: View {
                     .disabled(isUploadingAvatar)
                 }
 
-                Section("Профиль") {
+                Section {
                     TextField("Имя", text: $displayName)
                         .textInputAutocapitalization(.words)
                         .textContentType(.name)
@@ -1779,6 +1785,8 @@ struct ProfileSettingsView: View {
                     Text("\(bio.count)/280")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } header: {
+                    Text("Профиль")
                 }
 
                 Section {
@@ -1956,7 +1964,7 @@ private struct AvatarEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 300)
                 }
 
-                Section("Кадр") {
+                Section {
                     HStack {
                         Button { rotation -= 90 } label: {
                             Label("Влево", systemImage: "rotate.left")
@@ -1973,6 +1981,8 @@ private struct AvatarEditorView: View {
                         zoom = 1
                         rotation = 0
                     }
+                } header: {
+                    Text("Кадр")
                 }
             }
             .navigationTitle("Фото профиля")
@@ -2238,7 +2248,7 @@ struct NotificationSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Системные уведомления") {
+            Section {
                 LabeledContent {
                     Text(permissionText)
                 } label: {
@@ -2261,6 +2271,8 @@ struct NotificationSettingsView: View {
                     Label("Отключить push-уведомления", systemImage: "bell.slash")
                 }
                 .disabled(isSaving || alertToken.isEmpty)
+            } header: {
+                Text("Системные уведомления")
             } footer: {
                 Text("Токен регистрируется через APNs и сохраняется на сервере как alert push для этого устройства.")
             }
@@ -2382,7 +2394,7 @@ struct DataMemorySettingsView: View {
 
     var body: some View {
         Form {
-            Section("Автозагрузка") {
+            Section {
                 Toggle("Медиа", isOn: Binding(get: { autoDownloadMedia }, set: { autoDownloadMedia = $0; savePolicy() }))
                 Toggle("Фото", isOn: Binding(get: { autoDownloadPhotos }, set: { autoDownloadPhotos = $0; savePolicy() }))
                 Toggle("Видео", isOn: Binding(get: { autoDownloadVideos }, set: { autoDownloadVideos = $0; savePolicy() }))
@@ -2394,9 +2406,11 @@ struct DataMemorySettingsView: View {
                     }
                     Slider(value: Binding(get: { filesLimitMb }, set: { filesLimitMb = $0; savePolicy() }), in: 0.1...50, step: 0.1)
                 }
+            } header: {
+                Text("Автозагрузка")
             }
 
-            Section("Хранилище") {
+            Section {
                 LabeledContent {
                     Text(ByteCountFormatter.string(fromByteCount: Int64(storageBytes), countStyle: .file))
                 } label: {
@@ -2409,9 +2423,11 @@ struct DataMemorySettingsView: View {
                 Button(role: .destructive) { Task { await clearAllCaches() } } label: {
                     Text("Очистить всё")
                 }
+            } header: {
+                Text("Хранилище")
             }
 
-            Section("Автоочистка") {
+            Section {
                 Picker("Хранить файлы", selection: Binding(get: { retentionDays }, set: { retentionDays = $0; savePolicy() })) {
                     Text("Не хранить").tag(0)
                     Text("1 день").tag(1)
@@ -2421,6 +2437,8 @@ struct DataMemorySettingsView: View {
                     Text("90 дней").tag(90)
                 }
                 Stepper("Максимум: \(cacheLimitLabel)", value: Binding(get: { maxCacheMb }, set: { maxCacheMb = $0; savePolicy() }), in: 0...1024, step: 32)
+            } header: {
+                Text("Автоочистка")
             }
 
             if isWorking {
@@ -2594,7 +2612,7 @@ struct ChatBehaviorSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Сообщения") {
+            Section {
                 Picker("Отправка", selection: Binding(get: { sendShortcut }, set: { sendShortcut = $0; save() })) {
                     Text("Enter").tag("enter")
                     Text("Ctrl + Enter").tag("ctrl_enter")
@@ -2603,8 +2621,10 @@ struct ChatBehaviorSettingsView: View {
                     Text("24 часа").tag("24h")
                     Text("12 часов").tag("12h")
                 }
+            } header: {
+                Text("Сообщения")
             }
-            Section("Производительность") {
+            Section {
                 Toggle("Анимации", isOn: Binding(get: { animationsEnabled }, set: { animationsEnabled = $0; motionLevel = $0 ? "auto" : "lite"; save() }))
                 Picker("Режим производительности", selection: Binding(get: { performanceMode }, set: { performanceMode = $0; save() })) {
                     Text("Авто").tag("auto")
@@ -2617,6 +2637,8 @@ struct ChatBehaviorSettingsView: View {
                     Text("Сбалансированное").tag("balanced")
                     Text("Минимальное").tag("lite")
                 }
+            } header: {
+                Text("Производительность")
             }
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
@@ -2657,7 +2679,7 @@ struct CallSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Входящие звонки") {
+            Section {
                 Picker("Кто может звонить", selection: Binding(get: { callPrivacy }, set: { value in
                     callPrivacy = value
                     saveCallPrivacy(value)
@@ -2666,12 +2688,16 @@ struct CallSettingsView: View {
                     Text("Контакты").tag("contacts")
                     Text("Никто").tag("nobody")
                 }
+            } header: {
+                Text("Входящие звонки")
             } footer: {
                 Text("Настройка синхронизируется с полем call_privacy веб-версии.")
             }
-            Section("Push для звонков") {
+            Section {
                 Text("VoIP push регистрируется автоматически при входе в приложение.")
                     .foregroundStyle(.secondary)
+            } header: {
+                Text("Push для звонков")
             }
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
@@ -2706,7 +2732,7 @@ struct SidebarLabelSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Метка списка чатов") {
+            Section {
                 Toggle("Показывать погоду", isOn: Binding(get: { enabled }, set: { enabled = $0; save() }))
                 Picker("Источник", selection: Binding(get: { source }, set: { source = $0; save() })) {
                     Text("Авто").tag("auto")
@@ -2719,9 +2745,11 @@ struct SidebarLabelSettingsView: View {
                     Text("30 секунд").tag(30)
                     Text("60 секунд").tag(60)
                 }
+            } header: {
+                Text("Метка списка чатов")
             }
 
-            Section("Метрики") {
+            Section {
                 ForEach(SettingsClientPreferences.weatherMetricKeys, id: \.self) { key in
                     Toggle(weatherMetricLabel(key), isOn: Binding(
                         get: { metrics.contains(key) },
@@ -2731,6 +2759,8 @@ struct SidebarLabelSettingsView: View {
                         }
                     ))
                 }
+            } header: {
+                Text("Метрики")
             }
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
@@ -2811,21 +2841,25 @@ struct SettingsTransferView: View {
 
     var body: some View {
         Form {
-            Section("Экспорт") {
+            Section {
                 Button {
                     Task { await exportSettings() }
                 } label: {
                     Label("Экспортировать JSON", systemImage: "square.and.arrow.up")
                 }
                 .disabled(isWorking)
+            } header: {
+                Text("Экспорт")
             }
-            Section("Импорт") {
+            Section {
                 Button {
                     showImporter = true
                 } label: {
                     Label("Импортировать JSON", systemImage: "square.and.arrow.down")
                 }
                 .disabled(isWorking)
+            } header: {
+                Text("Импорт")
             }
             if isWorking { Section { ProgressView("Обработка…") } }
             if let status { Section { Text(status).font(.footnote).foregroundStyle(Color.smOnline) } }
@@ -2968,7 +3002,7 @@ struct SecuritySettingsView: View {
 
     var body: some View {
         Form {
-            Section("Шифрование") {
+            Section {
                 LabeledContent {
                     Text(hasPrivateKey ? "В Keychain" : "Не загружен")
                 } label: {
@@ -2985,8 +3019,10 @@ struct SecuritySettingsView: View {
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                 }
+            } header: {
+                Text("Шифрование")
             }
-            Section("Ротация ключа") {
+            Section {
                 SecureField("Текущие 24 слова", text: $recoveryPhrase)
                     .textContentType(.oneTimeCode)
                 Button(role: .destructive) {
@@ -2995,14 +3031,18 @@ struct SecuritySettingsView: View {
                     Label("Перевыпустить ключ", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .disabled(isRotating || recoveryPhrase.split(separator: " ").count < 12 || !hasPrivateKey)
+            } header: {
+                Text("Ротация ключа")
             } footer: {
                 Text("После успешной ротации сервер завершит все сессии. Для восстановления сейфа используется та же recovery-фраза, что и в веб-версии.")
             }
-            Section("Доступ") {
+            Section {
                 NavigationLink { MnemonicRestoreSettingsView() } label: { Label("Секретная фраза", systemImage: "key") }
                 NavigationLink { TotpSettingsView() } label: { Label("TOTP 2FA", systemImage: "number.square") }
                 NavigationLink { DevicesView() } label: { Label("Устройства", systemImage: "iphone.and.ipad") }
                 NavigationLink { BlockedUsersView() } label: { Label("Заблокированные", systemImage: "hand.raised") }
+            } header: {
+                Text("Доступ")
             }
             if isRotating {
                 Section { ProgressView("Перевыпуск ключа…") }
@@ -3095,7 +3135,7 @@ struct MnemonicRestoreSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Состояние") {
+            Section {
                 LabeledContent {
                     Text(hasPrivateKey ? "Разблокирован" : "Заблокирован")
                 } label: {
@@ -3109,9 +3149,11 @@ struct MnemonicRestoreSettingsView: View {
                     Label("Заблокировать локально", systemImage: "lock")
                 }
                 .disabled(!hasPrivateKey || isWorking)
+            } header: {
+                Text("Состояние")
             }
 
-            Section("Recovery-фраза") {
+            Section {
                 TextEditor(text: $phrase)
                     .frame(minHeight: 120)
                     .textInputAutocapitalization(.never)
@@ -3122,6 +3164,8 @@ struct MnemonicRestoreSettingsView: View {
                     Label("Активировать расшифровку", systemImage: "checkmark.shield")
                 }
                 .disabled(isWorking || phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } header: {
+                Text("Recovery-фраза")
             } footer: {
                 Text("Фраза не отправляется на сервер. iOS скачивает login_vault и расшифровывает его локально, как веб-клиент.")
             }
@@ -3165,7 +3209,7 @@ struct IntegrationsSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Spotify") {
+            Section {
                 LabeledContent {
                     Text((status?.configured ?? false) ? "Да" : "Нет")
                 } label: {
@@ -3197,6 +3241,8 @@ struct IntegrationsSettingsView: View {
                     }
                     .disabled(!(status?.connected ?? false))
                 }
+            } header: {
+                Text("Spotify")
             }
             if isSaving { Section { ProgressView("Сохранение…") } }
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
@@ -3252,7 +3298,7 @@ struct AccountSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Аккаунт") {
+            Section {
                 LabeledContent {
                     Text("@\(session.bootstrap?.user.username ?? "—")")
                 } label: {
@@ -3264,6 +3310,8 @@ struct AccountSettingsView: View {
                     Text("Имя")
                 }
                 Button("Выйти") { Task { await session.logout() } }
+            } header: {
+                Text("Аккаунт")
             }
             Section {
                 Button(role: .destructive) {
@@ -3318,7 +3366,7 @@ struct SupportSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Заявка") {
+            Section {
                 Picker("Категория", selection: $category) {
                     Text("Ошибка").tag("bug")
                     Text("Производительность").tag("performance")
@@ -3341,6 +3389,8 @@ struct SupportSettingsView: View {
                 Text("\(message.count)/8000")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } header: {
+                Text("Заявка")
             }
             Section {
                 Button {
@@ -3416,7 +3466,7 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Тема") {
+            Section {
                 Picker("Схема iOS", selection: Binding(get: { schemePref }, set: { schemePref = $0; saveAppearance() })) {
                     ForEach(AppColorScheme.allCases, id: \.rawValue) { scheme in
                         Label(schemeRussian(scheme), systemImage: scheme.icon).tag(scheme.rawValue)
@@ -3438,9 +3488,11 @@ struct AppearanceSettingsView: View {
                     Text("Solid").tag("solid")
                 }
                 hexField("Акцент", text: $accentColor)
+            } header: {
+                Text("Тема")
             }
 
-            Section("Фон чата") {
+            Section {
                 Picker("Режим", selection: Binding(get: { chatMode }, set: { chatMode = $0; saveAppearance() })) {
                     Text("По умолчанию").tag("default")
                     Text("Пресет").tag("preset")
@@ -3461,9 +3513,11 @@ struct AppearanceSettingsView: View {
                     Label("Удалить изображение", systemImage: "trash")
                 }
                 .disabled(backgroundImageDataURL.isEmpty)
+            } header: {
+                Text("Фон чата")
             }
 
-            Section("Параметры изображения") {
+            Section {
                 settingsSlider("Затемнение", value: $imageDarken, range: 0...0.85)
                 settingsSlider("Размытие", value: $imageBlur, range: 0...24)
                 settingsSlider("Прозрачность", value: $imageOpacity, range: 0.2...1.0)
@@ -3471,18 +3525,22 @@ struct AppearanceSettingsView: View {
                 settingsSlider("Позиция X", value: $imagePositionX, range: 0...100)
                 settingsSlider("Позиция Y", value: $imagePositionY, range: 0...100)
                 Toggle("Повторять изображение", isOn: Binding(get: { imageRepeat }, set: { imageRepeat = $0; saveAppearance() }))
+            } header: {
+                Text("Параметры изображения")
             }
 
-            Section("Сообщения") {
+            Section {
                 settingsSlider("Масштаб", value: $messageScale, range: 0.9...1.3)
                 settingsSlider("Прозрачность пузырей", value: $bubbleOpacity, range: 0.45...1.0)
                 hexField("Исходящий пузырь", text: $bubbleOut)
                 hexField("Текст исходящего", text: $bubbleOutText)
                 hexField("Входящий пузырь", text: $bubbleIn)
                 hexField("Текст входящего", text: $bubbleInText)
+            } header: {
+                Text("Сообщения")
             }
 
-            Section("Предпросмотр") {
+            Section {
                 appearancePreview
                 Button("Сбросить цвета") {
                     resetColors()
@@ -3492,6 +3550,8 @@ struct AppearanceSettingsView: View {
                 } label: {
                     Text("Сбросить внешний вид")
                 }
+            } header: {
+                Text("Предпросмотр")
             }
 
             if let error {
