@@ -488,6 +488,7 @@ struct SidebarContactRow: View {
     var body: some View {
         let isSavedMessages = contact.userId != nil && contact.userId == session.bootstrap?.user.id
         let displayName = isSavedMessages ? "Избранное" : contact.displayName
+        let muted = contact.isMuted && !isSavedMessages
 
         HStack(spacing: 12) {
             ZStack(alignment: .bottomTrailing) {
@@ -530,11 +531,16 @@ struct SidebarContactRow: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Color.smFaint)
                     }
+                    if muted {
+                        Image(systemName: "bell.slash.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                    }
                     Spacer(minLength: 4)
                     if let ts = contact.lastMessageTime {
                         Text(smFormatTime(ts))
                             .font(.system(size: 11.5, weight: contact.unreadCount > 0 ? .semibold : .regular))
-                            .foregroundStyle(contact.unreadCount > 0 ? Color.smAccent2 : Color.smFaint)
+                            .foregroundStyle(contact.unreadCount > 0 && !muted ? Color.smAccent2 : Color.smFaint)
                     }
                 }
 
@@ -546,7 +552,7 @@ struct SidebarContactRow: View {
                         .tracking(-0.1)
                     Spacer(minLength: 4)
                     if contact.unreadCount > 0 {
-                        SmBadge(count: contact.unreadCount)
+                        SmBadge(count: contact.unreadCount, muted: muted)
                     }
                 }
             }
@@ -900,6 +906,7 @@ struct SmAvatarView: View {
 
 struct SmBadge: View {
     let count: Int
+    var muted: Bool = false
 
     var body: some View {
         Text(count > 99 ? "99+" : "\(count)")
@@ -907,7 +914,7 @@ struct SmBadge: View {
             .foregroundStyle(Color(hex: "#fbf8f1"))
             .padding(.horizontal, 7)
             .padding(.vertical, 2.5)
-            .background(Color.smAccent, in: Capsule())
+            .background(muted ? Color.smFaint : Color.smAccent, in: Capsule())
     }
 }
 

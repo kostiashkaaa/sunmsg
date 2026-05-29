@@ -74,12 +74,15 @@ final class SessionStore: ObservableObject {
 
     let api = APIClient.shared
     private let syncEngine = ChatSyncEngine(api: APIClient.shared)
+    private let mutedChatIdsDefaultsKey = "sun_chat_muted_v1"
+    @Published private var mutedChatIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
     private var typingTimers: [String: Task<Void, Never>] = [:]
     private var presenceTimer: Timer?
 
     init() {
         loadCallHistory()
+        loadMutedChatIds()
         NotificationCenter.default.publisher(for: .smSocketMessage)
             .sink { [weak self] note in
                 guard let userInfo = note.userInfo else { return }
@@ -516,7 +519,7 @@ final class SessionStore: ObservableObject {
             let data = try await api.bootstrap()
             syncEngine.reset()
             bootstrap = data
-            contacts = data.contacts
+            contacts = applyStoredMuteState(to: data.contacts)
             decryptContactPreviews()
             route = .main
             connectSocket()
@@ -600,7 +603,7 @@ final class SessionStore: ObservableObject {
 
     func refreshContacts() async {
         do {
-            contacts = try await api.getContacts()
+            contacts = applyStoredMuteState(to: try await api.getContacts())
             decryptContactPreviews()
         }
         catch APIError.unauthorized { route = .login }
@@ -614,6 +617,36 @@ final class SessionStore: ObservableObject {
         syncEngine.reset()
         await ChatLocalStore.shared.resetAll()
         bootstrap = nil; contacts = []; pendingRequests = []; route = .login
+    }
+
+    func isChatMuted(_ chatId: String) -> Bool {
+        mutedChatIds.contains(normalizedChatId(chatId))
+    }
+
+    @discardableResult
+    func toggleChatMuted(chatId: String) -> Bool {
+        let chatId = normalizedChatId(chatId)
+        guard !chatId.isEmpty else { return false }
+
+        if let contact = contacts.first(where: { $0.chatId == chatId }),
+           isChatMuteRestricted(contact) {
+            mutedChatIds.remove(chatId)
+            setContactMuted(chatId: chatId, muted: false)
+            saveMutedChatIds()
+            return false
+        }
+
+        let muted: Bool
+        if mutedChatIds.contains(chatId) {
+            mutedChatIds.remove(chatId)
+            muted = false
+        } else {
+            mutedChatIds.insert(chatId)
+            muted = true
+        }
+        setContactMuted(chatId: chatId, muted: muted)
+        saveMutedChatIds()
+        return muted
     }
 
     func refreshDialogRequests() async {
@@ -762,6 +795,45 @@ final class SessionStore: ObservableObject {
     func clearUnread(chatId: String) {
         guard let idx = contacts.firstIndex(where: { $0.chatId == chatId }) else { return }
         contacts[idx].unreadCount = 0
+    }
+
+    private func normalizedChatId(_ chatId: String) -> String {
+        chatId.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isChatMuteRestricted(_ contact: Contact) -> Bool {
+        guard let myId = bootstrap?.user.id else { return false }
+        return contact.userId == myId
+    }
+
+    private func applyStoredMuteState(to loadedContacts: [Contact]) -> [Contact] {
+        loadedContacts.map { contact in
+            var next = contact
+            next.isMuted = !isChatMuteRestricted(next) && mutedChatIds.contains(normalizedChatId(next.chatId))
+            return next
+        }
+    }
+
+    private func setContactMuted(chatId: String, muted: Bool) {
+        guard let idx = contacts.firstIndex(where: { $0.chatId == chatId }) else { return }
+        contacts[idx].isMuted = muted
+    }
+
+    private func loadMutedChatIds() {
+        guard let raw = UserDefaults.standard.string(forKey: mutedChatIdsDefaultsKey),
+              let data = raw.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            mutedChatIds = []
+            return
+        }
+        mutedChatIds = Set(decoded.map(normalizedChatId).filter { !$0.isEmpty })
+    }
+
+    private func saveMutedChatIds() {
+        let ids = Array(mutedChatIds).sorted()
+        guard let data = try? JSONEncoder().encode(ids),
+              let raw = String(data: data, encoding: .utf8) else { return }
+        UserDefaults.standard.set(raw, forKey: mutedChatIdsDefaultsKey)
     }
 
     private func decryptContactPreviews() {

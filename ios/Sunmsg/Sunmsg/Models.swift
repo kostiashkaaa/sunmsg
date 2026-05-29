@@ -306,6 +306,7 @@ struct Contact: Decodable, Identifiable {
     let canGroupAddDirect: Bool
     let isPinned: Bool
     let isGroup: Bool
+    var isMuted: Bool
 
     var id: String { chatId }
 
@@ -314,7 +315,8 @@ struct Contact: Decodable, Identifiable {
          publicKey: String, lastMessage: String?, lastMessageTime: Double?,
          initialLastMessagePreview: String?, lastSenderId: Int? = nil,
          unreadCount: Int, avatarUrl: String?,
-         isOnline: Bool, lastSeen: Double? = nil, canGroupAddDirect: Bool = true, isPinned: Bool, isGroup: Bool) {
+         isOnline: Bool, lastSeen: Double? = nil, canGroupAddDirect: Bool = true, isPinned: Bool, isGroup: Bool,
+         isMuted: Bool = false) {
         self.userId = userId; self.chatId = chatId; self.displayName = displayName
         self.username = username; self.publicKey = publicKey; self.lastMessage = lastMessage
         self.lastMessageTime = lastMessageTime
@@ -322,7 +324,7 @@ struct Contact: Decodable, Identifiable {
         self.lastSenderId = lastSenderId
         self.unreadCount = unreadCount; self.avatarUrl = avatarUrl
         self.isOnline = isOnline; self.lastSeen = lastSeen; self.canGroupAddDirect = canGroupAddDirect
-        self.isPinned = isPinned; self.isGroup = isGroup
+        self.isPinned = isPinned; self.isGroup = isGroup; self.isMuted = isMuted
     }
     
     var lastMessagePreview: String {
@@ -353,6 +355,7 @@ struct Contact: Decodable, Identifiable {
         case canGroupAddDirect = "can_group_add_direct"
         case isPinned = "is_pinned"
         case isGroup = "is_group"
+        case isMuted = "is_muted"
     }
 
     // Custom Decodable init: server may omit some Bool fields — use safe defaults
@@ -374,6 +377,7 @@ struct Contact: Decodable, Identifiable {
         canGroupAddDirect = (try? c.decodeIfPresent(Bool.self, forKey: .canGroupAddDirect)) ?? true
         isPinned    = (try? c.decodeIfPresent(Bool.self, forKey: .isPinned))  ?? false
         isGroup     = (try? c.decodeIfPresent(Bool.self, forKey: .isGroup))   ?? false
+        isMuted     = (try? c.decodeIfPresent(Bool.self, forKey: .isMuted))   ?? false
         isTyping    = false
     }
 }

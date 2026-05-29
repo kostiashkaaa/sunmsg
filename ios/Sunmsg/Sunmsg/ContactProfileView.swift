@@ -20,6 +20,10 @@ struct ContactProfileView: View {
         }.prefix(6).joined(separator: " · ")
     }
 
+    private var isMuted: Bool {
+        session.isChatMuted(contact.chatId)
+    }
+
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
@@ -147,8 +151,8 @@ struct ContactProfileView: View {
                 session.initiateCall(chatId: contact.chatId, callType: "video")
                 dismiss()
             })
-            profileActionButton(icon: "bell.slash.fill", label: "Без звука", action: {
-                // Toggle local mute marker (server-side mute is on Settings → Notifications)
+            profileActionButton(icon: isMuted ? "bell.fill" : "bell.slash.fill", label: isMuted ? "Вкл. звук" : "Без звука", action: {
+                session.toggleChatMuted(chatId: contact.chatId)
             })
         }
     }
@@ -190,7 +194,7 @@ struct ContactProfileView: View {
                 tint: Color.smAccent.opacity(0.12),
                 iconColor: Color.smAccent2,
                 label: "Уведомления",
-                detail: "По умолчанию"
+                detail: isMuted ? "Без звука" : "Включены"
             )
             Divider().padding(.leading, 52).background(Color.smBorderSoft)
             infoRow(
