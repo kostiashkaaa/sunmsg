@@ -13,6 +13,7 @@ private enum ChatListSheet: String, Identifiable {
 struct ChatListView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var searchText = ""
     @State private var activeFilter = "all"
     @State private var activeSheet: ChatListSheet?
@@ -93,7 +94,8 @@ struct ChatListView: View {
             refreshPrivateKeyState()
         }
         .refreshable { await refreshSidebarData() }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
             Task { await refreshSidebarData() }
         }
         .confirmationDialog(removalDialogTitle, isPresented: removalDialogBinding, titleVisibility: .visible) {
