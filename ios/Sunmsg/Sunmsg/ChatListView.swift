@@ -72,6 +72,7 @@ struct ChatListView: View {
             }
         }
         .navigationBarHidden(true)
+        .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $showMnemonicUnlock) {
             MnemonicUnlockSheet()
         }
@@ -288,6 +289,7 @@ struct ChatListView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var requestsList: some View {
@@ -318,6 +320,7 @@ struct ChatListView: View {
                     .padding(.top, 4)
                     .padding(.bottom, 12)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
     }
@@ -652,6 +655,7 @@ struct SidebarContactRow: View {
                         Text(smFormatTime(ts))
                             .font(.system(size: 11.5, weight: contact.unreadCount > 0 ? .semibold : .regular))
                             .foregroundStyle(contact.unreadCount > 0 && !muted ? Color.smAccent2 : Color.smFaint)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                 }
 
@@ -664,9 +668,11 @@ struct SidebarContactRow: View {
                     Spacer(minLength: 4)
                     if contact.unreadCount > 0 {
                         SmBadge(count: contact.unreadCount, muted: muted)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                 }
             }
+            .layoutPriority(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -892,6 +898,7 @@ struct MnemonicUnlockSheet: View {
                     }
                     .padding(.horizontal, 24)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Восстановление доступа")
             .navigationBarTitleDisplayMode(.inline)
@@ -1004,6 +1011,8 @@ struct SmAvatarView: View {
                 avatarFallback
             }
         }
+        .frame(width: size, height: size)
+        .fixedSize()
     }
 
     @ViewBuilder

@@ -358,6 +358,7 @@ struct TotpSettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .refreshable { await loadStatus(showSpinner: false) }
         }
         .navigationTitle("TOTP 2FA")

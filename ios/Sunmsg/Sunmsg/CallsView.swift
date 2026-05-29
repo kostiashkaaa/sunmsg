@@ -190,8 +190,10 @@ struct CallRowView: View {
                     Text(callSubtitle)
                         .font(.system(size: 12))
                         .foregroundStyle(call.missed ? Color(hex: "#c14242").opacity(0.75) : Color.smMuted)
+                        .lineLimit(1)
                 }
             }
+            .layoutPriority(1)
 
             Spacer()
 

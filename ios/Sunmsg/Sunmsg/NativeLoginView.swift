@@ -10,11 +10,31 @@ private enum LoginFlow: Equatable {
     case error(String)
 }
 
+private enum LoginContentScreen: Hashable {
+    case landing
+    case restore
+    case totp
+
+    init?(_ flow: LoginFlow) {
+        switch flow {
+        case .landing:
+            self = .landing
+        case .restore, .error:
+            self = .restore
+        case .totp:
+            self = .totp
+        case .loading:
+            return nil
+        }
+    }
+}
+
 // MARK: - Native login view
 
 struct NativeLoginView: View {
     @EnvironmentObject var session: SessionStore
     @State private var flow: LoginFlow = .landing
+    @State private var lastContentScreen: LoginContentScreen = .landing
     @State private var username = ""
     @State private var mnemonic = ""
     @State private var totpCode = ""
@@ -22,6 +42,14 @@ struct NativeLoginView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field { case username, mnemonic, totp }
+
+    private var contentScreen: LoginContentScreen {
+        LoginContentScreen(flow) ?? lastContentScreen
+    }
+
+    private var isLoading: Bool {
+        flow == .loading
+    }
 
     var body: some View {
         ZStack {
@@ -33,23 +61,27 @@ struct NativeLoginView: View {
             .ignoresSafeArea()
 
             Group {
-                switch flow {
+                switch contentScreen {
                 case .landing:
                     landingView
                 case .restore:
                     restoreFormView
                 case .totp:
                     totpView
-                case .loading:
-                    landingView
-                case .error:
-                    restoreFormView
                 }
             }
-            .animation(.easeInOut(duration: 0.22), value: flow)
+            .id(contentScreen)
+            .transition(.opacity.combined(with: .move(edge: .trailing)))
+            .animation(.easeInOut(duration: 0.22), value: contentScreen)
 
-            if flow == .loading {
+            if isLoading {
                 loadingOverlay
+                    .transition(.opacity.animation(.easeInOut(duration: 0.18)))
+            }
+        }
+        .onChange(of: flow) { _, newFlow in
+            if let screen = LoginContentScreen(newFlow) {
+                lastContentScreen = screen
             }
         }
     }
@@ -172,6 +204,7 @@ struct NativeLoginView: View {
                 .padding(.bottom, 40)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - Restore form (username + mnemonic)
@@ -323,6 +356,7 @@ struct NativeLoginView: View {
                 .padding(.bottom, 40)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - TOTP form
@@ -398,6 +432,7 @@ struct NativeLoginView: View {
                 .buttonStyle(.plain)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .onAppear { focusedField = .totp }
     }
 

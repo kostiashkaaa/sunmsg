@@ -47,6 +47,9 @@ struct ChatView: View {
     @State private var lastDraftUpdatedAt: Double = 0
     @State private var isApplyingDraftText = false
     @State private var hasPrivateKeyLoaded = false
+    @State private var deleteDialogTask: Task<Void, Never>? = nil
+    @State private var editFocusTask: Task<Void, Never>? = nil
+    @State private var toastDismissTask: Task<Void, Never>? = nil
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -140,6 +143,12 @@ struct ChatView: View {
                 }
                 typingDebounceTask?.cancel()
                 draftSaveTask?.cancel()
+                deleteDialogTask?.cancel()
+                deleteDialogTask = nil
+                editFocusTask?.cancel()
+                editFocusTask = nil
+                toastDismissTask?.cancel()
+                toastDismissTask = nil
                 flushDraftSave(force: true)
                 partnerStopTypingTask?.cancel()
                 if isRecording { cancelRecording() }
@@ -169,36 +178,33 @@ struct ChatView: View {
     // MARK: - Native layout
 
     private var nativeChatLayout: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                Color(hex: "#f2ede2").ignoresSafeArea()
-                if isLoading {
-                    ProgressView()
-                        .tint(Color.smAccent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let err = loadError {
-                    VStack(spacing: 14) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 36)).foregroundStyle(Color.smAccent)
-                        Text(err).font(.callout).foregroundStyle(Color.smMuted)
-                            .multilineTextAlignment(.center)
-                        Button("Повторить") { Task { await loadMessages() } }
-                            .foregroundStyle(Color.smAccent)
-                    }
-                    .padding(32)
+        ZStack {
+            Color(hex: "#f2ede2").ignoresSafeArea()
+            if isLoading {
+                ProgressView()
+                    .tint(Color.smAccent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    if messages.isEmpty {
-                        emptyHistoryView
-                    } else {
-                        messageScrollView
-                    }
+            } else if let err = loadError {
+                VStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 36)).foregroundStyle(Color.smAccent)
+                    Text(err).font(.callout).foregroundStyle(Color.smMuted)
+                        .multilineTextAlignment(.center)
+                    Button("Повторить") { Task { await loadMessages() } }
+                        .foregroundStyle(Color.smAccent)
                 }
+                .padding(32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if messages.isEmpty {
+                emptyHistoryView
+            } else {
+                messageScrollView
             }
-
-            composerBar
         }
         .background(Color(hex: "#f2ede2"))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            composerBar
+        }
         .overlayPreferenceValue(BubbleAnchorKey.self) { anchors in
             if menuTargetId != nil {
                 GeometryReader { geo in
@@ -233,9 +239,12 @@ struct ChatView: View {
     }
 
     private func showToast(_ text: String) {
+        toastDismissTask?.cancel()
         withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { toast = text }
-        Task { @MainActor in
+        toastDismissTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_600_000_000)
+            guard !Task.isCancelled, toast == text else { return }
+            toastDismissTask = nil
             withAnimation(.easeOut(duration: 0.25)) { toast = nil }
         }
     }
@@ -377,7 +386,11 @@ struct ChatView: View {
         items.append(MenuAction(label: "Удалить", icon: "trash", role: .destructive) {
             let isMine = isFromMe
             dismissMenu()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            deleteDialogTask?.cancel()
+            deleteDialogTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 180_000_000)
+                guard !Task.isCancelled else { return }
+                deleteDialogTask = nil
                 pendingDelete = PendingDelete(id: msg.id, isFromMe: isMine)
             }
         })
@@ -583,6 +596,7 @@ struct ChatView: View {
                 }
             )
             .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .onAppear { scrollToBottom(proxy, animated: false) }
             .onPreferenceChange(MessageViewportHeightKey.self) { height in
                 let changed = abs(messageViewportHeight - height) > 0.5
@@ -1064,7 +1078,11 @@ struct ChatView: View {
             partnerStopTypingTask?.cancel()
             partnerStopTypingTask = Task {
                 try? await Task.sleep(nanoseconds: 6_000_000_000)
-                await MainActor.run { partnerIsTyping = false }
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    partnerIsTyping = false
+                }
             }
 
         case "partner_stop_typing":
@@ -1554,16 +1572,22 @@ struct ChatView: View {
 
     private func beginEdit(message: ChatMessage, currentText: String) {
         dismissMenu()
+        editFocusTask?.cancel()
         withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
             editingMessageId = message.id
             composerText = currentText
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        editFocusTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
+            editFocusTask = nil
             composerFocused = true
         }
     }
 
     private func cancelEdit() {
+        editFocusTask?.cancel()
+        editFocusTask = nil
         editingMessageId = nil
         composerText = ""
         composerFocused = false
@@ -2667,7 +2691,10 @@ struct PhotoBubbleView: View {
                 imageData = try await e2ee.fetchAndDecrypt()
             } else {
                 guard let data = try await APIClient.shared.fetchMedia(url) else {
-                    await MainActor.run { loadFailed = true }
+                    await MainActor.run {
+                        guard self.url == url else { return }
+                        loadFailed = true
+                    }
                     return
                 }
                 imageData = data

@@ -74,6 +74,7 @@ final class SessionStore: ObservableObject {
     private var mutedChatIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
     private var typingTimers: [String: Task<Void, Never>] = [:]
+    private var callErrorClearTask: Task<Void, Never>?
     private var presenceTimer: Timer?
 
     init() {
@@ -359,11 +360,7 @@ final class SessionStore: ObservableObject {
                 "unsupported_call_topology":    "Групповые звонки пока не поддерживаются.",
                 "invalid_chat_id":              "Неверный идентификатор чата.",
             ]
-            callError = messages[code] ?? "Ошибка звонка."
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                self?.callError = nil
-            }
+            showCallError(messages[code] ?? "Ошибка звонка.")
 
         case "contact_added":
             Task { await self.refreshContacts() }
@@ -398,11 +395,7 @@ final class SessionStore: ObservableObject {
 
     func initiateCall(chatId: String, callType: String) {
         guard SocketClient.shared.state == .connected else {
-            callError = "Нет соединения с сервером. Проверьте интернет и попробуйте переподключиться."
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                callError = nil
-            }
+            showCallError("Нет соединения с сервером. Проверьте интернет и попробуйте переподключиться.")
             return
         }
         let requestId = UUID().uuidString
@@ -611,6 +604,17 @@ final class SessionStore: ObservableObject {
         }
         catch APIError.unauthorized { route = .login }
         catch { errorMessage = error.localizedDescription }
+    }
+
+    private func showCallError(_ message: String) {
+        callErrorClearTask?.cancel()
+        callError = message
+        callErrorClearTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled, self?.callError == message else { return }
+            self?.callErrorClearTask = nil
+            self?.callError = nil
+        }
     }
 
     func logout() async {
@@ -1852,6 +1856,7 @@ struct ProfileSettingsView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Профиль")
             .navigationBarTitleDisplayMode(.inline)
@@ -1890,11 +1895,14 @@ struct ProfileSettingsView: View {
             Text(label)
                 .font(.system(size: 14.5, weight: .medium))
                 .foregroundStyle(Color.smText)
-            Spacer()
+                .lineLimit(1)
+            Spacer(minLength: 12)
             Text(value)
                 .font(.system(size: 14))
                 .foregroundStyle(Color.smMuted)
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -1920,6 +1928,7 @@ struct ProfileSettingsView: View {
             content()
                 .font(.system(size: 14))
                 .foregroundStyle(Color.smText)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

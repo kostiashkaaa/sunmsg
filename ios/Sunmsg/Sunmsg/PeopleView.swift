@@ -41,6 +41,7 @@ struct PeopleView: View {
             }
         }
         .navigationBarHidden(true)
+        .scrollDismissesKeyboard(.interactively)
         .task { await session.refreshDialogRequests() }
         .navigationDestination(isPresented: Binding(
             get: { navigateToContact != nil },
@@ -540,9 +541,13 @@ struct GroupCreateView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                     }
-                    createButton
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                createButton
+                    .background(Color.smBg.ignoresSafeArea(edges: .bottom))
+            }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Новая группа")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -674,7 +679,7 @@ struct GroupCreateView: View {
 
     private var candidateList: some View {
         let candidates = visibleCandidates
-        Group {
+        return Group {
             if candidates.isEmpty {
                 VStack(spacing: 10) {
                     Spacer()
@@ -724,12 +729,14 @@ struct GroupCreateView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color.smMuted)
                 }
+                .layoutPriority(1)
                 Spacer()
                 Text(candidate.actionLabel)
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(candidate.isDenied ? Color.smFaint : Color.smAccent2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
+                    .fixedSize(horizontal: true, vertical: false)
                     .background((candidate.isDenied ? Color.smBorder : Color.smAccent).opacity(0.12), in: Capsule())
             }
             .padding(.horizontal, 12)
@@ -881,6 +888,7 @@ struct DialogRequestRow: View {
                     .foregroundStyle(Color.smAccent)
                     .lineLimit(1)
             }
+            .layoutPriority(1)
 
             Spacer()
 
@@ -967,6 +975,7 @@ struct UserResultRow: View {
                         .foregroundStyle(Color.smAccent)
                         .lineLimit(1)
                 }
+                .layoutPriority(1)
 
                 Spacer()
 
@@ -981,6 +990,7 @@ struct UserResultRow: View {
                             .foregroundStyle(requestSent || user.pendingOutgoingRequest ? Color.smFaint : Color(hex: "#fbf8f1"))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
+                            .fixedSize(horizontal: true, vertical: false)
                             .background(
                                 requestSent || user.pendingOutgoingRequest
                                     ? Color.smBorder.opacity(0.5)

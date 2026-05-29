@@ -44,6 +44,7 @@ struct NativeRegisterView: View {
                 .padding(.horizontal, 28)
                 .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
 
             if step == .loading {
                 loadingOverlay
