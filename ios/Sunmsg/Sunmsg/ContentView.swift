@@ -590,6 +590,7 @@ final class SessionStore: ObservableObject {
         try? await api.logout()
         KeychainService.deleteAllLocalSecrets()
         syncEngine.reset()
+        await ChatLocalStore.shared.resetAll()
         bootstrap = nil; contacts = []; pendingRequests = []; route = .login
     }
 

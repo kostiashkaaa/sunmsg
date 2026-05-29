@@ -28,6 +28,7 @@
 		A10000000000000000000089 /* V3CryptoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008A /* V3CryptoService.swift */; };
 		A1000000000000000000008B /* CallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008C /* CallView.swift */; };
 		A10000000000000000000090 /* ChatSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000091 /* ChatSyncEngine.swift */; };
+		A10000000000000000000092 /* ChatLocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000093 /* ChatLocalStore.swift */; };
 		A100000000000000000000F2 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A100000000000000000000F1 /* WebRTC */; };
 		A100000000000000000000F4 /* WebRTCService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000F3 /* WebRTCService.swift */; };
 /* End PBXBuildFile section */
@@ -56,6 +57,7 @@
 		A1000000000000000000008A /* V3CryptoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V3CryptoService.swift; sourceTree = "<group>"; };
 		A1000000000000000000008C /* CallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallView.swift; sourceTree = "<group>"; };
 		A10000000000000000000091 /* ChatSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncEngine.swift; sourceTree = "<group>"; };
+		A10000000000000000000093 /* ChatLocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLocalStore.swift; sourceTree = "<group>"; };
 		A100000000000000000000F3 /* WebRTCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -101,6 +103,7 @@
 				A1000000000000000000008A /* V3CryptoService.swift */,
 				A1000000000000000000008C /* CallView.swift */,
 				A10000000000000000000091 /* ChatSyncEngine.swift */,
+				A10000000000000000000093 /* ChatLocalStore.swift */,
 				A100000000000000000000F3 /* WebRTCService.swift */,
 				A10000000000000000000019 /* Assets.xcassets */,
 				A1000000000000000000001A /* PrivacyInfo.xcprivacy */,
@@ -231,6 +234,7 @@
 				A10000000000000000000089 /* V3CryptoService.swift in Sources */,
 				A1000000000000000000008B /* CallView.swift in Sources */,
 				A10000000000000000000090 /* ChatSyncEngine.swift in Sources */,
+				A10000000000000000000092 /* ChatLocalStore.swift in Sources */,
 				A100000000000000000000F4 /* WebRTCService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -362,7 +366,7 @@
 				DEVELOPMENT_TEAM = KQ4UWBQWH6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sunmsg/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -387,7 +391,7 @@
 				DEVELOPMENT_TEAM = KQ4UWBQWH6;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sunmsg/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

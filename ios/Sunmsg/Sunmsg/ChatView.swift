@@ -3,10 +3,17 @@ import Combine
 import PhotosUI
 import AVKit
 import AVFoundation
+import ImageIO
 
 struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
+
+    private enum MessageScrollIntent {
+        case bottom(animated: Bool)
+        case preserve(id: Int)
+        case none
+    }
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
@@ -29,6 +36,8 @@ struct ChatView: View {
     @State private var recordingURL: URL? = nil
     @State private var recordingDuration: TimeInterval = 0
     @State private var recordingPulse = false
+    @State private var recordingTimerTask: Task<Void, Never>? = nil
+    @State private var scrollIntent: MessageScrollIntent = .bottom(animated: false)
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -115,6 +124,8 @@ struct ChatView: View {
                     session.activeChatId = nil
                 }
                 typingDebounceTask?.cancel()
+                partnerStopTypingTask?.cancel()
+                if isRecording { cancelRecording() }
                 SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
             }
             .onChange(of: composerText) { _, text in
@@ -392,15 +403,16 @@ struct ChatView: View {
     }
 
     private func toggleReaction(messageId: Int, emoji: String) {
-        guard SocketClient.shared.state == .connected else {
-            sendError = "Нет соединения — реакция не отправлена."
-            return
+        if SocketClient.shared.state != .connected {
+            sendError = "Нет соединения — реакция будет отправлена после переподключения."
         }
         // Optimistic, animated local update so the reaction appears instantly.
         if let i = messages.firstIndex(where: { $0.id == messageId }) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 applyLocalReactionToggle(index: i, emoji: emoji)
             }
+            let updated = messages[i]
+            Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
         }
         SocketClient.shared.emit("toggle_reaction", [
             "chat_id": contact.chatId,
@@ -521,11 +533,25 @@ struct ChatView: View {
             }
             .scrollIndicators(.hidden)
             .onAppear { scrollToBottom(proxy, animated: false) }
-            .onChange(of: messages.count) { _, _ in scrollToBottom(proxy, animated: true) }
+            .onChange(of: messages.count) { _, _ in
+                applyScrollIntent(proxy)
+            }
             .onChange(of: partnerIsTyping) { _, typing in
                 if typing { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
             }
         }
+    }
+
+    private func applyScrollIntent(_ proxy: ScrollViewProxy) {
+        switch scrollIntent {
+        case .bottom(let animated):
+            scrollToBottom(proxy, animated: animated)
+        case .preserve(let id):
+            proxy.scrollTo(id, anchor: .top)
+        case .none:
+            break
+        }
+        scrollIntent = .bottom(animated: true)
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
@@ -865,14 +891,31 @@ struct ChatView: View {
         isLoading = true; loadError = nil
         decryptedTexts = [:]
         decryptionSummary = nil
+        let cached = await ChatLocalStore.shared.cachedMessages(chatId: contact.chatId)
+            .map(normalizedMessage)
+        if !cached.isEmpty {
+            scrollIntent = .bottom(animated: false)
+            messages = cached
+            hasOlderMessages = cached.count >= 40
+            isLoading = false
+            await decryptMessages(cached)
+        }
         do {
-            messages = try await APIClient.shared.getChatHistory(chatId: contact.chatId)
-                .map(normalizedMessage)
-            hasOlderMessages = messages.count >= 40
             await session.primeChatSync(chatId: contact.chatId)
+            let fresh = try await APIClient.shared.getChatHistory(chatId: contact.chatId)
+                .map(normalizedMessage)
+            scrollIntent = .bottom(animated: false)
+            messages = fresh
+            hasOlderMessages = messages.count >= 40
+            await ChatLocalStore.shared.mergeMessages(messages, chatId: contact.chatId)
             await markRead()
             await decryptMessages(messages)
-        } catch { loadError = error.localizedDescription }
+            await session.recoverChatSync(chatId: contact.chatId)
+        } catch {
+            if messages.isEmpty {
+                loadError = error.localizedDescription
+            }
+        }
         isLoading = false
     }
 
@@ -890,11 +933,15 @@ struct ChatView: View {
               !messages.contains(where: { $0.id == msg.id })
         else { return }
         let normalized = normalizedMessage(msg)
+        scrollIntent = .bottom(animated: true)
         messages.append(normalized)
         if msg.senderUserId != myId {
             Task { try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: [msg.id]) }
         }
-        Task { await decryptMessages([normalized]) }
+        Task {
+            await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId)
+            await decryptMessages([normalized])
+        }
     }
 
     // MARK: - Socket event handler (secondary path for events SessionStore doesn't relay)
@@ -913,8 +960,12 @@ struct ChatView: View {
             guard let msgId = payload["id"] as? Int else { return }
             if messages.contains(where: { $0.id == msgId }) { return }
             let msg = buildMessageFromPayload(payload, chatId: chatId)
+            scrollIntent = .bottom(animated: true)
             messages.append(msg)
-            Task { await decryptMessages([msg]) }
+            Task {
+                await ChatLocalStore.shared.mergeMessages([msg], chatId: contact.chatId)
+                await decryptMessages([msg])
+            }
 
         case "partner_typing":
             partnerIsTyping = true
@@ -932,6 +983,7 @@ struct ChatView: View {
             for i in 0..<messages.count where messages[i].senderUserId == myId {
                 messages[i].isRead = true
             }
+            Task { await ChatLocalStore.shared.mergeMessages(messages, chatId: contact.chatId) }
 
         case "message_reactions_updated":
             guard let mid = payload["message_id"] as? Int,
@@ -940,6 +992,8 @@ struct ChatView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
                 messages[i].reactions = parseReactions(payload["reactions"])
             }
+            let updated = messages[i]
+            Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
 
         case "message_edited":
             guard let mid = payload["msg_id"] as? Int,
@@ -951,14 +1005,19 @@ struct ChatView: View {
             messages[i].isEdited = true
             decryptedTexts[mid] = nil
             let edited = messages[i]
-            Task { await decryptMessages([edited]) }
+            Task {
+                await ChatLocalStore.shared.mergeMessages([edited], chatId: contact.chatId)
+                await decryptMessages([edited])
+            }
 
         case "messages_deleted":
             let ids = parseDeletedIds(payload)
             guard !ids.isEmpty else { return }
+            scrollIntent = .none
             withAnimation(.easeInOut(duration: 0.22)) {
                 messages.removeAll { ids.contains($0.id) }
             }
+            Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
         default:
             break
@@ -1004,7 +1063,9 @@ struct ChatView: View {
             if older.count < 30 { hasOlderMessages = false }
             if !older.isEmpty {
                 let normalized = older.map(normalizedMessage)
+                scrollIntent = .preserve(id: firstId)
                 messages.insert(contentsOf: normalized, at: 0)
+                await ChatLocalStore.shared.mergeMessages(normalized, chatId: contact.chatId)
                 await decryptMessages(normalized)
             }
         } catch { }
@@ -1216,9 +1277,8 @@ struct ChatView: View {
             sendError = "Ключ шифрования не загружен."
             return
         }
-        guard SocketClient.shared.state == .connected else {
-            sendError = "Нет соединения — изменение не отправлено."
-            return
+        if SocketClient.shared.state != .connected {
+            sendError = "Нет соединения — изменение будет отправлено после переподключения."
         }
         do {
             let encrypted = try SunCrypto.encryptMessage(
@@ -1237,6 +1297,8 @@ struct ChatView: View {
                 messages[i].message = encrypted
                 messages[i].isEdited = true
                 decryptedTexts[mid] = text
+                let updated = messages[i]
+                Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
             }
         } catch {
             sendError = error.localizedDescription
@@ -1246,10 +1308,8 @@ struct ChatView: View {
     }
 
     private func deleteMessage(id: Int, mode: String) {
-        guard SocketClient.shared.state == .connected else {
-            sendError = "Нет соединения — сообщение не удалено."
-            pendingDelete = nil
-            return
+        if SocketClient.shared.state != .connected {
+            sendError = "Нет соединения — удаление будет отправлено после переподключения."
         }
         SocketClient.shared.emit("delete_messages", [
             "msg_ids": [id],
@@ -1258,9 +1318,11 @@ struct ChatView: View {
             "request_id": UUID().uuidString,
         ])
         // Optimistic local removal.
+        scrollIntent = .none
         withAnimation(.easeInOut(duration: 0.22)) {
             messages.removeAll { $0.id == id }
         }
+        Task { await ChatLocalStore.shared.deleteMessages(ids: [id], chatId: contact.chatId) }
         pendingDelete = nil
     }
 
@@ -1301,11 +1363,13 @@ struct ChatView: View {
                 await MainActor.run {
                     let normalized = normalizedMessage(sent)
                     if !messages.contains(where: { $0.id == sent.id }) {
+                        scrollIntent = .bottom(animated: true)
                         messages.append(normalized)
                     }
                     decryptedTexts[sent.id] = text
                     sendError = nil
                     isSending = false
+                    Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
                 }
             } catch {
                 await MainActor.run {
@@ -1352,11 +1416,11 @@ struct ChatView: View {
             recordingURL = tmpURL
             recordingDuration = 0
             isRecording = true
-            // Increment duration each second using a Task
-            Task {
-                while isRecording {
+            recordingTimerTask?.cancel()
+            recordingTimerTask = Task { @MainActor in
+                while isRecording && !Task.isCancelled {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    if isRecording { await MainActor.run { recordingDuration += 1 } }
+                    if isRecording && !Task.isCancelled { recordingDuration += 1 }
                 }
             }
         } catch {
@@ -1369,6 +1433,8 @@ struct ChatView: View {
         audioRecorder = nil
         isRecording = false
         recordingPulse = false
+        recordingTimerTask?.cancel()
+        recordingTimerTask = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = recordingURL else { return }
         recordingURL = nil
@@ -1380,6 +1446,8 @@ struct ChatView: View {
         audioRecorder = nil
         isRecording = false
         recordingPulse = false
+        recordingTimerTask?.cancel()
+        recordingTimerTask = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         if let url = recordingURL {
             try? FileManager.default.removeItem(at: url)
@@ -1438,10 +1506,12 @@ struct ChatView: View {
             await MainActor.run {
                 let normalized = normalizedMessage(sent)
                 if !messages.contains(where: { $0.id == sent.id }) {
+                    scrollIntent = .bottom(animated: true)
                     messages.append(normalized)
                 }
                 decryptedTexts[sent.id] = sunfileJSON
                 isUploadingMedia = false
+                Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
             }
         } catch {
             await MainActor.run {
@@ -1483,16 +1553,9 @@ struct ChatView: View {
             guard let rawData = try await item.loadTransferable(type: Data.self) else {
                 throw NSError(domain: "media", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не удалось загрузить изображение"])
             }
-            let uploadData: Data
-            let uploadMime: String
-            if let uiImg = UIImage(data: rawData),
-               let jpeg = uiImg.jpegData(compressionQuality: 0.82) {
-                uploadData = jpeg
-                uploadMime = "image/jpeg"
-            } else {
-                uploadData = rawData
-                uploadMime = "image/jpeg"
-            }
+            let prepared = preparePhotoUpload(rawData)
+            let uploadData = prepared.data
+            let uploadMime = prepared.mime
 
             // Upload to server
             let uploadResult = try await APIClient.shared.uploadMedia(
@@ -1531,11 +1594,13 @@ struct ChatView: View {
             await MainActor.run {
                 let normalized = normalizedMessage(sent)
                 if !messages.contains(where: { $0.id == sent.id }) {
+                    scrollIntent = .bottom(animated: true)
                     messages.append(normalized)
                 }
                 // Store the decrypted sunfile JSON so the bubble renders it
                 decryptedTexts[sent.id] = sunfileJSON
                 isUploadingMedia = false
+                Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
             }
         } catch {
             await MainActor.run {
@@ -1543,6 +1608,24 @@ struct ChatView: View {
                 isUploadingMedia = false
             }
         }
+    }
+
+    private func preparePhotoUpload(_ rawData: Data) -> (data: Data, mime: String) {
+        let maxPixelSize = 2048
+        guard let source = CGImageSourceCreateWithData(rawData as CFData, nil) else {
+            return (rawData, "image/jpeg")
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
+              let jpeg = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.82)
+        else {
+            return (rawData, "image/jpeg")
+        }
+        return (jpeg, "image/jpeg")
     }
 }
 
@@ -2231,6 +2314,7 @@ struct VideoBubbleView: View {
     @State private var thumbnail: UIImage?
     /// Resolved playback URL (may be a local temp file if web-encrypted).
     @State private var effectiveURL: URL?
+    @State private var decryptedTempURL: URL?
 
     var body: some View {
         Button(action: { if effectiveURL != nil { showPlayer = true } }) {
@@ -2264,6 +2348,7 @@ struct VideoBubbleView: View {
         }
         .buttonStyle(.plain)
         .task(id: url) { await resolveAndLoadThumbnail() }
+        .onDisappear { removeDecryptedTempFile() }
         .fullScreenCover(isPresented: $showPlayer) {
             if let eu = effectiveURL {
                 VideoPlayerSheet(url: eu, isPresented: $showPlayer)
@@ -2272,16 +2357,30 @@ struct VideoBubbleView: View {
     }
 
     private func resolveAndLoadThumbnail() async {
-        guard let url else { return }
+        removeDecryptedTempFile()
+        guard let url else {
+            effectiveURL = nil
+            thumbnail = nil
+            return
+        }
         // If the media is web-encrypted, decrypt to a temp file first so
         // both the thumbnail generator and the full-screen player can use it.
         if let e2ee = SunMediaE2EE.parse(url: url),
            let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+            decryptedTempURL = tmpURL
             effectiveURL = tmpURL
             await generateThumbnail(from: AVURLAsset(url: tmpURL))
         } else {
             effectiveURL = url
             await generateThumbnail(from: AuthenticatedAsset.make(url: url))
+        }
+    }
+
+    private func removeDecryptedTempFile() {
+        guard let url = decryptedTempURL else { return }
+        decryptedTempURL = nil
+        if url.isFileURL {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 
@@ -2368,6 +2467,7 @@ struct AudioBubbleView: View {
     /// Effective playback URL — may be a local temp file if the source is
     /// a web-encrypted media file (sun_media_e2ee fragment).
     @State private var effectiveURL: URL?
+    @State private var decryptedTempURL: URL?
     @State private var isResolving = false
 
     var body: some View {
@@ -2417,21 +2517,36 @@ struct AudioBubbleView: View {
         )
         .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
         .task(id: url) { await resolveAndPrepare() }
+        .onDisappear {
+            player.stop()
+            removeDecryptedTempFile()
+        }
     }
 
     private func resolveAndPrepare() async {
+        player.stop()
+        removeDecryptedTempFile()
         guard let url else { effectiveURL = nil; return }
         if let e2ee = SunMediaE2EE.parse(url: url) {
             // Web-encrypted file: fetch, decrypt, save to temp file
             isResolving = true
             defer { isResolving = false }
             if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+                decryptedTempURL = tmpURL
                 effectiveURL = tmpURL
                 await player.prepareDuration(url: tmpURL)
             }
         } else {
             effectiveURL = url
             await player.prepareDuration(url: url)
+        }
+    }
+
+    private func removeDecryptedTempFile() {
+        guard let url = decryptedTempURL else { return }
+        decryptedTempURL = nil
+        if url.isFileURL {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 
@@ -2498,6 +2613,22 @@ final class AudioPlayerController: ObservableObject {
         else { player?.play(); isPlaying = true }
     }
 
+    func stop() {
+        let currentPlayer = player
+        currentPlayer?.pause()
+        if let t = timeObserver {
+            currentPlayer?.removeTimeObserver(t)
+            timeObserver = nil
+        }
+        if let o = endObserver {
+            NotificationCenter.default.removeObserver(o)
+            endObserver = nil
+        }
+        player = nil
+        isPlaying = false
+        elapsed = 0
+    }
+
     deinit {
         if let t = timeObserver { player?.removeTimeObserver(t) }
         if let o = endObserver { NotificationCenter.default.removeObserver(o) }
@@ -2516,6 +2647,7 @@ struct FileBubbleView: View {
     @State private var isDownloading = false
     /// Resolved URL (local temp file for web-encrypted files, original URL otherwise).
     @State private var resolvedURL: URL?
+    @State private var decryptedTempURL: URL?
 
     private var sizeText: String {
         if size <= 0 { return "" }
@@ -2581,22 +2713,42 @@ struct FileBubbleView: View {
             // Pre-resolve plain (non-encrypted) URLs immediately; encrypted files
             // are resolved on demand when the user taps.
             guard let url else { return }
-            if SunMediaE2EE.parse(url: url) == nil { resolvedURL = url }
+            removeDecryptedTempFile()
+            if SunMediaE2EE.parse(url: url) == nil {
+                resolvedURL = url
+            } else {
+                resolvedURL = nil
+            }
         }
         .sheet(isPresented: $showShare) {
             if let resolved = resolvedURL { ShareSheet(items: [resolved]) }
         }
+        .onChange(of: showShare) { _, shown in
+            if !shown { removeDecryptedTempFile() }
+        }
+        .onDisappear { removeDecryptedTempFile() }
     }
 
     private func resolveForShare(url: URL) async {
         guard let e2ee = SunMediaE2EE.parse(url: url) else {
             resolvedURL = url; showShare = true; return
         }
+        removeDecryptedTempFile()
         isDownloading = true
         defer { isDownloading = false }
         if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+            decryptedTempURL = tmpURL
             resolvedURL = tmpURL
             showShare = true
+        }
+    }
+
+    private func removeDecryptedTempFile() {
+        guard let url = decryptedTempURL else { return }
+        decryptedTempURL = nil
+        if resolvedURL == url { resolvedURL = nil }
+        if url.isFileURL {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 }

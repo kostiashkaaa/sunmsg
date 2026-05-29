@@ -70,6 +70,7 @@ final class ChatSyncEngine {
     private var seenEventIds = Set<String>()
     private var seenEventOrder: [String] = []
     private let seenEventLimit = 2_000
+    private var didHydrate = false
 
     init(api: APIClient) {
         self.api = api
@@ -79,24 +80,29 @@ final class ChatSyncEngine {
         chatPtsByChatId.removeAll()
         seenEventIds.removeAll()
         seenEventOrder.removeAll()
+        didHydrate = false
     }
 
     func prime(chatId: String) async {
+        await hydrateIfNeeded()
         do {
             let state = try await api.getUpdatesState(chatId: chatId)
             if state.chatPts > (chatPtsByChatId[chatId] ?? 0) {
                 chatPtsByChatId[chatId] = state.chatPts
+                await ChatLocalStore.shared.setChatPts(state.chatPts, for: chatId)
             }
         } catch {
         }
     }
 
     func recoverChat(chatId: String) async -> [SocketReplayEvent] {
+        await hydrateIfNeeded()
         do {
             let state = try await api.getUpdatesState(chatId: chatId)
             let localPts = chatPtsByChatId[chatId] ?? 0
             guard localPts > 0 else {
                 chatPtsByChatId[chatId] = max(localPts, state.chatPts)
+                await ChatLocalStore.shared.setChatPts(state.chatPts, for: chatId)
                 return []
             }
             guard state.chatPts > localPts else { return [] }
@@ -107,6 +113,7 @@ final class ChatSyncEngine {
     }
 
     func prepareLiveEvent(eventName: String, payload: [String: Any]) async -> (replays: [SocketReplayEvent], shouldApplyCurrent: Bool) {
+        await hydrateIfNeeded()
         guard let metadata = SocketReplayEvent.metadata(eventName: eventName, payload: payload) else {
             return ([], true)
         }
@@ -116,7 +123,7 @@ final class ChatSyncEngine {
 
         let localPts = chatPtsByChatId[metadata.chatId] ?? 0
         if metadata.chatPts <= localPts {
-            rememberEventId(metadata.eventId)
+            await rememberEventId(metadata.eventId)
             return ([], false)
         }
 
@@ -132,11 +139,11 @@ final class ChatSyncEngine {
         }
 
         if metadata.chatPts <= (chatPtsByChatId[metadata.chatId] ?? 0) {
-            rememberEventId(metadata.eventId)
+            await rememberEventId(metadata.eventId)
             return (replays, false)
         }
 
-        recordApplied(chatId: metadata.chatId, chatPts: metadata.chatPts, eventId: metadata.eventId)
+        await recordApplied(chatId: metadata.chatId, chatPts: metadata.chatPts, eventId: metadata.eventId)
         return (replays, true)
     }
 
@@ -165,7 +172,7 @@ final class ChatSyncEngine {
                     continue
                 }
                 recovered.append(event)
-                recordApplied(chatId: chatId, chatPts: event.chatPts, eventId: event.eventId)
+                await recordApplied(chatId: chatId, chatPts: event.chatPts, eventId: event.eventId)
                 cursor = max(cursor, event.chatPts)
                 advanced = true
             }
@@ -176,12 +183,22 @@ final class ChatSyncEngine {
         return recovered
     }
 
-    private func recordApplied(chatId: String, chatPts: Int, eventId: String?) {
-        chatPtsByChatId[chatId] = max(chatPtsByChatId[chatId] ?? 0, chatPts)
-        rememberEventId(eventId)
+    private func hydrateIfNeeded() async {
+        guard !didHydrate else { return }
+        let snapshot = await ChatLocalStore.shared.syncSnapshot()
+        chatPtsByChatId = snapshot.chatPtsByChatId
+        seenEventOrder = Array(snapshot.seenEventIds.suffix(seenEventLimit))
+        seenEventIds = Set(seenEventOrder)
+        didHydrate = true
     }
 
-    private func rememberEventId(_ eventId: String?) {
+    private func recordApplied(chatId: String, chatPts: Int, eventId: String?) async {
+        chatPtsByChatId[chatId] = max(chatPtsByChatId[chatId] ?? 0, chatPts)
+        await ChatLocalStore.shared.setChatPts(chatPtsByChatId[chatId] ?? chatPts, for: chatId)
+        await rememberEventId(eventId)
+    }
+
+    private func rememberEventId(_ eventId: String?) async {
         guard let eventId, !eventId.isEmpty, !seenEventIds.contains(eventId) else { return }
         seenEventIds.insert(eventId)
         seenEventOrder.append(eventId)
@@ -193,5 +210,6 @@ final class ChatSyncEngine {
                 seenEventIds.remove(eventId)
             }
         }
+        await ChatLocalStore.shared.rememberEventId(eventId)
     }
 }

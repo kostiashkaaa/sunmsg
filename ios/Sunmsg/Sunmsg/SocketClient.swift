@@ -52,6 +52,11 @@ final class SocketClient: NSObject, @unchecked Sendable {
 
     static let shared = SocketClient()
 
+    private struct QueuedEmit {
+        let event: String
+        let data: [String: Any]
+    }
+
     // MARK: - State
 
     enum State: Equatable { case disconnected, connecting, connected }
@@ -72,6 +77,16 @@ final class SocketClient: NSObject, @unchecked Sendable {
     private var webSocketTask: URLSessionWebSocketTask?
     private var pingTimer: Timer?
     private var reconnectTask: Task<Void, Never>?
+    private var queuedEmits: [QueuedEmit] = []
+    private let maxQueuedEmits = 100
+    private let volatileEvents: Set<String> = [
+        "typing",
+        "stop_typing",
+        "activity_update",
+        "call_sync",
+        "call_media_state",
+        "call_ice_candidate",
+    ]
 
     // Shared URLSession so the socket uses the same cookie jar as APIClient.
     private lazy var urlSession: URLSession = {
@@ -95,6 +110,7 @@ final class SocketClient: NSObject, @unchecked Sendable {
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempts = 0
+        queuedEmits.removeAll()
         closeSocket(reconnect: false)
     }
 
@@ -132,6 +148,7 @@ final class SocketClient: NSObject, @unchecked Sendable {
     // MARK: - Reconnect with exponential back-off
 
     private func scheduleReconnect() {
+        reconnectTask?.cancel()
         let delay = min(pow(2.0, Double(reconnectAttempts)), maxReconnectDelay)
         reconnectAttempts = min(reconnectAttempts + 1, 6)
 
@@ -211,6 +228,7 @@ final class SocketClient: NSObject, @unchecked Sendable {
             reconnectAttempts = 0
             state = .connected
             startPingTimer()
+            flushQueuedEmits()
 
         case "1":
             // SIO DISCONNECT
@@ -264,14 +282,39 @@ final class SocketClient: NSObject, @unchecked Sendable {
     //   4 = EIO MESSAGE, 2 = SIO EVENT
 
     func emit(_ event: String, _ data: [String: Any] = [:]) {
-        guard state == .connected else { return }
         var payload = data
         if payload["csrf_token"] == nil {
             payload["csrf_token"] = csrfToken
         }
+        guard state == .connected else {
+            queueEmit(event, payload)
+            if state == .disconnected { scheduleReconnect() }
+            return
+        }
+        sendEvent(event, payload)
+    }
+
+    private func sendEvent(_ event: String, _ payload: [String: Any]) {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload),
               let jsonStr  = String(data: jsonData, encoding: .utf8) else { return }
         sendRaw("42[\"\(event)\",\(jsonStr)]")
+    }
+
+    private func queueEmit(_ event: String, _ payload: [String: Any]) {
+        guard !volatileEvents.contains(event) else { return }
+        queuedEmits.append(QueuedEmit(event: event, data: payload))
+        if queuedEmits.count > maxQueuedEmits {
+            queuedEmits.removeFirst(queuedEmits.count - maxQueuedEmits)
+        }
+    }
+
+    private func flushQueuedEmits() {
+        guard state == .connected, !queuedEmits.isEmpty else { return }
+        let pending = queuedEmits
+        queuedEmits.removeAll()
+        for item in pending {
+            sendEvent(item.event, item.data)
+        }
     }
 
     // MARK: - Private send

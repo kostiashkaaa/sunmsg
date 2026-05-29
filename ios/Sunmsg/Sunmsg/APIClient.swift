@@ -150,7 +150,7 @@ final class APIClient: ObservableObject {
             "chat_id": chatId,
             "message_ids": messageIds,
         ])
-        _ = try? await session.data(for: req)
+        _ = try await perform(req, expectedStatus: 200)
     }
 
     // MARK: - People / Search
@@ -188,6 +188,7 @@ final class APIClient: ObservableObject {
     func resetAuthSession() {
         csrfToken = ""
         KeychainService.deleteAllLocalSecrets()
+        Task { await ChatLocalStore.shared.resetAll() }
         guard let cookies = HTTPCookieStorage.shared.cookies(for: baseURL) else { return }
         for cookie in cookies {
             HTTPCookieStorage.shared.deleteCookie(cookie)

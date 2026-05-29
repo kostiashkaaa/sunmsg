@@ -424,7 +424,7 @@ struct AppSettings: Decodable {
 
 // MARK: - Message reaction
 
-struct MessageReaction: Decodable, Identifiable, Equatable {
+struct MessageReaction: Decodable, Identifiable, Equatable, Sendable {
     let emoji: String
     var count: Int
     var reactedByMe: Bool
@@ -450,7 +450,7 @@ struct MessageReaction: Decodable, Identifiable, Equatable {
 
 // MARK: - Message
 
-struct ChatMessage: Decodable, Identifiable {
+struct ChatMessage: Decodable, Identifiable, Sendable {
     let id: Int
     let chatId: String
     // Mutable so edits (message_edited) can update the body in place.
