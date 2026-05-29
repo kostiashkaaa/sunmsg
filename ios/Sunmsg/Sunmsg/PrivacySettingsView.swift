@@ -48,7 +48,7 @@ struct PrivacySettingsView: View {
                 Text("Ключи генерируются на устройстве. sun не имеет доступа к содержимому сообщений.")
             }
 
-            Section("Видимость профиля") {
+            Section {
                 Toggle("Публичный профиль", isOn: Binding(
                     get: { isPublic },
                     set: { value in isPublic = value; saveSettings(["is_public": value]) }
@@ -57,9 +57,11 @@ struct PrivacySettingsView: View {
                 privacyPicker("Фото профиля", selection: $avatarVisibility, key: "avatar_visibility")
                 privacyPicker("Bio", selection: $bioVisibility, key: "bio_visibility")
                 privacyPicker("Поиск по публичному ключу", selection: $publicKeySearchPrivacy, key: "public_key_search_privacy")
+            } header: {
+                Text("Видимость профиля")
             }
 
-            Section("Запросы и доступ") {
+            Section {
                 Toggle("Автоматически отклонять запросы", isOn: Binding(
                     get: { autoDeclineRequests },
                     set: { value in autoDeclineRequests = value; saveSettings(["auto_decline_requests": value]) }
@@ -71,9 +73,11 @@ struct PrivacySettingsView: View {
                 privacyPicker("Приглашения в группы", selection: $groupInvitePrivacy, key: "group_invite_privacy")
                 privacyPicker("Личные сообщения", selection: $messagePrivacy, key: "message_privacy")
                 privacyPicker("Голосовые сообщения", selection: $voiceMessagePrivacy, key: "voice_message_privacy")
+            } header: {
+                Text("Запросы и доступ")
             }
 
-            Section("Активность") {
+            Section {
                 privacyPicker("Ссылка при пересылке", selection: $forwardLinkPrivacy, key: "forward_link_privacy")
                 privacyPicker("Отчёты о прочтении", selection: $readReceiptsPrivacy, key: "read_receipts_privacy")
                 privacyPicker("Индикатор набора", selection: $typingPrivacy, key: "typing_privacy")
@@ -90,9 +94,11 @@ struct PrivacySettingsView: View {
                         ], reconnect: true)
                     }
                 ))
+            } header: {
+                Text("Активность")
             }
 
-            Section("Безопасность") {
+            Section {
                 Button { showMnemonicInfo = true } label: {
                     Label("Секретная фраза восстановления", systemImage: "key")
                 }
@@ -110,13 +116,17 @@ struct PrivacySettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            } header: {
+                Text("Безопасность")
             }
 
-            Section("Документы и правила") {
+            Section {
                 externalLink("Политика конфиденциальности", path: "/privacy")
                 externalLink("Пользовательское соглашение", path: "/terms")
                 externalLink("FAQ по анонимности и безопасности", path: "/security-faq")
                 externalLink("О проекте", path: "/about")
+            } header: {
+                Text("Документы и правила")
             }
 
             if let error {
@@ -127,7 +137,7 @@ struct PrivacySettingsView: View {
                 }
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .navigationTitle("Приватность")
         .task { await loadSettings() }
         .task { await loadBlockedCount() }
@@ -306,9 +316,7 @@ struct TotpSettingsView: View {
             .refreshable { await loadStatus(showSpinner: false) }
         }
         .navigationTitle("TOTP 2FA")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.smBg, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .smSettingsScreenStyle()
         .task { await loadStatus() }
         .task(id: status?.totpUri ?? "") {
             let uri = status?.totpUri ?? ""
@@ -730,9 +738,7 @@ struct BlockedUsersView: View {
             }
         }
         .navigationTitle("Заблокированные")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.smBg, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .smSettingsScreenStyle()
         .task { await load() }
     }
 

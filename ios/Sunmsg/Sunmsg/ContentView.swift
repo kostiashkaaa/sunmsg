@@ -1286,6 +1286,20 @@ struct MainTabView: View {
 
 // MARK: - Settings view (matches prototype "Настройки" home exactly)
 
+extension View {
+    func smSettingsScreenStyle(
+        titleDisplayMode: NavigationBarItem.TitleDisplayMode = .inline
+    ) -> some View {
+        self
+            .navigationBarTitleDisplayMode(titleDisplayMode)
+            .scrollContentBackground(.hidden)
+            .background(Color.smBg.ignoresSafeArea())
+            .toolbarBackground(Color.smBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(Color.smAccent2)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var session: SessionStore
     @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
@@ -1427,9 +1441,10 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Настройки")
-        .navigationBarTitleDisplayMode(.large)
+        .smSettingsScreenStyle(titleDisplayMode: .large)
         .sheet(isPresented: $showProfileSheet) {
             ProfileSettingsView()
+                .presentationBackground(Color.smBg)
         }
         .sheet(isPresented: $showQRSheet) {
             UserQRSheet()
@@ -1753,38 +1768,59 @@ struct ProfileSettingsView: View {
                 }
 
                 Section {
-                    TextField("Имя", text: $displayName)
-                        .textInputAutocapitalization(.words)
-                        .textContentType(.name)
-                        .onChange(of: displayName) { _, value in
-                            if value.count > 50 { displayName = String(value.prefix(50)) }
-                        }
+                    LabeledContent {
+                        TextField("Имя", text: $displayName)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.words)
+                            .textContentType(.name)
+                            .onChange(of: displayName) { _, value in
+                                if value.count > 50 { displayName = String(value.prefix(50)) }
+                            }
+                    } label: {
+                        Text("Имя")
+                    }
 
-                    TextField("username", text: $username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-                        .textContentType(.username)
-                        .onChange(of: username) { _, value in
-                            username = normalizeHandleInput(value)
-                        }
+                    LabeledContent {
+                        TextField("username", text: $username)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .textContentType(.username)
+                            .onChange(of: username) { _, value in
+                                username = normalizeHandleInput(value)
+                            }
+                    } label: {
+                        Text("Username")
+                    }
 
-                    TextField("Статус", text: $statusText, axis: .vertical)
-                        .lineLimit(1...3)
-                        .onChange(of: statusText) { _, value in
-                            if value.count > 100 { statusText = String(value.prefix(100)) }
-                        }
-                    Text("\(statusText.count)/100")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Статус")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        TextField("Короткий статус", text: $statusText, axis: .vertical)
+                            .lineLimit(1...3)
+                            .onChange(of: statusText) { _, value in
+                                if value.count > 100 { statusText = String(value.prefix(100)) }
+                            }
+                        Text("\(statusText.count)/100")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                    TextEditor(text: $bio)
-                        .frame(minHeight: 96)
-                        .onChange(of: bio) { _, value in
-                            if value.count > 280 { bio = String(value.prefix(280)) }
-                        }
-                    Text("\(bio.count)/280")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("О себе")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $bio)
+                            .frame(minHeight: 96)
+                            .scrollContentBackground(.hidden)
+                            .onChange(of: bio) { _, value in
+                                if value.count > 280 { bio = String(value.prefix(280)) }
+                            }
+                        Text("\(bio.count)/280")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Профиль")
                 }
@@ -1804,7 +1840,7 @@ struct ProfileSettingsView: View {
                 }
             }
             .navigationTitle("Профиль")
-            .navigationBarTitleDisplayMode(.inline)
+            .smSettingsScreenStyle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Закрыть") { dismiss() }
@@ -1827,6 +1863,7 @@ struct ProfileSettingsView: View {
                     AvatarEditorView(image: avatarEditorImage) { jpegData in
                         await uploadAvatar(jpegData)
                     }
+                    .presentationBackground(Color.smBg)
                 }
             }
             .task { await loadProfileSettings() }
@@ -1986,7 +2023,7 @@ private struct AvatarEditorView: View {
                 }
             }
             .navigationTitle("Фото профиля")
-            .navigationBarTitleDisplayMode(.inline)
+            .smSettingsScreenStyle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }
@@ -2285,7 +2322,7 @@ struct NotificationSettingsView: View {
             }
         }
         .navigationTitle("Уведомления")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await refreshPermission() }
     }
 
@@ -2419,7 +2456,6 @@ struct DataMemorySettingsView: View {
                 Button("Обновить размер") { Task { await refreshStorageUsage() } }
                 Button("Очистить кэш сообщений") { Task { await clearChatCache() } }
                 Button("Очистить файловый кэш") { Task { await clearURLCache() } }
-                Button("Очистить stream-фрагменты") { Task { await clearURLCache() } }
                 Button(role: .destructive) { Task { await clearAllCaches() } } label: {
                     Text("Очистить всё")
                 }
@@ -2449,7 +2485,7 @@ struct DataMemorySettingsView: View {
             }
         }
         .navigationTitle("Данные и память")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task {
             await loadPreferences()
             await refreshStorageUsage()
@@ -2567,7 +2603,7 @@ struct LanguageSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Язык")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await loadLanguage() }
     }
 
@@ -2643,7 +2679,7 @@ struct ChatBehaviorSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Настройки чата")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await load() }
     }
 
@@ -2702,7 +2738,7 @@ struct CallSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Звонки")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await load() }
     }
 
@@ -2765,7 +2801,7 @@ struct SidebarLabelSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Метка и погода")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await load() }
     }
 
@@ -2866,7 +2902,7 @@ struct SettingsTransferView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Экспорт и импорт")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: .json, defaultFilename: exportFilename) { result in
             if case .failure(let error) = result { self.error = error.localizedDescription }
         }
@@ -3052,7 +3088,7 @@ struct SecuritySettingsView: View {
             }
         }
         .navigationTitle("Безопасность")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .onAppear { hasPrivateKey = KeychainService.hasPrivateKey() }
         .confirmationDialog("Перевыпустить ключ?", isPresented: $showRotateConfirm, titleVisibility: .visible) {
             Button("Перевыпустить", role: .destructive) { Task { await rotateKey() } }
@@ -3175,7 +3211,7 @@ struct MnemonicRestoreSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Секретная фраза")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
     }
 
     private func unlockVault() async {
@@ -3248,7 +3284,7 @@ struct IntegrationsSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Подключения")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await load() }
     }
 
@@ -3327,7 +3363,7 @@ struct AccountSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Аккаунт")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .confirmationDialog("Удалить аккаунт?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Удалить аккаунт", role: .destructive) { Task { await deleteAccount() } }
             Button("Отмена", role: .cancel) {}
@@ -3408,7 +3444,7 @@ struct SupportSettingsView: View {
             if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
         }
         .navigationTitle("Поддержка")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
     }
 
     private func submit() async {
@@ -3559,7 +3595,7 @@ struct AppearanceSettingsView: View {
             }
         }
         .navigationTitle("Внешний вид")
-        .navigationBarTitleDisplayMode(.inline)
+        .smSettingsScreenStyle()
         .task { await loadAppearance() }
         .onChange(of: selectedBackgroundItem) { _, item in
             Task { await importBackground(item) }
@@ -3785,9 +3821,7 @@ struct DevicesView: View {
             .refreshable { await loadDevices() }
         }
         .navigationTitle("Устройства")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.smBg, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .smSettingsScreenStyle()
         .task { await loadDevices() }
         .confirmationDialog(revokeDialogTitle, isPresented: revokeDialogBinding, titleVisibility: .visible) {
             if let device = pendingRevokeDevice {

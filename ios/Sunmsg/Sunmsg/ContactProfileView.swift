@@ -427,7 +427,7 @@ struct ContactProfileView: View {
         isLoadingSharedContent = false
     }
 
-    private static func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
+    private nonisolated static func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
         let raw = message.message ?? ""
         guard raw.hasPrefix("{"), let privateKey else { return raw }
         if ProfileSharedContentItem.jsonObject(from: raw)?["__suncall"] != nil {

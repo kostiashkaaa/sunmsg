@@ -79,25 +79,31 @@ struct MessageInfoSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Сообщение") {
+                Section {
                     infoRow("ID", value: "\(message.id)", icon: "number")
                     infoRow("Тип", value: message.messageType, icon: "bubble.left")
                     infoRow("Создано", value: SunDateFormatters.ruDayMonth(from: createdDate) + " " + SunDateFormatters.time(from: createdDate), icon: "clock")
                     infoRow("Изменено", value: message.isEdited ? "Да" : "Нет", icon: "clock.arrow.circlepath")
+                } header: {
+                    Text("Сообщение")
                 }
 
                 if isFromMe {
-                    Section("Статусы") {
+                    Section {
                         infoRow("Доставка", value: message.isDelivered ? "Доставлено" : "Отправляется", icon: "checkmark.circle")
                         infoRow("Прочтение", value: message.isRead ? "Прочитано" : "Не прочитано", icon: "checkmark.circle.fill")
+                    } header: {
+                        Text("Статусы")
                     }
                 }
 
-                Section("Текст") {
+                Section {
                     Text(displayText.isEmpty ? "Пустое сообщение" : displayText)
                         .font(.system(size: 15))
                         .foregroundStyle(Color.smText)
                         .textSelection(.enabled)
+                } header: {
+                    Text("Текст")
                 }
             }
             .scrollContentBackground(.hidden)
