@@ -503,8 +503,6 @@ struct GroupCreateView: View {
     @State private var selected: [GroupMemberCandidate] = []
     @State private var localCandidatesSnapshot: [GroupMemberCandidate] = []
     @State private var visibleCandidates: [GroupMemberCandidate]?
-    @State private var searchSeq = 0
-    @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var isCreating = false
     @State private var error: String?
@@ -577,12 +575,11 @@ struct GroupCreateView: View {
                     Button("Отмена") { dismiss() }
                 }
             }
-            .onDisappear {
-                searchTask?.cancel()
-                searchTask = nil
-            }
             .onAppear { refreshVisibleCandidatesFromContacts(force: true) }
             .onReceive(session.$contacts) { _ in refreshVisibleCandidatesFromContacts() }
+            .task(id: query) {
+                await searchMembers(query)
+            }
         }
     }
 
@@ -678,7 +675,6 @@ struct GroupCreateView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .tint(Color.smAccent)
-                .onChange(of: query) { _, value in searchMembers(value) }
             if isSearching {
                 ProgressView()
                     .tint(Color.smAccent)
@@ -806,42 +802,34 @@ struct GroupCreateView: View {
         }
     }
 
-    private func searchMembers(_ raw: String) {
+    @MainActor
+    private func searchMembers(_ raw: String) async {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        searchTask?.cancel()
         error = nil
         guard trimmed.count >= 3 else {
             remoteResults = []
             isSearching = false
-            searchTask = nil
             rebuildVisibleCandidates()
             return
         }
         isSearching = true
         rebuildVisibleCandidates()
-        searchSeq += 1
-        let seq = searchSeq
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 320_000_000)
-            guard !Task.isCancelled else { return }
-            do {
-                let found = try await session.api.searchUsers(query: trimmed, limit: 40)
-                await MainActor.run {
-                    guard seq == searchSeq,
-                          query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed
-                    else { return }
-                    remoteResults = found
-                    isSearching = false
-                    searchTask = nil
-                    rebuildVisibleCandidates()
-                }
-            } catch {
-                await MainActor.run {
-                    guard seq == searchSeq else { return }
-                    isSearching = false
-                    searchTask = nil
-                }
+        do {
+            try await Task.sleep(nanoseconds: 320_000_000)
+            try Task.checkCancellation()
+            let found = try await session.api.searchUsers(query: trimmed, limit: 40)
+            try Task.checkCancellation()
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
+            remoteResults = found
+            isSearching = false
+            rebuildVisibleCandidates()
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else {
+                return
             }
+            isSearching = false
         }
     }
 
