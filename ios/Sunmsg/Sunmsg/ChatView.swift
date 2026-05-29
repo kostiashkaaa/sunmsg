@@ -108,6 +108,12 @@ struct ChatView: View {
         let preview: String
     }
 
+    private struct VoiceRecordingStartResult: @unchecked Sendable {
+        let recorder: AVAudioRecorder
+        let url: URL
+        let didStart: Bool
+    }
+
     @FocusState private var composerFocused: Bool
     @State private var contactProfileDestination: ChatProfileDestination?
 
@@ -1986,6 +1992,38 @@ struct ChatView: View {
         let tmpURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice_\(UUID().uuidString)")
             .appendingPathExtension("m4a")
+
+        Task { @MainActor in
+            do {
+                let result = try await Task.detached(priority: .userInitiated) {
+                    try Self.startVoiceRecorder(at: tmpURL)
+                }.value
+
+                guard self.recordingStartToken == token, self.isRecording else {
+                    result.recorder.stop()
+                    try? FileManager.default.removeItem(at: result.url)
+                    return
+                }
+                guard result.didStart else {
+                    result.recorder.stop()
+                    try? FileManager.default.removeItem(at: result.url)
+                    self.failRecordingStart("Не удалось начать запись.")
+                    return
+                }
+                self.audioRecorder = result.recorder
+                self.recordingURL = result.url
+            } catch {
+                guard self.recordingStartToken == token else {
+                    try? FileManager.default.removeItem(at: tmpURL)
+                    return
+                }
+                try? FileManager.default.removeItem(at: tmpURL)
+                self.failRecordingStart("Не удалось начать запись.")
+            }
+        }
+    }
+
+    private nonisolated static func startVoiceRecorder(at url: URL) throws -> VoiceRecordingStartResult {
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 44100,
@@ -1993,42 +2031,16 @@ struct ChatView: View {
             AVEncoderBitRateKey: 64000,
             AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
         ]
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.record, mode: .default)
-                try session.setActive(true)
-                let recorder = try AVAudioRecorder(url: tmpURL, settings: settings)
-                recorder.prepareToRecord()
-                let didStart = recorder.record()
-
-                Task { @MainActor in
-                    guard self.recordingStartToken == token, self.isRecording else {
-                        recorder.stop()
-                        try? FileManager.default.removeItem(at: tmpURL)
-                        return
-                    }
-                    guard didStart else {
-                        recorder.stop()
-                        try? FileManager.default.removeItem(at: tmpURL)
-                        self.failRecordingStart("Не удалось начать запись.")
-                        return
-                    }
-                    self.audioRecorder = recorder
-                    self.recordingURL = tmpURL
-                }
-            } catch {
-                Task { @MainActor in
-                    guard self.recordingStartToken == token else {
-                        try? FileManager.default.removeItem(at: tmpURL)
-                        return
-                    }
-                    try? FileManager.default.removeItem(at: tmpURL)
-                    self.failRecordingStart("Не удалось начать запись.")
-                }
-            }
-        }
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .default)
+        try session.setActive(true)
+        let recorder = try AVAudioRecorder(url: url, settings: settings)
+        recorder.prepareToRecord()
+        return VoiceRecordingStartResult(
+            recorder: recorder,
+            url: url,
+            didStart: recorder.record()
+        )
     }
 
     private func startRecordingTimer() {
