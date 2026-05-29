@@ -12,6 +12,7 @@ struct PrivacySettingsView: View {
     @State private var blockedCount = 0
     @State private var navigateToBlocked = false
     @State private var navigateToDevices = false
+    @State private var navigateToTotp = false
     @State private var showMnemonicInfo = false
 
     private var hasKey: Bool { KeychainService.loadPrivateKey() != nil }
@@ -56,6 +57,7 @@ struct PrivacySettingsView: View {
         .task { await loadBlockedCount() }
         .navigationDestination(isPresented: $navigateToBlocked) { BlockedUsersView() }
         .navigationDestination(isPresented: $navigateToDevices) { DevicesView() }
+        .navigationDestination(isPresented: $navigateToTotp) { TotpSettingsView() }
         .alert("Секретная фраза", isPresented: $showMnemonicInfo) {
             Button("Понятно", role: .cancel) {}
         } message: {
@@ -195,6 +197,8 @@ struct PrivacySettingsView: View {
             VStack(spacing: 0) {
                 settingsNavRow(icon: "key.fill", label: "Секретная фраза (24 слова)", detail: "Резервная копия") { showMnemonicInfo = true }
                 Divider().padding(.leading, 52).background(Color.smBorderSoft)
+                settingsNavRow(icon: "number.square.fill", label: "TOTP 2FA", detail: "Authenticator") { navigateToTotp = true }
+                Divider().padding(.leading, 52).background(Color.smBorderSoft)
                 settingsNavRow(icon: "iphone.and.ipad", label: "Активные устройства", detail: "1") { navigateToDevices = true }
                 Divider().padding(.leading, 52).background(Color.smBorderSoft)
                 settingsNavRow(icon: "hand.raised.fill", label: "Заблокированные", detail: "\(blockedCount)") { navigateToBlocked = true }
@@ -251,6 +255,472 @@ struct PrivacySettingsView: View {
             } catch { self.error = error.localizedDescription }
             isSaving = false
         }
+    }
+}
+
+private enum TotpPendingAction: Identifiable {
+    case disable
+    case regenerateSecret
+
+    var id: String {
+        switch self {
+        case .disable: return "disable"
+        case .regenerateSecret: return "regenerateSecret"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .disable: return "Отключить TOTP?"
+        case .regenerateSecret: return "Пересоздать TOTP-секрет?"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .disable:
+            return "Второй фактор будет отключён, резервные коды будут удалены, а сохранённые сессии сброшены."
+        case .regenerateSecret:
+            return "Текущий секрет перестанет подходить после подтверждения нового кода."
+        }
+    }
+
+    var confirmTitle: String {
+        switch self {
+        case .disable: return "Отключить"
+        case .regenerateSecret: return "Пересоздать"
+        }
+    }
+
+    var apiAction: String {
+        switch self {
+        case .disable: return "disable"
+        case .regenerateSecret: return "regenerate"
+        }
+    }
+}
+
+struct TotpSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var status: TotpResponse?
+    @State private var isLoading = true
+    @State private var isWorking = false
+    @State private var error: String?
+    @State private var setupCode = ""
+    @State private var regenerateCode = ""
+    @State private var showRegenerateBackup = false
+    @State private var newBackupCodes: [String] = []
+    @State private var pendingAction: TotpPendingAction?
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    if isLoading {
+                        ProgressView()
+                            .tint(Color.smAccent)
+                            .frame(maxWidth: .infinity, minHeight: 220)
+                    } else if let status {
+                        statusCard(status)
+                        if status.setupPending {
+                            setupPanel(status)
+                        }
+                        if status.enabled && !status.setupPending {
+                            backupCodesPanel(status)
+                        }
+                        actionPanel(status)
+                    }
+
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Color.smDanger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+            }
+            .refreshable { await loadStatus(showSpinner: false) }
+        }
+        .navigationTitle("TOTP 2FA")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.smBg, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .task { await loadStatus() }
+        .confirmationDialog(pendingAction?.title ?? "Подтвердите действие", isPresented: pendingActionBinding, titleVisibility: .visible) {
+            if let pendingAction {
+                Button(pendingAction.confirmTitle, role: .destructive) {
+                    Task { await performConfirmedAction(pendingAction) }
+                }
+            }
+            Button("Отмена", role: .cancel) { pendingAction = nil }
+        } message: {
+            Text(pendingAction?.message ?? "")
+        }
+    }
+
+    private var pendingActionBinding: Binding<Bool> {
+        Binding(
+            get: { pendingAction != nil },
+            set: { if !$0 { pendingAction = nil } }
+        )
+    }
+
+    private func statusCard(_ status: TotpResponse) -> some View {
+        let enabled = status.enabled && !status.setupPending
+        let pending = status.setupPending
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill((enabled ? Color.smOnline : pending ? Color.smAccent : Color.smDanger).opacity(0.12))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: enabled ? "checkmark.shield.fill" : pending ? "clock.badge.checkmark" : "shield.slash.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(enabled ? Color.smOnline : pending ? Color.smAccent : Color.smDanger)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(enabled ? "TOTP включён" : pending ? "Ожидает подтверждения" : "TOTP выключен")
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(Color.smText)
+                    Text(enabled ? "Подключено: \(formatEnabledAt(status.totpEnabledAt))" : "Authenticator-код не требуется при входе")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Color.smMuted)
+                }
+                Spacer()
+            }
+            Text("TOTP добавляет второй фактор к входу и работает с любым Authenticator-приложением.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(Color.smFaint)
+        }
+        .padding(14)
+        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+    }
+
+    private func setupPanel(_ status: TotpResponse) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("ПОДТВЕРЖДЕНИЕ НАСТРОЙКИ")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 14) {
+                    qrCodeView(uri: status.totpUri)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Секрет")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(Color.smText)
+                        Text(status.totpSecret)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color.smMuted)
+                            .textSelection(.enabled)
+                            .lineLimit(4)
+                        Button("Скопировать секрет") {
+                            UIPasteboard.general.string = status.totpSecret
+                        }
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(Color.smAccent2)
+                    }
+                }
+
+                codeInput(title: "6-значный код", text: $setupCode)
+                primaryButton(title: "Подтвердить TOTP", disabled: setupCode.count != 6 || isWorking) {
+                    Task { await verifySetup() }
+                }
+            }
+            .padding(14)
+            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+        }
+    }
+
+    private func backupCodesPanel(_ status: TotpResponse) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("РЕЗЕРВНЫЕ КОДЫ")
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Осталось неиспользованных: \(status.backupCodesRemaining) из 10")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.smMuted)
+
+                if !newBackupCodes.isEmpty {
+                    backupCodesList(newBackupCodes)
+                    HStack(spacing: 10) {
+                        secondaryButton(title: "Скопировать") {
+                            UIPasteboard.general.string = newBackupCodes.joined(separator: "\n")
+                        }
+                        secondaryButton(title: "Готово") {
+                            newBackupCodes.removeAll()
+                        }
+                    }
+                }
+
+                Button(showRegenerateBackup ? "Скрыть обновление кодов" : "Получить новые резервные коды") {
+                    showRegenerateBackup.toggle()
+                    regenerateCode = ""
+                }
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(Color.smAccent2)
+
+                if showRegenerateBackup {
+                    codeInput(title: "Код из Authenticator", text: $regenerateCode)
+                    primaryButton(title: "Обновить резервные коды", disabled: regenerateCode.count != 6 || isWorking) {
+                        Task { await regenerateBackupCodes() }
+                    }
+                }
+            }
+            .padding(14)
+            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+        }
+    }
+
+    private func actionPanel(_ status: TotpResponse) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("ДЕЙСТВИЯ")
+            VStack(spacing: 0) {
+                if status.enabled {
+                    actionRow(icon: "arrow.triangle.2.circlepath", title: "Пересоздать TOTP-секрет", tint: Color.smAccent2) {
+                        pendingAction = .regenerateSecret
+                    }
+                    Divider().padding(.leading, 52).background(Color.smBorderSoft)
+                    actionRow(icon: "shield.slash.fill", title: "Отключить TOTP", tint: Color.smDanger) {
+                        pendingAction = .disable
+                    }
+                } else {
+                    actionRow(icon: "checkmark.shield.fill", title: status.setupPending ? "Сгенерировать новый секрет" : "Включить TOTP", tint: Color.smAccent2) {
+                        Task { await manageTotp(action: "enable") }
+                    }
+                }
+            }
+            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+        }
+    }
+
+    private func actionRow(icon: String, title: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(tint.opacity(0.12))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: icon)
+                        .font(.system(size: 14))
+                        .foregroundStyle(tint)
+                }
+                Text(title)
+                    .font(.system(size: 15))
+                    .foregroundStyle(tint)
+                Spacer()
+                if isWorking {
+                    ProgressView()
+                        .tint(Color.smAccent)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.smFaint)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isWorking)
+    }
+
+    private func qrCodeView(uri: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white)
+                .frame(width: 150, height: 150)
+            if let qr = generateQRCodeImage(from: uri) {
+                Image(uiImage: qr)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 132, height: 132)
+            } else {
+                Text("QR недоступен")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.smMuted)
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.smBorder, lineWidth: 0.5))
+    }
+
+    private func codeInput(title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(Color.smText)
+            TextField("000000", text: text)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color.smText)
+                .padding(.vertical, 10)
+                .background(Color.smSurface2, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.smBorder, lineWidth: 0.5))
+                .onChange(of: text.wrappedValue) { _, value in
+                    let clean = sanitizedCode(value)
+                    if clean != value {
+                        text.wrappedValue = clean
+                    }
+                }
+                .disabled(isWorking)
+        }
+    }
+
+    private func backupCodesList(_ codes: [String]) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+            ForEach(codes, id: \.self) { code in
+                Text(code)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color.smText)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.smSurface2, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    private func primaryButton(title: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Spacer()
+                if isWorking {
+                    ProgressView().tint(.white)
+                } else {
+                    Text(title)
+                        .font(.system(size: 14.5, weight: .semibold))
+                }
+                Spacer()
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 12)
+            .background(disabled ? Color.smFaint : Color.smAccent2, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    private func secondaryButton(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(Color.smAccent2)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.smAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11.5, weight: .semibold))
+            .foregroundStyle(Color.smFaint)
+            .tracking(0.6)
+            .padding(.horizontal, 4)
+    }
+
+    private func loadStatus(showSpinner: Bool = true) async {
+        if showSpinner { isLoading = true }
+        error = nil
+        do {
+            status = try await session.api.getTotpStatus()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func performConfirmedAction(_ action: TotpPendingAction) async {
+        pendingAction = nil
+        await manageTotp(action: action.apiAction)
+    }
+
+    private func manageTotp(action: String) async {
+        guard !isWorking else { return }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let payload = try await session.api.manageTotp(action: action)
+            status = payload
+            setupCode = ""
+            regenerateCode = ""
+            newBackupCodes.removeAll()
+            showRegenerateBackup = false
+            if action == "disable" {
+                await session.reconnectRealtime()
+            }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func verifySetup() async {
+        let code = sanitizedCode(setupCode)
+        guard code.count == 6, !isWorking else { return }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let payload = try await session.api.verifyTotpSetup(code: code)
+            status = payload
+            setupCode = ""
+            newBackupCodes = payload.backupCodes
+            showRegenerateBackup = false
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func regenerateBackupCodes() async {
+        let code = sanitizedCode(regenerateCode)
+        guard code.count == 6, !isWorking else { return }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let payload = try await session.api.regenerateTotpBackupCodes(code: code)
+            newBackupCodes = payload.backupCodes
+            regenerateCode = ""
+            showRegenerateBackup = false
+            await loadStatus(showSpinner: false)
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func sanitizedCode(_ value: String) -> String {
+        String(value.filter(\.isNumber).prefix(6))
+    }
+
+    private func formatEnabledAt(_ raw: String) -> String {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return "неизвестно" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        if let date = formatter.date(from: value) {
+            formatter.dateFormat = "dd.MM.yyyy HH:mm"
+            return formatter.string(from: date)
+        }
+        return value
     }
 }
 

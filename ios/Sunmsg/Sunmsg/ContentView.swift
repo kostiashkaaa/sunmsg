@@ -1917,85 +1917,406 @@ struct AppearanceSettingsView: View {
 
 struct DevicesView: View {
     @EnvironmentObject var session: SessionStore
-
-    private var deviceName: String {
-        UIDevice.current.name
-    }
+    @State private var devicesResponse: SessionDevicesResponse?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var pendingRevokeDevice: SessionDevice?
+    @State private var showRevokeOthersConfirm = false
+    @State private var isMutating = false
 
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("АКТИВНЫЕ УСТРОЙСТВА")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(Color.smFaint)
-                            .tracking(0.6)
-                            .padding(.horizontal, 4)
-
-                        VStack(spacing: 0) {
-                            // Current device
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.smAccent.opacity(0.10))
-                                        .frame(width: 36, height: 36)
-                                    Image(systemName: "iphone")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(Color.smAccent2)
-                                }
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(spacing: 6) {
-                                        Text(deviceName)
-                                            .font(.system(size: 14.5, weight: .medium))
-                                            .foregroundStyle(Color.smText)
-                                            .lineLimit(1)
-                                        Text("Это устройство")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(Color.smOnline)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Color.smOnline.opacity(0.12), in: Capsule())
-                                    }
-                                    Text("iOS · Сейчас активен")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(Color.smMuted)
-                                }
-                                Spacer()
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                        }
-                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                Group {
+                    if isLoading {
+                        ProgressView()
+                            .tint(Color.smAccent)
+                            .frame(maxWidth: .infinity, minHeight: 220)
+                    } else if let errorMessage {
+                        deviceErrorView(errorMessage)
+                    } else if let devicesResponse {
+                        devicesContent(devicesResponse)
                     }
-                    .padding(.top, 16)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ИНФОРМАЦИЯ")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(Color.smFaint)
-                            .tracking(0.6)
-                            .padding(.horizontal, 4)
-
-                        Text("Управление несколькими устройствами доступно в веб-версии sun. Каждое устройство хранит ключи локально.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.smMuted)
-                            .padding(14)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-                    }
-
-                    Spacer().frame(height: 20)
                 }
                 .padding(.horizontal, 16)
+                .padding(.vertical, 16)
             }
+            .refreshable { await loadDevices() }
         }
         .navigationTitle("Устройства")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.smBg, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .task { await loadDevices() }
+        .confirmationDialog(revokeDialogTitle, isPresented: revokeDialogBinding, titleVisibility: .visible) {
+            if let device = pendingRevokeDevice {
+                Button(revokeActionTitle, role: .destructive) {
+                    Task { await revoke(device) }
+                }
+            }
+            Button("Отмена", role: .cancel) { pendingRevokeDevice = nil }
+        } message: {
+            Text(revokeDialogMessage)
+        }
+        .confirmationDialog("Завершить другие сессии?", isPresented: $showRevokeOthersConfirm, titleVisibility: .visible) {
+            Button("Завершить все другие", role: .destructive) {
+                Task { await revokeOthers() }
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Текущая сессия останется активной.")
+        }
+    }
+
+    private var revokeDialogBinding: Binding<Bool> {
+        Binding(
+            get: { pendingRevokeDevice != nil },
+            set: { if !$0 { pendingRevokeDevice = nil } }
+        )
+    }
+
+    private var revokeDialogTitle: String {
+        pendingRevokeDevice?.isCurrent == true ? "Выйти с этого устройства?" : "Завершить эту сессию?"
+    }
+
+    private var revokeDialogMessage: String {
+        pendingRevokeDevice?.isCurrent == true
+            ? "Вы выйдете из аккаунта на этом устройстве."
+            : "Устройство будет отключено от аккаунта."
+    }
+
+    private var revokeActionTitle: String {
+        pendingRevokeDevice?.isCurrent == true ? "Выйти" : "Завершить"
+    }
+
+    private func devicesContent(_ response: SessionDevicesResponse) -> some View {
+        let current = response.devices.first(where: { $0.isCurrent })
+        let others = response.devices.filter { !$0.isCurrent }
+
+        return VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                sectionHeader("АКТИВНЫЕ УСТРОЙСТВА")
+                VStack(spacing: 0) {
+                    if let current {
+                        deviceRow(current)
+                    }
+                    ForEach(others.indices, id: \.self) { index in
+                        let device = others[index]
+                        if current != nil || index > 0 {
+                            Divider().padding(.leading, 58).background(Color.smBorderSoft)
+                        }
+                        deviceRow(device)
+                    }
+                    if response.devices.isEmpty {
+                        Text("Активные сессии не найдены.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.smMuted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                    }
+                }
+                .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+            }
+
+            if !others.isEmpty {
+                Button(action: { showRevokeOthersConfirm = true }) {
+                    HStack {
+                        Image(systemName: "rectangle.stack.badge.minus")
+                        Text(isMutating ? "Завершение…" : "Завершить другие сессии")
+                        Spacer()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.smDanger)
+                    .padding(14)
+                    .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .disabled(isMutating)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                sectionHeader("ПОЛИТИКА СЕССИИ")
+                sessionPolicyView(response)
+            }
+
+            Spacer().frame(height: 20)
+        }
+    }
+
+    private func deviceErrorView(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+                .foregroundStyle(Color.smAccent)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.smMuted)
+                .multilineTextAlignment(.center)
+            Button("Повторить") { Task { await loadDevices() } }
+                .foregroundStyle(Color.smAccent2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 220)
+    }
+
+    private func sessionPolicyView(_ response: SessionDevicesResponse) -> some View {
+        let options = response.sessionAutoLogoutOptions.filter { $0.seconds > 0 }
+        return VStack(alignment: .leading, spacing: 10) {
+            if !options.isEmpty {
+                Menu {
+                    ForEach(options) { option in
+                        Button(optionMenuLabel(option, currentSeconds: response.sessionAutoLogoutSeconds)) {
+                            Task { await updateSessionAutoLogout(seconds: option.seconds) }
+                        }
+                        .disabled(option.seconds == response.sessionAutoLogoutSeconds || isMutating)
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Автовыход")
+                                .font(.system(size: 14.5, weight: .medium))
+                                .foregroundStyle(Color.smText)
+                            Text("Срок для всех сохранённых сессий")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.smMuted)
+                        }
+                        Spacer()
+                        if isMutating {
+                            ProgressView()
+                                .tint(Color.smAccent)
+                        } else {
+                            Text(sessionAutoLogoutLabel(response))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.smAccent2)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.smFaint)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isMutating)
+            }
+
+            Text(sessionPolicyText(response))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.smMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+    }
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11.5, weight: .semibold))
+            .foregroundStyle(Color.smFaint)
+            .tracking(0.6)
+            .padding(.horizontal, 4)
+    }
+
+    private func deviceRow(_ device: SessionDevice) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.smAccent.opacity(0.10))
+                    .frame(width: 36, height: 36)
+                Image(systemName: deviceIcon(device))
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.smAccent2)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(deviceTitle(device))
+                        .font(.system(size: 14.5, weight: .medium))
+                        .foregroundStyle(Color.smText)
+                        .lineLimit(1)
+                    if device.isCurrent {
+                        Text("Текущая")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.smOnline)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.smOnline.opacity(0.12), in: Capsule())
+                    }
+                }
+                Text(deviceSubtitle(device))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.smMuted)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if device.isCurrent || !device.familyId.isEmpty {
+                Button(device.isCurrent ? "Выйти" : "Завершить") {
+                    pendingRevokeDevice = device
+                }
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(Color.smDanger)
+                .disabled(isMutating)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private func loadDevices() async {
+        isLoading = devicesResponse == nil
+        errorMessage = nil
+        do {
+            devicesResponse = try await session.api.getSessionDevices()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func revoke(_ device: SessionDevice) async {
+        isMutating = true
+        pendingRevokeDevice = nil
+        defer { isMutating = false }
+        guard !device.familyId.isEmpty else {
+            if device.isCurrent {
+                await session.logout()
+            }
+            return
+        }
+        do {
+            let result = try await session.api.revokeSessionDevice(familyId: device.familyId)
+            if result.signedOutCurrent {
+                await session.logout()
+            } else {
+                await loadDevices()
+            }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func revokeOthers() async {
+        isMutating = true
+        showRevokeOthersConfirm = false
+        defer { isMutating = false }
+        do {
+            _ = try await session.api.revokeOtherSessionDevices()
+            await loadDevices()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func updateSessionAutoLogout(seconds: Int) async {
+        guard seconds > 0, seconds != devicesResponse?.sessionAutoLogoutSeconds else { return }
+        isMutating = true
+        errorMessage = nil
+        defer { isMutating = false }
+        do {
+            _ = try await session.api.updateSessionAutoLogoutSeconds(seconds)
+            await loadDevices()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deviceTitle(_ device: SessionDevice) -> String {
+        let raw = device.userAgent.lowercased()
+        let base: String
+        if raw.contains("iphone") { base = "iPhone" }
+        else if raw.contains("ipad") { base = "iPad" }
+        else if raw.contains("android") { base = "Android" }
+        else if raw.contains("mac os") || raw.contains("macintosh") { base = "macOS" }
+        else if raw.contains("windows") { base = "Windows" }
+        else if raw.contains("linux") { base = "Linux" }
+        else if raw.contains("safari") || raw.contains("chrome") || raw.contains("firefox") || raw.contains("edge") || raw.contains("edg/") {
+            base = "Браузер"
+        }
+        else if device.isCurrent { base = UIDevice.current.name }
+        else { base = device.persistent ? "Сохранённое устройство" : "Веб-сессия" }
+
+        let browser = browserName(from: raw)
+        return browser.isEmpty ? base : "\(base) · \(browser)"
+    }
+
+    private func deviceIcon(_ device: SessionDevice) -> String {
+        let raw = device.userAgent.lowercased()
+        if raw.contains("iphone") { return "iphone" }
+        if raw.contains("ipad") { return "ipad" }
+        if raw.contains("android") && raw.contains("mobile") { return "iphone" }
+        if raw.contains("android") { return "ipad" }
+        return "laptopcomputer"
+    }
+
+    private func deviceSubtitle(_ device: SessionDevice) -> String {
+        var parts = ["Активность: \(formatTimestamp(device.lastUsedAt))"]
+        if !device.ip.isEmpty { parts.append("IP \(device.ip)") }
+        parts.append(device.persistent ? "истекает через \(formatRemaining(device.expiresAt))" : "сессия")
+        return parts.joined(separator: " · ")
+    }
+
+    private func sessionPolicyText(_ response: SessionDevicesResponse) -> String {
+        return "Неактивные устройства будут отключены через: \(sessionAutoLogoutLabel(response))."
+    }
+
+    private func sessionAutoLogoutLabel(_ response: SessionDevicesResponse) -> String {
+        let label = response.sessionAutoLogoutOptions
+            .first(where: { $0.seconds == response.sessionAutoLogoutSeconds })
+            .map(optionLabel)
+        return label ?? formatDuration(response.sessionAutoLogoutSeconds)
+    }
+
+    private func optionMenuLabel(_ option: SessionAutoLogoutOption, currentSeconds: Int) -> String {
+        option.seconds == currentSeconds ? "\(optionLabel(option)) (текущий)" : optionLabel(option)
+    }
+
+    private func optionLabel(_ option: SessionAutoLogoutOption) -> String {
+        if !option.labelRu.isEmpty { return option.labelRu }
+        if !option.labelEn.isEmpty { return option.labelEn }
+        return formatDuration(option.seconds)
+    }
+
+    private func browserName(from raw: String) -> String {
+        if raw.contains("edg/") { return "Edge" }
+        if raw.contains("opr/") { return "Opera" }
+        if raw.contains("crios") { return "Chrome iOS" }
+        if raw.contains("fxios") { return "Firefox iOS" }
+        if raw.contains("chrome") { return "Chrome" }
+        if raw.contains("firefox") { return "Firefox" }
+        if raw.contains("safari") { return "Safari" }
+        return ""
+    }
+
+    private func formatTimestamp(_ ts: Double) -> String {
+        guard ts > 0 else { return "неизвестно" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "dd.MM.yyyy HH:mm"
+        return formatter.string(from: Date(timeIntervalSince1970: ts))
+    }
+
+    private func formatRemaining(_ ts: Double) -> String {
+        let seconds = Int(ts - Date().timeIntervalSince1970)
+        if seconds <= 0 { return "истекает" }
+        return formatDuration(seconds)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let days = max(1, Int(ceil(Double(seconds) / 86_400.0)))
+        if days >= 2 { return "\(days) дн." }
+        let hours = Int(ceil(Double(seconds) / 3_600.0))
+        if hours >= 2 { return "\(hours) ч." }
+        return "< 1 ч."
     }
 }

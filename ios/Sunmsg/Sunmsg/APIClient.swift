@@ -264,6 +264,42 @@ final class APIClient: ObservableObject {
         return try decode(R.self, from: data).success
     }
 
+    func getTotpStatus() async throws -> TotpResponse {
+        let url = baseURL.appendingPathComponent("/api/totp_status")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        return try decode(TotpResponse.self, from: data)
+    }
+
+    func manageTotp(action: String) async throws -> TotpResponse {
+        let url = baseURL.appendingPathComponent("/api/totp_manage")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["action": action])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(TotpResponse.self, from: data)
+    }
+
+    func verifyTotpSetup(code: String) async throws -> TotpResponse {
+        let url = baseURL.appendingPathComponent("/api/totp_setup/verify")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["totp_code": code])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(TotpResponse.self, from: data)
+    }
+
+    func regenerateTotpBackupCodes(code: String) async throws -> TotpResponse {
+        let url = baseURL.appendingPathComponent("/api/totp_backup_codes/regenerate")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["totp_code": code])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(TotpResponse.self, from: data)
+    }
+
     @discardableResult
     func refreshSession() async throws -> String {
         let url = baseURL.appendingPathComponent("/api/refresh")
@@ -427,6 +463,44 @@ final class APIClient: ObservableObject {
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         _ = try await perform(req, expectedStatus: 200)
+    }
+
+    // MARK: - Session devices
+
+    func getSessionDevices() async throws -> SessionDevicesResponse {
+        let url = baseURL.appendingPathComponent("/api/session_devices")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        return try decode(SessionDevicesResponse.self, from: data)
+    }
+
+    func revokeSessionDevice(familyId: String) async throws -> SessionDeviceRevokeResponse {
+        let url = baseURL.appendingPathComponent("/api/session_devices/revoke")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["family_id": familyId])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(SessionDeviceRevokeResponse.self, from: data)
+    }
+
+    func revokeOtherSessionDevices() async throws -> SessionDevicesRevokeOthersResponse {
+        let url = baseURL.appendingPathComponent("/api/session_devices/revoke_others")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(SessionDevicesRevokeOthersResponse.self, from: data)
+    }
+
+    func updateSessionAutoLogoutSeconds(_ seconds: Int) async throws -> SessionAutoLogoutUpdateResponse {
+        let url = baseURL.appendingPathComponent("/api/session_devices/auto_logout")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["session_auto_logout_seconds": seconds])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(SessionAutoLogoutUpdateResponse.self, from: data)
     }
 
     // MARK: - Dialog requests

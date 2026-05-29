@@ -422,6 +422,182 @@ struct AppSettings: Decodable {
     }
 }
 
+// MARK: - Session devices
+
+struct SessionDevice: Decodable, Identifiable {
+    let familyId: String
+    let createdAt: Double
+    let lastUsedAt: Double
+    let expiresAt: Double
+    let userAgent: String
+    let ip: String
+    let isCurrent: Bool
+    let persistent: Bool
+
+    var id: String {
+        familyId.isEmpty ? "current-\(userAgent)-\(ip)" : familyId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case familyId = "family_id"
+        case createdAt = "created_at"
+        case lastUsedAt = "last_used_at"
+        case expiresAt = "expires_at"
+        case userAgent = "user_agent"
+        case ip
+        case isCurrent = "is_current"
+        case persistent
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        familyId = (try? c.decodeIfPresent(String.self, forKey: .familyId)) ?? ""
+        createdAt = (try? c.decodeIfPresent(Double.self, forKey: .createdAt)) ?? 0
+        lastUsedAt = (try? c.decodeIfPresent(Double.self, forKey: .lastUsedAt)) ?? createdAt
+        expiresAt = (try? c.decodeIfPresent(Double.self, forKey: .expiresAt)) ?? 0
+        userAgent = (try? c.decodeIfPresent(String.self, forKey: .userAgent)) ?? ""
+        ip = (try? c.decodeIfPresent(String.self, forKey: .ip)) ?? ""
+        isCurrent = (try? c.decodeIfPresent(Bool.self, forKey: .isCurrent)) ?? false
+        persistent = (try? c.decodeIfPresent(Bool.self, forKey: .persistent)) ?? false
+    }
+}
+
+struct SessionAutoLogoutOption: Decodable, Identifiable {
+    let seconds: Int
+    let labelRu: String
+    let labelEn: String
+
+    var id: Int { seconds }
+
+    enum CodingKeys: String, CodingKey {
+        case seconds
+        case labelRu = "label_ru"
+        case labelEn = "label_en"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        seconds = (try? c.decodeIfPresent(Int.self, forKey: .seconds)) ?? 0
+        labelRu = (try? c.decodeIfPresent(String.self, forKey: .labelRu)) ?? ""
+        labelEn = (try? c.decodeIfPresent(String.self, forKey: .labelEn)) ?? ""
+    }
+}
+
+struct SessionDevicesResponse: Decodable {
+    let success: Bool
+    let devices: [SessionDevice]
+    let sessionAutoLogoutSeconds: Int
+    let sessionExpiresAt: Int
+    let sessionAutoLogoutOptions: [SessionAutoLogoutOption]
+
+    enum CodingKeys: String, CodingKey {
+        case success, devices
+        case sessionAutoLogoutSeconds = "session_auto_logout_seconds"
+        case sessionExpiresAt = "session_expires_at"
+        case sessionAutoLogoutOptions = "session_auto_logout_options"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        devices = (try? c.decodeIfPresent(LossyArray<SessionDevice>.self, forKey: .devices)?.elements) ?? []
+        sessionAutoLogoutSeconds = (try? c.decodeIfPresent(Int.self, forKey: .sessionAutoLogoutSeconds)) ?? 0
+        sessionExpiresAt = (try? c.decodeIfPresent(Int.self, forKey: .sessionExpiresAt)) ?? 0
+        sessionAutoLogoutOptions = (try? c.decodeIfPresent(LossyArray<SessionAutoLogoutOption>.self, forKey: .sessionAutoLogoutOptions)?.elements) ?? []
+    }
+}
+
+struct SessionDeviceRevokeResponse: Decodable {
+    let success: Bool
+    let revoked: Int
+    let signedOutCurrent: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case success, revoked
+        case signedOutCurrent = "signed_out_current"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        revoked = (try? c.decodeIfPresent(Int.self, forKey: .revoked)) ?? 0
+        signedOutCurrent = (try? c.decodeIfPresent(Bool.self, forKey: .signedOutCurrent)) ?? false
+    }
+}
+
+struct SessionDevicesRevokeOthersResponse: Decodable {
+    let success: Bool
+    let revoked: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        revoked = (try? c.decodeIfPresent(Int.self, forKey: .revoked)) ?? 0
+    }
+}
+
+struct SessionAutoLogoutUpdateResponse: Decodable {
+    let success: Bool
+    let sessionAutoLogoutSeconds: Int
+    let sessionExpiresAt: Int
+    let sessionAutoLogoutOptions: [SessionAutoLogoutOption]
+    let updatedSessions: Int
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case sessionAutoLogoutSeconds = "session_auto_logout_seconds"
+        case sessionExpiresAt = "session_expires_at"
+        case sessionAutoLogoutOptions = "session_auto_logout_options"
+        case updatedSessions = "updated_sessions"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        sessionAutoLogoutSeconds = (try? c.decodeIfPresent(Int.self, forKey: .sessionAutoLogoutSeconds)) ?? 0
+        sessionExpiresAt = (try? c.decodeIfPresent(Int.self, forKey: .sessionExpiresAt)) ?? 0
+        sessionAutoLogoutOptions = (try? c.decodeIfPresent(LossyArray<SessionAutoLogoutOption>.self, forKey: .sessionAutoLogoutOptions)?.elements) ?? []
+        updatedSessions = (try? c.decodeIfPresent(Int.self, forKey: .updatedSessions)) ?? 0
+    }
+}
+
+// MARK: - TOTP security
+
+struct TotpResponse: Decodable {
+    let success: Bool
+    let enabled: Bool
+    let totpEnabledAt: String
+    let setupPending: Bool
+    let totpSecret: String
+    let totpUri: String
+    let username: String
+    let backupCodesRemaining: Int
+    let backupCodes: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case success, enabled, username
+        case totpEnabledAt = "totp_enabled_at"
+        case setupPending = "setup_pending"
+        case totpSecret = "totp_secret"
+        case totpUri = "totp_uri"
+        case backupCodesRemaining = "backup_codes_remaining"
+        case backupCodes = "backup_codes"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        enabled = (try? c.decodeIfPresent(Bool.self, forKey: .enabled)) ?? false
+        totpEnabledAt = (try? c.decodeIfPresent(String.self, forKey: .totpEnabledAt)) ?? ""
+        setupPending = (try? c.decodeIfPresent(Bool.self, forKey: .setupPending)) ?? false
+        totpSecret = (try? c.decodeIfPresent(String.self, forKey: .totpSecret)) ?? ""
+        totpUri = (try? c.decodeIfPresent(String.self, forKey: .totpUri)) ?? ""
+        username = (try? c.decodeIfPresent(String.self, forKey: .username)) ?? ""
+        backupCodesRemaining = (try? c.decodeIfPresent(Int.self, forKey: .backupCodesRemaining)) ?? 0
+        backupCodes = (try? c.decodeIfPresent([String].self, forKey: .backupCodes)) ?? []
+    }
+}
+
 // MARK: - Message reaction
 
 struct MessageReaction: Decodable, Identifiable, Equatable, Sendable {
