@@ -12,6 +12,7 @@ struct ChatListView: View {
     @State private var pinningChatIds: Set<String> = []
     @State private var pendingRemovalContact: Contact?
     @State private var removingChatIds: Set<String> = []
+    @State private var handlingRequestIds: Set<String> = []
     @State private var removalError: String?
 
     private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
@@ -26,37 +27,45 @@ struct ChatListView: View {
         ]
     }
 
-    private var filtered: [Contact] {
-        var list = session.contacts
-        switch activeFilter {
-        case "requests": list = list.filter { _ in false } // shown via pendingRequests below
-        case "groups":   list = list.filter { $0.isGroup }
-        case "archive":  list = []
-        default: break
-        }
-        if !searchText.isEmpty {
-            let q = searchText.lowercased()
-            list = list.filter {
-                $0.displayName.lowercased().contains(q) ||
-                $0.username.lowercased().contains(q)
+    private var hasSearchQuery: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var filteredContacts: [Contact] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return session.contacts.filter { contact in
+            switch activeFilter {
+            case "groups":
+                guard contact.isGroup else { return false }
+            case "archive":
+                return false
+            default:
+                break
             }
+
+            guard !query.isEmpty else { return true }
+            return contact.displayName.localizedCaseInsensitiveContains(query) ||
+                contact.username.localizedCaseInsensitiveContains(query)
         }
-        return list
     }
 
     var body: some View {
+        let contacts = filteredContacts
+
         ZStack {
             Color.smBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 topCard
                 lockBanner
-                if filtered.isEmpty && !searchText.isEmpty {
+                if activeFilter == "requests" {
+                    requestsList
+                } else if contacts.isEmpty && hasSearchQuery {
                     emptySearch
                 } else if session.contacts.isEmpty {
                     emptyContacts
                 } else {
-                    contactList
+                    contactList(contacts)
                 }
                 profileFooter
             }
@@ -68,9 +77,9 @@ struct ChatListView: View {
         .sheet(isPresented: $showQRSheet) {
             UserQRSheet()
         }
-        .refreshable { await session.refreshContacts() }
+        .refreshable { await refreshSidebarData() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            Task { await session.refreshContacts() }
+            Task { await refreshSidebarData() }
         }
         .confirmationDialog(removalDialogTitle, isPresented: removalDialogBinding, titleVisibility: .visible) {
             if let contact = pendingRemovalContact {
@@ -100,7 +109,7 @@ struct ChatListView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard !Task.isCancelled else { return }
-                await session.refreshContacts()
+                await refreshSidebarData()
             }
         }
     }
@@ -239,10 +248,10 @@ struct ChatListView: View {
 
     // MARK: - Contact list
 
-    private var contactList: some View {
+    private func contactList(_ contacts: [Contact]) -> some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 0) {
-                ForEach(filtered) { contact in
+                ForEach(contacts) { contact in
                     NavigationLink(destination: ChatView(contact: contact)) {
                         SidebarContactRow(contact: contact)
                     }
@@ -268,6 +277,38 @@ struct ChatListView: View {
         }
     }
 
+    private var requestsList: some View {
+        Group {
+            if session.pendingRequests.isEmpty {
+                emptyRequests
+            } else {
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(session.pendingRequests.enumerated()), id: \.element.id) { index, request in
+                            DialogRequestRow(
+                                request: request,
+                                onAccept: { acceptRequest(request) },
+                                onDecline: { declineRequest(request) }
+                            )
+                            if index < session.pendingRequests.count - 1 {
+                                Divider()
+                                    .padding(.leading, 72)
+                                    .background(Color.smBorderSoft)
+                            }
+                        }
+                    }
+                    .background(Color.smSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.smBorder, lineWidth: 0.5))
+                    .shadow(color: Color(hex: "#281e0f").opacity(0.05), radius: 6, x: 0, y: 2)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
+                }
+            }
+        }
+    }
+
     private func togglePinned(_ contact: Contact) {
         guard !pinningChatIds.contains(contact.chatId) else { return }
         pinningChatIds.insert(contact.chatId)
@@ -286,6 +327,44 @@ struct ChatListView: View {
             }
             pinningChatIds.remove(contact.chatId)
         }
+    }
+
+    private func acceptRequest(_ request: DialogRequest) {
+        guard !handlingRequestIds.contains(request.id) else { return }
+        handlingRequestIds.insert(request.id)
+        Task {
+            do {
+                _ = try await session.api.acceptDialogRequest(request)
+                await session.refreshDialogRequests()
+                await session.refreshContacts()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                await session.refreshDialogRequests()
+            }
+            handlingRequestIds.remove(request.id)
+        }
+    }
+
+    private func declineRequest(_ request: DialogRequest) {
+        guard !handlingRequestIds.contains(request.id) else { return }
+        handlingRequestIds.insert(request.id)
+        Task {
+            do {
+                try await session.api.declineDialogRequest(request)
+                await session.refreshDialogRequests()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                await session.refreshDialogRequests()
+            }
+            handlingRequestIds.remove(request.id)
+        }
+    }
+
+    private func refreshSidebarData() async {
+        await session.refreshContacts()
+        await session.refreshDialogRequests()
     }
 
     private var removalDialogBinding: Binding<Bool> {
@@ -414,6 +493,25 @@ struct ChatListView: View {
             Text("Нет результатов для «\(searchText)»")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Color.smMuted)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var emptyRequests: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "tray")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.smFaint)
+            Text("Нет новых запросов")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Color.smMuted)
+            Text("Новые диалоги и приглашения появятся здесь.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(Color.smFaint)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
             Spacer()
         }
         .frame(maxWidth: .infinity)
