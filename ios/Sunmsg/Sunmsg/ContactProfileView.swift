@@ -10,6 +10,8 @@ struct ContactProfileView: View {
     @State private var isLoadingSharedContent = false
     @State private var sharedContentError: String?
     @State private var sharedContentItems: [ProfileSharedContentItem] = []
+    @State private var sharedContentItemsByKind: [ProfileSharedContentKind: [ProfileSharedContentItem]] = [:]
+    @State private var sharedContentKinds: [ProfileSharedContentKind] = []
     @State private var selectedSharedContentKind: ProfileSharedContentKind = .media
     @State private var sharedContentHasMore = false
 
@@ -243,9 +245,9 @@ struct ContactProfileView: View {
     // MARK: - Shared media
 
     private var mediaSection: some View {
-        let kinds = availableSharedContentKinds
+        let kinds = sharedContentKinds
         let activeKind = kinds.contains(selectedSharedContentKind) ? selectedSharedContentKind : kinds.first
-        let visibleItems = activeKind.map { items(for: $0) } ?? []
+        let visibleItems = activeKind.flatMap { sharedContentItemsByKind[$0] } ?? []
         let previewItems = visibleItems.prefix(6)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -319,23 +321,13 @@ struct ContactProfileView: View {
         }
     }
 
-    private var availableSharedContentKinds: [ProfileSharedContentKind] {
-        ProfileSharedContentKind.allCases.filter { kind in
-            sharedContentItems.contains { $0.kind == kind }
-        }
-    }
-
-    private func items(for kind: ProfileSharedContentKind) -> [ProfileSharedContentItem] {
-        sharedContentItems.filter { $0.kind == kind }
-    }
-
     private func sharedContentTab(_ kind: ProfileSharedContentKind, isActive: Bool) -> some View {
         Button {
             selectedSharedContentKind = kind
         } label: {
             HStack(spacing: 5) {
                 Text(kind.title)
-                Text("\(items(for: kind).count)")
+                Text("\(sharedContentItemsByKind[kind]?.count ?? 0)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(isActive ? Color.smAccent2 : Color.smFaint)
             }
@@ -411,14 +403,19 @@ struct ContactProfileView: View {
                 let body = sharedBodies[message.id] ?? (message.message ?? "")
                 return ProfileSharedContentItem(message: message, body: body)
             }
+            let itemsByKind = Dictionary(grouping: items, by: \.kind)
+            let kinds = ProfileSharedContentKind.allCases.filter { !(itemsByKind[$0]?.isEmpty ?? true) }
             sharedContentItems = items
+            sharedContentItemsByKind = itemsByKind
+            sharedContentKinds = kinds
             sharedContentHasMore = page.hasMoreBefore
-            let kinds = availableSharedContentKinds
             if !kinds.contains(selectedSharedContentKind) {
                 selectedSharedContentKind = kinds.first ?? .media
             }
         } catch {
             sharedContentItems = []
+            sharedContentItemsByKind = [:]
+            sharedContentKinds = []
             sharedContentHasMore = false
             sharedContentError = error.localizedDescription
         }
