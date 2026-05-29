@@ -3760,10 +3760,10 @@ struct AppearanceSettingsView: View {
     private func importBackground(_ item: PhotosPickerItem?) async {
         guard let item else { return }
         do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data),
-                  let jpeg = resizedJPEG(image: image, maxDimension: 1440)
-            else { return }
+            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+            guard let jpeg = await Task.detached(priority: .userInitiated) {
+                Self.resizedJPEGData(from: data, maxDimension: 1440)
+            }.value else { return }
             backgroundImageDataURL = "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
             chatMode = "custom"
             saveAppearance()
@@ -3773,7 +3773,8 @@ struct AppearanceSettingsView: View {
         selectedBackgroundItem = nil
     }
 
-    private func resizedJPEG(image: UIImage, maxDimension: CGFloat) -> Data? {
+    private static func resizedJPEGData(from data: Data, maxDimension: CGFloat) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
         let maxSide = max(image.size.width, image.size.height)
         let scale = maxSide > maxDimension ? maxDimension / maxSide : 1
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
