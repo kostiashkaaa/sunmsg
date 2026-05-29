@@ -274,7 +274,9 @@ struct ChatListView: View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 0) {
                 ForEach(contacts) { contact in
-                    NavigationLink(destination: ChatView(contact: contact)) {
+                    NavigationLink {
+                        ChatView(contact: contact)
+                    } label: {
                         SidebarContactRow(contact: contact)
                     }
                     .buttonStyle(.plain)
