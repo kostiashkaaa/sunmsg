@@ -9,11 +9,22 @@ struct ContactProfileView: View {
     @State private var blockError: String?
     @State private var isLoadingSharedContent = false
     @State private var sharedContentError: String?
-    @State private var sharedContentItems: [ProfileSharedContentItem] = []
-    @State private var sharedContentItemsByKind: [ProfileSharedContentKind: [ProfileSharedContentItem]] = [:]
-    @State private var sharedContentKinds: [ProfileSharedContentKind] = []
+    @State private var sharedContentSnapshot = ProfileSharedContentSnapshot.empty
     @State private var selectedSharedContentKind: ProfileSharedContentKind = .media
-    @State private var sharedContentHasMore = false
+
+    private struct ProfileSharedContentSnapshot {
+        let items: [ProfileSharedContentItem]
+        let itemsByKind: [ProfileSharedContentKind: [ProfileSharedContentItem]]
+        let kinds: [ProfileSharedContentKind]
+        let hasMore: Bool
+
+        static let empty = ProfileSharedContentSnapshot(
+            items: [],
+            itemsByKind: [:],
+            kinds: [],
+            hasMore: false
+        )
+    }
 
     private var keyFingerprint: String {
         guard !contact.publicKey.isEmpty else { return "—" }
@@ -245,9 +256,10 @@ struct ContactProfileView: View {
     // MARK: - Shared media
 
     private var mediaSection: some View {
-        let kinds = sharedContentKinds
+        let snapshot = sharedContentSnapshot
+        let kinds = snapshot.kinds
         let activeKind = kinds.contains(selectedSharedContentKind) ? selectedSharedContentKind : kinds.first
-        let visibleItems = activeKind.flatMap { sharedContentItemsByKind[$0] } ?? []
+        let visibleItems = activeKind.flatMap { snapshot.itemsByKind[$0] } ?? []
         let previewItems = visibleItems.prefix(6)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -275,7 +287,7 @@ struct ContactProfileView: View {
                         text: sharedContentError,
                         color: Color.smDanger
                     )
-                } else if sharedContentItems.isEmpty {
+                } else if snapshot.items.isEmpty {
                     sharedContentStateRow(
                         icon: "folder",
                         text: "Здесь пока пусто",
@@ -300,7 +312,7 @@ struct ContactProfileView: View {
                             }
                             sharedContentRow(item)
                         }
-                        if sharedContentHasMore {
+                        if snapshot.hasMore {
                             Divider().padding(.leading, 54).background(Color.smBorderSoft)
                             HStack(spacing: 8) {
                                 Image(systemName: "clock.arrow.circlepath")
@@ -327,7 +339,7 @@ struct ContactProfileView: View {
         } label: {
             HStack(spacing: 5) {
                 Text(kind.title)
-                Text("\(sharedContentItemsByKind[kind]?.count ?? 0)")
+                Text("\(sharedContentSnapshot.itemsByKind[kind]?.count ?? 0)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(isActive ? Color.smAccent2 : Color.smFaint)
             }
@@ -405,18 +417,17 @@ struct ContactProfileView: View {
             }
             let itemsByKind = Dictionary(grouping: items, by: \.kind)
             let kinds = ProfileSharedContentKind.allCases.filter { !(itemsByKind[$0]?.isEmpty ?? true) }
-            sharedContentItems = items
-            sharedContentItemsByKind = itemsByKind
-            sharedContentKinds = kinds
-            sharedContentHasMore = page.hasMoreBefore
+            sharedContentSnapshot = ProfileSharedContentSnapshot(
+                items: items,
+                itemsByKind: itemsByKind,
+                kinds: kinds,
+                hasMore: page.hasMoreBefore
+            )
             if !kinds.contains(selectedSharedContentKind) {
                 selectedSharedContentKind = kinds.first ?? .media
             }
         } catch {
-            sharedContentItems = []
-            sharedContentItemsByKind = [:]
-            sharedContentKinds = []
-            sharedContentHasMore = false
+            sharedContentSnapshot = .empty
             sharedContentError = error.localizedDescription
         }
         isLoadingSharedContent = false
