@@ -466,12 +466,12 @@ struct ChatListView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(user?.displayName ?? "—")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Color.smText)
                             .lineLimit(1)
                         HStack(spacing: 6) {
                             Text("@\(user?.username ?? "—")")
-                                .font(.system(size: 12))
+                                .font(.caption)
                                 .foregroundStyle(Color.smAccent)
                             SyncChipView()
                         }
@@ -733,7 +733,7 @@ struct SyncChipView: View {
                 .fill(color)
                 .frame(width: 6, height: 6)
             Text(label)
-                .font(.system(size: 9.5, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(color)
                 .tracking(0.5)
         }
