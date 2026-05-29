@@ -134,8 +134,6 @@ struct IncomingCallView: View {
 struct InCallView: View {
     var providedCall: ActiveCallState?
     @ObservedObject var session: SessionStore
-    @State private var elapsed: Int = 0
-    @State private var callTimer: Timer? = nil
     @StateObject private var webrtc = WebRTCService.shared
 
     private var call: ActiveCallState? { session.activeCall ?? providedCall }
@@ -150,7 +148,6 @@ struct InCallView: View {
             // Audio routing is owned by WebRTCService via RTCAudioSession; the
             // view must not reconfigure AVAudioSession directly (doing so fights
             // WebRTC's session management and can drop the call audio route).
-            startTimer()
             UIDevice.current.isProximityMonitoringEnabled = !(call?.isSpeaker ?? true)
         }
         .onChange(of: call?.isSpeaker) { _, isSpeaker in
@@ -158,8 +155,6 @@ struct InCallView: View {
         }
         .onDisappear {
             UIDevice.current.isProximityMonitoringEnabled = false
-            callTimer?.invalidate()
-            callTimer = nil
         }
     }
 
@@ -247,13 +242,7 @@ struct InCallView: View {
 
                     Spacer()
 
-                    // Call timer
-                    Text(elapsedText)
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Color(hex: "#fbf8f1"))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.20), in: Capsule())
+                    CallElapsedBadge(connectionState: webrtc.connectionState)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, callTopPadding(geo))
@@ -379,32 +368,44 @@ struct InCallView: View {
         max(28, geo.safeAreaInsets.bottom + 14)
     }
 
-    private var elapsedText: String {
-        let m = elapsed / 60
-        let s = elapsed % 60
-        return String(format: "%02d:%02d", m, s)
-    }
-
     private func initials(_ name: String) -> String {
         name.components(separatedBy: " ").prefix(2)
             .compactMap { $0.first.map(String.init) }
             .joined().uppercased()
     }
 
-    private func startTimer() {
-        callTimer?.invalidate()
-        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            // The timer fires on the main run loop — assumeIsolated lets us read
-            // the @MainActor WebRTCService state without a concurrency warning.
-            MainActor.assumeIsolated {
-                let s = WebRTCService.shared.connectionState
-                if s == .connected || s == .completed { elapsed += 1 }
-            }
-        }
-        timer.tolerance = 0.1
-        callTimer = timer
+}
+
+private struct CallElapsedBadge: View {
+    let connectionState: RTCIceConnectionState
+    @State private var elapsed: Int = 0
+
+    private var isRunning: Bool {
+        connectionState == .connected || connectionState == .completed
     }
 
+    var body: some View {
+        Text(Self.format(elapsed))
+            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(hex: "#fbf8f1"))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Color.black.opacity(0.20), in: Capsule())
+            .task(id: isRunning) {
+                guard isRunning else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    elapsed += 1
+                }
+            }
+    }
+
+    private static func format(_ elapsed: Int) -> String {
+        let minutes = elapsed / 60
+        let seconds = elapsed % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
 }
 
 // MARK: - WebRTC video view wrappers
