@@ -56,7 +56,8 @@ struct ChatView: View {
     @State private var toast: String? = nil
 
     /// Quick-pick reactions (subset of the server's allowed set, top-ranked).
-    private let reactionEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"]
+    private let reactionEmojis = ["😀", "❤️", "👍", "💯", "👌", "🔥", "😎"]
+    private let additionalReactionEmojis = ["😂", "😮", "😢", "👏", "🙏", "🤯", "🎉", "🤔"]
     private let composerEmojiSuggestions = [
         "\u{1F642}", "\u{1F604}", "\u{1F605}", "\u{1F972}",
         "\u{1F60A}", "\u{1F60D}", "\u{1F914}", "\u{1F44D}",
@@ -270,45 +271,21 @@ struct ChatView: View {
             let actions = menuActions(for: msg, isFromMe: isFromMe)
             let previewGrouping = messagePreviewGrouping(for: msg, isFromMe: isFromMe)
 
-            // Layout geometry
-            let topInset = geo.safeAreaInsets.top + 8
-            let bottomInset = geo.size.height - geo.safeAreaInsets.bottom - 8
-            let gap: CGFloat = 10
-            let barH: CGFloat = 50
-            let menuH = CGFloat(actions.count) * 44 + 10
-            let menuW: CGFloat = 232
-            let barW: CGFloat = CGFloat(reactionEmojis.count) * 44 + 20
-
-            // Vertical positions (pre-shift): bar above bubble, menu below.
-            let barCenterY = rect.minY - gap - barH / 2
-            let bubbleCenterY = rect.midY
-            let menuCenterY = rect.maxY + gap + menuH / 2
-
-            // Shift the whole group so it fits between the insets.
-            let groupTop = barCenterY - barH / 2
-            let groupBottom = menuCenterY + menuH / 2
-            let shift: CGFloat = {
-                if groupTop < topInset { return topInset - groupTop }
-                if groupBottom > bottomInset { return bottomInset - groupBottom }
-                return 0
-            }()
-
-            // Horizontal anchoring to the bubble's side.
-            let barX = clamp(isFromMe ? rect.maxX - barW / 2 : rect.minX + barW / 2,
-                             min: barW / 2 + 8, max: geo.size.width - barW / 2 - 8)
-            let menuX = clamp(isFromMe ? rect.maxX - menuW / 2 : rect.minX + menuW / 2,
-                              min: menuW / 2 + 8, max: geo.size.width - menuW / 2 - 8)
-
-            ZStack {
-                // Dimmed, blurred backdrop
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.96)
-                    .ignoresSafeArea()
-                    .overlay(Color.black.opacity(0.18).ignoresSafeArea())
-                    .onTapGesture { dismissMenu() }
-
-                // Floating copy of the pressed bubble (lifted above the dim)
+            MessageContextMenu(
+                targetRect: rect,
+                containerSize: geo.size,
+                safeAreaInsets: geo.safeAreaInsets,
+                isFromMe: isFromMe,
+                actions: actions,
+                currentReactions: msg.reactions,
+                primaryReactions: reactionEmojis,
+                additionalReactions: additionalReactionEmojis,
+                onSelectReaction: { emoji in
+                    toggleReaction(messageId: mid, emoji: emoji)
+                    dismissMenu()
+                },
+                onDismiss: dismissMenu
+            ) {
                 MessageBubbleView(
                     message: msg,
                     decryptedText: decryptedTexts[msg.id],
@@ -318,18 +295,6 @@ struct ChatView: View {
                     maxBubbleWidth: rect.width,
                     isPreview: true
                 )
-                .frame(width: rect.width)
-                .position(x: rect.midX, y: bubbleCenterY + shift)
-
-                // Reaction quick-bar
-                reactionBar(messageId: mid, current: msg.reactions)
-                    .frame(width: barW, height: barH)
-                    .position(x: barX, y: barCenterY + shift)
-
-                // Action menu
-                actionMenu(actions)
-                    .frame(width: menuW)
-                    .position(x: menuX, y: menuCenterY + shift)
             }
             .transition(.opacity)
         }
@@ -366,65 +331,83 @@ struct ChatView: View {
         )
     }
 
-    private func clamp(_ v: CGFloat, min lo: CGFloat, max hi: CGFloat) -> CGFloat {
-        guard hi > lo else { return v }
-        return Swift.max(lo, Swift.min(hi, v))
-    }
-
-    private func reactionBar(messageId: Int, current: [MessageReaction]) -> some View {
-        HStack(spacing: 2) {
-            ForEach(reactionEmojis, id: \.self) { emoji in
-                let active = current.contains { $0.emoji == emoji && $0.reactedByMe }
-                Button(action: {
-                    toggleReaction(messageId: messageId, emoji: emoji)
-                    dismissMenu()
-                    ChatHaptics.lightImpact()
-                }) {
-                    Text(emoji)
-                        .font(.system(size: 27))
-                        .frame(width: 42, height: 42)
-                        .background(active ? Color.smAccent.opacity(0.22) : Color.clear, in: Circle())
-                }
-                .buttonStyle(PressableStyle())
-            }
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 50)
-        .background(Color.smSurface, in: Capsule())
-        .overlay(Capsule().stroke(Color.smBorder, lineWidth: 0.5))
-        .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 6)
-    }
-
-    private struct MenuAction: Identifiable {
-        let id = UUID()
-        let label: String
-        let icon: String
-        let role: ButtonRole?
-        let perform: () -> Void
-    }
-
-    private func menuActions(for msg: ChatMessage, isFromMe: Bool) -> [MenuAction] {
-        var items: [MenuAction] = []
+    private func menuActions(for msg: ChatMessage, isFromMe: Bool) -> [MessageContextMenuAction] {
+        var items: [MessageContextMenuAction] = []
         let resolved = decryptedTexts[msg.id] ?? msg.message ?? ""
         let isMedia = ["photo", "video", "audio", "file"].contains(msg.messageType)
         let isCopyable = !isMedia && msg.messageType != "call" && !resolved.isEmpty
             && !resolved.hasPrefix("{") && !resolved.hasPrefix("[")
+        let withinEditWindow = (Date().timeIntervalSince1970 - msg.createdAt) < 48 * 3600
+        let canEdit = isFromMe && isCopyable && withinEditWindow
 
-        if isCopyable {
-            items.append(MenuAction(label: "Копировать", icon: "doc.on.doc", role: nil) {
+        items.append(MessageContextMenuAction(id: "reply", title: "Ответить", systemImage: "arrowshape.turn.up.left") {
+            dismissMenu()
+            showToast("Ответ будет добавлен в следующей версии")
+        })
+
+        items.append(
+            MessageContextMenuAction(
+                id: "copy",
+                title: "Копировать",
+                systemImage: "doc.on.doc",
+                isEnabled: isCopyable
+            ) {
                 UIPasteboard.general.string = resolved
                 dismissMenu()
                 showToast("Скопировано")
-            })
-        }
-        // Edit: own plain-text messages, within the server's 48h window.
-        let withinEditWindow = (Date().timeIntervalSince1970 - msg.createdAt) < 48 * 3600
-        if isFromMe && isCopyable && withinEditWindow {
-            items.append(MenuAction(label: "Изменить", icon: "pencil", role: nil) {
+            }
+        )
+
+        items.append(
+            MessageContextMenuAction(
+                id: "edit",
+                title: "Изменить",
+                subtitle: canEdit ? nil : "Недоступно для этого сообщения",
+                systemImage: "pencil",
+                isEnabled: canEdit
+            ) {
                 beginEdit(message: msg, currentText: resolved)
+            }
+        )
+
+        items.append(MessageContextMenuAction(id: "pin", title: "Закрепить", systemImage: "pin") {
+            dismissMenu()
+            showToast("Закрепление будет добавлено в следующей версии")
+        })
+
+        items.append(MessageContextMenuAction(id: "forward", title: "Переслать", systemImage: "arrowshape.turn.up.forward") {
+            dismissMenu()
+            showToast("Пересылка будет добавлена в следующей версии")
+        })
+
+        items.append(MessageContextMenuAction(id: "select", title: "Выбрать", systemImage: "checkmark.circle") {
+            dismissMenu()
+            showToast("Выбор сообщений будет добавлен в следующей версии")
+        })
+
+        if isFromMe {
+            items.append(MessageContextMenuAction(id: "info", title: "Информация о сообщении", subtitle: "ID \(msg.id)", systemImage: "info.circle") {
+                dismissMenu()
+                showToast("Сообщение #\(msg.id)")
+            })
+
+            items.append(MessageContextMenuAction(id: "edited_at", title: "Время изменения", subtitle: msg.isEdited ? "Изменено" : "Не изменялось", systemImage: "clock.arrow.circlepath") {
+                dismissMenu()
+                showToast(msg.isEdited ? "Сообщение изменено" : "Сообщение не изменялось")
+            })
+
+            items.append(MessageContextMenuAction(id: "delivery", title: "Статус доставки", subtitle: msg.isDelivered ? "Доставлено" : "Отправляется", systemImage: "checkmark.circle") {
+                dismissMenu()
+                showToast(msg.isDelivered ? "Доставлено" : "Отправляется")
+            })
+
+            items.append(MessageContextMenuAction(id: "read", title: "Статус прочтения", subtitle: msg.isRead ? "Прочитано" : "Не прочитано", systemImage: "checkmark.circle.fill") {
+                dismissMenu()
+                showToast(msg.isRead ? "Прочитано" : "Не прочитано")
             })
         }
-        items.append(MenuAction(label: "Удалить", icon: "trash", role: .destructive) {
+
+        items.append(MessageContextMenuAction(id: "delete", title: "Удалить", systemImage: "trash", role: .destructive) {
             let isMine = isFromMe
             dismissMenu()
             deleteDialogTask?.cancel()
@@ -432,45 +415,6 @@ struct ChatView: View {
             pendingDelete = PendingDelete(id: msg.id, isFromMe: isMine)
         })
         return items
-    }
-
-    private func actionMenu(_ actions: [MenuAction]) -> some View {
-        VStack(spacing: 0) {
-            ForEach(actions.indices, id: \.self) { index in
-                menuActionRow(actions[index])
-                if index < actions.count - 1 {
-                    menuDivider
-                }
-            }
-        }
-        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-        .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 8)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func menuActionRow(_ action: MenuAction) -> some View {
-        let foregroundColor = action.role == .destructive ? Color.smDanger : Color.smText
-
-        return Button(action: action.perform) {
-            HStack {
-                Text(action.label)
-                    .font(.system(size: 15.5))
-                    .foregroundStyle(foregroundColor)
-                Spacer()
-                Image(systemName: action.icon)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(foregroundColor)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(MenuRowStyle())
-    }
-
-    private var menuDivider: some View {
-        Rectangle().fill(Color.smBorderSoft).frame(height: 0.5)
     }
 
     private func presentMenu(for messageId: Int) {
