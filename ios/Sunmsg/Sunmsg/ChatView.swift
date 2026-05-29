@@ -16,6 +16,16 @@ struct ChatView: View {
         case none
     }
 
+    private struct MessageRenderRow: Identifiable {
+        let id: Int
+        let message: ChatMessage
+        let decryptedText: String?
+        let isFromMe: Bool
+        let showSender: Bool
+        let isTail: Bool
+        let showsDate: Bool
+    }
+
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
     @State private var decryptionSummary: String?
@@ -62,6 +72,11 @@ struct ChatView: View {
 
     /// Quick-pick reactions (subset of the server's allowed set, top-ranked).
     private let reactionEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"]
+    private let composerEmojiSuggestions = [
+        "\u{1F642}", "\u{1F604}", "\u{1F605}", "\u{1F972}",
+        "\u{1F60A}", "\u{1F60D}", "\u{1F914}", "\u{1F44D}",
+        "\u{2764}\u{FE0F}", "\u{1F525}", "\u{1F389}", "\u{2600}\u{FE0F}",
+    ]
 
     struct PendingDelete: Identifiable {
         let id: Int
@@ -99,6 +114,30 @@ struct ChatView: View {
             return hasPrivateKey && !myPublicKey.isEmpty
         }
         return canSendEncrypted
+    }
+    private var messageRows: [MessageRenderRow] {
+        var rows: [MessageRenderRow] = []
+        rows.reserveCapacity(messages.count)
+
+        for idx in messages.indices {
+            let msg = messages[idx]
+            let previous = idx > messages.startIndex ? messages[messages.index(before: idx)] : nil
+            let next = idx < messages.index(before: messages.endIndex) ? messages[messages.index(after: idx)] : nil
+            let isFromMe = msg.senderUserId == myId
+            rows.append(
+                MessageRenderRow(
+                    id: msg.id,
+                    message: msg,
+                    decryptedText: decryptedTexts[msg.id],
+                    isFromMe: isFromMe,
+                    showSender: !isFromMe && contact.isGroup,
+                    isTail: isTail(current: msg, next: next, isFromMe: isFromMe),
+                    showsDate: shouldShowDate(current: msg, previous: previous)
+                )
+            )
+        }
+
+        return rows
     }
 
     var body: some View {
@@ -179,7 +218,7 @@ struct ChatView: View {
 
     private var nativeChatLayout: some View {
         ZStack {
-            Color(hex: "#f2ede2").ignoresSafeArea()
+            Color.smBg2.ignoresSafeArea()
             if isLoading {
                 ProgressView()
                     .tint(Color.smAccent)
@@ -201,7 +240,7 @@ struct ChatView: View {
                 messageScrollView
             }
         }
-        .background(Color(hex: "#f2ede2"))
+        .background(Color.smBg2)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             composerBar
         }
@@ -544,26 +583,22 @@ struct ChatView: View {
                         .id("older_loader")
                     }
 
-                    ForEach(Array(messages.enumerated()), id: \.element.id) { idx, msg in
-                        let isFromMe = msg.senderUserId == myId
-                        let prevMsg = idx > 0 ? messages[idx - 1] : nil
-                        let nextMsg = idx < messages.count - 1 ? messages[idx + 1] : nil
-
-                        if shouldShowDate(current: msg, previous: prevMsg) {
-                            DateChipView(timestamp: msg.createdAt)
+                    ForEach(messageRows) { row in
+                        if row.showsDate {
+                            DateChipView(timestamp: row.message.createdAt)
                         }
 
                         MessageBubbleView(
-                            message: msg,
-                            decryptedText: decryptedTexts[msg.id],
-                            isFromMe: isFromMe,
-                            showSender: !isFromMe && contact.isGroup,
-                            isTail: isTail(current: msg, next: nextMsg, isFromMe: isFromMe),
-                            onToggleReaction: { emoji in toggleReaction(messageId: msg.id, emoji: emoji) },
-                            onRequestMenu: { presentMenu(for: msg.id) }
+                            message: row.message,
+                            decryptedText: row.decryptedText,
+                            isFromMe: row.isFromMe,
+                            showSender: row.showSender,
+                            isTail: row.isTail,
+                            onToggleReaction: { emoji in toggleReaction(messageId: row.id, emoji: emoji) },
+                            onRequestMenu: { presentMenu(for: row.id) }
                         )
-                        .id(msg.id)
-                        .opacity(menuTargetId == msg.id ? 0 : 1)
+                        .id(row.id)
+                        .opacity(menuTargetId == row.id ? 0 : 1)
                     }
 
                     // Typing indicator bubble
@@ -596,16 +631,13 @@ struct ChatView: View {
                 }
             )
             .scrollIndicators(.hidden)
+            .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .onAppear { scrollToBottom(proxy, animated: false) }
             .onPreferenceChange(MessageViewportHeightKey.self) { height in
                 let changed = abs(messageViewportHeight - height) > 0.5
                 guard changed else { return }
-                let wasPinnedToBottom = isPinnedToBottom
                 messageViewportHeight = height
-                if wasPinnedToBottom {
-                    scrollToBottom(proxy, animated: false)
-                }
             }
             .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
                 updatePinnedToBottom(bottomY: bottomY)
@@ -673,228 +705,32 @@ struct ChatView: View {
         return nextIsMe != isFromMe || next.senderUserId != current.senderUserId
     }
 
-    // MARK: - Composer bar (design matches prototype exactly)
+    // MARK: - Composer bar
 
     private var composerBar: some View {
-        VStack(spacing: 0) {
-            if let sendError {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                    Text(sendError)
-                        .font(.system(size: 12.5))
-                        .lineLimit(2)
-                    Spacer()
-                    Button(action: { self.sendError = nil }) {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .foregroundStyle(Color.smDanger)
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-            }
-            if let decryptionSummary {
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.trianglebadge.exclamationmark")
-                    Text(decryptionSummary)
-                        .font(.system(size: 12.5))
-                        .lineLimit(2)
-                    Spacer()
-                    Button(action: { self.decryptionSummary = nil }) {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .foregroundStyle(Color.smMuted)
-                .padding(.horizontal, 14)
-                .padding(.top, sendError == nil ? 8 : 2)
-            }
-
-            // Editing banner
-            if editingMessageId != nil {
-                HStack(spacing: 10) {
-                    Rectangle().fill(Color.smAccent).frame(width: 3, height: 30)
-                        .clipShape(Capsule())
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Изменение сообщения")
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundStyle(Color.smAccent2)
-                        Text(composerText)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(Color.smMuted)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    Button(action: { withAnimation(.easeOut(duration: 0.18)) { cancelEdit() } }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.smMuted)
-                            .frame(width: 28, height: 28)
-                            .background(Color.smText.opacity(0.06), in: Circle())
-                    }
-                    .buttonStyle(PressableStyle())
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
-            HStack(alignment: .bottom, spacing: 8) {
-                // Plus / attach button — hidden while recording or editing
-                if !isRecording && editingMessageId == nil {
-                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundStyle(Color.smAccent)
-                            .frame(width: 34, height: 34)
-                    }
-                    .buttonStyle(PressableStyle())
-                }
-
-                // Input field container — emoji + paperclip INSIDE
-                HStack(alignment: .center, spacing: 0) {
-                    ZStack(alignment: .leading) {
-                        if isRecording {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 8, height: 8)
-                                    .opacity(recordingPulse ? 1.0 : 0.3)
-                                    .animation(.easeInOut(duration: 0.5).repeatForever(), value: recordingPulse)
-                                    .onAppear { recordingPulse = true }
-                                Text(formatRecordingTime(recordingDuration))
-                                    .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(Color.smText)
-                                Text("Голосовое сообщение")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color.smFaint)
-                            }
-                        } else if composerText.isEmpty && !isUploadingMedia {
-                            Text(composerPlaceholder)
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.smFaint)
-                                .allowsHitTesting(false)
-                        }
-                        if isUploadingMedia {
-                            HStack(spacing: 8) {
-                                ProgressView().tint(Color.smAccent).scaleEffect(0.75)
-                                Text("Загрузка…")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color.smFaint)
-                            }
-                        } else if !isRecording {
-                            TextField("", text: $composerText, axis: .vertical)
-                                .focused($composerFocused)
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.smText)
-                                .tint(Color.smAccent)
-                                .lineLimit(1...5)
-                                .submitLabel(.send)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    if isRecording {
-                        // Cancel recording button
-                        Button(action: cancelRecording) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Color.smMuted)
-                                .frame(width: 32, height: 32)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        // Emoji button — inserts a simple emoji into the input
-                        Menu {
-                            ForEach(["🙂","😄","😅","🥲","😊","😍","🤔","👍","❤️","🔥","🎉","☀️"], id: \.self) { e in
-                                Button(e) { composerText.append(e) }
-                            }
-                        } label: {
-                            Image(systemName: "face.smiling")
-                                .font(.system(size: 18))
-                                .foregroundStyle(Color.smMuted)
-                                .frame(width: 32, height: 32)
-                        }
-                    }
-                }
-                .padding(.leading, 12)
-                .padding(.trailing, 4)
-                .padding(.vertical, 7)
-                .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 18))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(
-                            composerFocused ? Color.smAccent.opacity(0.55) : Color.smBorder,
-                            lineWidth: 0.5
-                        )
-                )
-                .shadow(color: Color.smAccent.opacity(composerFocused ? 0.14 : 0.06), radius: 3)
-
-                // Mic / Send / Save button
-                let trimmed = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
-                if editingMessageId != nil {
-                    // Save edit (checkmark)
-                    Button(action: handleSend) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(Color.smBubbleOutText)
-                            .frame(width: 34, height: 34)
-                            .background(trimmed.isEmpty ? Color.smFaint : Color.smAccent, in: Circle())
-                            .shadow(color: Color.smAccent.opacity(0.35), radius: 4, x: 0, y: 2)
-                    }
-                    .buttonStyle(PressableStyle())
-                    .disabled(trimmed.isEmpty)
-                } else if trimmed.isEmpty && !isUploadingMedia && !isRecording {
-                    Button(action: startVoiceRecording) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color.smBubbleOutText)
-                            .frame(width: 34, height: 34)
-                            .background(Color.smText, in: Circle())
-                            .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 1)
-                    }
-                    .buttonStyle(PressableStyle())
-                } else if isRecording {
-                    Button(action: stopAndSendRecording) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.smBubbleOutText)
-                            .frame(width: 34, height: 34)
-                            .background(Color.red, in: Circle())
-                            .shadow(color: Color.red.opacity(0.45), radius: 4, x: 0, y: 2)
-                    }
-                    .buttonStyle(PressableStyle())
-                } else {
-                    Button(action: handleSend) {
-                        if isSending || isUploadingMedia {
-                            ProgressView().tint(Color.smBubbleOutText)
-                                .frame(width: 34, height: 34)
-                                .background(Color.smAccent, in: Circle())
-                        } else {
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Color.smBubbleOutText)
-                                .frame(width: 34, height: 34)
-                                .background(
-                                    canSendSecureMessage ? Color.smAccent : Color.smFaint,
-                                    in: Circle()
-                                )
-                                .shadow(color: Color.smAccent.opacity(0.35), radius: 4, x: 0, y: 2)
-                        }
-                    }
-                    .buttonStyle(PressableStyle())
-                    .disabled(isSending || isUploadingMedia || (!canSendSecureMessage && trimmed.isEmpty))
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 10)
-        }
-        .background(Color.smBg.ignoresSafeArea(edges: .bottom))
-        .overlay(alignment: .top) {
-            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5)
-        }
-        .opacity(isRecording ? 1 : (canSendSecureMessage ? 1 : 0.65))
+        ChatComposerBar(
+            sendError: $sendError,
+            decryptionSummary: $decryptionSummary,
+            composerText: $composerText,
+            selectedPhotoItem: $selectedPhotoItem,
+            recordingPulse: $recordingPulse,
+            composerFocused: $composerFocused,
+            isComposerFocused: composerFocused,
+            editingMessageId: editingMessageId,
+            isSending: isSending,
+            isUploadingMedia: isUploadingMedia,
+            isRecording: isRecording,
+            recordingDuration: recordingDuration,
+            placeholder: composerPlaceholder,
+            canSendSecureMessage: canSendSecureMessage,
+            emojiSuggestions: composerEmojiSuggestions,
+            formatRecordingTime: formatRecordingTime,
+            onCancelEdit: cancelEdit,
+            onSend: handleSend,
+            onStartVoiceRecording: startVoiceRecording,
+            onCancelRecording: cancelRecording,
+            onStopAndSendRecording: stopAndSendRecording
+        )
     }
 
     private var composerPlaceholder: String {
@@ -912,72 +748,15 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        // Name + status on the leading edge (right after the back button), with
-        // a comfortable reading scale.
-        ToolbarItem(placement: .topBarLeading) {
+        ToolbarItem(placement: .principal) {
             let current = liveContact
-            let isSavedMessages = current.userId != nil && current.userId == session.bootstrap?.user.id
-            let displayName = isSavedMessages ? "Избранное" : current.displayName
-
-            Button(action: { showContactProfile = true }) {
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 5) {
-                        Text(displayName)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Color.smText)
-                            .tracking(-0.3)
-                            .lineLimit(1)
-                        if !current.isGroup && !isSavedMessages {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(Color.smOnline.opacity(0.85))
-                        }
-                    }
-                    HStack(spacing: 5) {
-                        if current.isOnline && !partnerIsTyping && !isSavedMessages {
-                            Circle().fill(Color.smOnline).frame(width: 6, height: 6)
-                        }
-                        Text(statusText)
-                            .font((partnerIsTyping || current.isTyping) ? .system(size: 12.5).italic() : .system(size: 12.5))
-                            .foregroundStyle((partnerIsTyping || current.isTyping) ? Color.smAccent : (current.isOnline && !isSavedMessages ? Color.smOnline : Color.smFaint))
-                            .tracking(-0.05)
-                            .lineLimit(1)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-        }
-
-        // Avatar moved to the top-right.
-        ToolbarItem(placement: .topBarTrailing) {
-            let current = liveContact
-            let isSavedMessages = current.userId != nil && current.userId == session.bootstrap?.user.id
-
-            Button(action: { showContactProfile = true }) {
-                ZStack(alignment: .bottomTrailing) {
-                    if isSavedMessages {
-                        ZStack {
-                            Circle().fill(Color.smAccent).frame(width: 36, height: 36)
-                            Image(systemName: "bookmark.fill")
-                                .font(.system(size: 15))
-                                .foregroundStyle(Color.smSurface)
-                        }
-                    } else {
-                        SmAvatarView(
-                            name: current.displayName,
-                            avatarUrl: current.avatarUrl,
-                            isGroup: current.isGroup,
-                            size: 36
-                        )
-                    }
-                    if current.isOnline && !isSavedMessages {
-                        Circle().fill(Color.smOnline)
-                            .frame(width: 10, height: 10)
-                            .overlay(Circle().stroke(Color.smBg, lineWidth: 2))
-                    }
-                }
-            }
-            .buttonStyle(PressableStyle())
+            ChatHeaderView(
+                contact: current,
+                statusText: statusText,
+                isSavedMessages: isSavedMessages,
+                isTyping: partnerIsTyping || current.isTyping,
+                onOpenProfile: { showContactProfile = true }
+            )
         }
         // Call buttons live in the contact profile (open via the avatar), not here.
     }
@@ -1099,9 +878,7 @@ struct ChatView: View {
             guard let mid = payload["message_id"] as? Int,
                   let i = messages.firstIndex(where: { $0.id == mid })
             else { return }
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
-                messages[i].reactions = parseReactions(payload["reactions"])
-            }
+            messages[i].reactions = parseReactions(payload["reactions"])
             let updated = messages[i]
             Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
 
@@ -2079,16 +1856,15 @@ struct DateChipView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.smAccent2)
-                .tracking(0.2)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.smAccent.opacity(0.10), in: Capsule())
-                .overlay(Capsule().stroke(Color.smAccent.opacity(0.18), lineWidth: 0.5))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.smMuted)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(Color.smSurface.opacity(0.86), in: Capsule())
+                .overlay(Capsule().stroke(Color.smBorderSoft, lineWidth: 0.5))
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 5)
     }
 }
 
@@ -2232,12 +2008,14 @@ struct MessageBubbleView: View {
     private var isMediaMessage: Bool { effectiveMediaType != nil }
     /// A plain text/link bubble — reactions render inside it (Telegram-style).
     private var isTextBubble: Bool { message.messageType != "call" && !isMediaMessage }
+    private var bubbleAlignment: Alignment { isFromMe ? .trailing : .leading }
+    private var stackAlignment: HorizontalAlignment { isFromMe ? .trailing : .leading }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            if isFromMe { Spacer(minLength: 44) }
+            if isFromMe { Spacer(minLength: 46) }
 
-            VStack(alignment: isFromMe ? .trailing : .leading, spacing: 3) {
+            VStack(alignment: stackAlignment, spacing: 3) {
                 if showSender, let name = message.senderDisplayName, !name.isEmpty {
                     Text(name)
                         .font(.system(size: 12, weight: .semibold))
@@ -2250,7 +2028,7 @@ struct MessageBubbleView: View {
                         .contentShape(Rectangle())
                         .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
                 } else {
-                    VStack(alignment: isFromMe ? .trailing : .leading, spacing: 2) {
+                    VStack(alignment: stackAlignment, spacing: 2) {
                         if message.messageType == "call" {
                             callContent
                         } else {
@@ -2266,10 +2044,11 @@ struct MessageBubbleView: View {
                     }
                 }
             }
+            .frame(maxWidth: 306, alignment: bubbleAlignment)
 
-            if !isFromMe { Spacer(minLength: 44) }
+            if !isFromMe { Spacer(minLength: 46) }
         }
-        .padding(.vertical, isTail ? 3 : 1)
+        .padding(.vertical, isTail ? 3 : 1.5)
         .anchorPreference(key: BubbleAnchorKey.self, value: .bounds) {
             isPreview ? [:] : [message.id: $0]
         }
@@ -2290,7 +2069,7 @@ struct MessageBubbleView: View {
                 .foregroundStyle(Color.smFaint)
                 .fontDesign(.monospaced)
             if isFromMe {
-                Image(systemName: message.isRead ? "checkmark.message.fill" : "checkmark.message")
+                Image(systemName: deliveryIconName)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(message.isRead ? Color.smAccent : Color.smFaint)
             }
@@ -2301,19 +2080,14 @@ struct MessageBubbleView: View {
     // MARK: - Text bubble (reactions + time live INSIDE the bubble)
 
     private var textBubble: some View {
-        VStack(alignment: isFromMe ? .trailing : .leading, spacing: 6) {
-            Text(bodyText)
-                .font(.system(size: 14.5))
-                .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
-                .lineSpacing(1)
-                .tracking(-0.15)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if !message.reactions.isEmpty {
+        VStack(alignment: stackAlignment, spacing: 5) {
+            if message.reactions.isEmpty {
+                textAndInlineMeta
+            } else {
+                messageText
                 inlineReactions
+                inlineTimeRow
             }
-
-            inlineTimeRow
         }
         .padding(.horizontal, 12)
         .padding(.top, 7)
@@ -2330,10 +2104,33 @@ struct MessageBubbleView: View {
         )
     }
 
+    @ViewBuilder
+    private var textAndInlineMeta: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                messageText
+                    .layoutPriority(1)
+                inlineTimeRow
+            }
+
+            VStack(alignment: stackAlignment, spacing: 4) {
+                messageText
+                inlineTimeRow
+            }
+        }
+    }
+
+    private var messageText: some View {
+        Text(bodyText)
+            .font(.system(size: 15))
+            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
+            .lineSpacing(1.5)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// Time + edited + read tick, tinted for the bubble's own background.
     private var inlineTimeRow: some View {
         HStack(spacing: 3) {
-            Spacer(minLength: 0)
             if message.isEdited {
                 Text("изменено")
                     .font(.system(size: 10, weight: .medium))
@@ -2345,11 +2142,12 @@ struct MessageBubbleView: View {
                 .fontDesign(.monospaced)
                 .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
             if isFromMe {
-                Image(systemName: message.isRead ? "checkmark.message.fill" : "checkmark.message")
+                Image(systemName: deliveryIconName)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(message.isRead ? Color.smBubbleOutText.opacity(0.95) : Color.smBubbleOutText.opacity(0.55))
             }
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: - Inline reactions (inside the bubble)
@@ -2358,10 +2156,9 @@ struct MessageBubbleView: View {
         HStack(spacing: 4) {
             ForEach(message.reactions) { r in
                 reactionPill(r, onBubble: true)
-                    .transition(.scale.combined(with: .opacity))
             }
-            Spacer(minLength: 0)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Reaction chips for media/call bubbles (rendered just under the bubble).
@@ -2369,7 +2166,6 @@ struct MessageBubbleView: View {
         HStack(spacing: 4) {
             ForEach(message.reactions) { r in
                 reactionPill(r, onBubble: false)
-                    .transition(.scale.combined(with: .opacity))
             }
         }
         .padding(isFromMe ? .trailing : .leading, 4)
@@ -2405,6 +2201,13 @@ struct MessageBubbleView: View {
             .overlay(Capsule().stroke(stroke, lineWidth: 0.5))
         }
         .buttonStyle(PressableStyle())
+        .fixedSize()
+    }
+
+    private var deliveryIconName: String {
+        if message.isRead { return "checkmark.circle.fill" }
+        if message.isDelivered { return "checkmark.circle" }
+        return "clock"
     }
 
     // MARK: - Call bubble content
