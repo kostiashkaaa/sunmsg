@@ -9,6 +9,7 @@ struct ChatListView: View {
     @State private var activeFilter = "all"
     @State private var showMnemonicUnlock = false
     @State private var showQRSheet = false
+    @State private var pinningChatIds: Set<String> = []
 
     private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
 
@@ -219,8 +220,36 @@ struct ChatListView: View {
                         SidebarContactRow(contact: contact)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            togglePinned(contact)
+                        } label: {
+                            Label(contact.isPinned ? "Открепить" : "Закрепить", systemImage: contact.isPinned ? "pin.slash" : "pin")
+                        }
+                        .disabled(pinningChatIds.contains(contact.chatId))
+                    }
                 }
             }
+        }
+    }
+
+    private func togglePinned(_ contact: Contact) {
+        guard !pinningChatIds.contains(contact.chatId) else { return }
+        pinningChatIds.insert(contact.chatId)
+        Task {
+            do {
+                if contact.isPinned {
+                    try await session.api.unpinChat(chatId: contact.chatId)
+                } else {
+                    try await session.api.pinChat(chatId: contact.chatId)
+                }
+                await session.refreshContacts()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                await session.refreshContacts()
+            }
+            pinningChatIds.remove(contact.chatId)
         }
     }
 
@@ -406,6 +435,11 @@ struct SidebarContactRow: View {
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                         .tracking(-0.2)
+                    if contact.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                    }
                     Spacer(minLength: 4)
                     if let ts = contact.lastMessageTime {
                         Text(smFormatTime(ts))
