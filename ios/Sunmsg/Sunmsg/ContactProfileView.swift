@@ -125,19 +125,19 @@ struct ContactProfileView: View {
 
             VStack(spacing: 4) {
                 Text(contact.displayName)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(Color.smText)
                     .tracking(-0.6)
 
                 Text("@\(contact.username)")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smAccent2)
 
                 if contact.isOnline {
                     HStack(spacing: 5) {
                         Circle().fill(Color.smOnline).frame(width: 7, height: 7)
                         Text("в сети")
-                            .font(.system(size: 12))
+                            .font(.caption)
                             .foregroundStyle(Color.smOnline)
                     }
                 }
@@ -175,7 +175,7 @@ struct ContactProfileView: View {
                     .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smBorder, lineWidth: 0.5))
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .tracking(-0.1)
             }
@@ -226,11 +226,11 @@ struct ContactProfileView: View {
                 Image(systemName: icon).font(.system(size: 14)).foregroundStyle(iconColor)
             }
             Text(label)
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .foregroundStyle(Color.smText)
             Spacer()
             Text(detail)
-                .font(.system(size: 12, design: detail.count > 20 ? .monospaced : .default))
+                .font(detail.count > 20 ? .system(.caption, design: .monospaced) : .caption)
                 .foregroundStyle(Color.smFaint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -252,7 +252,7 @@ struct ContactProfileView: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("ОБЩИЙ КОНТЕНТ")
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.smFaint)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
@@ -263,7 +263,7 @@ struct ContactProfileView: View {
                         ProgressView()
                             .tint(Color.smAccent)
                         Text("Ищем медиа и ссылки…")
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                             .foregroundStyle(Color.smMuted)
                         Spacer()
                     }
@@ -306,7 +306,7 @@ struct ContactProfileView: View {
                                 Image(systemName: "clock.arrow.circlepath")
                                     .font(.system(size: 12, weight: .medium))
                                 Text("Показаны последние элементы")
-                                    .font(.system(size: 12))
+                                    .font(.caption)
                             }
                             .foregroundStyle(Color.smFaint)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,10 +338,10 @@ struct ContactProfileView: View {
             HStack(spacing: 5) {
                 Text(kind.title)
                 Text("\(items(for: kind).count)")
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(isActive ? Color.smAccent2 : Color.smFaint)
             }
-            .font(.system(size: 12.5, weight: .semibold))
+            .font(.caption.weight(.semibold))
             .foregroundStyle(isActive ? Color.smText : Color.smMuted)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
@@ -363,11 +363,11 @@ struct ContactProfileView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.system(size: 14.5, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                 Text(item.subtitle)
-                    .font(.system(size: 11.5))
+                    .font(.caption)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
             }
@@ -383,7 +383,7 @@ struct ContactProfileView: View {
                 .font(.system(size: 21))
                 .foregroundStyle(color)
             Text(text)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundStyle(color)
             Spacer()
         }
@@ -456,7 +456,7 @@ struct ContactProfileView: View {
                             .foregroundStyle(Color.smDanger)
                     }
                     Text("Заблокировать")
-                        .font(.system(size: 15))
+                        .font(.subheadline)
                         .foregroundStyle(Color.smDanger)
                     Spacer()
                 }
