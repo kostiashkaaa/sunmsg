@@ -68,7 +68,6 @@ struct PeopleView: View {
             Text("Контакты")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Color.smText)
-                .tracking(-0.6)
             Spacer()
         }
         .padding(.horizontal, 16)
