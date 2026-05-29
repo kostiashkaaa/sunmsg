@@ -1429,7 +1429,11 @@ final class QRScannerViewController: UIViewController {
 
     private func setupCamera() {
         let session = AVCaptureSession()
-        guard let device = AVCaptureDevice.default(for: .video),
+        if session.canSetSessionPreset(.high) {
+            session.sessionPreset = .high
+        }
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+                ?? AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else { showPermissionDenied(); return }
         session.addInput(input)
