@@ -10,6 +10,9 @@ struct ChatListView: View {
     @State private var showMnemonicUnlock = false
     @State private var showQRSheet = false
     @State private var pinningChatIds: Set<String> = []
+    @State private var pendingRemovalContact: Contact?
+    @State private var removingChatIds: Set<String> = []
+    @State private var removalError: String?
 
     private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
 
@@ -68,6 +71,30 @@ struct ChatListView: View {
         .refreshable { await session.refreshContacts() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             Task { await session.refreshContacts() }
+        }
+        .confirmationDialog(removalDialogTitle, isPresented: removalDialogBinding, titleVisibility: .visible) {
+            if let contact = pendingRemovalContact {
+                if contact.isGroup {
+                    Button("Покинуть группу", role: .destructive) {
+                        removeChat(contact, mode: nil)
+                    }
+                } else {
+                    Button("Удалить только у меня", role: .destructive) {
+                        removeChat(contact, mode: "for_me")
+                    }
+                    Button("Удалить у обоих участников", role: .destructive) {
+                        removeChat(contact, mode: "for_both")
+                    }
+                }
+            }
+            Button("Отмена", role: .cancel) { pendingRemovalContact = nil }
+        } message: {
+            Text(removalDialogMessage)
+        }
+        .alert("Не удалось выполнить действие", isPresented: removalErrorBinding) {
+            Button("OK", role: .cancel) { removalError = nil }
+        } message: {
+            Text(removalError ?? "")
         }
         .task {
             while !Task.isCancelled {
@@ -227,6 +254,14 @@ struct ChatListView: View {
                             Label(contact.isPinned ? "Открепить" : "Закрепить", systemImage: contact.isPinned ? "pin.slash" : "pin")
                         }
                         .disabled(pinningChatIds.contains(contact.chatId))
+                        if canRemoveChat(contact) {
+                            Button(role: .destructive) {
+                                pendingRemovalContact = contact
+                            } label: {
+                                Label(contact.isGroup ? "Покинуть группу" : "Удалить чат", systemImage: contact.isGroup ? "rectangle.portrait.and.arrow.right" : "trash")
+                            }
+                            .disabled(removingChatIds.contains(contact.chatId))
+                        }
                     }
                 }
             }
@@ -250,6 +285,61 @@ struct ChatListView: View {
                 await session.refreshContacts()
             }
             pinningChatIds.remove(contact.chatId)
+        }
+    }
+
+    private var removalDialogBinding: Binding<Bool> {
+        Binding(
+            get: { pendingRemovalContact != nil },
+            set: { if !$0 { pendingRemovalContact = nil } }
+        )
+    }
+
+    private var removalErrorBinding: Binding<Bool> {
+        Binding(
+            get: { removalError != nil },
+            set: { if !$0 { removalError = nil } }
+        )
+    }
+
+    private var removalDialogTitle: String {
+        pendingRemovalContact?.isGroup == true ? "Покинуть группу?" : "Удалить чат?"
+    }
+
+    private var removalDialogMessage: String {
+        guard let contact = pendingRemovalContact else { return "" }
+        if contact.isGroup {
+            return "Вы перестанете видеть эту группу. История у других участников останется."
+        }
+        return "Удаление только у меня скроет чат в вашем списке. Удаление у обоих участников удалит чат безвозвратно."
+    }
+
+    private func canRemoveChat(_ contact: Contact) -> Bool {
+        guard let currentUserId = session.bootstrap?.user.id else { return true }
+        return contact.userId != currentUserId
+    }
+
+    private func removeChat(_ contact: Contact, mode: String?) {
+        guard !removingChatIds.contains(contact.chatId) else { return }
+        let chatId = contact.chatId
+        pendingRemovalContact = nil
+        removingChatIds.insert(chatId)
+        Task {
+            do {
+                if contact.isGroup {
+                    try await session.api.leaveGroupChat(chatId: chatId)
+                } else {
+                    try await session.api.deleteChat(chatId: chatId, mode: mode ?? "for_me")
+                }
+                await ChatLocalStore.shared.deleteChat(chatId: chatId)
+                await session.refreshContacts()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                removalError = error.localizedDescription
+                await session.refreshContacts()
+            }
+            removingChatIds.remove(chatId)
         }
     }
 

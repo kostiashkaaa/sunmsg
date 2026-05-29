@@ -204,6 +204,27 @@ final class APIClient: ObservableObject {
         _ = try await perform(req, expectedStatus: 200)
     }
 
+    func deleteChat(chatId: String, mode: String) async throws {
+        let url = baseURL.appendingPathComponent("/delete_chat")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "chat_id": chatId,
+            "mode": mode,
+        ])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func leaveGroupChat(chatId: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/chats/group/leave")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["chat_id": chatId])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
     func createGroupChat(title: String, memberUserIds: [Int]) async throws -> GroupCreateResponse {
         let url = baseURL.appendingPathComponent("/api/chats/group/create")
         var req = URLRequest(url: url)

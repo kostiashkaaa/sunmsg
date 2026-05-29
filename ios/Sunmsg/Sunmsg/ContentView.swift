@@ -367,6 +367,22 @@ final class SessionStore: ObservableObject {
                 contacts.removeAll { $0.chatId == chatId }
             }
 
+        case "chat_deleted":
+            guard let chatId = payload["chat_id"] as? String, !chatId.isEmpty else {
+                Task { await self.refreshContacts() }
+                break
+            }
+            contacts.removeAll { $0.chatId == chatId }
+            typingTimers[chatId]?.cancel()
+            typingTimers[chatId] = nil
+            if activeChatId == chatId {
+                activeChatId = nil
+            }
+            Task {
+                await ChatLocalStore.shared.deleteChat(chatId: chatId)
+                await self.refreshContacts()
+            }
+
         default:
             break
         }

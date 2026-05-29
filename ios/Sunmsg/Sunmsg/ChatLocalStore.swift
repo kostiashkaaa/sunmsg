@@ -143,6 +143,13 @@ actor ChatLocalStore {
         }
     }
 
+    func deleteChat(chatId: String) {
+        mutateState { state in
+            state.messagesByChatId.removeValue(forKey: chatId)
+            state.chatPtsByChatId.removeValue(forKey: chatId)
+        }
+    }
+
     func resetAll() {
         let state = StoreState()
         cachedState = state
