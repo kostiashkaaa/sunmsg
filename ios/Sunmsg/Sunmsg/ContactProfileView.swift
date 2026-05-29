@@ -248,6 +248,7 @@ struct ContactProfileView: View {
         let kinds = availableSharedContentKinds
         let activeKind = kinds.contains(selectedSharedContentKind) ? selectedSharedContentKind : kinds.first
         let visibleItems = activeKind.map { items(for: $0) } ?? []
+        let previewItems = visibleItems.prefix(6)
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("ОБЩИЙ КОНТЕНТ")
@@ -293,8 +294,8 @@ struct ContactProfileView: View {
                     }
 
                     VStack(spacing: 0) {
-                        ForEach(Array(visibleItems.prefix(6).enumerated()), id: \.element.id) { index, item in
-                            if index > 0 {
+                        ForEach(previewItems) { item in
+                            if item.id != previewItems.first?.id {
                                 Divider().padding(.leading, 54).background(Color.smBorderSoft)
                             }
                             sharedContentRow(item)

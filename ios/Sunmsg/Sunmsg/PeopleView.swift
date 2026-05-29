@@ -116,7 +116,9 @@ struct PeopleView: View {
     // MARK: - Prompt (action cards + contacts list matching prototype)
 
     private var promptView: some View {
-        ScrollView(showsIndicators: false) {
+        let previewContacts = session.contacts.prefix(20)
+
+        return ScrollView(showsIndicators: false) {
             VStack(spacing: 10) {
                 // Big action cards
                 Button(action: { showGroupCreate = true }) {
@@ -151,12 +153,12 @@ struct PeopleView: View {
 
                     // Contact rows
                     VStack(spacing: 0) {
-                        ForEach(Array(session.contacts.prefix(20).enumerated()), id: \.element.id) { idx, contact in
+                        ForEach(previewContacts) { contact in
                             Button(action: { navigateToContact = contact }) {
                                 contactRow(contact)
                             }
                             .buttonStyle(.plain)
-                            if idx < min(session.contacts.count, 20) - 1 {
+                            if contact.id != previewContacts.last?.id {
                                 Divider().padding(.leading, 64).background(Color.smBorderSoft)
                             }
                         }
@@ -249,14 +251,14 @@ struct PeopleView: View {
     private var resultsList: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                ForEach(Array(results.enumerated()), id: \.element.id) { idx, user in
+                ForEach(results) { user in
                     UserResultRow(
                         user: user,
                         requestSent: requestSent.contains(user.userId),
                         onTap: { handleTap(user) },
                         onAction: { handleAction(user) }
                     )
-                    if idx < results.count - 1 {
+                    if user.id != results.last?.id {
                         Divider()
                             .padding(.leading, 72)
                             .background(Color.smBorderSoft)
@@ -276,6 +278,8 @@ struct PeopleView: View {
     // MARK: - Requests section
 
     private var requestsSection: some View {
+        let pendingRequests = session.pendingRequests
+
         VStack(alignment: .leading, spacing: 8) {
             Text("ЗАПРОСЫ")
                 .font(.system(size: 11.5, weight: .semibold))
@@ -285,13 +289,13 @@ struct PeopleView: View {
                 .padding(.top, 4)
 
             VStack(spacing: 0) {
-                ForEach(Array(session.pendingRequests.enumerated()), id: \.element.id) { idx, req in
+                ForEach(pendingRequests) { req in
                     DialogRequestRow(
                         request: req,
                         onAccept: { acceptRequest(req) },
                         onDecline: { declineRequest(req) }
                     )
-                    if idx < session.pendingRequests.count - 1 {
+                    if req.id != pendingRequests.last?.id {
                         Divider().padding(.leading, 72).background(Color.smBorderSoft)
                     }
                 }

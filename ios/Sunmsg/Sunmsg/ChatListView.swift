@@ -293,19 +293,21 @@ struct ChatListView: View {
     }
 
     private var requestsList: some View {
+        let pendingRequests = session.pendingRequests
+
         Group {
-            if session.pendingRequests.isEmpty {
+            if pendingRequests.isEmpty {
                 emptyRequests
             } else {
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(session.pendingRequests.enumerated()), id: \.element.id) { index, request in
+                        ForEach(pendingRequests) { request in
                             DialogRequestRow(
                                 request: request,
                                 onAccept: { acceptRequest(request) },
                                 onDecline: { declineRequest(request) }
                             )
-                            if index < session.pendingRequests.count - 1 {
+                            if request.id != pendingRequests.last?.id {
                                 Divider()
                                     .padding(.leading, 72)
                                     .background(Color.smBorderSoft)
