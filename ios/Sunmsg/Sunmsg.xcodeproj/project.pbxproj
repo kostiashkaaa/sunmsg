@@ -33,6 +33,7 @@
 		A100000000000000000000F4 /* WebRTCService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000F3 /* WebRTCService.swift */; };
 		A10000000000000000000100 /* ChatHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000110 /* ChatHeaderView.swift */; };
 		A10000000000000000000101 /* ChatComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* ChatComposerBar.swift */; };
+		A10000000000000000000102 /* ChatMessageTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000112 /* ChatMessageTimelineView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,7 @@
 		A100000000000000000000F3 /* WebRTCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCService.swift; sourceTree = "<group>"; };
 		A10000000000000000000110 /* ChatHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHeaderView.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* ChatComposerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerBar.swift; sourceTree = "<group>"; };
+		A10000000000000000000112 /* ChatMessageTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageTimelineView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +98,7 @@
 				A10000000000000000000018 /* ChatView.swift */,
 				A10000000000000000000110 /* ChatHeaderView.swift */,
 				A10000000000000000000111 /* ChatComposerBar.swift */,
+				A10000000000000000000112 /* ChatMessageTimelineView.swift */,
 				A1000000000000000000001B /* CryptoService.swift */,
 				A1000000000000000000001C /* KeychainService.swift */,
 				A1000000000000000000001D /* NativeLoginView.swift */,
@@ -229,6 +232,7 @@
 				A10000000000000000000007 /* ChatView.swift in Sources */,
 				A10000000000000000000100 /* ChatHeaderView.swift in Sources */,
 				A10000000000000000000101 /* ChatComposerBar.swift in Sources */,
+				A10000000000000000000102 /* ChatMessageTimelineView.swift in Sources */,
 				A1000000000000000000000A /* CryptoService.swift in Sources */,
 				A1000000000000000000000B /* KeychainService.swift in Sources */,
 				A1000000000000000000000C /* NativeLoginView.swift in Sources */,

@@ -10,22 +10,6 @@ struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
 
-    private enum MessageScrollIntent {
-        case bottom(animated: Bool)
-        case preserve(id: Int)
-        case none
-    }
-
-    private struct MessageRenderRow: Identifiable {
-        let id: Int
-        let message: ChatMessage
-        let decryptedText: String?
-        let isFromMe: Bool
-        let showSender: Bool
-        let isTail: Bool
-        let showsDate: Bool
-    }
-
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
     @State private var decryptionSummary: String?
@@ -47,9 +31,8 @@ struct ChatView: View {
     @State private var recordingURL: URL? = nil
     @State private var recordingDuration: TimeInterval = 0
     @State private var recordingTimerTask: Task<Void, Never>? = nil
-    @State private var scrollIntent: MessageScrollIntent = .bottom(animated: false)
+    @State private var scrollIntent: ChatScrollIntent = .bottom(animated: false)
     @State private var isPinnedToBottom = true
-    @State private var messageViewportHeight: CGFloat = 0
     @State private var draftSaveTask: Task<Void, Never>? = nil
     @State private var draftSaveSequence = 0
     @State private var lastSavedDraftText = ""
@@ -114,31 +97,6 @@ struct ChatView: View {
         }
         return canSendEncrypted
     }
-    private var messageRows: [MessageRenderRow] {
-        var rows: [MessageRenderRow] = []
-        rows.reserveCapacity(messages.count)
-
-        for idx in messages.indices {
-            let msg = messages[idx]
-            let previous = idx > messages.startIndex ? messages[messages.index(before: idx)] : nil
-            let next = idx < messages.index(before: messages.endIndex) ? messages[messages.index(after: idx)] : nil
-            let isFromMe = msg.senderUserId == myId
-            rows.append(
-                MessageRenderRow(
-                    id: msg.id,
-                    message: msg,
-                    decryptedText: decryptedTexts[msg.id],
-                    isFromMe: isFromMe,
-                    showSender: !isFromMe && contact.isGroup,
-                    isTail: isTail(current: msg, next: next, isFromMe: isFromMe),
-                    showsDate: shouldShowDate(current: msg, previous: previous)
-                )
-            )
-        }
-
-        return rows
-    }
-
     var body: some View {
         nativeChatLayout
             .navigationBarTitleDisplayMode(.inline)
@@ -560,148 +518,26 @@ struct ChatView: View {
     }
 
     private var messageScrollView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if hasOlderMessages && !isLoading {
-                        Group {
-                            if isLoadingOlder {
-                                ProgressView()
-                                    .tint(Color.smAccent)
-                                    .frame(maxWidth: .infinity, minHeight: 44)
-                            } else {
-                                Button(action: { Task { await loadOlderMessages() } }) {
-                                    Text("Загрузить ранние сообщения")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundStyle(Color.smAccent)
-                                        .frame(maxWidth: .infinity, minHeight: 44)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .id("older_loader")
-                    }
-
-                    ForEach(messageRows) { row in
-                        if row.showsDate {
-                            DateChipView(timestamp: row.message.createdAt)
-                        }
-
-                        MessageBubbleView(
-                            message: row.message,
-                            decryptedText: row.decryptedText,
-                            isFromMe: row.isFromMe,
-                            showSender: row.showSender,
-                            isTail: row.isTail,
-                            onToggleReaction: { emoji in toggleReaction(messageId: row.id, emoji: emoji) },
-                            onRequestMenu: { presentMenu(for: row.id) }
-                        )
-                        .id(row.id)
-                        .opacity(menuTargetId == row.id ? 0 : 1)
-                    }
-
-                    // Typing indicator bubble
-                    if partnerIsTyping {
-                        TypingBubbleView()
-                            .id("typing")
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
-
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom_anchor")
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: MessageBottomOffsetKey.self,
-                                    value: proxy.frame(in: .named("message_scroll")).maxY
-                                )
-                            }
-                        )
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-            }
-            .coordinateSpace(name: "message_scroll")
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: MessageViewportHeightKey.self, value: proxy.size.height)
-                }
-            )
-            .scrollIndicators(.hidden)
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
-            .onAppear { scrollToBottom(proxy, animated: false) }
-            .onPreferenceChange(MessageViewportHeightKey.self) { height in
-                let changed = abs(messageViewportHeight - height) > 0.5
-                guard changed else { return }
-                messageViewportHeight = height
-            }
-            .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
-                updatePinnedToBottom(bottomY: bottomY)
-            }
-            .onChange(of: messages.count) { _, _ in
-                applyScrollIntent(proxy)
-            }
-            .onChange(of: partnerIsTyping) { _, typing in
-                if typing && isPinnedToBottom {
-                    withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
-                }
-            }
-        }
-    }
-
-    private func applyScrollIntent(_ proxy: ScrollViewProxy) {
-        switch scrollIntent {
-        case .bottom(let animated):
-            scrollToBottom(proxy, animated: animated)
-        case .preserve(let id):
-            proxy.scrollTo(id, anchor: .top)
-        case .none:
-            break
-        }
-        scrollIntent = .none
-    }
-
-    private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
-        if partnerIsTyping {
-            if animated { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
-            else { proxy.scrollTo("typing", anchor: .bottom) }
-            isPinnedToBottom = true
-            return
-        }
-        guard let last = messages.last else { return }
-        if animated { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
-        else { proxy.scrollTo(last.id, anchor: .bottom) }
-        isPinnedToBottom = true
-    }
-
-    private func updatePinnedToBottom(bottomY: CGFloat) {
-        guard messageViewportHeight > 0, bottomY > 0 else { return }
-        let pinned = bottomY <= messageViewportHeight + 72
-        if pinned != isPinnedToBottom {
-            isPinnedToBottom = pinned
-        }
+        ChatMessageTimelineView(
+            messages: messages,
+            decryptedTexts: decryptedTexts,
+            myId: myId,
+            isGroup: contact.isGroup,
+            hasOlderMessages: hasOlderMessages,
+            isLoading: isLoading,
+            isLoadingOlder: isLoadingOlder,
+            partnerIsTyping: partnerIsTyping,
+            menuTargetId: menuTargetId,
+            scrollIntent: $scrollIntent,
+            isPinnedToBottom: $isPinnedToBottom,
+            onLoadOlder: { Task { await loadOlderMessages() } },
+            onToggleReaction: { messageId, emoji in toggleReaction(messageId: messageId, emoji: emoji) },
+            onRequestMenu: { messageId in presentMenu(for: messageId) }
+        )
     }
 
     private func shouldAutoScroll(for msg: ChatMessage) -> Bool {
         msg.senderUserId == myId || isPinnedToBottom
-    }
-
-    private func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
-        guard let prev = previous else { return true }
-        let cal = Calendar.current
-        return !cal.isDate(
-            Date(timeIntervalSince1970: current.createdAt),
-            inSameDayAs: Date(timeIntervalSince1970: prev.createdAt)
-        )
-    }
-
-    private func isTail(current: ChatMessage, next: ChatMessage?, isFromMe: Bool) -> Bool {
-        guard let next = next else { return true }
-        let nextIsMe = next.senderUserId == myId
-        return nextIsMe != isFromMe || next.senderUserId != current.senderUserId
     }
 
     // MARK: - Composer bar
@@ -3203,20 +3039,6 @@ struct BubbleAnchorKey: PreferenceKey {
     static let defaultValue: [Int: Anchor<CGRect>] = [:]
     static func reduce(value: inout [Int: Anchor<CGRect>], nextValue: () -> [Int: Anchor<CGRect>]) {
         value.merge(nextValue()) { _, new in new }
-    }
-}
-
-private struct MessageViewportHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private struct MessageBottomOffsetKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
