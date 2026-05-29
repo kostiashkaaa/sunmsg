@@ -1303,6 +1303,13 @@ extension View {
     }
 }
 
+private enum SettingsSheet: String, Identifiable {
+    case profile
+    case userQR
+
+    var id: String { rawValue }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var session: SessionStore
     @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
@@ -1320,8 +1327,7 @@ struct SettingsView: View {
     @State private var navigateToPrivacy = false
     @State private var navigateToAppearance = false
     @State private var navigateToDevices = false
-    @State private var showProfileSheet = false
-    @State private var showQRSheet = false
+    @State private var activeSheet: SettingsSheet?
     @State private var showLogoutConfirm = false
     @State private var showLanguageDialog = false
     @State private var showThemeSheet = false
@@ -1333,7 +1339,7 @@ struct SettingsView: View {
         Form {
             Section {
                 Button {
-                    showProfileSheet = true
+                    activeSheet = .profile
                 } label: {
                     HStack(spacing: 12) {
                         SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 54)
@@ -1355,7 +1361,7 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    showQRSheet = true
+                    activeSheet = .userQR
                 } label: {
                     Label("Мой QR-код и публичный ключ", systemImage: "qrcode")
                 }
@@ -1445,12 +1451,14 @@ struct SettingsView: View {
         }
         .navigationTitle("Настройки")
         .smSettingsScreenStyle(titleDisplayMode: .large)
-        .sheet(isPresented: $showProfileSheet) {
-            ProfileSettingsView()
-                .presentationBackground(Color.smBg)
-        }
-        .sheet(isPresented: $showQRSheet) {
-            UserQRSheet()
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .profile:
+                ProfileSettingsView()
+                    .presentationBackground(Color.smBg)
+            case .userQR:
+                UserQRSheet()
+            }
         }
         .confirmationDialog("Выйти из аккаунта?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
             Button("Выйти", role: .destructive) { Task { await session.logout() } }
@@ -1499,7 +1507,7 @@ struct SettingsView: View {
     // MARK: - Profile card (matches prototype exactly: 52×52 avatar, 16/600 name, amber @handle, sync chip)
 
     private var profileCard: some View {
-        Button(action: { showProfileSheet = true }) {
+        Button(action: { activeSheet = .profile }) {
             HStack(spacing: 12) {
                 SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 52)
 
