@@ -1,5 +1,46 @@
 import SwiftUI
 
+struct ChatTopBarView: View {
+    let contact: Contact
+    let statusText: String
+    let isSavedMessages: Bool
+    let isTyping: Bool
+    let onBack: () -> Void
+    let onOpenProfile: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(Color.smAccent)
+                    .frame(width: 42, height: 48)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle(scale: 0.88))
+            .accessibilityLabel("Back")
+
+            ChatHeaderView(
+                contact: contact,
+                statusText: statusText,
+                isSavedMessages: isSavedMessages,
+                isTyping: isTyping,
+                onOpenProfile: onOpenProfile
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.leading, 2)
+        .padding(.trailing, 12)
+        .frame(height: 50)
+        .background(Color.smBg)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.smBorderSoft)
+                .frame(height: 0.5)
+        }
+    }
+}
+
 struct ChatHeaderView: View {
     let contact: Contact
     let statusText: String

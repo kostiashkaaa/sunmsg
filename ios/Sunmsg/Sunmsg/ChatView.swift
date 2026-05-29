@@ -10,6 +10,7 @@ struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismiss) private var dismiss
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
@@ -115,14 +116,13 @@ struct ChatView: View {
     }
     var body: some View {
         nativeChatLayout
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
-            .toolbarBackground(Color.smBg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             // The bottom tab bar must not show while a chat is open.
             .toolbar(.hidden, for: .tabBar)
             .navigationDestination(isPresented: $showContactProfile) {
                 ContactProfileView(contact: liveContact)
+                    .toolbar(.visible, for: .navigationBar)
             }
             .confirmationDialog("Удалить сообщение?", isPresented: deleteDialogBinding, titleVisibility: .visible) {
                 if let target = pendingDelete {
@@ -216,7 +216,10 @@ struct ChatView: View {
         }
         .background(Color.smBg2)
         .safeAreaInset(edge: .top, spacing: 0) {
-            selectionToolbar
+            VStack(spacing: 0) {
+                chatTopBar
+                selectionToolbar
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             composerBar
@@ -248,6 +251,18 @@ struct ChatView: View {
                 displayText: resolvedPlainText(for: msg) ?? msg.displayText
             )
         }
+    }
+
+    private var chatTopBar: some View {
+        let current = liveContact
+        return ChatTopBarView(
+            contact: current,
+            statusText: statusText,
+            isSavedMessages: isSavedMessages,
+            isTyping: partnerIsTyping || current.isTyping,
+            onBack: { dismiss() },
+            onOpenProfile: { showContactProfile = true }
+        )
     }
 
     private var deleteDialogBinding: Binding<Bool> {
@@ -670,23 +685,6 @@ struct ChatView: View {
 
     private func refreshPrivateKeyState() {
         hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            let current = liveContact
-            ChatHeaderView(
-                contact: current,
-                statusText: statusText,
-                isSavedMessages: isSavedMessages,
-                isTyping: partnerIsTyping || current.isTyping,
-                onOpenProfile: { showContactProfile = true }
-            )
-        }
-        // Call buttons live in the contact profile (open via the avatar), not here.
     }
 
     // MARK: - Data loading
