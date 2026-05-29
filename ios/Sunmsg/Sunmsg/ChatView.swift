@@ -2010,7 +2010,7 @@ struct MessageBubbleView: View {
                     } else {
                         mediaContent
                     }
-                    if isTail { timeRow }
+                    timeRow
                 }
                 .contentShape(Rectangle())
                 .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
