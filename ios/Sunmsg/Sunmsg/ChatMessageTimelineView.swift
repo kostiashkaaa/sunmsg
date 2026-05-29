@@ -22,7 +22,6 @@ struct ChatMessageTimelineView: View, Equatable {
     let reduceMotion: Bool
     let timelineVersion: Int
     private let decryptedTextCount: Int
-    private let rows: [MessageRenderRow]
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
@@ -142,12 +141,6 @@ struct ChatMessageTimelineView: View, Equatable {
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
         self.decryptedTextCount = decryptedTexts.count
-        self.rows = Self.makeRows(
-            messages: messages,
-            decryptedTexts: decryptedTexts,
-            myId: myId,
-            isGroup: isGroup
-        )
         self._scrollIntent = scrollIntent
         self._isPinnedToBottom = isPinnedToBottom
         self.onLoadOlder = onLoadOlder
@@ -226,6 +219,13 @@ struct ChatMessageTimelineView: View, Equatable {
     }
 
     var body: some View {
+        let rows = Self.makeRows(
+            messages: messages,
+            decryptedTexts: decryptedTexts,
+            myId: myId,
+            isGroup: isGroup
+        )
+
         GeometryReader { viewportProxy in
             let maxBubbleWidth = Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width)
 
