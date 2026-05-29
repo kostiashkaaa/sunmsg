@@ -2984,6 +2984,11 @@ struct CallBubbleView: View {
 
 // MARK: - Photo bubble
 
+private struct FullscreenPhotoDraft: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 struct PhotoBubbleView: View {
     let url: URL?
     let isFromMe: Bool
@@ -2991,14 +2996,18 @@ struct PhotoBubbleView: View {
     let maxWidth: CGFloat
     @State private var image: UIImage?
     @State private var loadFailed = false
-    @State private var showFullscreen = false
+    @State private var fullscreenPhoto: FullscreenPhotoDraft?
 
     private var mediaWidth: CGFloat {
         min(260, max(120, maxWidth))
     }
 
     var body: some View {
-        Button(action: { if image != nil { showFullscreen = true } }) {
+        Button(action: {
+            if let image {
+                fullscreenPhoto = FullscreenPhotoDraft(image: image)
+            }
+        }) {
             ZStack {
                 if let img = image {
                     Image(uiImage: img)
@@ -3020,10 +3029,11 @@ struct PhotoBubbleView: View {
         }
         .buttonStyle(.plain)
         .task(id: url) { await loadImage() }
-        .fullScreenCover(isPresented: $showFullscreen) {
-            if let img = image {
-                FullscreenImageView(image: img, isPresented: $showFullscreen)
-            }
+        .fullScreenCover(item: $fullscreenPhoto) { draft in
+            FullscreenImageView(
+                image: draft.image,
+                onDismiss: { fullscreenPhoto = nil }
+            )
         }
     }
 
@@ -3143,7 +3153,7 @@ private enum SunPhotoCache {
 
 struct FullscreenImageView: View {
     let image: UIImage
-    @Binding var isPresented: Bool
+    let onDismiss: () -> Void
     @State private var scale: CGFloat = 1
 
     var body: some View {
@@ -3162,7 +3172,7 @@ struct FullscreenImageView: View {
             VStack {
                 HStack {
                     Spacer()
-                    Button(action: { isPresented = false }) {
+                    Button(action: onDismiss) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.white)
