@@ -28,6 +28,7 @@ final class SunmsgAppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct SunmsgApp: App {
     @UIApplicationDelegateAdaptor(SunmsgAppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var session = SessionStore()
 
     init() {
@@ -41,6 +42,9 @@ struct SunmsgApp: App {
                 .inAppBannerOverlay()
                 .environmentObject(session)
                 .onAppear { NativeCallManager.shared.bind(session: session) }
+                .onChange(of: scenePhase) { _, phase in
+                    Task { await session.handleScenePhase(phase) }
+                }
         }
     }
 

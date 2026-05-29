@@ -96,25 +96,6 @@ final class SessionStore: ObservableObject {
             }
             .store(in: &cancellables)
 
-        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
-            .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    self.connectSocket()
-                    self.markActive()
-                    await self.refreshContacts()
-                    await self.recoverActiveChatSync()
-                }
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-            .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.markInactive()
-                }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Global socket event handler
@@ -715,6 +696,22 @@ final class SessionStore: ObservableObject {
         connectSocket()
         await refreshContacts()
         await recoverActiveChatSync()
+    }
+
+    func handleScenePhase(_ phase: ScenePhase) async {
+        switch phase {
+        case .active:
+            connectSocket()
+            markActive()
+            await refreshContacts()
+            await recoverActiveChatSync()
+        case .background:
+            markInactive()
+        case .inactive:
+            break
+        @unknown default:
+            break
+        }
     }
 
     private func handleSocketStateChanged() {
