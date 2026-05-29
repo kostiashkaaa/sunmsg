@@ -9,7 +9,6 @@ struct IncomingCallView: View {
     @ObservedObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var ringsAnimating = false
-    @State private var hapticTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -102,28 +101,28 @@ struct IncomingCallView: View {
         }
         .onAppear {
             ringsAnimating = !reduceMotion
-            startHapticLoop()
         }
         .onDisappear {
-            hapticTask?.cancel()
-            hapticTask = nil
             ringsAnimating = false
         }
         .onChange(of: reduceMotion) { _, value in
             ringsAnimating = !value
         }
+        .task(id: call.callId) {
+            await runHapticLoop()
+        }
     }
 
-    private func startHapticLoop() {
-        hapticTask?.cancel()
-        hapticTask = Task { @MainActor in
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            while !Task.isCancelled {
-                generator.prepare()
-                try? await Task.sleep(nanoseconds: 1_250_000_000)
-                guard !Task.isCancelled else { return }
-                generator.impactOccurred()
+    @MainActor
+    private func runHapticLoop() async {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        while !Task.isCancelled {
+            generator.prepare()
+            try? await Task.sleep(nanoseconds: 1_250_000_000)
+            guard !Task.isCancelled else {
+                return
             }
+            generator.impactOccurred()
         }
     }
 }
