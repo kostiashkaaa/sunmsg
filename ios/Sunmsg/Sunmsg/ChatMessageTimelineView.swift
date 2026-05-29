@@ -181,12 +181,21 @@ struct ChatMessageTimelineView: View, Equatable {
     ) -> [MessageRenderRow] {
         var result: [MessageRenderRow] = []
         result.reserveCapacity(messages.count)
+        let calendar = Calendar.current
 
         for idx in messages.indices {
             let message = messages[idx]
             let previous = idx > messages.startIndex ? messages[messages.index(before: idx)] : nil
             let next = idx < messages.index(before: messages.endIndex) ? messages[messages.index(after: idx)] : nil
             let isFromMe = message.senderUserId == myId
+            let startsNewDay = Self.shouldShowDate(
+                current: message,
+                previous: previous,
+                calendar: calendar
+            )
+            let nextStartsNewDay = next.map {
+                Self.shouldShowDate(current: $0, previous: message, calendar: calendar)
+            } ?? false
             result.append(
                 MessageRenderRow(
                     id: message.id,
@@ -197,10 +206,17 @@ struct ChatMessageTimelineView: View, Equatable {
                         current: message,
                         previous: previous,
                         isFromMe: isFromMe,
-                        isGroup: isGroup
+                        isGroup: isGroup,
+                        startsNewDay: startsNewDay
                     ),
-                    isTail: Self.isTail(current: message, next: next, isFromMe: isFromMe, myId: myId),
-                    showsDate: Self.shouldShowDate(current: message, previous: previous)
+                    isTail: Self.isTail(
+                        current: message,
+                        next: next,
+                        isFromMe: isFromMe,
+                        myId: myId,
+                        nextStartsNewDay: nextStartsNewDay
+                    ),
+                    showsDate: startsNewDay
                 )
             )
         }
@@ -357,9 +373,12 @@ struct ChatMessageTimelineView: View, Equatable {
         return min(306, max(0, columnWidth - 46))
     }
 
-    private static func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
+    private static func shouldShowDate(
+        current: ChatMessage,
+        previous: ChatMessage?,
+        calendar: Calendar
+    ) -> Bool {
         guard let previous else { return true }
-        let calendar = Calendar.current
         return !calendar.isDate(
             Date(timeIntervalSince1970: current.createdAt),
             inSameDayAs: Date(timeIntervalSince1970: previous.createdAt)
@@ -370,20 +389,27 @@ struct ChatMessageTimelineView: View, Equatable {
         current: ChatMessage,
         previous: ChatMessage?,
         isFromMe: Bool,
-        isGroup: Bool
+        isGroup: Bool,
+        startsNewDay: Bool
     ) -> Bool {
         guard isGroup, !isFromMe else { return false }
         guard let previous else { return true }
         return previous.senderUserId != current.senderUserId
-            || shouldShowDate(current: current, previous: previous)
+            || startsNewDay
     }
 
-    private static func isTail(current: ChatMessage, next: ChatMessage?, isFromMe: Bool, myId: Int) -> Bool {
+    private static func isTail(
+        current: ChatMessage,
+        next: ChatMessage?,
+        isFromMe: Bool,
+        myId: Int,
+        nextStartsNewDay: Bool
+    ) -> Bool {
         guard let next else { return true }
         let nextIsMe = next.senderUserId == myId
         return nextIsMe != isFromMe
             || next.senderUserId != current.senderUserId
-            || shouldShowDate(current: next, previous: current)
+            || nextStartsNewDay
     }
 }
 
