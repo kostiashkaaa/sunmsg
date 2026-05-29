@@ -3418,7 +3418,7 @@ struct AudioBubbleView: View {
                     }
                 }
                 Text(formatTime(player.isPlaying ? player.elapsed : player.duration))
-                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .font(.caption2.monospacedDigit().weight(.medium))
                     .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
             }
         }
@@ -3630,12 +3630,12 @@ struct FileBubbleView: View {
                         ? String(name.dropLast(".sunenc".count))
                         : name
                     Text(displayName)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smText)
                         .lineLimit(1)
                     if !sizeText.isEmpty {
                         Text(sizeText)
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
                     }
                 }
