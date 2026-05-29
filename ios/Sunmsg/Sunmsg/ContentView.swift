@@ -1312,26 +1312,11 @@ private enum SettingsSheet: String, Identifiable {
 
 struct SettingsView: View {
     @EnvironmentObject var session: SessionStore
-    @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
-    @State private var showMnemonicInfo = false
     @State private var isLoadingSettings = false
-    @State private var isSavingSettings = false
-    @State private var isSyncing = false
     @State private var settingsError: String?
     @State private var selectedLanguage = "ru"
-    @State private var showOnlineStatus = true
-    @State private var shareTyping = true
-    @State private var sendReadReceipts = true
-    @State private var muteDialogRequests = false
-    @State private var socketState = SocketClient.State.disconnected
-    @State private var navigateToPrivacy = false
-    @State private var navigateToAppearance = false
-    @State private var navigateToDevices = false
     @State private var activeSheet: SettingsSheet?
     @State private var showLogoutConfirm = false
-    @State private var showLanguageDialog = false
-    @State private var showThemeSheet = false
-    @State private var hasPrivateKeyLoaded = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
@@ -1467,196 +1452,10 @@ struct SettingsView: View {
             Text("Сообщения останутся зашифрованными на устройстве, пока вы снова не войдёте.")
         }
         .task { await loadSettingsIfNeeded() }
-        .onAppear {
-            socketState = SocketClient.shared.state
-            refreshPrivateKeyState()
-            Task { await loadSettingsIfNeeded() }
-        }
-        .onChange(of: navigateToPrivacy) { _, isPresented in
-            if !isPresented {
-                refreshPrivateKeyState()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            refreshPrivateKeyState()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .smSocketStateChanged)) { _ in
-            socketState = SocketClient.shared.state
-        }
-    }
-
-    private var themeLabel: String {
-        AppColorScheme(rawValue: schemePref)?.label ?? "Система"
     }
 
     private func languageLabel(_ language: String) -> String {
         language == "en" ? "English" : "Русский"
-    }
-
-    private func refreshPrivateKeyState() {
-        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.smBorderSoft)
-            .frame(height: 0.5)
-            .padding(.leading, 54)
-    }
-
-    // MARK: - Profile card (matches prototype exactly: 52×52 avatar, 16/600 name, amber @handle, sync chip)
-
-    private var profileCard: some View {
-        Button(action: { activeSheet = .profile }) {
-            HStack(spacing: 12) {
-                SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 52)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(user?.displayName ?? "—")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.smText)
-                        .lineLimit(1)
-                    Text("@\(user?.username ?? "—")")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.smAccent2)
-                    SyncChipView()
-                        .padding(.top, 4)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.smFaint)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-            .shadow(color: Color(hex: "#281e0f").opacity(0.05), radius: 2, x: 0, y: 1)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Settings group helpers (prototype-aligned)
-
-    private enum RowTint { case amber, neutral, danger }
-
-    @ViewBuilder
-    private func settingsGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 0) { content() }
-            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-            .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 2, x: 0, y: 1)
-    }
-
-    private func settingsRow(
-        icon: String,
-        tint: RowTint,
-        label: String,
-        sub: String? = nil,
-        trail: String? = nil,
-        badge: String? = nil,
-        isLast: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        let tintBg: Color = {
-            switch tint {
-            case .amber:   return Color.smAccent.opacity(0.10)
-            case .neutral: return Color.smText.opacity(0.06)
-            case .danger:  return Color.smDanger.opacity(0.10)
-            }
-        }()
-        let tintFg: Color = {
-            switch tint {
-            case .amber:   return Color.smAccent2
-            case .neutral: return Color.smText.opacity(0.65)
-            case .danger:  return Color.smDanger
-            }
-        }()
-        let labelColor: Color = tint == .danger ? Color.smDanger : Color.smText
-
-        return Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(tintBg)
-                        .frame(width: 30, height: 30)
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(tintFg)
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(label)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(labelColor)
-                    if let sub {
-                        Text(sub)
-                            .font(.caption2)
-                            .foregroundStyle(Color.smMuted)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer()
-                if let badge {
-                    Text(badge)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .frame(minWidth: 18, minHeight: 18)
-                        .background(Color.smAccent, in: Capsule())
-                }
-                if let trail {
-                    Text(trail)
-                        .font(.caption)
-                        .foregroundStyle(Color.smMuted)
-                }
-                if tint != .danger {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.smFaint)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 11)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func toggleSettingsRow(
-        label: String,
-        sub: String? = nil,
-        isOn: Binding<Bool>,
-        isLast: Bool = false
-    ) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(label)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.smText)
-                if let sub {
-                    Text(sub)
-                        .font(.caption2)
-                        .foregroundStyle(Color.smMuted)
-                }
-            }
-            Spacer()
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .tint(Color.smAccent)
-                .disabled(isSavingSettings || isLoadingSettings)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
-    }
-
-    private var socketStatusText: String {
-        switch socketState {
-        case .connected: "Подключено"
-        case .connecting: "Подключение…"
-        case .disconnected: "Отключено"
-        }
     }
 
     private func loadSettingsIfNeeded() async {
@@ -1669,41 +1468,11 @@ struct SettingsView: View {
         settingsError = nil
         do {
             let current = try await session.api.getSettings()
-            showOnlineStatus = !current.hideOnlineStatus && current.lastSeenVisibility != "nobody"
-            shareTyping = current.typingPrivacy != "nobody"
-            sendReadReceipts = current.readReceiptsPrivacy != "nobody"
-            muteDialogRequests = current.muteDialogRequests
             selectedLanguage = current.language
         } catch {
             settingsError = error.localizedDescription
         }
         isLoadingSettings = false
-    }
-
-    private func setLanguage(_ language: String) {
-        let normalized = language == "en" ? "en" : "ru"
-        guard selectedLanguage != normalized, !isSavingSettings else { return }
-        selectedLanguage = normalized
-        saveSettings(["language": normalized])
-    }
-
-    private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
-        guard !isSavingSettings else { return }
-        isSavingSettings = true
-        settingsError = nil
-        Task {
-            do {
-                try await session.api.saveSettings(payload)
-                if reconnect {
-                    await session.reconnectRealtime()
-                }
-                await session.refreshContacts()
-            } catch {
-                settingsError = error.localizedDescription
-                await loadSettings()
-            }
-            isSavingSettings = false
-        }
     }
 
 }
