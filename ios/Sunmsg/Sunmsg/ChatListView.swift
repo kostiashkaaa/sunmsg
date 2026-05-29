@@ -1394,7 +1394,7 @@ struct QRScannerView: UIViewControllerRepresentable {
                   obj.type == .qr,
                   let value = obj.stringValue else { return }
             hasScanned = true
-            DispatchQueue.main.async { self.onScanned(value) }
+            onScanned(value)
         }
     }
 }
@@ -1421,7 +1421,13 @@ final class QRScannerViewController: UIViewController {
         case .authorized: setupCamera()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                DispatchQueue.main.async { if granted { self?.setupCamera() } else { self?.showPermissionDenied() } }
+                Task { @MainActor [weak self] in
+                    if granted {
+                        self?.setupCamera()
+                    } else {
+                        self?.showPermissionDenied()
+                    }
+                }
             }
         default: showPermissionDenied()
         }
