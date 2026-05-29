@@ -78,7 +78,7 @@ final class SessionStore: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var typingTimers: [String: Task<Void, Never>] = [:]
     private var callErrorClearTask: Task<Void, Never>?
-    private var presenceTimer: Timer?
+    private var presenceTask: Task<Void, Never>?
 
     init() {
         loadCallHistory()
@@ -730,7 +730,7 @@ final class SessionStore: ObservableObject {
                 await recoverActiveChatSync()
             }
         case .disconnected:
-            stopPresenceTimer()
+            stopPresenceTask()
         case .connecting:
             break
         }
@@ -739,28 +739,32 @@ final class SessionStore: ObservableObject {
     private func markActive() {
         guard route == .main, SocketClient.shared.state == .connected else { return }
         SocketClient.shared.emit("activity_update", ["active": true])
-        startPresenceTimer()
+        startPresenceTask()
     }
 
     private func markInactive() {
-        stopPresenceTimer()
+        stopPresenceTask()
         guard SocketClient.shared.state == .connected else { return }
         SocketClient.shared.emit("activity_update", ["active": false])
     }
 
-    private func startPresenceTimer() {
-        presenceTimer?.invalidate()
-        presenceTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { _ in
-            Task { @MainActor in
-                guard SocketClient.shared.state == .connected else { return }
+    private func startPresenceTask() {
+        presenceTask?.cancel()
+        presenceTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 45_000_000_000)
+                guard !Task.isCancelled,
+                      let self,
+                      self.route == .main,
+                      SocketClient.shared.state == .connected else { return }
                 SocketClient.shared.emit("activity_update", ["active": true])
             }
         }
     }
 
-    private func stopPresenceTimer() {
-        presenceTimer?.invalidate()
-        presenceTimer = nil
+    private func stopPresenceTask() {
+        presenceTask?.cancel()
+        presenceTask = nil
     }
 
     func primeChatSync(chatId: String) async {
