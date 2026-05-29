@@ -165,6 +165,11 @@ struct ChatMessageTimelineView: View {
                 .onChange(of: messages.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
+                .onChange(of: decryptedTexts.count) { _, _ in
+                    if isPinnedToBottom {
+                        scrollToBottom(proxy, animated: false)
+                    }
+                }
                 .onChange(of: partnerIsTyping) { _, typing in
                     if typing && isPinnedToBottom {
                         withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
