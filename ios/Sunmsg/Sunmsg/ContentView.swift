@@ -3891,7 +3891,7 @@ struct DevicesView: View {
                     }
                     if response.devices.isEmpty {
                         Text("Активные сессии не найдены.")
-                            .font(.system(size: 13))
+                            .font(.caption)
                             .foregroundStyle(Color.smMuted)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
@@ -3908,7 +3908,7 @@ struct DevicesView: View {
                         Text(isMutating ? "Завершение…" : "Завершить другие сессии")
                         Spacer()
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smDanger)
                     .padding(14)
                     .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
@@ -3933,7 +3933,7 @@ struct DevicesView: View {
                 .font(.system(size: 32))
                 .foregroundStyle(Color.smAccent)
             Text(message)
-                .font(.system(size: 13))
+                .font(.caption)
                 .foregroundStyle(Color.smMuted)
                 .multilineTextAlignment(.center)
             Button("Повторить") { Task { await loadDevices() } }
@@ -3957,10 +3957,10 @@ struct DevicesView: View {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Автовыход")
-                                .font(.system(size: 14.5, weight: .medium))
+                                .font(.subheadline.weight(.medium))
                                 .foregroundStyle(Color.smText)
                             Text("Срок для всех сохранённых сессий")
-                                .font(.system(size: 12))
+                                .font(.caption)
                                 .foregroundStyle(Color.smMuted)
                         }
                         Spacer()
@@ -3969,7 +3969,7 @@ struct DevicesView: View {
                                 .tint(Color.smAccent)
                         } else {
                             Text(sessionAutoLogoutLabel(response))
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(Color.smAccent2)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .semibold))
@@ -3982,7 +3982,7 @@ struct DevicesView: View {
             }
 
             Text(sessionPolicyText(response))
-                .font(.system(size: 13))
+                .font(.caption)
                 .foregroundStyle(Color.smMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -3993,7 +3993,7 @@ struct DevicesView: View {
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11.5, weight: .semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(Color.smFaint)
             .tracking(0.6)
             .padding(.horizontal, 4)
@@ -4013,12 +4013,12 @@ struct DevicesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(deviceTitle(device))
-                        .font(.system(size: 14.5, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                     if device.isCurrent {
                         Text("Текущая")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color.smOnline)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -4026,7 +4026,7 @@ struct DevicesView: View {
                     }
                 }
                 Text(deviceSubtitle(device))
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(2)
             }
@@ -4037,7 +4037,7 @@ struct DevicesView: View {
                 Button(device.isCurrent ? "Выйти" : "Завершить") {
                     pendingRevokeDevice = device
                 }
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.smDanger)
                 .disabled(isMutating)
             }
