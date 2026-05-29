@@ -1950,7 +1950,7 @@ enum SettingsClientPreferences {
                 "cacheRetentionDays": defaults.object(forKey: dataRetentionDaysKey) as? Int ?? 7,
                 "maxCacheMb": defaults.object(forKey: dataMaxCacheMbKey) as? Int ?? 0,
             ],
-            "updatedAt": ISO8601DateFormatter().string(from: Date()),
+            "updatedAt": SunDateFormatters.isoInternetDateTime(from: Date()),
         ]
     }
 
@@ -2018,7 +2018,7 @@ enum SettingsClientPreferences {
         for (key, value) in updates {
             merged[key] = value
         }
-        merged["updatedAt"] = ISO8601DateFormatter().string(from: Date())
+        merged["updatedAt"] = SunDateFormatters.isoInternetDateTime(from: Date())
         return merged
     }
 
@@ -2722,7 +2722,7 @@ struct SettingsTransferView: View {
                 updates: [:]
             )
             let payload: [String: Any] = [
-                "exportedAt": ISO8601DateFormatter().string(from: Date()),
+                "exportedAt": SunDateFormatters.isoInternetDateTime(from: Date()),
                 "version": 1,
                 "serverSettings": server,
                 "localAppearance": [
