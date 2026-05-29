@@ -168,7 +168,8 @@ struct InCallView: View {
     }
 
     private func callScreen(_ call: ActiveCallState) -> some View {
-        ZStack {
+        GeometryReader { geo in
+            ZStack {
             // Amber radial gradient background (matches prototype exactly)
             RadialGradient(
                 colors: [
@@ -205,7 +206,7 @@ struct InCallView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.25), lineWidth: 1))
                             .shadow(color: Color.black.opacity(0.30), radius: 10, x: 0, y: 4)
-                            .padding(.top, 104)
+                            .padding(.top, localPreviewTopPadding(geo))
                             .padding(.trailing, 16)
                     }
                     Spacer()
@@ -255,7 +256,7 @@ struct InCallView: View {
                         .background(Color.black.opacity(0.20), in: Capsule())
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 60)
+                .padding(.top, callTopPadding(geo))
 
                 Spacer()
 
@@ -360,9 +361,22 @@ struct InCallView: View {
                         .shadow(color: Color(hex: "#c14242").opacity(0.45), radius: 18, x: 0, y: 8)
                 }
                 .buttonStyle(.plain)
-                .padding(.bottom, 48)
+                .padding(.bottom, callBottomPadding(geo))
+            }
             }
         }
+    }
+
+    private func callTopPadding(_ geo: GeometryProxy) -> CGFloat {
+        max(36, geo.safeAreaInsets.top + 12)
+    }
+
+    private func localPreviewTopPadding(_ geo: GeometryProxy) -> CGFloat {
+        max(88, geo.safeAreaInsets.top + 56)
+    }
+
+    private func callBottomPadding(_ geo: GeometryProxy) -> CGFloat {
+        max(28, geo.safeAreaInsets.bottom + 14)
     }
 
     private var elapsedText: String {
@@ -378,7 +392,8 @@ struct InCallView: View {
     }
 
     private func startTimer() {
-        callTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        callTimer?.invalidate()
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             // The timer fires on the main run loop — assumeIsolated lets us read
             // the @MainActor WebRTCService state without a concurrency warning.
             MainActor.assumeIsolated {
@@ -386,6 +401,8 @@ struct InCallView: View {
                 if s == .connected || s == .completed { elapsed += 1 }
             }
         }
+        timer.tolerance = 0.1
+        callTimer = timer
     }
 
 }
