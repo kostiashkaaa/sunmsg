@@ -3,13 +3,19 @@ import AVFoundation
 
 // MARK: - Chat list (mirrors web sidebar design)
 
+private enum ChatListSheet: String, Identifiable {
+    case mnemonicUnlock
+    case userQR
+
+    var id: String { rawValue }
+}
+
 struct ChatListView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var searchText = ""
     @State private var activeFilter = "all"
-    @State private var showMnemonicUnlock = false
-    @State private var showQRSheet = false
+    @State private var activeSheet: ChatListSheet?
     @State private var pinningChatIds: Set<String> = []
     @State private var pendingRemovalContact: Contact?
     @State private var removingChatIds: Set<String> = []
@@ -74,16 +80,14 @@ struct ChatListView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.interactively)
-        .sheet(isPresented: $showMnemonicUnlock) {
-            MnemonicUnlockSheet()
-        }
-        .onChange(of: showMnemonicUnlock) { _, isPresented in
-            if !isPresented {
-                refreshPrivateKeyState()
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .mnemonicUnlock:
+                MnemonicUnlockSheet()
+                    .onDisappear { refreshPrivateKeyState() }
+            case .userQR:
+                UserQRSheet()
             }
-        }
-        .sheet(isPresented: $showQRSheet) {
-            UserQRSheet()
         }
         .onAppear {
             refreshPrivateKeyState()
@@ -233,7 +237,7 @@ struct ChatListView: View {
     @ViewBuilder
     private var lockBanner: some View {
         if !hasPrivateKey {
-            Button(action: { showMnemonicUnlock = true }) {
+            Button(action: { activeSheet = .mnemonicUnlock }) {
                 HStack(spacing: 10) {
                     Image(systemName: "lock.open.fill")
                         .font(.system(size: 13, weight: .medium))
@@ -455,7 +459,7 @@ struct ChatListView: View {
     private var profileFooter: some View {
         let user = session.bootstrap?.user
         return VStack(spacing: 0) {
-            Button(action: { showQRSheet = true }) {
+            Button(action: { activeSheet = .userQR }) {
                 HStack(spacing: 12) {
                     ZStack(alignment: .bottomTrailing) {
                         SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 40)
