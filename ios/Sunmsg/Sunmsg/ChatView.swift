@@ -3149,7 +3149,11 @@ struct FullscreenImageView: View {
                 .resizable()
                 .scaledToFit()
                 .scaleEffect(scale)
-                .gesture(MagnificationGesture().onChanged { scale = max(1, min(4, $0)) }.onEnded { _ in withAnimation { scale = 1 } })
+                .gesture(
+                    MagnifyGesture()
+                        .onChanged { value in scale = max(1, min(4, value.magnification)) }
+                        .onEnded { _ in withAnimation { scale = 1 } }
+                )
                 .ignoresSafeArea()
             VStack {
                 HStack {
