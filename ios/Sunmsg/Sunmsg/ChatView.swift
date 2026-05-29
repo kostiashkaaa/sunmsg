@@ -3605,13 +3605,18 @@ final class AudioPlayerController {
 
 // MARK: - File bubble (tap to open via system share sheet)
 
+private struct ShareFileDraft: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 struct FileBubbleView: View {
     let url: URL?
     let name: String
     let size: Int
     let isFromMe: Bool
     let isTail: Bool
-    @State private var showShare = false
+    @State private var shareDraft: ShareFileDraft?
     @State private var isDownloading = false
     /// Resolved URL (local temp file for web-encrypted files, original URL otherwise).
     @State private var resolvedURL: URL?
@@ -3627,8 +3632,8 @@ struct FileBubbleView: View {
     var body: some View {
         Button(action: {
             guard let url else { return }
-            if resolvedURL != nil {
-                showShare = true
+            if let resolvedURL {
+                shareDraft = ShareFileDraft(url: resolvedURL)
             } else {
                 // Not yet resolved — trigger download + decrypt
                 Task { await resolveForShare(url: url) }
@@ -3689,11 +3694,8 @@ struct FileBubbleView: View {
                 resolvedURL = nil
             }
         }
-        .sheet(isPresented: $showShare) {
-            if let resolved = resolvedURL { ShareSheet(items: [resolved]) }
-        }
-        .onChange(of: showShare) { _, shown in
-            if !shown { removeDecryptedTempFile() }
+        .sheet(item: $shareDraft, onDismiss: removeDecryptedTempFile) { draft in
+            ShareSheet(items: [draft.url])
         }
         .onDisappear { removeDecryptedTempFile() }
     }
@@ -3701,7 +3703,9 @@ struct FileBubbleView: View {
     private func resolveForShare(url: URL) async {
         guard self.url == url else { return }
         guard let e2ee = SunMediaE2EE.parse(url: url) else {
-            resolvedURL = url; showShare = true; return
+            resolvedURL = url
+            shareDraft = ShareFileDraft(url: url)
+            return
         }
         removeDecryptedTempFile()
         isDownloading = true
@@ -3719,7 +3723,7 @@ struct FileBubbleView: View {
             }
             decryptedTempURL = tmpURL
             resolvedURL = tmpURL
-            showShare = true
+            shareDraft = ShareFileDraft(url: tmpURL)
         }
     }
 
