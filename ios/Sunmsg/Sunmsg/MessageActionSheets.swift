@@ -32,11 +32,11 @@ struct ForwardMessageSheet: View {
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(contact.displayName)
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundStyle(Color.smText)
                                     .lineLimit(1)
                                 Text(contact.chatId == currentChatId ? "текущий чат" : (contact.isGroup ? "группа" : "@\(contact.username)"))
-                                    .font(.system(size: 12))
+                                    .font(.caption)
                                     .foregroundStyle(Color.smFaint)
                                     .lineLimit(1)
                             }
@@ -99,7 +99,7 @@ struct MessageInfoSheet: View {
 
                 Section {
                     Text(displayText.isEmpty ? "Пустое сообщение" : displayText)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .foregroundStyle(Color.smText)
                         .textSelection(.enabled)
                 } header: {
@@ -122,12 +122,13 @@ struct MessageInfoSheet: View {
                 .foregroundStyle(Color.smMuted)
                 .frame(width: 22)
             Text(title)
+                .font(.subheadline)
                 .foregroundStyle(Color.smMuted)
             Spacer(minLength: 12)
             Text(value)
+                .font(.subheadline)
                 .foregroundStyle(Color.smText)
                 .multilineTextAlignment(.trailing)
         }
-        .font(.system(size: 14))
     }
 }
