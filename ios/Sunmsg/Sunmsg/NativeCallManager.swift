@@ -217,7 +217,9 @@ extension NativeCallManager: CXProviderDelegate {
         Task { @MainActor in
             self.callByUUID.removeAll()
             self.uuidByCallId.removeAll()
-            self.session?.teardownActiveCall()
+            if self.session?.activeCall != nil {
+                self.session?.teardownActiveCall()
+            }
         }
     }
 
