@@ -1553,6 +1553,7 @@ struct ChatView: View {
         audioRecorder = nil
         recordingURL = nil
         recordingDuration = 0
+        composerFocused = true
         isRecording = true
         startRecordingTimer()
 
@@ -1620,10 +1621,13 @@ struct ChatView: View {
 
     private func startRecordingTimer() {
         recordingTimerTask?.cancel()
+        let startedAt = Date()
         recordingTimerTask = Task { @MainActor in
             while isRecording && !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                if isRecording && !Task.isCancelled { recordingDuration += 1 }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                if isRecording && !Task.isCancelled {
+                    recordingDuration = Date().timeIntervalSince(startedAt)
+                }
             }
         }
     }
@@ -1767,7 +1771,8 @@ struct ChatView: View {
     private func formatRecordingTime(_ t: TimeInterval) -> String {
         let m = Int(t) / 60
         let s = Int(t) % 60
-        return String(format: "%d:%02d", m, s)
+        let cs = Int((t * 100).rounded(.down)) % 100
+        return String(format: "%d:%02d,%02d", m, s, cs)
     }
 
     // MARK: - Send media message

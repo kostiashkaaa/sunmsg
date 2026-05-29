@@ -179,7 +179,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 .coordinateSpace(name: "message_scroll")
                 .scrollIndicators(.hidden)
                 .defaultScrollAnchor(.bottom)
-                .scrollDismissesKeyboard(.interactively)
+                .scrollDismissesKeyboard(.never)
                 .onAppear { scrollToBottom(proxy, animated: false) }
                 .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
                     updatePinnedToBottom(

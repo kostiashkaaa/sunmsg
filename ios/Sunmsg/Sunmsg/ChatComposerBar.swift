@@ -27,6 +27,16 @@ struct ChatComposerBar: View {
     let onStopAndSendRecording: () -> Void
 
     @State private var recordingPulse = false
+    @State private var keyboardKeepAliveText = ""
+
+    private enum Metrics {
+        static let controlSize: CGFloat = 52
+        static let inputRadius: CGFloat = 26
+        static let rowSpacing: CGFloat = 8
+        static let horizontalPadding: CGFloat = 12
+        static let iconSize: CGFloat = 25
+        static let innerButtonSize: CGFloat = 42
+    }
 
     private var trimmedText: String {
         composerText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -42,13 +52,18 @@ struct ChatComposerBar: View {
                 editingBanner
             }
 
-            HStack(alignment: .bottom, spacing: 7) {
-                attachmentButton
-                inputCapsule
-                actionButton
+            HStack(alignment: .bottom, spacing: Metrics.rowSpacing) {
+                if isRecording {
+                    recordingCapsule
+                    recordingSendButton
+                } else {
+                    attachmentButton
+                    inputCapsule
+                    actionButton
+                }
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 7)
+            .padding(.horizontal, Metrics.horizontalPadding)
+            .padding(.top, 8)
             .padding(.bottom, 8)
         }
         .background(Color.smBg.ignoresSafeArea(edges: .bottom))
@@ -120,39 +135,39 @@ struct ChatComposerBar: View {
     private var attachmentButton: some View {
         if !isRecording && editingMessageId == nil {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(canSendSecureMessage ? Color.smAccent : Color.smFaint)
-                    .frame(width: 36, height: 36)
+                Image(systemName: "paperclip")
+                    .font(.system(size: Metrics.iconSize, weight: .regular))
+                    .foregroundStyle(canSendSecureMessage ? Color.smText : Color.smFaint)
+                    .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                    .background(Color.smSurface, in: Circle())
+                    .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.8))
             }
             .buttonStyle(PressableStyle(scale: 0.92))
             .disabled(!canSendSecureMessage || isSending || isUploadingMedia)
             .accessibilityLabel("Вложение")
         } else {
             Color.clear
-                .frame(width: 36, height: 36)
+                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
                 .accessibilityHidden(true)
         }
     }
 
     private var inputCapsule: some View {
-        HStack(alignment: .bottom, spacing: 4) {
+        HStack(alignment: .center, spacing: 8) {
             ZStack(alignment: .leading) {
-                if isRecording {
-                    recordingContent
-                } else if composerText.isEmpty && !isUploadingMedia {
+                if composerText.isEmpty && !isUploadingMedia {
                     Text(placeholder)
-                        .font(.system(size: 15))
+                        .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(Color.smFaint)
                         .allowsHitTesting(false)
                 }
 
                 if isUploadingMedia {
                     uploadContent
-                } else if !isRecording {
+                } else {
                     TextField("", text: $composerText, axis: .vertical)
                         .focused(composerFocused)
-                        .font(.system(size: 15))
+                        .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(Color.smText)
                         .tint(Color.smAccent)
                         .lineLimit(1...5)
@@ -164,38 +179,85 @@ struct ChatComposerBar: View {
 
             trailingInputButton
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 4)
-        .frame(minHeight: 38)
-        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .padding(.leading, 16)
+        .padding(.trailing, 5)
+        .frame(minHeight: Metrics.controlSize)
+        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(isComposerFocused ? Color.smAccent.opacity(0.48) : Color.smBorder, lineWidth: 0.6)
+            RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous)
+                .stroke(isComposerFocused ? Color.smAccent.opacity(0.58) : Color.smBorder, lineWidth: 0.8)
         )
     }
 
-    private var recordingContent: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(Color.red)
-                .frame(width: 8, height: 8)
-                .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
-                    value: recordingPulse
-                )
-                .onAppear { recordingPulse = true }
-                .onDisappear { recordingPulse = false }
+    private var recordingCapsule: some View {
+        ZStack(alignment: .leading) {
+            keyboardKeepAliveField
 
-            Text(formatRecordingTime(recordingDuration))
-                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color.smText)
+            HStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
+                            value: recordingPulse
+                        )
+                        .onAppear { recordingPulse = true }
+                        .onDisappear { recordingPulse = false }
 
-            Text("Голосовое сообщение")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.smFaint)
-                .lineLimit(1)
+                    Text(formatRecordingTime(recordingDuration))
+                        .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.smText)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                Spacer(minLength: 8)
+
+                Button(action: onCancelRecording) {
+                    Text("Отмена")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(Color.smAccent)
+                        .frame(minWidth: 88)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Отменить запись")
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 18)
         }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: Metrics.controlSize)
+        .background(Color.smSurface.opacity(0.96), in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous)
+                .stroke(Color.smBorder, lineWidth: 0.8)
+        )
+    }
+
+    private var keyboardKeepAliveField: some View {
+        TextField("", text: $keyboardKeepAliveText)
+            .focused(composerFocused)
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear { keyboardKeepAliveText = "" }
+            .onDisappear { keyboardKeepAliveText = "" }
+    }
+
+    private var recordingSendButton: some View {
+        Button(action: onStopAndSendRecording) {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 31, weight: .semibold))
+                .foregroundStyle(Color.smBubbleOutText)
+                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                .background(Color.smAccent, in: Circle())
+                .shadow(color: Color.smAccent.opacity(0.32), radius: 8, x: 0, y: 3)
+        }
+        .buttonStyle(PressableStyle(scale: 0.9))
+        .accessibilityLabel("Отправить голосовое сообщение")
     }
 
     private var uploadContent: some View {
@@ -211,16 +273,7 @@ struct ChatComposerBar: View {
 
     @ViewBuilder
     private var trailingInputButton: some View {
-        if isRecording {
-            Button(action: onCancelRecording) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.smMuted)
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Отменить запись")
-        } else if isUploadingMedia {
+        if isUploadingMedia {
             EmptyView()
         } else {
             Menu {
@@ -229,9 +282,9 @@ struct ChatComposerBar: View {
                 }
             } label: {
                 Image(systemName: "face.smiling")
-                    .font(.system(size: 18))
+                    .font(.system(size: 24))
                     .foregroundStyle(Color.smMuted)
-                    .frame(width: 32, height: 32)
+                    .frame(width: Metrics.innerButtonSize, height: Metrics.innerButtonSize)
             }
             .accessibilityLabel("Эмодзи")
         }
@@ -242,7 +295,7 @@ struct ChatComposerBar: View {
             if isSending || isUploadingMedia {
                 ProgressView()
                     .tint(Color.smBubbleOutText)
-                    .frame(width: 36, height: 36)
+                    .frame(width: Metrics.controlSize, height: Metrics.controlSize)
                     .background(Color.smAccent, in: Circle())
             } else if editingMessageId != nil {
                 composerActionButton(
@@ -257,13 +310,6 @@ struct ChatComposerBar: View {
                     fill: canSendSecureMessage ? Color.smText : Color.smFaint,
                     disabled: !canSendSecureMessage,
                     action: onStartVoiceRecording
-                )
-            } else if isRecording {
-                composerActionButton(
-                    systemName: "arrow.up",
-                    fill: Color.red,
-                    disabled: false,
-                    action: onStopAndSendRecording
                 )
             } else {
                 composerActionButton(
@@ -284,9 +330,9 @@ struct ChatComposerBar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: systemName == "mic.fill" ? 30 : 24, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
-                .frame(width: 36, height: 36)
+                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
                 .background(fill, in: Circle())
         }
         .buttonStyle(PressableStyle(scale: 0.92))
