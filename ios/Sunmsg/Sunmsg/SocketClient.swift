@@ -347,8 +347,14 @@ final class SocketClient: NSObject, @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 20_000_000_000)
                 guard !Task.isCancelled else { return }
                 let didPing = await MainActor.run { () -> Bool in
-                    guard let self, self.state == .connected else { return false }
-                    self.webSocketTask?.sendPing { _ in }
+                    guard let self, self.state == .connected, let webSocketTask = self.webSocketTask else { return false }
+                    webSocketTask.sendPing { [weak self] error in
+                        guard error != nil else { return }
+                        Task { @MainActor [weak self] in
+                            guard let self, self.state == .connected else { return }
+                            self.closeSocket(reconnect: true)
+                        }
+                    }
                     return true
                 }
                 guard didPing else { return }
