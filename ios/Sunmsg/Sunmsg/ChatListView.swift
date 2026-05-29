@@ -140,7 +140,6 @@ struct ChatListView: View {
                     Text("sun")
                         .font(.headline.weight(.bold))
                         .foregroundStyle(Color.smText)
-                        .tracking(-0.4)
                 }
 
                 Rectangle()
@@ -245,7 +244,6 @@ struct ChatListView: View {
                         Text("История заблокирована — нажмите для восстановления")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.smText)
-                            .tracking(-0.1)
                         Text("Введите 24 слова, чтобы расшифровать сообщения")
                             .font(.caption2)
                             .foregroundStyle(Color.smMuted)
@@ -470,7 +468,6 @@ struct ChatListView: View {
                         Text(user?.displayName ?? "—")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Color.smText)
-                            .tracking(-0.2)
                             .lineLimit(1)
                         HStack(spacing: 6) {
                             Text("@\(user?.username ?? "—")")
@@ -555,7 +552,6 @@ struct ChatListView: View {
             Text("добро пожаловать в sun")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Color.smText)
-                .tracking(-0.4)
 
             Text("тихие сообщения, тёплый свет –\nначните разговор, когда будет настроение")
                 .font(.custom("Georgia", size: 14, relativeTo: .subheadline).italic())
@@ -574,7 +570,6 @@ struct ChatListView: View {
                         .font(.system(size: 14, weight: .semibold))
                     Text("начать диалог")
                         .font(.subheadline.weight(.semibold))
-                        .tracking(-0.1)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -651,7 +646,6 @@ struct SidebarContactRow: View {
                         .font(.subheadline.weight(contact.unreadCount > 0 ? .semibold : .medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
-                        .tracking(-0.2)
                     if contact.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.system(size: 10, weight: .semibold))
@@ -676,7 +670,6 @@ struct SidebarContactRow: View {
                         .font(contact.isTyping ? .caption.italic() : .caption)
                         .foregroundStyle(contact.isTyping ? Color.smAccent : Color.smMuted)
                         .lineLimit(1)
-                        .tracking(-0.1)
                     Spacer(minLength: 4)
                     if contact.unreadCount > 0 {
                         SmBadge(count: contact.unreadCount, muted: muted)
@@ -793,7 +786,6 @@ struct MnemonicUnlockSheet: View {
                             Text("Введите 24 слова")
                                 .font(.system(size: 22, weight: .bold))
                                 .foregroundStyle(Color.smText)
-                                .tracking(-0.6)
 
                             Text("восстановите доступ к зашифрованным сообщениям")
                                 .font(.system(size: 15).italic())
@@ -891,7 +883,6 @@ struct MnemonicUnlockSheet: View {
                                 }
                                 Text(isLoading ? "Разблокировка…" : "Разблокировать · нужно ещё \(24 - wordCount)")
                                     .font(.system(size: 15, weight: .semibold))
-                                    .tracking(-0.2)
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -1037,7 +1028,6 @@ struct SmAvatarView: View {
             Text(initials.isEmpty ? "?" : initials)
                 .font(.system(size: size * 0.38, weight: .semibold))
                 .foregroundStyle(Color(hex: "#fbf8f1"))
-                .tracking(-0.3)
         }
     }
 }
@@ -1160,7 +1150,6 @@ struct UserQRSheet: View {
                         Text(user?.displayName ?? "—")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Color.smText)
-                            .tracking(-0.3)
                         Text(displayHandle)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.smAccent2)
