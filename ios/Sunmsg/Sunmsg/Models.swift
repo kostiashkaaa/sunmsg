@@ -12,14 +12,14 @@ extension Color {
     static var smText:       Color { adaptive("#15140e", "#ece6d5") }  // --text
     static var smMuted:      Color { adaptive("#7a7363", "#9b9586") }  // --sub-text / --ink-mute
     static var smFaint:      Color { adaptive("#aba493", "#6f6a5b") }  // --text-muted / --ink-faint
-    static var smAccent:     Color { Color(hex: "#c4943c") }           // --accent (same both modes)
+    static var smAccent:     Color { Color(hex: UserDefaults.standard.string(forKey: SettingsClientPreferences.accentColorKey) ?? "#c4943c") } // --accent
     static var smAccent2:    Color { adaptive("#b78428", "#d6a553") }  // --accent-deep
     static var smBorder:     Color { adaptive("#d9d2bf", "#332f24") }  // --border
     static var smBorderSoft: Color { adaptive("#e8e1cd", "#2a261c") }  // --rule-soft
-    static var smBubbleOut:  Color { adaptive("#15140e", "#ece6d5") }  // --bubble-out
-    static var smBubbleOutText: Color { adaptive("#f3f0e8", "#15140e") }
-    static var smBubbleIn:   Color { adaptive("#fbf8f1", "#2a261c") }  // --bubble-in
-    static var smBubbleInText: Color { adaptive("#15140e", "#ece6d5") }
+    static var smBubbleOut:  Color { Color(hex: UserDefaults.standard.string(forKey: SettingsClientPreferences.bubbleOutKey) ?? "#c4943c") }
+    static var smBubbleOutText: Color { Color(hex: UserDefaults.standard.string(forKey: SettingsClientPreferences.bubbleOutTextKey) ?? "#15140e") }
+    static var smBubbleIn:   Color { Color(hex: UserDefaults.standard.string(forKey: SettingsClientPreferences.bubbleInKey) ?? "#ffffff") }
+    static var smBubbleInText: Color { Color(hex: UserDefaults.standard.string(forKey: SettingsClientPreferences.bubbleInTextKey) ?? "#1f1b14") }
     static var smOnline:     Color { Color(hex: "#5a9b6a") }           // --online-dot-color
     static var smDanger:     Color { Color(hex: "#dc2626") }
     static var smReqBg:      Color { adaptive("#fefce8", "#1c1500") }  // --req-bg (amber alert)
@@ -575,19 +575,19 @@ struct AppSettings: Decodable {
         autoDeclineRequests = (try? c.decodeIfPresent(Bool.self, forKey: .autoDeclineRequests)) ?? false
         muteDialogRequests = (try? c.decodeIfPresent(Bool.self, forKey: .muteDialogRequests)) ?? false
         hideOnlineStatus = (try? c.decodeIfPresent(Bool.self, forKey: .hideOnlineStatus)) ?? false
-        lastSeenVisibility = (try? c.decodeIfPresent(String.self, forKey: .lastSeenVisibility)) ?? (hideOnlineStatus ? "nobody" : "contacts")
+        lastSeenVisibility = (try? c.decodeIfPresent(String.self, forKey: .lastSeenVisibility)) ?? (hideOnlineStatus ? "nobody" : "all")
         avatarUrl = try? c.decodeIfPresent(String.self, forKey: .avatarUrl)
-        avatarVisibility = (try? c.decodeIfPresent(String.self, forKey: .avatarVisibility)) ?? "contacts"
-        bioVisibility = (try? c.decodeIfPresent(String.self, forKey: .bioVisibility)) ?? "contacts"
-        forwardLinkPrivacy = (try? c.decodeIfPresent(String.self, forKey: .forwardLinkPrivacy)) ?? "contacts"
-        typingPrivacy = (try? c.decodeIfPresent(String.self, forKey: .typingPrivacy)) ?? "contacts"
-        readReceiptsPrivacy = (try? c.decodeIfPresent(String.self, forKey: .readReceiptsPrivacy)) ?? "contacts"
-        messagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .messagePrivacy)) ?? "contacts"
-        groupInvitePrivacy = (try? c.decodeIfPresent(String.self, forKey: .groupInvitePrivacy)) ?? "contacts"
-        voiceMessagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceMessagePrivacy)) ?? "contacts"
-        voiceListenedPrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceListenedPrivacy)) ?? "contacts"
-        callPrivacy = (try? c.decodeIfPresent(String.self, forKey: .callPrivacy)) ?? "contacts"
-        publicKeySearchPrivacy = (try? c.decodeIfPresent(String.self, forKey: .publicKeySearchPrivacy)) ?? "contacts"
+        avatarVisibility = (try? c.decodeIfPresent(String.self, forKey: .avatarVisibility)) ?? "all"
+        bioVisibility = (try? c.decodeIfPresent(String.self, forKey: .bioVisibility)) ?? "all"
+        forwardLinkPrivacy = (try? c.decodeIfPresent(String.self, forKey: .forwardLinkPrivacy)) ?? "all"
+        typingPrivacy = (try? c.decodeIfPresent(String.self, forKey: .typingPrivacy)) ?? "all"
+        readReceiptsPrivacy = (try? c.decodeIfPresent(String.self, forKey: .readReceiptsPrivacy)) ?? "all"
+        messagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .messagePrivacy)) ?? "all"
+        groupInvitePrivacy = (try? c.decodeIfPresent(String.self, forKey: .groupInvitePrivacy)) ?? "all"
+        voiceMessagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceMessagePrivacy)) ?? "all"
+        voiceListenedPrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceListenedPrivacy)) ?? "all"
+        callPrivacy = (try? c.decodeIfPresent(String.self, forKey: .callPrivacy)) ?? "all"
+        publicKeySearchPrivacy = (try? c.decodeIfPresent(String.self, forKey: .publicKeySearchPrivacy)) ?? "all"
         bio = (try? c.decodeIfPresent(String.self, forKey: .bio)) ?? ""
         statusText = (try? c.decodeIfPresent(String.self, forKey: .statusText)) ?? ""
         online = (try? c.decodeIfPresent(Bool.self, forKey: .online)) ?? false

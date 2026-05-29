@@ -11,6 +11,18 @@ struct ChatView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(SettingsClientPreferences.chatAppearanceModeKey) private var chatAppearanceMode = "default"
+    @AppStorage(SettingsClientPreferences.chatBackgroundColorKey) private var chatBackgroundColor = "#f2ede2"
+    @AppStorage(SettingsClientPreferences.chatGradientAKey) private var chatGradientA = "#f2ede2"
+    @AppStorage(SettingsClientPreferences.chatGradientBKey) private var chatGradientB = "#d8ecff"
+    @AppStorage(SettingsClientPreferences.chatBackgroundImageKey) private var chatBackgroundImageDataURL = ""
+    @AppStorage(SettingsClientPreferences.chatBackgroundDarkenKey) private var chatBackgroundDarken = 0.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundBlurKey) private var chatBackgroundBlur = 0.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundImageOpacityKey) private var chatBackgroundImageOpacity = 1.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundScaleKey) private var chatBackgroundScale = 1.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundPositionXKey) private var chatBackgroundPositionX = 50.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundPositionYKey) private var chatBackgroundPositionY = 50.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundRepeatKey) private var chatBackgroundRepeat = false
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
@@ -61,6 +73,7 @@ struct ChatView: View {
     @State private var pendingDelete: PendingDelete? = nil
     // A short, transient toast (e.g. "Скопировано").
     @State private var toast: String? = nil
+    @State private var decodedChatBackgroundImage: UIImage?
 
     /// Quick-pick reactions (subset of the server's allowed set, top-ranked).
     private let reactionEmojis = ["😀", "❤️", "👍", "💯", "👌", "🔥", "😎"]
@@ -192,7 +205,8 @@ struct ChatView: View {
 
     private var nativeChatLayout: some View {
         ZStack {
-            Color.smBg2.ignoresSafeArea()
+            chatBackgroundView
+                .ignoresSafeArea()
             if isLoading {
                 ProgressView()
                     .tint(Color.smAccent)
@@ -214,7 +228,7 @@ struct ChatView: View {
                 messageScrollView
             }
         }
-        .background(Color.smBg2)
+        .background(chatBackgroundView)
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 chatTopBar
@@ -251,6 +265,60 @@ struct ChatView: View {
                 displayText: resolvedPlainText(for: msg) ?? msg.displayText
             )
         }
+        .onAppear { refreshChatBackgroundImage() }
+        .onChange(of: chatBackgroundImageDataURL) { _, _ in refreshChatBackgroundImage() }
+    }
+
+    @ViewBuilder
+    private var chatBackgroundView: some View {
+        if chatAppearanceMode == "gradient" {
+            LinearGradient(
+                colors: [Color(hex: chatGradientA), Color(hex: chatGradientB)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else if chatAppearanceMode == "custom", let decodedChatBackgroundImage {
+            GeometryReader { proxy in
+                if chatBackgroundRepeat {
+                    Rectangle()
+                        .fill(ImagePaint(image: Image(uiImage: decodedChatBackgroundImage), scale: CGFloat(max(0.15, 1 / chatBackgroundScale))))
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .blur(radius: CGFloat(chatBackgroundBlur))
+                        .opacity(chatBackgroundImageOpacity)
+                        .overlay(Color.black.opacity(chatBackgroundDarken))
+                } else {
+                    Image(uiImage: decodedChatBackgroundImage)
+                        .resizable()
+                        .scaledToFill()
+                        .scaleEffect(CGFloat(chatBackgroundScale))
+                        .position(
+                            x: proxy.size.width * CGFloat(chatBackgroundPositionX) / 100,
+                            y: proxy.size.height * CGFloat(chatBackgroundPositionY) / 100
+                        )
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .blur(radius: CGFloat(chatBackgroundBlur))
+                        .opacity(chatBackgroundImageOpacity)
+                        .overlay(Color.black.opacity(chatBackgroundDarken))
+                }
+            }
+        } else if chatAppearanceMode == "color" || chatAppearanceMode == "preset" {
+            Color(hex: chatBackgroundColor)
+        } else {
+            Color.smBg2
+        }
+    }
+
+    private func refreshChatBackgroundImage() {
+        decodedChatBackgroundImage = Self.decodeDataURLImage(chatBackgroundImageDataURL)
+    }
+
+    private static func decodeDataURLImage(_ value: String) -> UIImage? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let base64 = trimmed.components(separatedBy: ",").last ?? trimmed
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return UIImage(data: data)
     }
 
     private var chatTopBar: some View {
@@ -2246,6 +2314,12 @@ struct MessageBubbleView: View {
     private let parsedSunfile: SunfileInfo?
     private let parsedCallInfo: SunCallInfo?
     private let resolvedMediaType: String?
+    @AppStorage(SettingsClientPreferences.messageScaleKey) private var messageScale = 1.0
+    @AppStorage(SettingsClientPreferences.bubbleOutKey) private var bubbleOutHex = "#c4943c"
+    @AppStorage(SettingsClientPreferences.bubbleInKey) private var bubbleInHex = "#ffffff"
+    @AppStorage(SettingsClientPreferences.bubbleOutTextKey) private var bubbleOutTextHex = "#15140e"
+    @AppStorage(SettingsClientPreferences.bubbleInTextKey) private var bubbleInTextHex = "#1f1b14"
+    @AppStorage(SettingsClientPreferences.bubbleOpacityKey) private var bubbleOpacity = 1.0
 
     init(
         message: ChatMessage,
@@ -2310,6 +2384,12 @@ struct MessageBubbleView: View {
     private var isTextBubble: Bool { message.messageType != "call" && !isMediaMessage }
     private var bubbleAlignment: Alignment { isFromMe ? .trailing : .leading }
     private var stackAlignment: HorizontalAlignment { isFromMe ? .trailing : .leading }
+    private var bubbleFill: Color {
+        (isFromMe ? Color(hex: bubbleOutHex) : Color(hex: bubbleInHex)).opacity(bubbleOpacity)
+    }
+    private var bubbleTextColor: Color {
+        isFromMe ? Color(hex: bubbleOutTextHex) : Color(hex: bubbleInTextHex)
+    }
 
     var body: some View {
         Group {
@@ -2469,7 +2549,7 @@ struct MessageBubbleView: View {
         .padding(.horizontal, 12)
         .padding(.top, 7)
         .padding(.bottom, 7)
-        .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
+        .background(bubbleFill)
         .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
         .overlay(
             BubbleShape(isFromMe: isFromMe, isTail: isTail)
@@ -2499,8 +2579,8 @@ struct MessageBubbleView: View {
 
     private var messageText: some View {
         Text(bodyText)
-            .font(.system(size: 15))
-            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
+            .font(.system(size: CGFloat(15 * messageScale)))
+            .foregroundStyle(bubbleTextColor)
             .lineSpacing(1.5)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -2517,19 +2597,19 @@ struct MessageBubbleView: View {
     private func replyQuote(_ text: String) -> some View {
         HStack(spacing: 7) {
             Rectangle()
-                .fill(isFromMe ? Color.smBubbleOutText.opacity(0.45) : Color.smAccent)
+                .fill(isFromMe ? bubbleTextColor.opacity(0.45) : Color.smAccent)
                 .frame(width: 3)
                 .clipShape(Capsule())
             Text(text)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.76) : Color.smMuted)
+                .foregroundStyle(isFromMe ? bubbleTextColor.opacity(0.76) : Color.smMuted)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(isFromMe ? Color.white.opacity(0.12) : Color.smSurface.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(isFromMe ? bubbleTextColor.opacity(0.12) : Color.smSurface.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     /// Time + edited + read tick, tinted for the bubble's own background.
@@ -2539,16 +2619,16 @@ struct MessageBubbleView: View {
                 Text("изменено")
                     .font(.system(size: 10, weight: .medium))
                     .italic()
-                    .foregroundStyle((isFromMe ? Color.smBubbleOutText : Color.smFaint).opacity(isFromMe ? 0.55 : 1))
+                    .foregroundStyle((isFromMe ? bubbleTextColor : Color.smFaint).opacity(isFromMe ? 0.55 : 1))
             }
             Text(formatBubbleTime(message.createdAt))
                 .font(.system(size: 10.5, weight: .medium))
                 .fontDesign(.monospaced)
-                .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
+                .foregroundStyle(isFromMe ? bubbleTextColor.opacity(0.6) : Color.smFaint)
             if isFromMe {
                 Image(systemName: deliveryIconName)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(message.isRead ? Color.smBubbleOutText.opacity(0.95) : Color.smBubbleOutText.opacity(0.55))
+                    .foregroundStyle(message.isRead ? bubbleTextColor.opacity(0.95) : bubbleTextColor.opacity(0.55))
             }
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -2605,7 +2685,7 @@ struct MessageBubbleView: View {
             ? Color.white.opacity(0.18)
             : (r.reactedByMe ? Color.smAccent.opacity(0.55) : Color.smBorderSoft)
         let countColor: Color = onBubble && isFromMe
-            ? Color.smBubbleOutText.opacity(0.9)
+            ? bubbleTextColor.opacity(0.9)
             : (r.reactedByMe ? Color.smAccent2 : Color.smMuted)
 
         return Button(action: {
@@ -2674,14 +2754,14 @@ struct MessageBubbleView: View {
 
     private var textContent: some View {
         Text(bodyText)
-            .font(.system(size: 14.5))
-            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
+            .font(.system(size: CGFloat(14.5 * messageScale)))
+            .foregroundStyle(bubbleTextColor)
             .lineSpacing(1)
             .tracking(-0.15)
             .padding(.horizontal, 12)
             .padding(.top, 7)
             .padding(.bottom, 8)
-            .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
+            .background(bubbleFill)
             .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
             .overlay(
                 BubbleShape(isFromMe: isFromMe, isTail: isTail)

@@ -2,17 +2,26 @@ import SwiftUI
 
 struct PrivacySettingsView: View {
     @EnvironmentObject var session: SessionStore
-    @State private var showOnlineStatus = true
-    @State private var shareTyping = true
-    @State private var sendReadReceipts = true
+    @State private var isPublic = false
+    @State private var autoDeclineRequests = false
     @State private var muteDialogRequests = false
+    @State private var hideOnlineStatus = false
+    @State private var lastSeenVisibility = "contacts"
+    @State private var avatarVisibility = "contacts"
+    @State private var bioVisibility = "contacts"
+    @State private var forwardLinkPrivacy = "contacts"
+    @State private var groupInvitePrivacy = "contacts"
+    @State private var voiceMessagePrivacy = "contacts"
+    @State private var messagePrivacy = "contacts"
+    @State private var readReceiptsPrivacy = "contacts"
+    @State private var typingPrivacy = "contacts"
+    @State private var voiceListenedPrivacy = "contacts"
+    @State private var callPrivacy = "contacts"
+    @State private var publicKeySearchPrivacy = "contacts"
     @State private var isLoading = false
     @State private var isSaving = false
     @State private var error: String?
     @State private var blockedCount = 0
-    @State private var navigateToBlocked = false
-    @State private var navigateToDevices = false
-    @State private var navigateToTotp = false
     @State private var showMnemonicInfo = false
     @State private var hasPrivateKeyLoaded = false
 
@@ -23,45 +32,108 @@ struct PrivacySettingsView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.smBg.ignoresSafeArea()
+        Form {
+            Section {
+                HStack(spacing: 12) {
+                    Image(systemName: hasKey ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
+                        .foregroundStyle(hasKey ? Color.smOnline : Color.smDanger)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(hasKey ? "Сквозное шифрование активно" : "Ключ шифрования не загружен")
+                        Text(keyStatusText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } footer: {
+                Text("Ключи генерируются на устройстве. sun не имеет доступа к содержимому сообщений.")
+            }
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    encryptionCard
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 20)
+            Section("Видимость профиля") {
+                Toggle("Публичный профиль", isOn: Binding(
+                    get: { isPublic },
+                    set: { value in isPublic = value; saveSettings(["is_public": value]) }
+                ))
+                privacyPicker("Время последнего захода", selection: $lastSeenVisibility, key: "last_seen_visibility", reconnect: true)
+                privacyPicker("Фото профиля", selection: $avatarVisibility, key: "avatar_visibility")
+                privacyPicker("Bio", selection: $bioVisibility, key: "bio_visibility")
+                privacyPicker("Поиск по публичному ключу", selection: $publicKeySearchPrivacy, key: "public_key_search_privacy")
+            }
 
-                    privacySection
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
+            Section("Запросы и доступ") {
+                Toggle("Автоматически отклонять запросы", isOn: Binding(
+                    get: { autoDeclineRequests },
+                    set: { value in autoDeclineRequests = value; saveSettings(["auto_decline_requests": value]) }
+                ))
+                Toggle("Без уведомлений о запросах", isOn: Binding(
+                    get: { muteDialogRequests },
+                    set: { value in muteDialogRequests = value; saveSettings(["mute_dialog_requests": value]) }
+                ))
+                privacyPicker("Приглашения в группы", selection: $groupInvitePrivacy, key: "group_invite_privacy")
+                privacyPicker("Личные сообщения", selection: $messagePrivacy, key: "message_privacy")
+                privacyPicker("Голосовые сообщения", selection: $voiceMessagePrivacy, key: "voice_message_privacy")
+            }
 
-                    keySection
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
+            Section("Активность") {
+                privacyPicker("Ссылка при пересылке", selection: $forwardLinkPrivacy, key: "forward_link_privacy")
+                privacyPicker("Отчёты о прочтении", selection: $readReceiptsPrivacy, key: "read_receipts_privacy")
+                privacyPicker("Индикатор набора", selection: $typingPrivacy, key: "typing_privacy")
+                privacyPicker("Прослушивание голосовых", selection: $voiceListenedPrivacy, key: "voice_listened_privacy")
+                privacyPicker("Звонки", selection: $callPrivacy, key: "call_privacy")
+                Toggle("Скрывать статус онлайн", isOn: Binding(
+                    get: { hideOnlineStatus },
+                    set: { value in
+                        hideOnlineStatus = value
+                        lastSeenVisibility = value ? "nobody" : "contacts"
+                        saveSettings([
+                            "hide_online_status": value,
+                            "last_seen_visibility": lastSeenVisibility,
+                        ], reconnect: true)
+                    }
+                ))
+            }
 
-                    Text("Ключи генерируются на устройстве. sun не имеет доступа к содержимому ваших сообщений.")
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Color.smFaint)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 40)
+            Section("Безопасность") {
+                Button { showMnemonicInfo = true } label: {
+                    Label("Секретная фраза восстановления", systemImage: "key")
+                }
+                NavigationLink { TotpSettingsView() } label: {
+                    Label("TOTP 2FA", systemImage: "number.square")
+                }
+                NavigationLink { DevicesView() } label: {
+                    Label("Активные устройства", systemImage: "iphone.and.ipad")
+                }
+                NavigationLink { BlockedUsersView() } label: {
+                    HStack {
+                        Label("Заблокированные пользователи", systemImage: "hand.raised.fill")
+                        Spacer()
+                        Text("\(blockedCount)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Документы и правила") {
+                externalLink("Политика конфиденциальности", path: "/privacy")
+                externalLink("Пользовательское соглашение", path: "/terms")
+                externalLink("FAQ по анонимности и безопасности", path: "/security-faq")
+                externalLink("О проекте", path: "/about")
+            }
+
+            if let error {
+                Section {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(Color.smDanger)
                 }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Приватность")
-        .toolbarBackground(Color.smBg, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .task { await loadSettings() }
         .task { await loadBlockedCount() }
         .onAppear {
             refreshPrivateKeyState()
         }
-        .navigationDestination(isPresented: $navigateToBlocked) { BlockedUsersView() }
-        .navigationDestination(isPresented: $navigateToDevices) { DevicesView() }
-        .navigationDestination(isPresented: $navigateToTotp) { TotpSettingsView() }
         .alert("Секретная фраза", isPresented: $showMnemonicInfo) {
             Button("Понятно", role: .cancel) {}
         } message: {
@@ -73,166 +145,25 @@ struct PrivacySettingsView: View {
         hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
     }
 
-    // MARK: - Encryption status card
-
-    private var encryptionCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(hasKey ? Color.smOnline.opacity(0.12) : Color.smDanger.opacity(0.12))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: hasKey ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(hasKey ? Color.smOnline : Color.smDanger)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(hasKey ? "Сквозное шифрование активно" : "Ключ шифрования не загружен")
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(Color.smText)
-                    Text(keyStatusText)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.smMuted)
-                }
-                Spacer()
+    private func privacyPicker(_ title: String, selection: Binding<String>, key: String, reconnect: Bool = false) -> some View {
+        Picker(title, selection: Binding(
+            get: { selection.wrappedValue },
+            set: { value in
+                selection.wrappedValue = value
+                saveSettings([key: value], reconnect: reconnect)
             }
-            .padding(14)
-
-            if hasKey {
-                Divider().background(Color.smBorderSoft)
-                HStack {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.smFaint)
-                    Text("RSA-OAEP + AES-256-GCM · PKCS#8 Keychain")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Color.smFaint)
-                        .tracking(0.2)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-            }
+        )) {
+            Text("Все").tag("all")
+            Text("Контакты").tag("contacts")
+            Text("Никто").tag("nobody")
         }
-        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+        .disabled(isLoading || isSaving)
     }
 
-    // MARK: - Privacy toggles
-
-    private var privacySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("КОНФИДЕНЦИАЛЬНОСТЬ")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Color.smFaint)
-                .tracking(0.6)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 6)
-
-            VStack(spacing: 0) {
-                privacyToggle(
-                    icon: "circle.fill",
-                    label: "Статус «в сети»",
-                    detail: showOnlineStatus ? "Видно контактам" : "Скрыт",
-                    isOn: $showOnlineStatus,
-                    onChange: { v in saveSettings(["hide_online_status": !v, "last_seen_visibility": v ? "contacts" : "nobody"], reconnect: true) }
-                )
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                privacyToggle(
-                    icon: "text.bubble.fill",
-                    label: "Индикатор набора",
-                    detail: shareTyping ? "Отправлять контактам" : "Не отправлять",
-                    isOn: $shareTyping,
-                    onChange: { v in saveSettings(["typing_privacy": v ? "contacts" : "nobody"]) }
-                )
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                privacyToggle(
-                    icon: "checkmark.message.fill",
-                    label: "Подтверждения прочтения",
-                    detail: sendReadReceipts ? "Включены" : "Скрыты",
-                    isOn: $sendReadReceipts,
-                    onChange: { v in saveSettings(["read_receipts_privacy": v ? "contacts" : "nobody"]) }
-                )
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                privacyToggle(
-                    icon: "bell.slash.fill",
-                    label: "Заглушить запросы на диалог",
-                    detail: muteDialogRequests ? "Заглушены" : "Уведомлять",
-                    isOn: $muteDialogRequests,
-                    onChange: { v in saveSettings(["mute_dialog_requests": v]) }
-                )
-            }
-            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+    private func externalLink(_ title: String, path: String) -> some View {
+        Link(destination: URL(string: path, relativeTo: URL(string: kBaseURL))!.absoluteURL) {
+            Label(title, systemImage: "doc.text")
         }
-    }
-
-    private func privacyToggle(icon: String, label: String, detail: String, isOn: Binding<Bool>, onChange: @escaping (Bool) -> Void) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8).fill(Color.smAccent.opacity(0.12)).frame(width: 32, height: 32)
-                Image(systemName: icon).font(.system(size: 14)).foregroundStyle(Color.smAccent)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 15)).foregroundStyle(Color.smText)
-                Text(detail).font(.system(size: 12)).foregroundStyle(Color.smFaint)
-            }
-            Spacer()
-            Toggle("", isOn: Binding(
-                get: { isOn.wrappedValue },
-                set: { v in isOn.wrappedValue = v; onChange(v) }
-            ))
-            .labelsHidden()
-            .tint(Color.smAccent)
-            .disabled(isSaving || isLoading)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-    }
-
-    // MARK: - Key management
-
-    private var keySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("КЛЮЧИ И УСТРОЙСТВА")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Color.smFaint)
-                .tracking(0.6)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 6)
-
-            VStack(spacing: 0) {
-                settingsNavRow(icon: "key.fill", label: "Секретная фраза (24 слова)", detail: "Резервная копия") { showMnemonicInfo = true }
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                settingsNavRow(icon: "number.square.fill", label: "TOTP 2FA", detail: "Authenticator") { navigateToTotp = true }
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                settingsNavRow(icon: "iphone.and.ipad", label: "Активные устройства", detail: "1") { navigateToDevices = true }
-                Divider().padding(.leading, 52).background(Color.smBorderSoft)
-                settingsNavRow(icon: "hand.raised.fill", label: "Заблокированные", detail: "\(blockedCount)") { navigateToBlocked = true }
-            }
-            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-        }
-    }
-
-    private func settingsNavRow(icon: String, label: String, detail: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8).fill(Color.smAccent.opacity(0.12)).frame(width: 32, height: 32)
-                    Image(systemName: icon).font(.system(size: 14)).foregroundStyle(Color.smAccent)
-                }
-                Text(label).font(.system(size: 15)).foregroundStyle(Color.smText)
-                Spacer()
-                Text(detail).font(.system(size: 13)).foregroundStyle(Color.smFaint)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.smFaint)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - API
@@ -245,10 +176,22 @@ struct PrivacySettingsView: View {
         isLoading = true
         do {
             let s = try await session.api.getSettings()
-            showOnlineStatus = !s.hideOnlineStatus && s.lastSeenVisibility != "nobody"
-            shareTyping = s.typingPrivacy != "nobody"
-            sendReadReceipts = s.readReceiptsPrivacy != "nobody"
+            isPublic = s.isPublic
+            autoDeclineRequests = s.autoDeclineRequests
             muteDialogRequests = s.muteDialogRequests
+            hideOnlineStatus = s.hideOnlineStatus
+            lastSeenVisibility = s.lastSeenVisibility
+            avatarVisibility = s.avatarVisibility
+            bioVisibility = s.bioVisibility
+            forwardLinkPrivacy = s.forwardLinkPrivacy
+            groupInvitePrivacy = s.groupInvitePrivacy
+            voiceMessagePrivacy = s.voiceMessagePrivacy
+            messagePrivacy = s.messagePrivacy
+            readReceiptsPrivacy = s.readReceiptsPrivacy
+            typingPrivacy = s.typingPrivacy
+            voiceListenedPrivacy = s.voiceListenedPrivacy
+            callPrivacy = s.callPrivacy
+            publicKeySearchPrivacy = s.publicKeySearchPrivacy
         } catch { self.error = error.localizedDescription }
         isLoading = false
     }

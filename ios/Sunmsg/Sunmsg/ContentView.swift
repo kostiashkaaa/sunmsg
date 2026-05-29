@@ -1438,6 +1438,7 @@ struct SettingsView: View {
         .onAppear {
             socketState = SocketClient.shared.state
             refreshPrivateKeyState()
+            Task { await loadSettingsIfNeeded() }
         }
         .onChange(of: navigateToPrivacy) { _, isPresented in
             if !isPresented {
@@ -1850,7 +1851,8 @@ struct ProfileSettingsView: View {
 
     private func normalizeHandleInput(_ value: String) -> String {
         let withoutAt = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
-        let allowed = withoutAt.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
+        let allowedCharacters = Set("abcdefghijklmnopqrstuvwxyz0123456789_")
+        let allowed = withoutAt.lowercased().filter { allowedCharacters.contains($0) }
         return String(allowed.prefix(50))
     }
 
@@ -1945,7 +1947,7 @@ private struct AvatarEditorView: View {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFill()
-                            .scaleEffect(zoom)
+                            .scaleEffect(CGFloat(zoom))
                             .rotationEffect(.degrees(rotation))
                             .frame(width: 260, height: 260)
                             .clipShape(Rectangle())
@@ -2015,119 +2017,1453 @@ private struct AvatarEditorView: View {
     }
 }
 
+enum SettingsClientPreferences {
+    static let messageScaleKey = "sun_chat_message_scale_v1"
+    static let sendShortcutKey = "sun_send_shortcut_mode_v1"
+    static let timeFormatKey = "sun_time_format_v1"
+    static let performanceModeKey = "sun_performance_mode"
+    static let motionLevelKey = "sun_motion_level"
+    static let interfaceSurfaceModeKey = "sun_interface_surface_mode"
+    static let themePresetKey = "sun_theme_preset_v1"
+    static let accentColorKey = "sun_accent_color_v1"
+    static let chatAppearanceModeKey = "sun_chat_appearance_mode_v1"
+    static let chatBackgroundColorKey = "sun_chat_background_color_v1"
+    static let chatGradientAKey = "sun_chat_gradient_a_v1"
+    static let chatGradientBKey = "sun_chat_gradient_b_v1"
+    static let chatBackgroundImageKey = "sun_chat_background_image_data_url_v1"
+    static let chatBackgroundDarkenKey = "sun_chat_background_darken_v1"
+    static let chatBackgroundBlurKey = "sun_chat_background_blur_v1"
+    static let chatBackgroundImageOpacityKey = "sun_chat_background_image_opacity_v1"
+    static let chatBackgroundScaleKey = "sun_chat_background_scale_v1"
+    static let chatBackgroundPositionXKey = "sun_chat_background_position_x_v1"
+    static let chatBackgroundPositionYKey = "sun_chat_background_position_y_v1"
+    static let chatBackgroundRepeatKey = "sun_chat_background_repeat_v1"
+    static let bubbleOutKey = "sun_bubble_out_color_v1"
+    static let bubbleInKey = "sun_bubble_in_color_v1"
+    static let bubbleOutTextKey = "sun_bubble_out_text_color_v1"
+    static let bubbleInTextKey = "sun_bubble_in_text_color_v1"
+    static let bubbleOpacityKey = "sun_bubble_opacity_v1"
+    static let animationsEnabledKey = "sun_animations_enabled_v1"
+    static let sidebarWeatherEnabledKey = "sun_sidebar_weather_enabled_v1"
+    static let sidebarWeatherSourceKey = "sun_sidebar_weather_source_v1"
+    static let sidebarWeatherCityKey = "sun_sidebar_weather_city_v1"
+    static let sidebarWeatherRotateKey = "sun_sidebar_weather_rotate_v1"
+    static let sidebarWeatherMetricsKey = "sun_sidebar_weather_metrics_v1"
+    static let dataAutoDownloadMediaKey = "sun_data_auto_media_v1"
+    static let dataAutoDownloadPhotosKey = "sun_data_auto_photos_v1"
+    static let dataAutoDownloadVideosKey = "sun_data_auto_videos_v1"
+    static let dataFilesLimitMbKey = "sun_data_files_limit_mb_v1"
+    static let dataRetentionDaysKey = "sun_data_retention_days_v1"
+    static let dataMaxCacheMbKey = "sun_data_max_cache_mb_v1"
+
+    static let weatherMetricKeys = [
+        "temperature", "feels_like", "humidity", "wind", "precip", "uv", "aqi", "pressure", "sun_cycle",
+    ]
+
+    static func localClientPreferences() -> [String: Any] {
+        let defaults = UserDefaults.standard
+        let language = defaults.string(forKey: "sun_ui_language") ?? "ru"
+        return [
+            "darkMode": defaults.string(forKey: "appColorScheme") == AppColorScheme.dark.rawValue,
+            "language": language == "en" ? "en" : "ru",
+            "messageScale": normalizedDouble(defaults.object(forKey: messageScaleKey) as? Double, min: 0.9, max: 1.3, fallback: 1.0),
+            "performanceMode": normalized(defaults.string(forKey: performanceModeKey), allowed: ["auto", "full", "lite"], fallback: "auto"),
+            "motionLevel": normalized(defaults.string(forKey: motionLevelKey), allowed: ["auto", "full", "balanced", "lite"], fallback: "auto"),
+            "sendShortcut": normalized(defaults.string(forKey: sendShortcutKey), allowed: ["enter", "ctrl_enter"], fallback: "enter"),
+            "timeFormat": normalized(defaults.string(forKey: timeFormatKey), allowed: ["24h", "12h"], fallback: "24h"),
+            "interfaceSurfaceMode": normalized(defaults.string(forKey: interfaceSurfaceModeKey), allowed: ["glass", "solid"], fallback: "glass"),
+            "sidebarWeatherEnabled": defaults.bool(forKey: sidebarWeatherEnabledKey),
+            "sidebarWeatherSource": normalized(defaults.string(forKey: sidebarWeatherSourceKey), allowed: ["auto", "city"], fallback: "auto"),
+            "sidebarWeatherCity": String((defaults.string(forKey: sidebarWeatherCityKey) ?? "").prefix(80)),
+            "sidebarWeatherRotateSeconds": defaults.integer(forKey: sidebarWeatherRotateKey) == 30 ? 30 : 60,
+            "sidebarWeatherMetrics": localWeatherMetrics(),
+            "interfaceThemeStore": [
+                "activePreset": defaults.string(forKey: themePresetKey) ?? "light-classic",
+                "accentColor": defaults.string(forKey: accentColorKey) ?? "#c4943c",
+            ],
+            "chatAppearanceStore": [
+                "mode": defaults.string(forKey: chatAppearanceModeKey) ?? "default",
+                "backgroundColor": defaults.string(forKey: chatBackgroundColorKey) ?? "#f2ede2",
+                "gradientA": defaults.string(forKey: chatGradientAKey) ?? "#f2ede2",
+                "gradientB": defaults.string(forKey: chatGradientBKey) ?? "#d8ecff",
+                "customImageDataUrl": defaults.string(forKey: chatBackgroundImageKey) ?? "",
+                "customImageDarken": normalizedDouble(defaults.object(forKey: chatBackgroundDarkenKey) as? Double, min: 0, max: 0.85, fallback: 0),
+                "customImageBlur": normalizedDouble(defaults.object(forKey: chatBackgroundBlurKey) as? Double, min: 0, max: 24, fallback: 0),
+                "customImageOpacity": normalizedDouble(defaults.object(forKey: chatBackgroundImageOpacityKey) as? Double, min: 0.2, max: 1.0, fallback: 1.0),
+                "customImageScale": normalizedDouble(defaults.object(forKey: chatBackgroundScaleKey) as? Double, min: 0.5, max: 3.0, fallback: 1.0),
+                "customImagePositionX": normalizedDouble(defaults.object(forKey: chatBackgroundPositionXKey) as? Double, min: 0, max: 100, fallback: 50),
+                "customImagePositionY": normalizedDouble(defaults.object(forKey: chatBackgroundPositionYKey) as? Double, min: 0, max: 100, fallback: 50),
+                "customImageRepeat": defaults.bool(forKey: chatBackgroundRepeatKey),
+                "bubbleOut": defaults.string(forKey: bubbleOutKey) ?? "#c4943c",
+                "bubbleIn": defaults.string(forKey: bubbleInKey) ?? "#ffffff",
+                "bubbleOutText": defaults.string(forKey: bubbleOutTextKey) ?? "#15140e",
+                "bubbleInText": defaults.string(forKey: bubbleInTextKey) ?? "#1f1b14",
+                "bubbleOpacity": normalizedDouble(defaults.object(forKey: bubbleOpacityKey) as? Double, min: 0.45, max: 1.0, fallback: 1.0),
+            ],
+            "dataMemoryStore": [
+                "autoDownloadMedia": defaults.object(forKey: dataAutoDownloadMediaKey) as? Bool ?? true,
+                "autoDownloadPhotos": defaults.object(forKey: dataAutoDownloadPhotosKey) as? Bool ?? true,
+                "autoDownloadVideos": defaults.object(forKey: dataAutoDownloadVideosKey) as? Bool ?? true,
+                "autoDownloadFilesMaxMb": normalizedDouble(defaults.object(forKey: dataFilesLimitMbKey) as? Double, min: 0.1, max: 50, fallback: 3),
+                "cacheRetentionDays": defaults.object(forKey: dataRetentionDaysKey) as? Int ?? 7,
+                "maxCacheMb": defaults.object(forKey: dataMaxCacheMbKey) as? Int ?? 0,
+            ],
+            "updatedAt": ISO8601DateFormatter().string(from: Date()),
+        ]
+    }
+
+    static func apply(_ preferences: [String: Any]) {
+        let defaults = UserDefaults.standard
+        if let darkMode = preferences["darkMode"] as? Bool {
+            defaults.set(darkMode ? AppColorScheme.dark.rawValue : AppColorScheme.light.rawValue, forKey: "appColorScheme")
+        }
+        if let language = preferences["language"] as? String {
+            defaults.set(language == "en" ? "en" : "ru", forKey: "sun_ui_language")
+        }
+        if let value = preferences["messageScale"] as? Double {
+            defaults.set(normalizedDouble(value, min: 0.9, max: 1.3, fallback: 1.0), forKey: messageScaleKey)
+        } else if let value = preferences["messageScale"] as? Int {
+            defaults.set(normalizedDouble(Double(value), min: 0.9, max: 1.3, fallback: 1.0), forKey: messageScaleKey)
+        }
+        if let value = preferences["performanceMode"] as? String { defaults.set(normalized(value, allowed: ["auto", "full", "lite"], fallback: "auto"), forKey: performanceModeKey) }
+        if let value = preferences["motionLevel"] as? String { defaults.set(normalized(value, allowed: ["auto", "full", "balanced", "lite"], fallback: "auto"), forKey: motionLevelKey) }
+        if let value = preferences["sendShortcut"] as? String { defaults.set(normalized(value, allowed: ["enter", "ctrl_enter"], fallback: "enter"), forKey: sendShortcutKey) }
+        if let value = preferences["timeFormat"] as? String { defaults.set(normalized(value, allowed: ["24h", "12h"], fallback: "24h"), forKey: timeFormatKey) }
+        if let value = preferences["interfaceSurfaceMode"] as? String { defaults.set(normalized(value, allowed: ["glass", "solid"], fallback: "glass"), forKey: interfaceSurfaceModeKey) }
+        if let enabled = preferences["sidebarWeatherEnabled"] as? Bool { defaults.set(enabled, forKey: sidebarWeatherEnabledKey) }
+        if let value = preferences["sidebarWeatherSource"] as? String { defaults.set(normalized(value, allowed: ["auto", "city"], fallback: "auto"), forKey: sidebarWeatherSourceKey) }
+        if let value = preferences["sidebarWeatherCity"] as? String { defaults.set(String(value.prefix(80)), forKey: sidebarWeatherCityKey) }
+        if let value = preferences["sidebarWeatherRotateSeconds"] as? Int { defaults.set(value == 30 ? 30 : 60, forKey: sidebarWeatherRotateKey) }
+        if let metrics = preferences["sidebarWeatherMetrics"] as? [String] { defaults.set(metrics.filter { weatherMetricKeys.contains($0) }, forKey: sidebarWeatherMetricsKey) }
+        if let theme = preferences["interfaceThemeStore"] as? [String: Any] {
+            if let preset = theme["activePreset"] as? String { defaults.set(preset, forKey: themePresetKey) }
+            if let accent = theme["accentColor"] as? String { defaults.set(accent, forKey: accentColorKey) }
+        }
+        if let chat = preferences["chatAppearanceStore"] as? [String: Any] {
+            if let value = chat["mode"] as? String { defaults.set(value, forKey: chatAppearanceModeKey) }
+            if let value = chat["backgroundColor"] as? String { defaults.set(value, forKey: chatBackgroundColorKey) }
+            if let value = chat["gradientA"] as? String { defaults.set(value, forKey: chatGradientAKey) }
+            if let value = chat["gradientB"] as? String { defaults.set(value, forKey: chatGradientBKey) }
+            if let value = chat["customImageDataUrl"] as? String { defaults.set(value, forKey: chatBackgroundImageKey) }
+            if let value = chat["customImageDarken"] as? Double { defaults.set(normalizedDouble(value, min: 0, max: 0.85, fallback: 0), forKey: chatBackgroundDarkenKey) }
+            if let value = chat["customImageBlur"] as? Double { defaults.set(normalizedDouble(value, min: 0, max: 24, fallback: 0), forKey: chatBackgroundBlurKey) }
+            if let value = chat["customImageOpacity"] as? Double { defaults.set(normalizedDouble(value, min: 0.2, max: 1.0, fallback: 1.0), forKey: chatBackgroundImageOpacityKey) }
+            if let value = chat["customImageScale"] as? Double { defaults.set(normalizedDouble(value, min: 0.5, max: 3.0, fallback: 1.0), forKey: chatBackgroundScaleKey) }
+            if let value = chat["customImagePositionX"] as? Double { defaults.set(normalizedDouble(value, min: 0, max: 100, fallback: 50), forKey: chatBackgroundPositionXKey) }
+            if let value = chat["customImagePositionY"] as? Double { defaults.set(normalizedDouble(value, min: 0, max: 100, fallback: 50), forKey: chatBackgroundPositionYKey) }
+            if let value = chat["customImageRepeat"] as? Bool { defaults.set(value, forKey: chatBackgroundRepeatKey) }
+            if let value = chat["bubbleOut"] as? String { defaults.set(value, forKey: bubbleOutKey) }
+            if let value = chat["bubbleIn"] as? String { defaults.set(value, forKey: bubbleInKey) }
+            if let value = chat["bubbleOutText"] as? String { defaults.set(value, forKey: bubbleOutTextKey) }
+            if let value = chat["bubbleInText"] as? String { defaults.set(value, forKey: bubbleInTextKey) }
+            if let value = chat["bubbleOpacity"] as? Double { defaults.set(normalizedDouble(value, min: 0.45, max: 1.0, fallback: 1.0), forKey: bubbleOpacityKey) }
+        }
+        if let dataMemory = preferences["dataMemoryStore"] as? [String: Any] {
+            if let value = dataMemory["autoDownloadMedia"] as? Bool { defaults.set(value, forKey: dataAutoDownloadMediaKey) }
+            if let value = dataMemory["autoDownloadPhotos"] as? Bool { defaults.set(value, forKey: dataAutoDownloadPhotosKey) }
+            if let value = dataMemory["autoDownloadVideos"] as? Bool { defaults.set(value, forKey: dataAutoDownloadVideosKey) }
+            if let value = dataMemory["autoDownloadFilesMaxMb"] as? Double { defaults.set(normalizedDouble(value, min: 0.1, max: 50, fallback: 3), forKey: dataFilesLimitMbKey) }
+            if let value = dataMemory["cacheRetentionDays"] as? Int { defaults.set([0, 1, 3, 7, 30, 90].contains(value) ? value : 7, forKey: dataRetentionDaysKey) }
+            if let value = dataMemory["maxCacheMb"] as? Int { defaults.set(Swift.min(1024, Swift.max(0, value)), forKey: dataMaxCacheMbKey) }
+        }
+    }
+
+    static func mergedClientPreferences(base: [String: Any], updates: [String: Any]) -> [String: Any] {
+        var merged = base
+        for (key, value) in localClientPreferences() {
+            merged[key] = value
+        }
+        for (key, value) in updates {
+            merged[key] = value
+        }
+        merged["updatedAt"] = ISO8601DateFormatter().string(from: Date())
+        return merged
+    }
+
+    static func normalized(_ value: String?, allowed: Set<String>, fallback: String) -> String {
+        let normalized = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return allowed.contains(normalized) ? normalized : fallback
+    }
+
+    static func normalizedDouble(_ value: Double?, min: Double, max: Double, fallback: Double) -> Double {
+        guard let value, value.isFinite else { return fallback }
+        return Swift.min(max, Swift.max(min, value))
+    }
+
+    static func localWeatherMetrics() -> [String] {
+        let stored = UserDefaults.standard.stringArray(forKey: sidebarWeatherMetricsKey) ?? ["temperature"]
+        let filtered = stored.filter { weatherMetricKeys.contains($0) }
+        return filtered.isEmpty ? ["temperature"] : filtered
+    }
+}
+
+private enum SettingsScreenError: LocalizedError {
+    case notificationDenied
+    case notificationTokenTimeout
+    case notificationRegistrationFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notificationDenied:
+            return "Разрешение на уведомления не выдано в системных настройках iOS."
+        case .notificationTokenTimeout:
+            return "iOS не вернула APNs-токен за отведённое время."
+        case .notificationRegistrationFailed(let message):
+            return message
+        }
+    }
+}
+
+private final class APNSTokenWaitState {
+    var completed = false
+    var tokenObserver: NSObjectProtocol?
+    var errorObserver: NSObjectProtocol?
+}
+
+struct NotificationSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var authorizationStatus = UNAuthorizationStatus.notDetermined
+    @State private var alertToken = UserDefaults.standard.string(forKey: "sun_alert_apns_token_v1") ?? ""
+    @State private var isSaving = false
+    @State private var error: String?
+
+    private var permissionText: String {
+        switch authorizationStatus {
+        case .authorized, .ephemeral, .provisional: return "Разрешены"
+        case .denied: return "Запрещены"
+        case .notDetermined: return "Не запрошены"
+        @unknown default: return "Неизвестно"
+        }
+    }
+
+    var body: some View {
+        Form {
+            Section("Системные уведомления") {
+                LabeledContent("Разрешение iOS", value: permissionText)
+                LabeledContent("Подписка", value: alertToken.isEmpty ? "Не активна" : "Активна")
+                Button {
+                    Task { await enableNotifications() }
+                } label: {
+                    Label("Включить push-уведомления", systemImage: "bell.badge")
+                }
+                .disabled(isSaving)
+                Button(role: .destructive) {
+                    Task { await disableNotifications() }
+                } label: {
+                    Label("Отключить push-уведомления", systemImage: "bell.slash")
+                }
+                .disabled(isSaving || alertToken.isEmpty)
+            } footer: {
+                Text("Токен регистрируется через APNs и сохраняется на сервере как alert push для этого устройства.")
+            }
+
+            if isSaving {
+                Section { ProgressView("Синхронизация…") }
+            }
+            if let error {
+                Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) }
+            }
+        }
+        .navigationTitle("Уведомления")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await refreshPermission() }
+    }
+
+    private func refreshPermission() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        authorizationStatus = settings.authorizationStatus
+        alertToken = UserDefaults.standard.string(forKey: "sun_alert_apns_token_v1") ?? ""
+    }
+
+    private func enableNotifications() async {
+        isSaving = true
+        error = nil
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            guard granted else { throw SettingsScreenError.notificationDenied }
+            let token = try await waitForAPNSToken()
+            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UUID().uuidString)"
+            try await session.api.registerAPNsToken(
+                token: token,
+                pushType: "alert",
+                environment: apnsEnvironment,
+                deviceId: deviceId
+            )
+            alertToken = token
+            await refreshPermission()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    private func disableNotifications() async {
+        guard !alertToken.isEmpty else { return }
+        isSaving = true
+        error = nil
+        do {
+            try await session.api.unregisterAPNsToken(token: alertToken, pushType: "alert")
+            UserDefaults.standard.removeObject(forKey: "sun_alert_apns_token_v1")
+            alertToken = ""
+            await refreshPermission()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    private var apnsEnvironment: String {
+        #if DEBUG
+        return "sandbox"
+        #else
+        return "production"
+        #endif
+    }
+
+    private func waitForAPNSToken() async throws -> String {
+        if let token = UserDefaults.standard.string(forKey: "sun_alert_apns_token_v1"), !token.isEmpty {
+            return token
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            let state = APNSTokenWaitState()
+            let center = NotificationCenter.default
+
+            func finish(_ result: Result<String, Error>) {
+                guard !state.completed else { return }
+                state.completed = true
+                if let tokenObserver = state.tokenObserver { center.removeObserver(tokenObserver) }
+                if let errorObserver = state.errorObserver { center.removeObserver(errorObserver) }
+                continuation.resume(with: result)
+            }
+
+            state.tokenObserver = center.addObserver(forName: .smDidRegisterAPNsAlertToken, object: nil, queue: .main) { note in
+                let token = (note.userInfo?["token"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                finish(token.isEmpty ? .failure(SettingsScreenError.notificationTokenTimeout) : .success(token))
+            }
+            state.errorObserver = center.addObserver(forName: .smDidFailToRegisterAPNsAlertToken, object: nil, queue: .main) { note in
+                let message = note.userInfo?["error"] as? String ?? "Не удалось зарегистрировать APNs-токен."
+                finish(.failure(SettingsScreenError.notificationRegistrationFailed(message)))
+            }
+
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+                finish(.failure(SettingsScreenError.notificationTokenTimeout))
+            }
+        }
+    }
+}
+
+struct DataMemorySettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @AppStorage(SettingsClientPreferences.dataAutoDownloadMediaKey) private var autoDownloadMedia = true
+    @AppStorage(SettingsClientPreferences.dataAutoDownloadPhotosKey) private var autoDownloadPhotos = true
+    @AppStorage(SettingsClientPreferences.dataAutoDownloadVideosKey) private var autoDownloadVideos = true
+    @AppStorage(SettingsClientPreferences.dataFilesLimitMbKey) private var filesLimitMb = 3.0
+    @AppStorage(SettingsClientPreferences.dataRetentionDaysKey) private var retentionDays = 7
+    @AppStorage(SettingsClientPreferences.dataMaxCacheMbKey) private var maxCacheMb = 0
+    @State private var clientPreferences: [String: Any] = [:]
+    @State private var storageBytes = 0
+    @State private var isWorking = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Автозагрузка") {
+                Toggle("Медиа", isOn: Binding(get: { autoDownloadMedia }, set: { autoDownloadMedia = $0; savePolicy() }))
+                Toggle("Фото", isOn: Binding(get: { autoDownloadPhotos }, set: { autoDownloadPhotos = $0; savePolicy() }))
+                Toggle("Видео", isOn: Binding(get: { autoDownloadVideos }, set: { autoDownloadVideos = $0; savePolicy() }))
+                VStack(alignment: .leading) {
+                    LabeledContent("Лимит файла", value: "\(filesLimitMb, specifier: "%.1f") MB")
+                    Slider(value: Binding(get: { filesLimitMb }, set: { filesLimitMb = $0; savePolicy() }), in: 0.1...50, step: 0.1)
+                }
+            }
+
+            Section("Хранилище") {
+                LabeledContent("Локальный кэш", value: ByteCountFormatter.string(fromByteCount: Int64(storageBytes), countStyle: .file))
+                Button("Обновить размер") { Task { await refreshStorageUsage() } }
+                Button("Очистить кэш сообщений") { Task { await clearChatCache() } }
+                Button("Очистить файловый кэш") { Task { await clearURLCache() } }
+                Button("Очистить stream-фрагменты") { Task { await clearURLCache() } }
+                Button(role: .destructive) { Task { await clearAllCaches() } } label: {
+                    Text("Очистить всё")
+                }
+            }
+
+            Section("Автоочистка") {
+                Picker("Хранить файлы", selection: Binding(get: { retentionDays }, set: { retentionDays = $0; savePolicy() })) {
+                    Text("Не хранить").tag(0)
+                    Text("1 день").tag(1)
+                    Text("3 дня").tag(3)
+                    Text("7 дней").tag(7)
+                    Text("30 дней").tag(30)
+                    Text("90 дней").tag(90)
+                }
+                Stepper("Максимум: \(cacheLimitLabel)", value: Binding(get: { maxCacheMb }, set: { maxCacheMb = $0; savePolicy() }), in: 0...1024, step: 32)
+            }
+
+            if isWorking {
+                Section { ProgressView("Обработка…") }
+            }
+            if let error {
+                Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) }
+            }
+        }
+        .navigationTitle("Данные и память")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadPreferences()
+            await refreshStorageUsage()
+        }
+    }
+
+    private var cacheLimitLabel: String {
+        maxCacheMb == 0 ? "без лимита" : "\(maxCacheMb) MB"
+    }
+
+    private func loadPreferences() async {
+        do {
+            let settings = try await session.api.getSettings()
+            clientPreferences = settings.clientPreferencesObject
+            SettingsClientPreferences.apply(clientPreferences)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func savePolicy() {
+        let updates: [String: Any] = [
+            "dataMemoryStore": [
+                "autoDownloadMedia": autoDownloadMedia,
+                "autoDownloadPhotos": autoDownloadPhotos,
+                "autoDownloadVideos": autoDownloadVideos,
+                "autoDownloadFilesMaxMb": filesLimitMb,
+                "cacheRetentionDays": retentionDays,
+                "maxCacheMb": maxCacheMb,
+            ],
+        ]
+        saveClientPreferences(updates)
+    }
+
+    private func saveClientPreferences(_ updates: [String: Any]) {
+        let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: updates)
+        clientPreferences = payload
+        Task {
+            do { try await session.api.saveSettings(["client_preferences": payload]) }
+            catch APIError.unauthorized { session.route = .login }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func refreshStorageUsage() async {
+        storageBytes = await Task.detached(priority: .utility) {
+            let fm = FileManager.default
+            let roots = [
+                fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Sunmsg", isDirectory: true),
+                fm.urls(for: .cachesDirectory, in: .userDomainMask).first,
+                fm.temporaryDirectory,
+            ].compactMap { $0 }
+            return roots.reduce(0) { $0 + settingsDirectorySize(url: $1) }
+        }.value
+    }
+
+    private func clearChatCache() async {
+        isWorking = true
+        await ChatLocalStore.shared.resetAll()
+        await refreshStorageUsage()
+        isWorking = false
+    }
+
+    private func clearURLCache() async {
+        isWorking = true
+        URLCache.shared.removeAllCachedResponses()
+        await refreshStorageUsage()
+        isWorking = false
+    }
+
+    private func clearAllCaches() async {
+        isWorking = true
+        await ChatLocalStore.shared.resetAll()
+        URLCache.shared.removeAllCachedResponses()
+        await refreshStorageUsage()
+        isWorking = false
+    }
+
+}
+
+private func settingsDirectorySize(url: URL) -> Int {
+    let fm = FileManager.default
+    guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else {
+        return 0
+    }
+    var total = 0
+    for case let fileURL as URL in enumerator {
+        total += ((try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+    }
+    return total
+}
+
+struct LanguageSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var language: String
+    @State private var isSaving = false
+    @State private var error: String?
+
+    init(selectedLanguage: String) {
+        _language = State(initialValue: selectedLanguage == "en" ? "en" : "ru")
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Язык", selection: Binding(get: { language }, set: { setLanguage($0) })) {
+                    Text("Русский").tag("ru")
+                    Text("English").tag("en")
+                }
+                .pickerStyle(.inline)
+            } footer: {
+                Text("Используется то же поле language, что и в веб-настройках.")
+            }
+            if isSaving { Section { ProgressView("Сохранение…") } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Язык")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await loadLanguage() }
+    }
+
+    private func loadLanguage() async {
+        do {
+            let settings = try await session.api.getSettings()
+            language = settings.language
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func setLanguage(_ value: String) {
+        let normalized = value == "en" ? "en" : "ru"
+        guard language != normalized else { return }
+        language = normalized
+        isSaving = true
+        UserDefaults.standard.set(normalized, forKey: "sun_ui_language")
+        Task {
+            do {
+                var prefs = SettingsClientPreferences.localClientPreferences()
+                prefs["language"] = normalized
+                try await session.api.saveSettings(["language": normalized, "client_preferences": prefs])
+                await session.refreshContacts()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isSaving = false
+        }
+    }
+}
+
+struct ChatBehaviorSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @AppStorage(SettingsClientPreferences.sendShortcutKey) private var sendShortcut = "enter"
+    @AppStorage(SettingsClientPreferences.timeFormatKey) private var timeFormat = "24h"
+    @AppStorage(SettingsClientPreferences.animationsEnabledKey) private var animationsEnabled = true
+    @AppStorage(SettingsClientPreferences.performanceModeKey) private var performanceMode = "auto"
+    @AppStorage(SettingsClientPreferences.motionLevelKey) private var motionLevel = "auto"
+    @State private var clientPreferences: [String: Any] = [:]
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Сообщения") {
+                Picker("Отправка", selection: Binding(get: { sendShortcut }, set: { sendShortcut = $0; save() })) {
+                    Text("Enter").tag("enter")
+                    Text("Ctrl + Enter").tag("ctrl_enter")
+                }
+                Picker("Формат времени", selection: Binding(get: { timeFormat }, set: { timeFormat = $0; save() })) {
+                    Text("24 часа").tag("24h")
+                    Text("12 часов").tag("12h")
+                }
+            }
+            Section("Производительность") {
+                Toggle("Анимации", isOn: Binding(get: { animationsEnabled }, set: { animationsEnabled = $0; motionLevel = $0 ? "auto" : "lite"; save() }))
+                Picker("Режим производительности", selection: Binding(get: { performanceMode }, set: { performanceMode = $0; save() })) {
+                    Text("Авто").tag("auto")
+                    Text("Полный").tag("full")
+                    Text("Лёгкий").tag("lite")
+                }
+                Picker("Движение интерфейса", selection: Binding(get: { motionLevel }, set: { motionLevel = $0; save() })) {
+                    Text("Авто").tag("auto")
+                    Text("Полное").tag("full")
+                    Text("Сбалансированное").tag("balanced")
+                    Text("Минимальное").tag("lite")
+                }
+            }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Настройки чата")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            let settings = try await session.api.getSettings()
+            clientPreferences = settings.clientPreferencesObject
+            SettingsClientPreferences.apply(clientPreferences)
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func save() {
+        let updates: [String: Any] = [
+            "sendShortcut": sendShortcut == "ctrl_enter" ? "ctrl_enter" : "enter",
+            "timeFormat": timeFormat == "12h" ? "12h" : "24h",
+            "performanceMode": SettingsClientPreferences.normalized(performanceMode, allowed: ["auto", "full", "lite"], fallback: "auto"),
+            "motionLevel": animationsEnabled ? SettingsClientPreferences.normalized(motionLevel, allowed: ["auto", "full", "balanced", "lite"], fallback: "auto") : "lite",
+        ]
+        let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: updates)
+        clientPreferences = payload
+        Task {
+            do { try await session.api.saveSettings(["client_preferences": payload]) }
+            catch APIError.unauthorized { session.route = .login }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+}
+
+struct CallSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var callPrivacy = "contacts"
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Входящие звонки") {
+                Picker("Кто может звонить", selection: Binding(get: { callPrivacy }, set: { value in
+                    callPrivacy = value
+                    saveCallPrivacy(value)
+                })) {
+                    Text("Все").tag("all")
+                    Text("Контакты").tag("contacts")
+                    Text("Никто").tag("nobody")
+                }
+            } footer: {
+                Text("Настройка синхронизируется с полем call_privacy веб-версии.")
+            }
+            Section("Push для звонков") {
+                Text("VoIP push регистрируется автоматически при входе в приложение.")
+                    .foregroundStyle(.secondary)
+            }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Звонки")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func load() async {
+        do { callPrivacy = try await session.api.getSettings().callPrivacy }
+        catch { self.error = error.localizedDescription }
+    }
+
+    private func saveCallPrivacy(_ value: String) {
+        Task {
+            do { try await session.api.saveSettings(["call_privacy": value]) }
+            catch APIError.unauthorized { session.route = .login }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+}
+
+struct SidebarLabelSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @AppStorage(SettingsClientPreferences.sidebarWeatherEnabledKey) private var enabled = false
+    @AppStorage(SettingsClientPreferences.sidebarWeatherSourceKey) private var source = "auto"
+    @AppStorage(SettingsClientPreferences.sidebarWeatherCityKey) private var city = ""
+    @AppStorage(SettingsClientPreferences.sidebarWeatherRotateKey) private var rotateSeconds = 60
+    @State private var metrics = Set(SettingsClientPreferences.localWeatherMetrics())
+    @State private var clientPreferences: [String: Any] = [:]
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Метка списка чатов") {
+                Toggle("Показывать погоду", isOn: Binding(get: { enabled }, set: { enabled = $0; save() }))
+                Picker("Источник", selection: Binding(get: { source }, set: { source = $0; save() })) {
+                    Text("Авто").tag("auto")
+                    Text("Город").tag("city")
+                }
+                if source == "city" {
+                    TextField("Город", text: Binding(get: { city }, set: { city = String($0.prefix(80)); save() }))
+                }
+                Picker("Ротация", selection: Binding(get: { rotateSeconds }, set: { rotateSeconds = $0; save() })) {
+                    Text("30 секунд").tag(30)
+                    Text("60 секунд").tag(60)
+                }
+            }
+
+            Section("Метрики") {
+                ForEach(SettingsClientPreferences.weatherMetricKeys, id: \.self) { key in
+                    Toggle(weatherMetricLabel(key), isOn: Binding(
+                        get: { metrics.contains(key) },
+                        set: { value in
+                            if value { metrics.insert(key) } else { metrics.remove(key) }
+                            save()
+                        }
+                    ))
+                }
+            }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Метка и погода")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            let settings = try await session.api.getSettings()
+            clientPreferences = settings.clientPreferencesObject
+            SettingsClientPreferences.apply(clientPreferences)
+            metrics = Set(SettingsClientPreferences.localWeatherMetrics())
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func save() {
+        let selected = SettingsClientPreferences.weatherMetricKeys.filter { metrics.contains($0) }
+        UserDefaults.standard.set(selected, forKey: SettingsClientPreferences.sidebarWeatherMetricsKey)
+        let updates: [String: Any] = [
+            "sidebarWeatherEnabled": enabled,
+            "sidebarWeatherSource": source == "city" ? "city" : "auto",
+            "sidebarWeatherCity": String(city.prefix(80)),
+            "sidebarWeatherRotateSeconds": rotateSeconds == 30 ? 30 : 60,
+            "sidebarWeatherMetrics": selected,
+        ]
+        let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: updates)
+        clientPreferences = payload
+        Task {
+            do { try await session.api.saveSettings(["client_preferences": payload]) }
+            catch APIError.unauthorized { session.route = .login }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func weatherMetricLabel(_ key: String) -> String {
+        switch key {
+        case "temperature": return "Температура"
+        case "feels_like": return "Ощущается"
+        case "humidity": return "Влажность"
+        case "wind": return "Ветер"
+        case "precip": return "Осадки"
+        case "uv": return "UV"
+        case "aqi": return "Качество воздуха"
+        case "pressure": return "Давление"
+        case "sun_cycle": return "Восход и закат"
+        default: return key
+        }
+    }
+}
+
+struct SettingsExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data
+
+    init(data: Data = Data()) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
+struct SettingsTransferView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var exportDocument = SettingsExportDocument()
+    @State private var showExporter = false
+    @State private var showImporter = false
+    @State private var isWorking = false
+    @State private var status: String?
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Экспорт") {
+                Button {
+                    Task { await exportSettings() }
+                } label: {
+                    Label("Экспортировать JSON", systemImage: "square.and.arrow.up")
+                }
+                .disabled(isWorking)
+            }
+            Section("Импорт") {
+                Button {
+                    showImporter = true
+                } label: {
+                    Label("Импортировать JSON", systemImage: "square.and.arrow.down")
+                }
+                .disabled(isWorking)
+            }
+            if isWorking { Section { ProgressView("Обработка…") } }
+            if let status { Section { Text(status).font(.footnote).foregroundStyle(Color.smOnline) } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Экспорт и импорт")
+        .navigationBarTitleDisplayMode(.inline)
+        .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: .json, defaultFilename: exportFilename) { result in
+            if case .failure(let error) = result { self.error = error.localizedDescription }
+        }
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
+            Task { await importSettings(result) }
+        }
+    }
+
+    private var exportFilename: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return "sun-settings-\(formatter.string(from: Date())).json"
+    }
+
+    private func exportSettings() async {
+        isWorking = true
+        error = nil
+        status = nil
+        do {
+            let raw = try await session.api.getRawSettingsObject()
+            var server = raw
+            server.removeValue(forKey: "success")
+            server.removeValue(forKey: "online")
+            server.removeValue(forKey: "last_seen")
+            let client = SettingsClientPreferences.mergedClientPreferences(
+                base: (raw["client_preferences"] as? [String: Any]) ?? [:],
+                updates: [:]
+            )
+            let payload: [String: Any] = [
+                "exportedAt": ISO8601DateFormatter().string(from: Date()),
+                "version": 1,
+                "serverSettings": server,
+                "localAppearance": [
+                    "darkMode": client["darkMode"] ?? false,
+                    "messageScale": client["messageScale"] ?? 1.0,
+                    "interfaceSurfaceMode": client["interfaceSurfaceMode"] ?? "glass",
+                    "interfaceThemeStore": client["interfaceThemeStore"] ?? [:],
+                    "chatAppearanceStore": client["chatAppearanceStore"] ?? [:],
+                    "language": client["language"] ?? "ru",
+                    "updatedAt": client["updatedAt"] ?? NSNull(),
+                ],
+                "clientPreferences": client,
+            ]
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            exportDocument = SettingsExportDocument(data: data)
+            showExporter = true
+            status = "Настройки подготовлены к экспорту."
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func importSettings(_ result: Result<URL, Error>) async {
+        isWorking = true
+        error = nil
+        status = nil
+        do {
+            let url = try result.get()
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            guard
+                let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let server = object["serverSettings"] as? [String: Any]
+            else {
+                throw APIError.serverError(0, "Некорректный файл настроек: отсутствует serverSettings.")
+            }
+            let client = (object["clientPreferences"] as? [String: Any])
+                ?? ((object["localAppearance"] as? [String: Any]) ?? [:])
+            let payload = sanitizedImportPayload(server: server, clientPreferences: client)
+            try await session.api.saveSettings(payload)
+            if let prefs = payload["client_preferences"] as? [String: Any] {
+                SettingsClientPreferences.apply(prefs)
+            }
+            await session.loadBootstrap()
+            status = "Настройки импортированы."
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func sanitizedImportPayload(server: [String: Any], clientPreferences: [String: Any]) -> [String: Any] {
+        func text(_ key: String, limit: Int) -> String {
+            String((server[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(limit))
+        }
+        func privacy(_ key: String, fallback: String = "all") -> String {
+            let value = (server[key] as? String ?? "").lowercased()
+            return ["all", "contacts", "nobody"].contains(value) ? value : fallback
+        }
+        let language = (server["language"] as? String ?? "ru").lowercased() == "en" ? "en" : "ru"
+        var payload: [String: Any] = [
+            "username": text("username", limit: 50),
+            "display_name": text("display_name", limit: 50),
+            "language": language,
+            "bio": text("bio", limit: 280),
+            "status_text": text("status_text", limit: 100),
+            "is_public": server["is_public"] as? Bool ?? false,
+            "auto_decline_requests": server["auto_decline_requests"] as? Bool ?? false,
+            "mute_dialog_requests": server["mute_dialog_requests"] as? Bool ?? false,
+            "hide_online_status": server["hide_online_status"] as? Bool ?? false,
+            "last_seen_visibility": privacy("last_seen_visibility", fallback: (server["hide_online_status"] as? Bool ?? false) ? "nobody" : "all"),
+            "avatar_visibility": privacy("avatar_visibility"),
+            "bio_visibility": privacy("bio_visibility"),
+            "forward_link_privacy": privacy("forward_link_privacy"),
+            "group_invite_privacy": privacy("group_invite_privacy"),
+            "voice_message_privacy": privacy("voice_message_privacy"),
+            "message_privacy": privacy("message_privacy"),
+            "read_receipts_privacy": privacy("read_receipts_privacy"),
+            "typing_privacy": privacy("typing_privacy"),
+            "voice_listened_privacy": privacy("voice_listened_privacy"),
+            "call_privacy": privacy("call_privacy"),
+            "public_key_search_privacy": privacy("public_key_search_privacy"),
+        ]
+        payload["client_preferences"] = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: [:])
+        return payload
+    }
+}
+
+struct SecuritySettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var hasPrivateKey = false
+    @State private var copied = false
+    @State private var recoveryPhrase = ""
+    @State private var showRotateConfirm = false
+    @State private var isRotating = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Шифрование") {
+                LabeledContent("Приватный ключ", value: hasPrivateKey ? "В Keychain" : "Не загружен")
+                if let publicKey = session.bootstrap?.user.publicKey, !publicKey.isEmpty {
+                    Button {
+                        UIPasteboard.general.string = publicKey
+                        copied = true
+                    } label: {
+                        Label(copied ? "Публичный ключ скопирован" : "Скопировать публичный ключ", systemImage: "doc.on.doc")
+                    }
+                    Text(publicKey)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                }
+            }
+            Section("Ротация ключа") {
+                SecureField("Текущие 24 слова", text: $recoveryPhrase)
+                    .textContentType(.oneTimeCode)
+                Button(role: .destructive) {
+                    showRotateConfirm = true
+                } label: {
+                    Label("Перевыпустить ключ", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(isRotating || recoveryPhrase.split(separator: " ").count < 12 || !hasPrivateKey)
+            } footer: {
+                Text("После успешной ротации сервер завершит все сессии. Для восстановления сейфа используется та же recovery-фраза, что и в веб-версии.")
+            }
+            Section("Доступ") {
+                NavigationLink { MnemonicRestoreSettingsView() } label: { Label("Секретная фраза", systemImage: "key") }
+                NavigationLink { TotpSettingsView() } label: { Label("TOTP 2FA", systemImage: "number.square") }
+                NavigationLink { DevicesView() } label: { Label("Устройства", systemImage: "iphone.and.ipad") }
+                NavigationLink { BlockedUsersView() } label: { Label("Заблокированные", systemImage: "hand.raised") }
+            }
+            if isRotating {
+                Section { ProgressView("Перевыпуск ключа…") }
+            }
+            if let error {
+                Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) }
+            }
+        }
+        .navigationTitle("Безопасность")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { hasPrivateKey = KeychainService.hasPrivateKey() }
+        .confirmationDialog("Перевыпустить ключ?", isPresented: $showRotateConfirm, titleVisibility: .visible) {
+            Button("Перевыпустить", role: .destructive) { Task { await rotateKey() } }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Все устройства выйдут из аккаунта. Войти обратно можно будет с текущими словами восстановления.")
+        }
+    }
+
+    private func rotateKey() async {
+        let phrase = recoveryPhrase.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        guard !phrase.isEmpty else { return }
+        guard let oldPrivateKey = KeychainService.loadPrivateKey() else {
+            error = "Текущий приватный ключ не найден в Keychain."
+            return
+        }
+        guard let oldPublicKey = session.bootstrap?.user.publicKey, !oldPublicKey.isEmpty else {
+            error = "Текущий публичный ключ не найден."
+            return
+        }
+
+        isRotating = true
+        error = nil
+        do {
+            let currentVault = try await session.api.getLoginVault()
+            let decryptedCurrent = try SunCrypto.decryptVault(currentVault, mnemonic: phrase)
+            let oldPKCS8 = SunCrypto.convertToPKCS8PEM(oldPrivateKey)
+            guard stripPEM(decryptedCurrent) == stripPEM(oldPKCS8) || stripPEM(decryptedCurrent) == stripPEM(oldPrivateKey) else {
+                throw APIError.serverError(0, "Recovery-фраза не соответствует текущему ключу.")
+            }
+
+            let material = try await Task.detached(priority: .userInitiated) {
+                let pair = try SunCrypto.generateRSAKeyPair()
+                let pkcs8 = SunCrypto.convertToPKCS8PEM(pair.privatePEM)
+                let newVault = try SunCrypto.encryptVault(privateKeyPEM: pkcs8, mnemonic: phrase)
+                return (privatePEM: pair.privatePEM, publicPEM: pair.publicPEM, loginVault: newVault)
+            }.value
+
+            let ts = Int(Date().timeIntervalSince1970)
+            let canonical = rotationPayload(oldPublicKey: oldPublicKey, newPublicKey: material.publicPEM, ts: ts)
+            let signature = try SunCrypto.rsaSign(canonical, privateKeyPEM: oldPrivateKey)
+            try KeychainService.savePrivateKey(material.privatePEM)
+            try await session.api.rotateKeys(
+                newPublicKey: stripPEM(material.publicPEM),
+                signature: signature,
+                ts: ts,
+                newLoginVault: material.loginVault
+            )
+            session.api.clearSessionCookiesOnly()
+            session.bootstrap = nil
+            session.contacts = []
+            session.route = .login
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isRotating = false
+    }
+
+    private func stripPEM(_ pem: String) -> String {
+        pem
+            .replacingOccurrences(of: #"-----BEGIN [^-]+-----"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"-----END [^-]+-----"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+    }
+
+    private func rotationPayload(oldPublicKey: String, newPublicKey: String, ts: Int) -> String {
+        "{\"new_public_key\":\"\(stripPEM(newPublicKey))\",\"old_public_key\":\"\(stripPEM(oldPublicKey))\",\"op\":\"key_rotation_v1\",\"ts\":\(ts)}"
+    }
+}
+
+struct MnemonicRestoreSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var phrase = ""
+    @State private var hasPrivateKey = KeychainService.hasPrivateKey()
+    @State private var isWorking = false
+    @State private var error: String?
+    @State private var status: String?
+
+    var body: some View {
+        Form {
+            Section("Состояние") {
+                LabeledContent("Приватный ключ", value: hasPrivateKey ? "Разблокирован" : "Заблокирован")
+                Button(role: .destructive) {
+                    KeychainService.deletePrivateKey()
+                    hasPrivateKey = false
+                    status = "Приватный ключ удалён из локального Keychain."
+                } label: {
+                    Label("Заблокировать локально", systemImage: "lock")
+                }
+                .disabled(!hasPrivateKey || isWorking)
+            }
+
+            Section("Recovery-фраза") {
+                TextEditor(text: $phrase)
+                    .frame(minHeight: 120)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                Button {
+                    Task { await unlockVault() }
+                } label: {
+                    Label("Активировать расшифровку", systemImage: "checkmark.shield")
+                }
+                .disabled(isWorking || phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } footer: {
+                Text("Фраза не отправляется на сервер. iOS скачивает login_vault и расшифровывает его локально, как веб-клиент.")
+            }
+
+            if isWorking { Section { ProgressView("Проверка…") } }
+            if let status { Section { Text(status).font(.footnote).foregroundStyle(Color.smOnline) } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Секретная фраза")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func unlockVault() async {
+        isWorking = true
+        error = nil
+        status = nil
+        do {
+            let normalized = phrase.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            let vault = try await session.api.getLoginVault()
+            let privateKey = try SunCrypto.decryptVault(vault, mnemonic: normalized)
+            try KeychainService.savePrivateKey(privateKey)
+            hasPrivateKey = true
+            phrase = ""
+            status = "Приватный ключ сохранён в Keychain."
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isWorking = false
+    }
+}
+
+struct IntegrationsSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var status: SpotifyStatusResponse?
+    @State private var privacy = "contacts"
+    @State private var hideExplicit = false
+    @State private var isSaving = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Spotify") {
+                LabeledContent("Настроено на сервере", value: (status?.configured ?? false) ? "Да" : "Нет")
+                LabeledContent("Подключение", value: (status?.connected ?? false) ? "Активно" : "Не подключено")
+                if status?.configured == true {
+                    Button {
+                        if let url = URL(string: "/spotify/connect", relativeTo: URL(string: kBaseURL))?.absoluteURL {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Label("Подключить Spotify", systemImage: "music.note")
+                    }
+                    Picker("Кто видит статус", selection: Binding(get: { privacy }, set: { privacy = $0; savePrivacy() })) {
+                        Text("Все").tag("all")
+                        Text("Контакты").tag("contacts")
+                        Text("Никто").tag("nobody")
+                    }
+                    Toggle("Скрывать explicit-треки", isOn: Binding(get: { hideExplicit }, set: { hideExplicit = $0; savePrivacy() }))
+                    Button(role: .destructive) {
+                        Task { await disconnect() }
+                    } label: {
+                        Label("Отключить Spotify", systemImage: "xmark.circle")
+                    }
+                    .disabled(!(status?.connected ?? false))
+                }
+            }
+            if isSaving { Section { ProgressView("Сохранение…") } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Подключения")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func load() async {
+        do {
+            let response = try await session.api.getSpotifyStatus()
+            status = response
+            privacy = response.spotifyPrivacy
+            hideExplicit = response.hideExplicit
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func savePrivacy() {
+        isSaving = true
+        Task {
+            do {
+                try await session.api.saveSpotifyPrivacy(privacy: privacy, hideExplicit: hideExplicit)
+                await load()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isSaving = false
+        }
+    }
+
+    private func disconnect() async {
+        isSaving = true
+        do {
+            try await session.api.disconnectSpotify()
+            await load()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isSaving = false
+    }
+}
+
+struct AccountSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Аккаунт") {
+                LabeledContent("Пользователь", value: "@\(session.bootstrap?.user.username ?? "—")")
+                LabeledContent("Имя", value: session.bootstrap?.user.displayName ?? "—")
+                Button("Выйти") { Task { await session.logout() } }
+            }
+            Section {
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Label("Удалить аккаунт", systemImage: "trash")
+                }
+                .disabled(isDeleting)
+            } footer: {
+                Text("Удаление аккаунта запускает тот же серверный сценарий /api/delete_account, что и веб-версия.")
+            }
+            if isDeleting { Section { ProgressView("Удаление…") } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Аккаунт")
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Удалить аккаунт?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Удалить аккаунт", role: .destructive) { Task { await deleteAccount() } }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Действие необратимо и удалит аккаунт, сессии и данные на сервере.")
+        }
+    }
+
+    private func deleteAccount() async {
+        isDeleting = true
+        error = nil
+        do {
+            try await session.api.deleteAccount()
+            session.api.resetAuthSession()
+            session.bootstrap = nil
+            session.contacts = []
+            session.route = .login
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isDeleting = false
+    }
+}
+
+struct SupportSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @State private var category = "bug"
+    @State private var contact = ""
+    @State private var subject = ""
+    @State private var message = ""
+    @State private var isSubmitting = false
+    @State private var submittedId: Int?
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section("Заявка") {
+                Picker("Категория", selection: $category) {
+                    Text("Ошибка").tag("bug")
+                    Text("Производительность").tag("performance")
+                    Text("Функция").tag("feature")
+                    Text("Безопасность").tag("security")
+                    Text("Другое").tag("other")
+                }
+                TextField("Контакт для ответа", text: $contact)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                TextField("Тема", text: $subject)
+                    .onChange(of: subject) { _, value in
+                        if value.count > 160 { subject = String(value.prefix(160)) }
+                    }
+                TextEditor(text: $message)
+                    .frame(minHeight: 160)
+                    .onChange(of: message) { _, value in
+                        if value.count > 8000 { message = String(value.prefix(8000)) }
+                    }
+                Text("\(message.count)/8000")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Button {
+                    Task { await submit() }
+                } label: {
+                    Label("Отправить", systemImage: "paperplane")
+                }
+                .disabled(isSubmitting || subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Link(destination: URL(string: "/support/feedback", relativeTo: URL(string: kBaseURL))!.absoluteURL) {
+                    Label("Открыть полную форму", systemImage: "safari")
+                }
+            }
+            if isSubmitting { Section { ProgressView("Отправка…") } }
+            if let submittedId { Section { Text("Заявка #\(submittedId) отправлена.").font(.footnote).foregroundStyle(Color.smOnline) } }
+            if let error { Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) } }
+        }
+        .navigationTitle("Поддержка")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func submit() async {
+        isSubmitting = true
+        error = nil
+        submittedId = nil
+        do {
+            let response = try await session.api.submitSupportRequest(
+                category: category,
+                contactHandle: contact.trimmingCharacters(in: .whitespacesAndNewlines),
+                subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
+                message: message.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            submittedId = response.requestId
+            subject = ""
+            message = ""
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isSubmitting = false
+    }
+}
+
 // MARK: - Appearance Settings View
 
 struct AppearanceSettingsView: View {
     @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
+    @AppStorage(SettingsClientPreferences.themePresetKey) private var themePreset = "light-classic"
+    @AppStorage(SettingsClientPreferences.accentColorKey) private var accentColor = "#c4943c"
+    @AppStorage(SettingsClientPreferences.interfaceSurfaceModeKey) private var surfaceMode = "glass"
+    @AppStorage(SettingsClientPreferences.chatAppearanceModeKey) private var chatMode = "default"
+    @AppStorage(SettingsClientPreferences.chatBackgroundColorKey) private var chatBackgroundColor = "#f2ede2"
+    @AppStorage(SettingsClientPreferences.chatGradientAKey) private var gradientA = "#f2ede2"
+    @AppStorage(SettingsClientPreferences.chatGradientBKey) private var gradientB = "#d8ecff"
+    @AppStorage(SettingsClientPreferences.chatBackgroundImageKey) private var backgroundImageDataURL = ""
+    @AppStorage(SettingsClientPreferences.chatBackgroundDarkenKey) private var imageDarken = 0.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundBlurKey) private var imageBlur = 0.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundImageOpacityKey) private var imageOpacity = 1.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundScaleKey) private var imageScale = 1.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundPositionXKey) private var imagePositionX = 50.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundPositionYKey) private var imagePositionY = 50.0
+    @AppStorage(SettingsClientPreferences.chatBackgroundRepeatKey) private var imageRepeat = false
+    @AppStorage(SettingsClientPreferences.bubbleOutKey) private var bubbleOut = "#c4943c"
+    @AppStorage(SettingsClientPreferences.bubbleInKey) private var bubbleIn = "#ffffff"
+    @AppStorage(SettingsClientPreferences.bubbleOutTextKey) private var bubbleOutText = "#15140e"
+    @AppStorage(SettingsClientPreferences.bubbleInTextKey) private var bubbleInText = "#1f1b14"
+    @AppStorage(SettingsClientPreferences.bubbleOpacityKey) private var bubbleOpacity = 1.0
+    @AppStorage(SettingsClientPreferences.messageScaleKey) private var messageScale = 1.0
     @EnvironmentObject var session: SessionStore
+    @State private var clientPreferences: [String: Any] = [:]
+    @State private var selectedBackgroundItem: PhotosPickerItem?
+    @State private var error: String?
 
     var body: some View {
-        ZStack {
-            Color.smBg.ignoresSafeArea()
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    // Theme picker
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ТЕМА ОФОРМЛЕНИЯ")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(Color.smFaint)
-                            .tracking(0.6)
-                            .padding(.horizontal, 4)
-
-                        VStack(spacing: 0) {
-                            ForEach(AppColorScheme.allCases, id: \.rawValue) { scheme in
-                                let isSelected = schemePref == scheme.rawValue
-                                Button(action: { schemePref = scheme.rawValue }) {
-                                    HStack(spacing: 14) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(isSelected ? Color.smAccent.opacity(0.14) : Color.smText.opacity(0.06))
-                                                .frame(width: 32, height: 32)
-                                            Image(systemName: scheme.icon)
-                                                .font(.system(size: 14))
-                                                .foregroundStyle(isSelected ? Color.smAccent2 : Color.smText.opacity(0.65))
-                                        }
-                                        Text(schemeRussian(scheme))
-                                            .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
-                                            .foregroundStyle(Color.smText)
-                                        Spacer()
-                                        if isSelected {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 18))
-                                                .foregroundStyle(Color.smAccent)
-                                        }
-                                    }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 13)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                if scheme != AppColorScheme.allCases.last {
-                                    Rectangle()
-                                        .fill(Color.smBorderSoft)
-                                        .frame(height: 0.5)
-                                        .padding(.leading, 54)
-                                }
-                            }
-                        }
-                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+        Form {
+            Section("Тема") {
+                Picker("Схема iOS", selection: Binding(get: { schemePref }, set: { schemePref = $0; saveAppearance() })) {
+                    ForEach(AppColorScheme.allCases, id: \.rawValue) { scheme in
+                        Label(schemeRussian(scheme), systemImage: scheme.icon).tag(scheme.rawValue)
                     }
-                    .padding(.top, 16)
-
-                    // Preview card
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ПРЕДПРОСМОТР")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(Color.smFaint)
-                            .tracking(0.6)
-                            .padding(.horizontal, 4)
-
-                        VStack(spacing: 10) {
-                            HStack {
-                                AmberOrb(size: 28)
-                                Text("sun messenger")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(Color.smText)
-                                Spacer()
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color.smOnline)
-                            }
-                            HStack {
-                                Spacer()
-                                Text("Привет! Как дела?")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color.smBubbleOutText)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.smBubbleOut, in: RoundedRectangle(cornerRadius: 14))
-                            }
-                            HStack {
-                                Text("Всё отлично, спасибо!")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color.smBubbleInText)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.smBubbleIn, in: RoundedRectangle(cornerRadius: 14))
-                                Spacer()
-                            }
-                        }
-                        .padding(16)
-                        .background(Color(hex: "#f2ede2"), in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-                        .environment(\.colorScheme, AppColorScheme(rawValue: schemePref)?.colorScheme ?? .light)
-                    }
-
-                    Spacer().frame(height: 20)
                 }
-                .padding(.horizontal, 16)
+                Picker("Пресет", selection: Binding(get: { themePreset }, set: { themePreset = $0; applyThemePreset($0); saveAppearance() })) {
+                    Text("Light Classic").tag("light-classic")
+                    Text("Light Sky").tag("light-sky")
+                    Text("Light Mist").tag("light-mist")
+                    Text("Dark Classic").tag("dark-classic")
+                    Text("Dark Forest").tag("dark-forest")
+                    Text("Dark Midnight").tag("dark-midnight")
+                    Text("Dark Graphite").tag("dark-graphite")
+                    Text("Custom Light").tag("custom-light")
+                    Text("Custom Dark").tag("custom-dark")
+                }
+                Picker("Поверхности", selection: Binding(get: { surfaceMode }, set: { surfaceMode = $0; saveAppearance() })) {
+                    Text("Liquid Glass").tag("glass")
+                    Text("Solid").tag("solid")
+                }
+                hexField("Акцент", text: $accentColor)
+            }
+
+            Section("Фон чата") {
+                Picker("Режим", selection: Binding(get: { chatMode }, set: { chatMode = $0; saveAppearance() })) {
+                    Text("По умолчанию").tag("default")
+                    Text("Пресет").tag("preset")
+                    Text("Цвет").tag("color")
+                    Text("Градиент").tag("gradient")
+                    Text("Своё изображение").tag("custom")
+                }
+                hexField("Цвет", text: $chatBackgroundColor)
+                hexField("Градиент A", text: $gradientA)
+                hexField("Градиент B", text: $gradientB)
+                PhotosPicker(selection: $selectedBackgroundItem, matching: .images) {
+                    Label("Выбрать изображение", systemImage: "photo")
+                }
+                Button(role: .destructive) {
+                    backgroundImageDataURL = ""
+                    saveAppearance()
+                } label: {
+                    Label("Удалить изображение", systemImage: "trash")
+                }
+                .disabled(backgroundImageDataURL.isEmpty)
+            }
+
+            Section("Параметры изображения") {
+                settingsSlider("Затемнение", value: $imageDarken, range: 0...0.85)
+                settingsSlider("Размытие", value: $imageBlur, range: 0...24)
+                settingsSlider("Прозрачность", value: $imageOpacity, range: 0.2...1.0)
+                settingsSlider("Масштаб", value: $imageScale, range: 0.5...3.0)
+                settingsSlider("Позиция X", value: $imagePositionX, range: 0...100)
+                settingsSlider("Позиция Y", value: $imagePositionY, range: 0...100)
+                Toggle("Повторять изображение", isOn: Binding(get: { imageRepeat }, set: { imageRepeat = $0; saveAppearance() }))
+            }
+
+            Section("Сообщения") {
+                settingsSlider("Масштаб", value: $messageScale, range: 0.9...1.3)
+                settingsSlider("Прозрачность пузырей", value: $bubbleOpacity, range: 0.45...1.0)
+                hexField("Исходящий пузырь", text: $bubbleOut)
+                hexField("Текст исходящего", text: $bubbleOutText)
+                hexField("Входящий пузырь", text: $bubbleIn)
+                hexField("Текст входящего", text: $bubbleInText)
+            }
+
+            Section("Предпросмотр") {
+                appearancePreview
+                Button("Сбросить цвета") {
+                    resetColors()
+                }
+                Button(role: .destructive) {
+                    resetAppearance()
+                } label: {
+                    Text("Сбросить внешний вид")
+                }
+            }
+
+            if let error {
+                Section { Text(error).font(.footnote).foregroundStyle(Color.smDanger) }
             }
         }
         .navigationTitle("Внешний вид")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.smBg, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .task { await loadAppearance() }
+        .onChange(of: selectedBackgroundItem) { _, item in
+            Task { await importBackground(item) }
+        }
     }
 
     private func schemeRussian(_ scheme: AppColorScheme) -> String {
@@ -2136,6 +3472,180 @@ struct AppearanceSettingsView: View {
         case .light:  return "Светлая"
         case .dark:   return "Тёмная"
         }
+    }
+
+    private func hexField(_ title: String, text: Binding<String>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color(hex: text.wrappedValue))
+                .frame(width: 28, height: 20)
+            TextField("#RRGGBB", text: Binding(
+                get: { text.wrappedValue },
+                set: { value in
+                    text.wrappedValue = normalizeHex(value)
+                    saveAppearance()
+                }
+            ))
+            .multilineTextAlignment(.trailing)
+            .textInputAutocapitalization(.characters)
+            .autocorrectionDisabled(true)
+            .frame(maxWidth: 110)
+        }
+    }
+
+    private func settingsSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            LabeledContent(title, value: "\(value.wrappedValue, specifier: "%.2f")")
+            Slider(value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0; saveAppearance() }), in: range)
+        }
+    }
+
+    private var appearancePreview: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("sun messenger")
+                    .font(.headline)
+                Spacer()
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(Color.smOnline)
+            }
+            HStack {
+                Spacer()
+                Text("Привет! Как дела?")
+                    .font(.body)
+                    .scaleEffect(CGFloat(messageScale), anchor: .trailing)
+                    .foregroundStyle(Color(hex: bubbleOutText))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: bubbleOut).opacity(bubbleOpacity), in: RoundedRectangle(cornerRadius: 14))
+            }
+            HStack {
+                Text("Всё отлично, спасибо!")
+                    .font(.body)
+                    .scaleEffect(CGFloat(messageScale), anchor: .leading)
+                    .foregroundStyle(Color(hex: bubbleInText))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: bubbleIn).opacity(bubbleOpacity), in: RoundedRectangle(cornerRadius: 14))
+                Spacer()
+            }
+        }
+        .padding(.vertical, 8)
+        .background(previewBackground, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var previewBackground: some ShapeStyle {
+        if chatMode == "gradient" {
+            return AnyShapeStyle(LinearGradient(colors: [Color(hex: gradientA), Color(hex: gradientB)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+        return AnyShapeStyle(Color(hex: chatBackgroundColor))
+    }
+
+    private func loadAppearance() async {
+        do {
+            let settings = try await session.api.getSettings()
+            clientPreferences = settings.clientPreferencesObject
+            SettingsClientPreferences.apply(clientPreferences)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func saveAppearance() {
+        let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: [:])
+        clientPreferences = payload
+        Task {
+            do { try await session.api.saveSettings(["client_preferences": payload]) }
+            catch APIError.unauthorized { session.route = .login }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func applyThemePreset(_ preset: String) {
+        switch preset {
+        case "light-sky":
+            schemePref = AppColorScheme.light.rawValue; accentColor = "#2f7ed8"; chatBackgroundColor = "#eaf5ff"
+        case "light-mist":
+            schemePref = AppColorScheme.light.rawValue; accentColor = "#6f8f7b"; chatBackgroundColor = "#eef3ef"
+        case "dark-classic":
+            schemePref = AppColorScheme.dark.rawValue; accentColor = "#d6a553"; chatBackgroundColor = "#15140e"
+        case "dark-forest":
+            schemePref = AppColorScheme.dark.rawValue; accentColor = "#6fbf8f"; chatBackgroundColor = "#102016"
+        case "dark-midnight":
+            schemePref = AppColorScheme.dark.rawValue; accentColor = "#7897ff"; chatBackgroundColor = "#101426"
+        case "dark-graphite":
+            schemePref = AppColorScheme.dark.rawValue; accentColor = "#b9b9b9"; chatBackgroundColor = "#171717"
+        default:
+            if preset.hasPrefix("custom-dark") { schemePref = AppColorScheme.dark.rawValue }
+            else { schemePref = AppColorScheme.light.rawValue }
+        }
+    }
+
+    private func resetColors() {
+        accentColor = "#c4943c"
+        bubbleOut = "#c4943c"
+        bubbleIn = "#ffffff"
+        bubbleOutText = "#15140e"
+        bubbleInText = "#1f1b14"
+        saveAppearance()
+    }
+
+    private func resetAppearance() {
+        schemePref = AppColorScheme.system.rawValue
+        themePreset = "light-classic"
+        accentColor = "#c4943c"
+        surfaceMode = "glass"
+        chatMode = "default"
+        chatBackgroundColor = "#f2ede2"
+        gradientA = "#f2ede2"
+        gradientB = "#d8ecff"
+        backgroundImageDataURL = ""
+        imageDarken = 0
+        imageBlur = 0
+        imageOpacity = 1
+        imageScale = 1
+        imagePositionX = 50
+        imagePositionY = 50
+        imageRepeat = false
+        bubbleOpacity = 1
+        messageScale = 1
+        resetColors()
+    }
+
+    private func importBackground(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let jpeg = resizedJPEG(image: image, maxDimension: 1440)
+            else { return }
+            backgroundImageDataURL = "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
+            chatMode = "custom"
+            saveAppearance()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        selectedBackgroundItem = nil
+    }
+
+    private func resizedJPEG(image: UIImage, maxDimension: CGFloat) -> Data? {
+        let maxSide = max(image.size.width, image.size.height)
+        let scale = maxSide > maxDimension ? maxDimension / maxSide : 1
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let rendered = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        return rendered.jpegData(compressionQuality: 0.82)
+    }
+
+    private func normalizeHex(_ raw: String) -> String {
+        let hex = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+            .uppercased()
+            .filter { "0123456789ABCDEF".contains($0) }
+        return "#\(String(hex.prefix(6)))"
     }
 }
 

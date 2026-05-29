@@ -1,7 +1,33 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let smDidRegisterAPNsAlertToken = Notification.Name("smDidRegisterAPNsAlertToken")
+    static let smDidFailToRegisterAPNsAlertToken = Notification.Name("smDidFailToRegisterAPNsAlertToken")
+}
+
+final class SunmsgAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(token, forKey: "sun_alert_apns_token_v1")
+        NotificationCenter.default.post(
+            name: .smDidRegisterAPNsAlertToken,
+            object: nil,
+            userInfo: ["token": token]
+        )
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(
+            name: .smDidFailToRegisterAPNsAlertToken,
+            object: nil,
+            userInfo: ["error": error.localizedDescription]
+        )
+    }
+}
+
 @main
 struct SunmsgApp: App {
+    @UIApplicationDelegateAdaptor(SunmsgAppDelegate.self) private var appDelegate
     @StateObject private var session = SessionStore()
 
     init() {
