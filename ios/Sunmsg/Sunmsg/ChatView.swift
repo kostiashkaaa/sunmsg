@@ -39,6 +39,8 @@ struct ChatView: View {
     @State private var recordingPulse = false
     @State private var recordingTimerTask: Task<Void, Never>? = nil
     @State private var scrollIntent: MessageScrollIntent = .bottom(animated: false)
+    @State private var isPinnedToBottom = true
+    @State private var messageViewportHeight: CGFloat = 0
     @State private var draftSaveTask: Task<Void, Never>? = nil
     @State private var draftSaveSequence = 0
     @State private var lastSavedDraftText = ""
@@ -554,18 +556,46 @@ struct ChatView: View {
                             .id("typing")
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
+
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottom_anchor")
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: MessageBottomOffsetKey.self,
+                                    value: proxy.frame(in: .named("message_scroll")).maxY
+                                )
+                            }
+                        )
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 8)
                 .padding(.bottom, 6)
             }
+            .coordinateSpace(name: "message_scroll")
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: MessageViewportHeightKey.self, value: proxy.size.height)
+                }
+            )
             .scrollIndicators(.hidden)
             .onAppear { scrollToBottom(proxy, animated: false) }
+            .onPreferenceChange(MessageViewportHeightKey.self) { height in
+                if abs(messageViewportHeight - height) > 0.5 {
+                    messageViewportHeight = height
+                }
+            }
+            .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
+                updatePinnedToBottom(bottomY: bottomY)
+            }
             .onChange(of: messages.count) { _, _ in
                 applyScrollIntent(proxy)
             }
             .onChange(of: partnerIsTyping) { _, typing in
-                if typing { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
+                if typing && isPinnedToBottom {
+                    withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
+                }
             }
         }
     }
@@ -579,18 +609,32 @@ struct ChatView: View {
         case .none:
             break
         }
-        scrollIntent = .bottom(animated: true)
+        scrollIntent = .none
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
         if partnerIsTyping {
             if animated { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
             else { proxy.scrollTo("typing", anchor: .bottom) }
+            isPinnedToBottom = true
             return
         }
         guard let last = messages.last else { return }
         if animated { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
         else { proxy.scrollTo(last.id, anchor: .bottom) }
+        isPinnedToBottom = true
+    }
+
+    private func updatePinnedToBottom(bottomY: CGFloat) {
+        guard messageViewportHeight > 0, bottomY > 0 else { return }
+        let pinned = bottomY <= messageViewportHeight + 72
+        if pinned != isPinnedToBottom {
+            isPinnedToBottom = pinned
+        }
+    }
+
+    private func shouldAutoScroll(for msg: ChatMessage) -> Bool {
+        msg.senderUserId == myId || isPinnedToBottom
     }
 
     private func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
@@ -961,7 +1005,7 @@ struct ChatView: View {
               !messages.contains(where: { $0.id == msg.id })
         else { return }
         let normalized = normalizedMessage(msg)
-        scrollIntent = .bottom(animated: true)
+        scrollIntent = shouldAutoScroll(for: normalized) ? .bottom(animated: true) : .none
         messages.append(normalized)
         if msg.senderUserId != myId {
             Task { try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: [msg.id]) }
@@ -996,7 +1040,7 @@ struct ChatView: View {
             guard let msgId = payload["id"] as? Int else { return }
             if messages.contains(where: { $0.id == msgId }) { return }
             let msg = buildMessageFromPayload(payload, chatId: chatId)
-            scrollIntent = .bottom(animated: true)
+            scrollIntent = shouldAutoScroll(for: msg) ? .bottom(animated: true) : .none
             messages.append(msg)
             Task {
                 await ChatLocalStore.shared.mergeMessages([msg], chatId: contact.chatId)
@@ -2567,7 +2611,26 @@ struct PhotoBubbleView: View {
     }
 
     private func loadImage() async {
-        guard let url else { loadFailed = true; return }
+        guard let url else {
+            await MainActor.run {
+                image = nil
+                loadFailed = true
+            }
+            return
+        }
+        if let cached = SunPhotoCache.image(for: url) {
+            await MainActor.run {
+                guard self.url == url else { return }
+                loadFailed = false
+                image = cached
+            }
+            return
+        }
+        await MainActor.run {
+            guard self.url == url else { return }
+            image = nil
+            loadFailed = false
+        }
         do {
             let imageData: Data
             if let e2ee = SunMediaE2EE.parse(url: url) {
@@ -2580,13 +2643,26 @@ struct PhotoBubbleView: View {
                 }
                 imageData = data
             }
-            if let img = UIImage(data: imageData) {
-                await MainActor.run { self.image = img }
+            let img = await Task.detached(priority: .utility) {
+                SunPhotoCache.makeDisplayImage(from: imageData)
+            }.value
+            if let img {
+                SunPhotoCache.store(img, for: url)
+                await MainActor.run {
+                    guard self.url == url else { return }
+                    self.image = img
+                }
             } else {
-                await MainActor.run { loadFailed = true }
+                await MainActor.run {
+                    guard self.url == url else { return }
+                    loadFailed = true
+                }
             }
         } catch {
-            await MainActor.run { loadFailed = true }
+            await MainActor.run {
+                guard self.url == url else { return }
+                loadFailed = true
+            }
         }
     }
 
@@ -2604,6 +2680,42 @@ struct PhotoBubbleView: View {
                 .font(.system(size: 32))
                 .foregroundStyle(Color.smFaint)
         }
+    }
+}
+
+private enum SunPhotoCache {
+    private static let maxPixelSize = 900
+    private static let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.countLimit = 160
+        cache.totalCostLimit = 72 * 1024 * 1024
+        return cache
+    }()
+
+    static func image(for url: URL) -> UIImage? {
+        cache.object(forKey: url as NSURL)
+    }
+
+    static func store(_ image: UIImage, for url: URL) {
+        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 1
+        cache.setObject(image, forKey: url as NSURL, cost: cost)
+    }
+
+    static func makeDisplayImage(from data: Data) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+            return UIImage(data: data)
+        }
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions) else {
+            return UIImage(data: data)
+        }
+        return UIImage(cgImage: cgImage)
     }
 }
 
@@ -3146,6 +3258,20 @@ struct BubbleAnchorKey: PreferenceKey {
     static let defaultValue: [Int: Anchor<CGRect>] = [:]
     static func reduce(value: inout [Int: Anchor<CGRect>], nextValue: () -> [Int: Anchor<CGRect>]) {
         value.merge(nextValue()) { _, new in new }
+    }
+}
+
+private struct MessageViewportHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct MessageBottomOffsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
