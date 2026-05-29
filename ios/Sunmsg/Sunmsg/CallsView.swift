@@ -69,7 +69,6 @@ struct CallsView: View {
             Text("Звонки")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Color.smText)
-                .tracking(-0.6)
 
             Spacer()
 
@@ -195,7 +194,6 @@ struct CallRowView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(call.missed ? Color(hex: "#c14242") : Color.smText)
                     .lineLimit(1)
-                    .tracking(-0.2)
 
                 HStack(spacing: 5) {
                     callArrow
