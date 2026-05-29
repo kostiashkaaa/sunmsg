@@ -2581,15 +2581,43 @@ struct VideoBubbleView: View {
     }
 
     private func generateThumbnail(from asset: AVAsset, expectedURL: URL) async {
+        if let cached = SunVideoThumbnailCache.image(for: expectedURL) {
+            await MainActor.run {
+                guard self.url == expectedURL else { return }
+                self.thumbnail = cached
+            }
+            return
+        }
+
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
         do {
             let cg = try await gen.image(at: CMTime(seconds: 0.5, preferredTimescale: 600)).image
+            let image = UIImage(cgImage: cg)
+            SunVideoThumbnailCache.store(image, for: expectedURL)
             await MainActor.run {
                 guard self.url == expectedURL else { return }
-                self.thumbnail = UIImage(cgImage: cg)
+                self.thumbnail = image
             }
         } catch { }
+    }
+}
+
+private enum SunVideoThumbnailCache {
+    private static let cache: NSCache<NSURL, UIImage> = {
+        let cache = NSCache<NSURL, UIImage>()
+        cache.countLimit = 96
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
+
+    static func image(for url: URL) -> UIImage? {
+        cache.object(forKey: url as NSURL)
+    }
+
+    static func store(_ image: UIImage, for url: URL) {
+        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 1
+        cache.setObject(image, forKey: url as NSURL, cost: cost)
     }
 }
 
