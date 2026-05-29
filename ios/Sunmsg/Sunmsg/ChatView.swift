@@ -483,6 +483,7 @@ struct ChatView: View {
             reactions.append(MessageReaction(emoji: emoji, count: 1, reactedByMe: true))
         }
         messages[i].reactions = reactions
+        invalidateTimeline()
     }
 
     private func parseReactions(_ raw: Any?) -> [MessageReaction] {
@@ -1305,6 +1306,7 @@ struct ChatView: View {
                         messages[i].isEdited = true
                         decryptedTexts[mid] = text
                         let updated = messages[i]
+                        invalidateTimeline()
                         Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: chatId) }
                     }
                     isSending = false
@@ -1333,6 +1335,7 @@ struct ChatView: View {
         scrollIntent = .none
         withAnimation(.easeInOut(duration: 0.22)) {
             messages.removeAll { $0.id == id }
+            invalidateTimeline()
         }
         Task { await ChatLocalStore.shared.deleteMessages(ids: [id], chatId: contact.chatId) }
         pendingDelete = nil
@@ -1392,6 +1395,7 @@ struct ChatView: View {
                         messages.append(normalized)
                     }
                     decryptedTexts[sent.id] = text
+                    invalidateTimeline()
                     sendError = nil
                     isSending = false
                     Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
@@ -1708,6 +1712,7 @@ struct ChatView: View {
                     messages.append(normalized)
                 }
                 decryptedTexts[sent.id] = sunfileJSON
+                invalidateTimeline()
                 isUploadingMedia = false
                 Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
             }
@@ -1817,6 +1822,7 @@ struct ChatView: View {
                 }
                 // Store the decrypted sunfile JSON so the bubble renders it
                 decryptedTexts[sent.id] = sunfileJSON
+                invalidateTimeline()
                 isUploadingMedia = false
                 Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
             }
