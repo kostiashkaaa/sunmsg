@@ -481,29 +481,24 @@ struct GroupCreateView: View {
     @State private var query = ""
     @State private var remoteResults: [SearchUserResult] = []
     @State private var selected: [GroupMemberCandidate] = []
+    @State private var visibleCandidates: [GroupMemberCandidate]?
     @State private var searchSeq = 0
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var isCreating = false
     @State private var error: String?
 
-    private var selectedIds: Set<Int> {
-        Set(selected.map { $0.userId })
-    }
-
-    private var localCandidates: [GroupMemberCandidate] {
+    private func makeVisibleCandidates() -> [GroupMemberCandidate] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedIds = Set(selected.map { $0.userId })
         let currentUserId = session.bootstrap?.user.id
-        return session.contacts
+        let localCandidates = session.contacts
             .compactMap(GroupMemberCandidate.from)
             .filter { $0.userId != currentUserId }
-    }
-
-    private var visibleCandidates: [GroupMemberCandidate] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let local = filter(candidates: localCandidates, query: trimmed)
         let remote = remoteResults
             .map(GroupMemberCandidate.from)
-            .filter { $0.userId != session.bootstrap?.user.id }
+            .filter { $0.userId != currentUserId }
 
         var merged: [Int: GroupMemberCandidate] = [:]
         for candidate in local { merged[candidate.userId] = candidate }
@@ -559,6 +554,8 @@ struct GroupCreateView: View {
                 searchTask?.cancel()
                 searchTask = nil
             }
+            .onAppear { rebuildVisibleCandidates() }
+            .onReceive(session.$contacts) { _ in rebuildVisibleCandidates() }
         }
     }
 
@@ -622,6 +619,7 @@ struct GroupCreateView: View {
     private func selectedChip(_ member: GroupMemberCandidate) -> some View {
         Button {
             selected.removeAll { $0.userId == member.userId }
+            rebuildVisibleCandidates()
         } label: {
             HStack(spacing: 7) {
                 SmAvatarView(name: member.displayName, avatarUrl: member.avatarUrl, size: 24)
@@ -661,6 +659,7 @@ struct GroupCreateView: View {
                 Button {
                     query = ""
                     remoteResults = []
+                    rebuildVisibleCandidates()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15))
@@ -678,7 +677,7 @@ struct GroupCreateView: View {
     }
 
     private var candidateList: some View {
-        let candidates = visibleCandidates
+        let candidates = visibleCandidates ?? makeVisibleCandidates()
         return Group {
             if candidates.isEmpty {
                 VStack(spacing: 10) {
@@ -695,9 +694,9 @@ struct GroupCreateView: View {
             } else {
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(candidates.enumerated()), id: \.element.id) { index, candidate in
+                        ForEach(candidates) { candidate in
                             candidateRow(candidate)
-                            if index < candidates.count - 1 {
+                            if candidate.id != candidates.last?.id {
                                 Divider().padding(.leading, 68).background(Color.smBorderSoft)
                             }
                         }
@@ -716,6 +715,7 @@ struct GroupCreateView: View {
         Button {
             guard !candidate.isDenied else { return }
             selected.append(candidate)
+            rebuildVisibleCandidates()
             error = nil
         } label: {
             HStack(spacing: 12) {
@@ -787,9 +787,11 @@ struct GroupCreateView: View {
             remoteResults = []
             isSearching = false
             searchTask = nil
+            rebuildVisibleCandidates()
             return
         }
         isSearching = true
+        rebuildVisibleCandidates()
         searchSeq += 1
         let seq = searchSeq
         searchTask = Task {
@@ -804,6 +806,7 @@ struct GroupCreateView: View {
                     remoteResults = found
                     isSearching = false
                     searchTask = nil
+                    rebuildVisibleCandidates()
                 }
             } catch {
                 await MainActor.run {
@@ -812,6 +815,13 @@ struct GroupCreateView: View {
                     searchTask = nil
                 }
             }
+        }
+    }
+
+    private func rebuildVisibleCandidates() {
+        let next = makeVisibleCandidates()
+        if visibleCandidates != next {
+            visibleCandidates = next
         }
     }
 

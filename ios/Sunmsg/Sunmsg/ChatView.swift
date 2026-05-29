@@ -2263,7 +2263,6 @@ struct MessageBubbleView: View {
 
                     if !message.reactions.isEmpty {
                         reactionChips
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: message.reactions)
                     }
                 }
             }
@@ -2363,7 +2362,6 @@ struct MessageBubbleView: View {
             }
             Spacer(minLength: 0)
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: message.reactions)
     }
 
     /// Reaction chips for media/call bubbles (rendered just under the bubble).
