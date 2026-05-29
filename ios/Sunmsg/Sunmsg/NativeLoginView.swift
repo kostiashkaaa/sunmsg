@@ -76,9 +76,10 @@ struct NativeLoginView: View {
 
             if isLoading {
                 loadingOverlay
-                    .transition(.opacity.animation(.easeInOut(duration: 0.18)))
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.18), value: isLoading)
         .onChange(of: flow) { _, newFlow in
             if let screen = LoginContentScreen(newFlow) {
                 lastContentScreen = screen
