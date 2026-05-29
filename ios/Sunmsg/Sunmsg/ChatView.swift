@@ -1953,7 +1953,7 @@ struct ChatView: View {
 
         // AVAudioApplication.requestRecordPermission is the iOS 17+ API.
         AVAudioApplication.requestRecordPermission { granted in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard self.recordingStartToken == token, self.isRecording else { return }
                 guard granted else {
                     self.failRecordingStart("Нет доступа к микрофону. Разрешите в Настройках.")
