@@ -9,7 +9,6 @@ enum ChatScrollIntent: Equatable {
 
 struct ChatMessageTimelineView: View, Equatable {
     let messages: [ChatMessage]
-    let decryptedTexts: [Int: String]
     let myId: Int
     let isGroup: Bool
     let hasOlderMessages: Bool
@@ -22,6 +21,8 @@ struct ChatMessageTimelineView: View, Equatable {
     let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
     let timelineVersion: Int
+    private let decryptedTextCount: Int
+    private let rows: [MessageRenderRow]
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
@@ -128,7 +129,6 @@ struct ChatMessageTimelineView: View, Equatable {
         onToggleSelection: @escaping (Int) -> Void
     ) {
         self.messages = messages
-        self.decryptedTexts = decryptedTexts
         self.myId = myId
         self.isGroup = isGroup
         self.hasOlderMessages = hasOlderMessages
@@ -141,6 +141,13 @@ struct ChatMessageTimelineView: View, Equatable {
         self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
+        self.decryptedTextCount = decryptedTexts.count
+        self.rows = Self.makeRows(
+            messages: messages,
+            decryptedTexts: decryptedTexts,
+            myId: myId,
+            isGroup: isGroup
+        )
         self._scrollIntent = scrollIntent
         self._isPinnedToBottom = isPinnedToBottom
         self.onLoadOlder = onLoadOlder
@@ -203,12 +210,6 @@ struct ChatMessageTimelineView: View, Equatable {
 
     var body: some View {
         GeometryReader { viewportProxy in
-            let rows = Self.makeRows(
-                messages: messages,
-                decryptedTexts: decryptedTexts,
-                myId: myId,
-                isGroup: isGroup
-            )
             let maxBubbleWidth = Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width)
 
             ScrollViewReader { proxy in
@@ -267,7 +268,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 .onChange(of: messages.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
-                .onChange(of: decryptedTexts.count) { _, _ in
+                .onChange(of: decryptedTextCount) { _, _ in
                     if isPinnedToBottom {
                         scrollToBottom(proxy, animated: false)
                     }
