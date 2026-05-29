@@ -128,6 +128,10 @@ struct ChatComposerBar: View {
             .buttonStyle(PressableStyle(scale: 0.92))
             .disabled(!canSendSecureMessage || isSending || isUploadingMedia)
             .accessibilityLabel("Вложение")
+        } else {
+            Color.clear
+                .frame(width: 36, height: 36)
+                .accessibilityHidden(true)
         }
     }
 
