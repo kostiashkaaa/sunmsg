@@ -1205,37 +1205,43 @@ struct MainTabView: View {
                 InCallView(providedCall: callItem, session: session)
             }
 
-            // Incoming call overlay (top of stack)
-            if let incoming = session.incomingCall {
-                IncomingCallView(call: incoming, session: session)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.25)))
-                    .zIndex(10)
-            }
-
-            // Call error toast
-            if let err = session.callError {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 10) {
-                        Image(systemName: "phone.slash.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.smDanger)
-                        Text(err)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color.smText)
-                            .lineLimit(2)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smDanger.opacity(0.3), lineWidth: 0.5))
-                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 90)
+            Group {
+                // Incoming call overlay (top of stack)
+                if let incoming = session.incomingCall {
+                    IncomingCallView(call: incoming, session: session)
+                        .transition(.opacity)
+                        .zIndex(10)
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity).animation(.spring(duration: 0.35)))
-                .zIndex(5)
             }
+            .animation(.easeInOut(duration: 0.25), value: session.incomingCall)
+
+            Group {
+                // Call error toast
+                if let err = session.callError {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 10) {
+                            Image(systemName: "phone.slash.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.smDanger)
+                            Text(err)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color.smText)
+                                .lineLimit(2)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smDanger.opacity(0.3), lineWidth: 0.5))
+                        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 90)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(5)
+                }
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.86), value: session.callError)
         }
     }
 }
