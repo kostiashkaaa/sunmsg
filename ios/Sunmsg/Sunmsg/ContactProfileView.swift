@@ -249,7 +249,7 @@ struct ContactProfileView: View {
         let activeKind = kinds.contains(selectedSharedContentKind) ? selectedSharedContentKind : kinds.first
         let visibleItems = activeKind.map { items(for: $0) } ?? []
 
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             Text("ОБЩИЙ КОНТЕНТ")
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Color.smFaint)
