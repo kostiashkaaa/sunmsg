@@ -2033,9 +2033,9 @@ struct MessageBubbleView: View {
         if let sunfile = parsedSunfile {
             switch resolvedMediaType ?? "file" {
             case "photo":
-                PhotoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail)
+                PhotoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
             case "video":
-                VideoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail)
+                VideoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
             case "audio":
                 AudioBubbleView(url: sunfile.fullURL, name: sunfile.name, isFromMe: isFromMe, isTail: isTail)
             case "file":
@@ -2232,9 +2232,14 @@ struct PhotoBubbleView: View {
     let url: URL?
     let isFromMe: Bool
     let isTail: Bool
+    let maxWidth: CGFloat
     @State private var image: UIImage?
     @State private var loadFailed = false
     @State private var showFullscreen = false
+
+    private var mediaWidth: CGFloat {
+        min(260, max(120, maxWidth))
+    }
 
     var body: some View {
         Button(action: { if image != nil { showFullscreen = true } }) {
@@ -2249,7 +2254,7 @@ struct PhotoBubbleView: View {
                     loadingPlaceholder
                 }
             }
-            .frame(width: 220, height: 160)
+            .frame(width: mediaWidth, height: mediaWidth * 0.727)
             .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
             .overlay(
                 BubbleShape(isFromMe: isFromMe, isTail: isTail)
@@ -2419,11 +2424,16 @@ struct VideoBubbleView: View {
     let url: URL?
     let isFromMe: Bool
     let isTail: Bool
+    let maxWidth: CGFloat
     @State private var showPlayer = false
     @State private var thumbnail: UIImage?
     /// Resolved playback URL (may be a local temp file if web-encrypted).
     @State private var effectiveURL: URL?
     @State private var decryptedTempURL: URL?
+
+    private var mediaWidth: CGFloat {
+        min(260, max(120, maxWidth))
+    }
 
     var body: some View {
         Button(action: { if effectiveURL != nil { showPlayer = true } }) {
@@ -2448,7 +2458,7 @@ struct VideoBubbleView: View {
                             .offset(x: 2)
                     )
             }
-            .frame(width: 220, height: 160)
+            .frame(width: mediaWidth, height: mediaWidth * 0.727)
             .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
             .overlay(
                 BubbleShape(isFromMe: isFromMe, isTail: isTail)
