@@ -397,6 +397,7 @@ struct AppSettings: Decodable {
     var groupInvitePrivacy: String
     var online: Bool
     var lastSeen: Double?
+    var language: String
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
@@ -411,6 +412,7 @@ struct AppSettings: Decodable {
         case groupInvitePrivacy = "group_invite_privacy"
         case online
         case lastSeen = "last_seen"
+        case language
     }
 
     init(from decoder: Decoder) throws {
@@ -427,6 +429,8 @@ struct AppSettings: Decodable {
         groupInvitePrivacy = (try? c.decodeIfPresent(String.self, forKey: .groupInvitePrivacy)) ?? "contacts"
         online = (try? c.decodeIfPresent(Bool.self, forKey: .online)) ?? false
         lastSeen = SunDateParser.decodeTimestamp(c, forKey: .lastSeen)
+        let rawLanguage = ((try? c.decodeIfPresent(String.self, forKey: .language)) ?? "ru").lowercased()
+        language = rawLanguage == "en" ? "en" : "ru"
     }
 }
 

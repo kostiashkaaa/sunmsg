@@ -1195,6 +1195,7 @@ struct SettingsView: View {
     @State private var isSavingSettings = false
     @State private var isSyncing = false
     @State private var settingsError: String?
+    @State private var selectedLanguage = "ru"
     @State private var showOnlineStatus = true
     @State private var shareTyping = true
     @State private var sendReadReceipts = true
@@ -1206,6 +1207,7 @@ struct SettingsView: View {
     @State private var showProfileSheet = false
     @State private var showQRSheet = false
     @State private var showLogoutConfirm = false
+    @State private var showLanguageDialog = false
     @State private var showThemeSheet = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
@@ -1292,8 +1294,8 @@ struct SettingsView: View {
                                 icon: "globe",
                                 tint: .neutral,
                                 label: "Язык",
-                                trail: "Русский",
-                                action: { }
+                                trail: languageLabel(selectedLanguage),
+                                action: { showLanguageDialog = true }
                             )
                             divider
                             settingsRow(
@@ -1426,6 +1428,11 @@ struct SettingsView: View {
         } message: {
             Text("Сообщения останутся зашифрованными на устройстве, пока вы снова не войдёте.")
         }
+        .confirmationDialog("Язык интерфейса", isPresented: $showLanguageDialog, titleVisibility: .visible) {
+            Button("Русский") { setLanguage("ru") }
+            Button("English") { setLanguage("en") }
+            Button("Отмена", role: .cancel) { }
+        }
         .task { await loadSettingsIfNeeded() }
         .onAppear { socketState = SocketClient.shared.state }
         .onReceive(NotificationCenter.default.publisher(for: .smSocketStateChanged)) { _ in
@@ -1435,6 +1442,10 @@ struct SettingsView: View {
 
     private var themeLabel: String {
         AppColorScheme(rawValue: schemePref)?.label ?? "Система"
+    }
+
+    private func languageLabel(_ language: String) -> String {
+        language == "en" ? "English" : "Русский"
     }
 
     private var divider: some View {
@@ -1616,10 +1627,18 @@ struct SettingsView: View {
             shareTyping = current.typingPrivacy != "nobody"
             sendReadReceipts = current.readReceiptsPrivacy != "nobody"
             muteDialogRequests = current.muteDialogRequests
+            selectedLanguage = current.language
         } catch {
             settingsError = error.localizedDescription
         }
         isLoadingSettings = false
+    }
+
+    private func setLanguage(_ language: String) {
+        let normalized = language == "en" ? "en" : "ru"
+        guard selectedLanguage != normalized, !isSavingSettings else { return }
+        selectedLanguage = normalized
+        saveSettings(["language": normalized])
     }
 
     private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
