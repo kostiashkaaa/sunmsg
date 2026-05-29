@@ -1506,12 +1506,12 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user?.displayName ?? "—")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smText)
                         .tracking(-0.3)
                         .lineLimit(1)
                     Text("@\(user?.username ?? "—")")
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(Color.smAccent2)
                     SyncChipView()
                         .padding(.top, 4)
@@ -1582,12 +1582,12 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(label)
-                        .font(.system(size: 14.5, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(labelColor)
                         .tracking(-0.2)
                     if let sub {
                         Text(sub)
-                            .font(.system(size: 11.5))
+                            .font(.caption2)
                             .foregroundStyle(Color.smMuted)
                             .lineLimit(1)
                     }
@@ -1595,7 +1595,7 @@ struct SettingsView: View {
                 Spacer()
                 if let badge {
                     Text(badge)
-                        .font(.system(size: 10.5, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .frame(minWidth: 18, minHeight: 18)
@@ -1603,7 +1603,7 @@ struct SettingsView: View {
                 }
                 if let trail {
                     Text(trail)
-                        .font(.system(size: 13))
+                        .font(.caption)
                         .foregroundStyle(Color.smMuted)
                 }
                 if tint != .danger {
@@ -1628,12 +1628,12 @@ struct SettingsView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(.system(size: 14.5, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smText)
                     .tracking(-0.2)
                 if let sub {
                     Text(sub)
-                        .font(.system(size: 11.5))
+                        .font(.caption2)
                         .foregroundStyle(Color.smMuted)
                 }
             }
