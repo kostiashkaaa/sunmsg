@@ -29,7 +29,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let onRequestMenu: (Int) -> Void
     let onToggleSelection: (Int) -> Void
 
-    private struct MessageRenderRow: Identifiable {
+    private struct MessageRenderRow: Identifiable, Equatable {
         let id: Int
         let message: ChatMessage
         let decryptedText: String?
@@ -37,6 +37,72 @@ struct ChatMessageTimelineView: View, Equatable {
         let showSender: Bool
         let isTail: Bool
         let showsDate: Bool
+
+        static func == (lhs: MessageRenderRow, rhs: MessageRenderRow) -> Bool {
+            lhs.id == rhs.id
+                && lhs.decryptedText == rhs.decryptedText
+                && lhs.isFromMe == rhs.isFromMe
+                && lhs.showSender == rhs.showSender
+                && lhs.isTail == rhs.isTail
+                && lhs.showsDate == rhs.showsDate
+                && lhs.message.message == rhs.message.message
+                && lhs.message.messageType == rhs.message.messageType
+                && lhs.message.createdAt == rhs.message.createdAt
+                && lhs.message.senderUserId == rhs.message.senderUserId
+                && lhs.message.senderDisplayName == rhs.message.senderDisplayName
+                && lhs.message.senderUsername == rhs.message.senderUsername
+                && lhs.message.replyToId == rhs.message.replyToId
+                && lhs.message.replyMessage == rhs.message.replyMessage
+                && lhs.message.forwardFromName == rhs.message.forwardFromName
+                && lhs.message.reactions == rhs.message.reactions
+                && lhs.message.isEdited == rhs.message.isEdited
+                && lhs.message.isRead == rhs.message.isRead
+                && lhs.message.isDelivered == rhs.message.isDelivered
+        }
+    }
+
+    private struct TimelineMessageRowView: View, Equatable {
+        let row: MessageRenderRow
+        let maxBubbleWidth: CGFloat
+        let isPinned: Bool
+        let isSelectionMode: Bool
+        let isSelected: Bool
+        let isMenuTarget: Bool
+        let onToggleReaction: (Int, String) -> Void
+        let onRequestMenu: (Int) -> Void
+        let onToggleSelection: (Int) -> Void
+
+        static func == (lhs: TimelineMessageRowView, rhs: TimelineMessageRowView) -> Bool {
+            lhs.row == rhs.row
+                && lhs.maxBubbleWidth == rhs.maxBubbleWidth
+                && lhs.isPinned == rhs.isPinned
+                && lhs.isSelectionMode == rhs.isSelectionMode
+                && lhs.isSelected == rhs.isSelected
+                && lhs.isMenuTarget == rhs.isMenuTarget
+        }
+
+        var body: some View {
+            if row.showsDate {
+                DateChipView(timestamp: row.message.createdAt)
+            }
+
+            MessageBubbleView(
+                message: row.message,
+                decryptedText: row.decryptedText,
+                isFromMe: row.isFromMe,
+                showSender: row.showSender,
+                isTail: row.isTail,
+                maxBubbleWidth: maxBubbleWidth,
+                isPinned: isPinned,
+                isSelectionMode: isSelectionMode,
+                isSelected: isSelected,
+                onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
+                onRequestMenu: { onRequestMenu(row.id) },
+                onToggleSelection: { onToggleSelection(row.id) }
+            )
+            .id(row.id)
+            .opacity(isMenuTarget ? 0 : 1)
+        }
     }
 
     init(
@@ -151,26 +217,18 @@ struct ChatMessageTimelineView: View, Equatable {
                         olderMessagesControl
 
                         ForEach(rows) { row in
-                            if row.showsDate {
-                                DateChipView(timestamp: row.message.createdAt)
-                            }
-
-                            MessageBubbleView(
-                                message: row.message,
-                                decryptedText: row.decryptedText,
-                                isFromMe: row.isFromMe,
-                                showSender: row.showSender,
-                                isTail: row.isTail,
+                            TimelineMessageRowView(
+                                row: row,
                                 maxBubbleWidth: maxBubbleWidth,
                                 isPinned: pinnedMessageIds.contains(row.id),
                                 isSelectionMode: isSelectionMode,
                                 isSelected: selectedMessageIds.contains(row.id),
-                                onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
-                                onRequestMenu: { onRequestMenu(row.id) },
-                                onToggleSelection: { onToggleSelection(row.id) }
+                                isMenuTarget: menuTargetId == row.id,
+                                onToggleReaction: onToggleReaction,
+                                onRequestMenu: onRequestMenu,
+                                onToggleSelection: onToggleSelection
                             )
-                            .id(row.id)
-                            .opacity(menuTargetId == row.id ? 0 : 1)
+                            .equatable()
                         }
 
                         if partnerIsTyping {
