@@ -82,7 +82,7 @@ final class SocketClient: NSObject, @unchecked Sendable {
     private let maxReconnectDelay: TimeInterval = 32  // 2^5
 
     private var webSocketTask: URLSessionWebSocketTask?
-    private var pingTimer: Timer?
+    private var pingTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
     private var queuedEmits: [QueuedEmit] = []
     private let maxQueuedEmits = 100
@@ -148,8 +148,8 @@ final class SocketClient: NSObject, @unchecked Sendable {
     }
 
     private func closeSocket(reconnect: Bool) {
-        pingTimer?.invalidate()
-        pingTimer = nil
+        pingTask?.cancel()
+        pingTask = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         state = .disconnected
@@ -238,7 +238,7 @@ final class SocketClient: NSObject, @unchecked Sendable {
             // SIO CONNECT confirmed
             reconnectAttempts = 0
             state = .connected
-            startPingTimer()
+            startPingTask()
             flushQueuedEmits()
 
         case "1":
@@ -334,18 +334,25 @@ final class SocketClient: NSObject, @unchecked Sendable {
         webSocketTask?.send(.string(text)) { _ in }
     }
 
-    // MARK: - Client-side ping timer
+    // MARK: - Client-side ping task
     //
     // The server sends its own pings every ~25 s (we reply with "3").
-    // This timer additionally sends a native WebSocket ping to detect
+    // This task additionally sends a native WebSocket ping to detect
     // silent TCP drops that Engine.IO wouldn't catch in time.
 
-    private func startPingTimer() {
-        pingTimer?.invalidate()
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
-            // Timer fires on the main run loop — `assumeIsolated` satisfies the
-            // Swift concurrency checker without spawning an extra Task.
-            MainActor.assumeIsolated { self?.webSocketTask?.sendPing { _ in } }
+    private func startPingTask() {
+        pingTask?.cancel()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard !Task.isCancelled else { return }
+                let didPing = await MainActor.run { () -> Bool in
+                    guard let self, self.state == .connected else { return false }
+                    self.webSocketTask?.sendPing { _ in }
+                    return true
+                }
+                guard didPing else { return }
+            }
         }
     }
 }
