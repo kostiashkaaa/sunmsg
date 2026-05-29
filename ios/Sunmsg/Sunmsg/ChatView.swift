@@ -2001,7 +2001,7 @@ struct ChatView: View {
                 recorder.prepareToRecord()
                 let didStart = recorder.record()
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     guard self.recordingStartToken == token, self.isRecording else {
                         recorder.stop()
                         try? FileManager.default.removeItem(at: tmpURL)
@@ -2017,7 +2017,7 @@ struct ChatView: View {
                     self.recordingURL = tmpURL
                 }
             } catch {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     guard self.recordingStartToken == token else {
                         try? FileManager.default.removeItem(at: tmpURL)
                         return
