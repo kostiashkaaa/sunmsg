@@ -33,6 +33,7 @@ private enum LoginContentScreen: Hashable {
 
 struct NativeLoginView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var flow: LoginFlow = .landing
     @State private var lastContentScreen: LoginContentScreen = .landing
     @State private var username = ""
@@ -49,6 +50,10 @@ struct NativeLoginView: View {
 
     private var isLoading: Bool {
         flow == .loading
+    }
+
+    private var contentTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .trailing))
     }
 
     var body: some View {
@@ -71,15 +76,15 @@ struct NativeLoginView: View {
                 }
             }
             .id(contentScreen)
-            .transition(.opacity.combined(with: .move(edge: .trailing)))
-            .animation(.easeInOut(duration: 0.22), value: contentScreen)
+            .transition(contentTransition)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: contentScreen)
 
             if isLoading {
                 loadingOverlay
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: isLoading)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: isLoading)
         .onChange(of: flow) { _, newFlow in
             if let screen = LoginContentScreen(newFlow) {
                 lastContentScreen = screen
@@ -125,11 +130,7 @@ struct NativeLoginView: View {
                     .padding(.bottom, 20)
 
                     // Primary: create new account (4-point sparkle, dark fill, matches prototype)
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            session.route = .register
-                        }
-                    }) {
+                    Button(action: openRegister) {
                         HStack(spacing: 8) {
                             SparkleStar(size: 14)
                                 .foregroundStyle(Color(hex: "#fbf8f1"))
@@ -482,6 +483,17 @@ struct NativeLoginView: View {
     }
 
     // MARK: - Actions
+
+    private func openRegister() {
+        focusedField = nil
+        guard !reduceMotion else {
+            session.route = .register
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.22)) {
+            session.route = .register
+        }
+    }
 
     private func handleSignIn() {
         focusedField = nil
