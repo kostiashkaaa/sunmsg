@@ -218,7 +218,7 @@ struct InCallView: View {
                             .frame(width: 6, height: 6)
                             .shadow(color: Color(hex: "#5db87e").opacity(0.7), radius: 4)
                         Text("ЗАШИФРОВАНО")
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color(hex: "#fbf8f1"))
                             .tracking(0.5)
 
@@ -226,7 +226,7 @@ struct InCallView: View {
                             HStack(spacing: 3) {
                                 ForEach(Array(webrtc.verificationCode.filter(\.isNumber).enumerated()), id: \.offset) { _, ch in
                                     Text(String(ch))
-                                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                        .font(.system(.caption2, design: .monospaced).weight(.bold))
                                         .foregroundStyle(Color(hex: "#15140e"))
                                         .padding(.horizontal, 4)
                                         .padding(.vertical, 2)
@@ -274,7 +274,7 @@ struct InCallView: View {
                     .padding(.bottom, 22)
 
                     Text(call.partnerName)
-                        .font(.system(size: 26, weight: .semibold))
+                        .font(.title2.weight(.semibold))
                         .foregroundStyle(Color(hex: "#fbf8f1"))
                         .tracking(-0.6)
 
@@ -283,7 +283,7 @@ struct InCallView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.85))
                         Text(call.callType == "video" ? "Видеозвонок · WiFi" : "Голосовой звонок · WiFi")
-                            .font(.system(size: 13.5))
+                            .font(.caption)
                             .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.85))
                     }
                     .padding(.top, 4)
@@ -291,13 +291,13 @@ struct InCallView: View {
                     // Connecting hint
                     if webrtc.connectionState != .connected && webrtc.connectionState != .completed {
                         Text("Соединение…")
-                            .font(.system(size: 14).italic())
+                            .font(.subheadline.italic())
                             .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.70))
                             .padding(.top, 14)
                     } else if call.remoteAudioMuted {
                         HStack(spacing: 5) {
                             Image(systemName: "mic.slash.fill").font(.system(size: 11))
-                            Text("Собеседник отключил микрофон").font(.system(size: 12.5))
+                            Text("Собеседник отключил микрофон").font(.caption)
                         }
                         .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.80))
                         .padding(.top, 12)
