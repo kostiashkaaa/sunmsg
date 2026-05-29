@@ -23,6 +23,7 @@ struct ChatView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsClientPreferences.chatAppearanceModeKey) private var chatAppearanceMode = "default"
     @AppStorage(SettingsClientPreferences.chatBackgroundColorKey) private var chatBackgroundColor = "#f2ede2"
     @AppStorage(SettingsClientPreferences.chatGradientAKey) private var chatGradientA = "#f2ede2"
@@ -210,7 +211,8 @@ struct ChatView: View {
                 guard let item else { return }
                 Task { await handleSelectedPhoto(item) }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
                 refreshPrivateKeyState()
             }
     }
