@@ -471,7 +471,7 @@ struct CallControlBtn: View {
                         radius: 4, x: 0, y: 2
                     )
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.85))
                     .tracking(-0.05)
                     .lineLimit(1)
