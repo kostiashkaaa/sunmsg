@@ -778,6 +778,11 @@ struct ChatMessage: Decodable, Identifiable, Sendable {
     let senderPublicKey: String?
     let senderDisplayName: String?
     let senderUsername: String?
+    let replyToId: Int?
+    let replyMessage: String?
+    let replySenderPub: String?
+    let forwardFromName: String?
+    let forwardFromUserId: Int?
     var reactions: [MessageReaction]
     /// True once the message has been edited (server sets is_edited / emits message_edited).
     var isEdited: Bool
@@ -786,12 +791,16 @@ struct ChatMessage: Decodable, Identifiable, Sendable {
     init(id: Int, chatId: String, message: String?, messageType: String,
          createdAt: Double, senderUserId: Int?, senderPublicKey: String?,
          senderDisplayName: String?, senderUsername: String?,
+         replyToId: Int? = nil, replyMessage: String? = nil, replySenderPub: String? = nil,
+         forwardFromName: String? = nil, forwardFromUserId: Int? = nil,
          isRead: Bool = false, isDelivered: Bool = false,
          reactions: [MessageReaction] = [], isEdited: Bool = false) {
         self.id = id; self.chatId = chatId; self.message = message
         self.messageType = messageType; self.createdAt = createdAt
         self.senderUserId = senderUserId; self.senderPublicKey = senderPublicKey
         self.senderDisplayName = senderDisplayName; self.senderUsername = senderUsername
+        self.replyToId = replyToId; self.replyMessage = replyMessage; self.replySenderPub = replySenderPub
+        self.forwardFromName = forwardFromName; self.forwardFromUserId = forwardFromUserId
         self.isRead = isRead; self.isDelivered = isDelivered
         self.reactions = reactions; self.isEdited = isEdited
     }
@@ -820,6 +829,11 @@ struct ChatMessage: Decodable, Identifiable, Sendable {
         case senderPublicKey   = "sender_public_key"
         case senderDisplayName = "sender_display_name"
         case senderUsername    = "sender_username"
+        case replyToId    = "reply_to_id"
+        case replyMessage = "reply_message"
+        case replySenderPub = "reply_sender_pub"
+        case forwardFromName = "forward_from_name"
+        case forwardFromUserId = "forward_from_user_id"
         case isRead      = "is_read"
         case isDelivered = "is_delivered"
         case reactions
@@ -837,6 +851,11 @@ struct ChatMessage: Decodable, Identifiable, Sendable {
         senderPublicKey  = try? c.decodeIfPresent(String.self, forKey: .senderPublicKey)
         senderDisplayName = try? c.decodeIfPresent(String.self, forKey: .senderDisplayName)
         senderUsername   = try? c.decodeIfPresent(String.self, forKey: .senderUsername)
+        replyToId        = try? c.decodeIfPresent(Int.self, forKey: .replyToId)
+        replyMessage     = try? c.decodeIfPresent(String.self, forKey: .replyMessage)
+        replySenderPub   = try? c.decodeIfPresent(String.self, forKey: .replySenderPub)
+        forwardFromName  = try? c.decodeIfPresent(String.self, forKey: .forwardFromName)
+        forwardFromUserId = try? c.decodeIfPresent(Int.self, forKey: .forwardFromUserId)
         isRead           = (try? c.decodeIfPresent(Bool.self,   forKey: .isRead))      ?? false
         isDelivered      = (try? c.decodeIfPresent(Bool.self,   forKey: .isDelivered)) ?? false
         reactions        = (try? c.decodeIfPresent(LossyArray<MessageReaction>.self, forKey: .reactions)?.elements) ?? []

@@ -1,6 +1,11 @@
 import PhotosUI
 import SwiftUI
 
+struct ComposerReplyPreview: Equatable {
+    let senderName: String
+    let text: String
+}
+
 struct ChatComposerBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -12,6 +17,7 @@ struct ChatComposerBar: View {
     let isComposerFocused: Bool
 
     let editingMessageId: Int?
+    let replyPreview: ComposerReplyPreview?
     let isSending: Bool
     let isUploadingMedia: Bool
     let isRecording: Bool
@@ -21,6 +27,7 @@ struct ChatComposerBar: View {
     let emojiSuggestions: [String]
     let formatRecordingTime: (TimeInterval) -> String
     let onCancelEdit: () -> Void
+    let onCancelReply: () -> Void
     let onSend: () -> Void
     let onStartVoiceRecording: () -> Void
     let onCancelRecording: () -> Void
@@ -50,6 +57,8 @@ struct ChatComposerBar: View {
 
             if editingMessageId != nil {
                 editingBanner
+            } else if let replyPreview {
+                replyBanner(replyPreview)
             }
 
             HStack(alignment: .bottom, spacing: Metrics.rowSpacing) {
@@ -119,6 +128,39 @@ struct ChatComposerBar: View {
             Spacer(minLength: 8)
 
             Button(action: onCancelEdit) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.smMuted)
+                    .frame(width: 28, height: 28)
+                    .background(Color.smText.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(PressableStyle(scale: 0.94))
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 7)
+    }
+
+    private func replyBanner(_ preview: ComposerReplyPreview) -> some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(Color.smAccent)
+                .frame(width: 3, height: 30)
+                .clipShape(Capsule())
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(preview.senderName)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(Color.smAccent2)
+                    .lineLimit(1)
+                Text(preview.text)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(Color.smMuted)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: onCancelReply) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color.smMuted)

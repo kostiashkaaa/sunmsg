@@ -459,17 +459,35 @@ final class APIClient: ObservableObject {
 
     // MARK: - Send message
 
-    func sendMessage(chatId: String, message: String, messageType: String = "text", requestId: String) async throws -> ChatMessage {
+    func sendMessage(
+        chatId: String,
+        message: String,
+        messageType: String = "text",
+        requestId: String,
+        replyToId: Int? = nil,
+        forwardFromName: String? = nil,
+        forwardFromUserId: Int? = nil
+    ) async throws -> ChatMessage {
         let url = baseURL.appendingPathComponent("/api/mobile/send")
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
-        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+        var payload: [String: Any] = [
             "chat_id": chatId,
             "message": message,
             "message_type": messageType,
             "request_id": requestId,
-        ])
+        ]
+        if let replyToId {
+            payload["reply_to_id"] = replyToId
+        }
+        if let forwardFromName, !forwardFromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            payload["forward_from_name"] = forwardFromName
+        }
+        if let forwardFromUserId {
+            payload["forward_from_user_id"] = forwardFromUserId
+        }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         let data = try await perform(req, expectedStatus: 200)
         struct R: Decodable { let success: Bool; let message: ChatMessage }
         return try decode(R.self, from: data).message

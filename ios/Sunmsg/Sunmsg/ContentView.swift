@@ -160,7 +160,12 @@ final class SessionStore: ObservableObject {
                 senderUserId: payload["sender_user_id"] as? Int,
                 senderPublicKey: payload["sender_public_key"] as? String,
                 senderDisplayName: payload["sender_display_name"] as? String,
-                senderUsername: payload["sender_username"] as? String
+                senderUsername: payload["sender_username"] as? String,
+                replyToId: payload["reply_to_id"] as? Int,
+                replyMessage: payload["reply_message"] as? String,
+                replySenderPub: payload["reply_sender_pub"] as? String,
+                forwardFromName: payload["forward_from_name"] as? String,
+                forwardFromUserId: payload["forward_from_user_id"] as? Int
             )
             NotificationCenter.default.post(
                 name: .smPreparedIncomingMessage,

@@ -29,14 +29,14 @@ struct ReactionPicker: View {
                 Image(systemName: showsAdditionalReactions ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(Color.smMuted)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 40, height: 40)
                     .contentShape(Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.9))
             .accessibilityLabel(showsAdditionalReactions ? "Скрыть дополнительные реакции" : "Показать дополнительные реакции")
             .padding(.trailing, 8)
         }
-        .frame(height: 52)
+        .frame(height: 54)
         .background(Color.smSurface, in: Capsule())
         .overlay(Capsule().stroke(Color.smBorder, lineWidth: 0.6))
         .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
@@ -50,8 +50,8 @@ struct ReactionPicker: View {
             onSelect(emoji)
         }) {
             Text(emoji)
-                .font(.system(size: 25))
-                .frame(width: 38, height: 38)
+                .font(.system(size: 27))
+                .frame(width: 40, height: 40)
                 .background(isActive ? Color.smAccent.opacity(0.22) : Color.clear, in: Circle())
                 .contentShape(Circle())
         }

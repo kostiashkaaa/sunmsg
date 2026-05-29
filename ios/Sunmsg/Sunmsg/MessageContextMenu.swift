@@ -44,7 +44,7 @@ struct MessageContextMenu<Preview: View>: View {
     let preview: () -> Preview
 
     private let gap: CGFloat = 10
-    private let reactionHeight: CGFloat = 52
+    private let reactionHeight: CGFloat = 54
     private let rowHeight: CGFloat = 48
     private let horizontalMargin: CGFloat = 12
 
@@ -188,7 +188,7 @@ struct MessageContextMenu<Preview: View>: View {
         let safeBottom = containerSize.height - safeAreaInsets.bottom - 10
         let availableHeight = max(1, safeBottom - safeTop)
         let availableWidth = max(1, containerSize.width - horizontalMargin * 2)
-        let reactionWidth = min(availableWidth, max(220, CGFloat(primaryReactions.count + 1) * 42 + 18))
+        let reactionWidth = min(availableWidth, max(232, CGFloat(primaryReactions.count + 1) * 44 + 18))
         let menuWidth = min(availableWidth, 300)
         let naturalMenuHeight = CGFloat(actions.count) * rowHeight
         let maxMenuHeight = max(96, availableHeight - targetRect.height - reactionHeight - gap * 4)

@@ -35,6 +35,11 @@ actor ChatLocalStore {
         let senderPublicKey: String?
         let senderDisplayName: String?
         let senderUsername: String?
+        let replyToId: Int?
+        let replyMessage: String?
+        let replySenderPub: String?
+        let forwardFromName: String?
+        let forwardFromUserId: Int?
         let isRead: Bool
         let isDelivered: Bool
         let reactions: [CachedReaction]
@@ -50,6 +55,11 @@ actor ChatLocalStore {
             senderPublicKey = message.senderPublicKey
             senderDisplayName = message.senderDisplayName
             senderUsername = message.senderUsername
+            replyToId = message.replyToId
+            replyMessage = message.replyMessage
+            replySenderPub = message.replySenderPub
+            forwardFromName = message.forwardFromName
+            forwardFromUserId = message.forwardFromUserId
             isRead = message.isRead
             isDelivered = message.isDelivered
             reactions = message.reactions.map(CachedReaction.init)
@@ -67,6 +77,11 @@ actor ChatLocalStore {
                 senderPublicKey: senderPublicKey,
                 senderDisplayName: senderDisplayName,
                 senderUsername: senderUsername,
+                replyToId: replyToId,
+                replyMessage: replyMessage,
+                replySenderPub: replySenderPub,
+                forwardFromName: forwardFromName,
+                forwardFromUserId: forwardFromUserId,
                 isRead: isRead,
                 isDelivered: isDelivered,
                 reactions: reactions.map(\.reaction),

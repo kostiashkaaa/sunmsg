@@ -50,6 +50,12 @@ struct ChatView: View {
     @State private var menuTargetId: Int? = nil
     // Inline edit state.
     @State private var editingMessageId: Int? = nil
+    @State private var replyTarget: ReplyTarget? = nil
+    @State private var forwardTargetMessage: ChatMessage? = nil
+    @State private var infoTargetMessage: ChatMessage? = nil
+    @State private var selectedMessageIds: Set<Int> = []
+    @State private var isSelectionMode = false
+    @State private var pinnedMessageIds: Set<Int> = []
     // Pending delete confirmation.
     @State private var pendingDelete: PendingDelete? = nil
     // A short, transient toast (e.g. "Скопировано").
@@ -67,6 +73,12 @@ struct ChatView: View {
     struct PendingDelete: Identifiable {
         let id: Int
         let isFromMe: Bool
+    }
+
+    struct ReplyTarget: Equatable {
+        let id: Int
+        let senderName: String
+        let preview: String
     }
 
     @FocusState private var composerFocused: Bool
@@ -203,6 +215,9 @@ struct ChatView: View {
             }
         }
         .background(Color.smBg2)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            selectionToolbar
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             composerBar
         }
@@ -215,10 +230,81 @@ struct ChatView: View {
             }
         }
         .overlay(alignment: .top) { toastView }
+        .sheet(item: $forwardTargetMessage) { msg in
+            ForwardMessageSheet(
+                contacts: session.contacts,
+                currentChatId: contact.chatId,
+                onCancel: { forwardTargetMessage = nil },
+                onSelect: { target in
+                    forwardTargetMessage = nil
+                    forwardMessage(msg, to: target)
+                }
+            )
+        }
+        .sheet(item: $infoTargetMessage) { msg in
+            MessageInfoSheet(
+                message: msg,
+                isFromMe: msg.senderUserId == myId,
+                displayText: resolvedPlainText(for: msg) ?? msg.displayText
+            )
+        }
     }
 
     private var deleteDialogBinding: Binding<Bool> {
         Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+    }
+
+    @ViewBuilder
+    private var selectionToolbar: some View {
+        if isSelectionMode {
+            HStack(spacing: 12) {
+                Button(action: clearSelection) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.smText)
+                        .frame(width: 34, height: 34)
+                        .background(Color.smSurface, in: Circle())
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                }
+                .buttonStyle(PressableStyle(scale: 0.92))
+
+                Text("\(selectedMessageIds.count) выбрано")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.smText)
+
+                Spacer(minLength: 8)
+
+                Button(action: forwardSelectedMessages) {
+                    Image(systemName: "arrowshape.turn.up.forward")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(selectedMessageIds.count == 1 ? Color.smText : Color.smFaint)
+                        .frame(width: 34, height: 34)
+                        .background(Color.smSurface, in: Circle())
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                }
+                .buttonStyle(PressableStyle(scale: 0.92))
+                .disabled(selectedMessageIds.count != 1)
+
+                Button(role: .destructive, action: deleteSelectedMessages) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(selectedMessageIds.isEmpty ? Color.smFaint : Color.smDanger)
+                        .frame(width: 34, height: 34)
+                        .background(Color.smSurface, in: Circle())
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                }
+                .buttonStyle(PressableStyle(scale: 0.92))
+                .disabled(selectedMessageIds.isEmpty)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.smBg)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.smBorderSoft)
+                    .frame(height: 0.5)
+            }
+        }
     }
 
     // MARK: - Transient toast
@@ -341,8 +427,7 @@ struct ChatView: View {
         let canEdit = isFromMe && isCopyable && withinEditWindow
 
         items.append(MessageContextMenuAction(id: "reply", title: "Ответить", systemImage: "arrowshape.turn.up.left") {
-            dismissMenu()
-            showToast("Ответ будет добавлен в следующей версии")
+            beginReply(message: msg, currentText: resolved)
         })
 
         items.append(
@@ -370,40 +455,40 @@ struct ChatView: View {
             }
         )
 
-        items.append(MessageContextMenuAction(id: "pin", title: "Закрепить", systemImage: "pin") {
-            dismissMenu()
-            showToast("Закрепление будет добавлено в следующей версии")
+        let isPinned = pinnedMessageIds.contains(msg.id)
+        items.append(MessageContextMenuAction(id: "pin", title: isPinned ? "Открепить" : "Закрепить", systemImage: isPinned ? "pin.slash" : "pin") {
+            togglePin(messageId: msg.id)
         })
 
         items.append(MessageContextMenuAction(id: "forward", title: "Переслать", systemImage: "arrowshape.turn.up.forward") {
             dismissMenu()
-            showToast("Пересылка будет добавлена в следующей версии")
+            forwardTargetMessage = msg
         })
 
         items.append(MessageContextMenuAction(id: "select", title: "Выбрать", systemImage: "checkmark.circle") {
             dismissMenu()
-            showToast("Выбор сообщений будет добавлен в следующей версии")
+            startSelection(with: msg.id)
         })
 
         if isFromMe {
             items.append(MessageContextMenuAction(id: "info", title: "Информация о сообщении", subtitle: "ID \(msg.id)", systemImage: "info.circle") {
                 dismissMenu()
-                showToast("Сообщение #\(msg.id)")
+                infoTargetMessage = msg
             })
 
             items.append(MessageContextMenuAction(id: "edited_at", title: "Время изменения", subtitle: msg.isEdited ? "Изменено" : "Не изменялось", systemImage: "clock.arrow.circlepath") {
                 dismissMenu()
-                showToast(msg.isEdited ? "Сообщение изменено" : "Сообщение не изменялось")
+                infoTargetMessage = msg
             })
 
             items.append(MessageContextMenuAction(id: "delivery", title: "Статус доставки", subtitle: msg.isDelivered ? "Доставлено" : "Отправляется", systemImage: "checkmark.circle") {
                 dismissMenu()
-                showToast(msg.isDelivered ? "Доставлено" : "Отправляется")
+                infoTargetMessage = msg
             })
 
             items.append(MessageContextMenuAction(id: "read", title: "Статус прочтения", subtitle: msg.isRead ? "Прочитано" : "Не прочитано", systemImage: "checkmark.circle.fill") {
                 dismissMenu()
-                showToast(msg.isRead ? "Прочитано" : "Не прочитано")
+                infoTargetMessage = msg
             })
         }
 
@@ -460,14 +545,24 @@ struct ChatView: View {
                 reactions[r].reactedByMe = false
                 if reactions[r].count == 0 { reactions.remove(at: r) }
             } else {
+                clearMyExistingReaction(in: &reactions, except: emoji)
                 reactions[r].count += 1
                 reactions[r].reactedByMe = true
             }
         } else {
+            clearMyExistingReaction(in: &reactions, except: emoji)
             reactions.append(MessageReaction(emoji: emoji, count: 1, reactedByMe: true))
         }
         messages[i].reactions = reactions
         invalidateTimeline()
+    }
+
+    private func clearMyExistingReaction(in reactions: inout [MessageReaction], except emoji: String) {
+        for index in reactions.indices where reactions[index].emoji != emoji && reactions[index].reactedByMe {
+            reactions[index].count = max(0, reactions[index].count - 1)
+            reactions[index].reactedByMe = false
+        }
+        reactions.removeAll { $0.count == 0 }
     }
 
     private func parseReactions(_ raw: Any?) -> [MessageReaction] {
@@ -514,13 +609,17 @@ struct ChatView: View {
             isLoadingOlder: isLoadingOlder,
             partnerIsTyping: partnerIsTyping,
             menuTargetId: menuTargetId,
+            selectedMessageIds: selectedMessageIds,
+            isSelectionMode: isSelectionMode,
+            pinnedMessageIds: pinnedMessageIds,
             reduceMotion: reduceMotion,
             timelineVersion: timelineVersion,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
             onLoadOlder: { Task { await loadOlderMessages() } },
             onToggleReaction: { messageId, emoji in toggleReaction(messageId: messageId, emoji: emoji) },
-            onRequestMenu: { messageId in presentMenu(for: messageId) }
+            onRequestMenu: { messageId in presentMenu(for: messageId) },
+            onToggleSelection: { messageId in toggleSelection(messageId) }
         )
         .equatable()
     }
@@ -544,6 +643,7 @@ struct ChatView: View {
             composerFocused: $composerFocused,
             isComposerFocused: composerFocused,
             editingMessageId: editingMessageId,
+            replyPreview: replyTarget.map { ComposerReplyPreview(senderName: $0.senderName, text: $0.preview) },
             isSending: isSending,
             isUploadingMedia: isUploadingMedia,
             isRecording: isRecording,
@@ -553,6 +653,7 @@ struct ChatView: View {
             emojiSuggestions: composerEmojiSuggestions,
             formatRecordingTime: formatRecordingTime,
             onCancelEdit: cancelEdit,
+            onCancelReply: cancelReply,
             onSend: handleSend,
             onStartVoiceRecording: startVoiceRecording,
             onCancelRecording: cancelRecording,
@@ -736,6 +837,18 @@ struct ChatView: View {
                 await decryptMessages([edited])
             }
 
+        case "message_pinned":
+            if let mid = payload["message_id"] as? Int {
+                pinnedMessageIds.insert(mid)
+                invalidateTimeline()
+            }
+
+        case "message_unpinned":
+            if let mid = payload["message_id"] as? Int {
+                pinnedMessageIds.remove(mid)
+                invalidateTimeline()
+            }
+
         case "messages_deleted":
             let ids = parseDeletedIds(payload)
             guard !ids.isEmpty else { return }
@@ -794,7 +907,12 @@ struct ChatView: View {
             senderUserId: payload["sender_user_id"] as? Int,
             senderPublicKey: payload["sender_public_key"] as? String,
             senderDisplayName: payload["sender_display_name"] as? String,
-            senderUsername: payload["sender_username"] as? String
+            senderUsername: payload["sender_username"] as? String,
+            replyToId: payload["reply_to_id"] as? Int,
+            replyMessage: payload["reply_message"] as? String,
+            replySenderPub: payload["reply_sender_pub"] as? String,
+            forwardFromName: payload["forward_from_name"] as? String,
+            forwardFromUserId: payload["forward_from_user_id"] as? Int
         ))
     }
 
@@ -1033,6 +1151,11 @@ struct ChatView: View {
             senderPublicKey: msg.senderPublicKey,
             senderDisplayName: msg.senderDisplayName,
             senderUsername: msg.senderUsername,
+            replyToId: msg.replyToId,
+            replyMessage: msg.replyMessage,
+            replySenderPub: msg.replySenderPub,
+            forwardFromName: msg.forwardFromName,
+            forwardFromUserId: msg.forwardFromUserId,
             isRead: msg.isRead,
             isDelivered: msg.isDelivered,
             reactions: msg.reactions,
@@ -1222,10 +1345,247 @@ struct ChatView: View {
         isApplyingDraftText = false
     }
 
+    // MARK: - Reply, selection, pin, forward
+
+    private func beginReply(message: ChatMessage, currentText: String) {
+        dismissMenu()
+        editingMessageId = nil
+        replyTarget = ReplyTarget(
+            id: message.id,
+            senderName: senderName(for: message),
+            preview: messagePreviewText(currentText)
+        )
+        composerFocused = true
+    }
+
+    private func cancelReply() {
+        replyTarget = nil
+    }
+
+    private func startSelection(with messageId: Int) {
+        selectedMessageIds = [messageId]
+        isSelectionMode = true
+    }
+
+    private func toggleSelection(_ messageId: Int) {
+        guard isSelectionMode else { return }
+        if selectedMessageIds.contains(messageId) {
+            selectedMessageIds.remove(messageId)
+        } else {
+            selectedMessageIds.insert(messageId)
+        }
+        if selectedMessageIds.isEmpty {
+            isSelectionMode = false
+        }
+    }
+
+    private func clearSelection() {
+        selectedMessageIds.removeAll()
+        isSelectionMode = false
+    }
+
+    private func forwardSelectedMessages() {
+        guard selectedMessageIds.count == 1,
+              let id = selectedMessageIds.first,
+              let msg = messages.first(where: { $0.id == id })
+        else { return }
+        forwardTargetMessage = msg
+    }
+
+    private func deleteSelectedMessages() {
+        let ids = Array(selectedMessageIds)
+        guard !ids.isEmpty else { return }
+        if SocketClient.shared.state != .connected {
+            sendError = "Нет соединения — удаление будет отправлено после переподключения."
+        }
+        SocketClient.shared.emit("delete_messages", [
+            "msg_ids": ids,
+            "chat_id": contact.chatId,
+            "mode": "for_me",
+            "request_id": UUID().uuidString,
+        ])
+        scrollIntent = .none
+        updateWithMotion(.easeInOut(duration: 0.22)) {
+            messages.removeAll { ids.contains($0.id) }
+            invalidateTimeline()
+        }
+        Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
+        clearSelection()
+    }
+
+    private func togglePin(messageId: Int) {
+        dismissMenu()
+        guard messageId > 0 else { return }
+        let isPinned = pinnedMessageIds.contains(messageId)
+        if SocketClient.shared.state != .connected {
+            sendError = "Нет соединения — закрепление будет отправлено после переподключения."
+        }
+        SocketClient.shared.emit(isPinned ? "unpin_message" : "pin_message", [
+            "chat_id": contact.chatId,
+            "message_id": messageId,
+            "request_id": UUID().uuidString,
+            "csrf_token": APIClient.shared.csrfToken,
+        ])
+        updateWithMotion(.spring(response: 0.28, dampingFraction: 0.82)) {
+            if isPinned {
+                pinnedMessageIds.remove(messageId)
+            } else {
+                pinnedMessageIds.insert(messageId)
+            }
+            invalidateTimeline()
+        }
+        showToast(isPinned ? "Откреплено" : "Закреплено")
+    }
+
+    private func forwardMessage(_ message: ChatMessage, to target: Contact) {
+        guard let plaintext = resolvedPlainText(for: message),
+              !plaintext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            showToast("Нечего переслать")
+            return
+        }
+        let requestId = UUID().uuidString
+        let messageType = message.messageType
+        let forwardName = senderName(for: message)
+        let forwardUserId = message.senderUserId
+        Task {
+            do {
+                if target.isGroup {
+                    try await forwardToGroup(
+                        plaintext,
+                        target: target,
+                        messageType: messageType,
+                        requestId: requestId,
+                        forwardFromName: forwardName,
+                        forwardFromUserId: forwardUserId
+                    )
+                } else {
+                    try await forwardToDirect(
+                        plaintext,
+                        target: target,
+                        messageType: messageType,
+                        requestId: requestId,
+                        forwardFromName: forwardName,
+                        forwardFromUserId: forwardUserId
+                    )
+                }
+                await MainActor.run {
+                    clearSelection()
+                    showToast("Переслано")
+                }
+            } catch {
+                await MainActor.run { sendError = error.localizedDescription }
+            }
+        }
+    }
+
+    private func forwardToDirect(
+        _ plaintext: String,
+        target: Contact,
+        messageType: String,
+        requestId: String,
+        forwardFromName: String,
+        forwardFromUserId: Int?
+    ) async throws {
+        let receiverPEM = target.publicKey
+        let senderPEM = myPublicKey
+        let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+            guard let privateKey = KeychainService.loadPrivateKey(),
+                  !receiverPEM.isEmpty,
+                  !senderPEM.isEmpty else {
+                throw NSError(domain: "sunmsg.crypto", code: 1, userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен."])
+            }
+            return try SunCrypto.encryptMessage(
+                plaintext,
+                receiverPEM: receiverPEM,
+                senderPEM: senderPEM,
+                privateKeyPEM: privateKey
+            )
+        }.value
+        _ = try await APIClient.shared.sendMessage(
+            chatId: target.chatId,
+            message: encrypted,
+            messageType: messageType,
+            requestId: requestId,
+            forwardFromName: forwardFromName,
+            forwardFromUserId: forwardFromUserId
+        )
+    }
+
+    private func forwardToGroup(
+        _ plaintext: String,
+        target: Contact,
+        messageType: String,
+        requestId: String,
+        forwardFromName: String,
+        forwardFromUserId: Int?
+    ) async throws {
+        let senderPEM = myPublicKey
+        let profile = try await session.api.getGroupInfo(chatId: target.chatId)
+        let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
+        let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+            guard let privateKey = KeychainService.loadPrivateKey(),
+                  !senderPEM.isEmpty,
+                  !memberKeys.isEmpty else {
+                throw NSError(domain: "sunmsg.crypto", code: 1, userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен."])
+            }
+            return try SunCrypto.encryptMessageForRecipients(
+                plaintext,
+                recipientPEMs: memberKeys,
+                senderPEM: senderPEM,
+                privateKeyPEM: privateKey
+            )
+        }.value
+        await MainActor.run {
+            var payload: [String: Any] = [
+                "message": encrypted,
+                "chat_id": target.chatId,
+                "message_type": messageType,
+                "client_id": requestId,
+                "request_id": requestId,
+                "forward_from_name": forwardFromName,
+            ]
+            if let forwardFromUserId {
+                payload["forward_from_user_id"] = forwardFromUserId
+            }
+            SocketClient.shared.emit("send_message", payload)
+        }
+    }
+
+    private func resolvedPlainText(for message: ChatMessage) -> String? {
+        if let text = decryptedTexts[message.id], !text.isEmpty {
+            return text
+        }
+        if let raw = message.message, !raw.isEmpty, !message.isEncrypted {
+            return raw
+        }
+        if let raw = message.message,
+           raw.hasPrefix("{"),
+           Self.parseLegacySunfileMarker(raw) == true {
+            return raw
+        }
+        return nil
+    }
+
+    private func senderName(for message: ChatMessage) -> String {
+        if message.senderUserId == myId { return "Вы" }
+        let name = (message.senderDisplayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { return name }
+        return contact.displayName
+    }
+
+    private func messagePreviewText(_ text: String) -> String {
+        let normalized = text.replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalized.isEmpty { return "Сообщение" }
+        return String(normalized.prefix(120))
+    }
+
     // MARK: - Edit & delete
 
     private func beginEdit(message: ChatMessage, currentText: String) {
         dismissMenu()
+        replyTarget = nil
         editFocusTask?.cancel()
         editFocusTask = nil
         updateWithMotion(.spring(response: 0.32, dampingFraction: 0.82)) {
@@ -1334,13 +1694,14 @@ struct ChatView: View {
 
         isSending = true
         let requestId = UUID().uuidString
+        let replyToId = replyTarget?.id
         composerText = ""
         clearDraftAfterSend()
         typingDebounceTask?.cancel()
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
         if contact.isGroup {
-            sendGroupText(text, requestId: requestId)
+            sendGroupText(text, requestId: requestId, replyToId: replyToId)
             return
         }
 
@@ -1370,7 +1731,8 @@ struct ChatView: View {
                 let sent = try await APIClient.shared.sendMessage(
                     chatId: chatId,
                     message: encrypted,
-                    requestId: requestId
+                    requestId: requestId,
+                    replyToId: replyToId
                 )
                 await MainActor.run {
                     let normalized = normalizedMessage(sent)
@@ -1382,6 +1744,7 @@ struct ChatView: View {
                     invalidateTimeline()
                     sendError = nil
                     isSending = false
+                    replyTarget = nil
                     Task { await ChatLocalStore.shared.mergeMessages([normalized], chatId: contact.chatId) }
                 }
             } catch {
@@ -1394,7 +1757,7 @@ struct ChatView: View {
         }
     }
 
-    private func sendGroupText(_ text: String, requestId: String) {
+    private func sendGroupText(_ text: String, requestId: String, replyToId: Int?) {
         let senderPEM = myPublicKey
 
         Task {
@@ -1415,9 +1778,13 @@ struct ChatView: View {
                     messageType: "text",
                     requestId: requestId,
                     privateKey: privateKey,
+                    replyToId: replyToId,
                     mentionedUsernames: mentionedUsernames(in: text)
                 )
-                await MainActor.run { isSending = false }
+                await MainActor.run {
+                    replyTarget = nil
+                    isSending = false
+                }
             } catch {
                 await MainActor.run {
                     composerText = text
@@ -1433,6 +1800,9 @@ struct ChatView: View {
         messageType: String,
         requestId: String,
         privateKey: String,
+        replyToId: Int? = nil,
+        forwardFromName: String? = nil,
+        forwardFromUserId: Int? = nil,
         mentionedUsernames: [String] = []
     ) async throws {
         let chatId = contact.chatId
@@ -1450,7 +1820,7 @@ struct ChatView: View {
                 privateKeyPEM: privateKey
             )
         }.value
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "message": encrypted,
             "chat_id": chatId,
             "message_type": messageType,
@@ -1458,6 +1828,15 @@ struct ChatView: View {
             "request_id": requestId,
             "mentioned_usernames": mentionedUsernames,
         ]
+        if let replyToId {
+            payload["reply_to_id"] = replyToId
+        }
+        if let forwardFromName, !forwardFromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            payload["forward_from_name"] = forwardFromName
+        }
+        if let forwardFromUserId {
+            payload["forward_from_user_id"] = forwardFromUserId
+        }
         await MainActor.run {
             if SocketClient.shared.state != .connected {
                 sendError = "Нет соединения — сообщение будет отправлено после переподключения."
@@ -1851,11 +2230,15 @@ struct MessageBubbleView: View {
     let showSender: Bool
     let isTail: Bool
     let maxBubbleWidth: CGFloat
+    var isPinned: Bool = false
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
     /// When true, this is a lifted copy shown inside the context-menu overlay:
     /// it neither publishes its anchor nor reacts to long-press.
     var isPreview: Bool = false
     var onToggleReaction: (String) -> Void = { _ in }
     var onRequestMenu: () -> Void = { }
+    var onToggleSelection: () -> Void = { }
     private let resolvedBodyText: String
     private let parsedSunfile: SunfileInfo?
     private let parsedCallInfo: SunCallInfo?
@@ -1868,9 +2251,13 @@ struct MessageBubbleView: View {
         showSender: Bool,
         isTail: Bool,
         maxBubbleWidth: CGFloat = 306,
+        isPinned: Bool = false,
+        isSelectionMode: Bool = false,
+        isSelected: Bool = false,
         isPreview: Bool = false,
         onToggleReaction: @escaping (String) -> Void = { _ in },
-        onRequestMenu: @escaping () -> Void = { }
+        onRequestMenu: @escaping () -> Void = { },
+        onToggleSelection: @escaping () -> Void = { }
     ) {
         self.message = message
         self.decryptedText = decryptedText
@@ -1878,9 +2265,13 @@ struct MessageBubbleView: View {
         self.showSender = showSender
         self.isTail = isTail
         self.maxBubbleWidth = maxBubbleWidth
+        self.isPinned = isPinned
+        self.isSelectionMode = isSelectionMode
+        self.isSelected = isSelected
         self.isPreview = isPreview
         self.onToggleReaction = onToggleReaction
         self.onRequestMenu = onRequestMenu
+        self.onToggleSelection = onToggleSelection
 
         let resolved = Self.resolveBodyText(message: message, decryptedText: decryptedText)
         self.resolvedBodyText = resolved.text
@@ -1924,6 +2315,11 @@ struct MessageBubbleView: View {
                     .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
             } else {
                 HStack(alignment: .bottom, spacing: 0) {
+                    if isSelectionMode && !isFromMe {
+                        selectionIndicator
+                            .padding(.trailing, 8)
+                    }
+
                     if isFromMe { Spacer(minLength: 46) }
 
                     bubbleStack
@@ -1933,10 +2329,21 @@ struct MessageBubbleView: View {
                         }
 
                     if !isFromMe { Spacer(minLength: 46) }
+
+                    if isSelectionMode && isFromMe {
+                        selectionIndicator
+                            .padding(.leading, 8)
+                    }
                 }
             }
         }
         .padding(.vertical, isTail ? 3 : 1.5)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isSelectionMode && !isPreview {
+                onToggleSelection()
+            }
+        }
     }
 
     private var bubbleStack: some View {
@@ -1946,6 +2353,15 @@ struct MessageBubbleView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(senderColor(name))
                     .padding(.leading, 4)
+            }
+
+            if let forwardFromName = message.forwardFromName?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !forwardFromName.isEmpty {
+                forwardedLabel(forwardFromName)
+            }
+
+            if isPinned {
+                pinnedLabel
             }
 
             if isTextBubble {
@@ -1969,6 +2385,37 @@ struct MessageBubbleView: View {
                 }
             }
         }
+    }
+
+    private var selectionIndicator: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 22, weight: .semibold))
+            .foregroundStyle(isSelected ? Color.smAccent : Color.smFaint)
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
+    }
+
+    private func forwardedLabel(_ name: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrowshape.turn.up.forward.fill")
+                .font(.system(size: 10, weight: .semibold))
+            Text("Переслано от \(name)")
+                .font(.system(size: 11.5, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(Color.smAccent2)
+        .padding(isFromMe ? .trailing : .leading, 4)
+    }
+
+    private var pinnedLabel: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "pin.fill")
+                .font(.system(size: 9.5, weight: .semibold))
+            Text("Закреплено")
+                .font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundStyle(Color.smFaint)
+        .padding(isFromMe ? .trailing : .leading, 4)
     }
 
     // MARK: - Time / read-receipt row
@@ -1997,13 +2444,19 @@ struct MessageBubbleView: View {
     // MARK: - Text bubble (reactions + time live INSIDE the bubble)
 
     private var textBubble: some View {
-        VStack(alignment: stackAlignment, spacing: 5) {
+        VStack(alignment: message.reactions.isEmpty ? stackAlignment : .leading, spacing: 5) {
+            if let replyText = replyPreviewText {
+                replyQuote(replyText)
+            }
             if message.reactions.isEmpty {
                 textAndInlineMeta
             } else {
                 messageText
                 inlineReactions
-                inlineTimeRow
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    inlineTimeRow
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -2045,6 +2498,33 @@ struct MessageBubbleView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private var replyPreviewText: String? {
+        guard message.replyToId != nil else { return nil }
+        let raw = (message.replyMessage ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty { return "Сообщение" }
+        if Self.parseSunfileRaw(raw) != nil { return "Медиа" }
+        if raw.hasPrefix("{") { return "Зашифрованное сообщение" }
+        return String(raw.replacingOccurrences(of: "\n", with: " ").prefix(96))
+    }
+
+    private func replyQuote(_ text: String) -> some View {
+        HStack(spacing: 7) {
+            Rectangle()
+                .fill(isFromMe ? Color.smBubbleOutText.opacity(0.45) : Color.smAccent)
+                .frame(width: 3)
+                .clipShape(Capsule())
+            Text(text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.76) : Color.smMuted)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(isFromMe ? Color.white.opacity(0.12) : Color.smSurface.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
     /// Time + edited + read tick, tinted for the bubble's own background.
     private var inlineTimeRow: some View {
         HStack(spacing: 3) {
@@ -2075,6 +2555,7 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: true)
         }
         .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Reaction chips for media/call bubbles (rendered just under the bubble).
@@ -2084,6 +2565,7 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: false)
         }
         .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: maxBubbleWidth, alignment: .leading)
         .padding(isFromMe ? .trailing : .leading, 4)
     }
 
@@ -2097,8 +2579,8 @@ struct MessageBubbleView: View {
 
     private func reactionGrid(onBubble: Bool) -> some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 42, maximum: 80), spacing: 4)],
-            alignment: stackAlignment,
+            columns: [GridItem(.adaptive(minimum: 48, maximum: 84), spacing: 5)],
+            alignment: .leading,
             spacing: 4
         ) {
             ForEach(message.reactions) { r in
@@ -2124,15 +2606,15 @@ struct MessageBubbleView: View {
             ChatHaptics.lightImpact()
         }) {
             HStack(spacing: 3) {
-                Text(r.emoji).font(.system(size: 12.5))
+                Text(r.emoji).font(.system(size: 15.5))
                 if r.count > 1 {
                     Text("\(r.count)")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(countColor)
                 }
             }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(bg, in: Capsule())
             .overlay(Capsule().stroke(stroke, lineWidth: 0.5))
         }

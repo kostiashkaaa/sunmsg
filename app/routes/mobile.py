@@ -70,13 +70,33 @@ def _session_user_id() -> int | None:
     return user_id if user_id > 0 else None
 
 
+def _positive_int(value) -> int | None:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _message_row_value(row, key: str, default=None):
+    if row is None:
+        return default
+    if hasattr(row, 'keys') and key not in row.keys():
+        return default
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return default
+
+
 def _fetch_existing_mobile_send(conn, *, sender_id: int, request_id: str):
     normalized_request_id = str(request_id or '').strip()
     if not normalized_request_id:
         return None
     return conn.execute(
         '''
-        SELECT id, chat_id, created_at, message, message_type, is_read, is_delivered
+        SELECT id, chat_id, created_at, message, message_type, is_read, is_delivered,
+               reply_to_id, forward_from_name, forward_from_user_id
         FROM messages
         WHERE sender_id = %s AND request_id = %s
         ORDER BY id DESC
@@ -84,6 +104,39 @@ def _fetch_existing_mobile_send(conn, *, sender_id: int, request_id: str):
         ''',
         (int(sender_id), normalized_request_id),
     ).fetchone()
+
+
+def _resolve_reply_to_id(conn, *, chat_id: str, reply_to_id: int | None) -> int | None:
+    if reply_to_id is None:
+        return None
+    row = conn.execute(
+        'SELECT id FROM messages WHERE id = %s AND chat_id = %s LIMIT 1',
+        (reply_to_id, chat_id),
+    ).fetchone()
+    return reply_to_id if row else None
+
+
+def _resolve_reply_preview(conn, *, chat_id: str, reply_to_id: int | None):
+    if reply_to_id is None:
+        return None, None, None
+    row = conn.execute(
+        '''
+        SELECT m.message, u.public_key
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.id = %s AND m.chat_id = %s
+        LIMIT 1
+        ''',
+        (reply_to_id, chat_id),
+    ).fetchone()
+    if row is None:
+        return None, None, None
+
+    reply_message = row['message']
+    reply_sender_pub = row['public_key']
+    if looks_like_ciphertext(reply_message):
+        return reply_to_id, reply_message, reply_sender_pub
+    return None, None, reply_sender_pub
 
 
 def _resolve_calls_feature(conn, *, user_id: int) -> bool:
@@ -337,6 +390,10 @@ def mobile_send():
     message = str(data.get('message') or '').strip()
     message_type = str(data.get('message_type') or 'text').strip()
     request_id = str(data.get('request_id') or '').strip()[:64]
+    reply_to_id = _positive_int(data.get('reply_to_id'))
+    raw_forward_from_name = str(data.get('forward_from_name') or '').strip()
+    forward_from_name = raw_forward_from_name[:140] if raw_forward_from_name else None
+    forward_from_user_id = _positive_int(data.get('forward_from_user_id'))
 
     if not chat_id or not message:
         return jsonify({'success': False, 'error': 'chat_id and message are required.'}), 400
@@ -384,6 +441,8 @@ def mobile_send():
         sender_username = sender_row['username'] if sender_row else ''
 
         duplicate = False
+        reply_message = None
+        reply_sender_pub = None
         row = _fetch_existing_mobile_send(conn, sender_id=user_id, request_id=request_id)
         if row is not None:
             conn.rollback()
@@ -391,14 +450,22 @@ def mobile_send():
             chat_id = row['chat_id']
             message = row['message']
             message_type = row['message_type']
+            reply_to_id = _message_row_value(row, 'reply_to_id')
+            forward_from_name = _message_row_value(row, 'forward_from_name')
+            forward_from_user_id = _message_row_value(row, 'forward_from_user_id')
         else:
+            reply_to_id = _resolve_reply_to_id(conn, chat_id=chat_id, reply_to_id=reply_to_id)
             try:
                 cur = conn.execute(
                     '''INSERT INTO messages
-                       (chat_id, sender_id, receiver_id, message, message_type, request_id)
-                       VALUES (%s, %s, %s, %s, %s, %s)
+                       (chat_id, sender_id, receiver_id, message, message_type, request_id,
+                        reply_to_id, forward_from_name, forward_from_user_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                        RETURNING id, created_at, is_read, is_delivered''',
-                    (chat_id, user_id, receiver_id, message, message_type, request_id or None),
+                    (
+                        chat_id, user_id, receiver_id, message, message_type, request_id or None,
+                        reply_to_id, forward_from_name, forward_from_user_id,
+                    ),
                 )
                 row = cur.fetchone()
                 conn.commit()
@@ -411,8 +478,16 @@ def mobile_send():
                 chat_id = row['chat_id']
                 message = row['message']
                 message_type = row['message_type']
+                reply_to_id = _message_row_value(row, 'reply_to_id')
+                forward_from_name = _message_row_value(row, 'forward_from_name')
+                forward_from_user_id = _message_row_value(row, 'forward_from_user_id')
         msg_id = row['id']
         created_at = row['created_at']
+        reply_to_id, reply_message, reply_sender_pub = _resolve_reply_preview(
+            conn,
+            chat_id=chat_id,
+            reply_to_id=reply_to_id,
+        )
     except Exception:
         logger.exception('mobile_send: DB error for user_id=%s chat_id=%s', user_id, chat_id)
         return jsonify({'success': False, 'error': 'Failed to save message.'}), 500
@@ -432,7 +507,11 @@ def mobile_send():
         'is_delivered': bool(row['is_delivered']),
         'created_at': _to_unix(created_at),
         'request_id': request_id,
-        'reply_to_id': None,
+        'reply_to_id': reply_to_id,
+        'reply_message': reply_message,
+        'reply_sender_pub': reply_sender_pub,
+        'forward_from_name': forward_from_name or '',
+        'forward_from_user_id': forward_from_user_id,
         'reactions': [],
         'expires_at': None,
     }

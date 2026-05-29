@@ -87,3 +87,64 @@ def test_mobile_send_persists_socket_update_events(monkeypatch, tmp_path):
     assert [int(row['chat_pts']) for row in rows] == [1, 2]
     assert all(row['request_id'] == 'ios-req-1' for row in rows)
     assert all(json.loads(row['payload_json'])['chat_id'] == chat_id for row in rows)
+
+
+def test_mobile_send_persists_reply_and_forward_metadata(monkeypatch, tmp_path):
+    db_path = tmp_path / 'mobile-send-reply-forward.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+    app = create_app('testing', overrides={'DATABASE_PATH': str(db_path)})
+    chat_id = _seed_direct_chat(db_path)
+    conn = connect_test_db(db_path)
+    try:
+        reply_row = conn.execute(
+            '''
+            INSERT INTO messages (chat_id, sender_id, receiver_id, message, message_type)
+            VALUES (?, 2, 1, ?, 'text')
+            RETURNING id
+            ''',
+            (chat_id, _E2EE_DIRECT_MESSAGE),
+        ).fetchone()
+        reply_to_id = int(reply_row['id'])
+        conn.commit()
+    finally:
+        conn.close()
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.post('/api/mobile/send', json={
+        'chat_id': chat_id,
+        'message': _E2EE_DIRECT_MESSAGE,
+        'message_type': 'text',
+        'request_id': 'ios-req-reply-forward',
+        'reply_to_id': reply_to_id,
+        'forward_from_name': 'Bob',
+        'forward_from_user_id': 2,
+    })
+
+    assert response.status_code == 200
+    payload = response.get_json()['message']
+    assert payload['reply_to_id'] == reply_to_id
+    assert payload['reply_message'] == _E2EE_DIRECT_MESSAGE
+    assert payload['reply_sender_pub'] == 'pk-2'
+    assert payload['forward_from_name'] == 'Bob'
+    assert payload['forward_from_user_id'] == 2
+
+    conn = connect_test_db(db_path)
+    try:
+        row = conn.execute(
+            '''
+            SELECT reply_to_id, forward_from_name, forward_from_user_id
+            FROM messages
+            WHERE request_id = ?
+            ''',
+            ('ios-req-reply-forward',),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert int(row['reply_to_id']) == reply_to_id
+    assert row['forward_from_name'] == 'Bob'
+    assert int(row['forward_from_user_id']) == 2

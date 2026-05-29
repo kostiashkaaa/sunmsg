@@ -17,6 +17,9 @@ struct ChatMessageTimelineView: View, Equatable {
     let isLoadingOlder: Bool
     let partnerIsTyping: Bool
     let menuTargetId: Int?
+    let selectedMessageIds: Set<Int>
+    let isSelectionMode: Bool
+    let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
     let timelineVersion: Int
     @Binding var scrollIntent: ChatScrollIntent
@@ -24,6 +27,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let onLoadOlder: () -> Void
     let onToggleReaction: (Int, String) -> Void
     let onRequestMenu: (Int) -> Void
+    let onToggleSelection: (Int) -> Void
 
     private struct MessageRenderRow: Identifiable {
         let id: Int
@@ -45,13 +49,17 @@ struct ChatMessageTimelineView: View, Equatable {
         isLoadingOlder: Bool,
         partnerIsTyping: Bool,
         menuTargetId: Int?,
+        selectedMessageIds: Set<Int>,
+        isSelectionMode: Bool,
+        pinnedMessageIds: Set<Int>,
         reduceMotion: Bool,
         timelineVersion: Int,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
         onLoadOlder: @escaping () -> Void,
         onToggleReaction: @escaping (Int, String) -> Void,
-        onRequestMenu: @escaping (Int) -> Void
+        onRequestMenu: @escaping (Int) -> Void,
+        onToggleSelection: @escaping (Int) -> Void
     ) {
         self.messages = messages
         self.decryptedTexts = decryptedTexts
@@ -62,6 +70,9 @@ struct ChatMessageTimelineView: View, Equatable {
         self.isLoadingOlder = isLoadingOlder
         self.partnerIsTyping = partnerIsTyping
         self.menuTargetId = menuTargetId
+        self.selectedMessageIds = selectedMessageIds
+        self.isSelectionMode = isSelectionMode
+        self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
         self._scrollIntent = scrollIntent
@@ -69,6 +80,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.onLoadOlder = onLoadOlder
         self.onToggleReaction = onToggleReaction
         self.onRequestMenu = onRequestMenu
+        self.onToggleSelection = onToggleSelection
     }
 
     static func == (lhs: ChatMessageTimelineView, rhs: ChatMessageTimelineView) -> Bool {
@@ -79,6 +91,9 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.isLoadingOlder == rhs.isLoadingOlder
             && lhs.partnerIsTyping == rhs.partnerIsTyping
             && lhs.menuTargetId == rhs.menuTargetId
+            && lhs.selectedMessageIds == rhs.selectedMessageIds
+            && lhs.isSelectionMode == rhs.isSelectionMode
+            && lhs.pinnedMessageIds == rhs.pinnedMessageIds
             && lhs.reduceMotion == rhs.reduceMotion
             && lhs.timelineVersion == rhs.timelineVersion
             && lhs.scrollIntent == rhs.scrollIntent
@@ -147,8 +162,12 @@ struct ChatMessageTimelineView: View, Equatable {
                                 showSender: row.showSender,
                                 isTail: row.isTail,
                                 maxBubbleWidth: maxBubbleWidth,
+                                isPinned: pinnedMessageIds.contains(row.id),
+                                isSelectionMode: isSelectionMode,
+                                isSelected: selectedMessageIds.contains(row.id),
                                 onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
-                                onRequestMenu: { onRequestMenu(row.id) }
+                                onRequestMenu: { onRequestMenu(row.id) },
+                                onToggleSelection: { onToggleSelection(row.id) }
                             )
                             .id(row.id)
                             .opacity(menuTargetId == row.id ? 0 : 1)
