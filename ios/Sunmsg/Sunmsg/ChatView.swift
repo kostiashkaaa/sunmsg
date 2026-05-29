@@ -265,8 +265,9 @@ struct ChatView: View {
                 displayText: resolvedPlainText(for: msg) ?? msg.displayText
             )
         }
-        .onAppear { refreshChatBackgroundImage() }
-        .onChange(of: chatBackgroundImageDataURL) { _, _ in refreshChatBackgroundImage() }
+        .task(id: chatBackgroundImageDataURL) {
+            await refreshChatBackgroundImage(from: chatBackgroundImageDataURL)
+        }
     }
 
     @ViewBuilder
@@ -309,8 +310,12 @@ struct ChatView: View {
         }
     }
 
-    private func refreshChatBackgroundImage() {
-        decodedChatBackgroundImage = Self.decodeDataURLImage(chatBackgroundImageDataURL)
+    private func refreshChatBackgroundImage(from dataURL: String) async {
+        let image = await Task.detached(priority: .utility) {
+            Self.decodeDataURLImage(dataURL)
+        }.value
+        guard !Task.isCancelled, chatBackgroundImageDataURL == dataURL else { return }
+        decodedChatBackgroundImage = image
     }
 
     private static func decodeDataURLImage(_ value: String) -> UIImage? {
