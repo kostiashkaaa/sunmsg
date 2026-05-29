@@ -1402,6 +1402,7 @@ struct QRScannerView: UIViewControllerRepresentable {
 final class QRScannerViewController: UIViewController {
     var delegate: AVCaptureMetadataOutputObjectsDelegate?
     private var session: AVCaptureSession?
+    private let sessionQueue = DispatchQueue(label: "sunmsg.qrscanner.session", qos: .userInitiated)
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var permissionDeniedLabel: UILabel?
 
@@ -1453,7 +1454,7 @@ final class QRScannerViewController: UIViewController {
         view.layer.addSublayer(preview)
         previewLayer = preview
         self.session = session
-        DispatchQueue.global(qos: .userInitiated).async { session.startRunning() }
+        sessionQueue.async { session.startRunning() }
     }
 
     private func showPermissionDenied() {
@@ -1478,7 +1479,7 @@ final class QRScannerViewController: UIViewController {
         super.viewWillDisappear(animated)
         let runningSession = session
         session = nil
-        DispatchQueue.global(qos: .userInitiated).async {
+        sessionQueue.async {
             runningSession?.stopRunning()
         }
     }
