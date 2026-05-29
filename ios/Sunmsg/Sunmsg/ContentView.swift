@@ -1,0 +1,1848 @@
+import SwiftUI
+import Combine
+
+// MARK: - Session store
+
+enum AppRoute: Equatable { case loading, login, register, main }
+
+// Call state models
+struct IncomingCallData: Equatable {
+    let callId: String
+    let chatId: String
+    let callType: String    // "audio" | "video"
+    let callerName: String
+    let callerAvatarUrl: String?
+    let callerUserId: Int
+}
+
+struct ActiveCallState: Equatable, Identifiable {
+    var id: String { callId }
+    let callId: String
+    let chatId: String
+    let callType: String
+    let partnerName: String
+    let partnerAvatarUrl: String?
+    let partnerUserId: Int
+    let isOutgoing: Bool
+    /// Becomes true once the call is answered (active), so call history only
+    /// records a duration for calls that actually connected.
+    var isActive: Bool = false
+    /// Set to the moment the call became active — used to compute duration.
+    var startedAt: Date = Date()
+    var isMuted: Bool = false
+    var isSpeaker: Bool = true
+    var isCameraOff: Bool = false
+    // Remote peer's reported media state (via call_media_state)
+    var remoteAudioMuted: Bool = false
+    var remoteVideoEnabled: Bool = false
+
+    /// Seconds since the call connected, or nil if it never became active.
+    var elapsedSeconds: Int? {
+        isActive ? max(0, Int(Date().timeIntervalSince(startedAt))) : nil
+    }
+}
+
+@MainActor
+final class SessionStore: ObservableObject {
+    @Published var route: AppRoute = .loading
+    @Published var bootstrap: BootstrapResponse?
+    @Published var contacts: [Contact] = []
+    @Published var pendingRequests: [DialogRequest] = []
+    @Published var errorMessage: String?
+
+    // Reliable real-time message delivery to ChatView
+    @Published var incomingMsgTick: Int = 0
+    private(set) var lastIncomingMsg: ChatMessage? = nil
+    private(set) var lastIncomingChatId: String = ""
+
+    // Socket state
+    @Published var socketState: SocketClient.State = .disconnected
+
+    // Call history
+    @Published var callHistory: [CallRecord] = []
+
+    // Call state
+    @Published var incomingCall: IncomingCallData? = nil
+    @Published var activeCall: ActiveCallState? = nil
+    @Published var callError: String? = nil
+
+    /// Currently selected bottom tab (0: чаты, 1: звонки, 2: контакты, 3: настройки)
+    @Published var selectedTab: Int = 0
+
+    /// chat_id of the currently open ChatView (nil when no chat is open).
+    var activeChatId: String? = nil
+
+    let api = APIClient.shared
+    private var cancellables = Set<AnyCancellable>()
+    private var typingTimers: [String: Task<Void, Never>] = [:]
+    private var presenceTimer: Timer?
+
+    init() {
+        loadCallHistory()
+        NotificationCenter.default.publisher(for: .smSocketMessage)
+            .sink { [weak self] note in
+                guard let userInfo = note.userInfo else { return }
+                Task { @MainActor [weak self] in self?.handleSocketEvent(userInfo) }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .smSocketStateChanged)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in self?.handleSocketStateChanged() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.connectSocket()
+                    self.markActive()
+                    await self.refreshContacts()
+                }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.markInactive()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Global socket event handler
+
+    private func handleSocketEvent(_ userInfo: [AnyHashable: Any]) {
+        guard let event = userInfo[SocketEventKey.eventName] as? String else { return }
+        let payload = userInfo[SocketEventKey.data] as? [String: Any] ?? [:]
+
+        switch event {
+        case "receive_message":
+            guard let chatId = payload["chat_id"] as? String,
+                  let msgId  = payload["id"] as? Int else { return }
+            // Update sidebar contact preview
+            handleIncomingSocketMessage(payload)
+            // Store for ChatView to observe via incomingMsgTick
+            let msg = ChatMessage(
+                id: msgId,
+                chatId: chatId,
+                message: payload["message"] as? String,
+                messageType: payload["message_type"] as? String ?? "text",
+                createdAt: SunDateParser.timestamp(fromAny: payload["created_at"]) ?? Date().timeIntervalSince1970,
+                senderUserId: payload["sender_user_id"] as? Int,
+                senderPublicKey: payload["sender_public_key"] as? String,
+                senderDisplayName: payload["sender_display_name"] as? String,
+                senderUsername: payload["sender_username"] as? String
+            )
+            lastIncomingMsg = msg
+            lastIncomingChatId = chatId
+            incomingMsgTick += 1
+
+        case "user_status":
+            if let pubKey = payload["public_key"] as? String,
+               let online = payload["online"] as? Bool,
+               let idx = contacts.firstIndex(where: { $0.publicKey == pubKey }) {
+                contacts[idx].isOnline = online
+                contacts[idx].lastSeen = online ? nil : SunDateParser.timestamp(fromAny: payload["last_seen"])
+            }
+
+        case "profile_updated":
+            if let pubKey = payload["public_key"] as? String,
+               let idx = contacts.firstIndex(where: { $0.publicKey == pubKey }) {
+                contacts[idx].displayName = (payload["display_name"] as? String) ?? contacts[idx].displayName
+                contacts[idx].username = (payload["username"] as? String) ?? contacts[idx].username
+                if payload.keys.contains("avatar_url") {
+                    contacts[idx].avatarUrl = payload["avatar_url"] as? String
+                }
+            }
+
+        case "partner_typing":
+            if let chatId = payload["chat_id"] as? String,
+               let idx = contacts.firstIndex(where: { $0.chatId == chatId }) {
+                contacts[idx].isTyping = true
+                typingTimers[chatId]?.cancel()
+                typingTimers[chatId] = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: 6_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run { [weak self] in
+                        guard let self,
+                              let i = self.contacts.firstIndex(where: { $0.chatId == chatId })
+                        else { return }
+                        self.contacts[i].isTyping = false
+                        self.typingTimers[chatId] = nil
+                    }
+                }
+            }
+
+        case "partner_stop_typing":
+            if let chatId = payload["chat_id"] as? String,
+               let idx = contacts.firstIndex(where: { $0.chatId == chatId }) {
+                contacts[idx].isTyping = false
+                typingTimers[chatId]?.cancel()
+                typingTimers[chatId] = nil
+            }
+
+        case "dialog_request_updated":
+            Task { await self.refreshDialogRequests() }
+
+        // MARK: - Call signaling
+
+        case "call_incoming":
+            guard let callId   = payload["call_id"]   as? String,
+                  let chatId   = payload["chat_id"]   as? String,
+                  let callType = payload["call_type"] as? String,
+                  let initiator = payload["initiator"] as? [String: Any]
+            else { return }
+            incomingCall = IncomingCallData(
+                callId: callId,
+                chatId: chatId,
+                callType: callType,
+                callerName: initiator["display_name"] as? String ?? "Unknown",
+                callerAvatarUrl: initiator["avatar_url"] as? String,
+                callerUserId: initiator["user_id"] as? Int ?? 0
+            )
+
+        case "call_initiated":
+            guard let callId   = payload["call_id"]   as? String,
+                  let chatId   = payload["chat_id"]   as? String,
+                  let callType = payload["call_type"] as? String
+            else { return }
+            // Find contact for this chat
+            let contact = contacts.first(where: { $0.chatId == chatId })
+            var state = ActiveCallState(
+                callId: callId,
+                chatId: chatId,
+                callType: callType,
+                partnerName: contact?.displayName ?? "Unknown",
+                partnerAvatarUrl: contact?.avatarUrl,
+                partnerUserId: contact?.userId ?? 0,
+                isOutgoing: true
+            )
+            state.isCameraOff = (callType != "video")  // audio calls start camera-off
+            activeCall = state
+            incomingCall = nil
+            // Prepare WebRTC as initiator. Offer is sent when remote accepts.
+            WebRTCService.shared.startCall(callId: callId, callType: callType, isInitiator: true)
+
+        case "call_accepted":
+            // Remote peer accepted our outgoing call. The *initiator* now
+            // creates the SDP offer and sends it via call_offer.
+            if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
+                incomingCall = nil
+                if var c = activeCall, !c.isActive {
+                    c.isActive = true
+                    c.startedAt = Date()
+                    activeCall = c
+                }
+                if WebRTCService.shared.isInitiator {
+                    WebRTCService.shared.createAndSendOffer()
+                }
+            }
+
+        case "call_rejected":
+            // Our outgoing call was declined by the callee.
+            if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
+                if let call = activeCall {
+                    addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: nil, chatId: call.chatId)
+                }
+                teardownActiveCall()
+            }
+            incomingCall = nil
+
+        case "call_cancelled":
+            // The caller hung up before we answered → missed incoming call.
+            if let inc = incomingCall, inc.callId == payload["call_id"] as? String {
+                addCallRecord(name: inc.callerName, callType: inc.callType, isOutgoing: false, missed: true, durationSec: nil, chatId: inc.chatId)
+            }
+            incomingCall = nil
+            if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
+                if let call = activeCall {
+                    addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: call.elapsedSeconds, chatId: call.chatId)
+                }
+                teardownActiveCall()
+            }
+
+        case "call_ended":
+            incomingCall = nil
+            if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
+                if let call = activeCall {
+                    let serverDuration = payload["duration_sec"] as? Int
+                    addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: serverDuration ?? call.elapsedSeconds, chatId: call.chatId)
+                }
+                teardownActiveCall()
+            }
+
+        case "call_media_state":
+            if let callId = payload["call_id"] as? String, activeCall?.callId == callId, var c = activeCall {
+                c.remoteAudioMuted = payload["audio_muted"] as? Bool ?? c.remoteAudioMuted
+                c.remoteVideoEnabled = payload["video_enabled"] as? Bool ?? c.remoteVideoEnabled
+                activeCall = c
+            }
+
+        case "call_sync":
+            // Server's authoritative view of the user's live call. If it reports
+            // no active call but we still show one, the call ended elsewhere —
+            // tear our UI down so it can't get stuck.
+            if payload["active_call"] is NSNull || payload["active_call"] == nil {
+                if activeCall != nil { teardownActiveCall() }
+            }
+
+        // ── WebRTC SDP / ICE relay ──────────────────────────────────────────
+
+        case "call_offer":
+            guard let sdp = payload["sdp"] as? [String: Any],
+                  let sdpText = sdp["sdp"] as? String else { break }
+            WebRTCService.shared.handleRemoteOffer(sdpText)
+
+        case "call_answer":
+            guard let sdp = payload["sdp"] as? [String: Any],
+                  let sdpText = sdp["sdp"] as? String else { break }
+            WebRTCService.shared.handleRemoteAnswer(sdpText)
+
+        case "call_ice_candidate":
+            if let cand = payload["candidate"] as? [String: Any] {
+                WebRTCService.shared.handleRemoteCandidate(cand)
+            }
+
+        case "call_error":
+            let code = payload["error"] as? String ?? "server_error"
+            let messages: [String: String] = [
+                "user_busy":                    "Вы уже в другом звонке.",
+                "callee_busy":                  "Собеседник сейчас занят.",
+                "call_privacy_restricted":      "Пользователь ограничил входящие звонки.",
+                "calls_feature_disabled":       "Звонки временно недоступны.",
+                "no_recipients":                "Нет доступных получателей.",
+                "not_member":                   "Вы не участник этого чата.",
+                "call_not_found_or_expired":    "Звонок не найден или истёк.",
+                "call_already_active":          "В этом чате уже идёт звонок.",
+                "unsupported_call_topology":    "Групповые звонки пока не поддерживаются.",
+                "invalid_chat_id":              "Неверный идентификатор чата.",
+            ]
+            callError = messages[code] ?? "Ошибка звонка."
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                self?.callError = nil
+            }
+
+        case "contact_added":
+            Task { await self.refreshContacts() }
+
+        case "contact_removed":
+            if let chatId = payload["chat_id"] as? String {
+                contacts.removeAll { $0.chatId == chatId }
+            }
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - Call actions
+
+    func initiateCall(chatId: String, callType: String) {
+        guard SocketClient.shared.state == .connected else {
+            callError = "Нет соединения с сервером. Проверьте интернет и попробуйте переподключиться."
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                callError = nil
+            }
+            return
+        }
+        let requestId = UUID().uuidString
+        SocketClient.shared.emit("call_initiate", [
+            "chat_id": chatId,
+            "call_type": callType,
+            "request_id": requestId,
+            "csrf_token": api.csrfToken,
+        ])
+    }
+
+    func acceptCall(callId: String) {
+        guard SocketClient.shared.state == .connected else { return }
+        let requestId = UUID().uuidString
+        SocketClient.shared.emit("call_accept", [
+            "call_id": callId,
+            "request_id": requestId,
+            "csrf_token": api.csrfToken,
+        ])
+        if let incoming = incomingCall, incoming.callId == callId {
+            var state = ActiveCallState(
+                callId: callId,
+                chatId: incoming.chatId,
+                callType: incoming.callType,
+                partnerName: incoming.callerName,
+                partnerAvatarUrl: incoming.callerAvatarUrl,
+                partnerUserId: incoming.callerUserId,
+                isOutgoing: false
+            )
+            // We answered, so the call is active from our perspective.
+            state.isActive = true
+            state.startedAt = Date()
+            state.isCameraOff = (incoming.callType != "video")  // audio calls start camera-off
+            activeCall = state
+            // Prepare WebRTC as callee. Will create answer when offer arrives.
+            WebRTCService.shared.startCall(callId: callId, callType: incoming.callType, isInitiator: false)
+        }
+        incomingCall = nil
+    }
+
+    func rejectCall(callId: String) {
+        guard SocketClient.shared.state == .connected else { return }
+        SocketClient.shared.emit("call_reject", ["call_id": callId, "csrf_token": api.csrfToken])
+        if let inc = incomingCall, inc.callId == callId {
+            addCallRecord(name: inc.callerName, callType: inc.callType, isOutgoing: false, missed: false, durationSec: nil, chatId: inc.chatId)
+        }
+        incomingCall = nil
+    }
+
+    func endCall() {
+        guard let call = activeCall else { return }
+        if SocketClient.shared.state == .connected {
+            // Outgoing calls (we are the initiator) use call_cancel, which the
+            // server honours for both ringing AND active states. Incoming/answered
+            // calls must use call_end (only the non-initiator side). Sending the
+            // wrong event leaves the call ringing forever on the server and blocks
+            // the chat with `call_already_active`.
+            let event = call.isOutgoing ? "call_cancel" : "call_end"
+            SocketClient.shared.emit(event, ["call_id": call.callId, "csrf_token": api.csrfToken])
+        }
+        addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: call.elapsedSeconds, chatId: call.chatId)
+        teardownActiveCall()
+    }
+
+    /// Idempotent local teardown: stop WebRTC and clear call UI state.
+    /// Safe to call multiple times (e.g. both the local end action and the
+    /// server's echoed call_ended event may reach us).
+    func teardownActiveCall() {
+        WebRTCService.shared.endCall()
+        activeCall = nil
+        incomingCall = nil
+    }
+
+    /// Toggle local microphone and report the new state to the peer.
+    func toggleMute() {
+        guard var c = activeCall else { return }
+        c.isMuted.toggle()
+        activeCall = c
+        WebRTCService.shared.setMuted(c.isMuted)
+        emitMediaState()
+    }
+
+    /// Toggle the local camera and report the new state to the peer. Works even
+    /// on calls that started as audio-only (enableLocalVideo renegotiates).
+    func toggleCamera() {
+        guard var c = activeCall else { return }
+        c.isCameraOff.toggle()
+        activeCall = c
+        if c.isCameraOff {
+            WebRTCService.shared.setCameraOff(true)
+        } else {
+            WebRTCService.shared.enableLocalVideo()
+        }
+        emitMediaState()
+    }
+
+    /// Toggle the loudspeaker route.
+    func toggleSpeaker() {
+        guard var c = activeCall else { return }
+        c.isSpeaker.toggle()
+        activeCall = c
+        WebRTCService.shared.setSpeakerOn(c.isSpeaker)
+    }
+
+    private func emitMediaState() {
+        guard let call = activeCall, SocketClient.shared.state == .connected else { return }
+        SocketClient.shared.emit("call_media_state", [
+            "call_id": call.callId,
+            "audio_muted": call.isMuted,
+            "video_enabled": !call.isCameraOff,
+            "csrf_token": api.csrfToken,
+        ])
+    }
+
+    func loadBootstrap() async {
+        do {
+            let data = try await api.bootstrap()
+            bootstrap = data
+            contacts = data.contacts
+            decryptContactPreviews()
+            route = .main
+            connectSocket()
+            Task { await refreshDialogRequests() }
+            if data.hasMoreContacts {
+                Task { await refreshContacts() }
+            }
+            // Register iOS X25519/Ed25519 keys if not yet done (background, non-blocking)
+            Task { await registerV3KeysIfNeeded() }
+        } catch APIError.unauthorized {
+            route = .login
+        } catch {
+            errorMessage = error.localizedDescription
+            route = .login
+        }
+    }
+
+    // Generate and register iOS-specific X25519 + Ed25519 keys with the server.
+    // Only runs once — if keys already exist in Keychain, skips the server call.
+    // This lets the web client send X3DH-encrypted messages addressed to iOS.
+    func registerV3KeysIfNeeded() async {
+        // Skip if already registered (both keys in Keychain)
+        guard KeychainService.loadX25519PrivateKey() == nil ||
+              KeychainService.loadEd25519PrivateKey() == nil else { return }
+
+        let (ikPrivRaw, ikPubRaw)   = V3CryptoService.generateX25519KeyPair()
+        let (edPrivRaw, edPubRaw)   = V3CryptoService.generateEd25519KeyPair()
+
+        let ikPubB64u  = V3CryptoService.b64uEncode(ikPubRaw)
+        let edPubB64u  = V3CryptoService.b64uEncode(edPubRaw)
+
+        // Challenge: sign the identity key public bytes with the Ed25519 key
+        let challenge = ikPubB64u
+        guard let sig = try? V3CryptoService.ed25519Sign(privateRaw: edPrivRaw, message: challenge) else { return }
+        let sigB64u = V3CryptoService.b64uEncode(sig)
+
+        do {
+            try await api.registerV3Keys(
+                x25519Pub: ikPubB64u,
+                ed25519Pub: edPubB64u,
+                challenge: challenge,
+                signature: sigB64u
+            )
+        } catch {
+            return  // Network/auth error — will retry on next launch
+        }
+
+        // Persist private keys to Keychain only after successful server registration
+        try? KeychainService.saveX25519PrivateKey(ikPrivRaw)
+        try? KeychainService.saveEd25519PrivateKey(edPrivRaw)
+
+        // Generate and upload a signed prekey (id=1)
+        let (spkPrivRaw, spkPubRaw) = V3CryptoService.generateX25519KeyPair()
+        let spkPubB64u = V3CryptoService.b64uEncode(spkPubRaw)
+        if let spkSig = try? V3CryptoService.ed25519Sign(privateRaw: edPrivRaw, message: spkPubB64u) {
+            let spkSigB64u = V3CryptoService.b64uEncode(spkSig)
+            if (try? await api.uploadSignedPrekey(id: 1, publicKey: spkPubB64u, signature: spkSigB64u)) != nil {
+                try? KeychainService.saveSignedPrekeyPrivateKey(spkPrivRaw, id: 1)
+            }
+        }
+    }
+
+    /// Block a contact and drop them from the local list.
+    /// Returns nil on success, or a user-facing error message on failure.
+    func blockContact(_ contact: Contact) async -> String? {
+        guard let uid = contact.userId else { return "Не удалось определить пользователя." }
+        do {
+            try await api.blockUser(userId: uid)
+            contacts.removeAll { $0.chatId == contact.chatId }
+            return nil
+        } catch APIError.unauthorized {
+            route = .login
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func refreshContacts() async {
+        do {
+            contacts = try await api.getContacts()
+            decryptContactPreviews()
+        }
+        catch APIError.unauthorized { route = .login }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    func logout() async {
+        disconnectSocket()
+        try? await api.logout()
+        KeychainService.deletePrivateKey()
+        bootstrap = nil; contacts = []; pendingRequests = []; route = .login
+    }
+
+    func refreshDialogRequests() async {
+        do { pendingRequests = try await api.getDialogRequests() }
+        catch APIError.unauthorized { route = .login }
+        catch { }
+    }
+
+    // MARK: - Socket lifecycle
+
+    func connectSocket() {
+        guard let token = bootstrap?.csrfToken else { return }
+        SocketClient.shared.connect(csrfToken: token)
+        if SocketClient.shared.state == .connected {
+            markActive()
+        }
+    }
+
+    func disconnectSocket() {
+        markInactive()
+        SocketClient.shared.disconnect()
+    }
+
+    func reconnectRealtime() async {
+        SocketClient.shared.disconnect()
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        connectSocket()
+        await refreshContacts()
+    }
+
+    private func handleSocketStateChanged() {
+        socketState = SocketClient.shared.state
+        switch SocketClient.shared.state {
+        case .connected:
+            markActive()
+            // Reconcile call state with the server: if we still show a call the
+            // server no longer knows about, call_sync tears our UI down.
+            SocketClient.shared.emit("call_sync", ["csrf_token": api.csrfToken])
+            Task { await refreshContacts() }
+        case .disconnected:
+            stopPresenceTimer()
+        case .connecting:
+            break
+        }
+    }
+
+    private func markActive() {
+        guard route == .main, SocketClient.shared.state == .connected else { return }
+        SocketClient.shared.emit("activity_update", ["active": true])
+        startPresenceTimer()
+    }
+
+    private func markInactive() {
+        stopPresenceTimer()
+        guard SocketClient.shared.state == .connected else { return }
+        SocketClient.shared.emit("activity_update", ["active": false])
+    }
+
+    private func startPresenceTimer() {
+        presenceTimer?.invalidate()
+        presenceTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { _ in
+            Task { @MainActor in
+                guard SocketClient.shared.state == .connected else { return }
+                SocketClient.shared.emit("activity_update", ["active": true])
+            }
+        }
+    }
+
+    private func stopPresenceTimer() {
+        presenceTimer?.invalidate()
+        presenceTimer = nil
+    }
+
+    // MARK: - Incoming message from socket
+
+    /// Called by ChatListView and ChatView when a socket event carries a new message.
+    /// Updates the contact row in the sidebar (preview text, time, unread badge).
+    func handleIncomingSocketMessage(_ payload: [String: Any]) {
+        guard let chatId = payload["chat_id"] as? String else { return }
+
+        // Find contact index
+        guard let idx = contacts.firstIndex(where: { $0.chatId == chatId }) else { return }
+
+        let preview = (payload["message"] as? String).map { msg -> String in
+            // Call log message
+            if msg.hasPrefix("{"),
+               let data = msg.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               obj["__suncall"] != nil {
+                let ct = obj["call_type"] as? String ?? "audio"
+                return ct == "video" ? "📹 Видеозвонок" : "📞 Звонок"
+            }
+            // Raw encrypted blob → show placeholder
+            if msg.hasPrefix("{") || msg.count > 200 { return "🔐 Encrypted message" }
+            return msg
+        } ?? "New message"
+
+        let ts = SunDateParser.timestamp(fromAny: payload["created_at"]) ?? Date().timeIntervalSince1970
+
+        contacts[idx].lastMessage = preview
+        contacts[idx].lastMessageTime = ts
+        contacts[idx].initialLastMessagePreview = preview
+        contacts[idx].lastSenderId = payload["sender_user_id"] as? Int
+
+        if let rawMessage = payload["message"] as? String {
+            contacts[idx].initialLastMessagePreview = decryptPreview(
+                rawMessage,
+                isSelf: (payload["sender_user_id"] as? Int) == bootstrap?.user.id
+            )
+        }
+
+        // Only bump unread when this chat is not currently open
+        if activeChatId != chatId {
+            contacts[idx].unreadCount += 1
+        }
+
+        // Re-sort: pinned first, then by lastMessageTime descending
+        contacts.sort {
+            if $0.isPinned != $1.isPinned { return $0.isPinned }
+            return ($0.lastMessageTime ?? 0) > ($1.lastMessageTime ?? 0)
+        }
+    }
+
+    /// Called when the user opens a chat — clears the unread badge.
+    func clearUnread(chatId: String) {
+        guard let idx = contacts.firstIndex(where: { $0.chatId == chatId }) else { return }
+        contacts[idx].unreadCount = 0
+    }
+
+    private func decryptContactPreviews() {
+        let myId = bootstrap?.user.id ?? 0
+        let hasPem = KeychainService.loadPrivateKey() != nil
+        for index in contacts.indices {
+            guard let raw = contacts[index].lastMessage, raw.hasPrefix("{") else { continue }
+            // Call messages can be labelled without a decryption key
+            if let data = raw.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               obj["__suncall"] != nil {
+                let ct = obj["call_type"] as? String ?? "audio"
+                contacts[index].initialLastMessagePreview = ct == "video" ? "📹 Видеозвонок" : "📞 Звонок"
+                continue
+            }
+            guard hasPem else { continue }
+            let text = decryptPreview(raw, isSelf: contacts[index].lastSenderId == myId)
+            if !text.isEmpty, text != raw {
+                contacts[index].initialLastMessagePreview = text
+            }
+        }
+    }
+
+    private func decryptPreview(_ raw: String, isSelf: Bool) -> String {
+        guard raw.hasPrefix("{") else { return raw }
+        // Unencrypted call/media envelopes can be labelled without a key.
+        if let label = mediaPreviewLabel(raw) { return label }
+        guard let pem = KeychainService.loadPrivateKey() else { return "🔐 Зашифровано" }
+        let result = SunCrypto.decryptMessageForDisplay(raw, isSelf: isSelf, privateKeyPEM: pem)
+        if result == "__v3__" { return "🔐 Зашифровано" }
+        // Decrypted payloads are often media/call envelopes — show a friendly
+        // label instead of leaking raw __sunfile / __suncall JSON.
+        if let label = mediaPreviewLabel(result) { return label }
+        if result.isEmpty { return "🔐 Зашифровано" }
+        return result
+    }
+
+    /// Maps a __suncall / __sunfile JSON envelope to a short, human label.
+    /// Returns nil for anything that isn't a recognised media/call envelope
+    /// (e.g. encrypted v2 ciphertext or plain text), so it's safe to call on
+    /// both raw and decrypted strings.
+    private func mediaPreviewLabel(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{"),
+              let data = trimmed.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        if obj["__suncall"] != nil {
+            let ct = obj["call_type"] as? String ?? "audio"
+            return ct == "video" ? "📹 Видеозвонок" : "📞 Звонок"
+        }
+
+        let mime = ((obj["mime"] as? String) ?? (obj["mime_type"] as? String) ?? "").lowercased()
+        let hasURL = (obj["url"] as? String)?.isEmpty == false
+            || (obj["file_url"] as? String)?.isEmpty == false
+            || (obj["src"] as? String)?.isEmpty == false
+        // Require a real media signal — never trip on v2 ciphertext (which has
+        // a "data" field but no __sunfile / mime / url).
+        guard obj["__sunfile"] != nil || !mime.isEmpty || hasURL else { return nil }
+
+        let mediaType = (obj["media_type"] as? String ?? "").lowercased()
+        let name = (obj["name"] as? String ?? "").lowercased()
+        if mediaType == "audio" || mime.hasPrefix("audio/") || name.hasPrefix("voice") {
+            return "🎤 Голосовое сообщение"
+        }
+        if mediaType == "photo" || mediaType == "image" || mime.hasPrefix("image/") {
+            return "📷 Фото"
+        }
+        if mediaType == "video" || mime.hasPrefix("video/") {
+            return "🎥 Видео"
+        }
+        return "📎 Файл"
+    }
+
+    // MARK: - Call History Local Storage
+
+    func saveCallHistory() {
+        if let data = try? JSONEncoder().encode(callHistory) {
+            UserDefaults.standard.set(data, forKey: "sunmsg_call_history")
+        }
+    }
+
+    private func loadCallHistory() {
+        if let data = UserDefaults.standard.data(forKey: "sunmsg_call_history"),
+           let history = try? JSONDecoder().decode([CallRecord].self, from: data) {
+            self.callHistory = history
+        }
+    }
+
+    private func addCallRecord(name: String, callType: String, isOutgoing: Bool, missed: Bool, durationSec: Int?, chatId: String?) {
+        let duration: String?
+        if let sec = durationSec, sec > 0, !missed {
+            if sec >= 3600 {
+                duration = String(format: "%d:%02d:%02d", sec / 3600, (sec % 3600) / 60, sec % 60)
+            } else {
+                duration = String(format: "%02d:%02d", sec / 60, sec % 60)
+            }
+        } else {
+            duration = nil
+        }
+        let record = CallRecord(
+            name: name,
+            callType: callType == "video" ? .video : .audio,
+            direction: isOutgoing ? .outgoing : .incoming,
+            missed: missed,
+            when: smFormatTime(Date().timeIntervalSince1970),
+            duration: duration,
+            isOnline: false,
+            chatId: chatId
+        )
+        callHistory.insert(record, at: 0)
+        saveCallHistory()
+    }
+}
+
+// MARK: - App colour scheme preference
+
+enum AppColorScheme: String, CaseIterable {
+    case system = "system"
+    case light  = "light"
+    case dark   = "dark"
+
+    var label: String {
+        switch self { case .system: "System"; case .light: "Light"; case .dark: "Dark" }
+    }
+    var icon: String {
+        switch self { case .system: "circle.lefthalf.filled"; case .light: "sun.max"; case .dark: "moon.stars" }
+    }
+    var colorScheme: ColorScheme? {
+        switch self { case .system: nil; case .light: .light; case .dark: .dark }
+    }
+}
+
+// MARK: - Root router
+
+struct ContentView: View {
+    @EnvironmentObject var session: SessionStore
+    @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
+
+    private var preferredScheme: ColorScheme? {
+        AppColorScheme(rawValue: schemePref)?.colorScheme
+    }
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+            switch session.route {
+            case .loading:
+                SplashView().task { await session.loadBootstrap() }
+            case .login:
+                NativeLoginView()
+            case .register:
+                NativeRegisterView()
+            case .main:
+                MainTabView()
+            }
+        }
+        .preferredColorScheme(preferredScheme)
+        .animation(.easeInOut(duration: 0.25), value: session.route)
+    }
+}
+
+// MARK: - Splash (matches prototype exactly)
+
+struct SplashView: View {
+    @State private var dotPhase: Double = 0
+    private let timer = Timer.publish(every: 0.18, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+
+            // Warm radial wash
+            RadialGradient(
+                colors: [Color.smAccent.opacity(0.10), Color.clear],
+                center: UnitPoint(x: 0.5, y: 0.40),
+                startRadius: 0, endRadius: 300
+            )
+            .ignoresSafeArea()
+
+            GeometryReader { geo in
+                let cy = geo.size.height * 0.40
+                Circle()
+                    .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [3, 4]))
+                    .foregroundStyle(Color.smAccent.opacity(0.30))
+                    .frame(width: 260, height: 260)
+                    .position(x: geo.size.width / 2, y: cy)
+                Circle()
+                    .strokeBorder(style: StrokeStyle(lineWidth: 0.5, dash: [3, 4]))
+                    .foregroundStyle(Color.smAccent.opacity(0.15))
+                    .frame(width: 340, height: 340)
+                    .position(x: geo.size.width / 2, y: cy)
+            }
+
+            VStack(spacing: 0) {
+                Spacer()
+                AmberOrb(size: 120)
+                    .padding(.bottom, 24)
+
+                Text("sun")
+                    .font(.system(size: 40, weight: .bold))
+                    .foregroundStyle(Color.smText)
+                    .tracking(-1.4)
+
+                Text("тихие сообщения, тёплый свет")
+                    .font(.custom("Georgia", size: 16).italic())
+                    .foregroundStyle(Color.smMuted)
+                    .padding(.top, 10)
+
+                Spacer()
+                Spacer()
+
+                // Loading dots — 4 dots with sequential pulse
+                HStack(spacing: 8) {
+                    ForEach(0..<4, id: \.self) { i in
+                        let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
+                        Circle()
+                            .fill(Color.smAccent)
+                            .frame(width: 6, height: 6)
+                            .opacity(0.25 + phase * 0.75)
+                            .scaleEffect(0.85 + phase * 0.30)
+                    }
+                }
+                .padding(.bottom, 110)
+            }
+        }
+        .onReceive(timer) { _ in dotPhase += 0.20 }
+    }
+}
+
+// MARK: - Sun mark (matches prototype BigSunMark exactly)
+// Outer thin amber ring + inner filled amber disk. No bubble icon.
+
+struct AmberOrb: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            // Outer ring (stroke only, no fill)
+            Circle()
+                .stroke(Color(hex: "#d6a14a").opacity(0.9), lineWidth: size * 0.045)
+                .frame(width: size * 0.97, height: size * 0.97)
+
+            // Inner filled disk with radial amber gradient
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "#e6b772"),
+                            Color(hex: "#c4943c"),
+                            Color(hex: "#9b6e26"),
+                        ],
+                        center: UnitPoint(x: 0.5, y: 0.40),
+                        startRadius: 0,
+                        endRadius: size * 0.4
+                    )
+                )
+                .frame(width: size * 0.72, height: size * 0.72)
+                .shadow(color: Color.smAccent.opacity(0.32), radius: size * 0.12, x: 0, y: size * 0.04)
+
+            // Subtle specular highlight
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.35), Color.clear],
+                        center: UnitPoint(x: 0.38, y: 0.32),
+                        startRadius: 0, endRadius: size * 0.22
+                    )
+                )
+                .frame(width: size * 0.55, height: size * 0.55)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Main tab view (custom tab bar matching prototype exactly)
+
+struct MainTabView: View {
+    @EnvironmentObject var session: SessionStore
+
+    var body: some View {
+        ZStack {
+            TabView(selection: $session.selectedTab) {
+                NavigationStack { ChatListView() }
+                    .tabItem { Label("Чаты", systemImage: "bubble.left.and.bubble.right") }
+                    .tag(0)
+
+                NavigationStack { CallsView() }
+                    .tabItem { Label("Звонки", systemImage: "phone") }
+                    .tag(1)
+
+                NavigationStack { PeopleView() }
+                    .tabItem { Label("Контакты", systemImage: "person.2") }
+                    .badge(session.pendingRequests.count)
+                    .tag(2)
+
+                NavigationStack { SettingsView() }
+                    .tabItem { Label("Настройки", systemImage: "gearshape") }
+                    .tag(3)
+            }
+            .tint(Color.smAccent2)
+            .onReceive(NotificationCenter.default.publisher(for: .openNewChat)) { _ in
+                session.selectedTab = 2
+            }
+            // Present the in-call screen whenever there is an active call. The
+            // binding is read-only in effect: dismissal is driven solely by
+            // `session.activeCall` becoming nil (via the End button or a remote
+            // call_ended/call_cancelled event), never by a side effect here — so
+            // teardown happens exactly once.
+            .fullScreenCover(item: $session.activeCall) { callItem in
+                InCallView(providedCall: callItem, session: session)
+            }
+
+            // Incoming call overlay (top of stack)
+            if let incoming = session.incomingCall {
+                IncomingCallView(call: incoming, session: session)
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+
+            // Call error toast
+            if let err = session.callError {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 10) {
+                        Image(systemName: "phone.slash.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.smDanger)
+                        Text(err)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.smText)
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smDanger.opacity(0.3), lineWidth: 0.5))
+                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 90)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(5)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: session.incomingCall != nil)
+        .animation(.spring(duration: 0.35), value: session.callError)
+    }
+}
+
+// MARK: - Settings view (matches prototype "Настройки" home exactly)
+
+struct SettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
+    @State private var showMnemonicInfo = false
+    @State private var isLoadingSettings = false
+    @State private var isSavingSettings = false
+    @State private var isSyncing = false
+    @State private var settingsError: String?
+    @State private var showOnlineStatus = true
+    @State private var shareTyping = true
+    @State private var sendReadReceipts = true
+    @State private var muteDialogRequests = false
+    @State private var socketState = SocketClient.State.disconnected
+    @State private var navigateToPrivacy = false
+    @State private var navigateToAppearance = false
+    @State private var navigateToDevices = false
+    @State private var showProfileSheet = false
+    @State private var showQRSheet = false
+    @State private var showLogoutConfirm = false
+    @State private var showThemeSheet = false
+
+    private var user: BootstrapUser? { session.bootstrap?.user }
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header matching prototype: title + QR trailing
+                HStack {
+                    Text("Настройки")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.smText)
+                        .tracking(-0.6)
+                    Spacer()
+                    Button(action: { showQRSheet = true }) {
+                        Image(systemName: "qrcode")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Color.smAccent2)
+                            .frame(width: 36, height: 36)
+                            .background(Color.smAccent.opacity(0.10), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 6)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 12) {
+                        profileCard
+                            .padding(.top, 12)
+
+                        // Primary group — amber tints (key features)
+                        settingsGroup {
+                            settingsRow(
+                                icon: "key.fill",
+                                tint: .amber,
+                                label: "Приватность и безопасность",
+                                sub: "Ключи, устройства, блокировки",
+                                badge: KeychainService.loadPrivateKey() == nil ? "!" : nil,
+                                action: { navigateToPrivacy = true }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "bell.fill",
+                                tint: .amber,
+                                label: "Уведомления",
+                                sub: muteDialogRequests ? "Заглушены" : "Звуки, привью, тёплый режим",
+                                action: {
+                                    muteDialogRequests.toggle()
+                                    saveSettings(["mute_dialog_requests": muteDialogRequests])
+                                }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "paintpalette.fill",
+                                tint: .amber,
+                                label: "Внешний вид",
+                                sub: themeLabel,
+                                action: { navigateToAppearance = true }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "externaldrive.fill",
+                                tint: .amber,
+                                label: "Данные и память",
+                                sub: "\(session.contacts.count) диалогов",
+                                isLast: true,
+                                action: {
+                                    Task {
+                                        isSyncing = true
+                                        await session.loadBootstrap()
+                                        isSyncing = false
+                                    }
+                                }
+                            )
+                        }
+
+                        // Neutral group
+                        settingsGroup {
+                            settingsRow(
+                                icon: "globe",
+                                tint: .neutral,
+                                label: "Язык",
+                                trail: "Русский",
+                                action: { }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "iphone",
+                                tint: .neutral,
+                                label: "Устройства",
+                                trail: "1",
+                                action: { navigateToDevices = true }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "square.and.arrow.up",
+                                tint: .neutral,
+                                label: "Переподключить realtime",
+                                sub: socketStatusText,
+                                isLast: true,
+                                action: {
+                                    Task {
+                                        isSyncing = true
+                                        await session.reconnectRealtime()
+                                        isSyncing = false
+                                    }
+                                }
+                            )
+                        }
+
+                        // Privacy toggles
+                        settingsGroup {
+                            toggleSettingsRow(
+                                label: "Статус «в сети»",
+                                sub: showOnlineStatus ? "Видно контактам" : "Скрыт",
+                                isOn: Binding(
+                                    get: { showOnlineStatus },
+                                    set: { v in
+                                        showOnlineStatus = v
+                                        saveSettings([
+                                            "hide_online_status": !v,
+                                            "last_seen_visibility": v ? "contacts" : "nobody",
+                                        ], reconnect: true)
+                                    }
+                                )
+                            )
+                            divider
+                            toggleSettingsRow(
+                                label: "Индикатор набора",
+                                sub: shareTyping ? "Отправлять" : "Не отправлять",
+                                isOn: Binding(
+                                    get: { shareTyping },
+                                    set: { v in
+                                        shareTyping = v
+                                        saveSettings(["typing_privacy": v ? "contacts" : "nobody"])
+                                    }
+                                )
+                            )
+                            divider
+                            toggleSettingsRow(
+                                label: "Подтверждения прочтения",
+                                sub: sendReadReceipts ? "Включены" : "Скрыты",
+                                isOn: Binding(
+                                    get: { sendReadReceipts },
+                                    set: { v in
+                                        sendReadReceipts = v
+                                        saveSettings(["read_receipts_privacy": v ? "contacts" : "nobody"])
+                                    }
+                                ),
+                                isLast: true
+                            )
+                        }
+
+                        // Help + logout
+                        settingsGroup {
+                            settingsRow(
+                                icon: "questionmark.circle.fill",
+                                tint: .neutral,
+                                label: "Помощь",
+                                sub: "Открыть сайт поддержки",
+                                action: {
+                                    if let url = URL(string: kBaseURL) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                            )
+                            divider
+                            settingsRow(
+                                icon: "rectangle.portrait.and.arrow.right",
+                                tint: .danger,
+                                label: "Выйти из аккаунта",
+                                isLast: true,
+                                action: { showLogoutConfirm = true }
+                            )
+                        }
+
+                        if let settingsError {
+                            Text(settingsError)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(Color.smDanger)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 18)
+                        }
+
+                        Text("sun · версия 1.0")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(Color.smFaint)
+                            .padding(.top, 6)
+                            .padding(.bottom, 28)
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .navigationDestination(isPresented: $navigateToPrivacy) {
+            PrivacySettingsView()
+        }
+        .navigationDestination(isPresented: $navigateToAppearance) {
+            AppearanceSettingsView()
+        }
+        .navigationDestination(isPresented: $navigateToDevices) {
+            DevicesView()
+        }
+        .sheet(isPresented: $showProfileSheet) {
+            ProfileSettingsView()
+        }
+        .sheet(isPresented: $showQRSheet) {
+            UserQRSheet()
+        }
+        .confirmationDialog("Выйти из аккаунта?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
+            Button("Выйти", role: .destructive) { Task { await session.logout() } }
+            Button("Отмена", role: .cancel) { }
+        } message: {
+            Text("Сообщения останутся зашифрованными на устройстве, пока вы снова не войдёте.")
+        }
+        .task { await loadSettingsIfNeeded() }
+        .onAppear { socketState = SocketClient.shared.state }
+        .onReceive(NotificationCenter.default.publisher(for: .smSocketStateChanged)) { _ in
+            socketState = SocketClient.shared.state
+        }
+    }
+
+    private var themeLabel: String {
+        AppColorScheme(rawValue: schemePref)?.label ?? "Система"
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.smBorderSoft)
+            .frame(height: 0.5)
+            .padding(.leading, 54)
+    }
+
+    // MARK: - Profile card (matches prototype exactly: 52×52 avatar, 16/600 name, amber @handle, sync chip)
+
+    private var profileCard: some View {
+        Button(action: { showProfileSheet = true }) {
+            HStack(spacing: 12) {
+                SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 52)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(user?.displayName ?? "—")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.smText)
+                        .tracking(-0.3)
+                        .lineLimit(1)
+                    Text("@\(user?.username ?? "—")")
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Color.smAccent2)
+                    SyncChipView()
+                        .padding(.top, 4)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.smFaint)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+            .shadow(color: Color(hex: "#281e0f").opacity(0.05), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Settings group helpers (prototype-aligned)
+
+    private enum RowTint { case amber, neutral, danger }
+
+    @ViewBuilder
+    private func settingsGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) { content() }
+            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+            .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 2, x: 0, y: 1)
+    }
+
+    private func settingsRow(
+        icon: String,
+        tint: RowTint,
+        label: String,
+        sub: String? = nil,
+        trail: String? = nil,
+        badge: String? = nil,
+        isLast: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        let tintBg: Color = {
+            switch tint {
+            case .amber:   return Color.smAccent.opacity(0.10)
+            case .neutral: return Color.smText.opacity(0.06)
+            case .danger:  return Color.smDanger.opacity(0.10)
+            }
+        }()
+        let tintFg: Color = {
+            switch tint {
+            case .amber:   return Color.smAccent2
+            case .neutral: return Color.smText.opacity(0.65)
+            case .danger:  return Color.smDanger
+            }
+        }()
+        let labelColor: Color = tint == .danger ? Color.smDanger : Color.smText
+
+        return Button(action: action) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(tintBg)
+                        .frame(width: 30, height: 30)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(tintFg)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(label)
+                        .font(.system(size: 14.5, weight: .medium))
+                        .foregroundStyle(labelColor)
+                        .tracking(-0.2)
+                    if let sub {
+                        Text(sub)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(Color.smMuted)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                if let badge {
+                    Text(badge)
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .background(Color.smAccent, in: Capsule())
+                }
+                if let trail {
+                    Text(trail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.smMuted)
+                }
+                if tint != .danger {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.smFaint)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleSettingsRow(
+        label: String,
+        sub: String? = nil,
+        isOn: Binding<Bool>,
+        isLast: Bool = false
+    ) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(size: 14.5, weight: .medium))
+                    .foregroundStyle(Color.smText)
+                    .tracking(-0.2)
+                if let sub {
+                    Text(sub)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(Color.smMuted)
+                }
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(Color.smAccent)
+                .disabled(isSavingSettings || isLoadingSettings)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+    }
+
+    private var socketStatusText: String {
+        switch socketState {
+        case .connected: "Подключено"
+        case .connecting: "Подключение…"
+        case .disconnected: "Отключено"
+        }
+    }
+
+    private func loadSettingsIfNeeded() async {
+        guard !isLoadingSettings else { return }
+        await loadSettings()
+    }
+
+    private func loadSettings() async {
+        isLoadingSettings = true
+        settingsError = nil
+        do {
+            let current = try await session.api.getSettings()
+            showOnlineStatus = !current.hideOnlineStatus && current.lastSeenVisibility != "nobody"
+            shareTyping = current.typingPrivacy != "nobody"
+            sendReadReceipts = current.readReceiptsPrivacy != "nobody"
+            muteDialogRequests = current.muteDialogRequests
+        } catch {
+            settingsError = error.localizedDescription
+        }
+        isLoadingSettings = false
+    }
+
+    private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
+        guard !isSavingSettings else { return }
+        isSavingSettings = true
+        settingsError = nil
+        Task {
+            do {
+                try await session.api.saveSettings(payload)
+                if reconnect {
+                    await session.reconnectRealtime()
+                }
+                await session.refreshContacts()
+            } catch {
+                settingsError = error.localizedDescription
+                await loadSettings()
+            }
+            isSavingSettings = false
+        }
+    }
+
+}
+
+// MARK: - Profile Settings View
+
+struct ProfileSettingsView: View {
+    @EnvironmentObject var session: SessionStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var displayName = ""
+    @State private var isSaving = false
+    @State private var saveError: String?
+    @State private var showQRSheet = false
+
+    private var user: BootstrapUser? { session.bootstrap?.user }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.smBg.ignoresSafeArea()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        // Avatar section
+                        VStack(spacing: 12) {
+                            ZStack(alignment: .bottomTrailing) {
+                                SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 80)
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.smAccent)
+                                        .frame(width: 26, height: 26)
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Color(hex: "#15140e"))
+                                }
+                                .offset(x: 2, y: 2)
+                            }
+                            Text(user?.displayName ?? "—")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color.smText)
+                                .tracking(-0.3)
+                            Text("@\(user?.username ?? "—")")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.smAccent2)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 20)
+
+                        // Info rows
+                        VStack(spacing: 0) {
+                            profileInfoRow(label: "Имя", value: user?.displayName ?? "—", icon: "person.fill")
+                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
+                            profileInfoRow(label: "Логин", value: "@\(user?.username ?? "—")", icon: "at")
+                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
+                            profileInfoRow(label: "Язык", value: user?.uiLanguage.uppercased() ?? "RU", icon: "globe")
+                        }
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+
+                        // QR button
+                        Button(action: { showQRSheet = true }) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.smAccent.opacity(0.10))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: "qrcode")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(Color.smAccent2)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Мой QR код")
+                                        .font(.system(size: 14.5, weight: .medium))
+                                        .foregroundStyle(Color.smText)
+                                    Text("Покажите другим пользователям")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Color.smMuted)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.smFaint)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+
+                        if let err = saveError {
+                            Text(err)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(Color.smDanger)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Text("Изменение профиля доступно в веб-версии")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(Color.smFaint)
+                            .multilineTextAlignment(.center)
+                            .padding(.bottom, 24)
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+            .navigationTitle("Профиль")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.smBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Закрыть") { dismiss() }
+                        .foregroundStyle(Color.smMuted)
+                }
+            }
+            .sheet(isPresented: $showQRSheet) {
+                UserQRSheet()
+            }
+        }
+    }
+
+    private func profileInfoRow(label: String, value: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.smAccent.opacity(0.10))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.smAccent2)
+            }
+            Text(label)
+                .font(.system(size: 14.5, weight: .medium))
+                .foregroundStyle(Color.smText)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.smMuted)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Appearance Settings View
+
+struct AppearanceSettingsView: View {
+    @AppStorage("appColorScheme") private var schemePref: String = AppColorScheme.system.rawValue
+    @EnvironmentObject var session: SessionStore
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Theme picker
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ТЕМА ОФОРМЛЕНИЯ")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                            .tracking(0.6)
+                            .padding(.horizontal, 4)
+
+                        VStack(spacing: 0) {
+                            ForEach(AppColorScheme.allCases, id: \.rawValue) { scheme in
+                                let isSelected = schemePref == scheme.rawValue
+                                Button(action: { schemePref = scheme.rawValue }) {
+                                    HStack(spacing: 14) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(isSelected ? Color.smAccent.opacity(0.14) : Color.smText.opacity(0.06))
+                                                .frame(width: 32, height: 32)
+                                            Image(systemName: scheme.icon)
+                                                .font(.system(size: 14))
+                                                .foregroundStyle(isSelected ? Color.smAccent2 : Color.smText.opacity(0.65))
+                                        }
+                                        Text(schemeRussian(scheme))
+                                            .font(.system(size: 15, weight: isSelected ? .semibold : .regular))
+                                            .foregroundStyle(Color.smText)
+                                        Spacer()
+                                        if isSelected {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 18))
+                                                .foregroundStyle(Color.smAccent)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 13)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                if scheme != AppColorScheme.allCases.last {
+                                    Rectangle()
+                                        .fill(Color.smBorderSoft)
+                                        .frame(height: 0.5)
+                                        .padding(.leading, 54)
+                                }
+                            }
+                        }
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                    }
+                    .padding(.top, 16)
+
+                    // Preview card
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ПРЕДПРОСМОТР")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                            .tracking(0.6)
+                            .padding(.horizontal, 4)
+
+                        VStack(spacing: 10) {
+                            HStack {
+                                AmberOrb(size: 28)
+                                Text("sun messenger")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.smText)
+                                Spacer()
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.smOnline)
+                            }
+                            HStack {
+                                Spacer()
+                                Text("Привет! Как дела?")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Color.smBubbleOutText)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.smBubbleOut, in: RoundedRectangle(cornerRadius: 14))
+                            }
+                            HStack {
+                                Text("Всё отлично, спасибо!")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Color.smBubbleInText)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.smBubbleIn, in: RoundedRectangle(cornerRadius: 14))
+                                Spacer()
+                            }
+                        }
+                        .padding(16)
+                        .background(Color(hex: "#f2ede2"), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                        .environment(\.colorScheme, AppColorScheme(rawValue: schemePref)?.colorScheme ?? .light)
+                    }
+
+                    Spacer().frame(height: 20)
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .navigationTitle("Внешний вид")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.smBg, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    private func schemeRussian(_ scheme: AppColorScheme) -> String {
+        switch scheme {
+        case .system: return "Системная"
+        case .light:  return "Светлая"
+        case .dark:   return "Тёмная"
+        }
+    }
+}
+
+// MARK: - Devices View
+
+struct DevicesView: View {
+    @EnvironmentObject var session: SessionStore
+
+    private var deviceName: String {
+        UIDevice.current.name
+    }
+
+    var body: some View {
+        ZStack {
+            Color.smBg.ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("АКТИВНЫЕ УСТРОЙСТВА")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                            .tracking(0.6)
+                            .padding(.horizontal, 4)
+
+                        VStack(spacing: 0) {
+                            // Current device
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.smAccent.opacity(0.10))
+                                        .frame(width: 36, height: 36)
+                                    Image(systemName: "iphone")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(Color.smAccent2)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 6) {
+                                        Text(deviceName)
+                                            .font(.system(size: 14.5, weight: .medium))
+                                            .foregroundStyle(Color.smText)
+                                            .lineLimit(1)
+                                        Text("Это устройство")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(Color.smOnline)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.smOnline.opacity(0.12), in: Capsule())
+                                    }
+                                    Text("iOS · Сейчас активен")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Color.smMuted)
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                        }
+                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                    }
+                    .padding(.top, 16)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ИНФОРМАЦИЯ")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.smFaint)
+                            .tracking(0.6)
+                            .padding(.horizontal, 4)
+
+                        Text("Управление несколькими устройствами доступно в веб-версии sun. Каждое устройство хранит ключи локально.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.smMuted)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                    }
+
+                    Spacer().frame(height: 20)
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .navigationTitle("Устройства")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.smBg, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+    }
+}

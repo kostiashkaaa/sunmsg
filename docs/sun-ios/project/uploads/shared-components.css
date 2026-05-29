@@ -1,0 +1,216 @@
+/* normalized: removed mojibake comment */
+#toastContainer {
+    position: fixed;
+    top: calc(
+        var(--vv-top-offset, 0px)
+        + var(--header-h, 64px)
+        + env(safe-area-inset-top)
+        + 10px
+    );
+    left: calc((100vw + var(--sidebar-width, 320px)) / 2);
+    right: auto;
+    transform: translateX(-50%);
+    bottom: auto;
+    z-index: 9999;
+    width: min(460px, calc(100vw - 28px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+/* Keep SVG symbol sprite out of normal document flow even under strict CSP. */
+svg[aria-hidden="true"][focusable="false"][width="0"][height="0"] {
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+.toast-msg {
+    --toast-accent: color-mix(in srgb, #3b82f6 86%, white 14%);
+    --toast-bg: color-mix(in srgb, var(--surface) 88%, transparent 12%);
+    --toast-border: color-mix(in srgb, var(--toast-accent) 34%, var(--border) 66%);
+    --toast-title-color: var(--text);
+    --toast-text-color: color-mix(in srgb, var(--text) 74%, var(--sub-text) 26%);
+    --toast-close-color: color-mix(in srgb, var(--text) 58%, var(--sub-text) 42%);
+    --toast-icon-bg: color-mix(in srgb, var(--toast-accent) 18%, transparent);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 10px;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--toast-accent) 14%, transparent) 0%, transparent 62%),
+        var(--toast-bg);
+    color: var(--toast-title-color);
+    border-radius: 16px;
+    border: 1px solid var(--toast-border);
+    padding: 10px 10px 10px 12px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow:
+        0 12px 26px rgba(9, 16, 28, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    animation: toastSlide var(--dur-medium) var(--ease-quick) both;
+    pointer-events: auto;
+    backdrop-filter: blur(12px) saturate(122%);
+    -webkit-backdrop-filter: blur(12px) saturate(122%);
+    transition:
+        opacity var(--dur-medium) var(--ease-quick),
+        transform var(--dur-medium) var(--ease-quick);
+    word-break: break-word;
+}
+
+.toast-msg__icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    align-self: center;
+    background: var(--toast-icon-bg);
+    color: var(--toast-accent);
+    font-size: 14px;
+    margin-top: 0;
+}
+
+.toast-msg__content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.toast-msg__title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.toast-msg__text {
+    font-size: 12px;
+    color: var(--toast-text-color);
+    line-height: 1.35;
+}
+
+.toast-msg__close {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--toast-close-color);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    align-self: center;
+    transition: background var(--dur-quick) var(--ease-quick), color var(--dur-quick) var(--ease-quick);
+}
+
+.toast-msg__close i {
+    font-size: 12px;
+}
+
+.toast-msg__close:hover {
+    background: color-mix(in srgb, var(--toast-accent) 12%, transparent);
+    color: color-mix(in srgb, var(--toast-accent) 78%, var(--text) 22%);
+}
+.toast-msg.success {
+    --toast-accent: color-mix(in srgb, #22c55e 82%, white 18%);
+}
+.toast-msg.danger,
+.toast-msg.error {
+    --toast-accent: color-mix(in srgb, #ef4444 82%, white 18%);
+}
+.toast-msg.warning {
+    --toast-accent: color-mix(in srgb, #f59e0b 84%, white 16%);
+}
+.toast-msg.info {
+    --toast-accent: color-mix(in srgb, #3b82f6 86%, white 14%);
+}
+body.dark-mode .toast-msg {
+    --toast-bg: color-mix(in srgb, var(--surface) 90%, #120f0a 10%);
+    --toast-border: color-mix(in srgb, var(--toast-accent) 34%, rgba(148, 163, 184, 0.45) 66%);
+    --toast-title-color: #f8fafc;
+    --toast-text-color: rgba(226, 232, 240, 0.88);
+    --toast-close-color: rgba(203, 213, 225, 0.82);
+    box-shadow:
+        0 14px 30px rgba(2, 6, 23, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.toast-msg.is-hiding {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.985);
+}
+@keyframes toastSlide {
+    from { opacity: 0; transform: translate3d(0, -10px, 0) scale(0.975); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.auth-toast-container#toastContainer {
+    top: 20px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: min(360px, calc(100vw - 24px));
+    align-items: stretch;
+}
+
+/* Bootstrap toast compat */
+.toast {
+    background: var(--modal-bg) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+}
+.toast-header {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+}
+
+.sun-check-glyph {
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: center;
+    line-height: 1;
+    color: currentColor;
+    vertical-align: middle;
+    flex: 0 0 auto;
+}
+.sun-check-glyph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+.sun-check-glyph--single {
+    width: 0.92em;
+    height: 1em;
+}
+.sun-check-glyph--double {
+    width: 1.26em;
+    height: 1em;
+}
+.sun-check-glyph--ui {
+    width: 1em;
+    height: 1em;
+}
+
+
+

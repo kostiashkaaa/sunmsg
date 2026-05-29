@@ -1,0 +1,1661 @@
+/* =============================================================================
+   settings-premium.css — PREMIUM POLISH LAYER v2
+   Закрывает все проблемы аудита: toggle, inputs, range, animations,
+   accessibility, consistency, mobile UX, desktop UX.
+   Загружается последним — после settings-polish.css.
+   Область применения: .settings-scene (не затрагивает остальной чат).
+   ============================================================================= */
+
+/* ── 1. CSS-ПЕРЕМЕННАЯ СИСТЕМА — единая шкала для Settings ─────────────────── */
+
+.settings-scene {
+    /* Icon sizes */
+    --s-icon-sm:    16px;
+    --s-icon-md:    20px;
+    --s-icon-lg:    24px;
+    --s-icon-chip:  28px;
+
+    /* Spacing */
+    --s-pad-x:      22px;
+    --s-pad-row:    14px;
+    --s-row-min-h:  56px;
+    --s-card-gap:   10px;
+
+    /* Radius */
+    --s-radius-sm:  10px;
+    --s-radius-md:  12px;
+    --s-radius-lg:  18px;
+    --s-radius-pill: 999px;
+
+    /* Control heights */
+    --s-ctrl-h:     40px;
+    --s-toggle-w:   44px;
+    --s-toggle-h:   26px;
+    --s-toggle-knob: 22px;
+
+    /* Transitions */
+    --s-ease:       cubic-bezier(0.25, 0.1, 0.25, 1);
+    --s-spring:     cubic-bezier(0.34, 1.4, 0.64, 1);
+    --s-dur-fast:   0.12s;
+    --s-dur-mid:    0.2s;
+    --s-dur-slow:   0.28s;
+
+    /* Colors (derived from design tokens) */
+    --s-accent:     var(--sx-accent, var(--accent));
+    --s-accent-tint: var(--sx-accent-tint, color-mix(in srgb, var(--accent) 12%, transparent));
+    --s-ink:        var(--sx-ink, var(--text));
+    --s-ink-2:      var(--sx-ink-2, var(--sub-text));
+    --s-ink-3:      var(--sx-ink-3, color-mix(in srgb, var(--sub-text) 70%, transparent));
+    --s-surface:    var(--sx-bg-elev, var(--paper));
+    --s-surface-soft: var(--sx-bg-soft, var(--paper-alt));
+    --s-line:       var(--sx-line, var(--rule));
+    --s-danger:     var(--sx-danger, #c95a3a);
+    --s-success:    var(--sx-good, #4e9a6f);
+}
+
+/* ── 2. TOGGLE — premium size, accent color, spring animation ───────────────── */
+
+.settings-scene .toggle {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: var(--s-toggle-w) !important;
+    height: var(--s-toggle-h) !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+}
+
+.settings-scene .toggle input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    z-index: 1 !important;
+}
+
+.settings-scene .toggle-track {
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: var(--s-radius-pill) !important;
+    background: color-mix(in srgb, var(--s-ink) 18%, transparent) !important;
+    transition:
+        background-color var(--s-dur-mid) var(--s-ease),
+        box-shadow var(--s-dur-mid) var(--s-ease) !important;
+    pointer-events: none !important;
+}
+
+.settings-scene .toggle input:checked + .toggle-track {
+    background: var(--s-accent) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-accent) 40%, transparent) !important;
+}
+
+.settings-scene .toggle-knob {
+    position: absolute !important;
+    top: 2px !important;
+    left: 2px !important;
+    width: var(--s-toggle-knob) !important;
+    height: var(--s-toggle-knob) !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    box-shadow:
+        0 1px 3px rgba(0,0,0,.22),
+        0 2px 8px rgba(0,0,0,.10) !important;
+    transition: transform var(--s-dur-mid) var(--s-spring) !important;
+    pointer-events: none !important;
+    will-change: transform !important;
+}
+
+.settings-scene .toggle input:checked ~ .toggle-knob {
+    transform: translateX(calc(var(--s-toggle-w) - var(--s-toggle-knob) - 4px)) !important;
+}
+
+/* Focus ring on toggle */
+.settings-scene .toggle input:focus-visible + .toggle-track {
+    outline: 2px solid color-mix(in srgb, var(--s-accent) 60%, transparent) !important;
+    outline-offset: 3px !important;
+}
+
+/* Hover feedback on the row (not the toggle itself) */
+.settings-scene .settings-row:has(.toggle input):hover .toggle-track {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 12%, transparent) !important;
+}
+
+/* ── 3. INPUTS — modern floating-label style с border ───────────────────────── */
+
+.settings-scene .settings-input {
+    border: 1.5px solid transparent !important;
+    border-radius: var(--s-radius-md) !important;
+    padding: 10px 14px !important;
+    background: color-mix(in srgb, var(--s-surface-soft) 80%, transparent) !important;
+    color: var(--s-ink) !important;
+    font-family: var(--font) !important;
+    font-size: 15px !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition:
+        border-color var(--s-dur-fast) var(--s-ease),
+        background-color var(--s-dur-fast) var(--s-ease),
+        box-shadow var(--s-dur-fast) var(--s-ease) !important;
+}
+
+.settings-scene .settings-input:hover {
+    border-color: color-mix(in srgb, var(--s-line) 80%, transparent) !important;
+    background: color-mix(in srgb, var(--s-surface-soft) 90%, transparent) !important;
+}
+
+.settings-scene .settings-input:focus {
+    border-color: var(--s-accent) !important;
+    background: color-mix(in srgb, var(--s-accent) 4%, var(--s-surface)) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 16%, transparent) !important;
+}
+
+.settings-scene .settings-input::placeholder {
+    color: var(--s-ink-3) !important;
+}
+
+/* Textarea */
+.settings-scene .settings-bio-input {
+    resize: vertical !important;
+    min-height: 80px !important;
+    line-height: 1.55 !important;
+}
+
+/* TOTP verify input - monospace centered */
+.settings-scene .totp-verify-input {
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 22px !important;
+    letter-spacing: 0.2em !important;
+    text-align: center !important;
+    padding: 10px 14px !important;
+    min-width: 0 !important;
+    width: min(160px, 100%) !important;
+}
+
+/* ── 4. RANGE INPUT — полностью кастомный с progress-fill ───────────────────── */
+
+.settings-scene input[type="range"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    height: 5px !important;
+    border-radius: var(--s-radius-pill) !important;
+    border: 0 !important;
+    padding: 0 !important;
+    background: linear-gradient(
+        to right,
+        var(--s-accent) 0% var(--range-pct, 0%),
+        color-mix(in srgb, var(--s-line) 60%, transparent) var(--range-pct, 0%) 100%
+    ) !important;
+    cursor: pointer !important;
+    outline: none !important;
+    transition: background var(--s-dur-fast) var(--s-ease) !important;
+}
+
+.settings-scene input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    border: 2px solid var(--s-accent) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2) !important;
+    cursor: grab !important;
+    transition: transform var(--s-dur-fast) var(--s-spring), box-shadow var(--s-dur-fast) var(--s-ease) !important;
+}
+
+.settings-scene input[type="range"]::-moz-range-thumb {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    border: 2px solid var(--s-accent) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2) !important;
+    cursor: grab !important;
+}
+
+.settings-scene input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.15) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25),
+                0 0 0 4px color-mix(in srgb, var(--s-accent) 18%, transparent) !important;
+}
+
+.settings-scene input[type="range"]:active::-webkit-slider-thumb {
+    cursor: grabbing !important;
+    transform: scale(1.08) !important;
+}
+
+.settings-scene input[type="range"]:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 22%, transparent) !important;
+    border-radius: var(--s-radius-pill) !important;
+}
+
+/* Range row: min/max labels */
+.settings-scene .settings-range-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    width: 100% !important;
+}
+.settings-scene .settings-range-labels {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 11px !important;
+    color: var(--s-ink-3) !important;
+    padding: 0 2px !important;
+    font-family: var(--font-mono, monospace) !important;
+}
+
+/* ── 5. SELECT — кастомный chevron без gradient-треугольников ───────────────── */
+
+.settings-scene select.settings-select-control {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    min-height: var(--s-ctrl-h) !important;
+    height: var(--s-ctrl-h) !important;
+    border: 1.5px solid transparent !important;
+    border-radius: var(--s-radius-sm) !important;
+    padding: 0 36px 0 12px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    font-family: var(--font) !important;
+    background-color: color-mix(in srgb, var(--s-surface-soft) 80%, transparent) !important;
+    color: var(--s-ink) !important;
+    cursor: pointer !important;
+    transition:
+        border-color var(--s-dur-fast) var(--s-ease),
+        background-color var(--s-dur-fast) var(--s-ease),
+        box-shadow var(--s-dur-fast) var(--s-ease) !important;
+    /* SVG chevron — чистый, anti-aliased */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'><path d='M2.5 4.5L6 8L9.5 4.5' stroke='%23888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 12px 12px !important;
+    box-shadow: none !important;
+}
+
+.settings-scene select.settings-select-control:hover {
+    border-color: color-mix(in srgb, var(--s-line) 80%, transparent) !important;
+    background-color: color-mix(in srgb, var(--s-surface-soft) 95%, transparent) !important;
+}
+
+.settings-scene select.settings-select-control:focus,
+.settings-scene select.settings-select-control:focus-visible {
+    border-color: var(--s-accent) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 16%, transparent) !important;
+    outline: none !important;
+}
+
+/* Dark mode chevron */
+body.dark-mode .settings-scene select.settings-select-control {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'><path d='M2.5 4.5L6 8L9.5 4.5' stroke='%23aaa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
+}
+
+/* ── 6. PRIVACY DETAIL — плавный crossfade вместо display:none ──────────────── */
+
+.settings-scene #privacyOverviewPanel,
+.settings-scene #privacyDetailPanel {
+    transition:
+        opacity var(--s-dur-mid) var(--s-ease),
+        transform var(--s-dur-mid) var(--s-ease) !important;
+}
+
+.settings-scene #privacyDetailPanel {
+    display: block !important;
+    opacity: 0 !important;
+    transform: translateX(16px) !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    inset: 0 !important;
+    overflow-y: auto !important;
+    background: transparent !important;
+}
+
+.settings-scene #privacyDetailPanel.is-visible {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+    position: static !important;
+}
+
+.settings-scene #privacyOverviewPanel.is-hidden {
+    opacity: 0 !important;
+    transform: translateX(-12px) !important;
+    pointer-events: none !important;
+}
+
+.settings-scene .settings-privacy-card {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* ── 7. CARD — убираем hover на весь блок, только на строки ────────────────── */
+
+.settings-scene .settings-card {
+    transition: box-shadow var(--s-dur-fast) var(--s-ease) !important;
+}
+
+/* Убираем hover на карточку-контейнер (выглядит дёшево) */
+.settings-scene .settings-card:hover {
+    background: var(--sx-bg-elev, var(--paper)) !important;
+}
+
+/* Hover только на интерактивных строках */
+.settings-scene .settings-row {
+    transition: background-color var(--s-dur-fast) var(--s-ease) !important;
+}
+
+.settings-scene .settings-row:hover {
+    background: color-mix(in srgb, var(--s-surface-soft) 55%, transparent) !important;
+}
+
+/* Строки с только текстом (no interactive control) — no hover */
+.settings-scene .settings-row.settings-row-info-only:hover {
+    background: transparent !important;
+    cursor: default !important;
+}
+
+/* ── 8. FLOATING SAVE — pill с текстовым label ─────────────────────────────── */
+
+.settings-scene .settings-floating-save {
+    width: auto !important;
+    min-width: 56px !important;
+    padding: 0 20px 0 16px !important;
+    border-radius: var(--s-radius-pill) !important;
+    gap: 8px !important;
+    font-family: var(--font) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+}
+
+/* Label скрыт до появления кнопки — появляется вместе с ней */
+.settings-scene .settings-floating-save-label {
+    display: inline !important;
+    white-space: nowrap !important;
+}
+
+/* На очень узких экранах — только иконка */
+@media (max-width: 380px) {
+    .settings-scene .settings-floating-save {
+        width: 52px !important;
+        padding: 0 !important;
+        min-width: 0 !important;
+    }
+    .settings-scene .settings-floating-save-label {
+        display: none !important;
+    }
+}
+
+/* ── 9. ESC HINT — kbd-style вместо monospace uppercase ────────────────────── */
+
+.settings-scene .settings-panel-esc {
+    display: none !important; /* скрыт везде — показывается только JS при hover шапки */
+}
+
+.settings-scene .settings-panel-head:hover .settings-panel-esc {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 8px !important;
+    border-radius: 7px !important;
+    border: 1px solid color-mix(in srgb, var(--s-line) 60%, transparent) !important;
+    background: color-mix(in srgb, var(--s-surface-soft) 70%, transparent) !important;
+    font-family: var(--font) !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: var(--s-ink-2) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+}
+
+/* ── 10. NOTIFICATION SECTION — status dots ─────────────────────────────────── */
+
+.settings-scene #pushPermissionState,
+.settings-scene #pushSubscriptionState {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+}
+
+/* Dot added via JS: .push-status-dot--ok / .push-status-dot--warn */
+.settings-scene .push-status-dot {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    transition: background-color var(--s-dur-mid) var(--s-ease) !important;
+}
+
+.settings-scene .push-status-dot--ok    { background: var(--s-success) !important; }
+.settings-scene .push-status-dot--warn  { background: #d97706 !important; }
+.settings-scene .push-status-dot--err   { background: var(--s-danger) !important; }
+
+/* Info-only rows в notifications не имеют hover */
+.settings-scene #section-notifications .settings-row:not(:has(button)):not(:has(.toggle)) {
+    cursor: default !important;
+    opacity: 0.9 !important;
+}
+
+.settings-scene #section-notifications .settings-row:not(:has(button)):not(:has(.toggle)):hover {
+    background: transparent !important;
+}
+
+/* ── 11. DOCUMENT LINKS — иконка external в кнопках "Открыть" ──────────────── */
+
+/* Добавляется через JS .has-external-icon */
+.settings-scene a.btn-settings[target="_blank"] {
+    gap: 6px !important;
+}
+
+.settings-scene a.btn-settings[target="_blank"]::after {
+    content: '' !important;
+    display: inline-block !important;
+    width: 12px !important;
+    height: 12px !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'><path d='M5 2H2.5C2.22 2 2 2.22 2 2.5v7c0 .28.22.5.5.5h7c.28 0 .5-.22.5-.5V7M7 2h3m0 0v3M10 2L5.5 6.5' stroke='currentColor' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
+    background-repeat: no-repeat !important;
+    background-size: 12px 12px !important;
+    opacity: 0.6 !important;
+    flex-shrink: 0 !important;
+}
+
+/* ── 12. MOBILE NAV SCROLL FADE — gradient mask на краях ───────────────────── */
+
+@media (max-width: 768px) {
+    body.settings-home-open .settings-nav-list,
+    .settings-scene .settings-nav-list {
+        -webkit-mask-image: linear-gradient(
+            to right,
+            transparent 0px,
+            black 16px,
+            black calc(100% - 28px),
+            transparent 100%
+        ) !important;
+        mask-image: linear-gradient(
+            to right,
+            transparent 0px,
+            black 16px,
+            black calc(100% - 28px),
+            transparent 100%
+        ) !important;
+    }
+
+    /* Снять маску когда список вертикальный (home-view) */
+    body.settings-home-open .settings-nav-list {
+        -webkit-mask-image: none !important;
+        mask-image: none !important;
+    }
+}
+
+/* ── 13. ICON CONSISTENCY — единая система размеров ─────────────────────────── */
+
+/* Card header icons */
+.settings-scene .settings-card-header > .sun-icon,
+.settings-scene .settings-card-header i {
+    width: var(--s-icon-chip) !important;
+    height: var(--s-icon-chip) !important;
+    flex: 0 0 var(--s-icon-chip) !important;
+    padding: 6px !important;
+    border-radius: 50% !important;
+    box-sizing: border-box !important;
+    /* иконка внутри: 28 - 12 = 16px — единый размер */
+}
+
+/* Nav item icons */
+.settings-scene .nav-item > .sun-icon:first-child,
+.settings-scene .settings-nav-group .nav-item > .sun-icon:first-child {
+    width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+}
+
+/* Privacy list icons */
+.settings-scene .settings-privacy-item > .sun-icon:not(.settings-privacy-chevron) {
+    width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+}
+
+/* Profile row icons */
+.settings-scene .settings-nav-profile-row > .sun-icon {
+    width: var(--s-icon-sm) !important;
+    height: var(--s-icon-sm) !important;
+}
+
+/* ── 14. CARD HOVER: удаляем на нон-интерактивных, добавляем depth ─────────── */
+
+.settings-scene .settings-card:focus-within {
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--s-line) 70%, transparent) inset,
+        0 2px 8px rgba(0,0,0,.06) !important;
+}
+
+/* ── 15. SECTION TRANSITIONS — без expensive blur ────────────────────────────── */
+
+@keyframes settings-premium-section-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes settings-premium-section-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-6px); }
+}
+
+.settings-scene .settings-section.section-entering {
+    animation: settings-premium-section-in var(--s-dur-mid) var(--s-ease) both !important;
+    filter: none !important;
+}
+
+.settings-scene .settings-section.section-leaving {
+    animation: settings-premium-section-out var(--s-dur-fast) var(--s-ease) both !important;
+    filter: none !important;
+}
+
+/* Card stagger при входе секции */
+.settings-scene .settings-section.section-entering .settings-card:nth-child(1) { animation-delay: 0ms !important; }
+.settings-scene .settings-section.section-entering .settings-card:nth-child(2) { animation-delay: 40ms !important; }
+.settings-scene .settings-section.section-entering .settings-card:nth-child(3) { animation-delay: 80ms !important; }
+.settings-scene .settings-section.section-entering .settings-card:nth-child(n+4) { animation-delay: 110ms !important; }
+
+@keyframes settings-card-stagger {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.settings-scene .settings-section.section-entering .settings-card {
+    animation: settings-card-stagger var(--s-dur-slow) var(--s-ease) both !important;
+}
+
+/* ── 16. ACCESSIBILITY ────────────────────────────────────────────────────────── */
+
+/* Focus ring — единый стиль для всех интерактивных элементов */
+.settings-scene *:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--s-accent) 70%, transparent) !important;
+    outline-offset: 2px !important;
+}
+
+/* Кнопки с focus — свой стиль */
+.settings-scene .btn-settings:focus-visible,
+.settings-scene .nav-item:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--s-accent) 65%, transparent) !important;
+    outline-offset: 2px !important;
+}
+
+/* Privacy item focus */
+.settings-scene .settings-privacy-item:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--s-accent) 60%, transparent) !important;
+    outline-offset: -2px !important;
+    border-radius: 8px !important;
+}
+
+/* Skip to content link */
+.settings-scene .settings-skip-link {
+    position: absolute !important;
+    top: -100% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 9999 !important;
+    padding: 8px 20px !important;
+    border-radius: 0 0 12px 12px !important;
+    background: var(--s-accent) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    text-decoration: none !important;
+    transition: top 0.15s ease !important;
+}
+.settings-scene .settings-skip-link:focus {
+    top: 0 !important;
+}
+
+/* Reduced motion — полностью отключаем все анимации */
+@media (prefers-reduced-motion: reduce) {
+    .settings-scene *,
+    .settings-scene *::before,
+    .settings-scene *::after {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 1ms !important;
+    }
+    .settings-scene .settings-section.section-entering .settings-card {
+        animation: none !important;
+    }
+}
+
+/* ── 17. RANGE — min/max wrapper ─────────────────────────────────────────────── */
+
+/* Обёртка для range с подписями min/max создаётся через JS */
+.settings-scene .settings-range-row-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding-top: 4px !important;
+}
+
+.settings-scene .settings-range-minmax {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 10.5px !important;
+    font-family: var(--font-mono, monospace) !important;
+    color: var(--s-ink-3) !important;
+    padding: 0 1px !important;
+    pointer-events: none !important;
+}
+
+/* ── 18. MNEMONIC — paste-all кнопка ─────────────────────────────────────────── */
+
+.settings-scene .mnemonic-paste-all-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 0 14px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    border: 1.5px solid color-mix(in srgb, var(--s-line) 60%, transparent) !important;
+    background: color-mix(in srgb, var(--s-surface-soft) 70%, transparent) !important;
+    color: var(--s-ink-2) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition:
+        background-color var(--s-dur-fast) var(--s-ease),
+        border-color var(--s-dur-fast) var(--s-ease) !important;
+    font-family: var(--font) !important;
+}
+
+.settings-scene .mnemonic-paste-all-btn:hover {
+    background: color-mix(in srgb, var(--s-accent) 8%, var(--s-surface-soft)) !important;
+    border-color: color-mix(in srgb, var(--s-accent) 35%, transparent) !important;
+    color: var(--s-ink) !important;
+}
+
+.settings-scene .mnemonic-paste-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 var(--s-pad-x) 8px !important;
+    gap: 10px !important;
+}
+
+/* ── 19. NOTIFICATIONS — visual hierarchy для action кнопок ─────────────────── */
+
+/* Включить = primary, Отключить = ghost без danger-веса */
+.settings-scene #disablePushBtn {
+    background: transparent !important;
+    color: var(--s-ink-2) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-line) 50%, transparent) inset !important;
+    border: 0 !important;
+}
+
+.settings-scene #disablePushBtn:hover {
+    background: color-mix(in srgb, var(--s-danger) 8%, transparent) !important;
+    color: var(--s-danger) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-danger) 35%, transparent) inset !important;
+}
+
+/* ── 20. SWIPE-BACK VISUAL FEEDBACK ─────────────────────────────────────────── */
+
+/* Индикатор edge-свайпа (активируется JS-классом) */
+.settings-scene .settings-panel-body.is-swipe-active {
+    transition: transform 0.02s linear !important;
+}
+
+/* ── 21. NAV GROUP DIVIDERS — видимые разделители между группами ─────────────── */
+
+/* Тонкий разделитель между группами в detail-nav */
+body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
+    box-shadow: inset 0 1px 0 var(--sx-line, color-mix(in srgb, var(--s-line) 40%, transparent)) !important;
+    margin-top: 0 !important;
+}
+
+/* Группы nav в home-view: добавляем section separator */
+body.settings-home-open .settings-nav-group-separator {
+    height: 1px !important;
+    background: color-mix(in srgb, var(--s-line) 40%, transparent) !important;
+    margin: 0 16px !important;
+}
+
+/* ── 22. PROFILE — online ring indicator ─────────────────────────────────────── */
+
+body.settings-home-open .settings-nav-avatar-wrap::after {
+    content: '' !important;
+    position: absolute !important;
+    right: 2px !important;
+    bottom: 2px !important;
+    width: 14px !important;
+    height: 14px !important;
+    border-radius: 50% !important;
+    background: var(--s-success) !important;
+    border: 2.5px solid var(--sx-bg-elev, var(--paper)) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-success) 40%, transparent) !important;
+    z-index: 2 !important;
+    display: none !important; /* включается JS когда online */
+}
+
+body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
+    display: block !important;
+}
+
+/* ── 23. DANGER ZONE — больше visual separation ──────────────────────────────── */
+
+.settings-scene .settings-danger-panel {
+    background: color-mix(in srgb, var(--s-danger) 5%, var(--s-surface)) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-danger) 25%, transparent) inset !important;
+    border-radius: var(--s-radius-md) !important;
+    margin-top: 8px !important;
+}
+
+/* Секция account-danger — дополнительный top-margin для visual separation */
+.settings-scene #section-account-danger {
+    margin-top: 24px !important;
+}
+
+/* ── 24. DESKTOP — ограничение ширины контента ───────────────────────────────── */
+
+@media (min-width: 900px) {
+    .settings-scene #section-profile .settings-body-copy,
+    .settings-scene .settings-body-copy {
+        max-width: 580px !important;
+    }
+
+    .settings-scene .settings-row-label {
+        font-size: 15px !important;
+    }
+}
+
+/* ── 25. SCROLLBAR — тонкая стилизация ──────────────────────────────────────── */
+
+.settings-scene .settings-content::-webkit-scrollbar {
+    width: 5px !important;
+}
+
+.settings-scene .settings-content::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--s-line) 55%, transparent) !important;
+    border-radius: var(--s-radius-pill) !important;
+}
+
+.settings-scene .settings-content::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--s-line) 80%, transparent) !important;
+}
+
+.settings-scene .settings-content::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+/* ── 27. TOTP VERIFY INPUT — лучший стиль ──────────────────────────────────── */
+
+.settings-scene .totp-verify-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+    padding: 4px 0 !important;
+}
+
+/* ── 28. ALERT — чуть медленнее для лучшего ощущения ──────────────────────── */
+
+.settings-scene .settings-alert {
+    animation-duration: 280ms !important;
+}
+
+/* ── 29. PRIVACY CHEVRON — правильный размер ─────────────────────────────────── */
+
+.settings-scene .settings-privacy-chevron {
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--s-ink-3) !important;
+    flex-shrink: 0 !important;
+    transition: transform var(--s-dur-fast) var(--s-ease), color var(--s-dur-fast) var(--s-ease) !important;
+}
+
+.settings-scene .settings-privacy-item:hover .settings-privacy-chevron {
+    transform: translateX(2px) !important;
+    color: var(--s-accent) !important;
+}
+
+/* ── 30. PROFILE FIELD LABELS — чуть крупнее ────────────────────────────────── */
+
+.settings-scene .settings-field-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: var(--s-ink-2) !important;
+    margin-bottom: 6px !important;
+    font-family: var(--font-mono, monospace) !important;
+}
+
+.settings-scene .settings-field-hint {
+    font-size: 12px !important;
+    color: var(--s-ink-3) !important;
+    line-height: 1.45 !important;
+    margin-top: 6px !important;
+}
+
+/* Bio counter — чётче видно */
+.settings-scene .settings-bio-counter {
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 11px !important;
+    opacity: 0.75 !important;
+}
+
+/* ── 31. SECURITY SUMMARY CARD — убираем уродливую left-border ──────────────── */
+
+.settings-scene .settings-security-summary-card {
+    border-left: 0 !important;
+    border-top: 3px solid color-mix(in srgb, var(--s-accent) 55%, transparent) !important;
+}
+
+/* ── 32. E2E STATUS CARD — warning border top вместо left ───────────────────── */
+
+.settings-scene .settings-e2e-status-card {
+    border-left: 0 !important;
+    border-top: 3px solid var(--warning, #f59e0b) !important;
+}
+
+/* ── MOBILE tweaks ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .settings-scene .settings-floating-save {
+        right: calc(16px + env(safe-area-inset-right, 0px)) !important;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* На мобиле totp verify input — на всю ширину */
+    .settings-scene .totp-verify-input {
+        width: 100% !important;
+        font-size: 20px !important;
+    }
+}
+
+/* ==========================================================================
+   Settings production UI pass.
+   This block is intentionally last: it normalizes the settings surface after
+   earlier polish layers and separates desktop density from mobile touch UX.
+   ========================================================================== */
+
+.settings-scene {
+    --settings-ui-panel-max: 760px;
+    --settings-ui-content-max: 704px;
+    --settings-ui-pad-x: 18px;
+    --settings-ui-card-gap: 8px;
+    --settings-ui-row-min: 48px;
+    --settings-ui-radius: 10px;
+    --settings-ui-radius-lg: 12px;
+    --s-icon-sm: 15px;
+    --s-icon-md: 18px;
+    --s-icon-lg: 20px;
+    --s-icon-chip: 18px;
+    --s-dur-fast: 0.09s;
+    --s-dur-mid: 0.14s;
+    --s-dur-slow: 0.18s;
+    --sun-dur: 0.16s;
+    --sun-icon-stroke: 1.75;
+    --settings-icon-tone: color-mix(in srgb, var(--sx-ink-2, var(--sub-text)) 88%, var(--sx-ink, var(--text)) 12%);
+}
+
+.settings-scene .settings-panel-title,
+.settings-scene .settings-card-header h3,
+.settings-scene .settings-row-label,
+.settings-scene .settings-row-desc,
+.settings-scene .btn-settings,
+.settings-scene .nav-item,
+.settings-scene .sp-brand-name,
+.settings-scene .sp-connect-btn,
+.settings-scene .sp-section-header {
+    letter-spacing: 0 !important;
+}
+
+.settings-scene .settings-section {
+    contain: layout paint style;
+    filter: none !important;
+    transform: translate3d(0, 0, 0);
+    will-change: opacity, transform;
+}
+
+.settings-scene .settings-section.section-entering,
+.settings-scene .settings-section.section-leaving,
+.settings-scene .settings-section.section-entering .settings-card {
+    animation: none !important;
+    filter: none !important;
+}
+
+.settings-scene .settings-content {
+    max-width: var(--settings-ui-content-max) !important;
+    transition: min-height 0.14s var(--s-ease) !important;
+}
+
+.settings-scene .settings-card,
+body.settings-detail-open .settings-card {
+    border-radius: var(--settings-ui-radius-lg) !important;
+    margin-top: var(--settings-ui-card-gap) !important;
+    padding: 4px 0 !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-line, var(--rule)) 64%, transparent) inset !important;
+}
+
+.settings-scene .settings-card:first-child {
+    margin-top: 8px !important;
+}
+
+.settings-scene .settings-card-header {
+    min-height: 38px !important;
+    gap: 8px !important;
+    padding: 8px var(--settings-ui-pad-x) 4px !important;
+}
+
+.settings-scene .settings-card-header h3 {
+    color: var(--sx-ink, var(--text)) !important;
+    font-size: 13.5px !important;
+    font-weight: 650 !important;
+    line-height: 1.25 !important;
+}
+
+.settings-scene .settings-body-copy,
+.settings-scene .settings-trust-intro,
+.settings-scene .settings-copy-muted-sm {
+    padding: 0 var(--settings-ui-pad-x) 8px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+}
+
+.settings-scene .settings-row,
+body.settings-detail-open .settings-row {
+    min-height: var(--settings-ui-row-min) !important;
+    gap: 12px !important;
+    padding: 7px var(--settings-ui-pad-x) !important;
+}
+
+.settings-scene .settings-row-label {
+    font-size: 14px !important;
+    font-weight: 560 !important;
+    line-height: 1.3 !important;
+}
+
+.settings-scene .settings-row-desc {
+    font-size: 12.5px !important;
+    line-height: 1.42 !important;
+    margin-top: 2px !important;
+}
+
+.settings-scene .settings-input,
+.settings-scene select.settings-select-control,
+.settings-scene .chat-style-select {
+    min-height: 36px !important;
+    border-radius: 9px !important;
+    font-size: 13px !important;
+}
+
+.settings-scene .btn-settings,
+.settings-scene a.btn-settings,
+.settings-scene label.btn-settings,
+.settings-scene button.btn-settings {
+    min-height: 36px !important;
+    border-radius: 9px !important;
+    padding: 0 13px !important;
+    font-size: 12.75px !important;
+    transition:
+        background-color 0.1s var(--s-ease),
+        color 0.1s var(--s-ease),
+        box-shadow 0.1s var(--s-ease),
+        transform 0.08s var(--s-ease) !important;
+}
+
+.settings-scene .btn-settings:active,
+.settings-scene .nav-item:active,
+.settings-scene .settings-panel-close:active,
+.settings-scene .settings-panel-tool-btn:active {
+    transform: scale(0.98) !important;
+}
+
+.settings-scene .settings-card-header > .sun-icon,
+.settings-scene .settings-card-header i,
+.settings-scene .settings-nav-group .nav-item > .sun-icon:first-child,
+.settings-scene .settings-logout-form .nav-item > .sun-icon:first-child,
+.settings-scene .settings-nav-profile-row > .sun-icon,
+.settings-scene .settings-privacy-item > .sun-icon:not(.settings-privacy-chevron),
+.settings-scene .settings-row-label > .sun-icon,
+.settings-scene .settings-warning-icon,
+.settings-scene .settings-panel-menu-item .sun-icon,
+.settings-scene .mnemonic-paste-all-btn .sun-icon {
+    width: var(--s-icon-md) !important;
+    min-width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+    flex-basis: var(--s-icon-md) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--settings-icon-tone) !important;
+}
+
+.settings-scene .settings-panel-close .sun-icon,
+.settings-scene .settings-panel-tool-btn .sun-icon,
+.settings-scene .settings-icon-action .sun-icon,
+.settings-scene .avatar-editor-icon-btn .sun-icon {
+    width: 17px !important;
+    height: 17px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: currentColor !important;
+}
+
+.settings-scene .settings-privacy-chevron {
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    color: color-mix(in srgb, var(--settings-icon-tone) 70%, transparent) !important;
+}
+
+.settings-scene .settings-card-header-warning .sun-icon,
+.settings-scene .settings-danger-panel .sun-icon,
+.settings-scene .danger-btn .sun-icon {
+    color: currentColor !important;
+}
+
+body.settings-home-open .settings-nav-group .nav-item.active > .sun-icon:first-child,
+body.settings-home-open .settings-logout-form .nav-item > .sun-icon:first-child {
+    background: transparent !important;
+    color: var(--settings-icon-tone) !important;
+}
+
+.settings-scene .settings-nav-profile-action {
+    border: 0 !important;
+    background: color-mix(in srgb, var(--sx-ink, var(--text)) 7%, transparent) !important;
+    color: var(--settings-icon-tone) !important;
+    box-shadow: none !important;
+}
+
+.settings-scene .settings-nav-profile-action:hover {
+    background: color-mix(in srgb, var(--sx-ink, var(--text)) 10%, transparent) !important;
+    filter: none !important;
+}
+
+.settings-scene .sp-brand-logo,
+.settings-scene .sp-connect-btn-icon,
+.settings-scene .sp-notice-icon,
+.settings-scene .sp-section-icon {
+    color: var(--settings-icon-tone) !important;
+    filter: grayscale(1) saturate(0) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .settings-scene .nav-item:hover,
+    body.settings-home-open .settings-nav-group .nav-item:hover {
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 5%, transparent) !important;
+        color: var(--sx-ink, var(--text)) !important;
+    }
+
+    .settings-scene .settings-row:hover {
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 4%, transparent) !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .settings-overlay-panel {
+        width: min(760px, calc(100vw - 48px)) !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: min(760px, 100%) !important;
+        padding: 8px 10px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 48px !important;
+        height: 48px !important;
+        padding: 3px 6px 3px 3px !important;
+        border-radius: 12px !important;
+    }
+
+    .settings-scene .settings-panel-title {
+        font-size: 16px !important;
+        font-weight: 650 !important;
+    }
+
+    .settings-scene .settings-panel-close,
+    .settings-scene .settings-panel-tool-btn {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 9px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        min-height: 0 !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: 64px !important;
+        height: 64px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-main {
+        margin-top: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-name {
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-status {
+        font-size: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        top: 10px !important;
+        right: 10px !important;
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-rows {
+        margin-top: 8px !important;
+        gap: 5px 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row {
+        min-height: 24px !important;
+        padding: 3px 8px !important;
+        border-radius: 999px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row > .sun-icon {
+        width: var(--s-icon-sm) !important;
+        min-width: var(--s-icon-sm) !important;
+        height: var(--s-icon-sm) !important;
+        flex-basis: var(--s-icon-sm) !important;
+    }
+
+    body.settings-home-open .settings-nav-list {
+        padding: 2px 0 !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 42px !important;
+        height: 42px !important;
+        gap: 10px !important;
+        padding: 0 32px 0 14px !important;
+        font-size: 13px !important;
+        background-position: right 14px center !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 13px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::after {
+        max-width: 42% !important;
+        margin-left: 8px !important;
+        font-size: 12px !important;
+    }
+
+    body.settings-home-open .settings-nav-group #navMetaIntegrations[data-meta]::after {
+        min-height: 18px !important;
+        padding: 0 7px !important;
+        background: color-mix(in srgb, var(--sx-ink, var(--text)) 8%, transparent) !important;
+        box-shadow: none !important;
+        color: var(--sx-ink-2, var(--sub-text)) !important;
+        font-size: 10.5px !important;
+        font-weight: 650 !important;
+        line-height: 18px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        max-width: 704px !important;
+        padding: 0 16px 16px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 0 !important;
+        padding: 12px 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card-header {
+        margin-bottom: 4px !important;
+    }
+
+    body.settings-detail-open .settings-card .settings-row + .settings-row {
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sx-line, var(--rule)) 42%, transparent) !important;
+        border-top: 0 !important;
+    }
+
+    body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+        grid-template-columns: minmax(132px, 164px) minmax(0, 1fr) !important;
+        column-gap: 22px !important;
+        padding-top: 14px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 92px !important;
+        height: 92px !important;
+        flex-basis: 92px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-name {
+        font-size: 18px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-scene {
+        --settings-ui-pad-x: 16px;
+        --settings-ui-card-gap: 10px;
+        --settings-ui-row-min: 56px;
+        --settings-ui-radius-lg: 14px;
+        --s-icon-md: 19px;
+        --s-icon-lg: 21px;
+    }
+
+    .settings-overlay-panel {
+        width: 100% !important;
+        height: var(--app-vh, 100dvh) !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: 100% !important;
+        padding: 8px 10px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 56px !important;
+        height: 56px !important;
+        padding: 5px 8px 5px 4px !important;
+        border-radius: 14px !important;
+    }
+
+    .settings-scene .settings-panel-title {
+        font-size: 18px !important;
+        font-weight: 650 !important;
+    }
+
+    .settings-scene .settings-panel-close,
+    .settings-scene .settings-panel-tool-btn {
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 12px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 10px 0 calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+        overflow-y: auto !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile,
+    body.settings-home-open .settings-nav-list,
+    body.settings-detail-open .settings-content {
+        border-radius: 14px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        padding: 16px 14px 13px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: min(calc(82px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+        height: min(calc(82px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-action {
+        top: 12px !important;
+        right: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 54px !important;
+        height: auto !important;
+        padding: 0 36px 0 16px !important;
+        gap: 12px !important;
+        font-size: 14.5px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 14.5px !important;
+    }
+
+    .settings-scene .settings-row,
+    body.settings-detail-open .settings-row {
+        align-items: center !important;
+        min-height: 56px !important;
+        padding: 12px var(--settings-ui-pad-x) !important;
+    }
+
+    .settings-scene .settings-row-label {
+        font-size: 15px !important;
+    }
+
+    .settings-scene .settings-row-desc {
+        font-size: 13px !important;
+    }
+
+    .settings-scene .settings-input,
+    .settings-scene select.settings-select-control,
+    .settings-scene .chat-style-select {
+        min-height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    .settings-scene .btn-settings,
+    .settings-scene a.btn-settings,
+    .settings-scene label.btn-settings,
+    .settings-scene button.btn-settings {
+        min-height: 44px !important;
+        border-radius: 11px !important;
+        font-size: 14px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        padding: 0 0 18px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 10px !important;
+        padding: 4px 0 !important;
+        border-radius: 14px !important;
+    }
+
+    body.settings-detail-open .settings-card:first-child {
+        margin-top: 0 !important;
+    }
+}
+
+/* Higher-specificity guard against older colored icon chip rules. */
+.settings-scene .settings-card-header > svg.sun-icon,
+.settings-scene .settings-card-header > i,
+body.settings-home-open .settings-nav-group .nav-item > svg.sun-icon:first-child,
+body.settings-home-open .settings-logout-form .nav-item > svg.sun-icon:first-child,
+.settings-scene .settings-nav-profile-row > svg.sun-icon,
+.settings-scene .settings-privacy-item > svg.sun-icon:not(.settings-privacy-chevron),
+.settings-scene .settings-row-label > svg.sun-icon,
+.settings-scene .settings-warning-icon,
+.settings-scene .settings-panel-menu-item svg.sun-icon,
+.settings-scene .mnemonic-paste-all-btn svg.sun-icon {
+    width: var(--s-icon-md) !important;
+    min-width: var(--s-icon-md) !important;
+    height: var(--s-icon-md) !important;
+    flex: 0 0 var(--s-icon-md) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--settings-icon-tone) !important;
+}
+
+/* Compact alignment pass: narrower desktop sheet and natural scroll end. */
+.settings-scene {
+    --settings-ui-panel-max: 680px;
+    --settings-ui-content-max: 620px;
+    --settings-ui-pad-x: 14px;
+    --settings-ui-card-gap: 6px;
+    --settings-ui-row-min: 44px;
+    --settings-ui-radius-lg: 10px;
+}
+
+.settings-scene section[id^="section-"],
+.settings-scene .settings-section {
+    margin: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.settings-scene .settings-card:last-child,
+.settings-scene .settings-content > section > .settings-card:last-child {
+    margin-bottom: 0 !important;
+}
+
+@media (min-width: 769px) {
+    .settings-overlay-panel,
+    body.settings-home-open .settings-overlay-panel,
+    body.settings-detail-open .settings-overlay-panel {
+        width: min(680px, calc(100vw - 56px)) !important;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: calc(var(--app-vh, 100dvh) - 32px) !important;
+        align-self: flex-start !important;
+        overflow: hidden !important;
+    }
+
+    .settings-overlay-frame,
+    .settings-overlay-frame .settings-scene,
+    .settings-overlay-frame .settings-layout {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: inherit !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        width: min(var(--settings-ui-panel-max), 100%) !important;
+        min-height: 0 !important;
+        max-height: inherit !important;
+        padding: 6px 8px 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    body.settings-home-open .settings-panel-head,
+    body.settings-detail-open .settings-panel-head,
+    .settings-scene .settings-panel-head {
+        min-height: 46px !important;
+        height: 46px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        flex: 0 1 auto !important;
+        min-height: 0 !important;
+        max-height: calc(var(--app-vh, 100dvh) - 90px) !important;
+        padding: 6px 0 8px !important;
+        overflow-y: auto !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        margin: 0 !important;
+        padding: 10px 12px 9px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: 58px !important;
+        height: 58px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-main {
+        margin-top: 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-rows {
+        margin-top: 6px !important;
+        gap: 4px 6px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile-row {
+        min-height: 22px !important;
+        padding: 2px 7px !important;
+    }
+
+    body.settings-home-open .settings-nav-list {
+        padding: 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 38px !important;
+        height: 38px !important;
+        gap: 9px !important;
+        padding: 0 28px 0 12px !important;
+        font-size: 12.75px !important;
+        background-position: right 12px center !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item > span {
+        font-size: 12.75px !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item[data-meta]::after {
+        max-width: 38% !important;
+        margin-left: 6px !important;
+        font-size: 11.5px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        width: 100% !important;
+        max-width: var(--settings-ui-content-max) !important;
+        margin: 0 auto !important;
+        padding: 0 10px 8px !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 6px !important;
+        padding: 8px 0 !important;
+        border-radius: 10px !important;
+    }
+
+    body.settings-detail-open .settings-card:first-child {
+        margin-top: 0 !important;
+    }
+
+    body.settings-detail-open .settings-card-header {
+        min-height: 34px !important;
+        padding: 6px var(--settings-ui-pad-x) 3px !important;
+        margin-bottom: 2px !important;
+    }
+
+    body.settings-detail-open .settings-row {
+        min-height: 44px !important;
+        padding: 6px var(--settings-ui-pad-x) !important;
+        gap: 10px !important;
+    }
+
+    body.settings-detail-open .settings-body-copy,
+    body.settings-detail-open .settings-trust-intro,
+    body.settings-detail-open .settings-copy-muted-sm {
+        margin-bottom: 8px !important;
+        padding-bottom: 6px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section > .settings-card:first-child {
+        grid-template-columns: minmax(112px, 140px) minmax(0, 1fr) !important;
+        column-gap: 18px !important;
+        padding-top: 10px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-wrap {
+        width: 82px !important;
+        height: 82px !important;
+        flex-basis: 82px !important;
+    }
+
+    body.settings-detail-open .settings-profile-section .settings-avatar-edit-btn {
+        width: 32px !important;
+        height: 32px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-scene {
+        --settings-ui-pad-x: 14px;
+        --settings-ui-card-gap: 8px;
+        --settings-ui-row-min: 52px;
+        --settings-ui-radius-lg: 12px;
+    }
+
+    .settings-overlay-panel {
+        align-self: stretch !important;
+    }
+
+    body.settings-home-open .settings-layout,
+    body.settings-detail-open .settings-layout {
+        padding: 6px 8px 0 !important;
+    }
+
+    body.settings-home-open .settings-panel-body,
+    body.settings-detail-open .settings-panel-body {
+        padding: 8px 0 calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-home-open .settings-nav {
+        gap: 8px !important;
+    }
+
+    body.settings-home-open .settings-nav-profile {
+        padding: 13px 12px 11px !important;
+    }
+
+    body.settings-home-open .settings-nav-avatar-wrap,
+    body.settings-home-open .settings-nav-avatar {
+        width: min(calc(72px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+        height: min(calc(72px + var(--settings-profile-pull, 0px)), calc(100vw - 72px)) !important;
+    }
+
+    body.settings-home-open .settings-nav-group .nav-item,
+    body.settings-home-open .settings-logout-form .nav-item {
+        min-height: 50px !important;
+        padding: 0 34px 0 14px !important;
+    }
+
+    body.settings-detail-open .settings-content {
+        padding: 0 0 calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.settings-detail-open .settings-card {
+        margin-top: 8px !important;
+        border-radius: 12px !important;
+    }
+
+    .settings-scene .settings-row,
+    body.settings-detail-open .settings-row {
+        min-height: 52px !important;
+        padding: 10px var(--settings-ui-pad-x) !important;
+    }
+}

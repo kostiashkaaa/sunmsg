@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sunmsg — iOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  html, body {
+    margin:0; padding:0; background:#e8e4d8;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  * { box-sizing:border-box; }
+
+  /* Sun palette — mirrors tokens.css from web */
+  :root {
+    --sm-bg:           #f3f0e8;
+    --sm-paper:        #fbf8f1;
+    --sm-paper-alt:    #efeae0;
+    --sm-sidebar-bg:   #f3f0e8;
+    --sm-sidebar-hdr:  #efeae0;
+    --sm-chat-bg:      #f2ede2;
+    --sm-chat-hdr:     #f3f0e8;
+    --sm-input-bg:     #fbf8f1;
+    --sm-req-bg:       #fefce8;
+    --sm-req-border:   #fde68a;
+
+    --sm-ink:          #15140e;
+    --sm-ink-soft:     #3f3a2d;
+    --sm-ink-mute:     #7a7363;
+    --sm-ink-faint:    #aba493;
+    --sm-text-inv:     #f3f0e8;
+
+    --sm-rule:         #d9d2bf;
+    --sm-rule-soft:    #e8e1cd;
+
+    --sm-accent:       oklch(68% 0.14 65);
+    --sm-accent-deep:  oklch(58% 0.16 55);
+    --sm-accent-soft:  oklch(94% 0.04 75);
+    --sm-accent-glow:  rgba(196,148,60,0.20);
+
+    --sm-bubble-out:      #15140e;
+    --sm-bubble-out-text: #f3f0e8;
+    --sm-bubble-in:       #fbf8f1;
+    --sm-bubble-in-text:  #15140e;
+
+    --sm-online:       oklch(68% 0.17 155);
+    --sm-read-tick:    oklch(72% 0.14 155);
+
+    --sm-shadow-xs:    0 1px 2px rgba(20,16,8,0.06);
+    --sm-shadow-sm:    0 1px 3px rgba(20,16,8,0.10);
+    --sm-shadow-md:    0 4px 12px rgba(20,16,8,0.08), 0 1px 3px rgba(20,16,8,0.06);
+  }
+  :root.dark {
+    --sm-bg:           #1c1a14;
+    --sm-paper:        #221f17;
+    --sm-paper-alt:    #2a261c;
+    --sm-sidebar-bg:   #1c1a14;
+    --sm-sidebar-hdr:  #221f17;
+    --sm-chat-bg:      #100e09;
+    --sm-chat-hdr:     #1c1a14;
+    --sm-input-bg:     #221f17;
+    --sm-req-bg:       #1c1500;
+    --sm-req-border:   #3d2e00;
+
+    --sm-ink:          #ece6d5;
+    --sm-ink-soft:     #c4bfaf;
+    --sm-ink-mute:     #9b9586;
+    --sm-ink-faint:    #6f6a5b;
+    --sm-text-inv:     #1c1a14;
+
+    --sm-rule:         #332f24;
+    --sm-rule-soft:    #2a261c;
+
+    --sm-accent:       oklch(68% 0.14 65);
+    --sm-accent-deep:  oklch(74% 0.12 70);
+    --sm-accent-soft:  rgba(196,148,60,0.14);
+    --sm-accent-glow:  rgba(196,148,60,0.18);
+
+    --sm-bubble-out:      #ece6d5;
+    --sm-bubble-out-text: #15140e;
+    --sm-bubble-in:       #2a261c;
+    --sm-bubble-in-text:  #ece6d5;
+
+    --sm-shadow-xs:    0 1px 2px rgba(0,0,0,0.20);
+    --sm-shadow-sm:    0 1px 3px rgba(0,0,0,0.28);
+    --sm-shadow-md:    0 4px 12px rgba(0,0,0,0.34);
+  }
+
+  .ink { color: var(--sm-ink); }
+  .muted { color: var(--sm-ink-mute); }
+  .accent { color: var(--sm-accent); }
+
+  /* iPhone shell tweaks */
+  .sm-frame {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif !important;
+  }
+
+  /* paper grain — barely-there warm wash */
+  .paper {
+    background-image:
+      radial-gradient(ellipse 800px 400px at 20% 0%, rgba(196,148,60,0.04), transparent 60%),
+      radial-gradient(ellipse 600px 800px at 90% 100%, rgba(196,148,60,0.025), transparent 60%);
+  }
+
+  #tweaks-host { z-index: 9999; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="screens/primitives.jsx"></script>
+  <script type="text/babel" src="screens/chat-list.jsx"></script>
+  <script type="text/babel" src="screens/chat-view.jsx"></script>
+  <script type="text/babel" src="screens/splash.jsx"></script>
+  <script type="text/babel" src="screens/login.jsx"></script>
+  <script type="text/babel" src="screens/calls.jsx"></script>
+  <script type="text/babel" src="screens/settings.jsx"></script>
+  <script type="text/babel" src="screens/extras.jsx"></script>
+  <script type="text/babel" src="screens/locked.jsx"></script>
+  <script type="text/babel" src="screens/components-catalog.jsx"></script>
+  <script type="text/babel" src="main.jsx"></script>
+</body>
+</html>
