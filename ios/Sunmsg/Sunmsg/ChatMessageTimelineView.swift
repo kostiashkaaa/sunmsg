@@ -18,6 +18,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let partnerIsTyping: Bool
     let menuTargetId: Int?
     let reduceMotion: Bool
+    let timelineVersion: Int
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
@@ -45,6 +46,7 @@ struct ChatMessageTimelineView: View, Equatable {
         partnerIsTyping: Bool,
         menuTargetId: Int?,
         reduceMotion: Bool,
+        timelineVersion: Int,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
         onLoadOlder: @escaping () -> Void,
@@ -61,6 +63,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.partnerIsTyping = partnerIsTyping
         self.menuTargetId = menuTargetId
         self.reduceMotion = reduceMotion
+        self.timelineVersion = timelineVersion
         self._scrollIntent = scrollIntent
         self._isPinnedToBottom = isPinnedToBottom
         self.onLoadOlder = onLoadOlder
@@ -77,29 +80,9 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.partnerIsTyping == rhs.partnerIsTyping
             && lhs.menuTargetId == rhs.menuTargetId
             && lhs.reduceMotion == rhs.reduceMotion
+            && lhs.timelineVersion == rhs.timelineVersion
             && lhs.scrollIntent == rhs.scrollIntent
             && lhs.isPinnedToBottom == rhs.isPinnedToBottom
-            && lhs.decryptedTexts == rhs.decryptedTexts
-            && Self.messagesEqual(lhs.messages, rhs.messages)
-    }
-
-    private static func messagesEqual(_ lhs: [ChatMessage], _ rhs: [ChatMessage]) -> Bool {
-        guard lhs.count == rhs.count else { return false }
-        for (left, right) in zip(lhs, rhs) {
-            guard left.id == right.id,
-                  left.chatId == right.chatId,
-                  left.message == right.message,
-                  left.messageType == right.messageType,
-                  left.createdAt == right.createdAt,
-                  left.senderUserId == right.senderUserId,
-                  left.senderDisplayName == right.senderDisplayName,
-                  left.isRead == right.isRead,
-                  left.isDelivered == right.isDelivered,
-                  left.reactions == right.reactions,
-                  left.isEdited == right.isEdited
-            else { return false }
-        }
-        return true
     }
 
     private static func makeRows(
