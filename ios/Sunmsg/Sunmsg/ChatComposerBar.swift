@@ -122,10 +122,11 @@ struct ChatComposerBar: View {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.smAccent)
+                    .foregroundStyle(canSendSecureMessage ? Color.smAccent : Color.smFaint)
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(PressableStyle(scale: 0.92))
+            .disabled(!canSendSecureMessage)
             .accessibilityLabel("Вложение")
         }
     }
@@ -242,8 +243,8 @@ struct ChatComposerBar: View {
             } else if trimmedText.isEmpty && !isUploadingMedia && !isRecording {
                 composerActionButton(
                     systemName: "mic.fill",
-                    fill: Color.smText,
-                    disabled: false,
+                    fill: canSendSecureMessage ? Color.smText : Color.smFaint,
+                    disabled: !canSendSecureMessage,
                     action: onStartVoiceRecording
                 )
             } else if isRecording {
