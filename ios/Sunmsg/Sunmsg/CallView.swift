@@ -46,13 +46,13 @@ struct IncomingCallView: View {
 
                     // Name + call type
                     Text(call.callerName)
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.smText)
                         .tracking(-0.5)
                         .padding(.top, 14)
 
                     Text(call.callType == "video" ? "Видеозвонок" : "Голосовой звонок")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(Color.smMuted)
                         .padding(.top, 4)
 
@@ -70,7 +70,7 @@ struct IncomingCallView: View {
                             }
                             .buttonStyle(.plain)
                             Text("Отклонить")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(Color.smMuted)
                         }
 
@@ -86,7 +86,7 @@ struct IncomingCallView: View {
                             }
                             .buttonStyle(.plain)
                             Text("Принять")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(Color.smMuted)
                         }
                     }
