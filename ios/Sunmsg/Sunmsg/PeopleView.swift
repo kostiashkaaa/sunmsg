@@ -66,7 +66,7 @@ struct PeopleView: View {
     private var headerRow: some View {
         HStack {
             Text("Контакты")
-                .font(.system(size: 22, weight: .bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(Color.smText)
                 .tracking(-0.6)
             Spacer()
@@ -86,7 +86,7 @@ struct PeopleView: View {
 
             TextField("Поиск по имени или @username", text: $query)
                 .focused($searchFocused)
-                .font(.system(size: 15))
+                .font(.body)
                 .foregroundStyle(Color.smText)
                 .tint(Color.smAccent)
                 .autocorrectionDisabled()
@@ -143,7 +143,7 @@ struct PeopleView: View {
                 if !session.contacts.isEmpty {
                     HStack {
                         Text("КОНТАКТЫ · \(session.contacts.count)")
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color.smFaint)
                             .tracking(0.7)
                         Spacer()
@@ -187,11 +187,11 @@ struct PeopleView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11.5))
+                        .font(.caption)
                         .foregroundStyle(Color.smMuted)
                 }
             }
@@ -212,12 +212,12 @@ struct PeopleView: View {
             SmAvatarView(name: contact.displayName, avatarUrl: contact.avatarUrl, isGroup: contact.isGroup, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.displayName)
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                 if !contact.username.isEmpty {
                     Text("@\(contact.username)")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color.smAccent)
                         .lineLimit(1)
                 }
@@ -237,10 +237,10 @@ struct PeopleView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(Color.smFaint)
             Text("Пользователей не найдено")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.headline)
                 .foregroundStyle(Color.smMuted)
             Text("Попробуйте другое имя или @username")
-                .font(.system(size: 13))
+                .font(.subheadline)
                 .foregroundStyle(Color.smFaint)
             Spacer()
         }
@@ -282,7 +282,7 @@ struct PeopleView: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("ЗАПРОСЫ")
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.smFaint)
                 .tracking(0.6)
                 .padding(.horizontal, 20)
@@ -541,7 +541,7 @@ struct GroupCreateView: View {
                     candidateList
                     if let error {
                         Text(error)
-                            .font(.system(size: 12.5))
+                            .font(.caption)
                             .foregroundStyle(Color.smDanger)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
@@ -573,11 +573,11 @@ struct GroupCreateView: View {
     private var formHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("НАЗВАНИЕ")
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.smFaint)
                 .tracking(0.6)
             TextField("Название группы", text: $title)
-                .font(.system(size: 16, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(Color.smText)
                 .tint(Color.smAccent)
                 .padding(.horizontal, 12)
@@ -599,7 +599,7 @@ struct GroupCreateView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("УЧАСТНИКИ · \(selected.count)")
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color.smFaint)
                     .tracking(0.6)
                 Spacer()
@@ -607,7 +607,7 @@ struct GroupCreateView: View {
 
             if selected.isEmpty {
                 Text("Выберите хотя бы одного участника.")
-                    .font(.system(size: 13))
+                    .font(.subheadline)
                     .foregroundStyle(Color.smMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
@@ -635,7 +635,7 @@ struct GroupCreateView: View {
             HStack(spacing: 7) {
                 SmAvatarView(name: member.displayName, avatarUrl: member.avatarUrl, size: 24)
                 Text(member.displayName)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                 Image(systemName: "xmark")
@@ -657,7 +657,7 @@ struct GroupCreateView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Color.smMuted)
             TextField("Найти по имени или @username", text: $query)
-                .font(.system(size: 15))
+                .font(.body)
                 .foregroundStyle(Color.smText)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -697,7 +697,7 @@ struct GroupCreateView: View {
                         .font(.system(size: 34))
                         .foregroundStyle(Color.smFaint)
                     Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Нет доступных контактов" : "Пользователи не найдены")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smMuted)
                     Spacer()
                 }
@@ -733,17 +733,17 @@ struct GroupCreateView: View {
                 SmAvatarView(name: candidate.displayName, avatarUrl: candidate.avatarUrl, size: 42)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(candidate.displayName)
-                        .font(.system(size: 14.5, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                     Text(candidate.username.isEmpty ? "@user" : "@\(candidate.username)")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color.smMuted)
                 }
                 .layoutPriority(1)
                 Spacer()
                 Text(candidate.actionLabel)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(candidate.isDenied ? Color.smFaint : Color.smAccent2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -768,7 +768,7 @@ struct GroupCreateView: View {
                     ProgressView().tint(.white)
                 } else {
                     Text("Создать")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                 }
                 Spacer()
             }
@@ -908,11 +908,11 @@ struct DialogRequestRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(requestTitle)
-                    .font(.system(size: 15.5, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                 Text(requestSubtitle)
-                    .font(.system(size: 13))
+                    .font(.caption)
                     .foregroundStyle(Color.smAccent)
                     .lineLimit(1)
             }
@@ -995,11 +995,11 @@ struct UserResultRow: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(user.displayName)
-                        .font(.system(size: 15.5, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                     Text("@\(user.username)")
-                        .font(.system(size: 13))
+                        .font(.caption)
                         .foregroundStyle(Color.smAccent)
                         .lineLimit(1)
                 }
@@ -1014,7 +1014,7 @@ struct UserResultRow: View {
                 } else {
                     Button(action: onAction) {
                         Text(statusLabel)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(requestSent || user.pendingOutgoingRequest ? Color.smFaint : Color(hex: "#fbf8f1"))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
