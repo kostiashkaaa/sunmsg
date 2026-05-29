@@ -3603,6 +3603,11 @@ struct DevicesView: View {
         let others: [SessionDevice]
     }
 
+    private struct SessionPolicySnapshot {
+        let options: [SessionAutoLogoutOption]
+        let currentLabel: String
+    }
+
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
@@ -3757,7 +3762,8 @@ struct DevicesView: View {
     }
 
     private func sessionPolicyView(_ response: SessionDevicesResponse) -> some View {
-        let options = response.sessionAutoLogoutOptions.filter { $0.seconds > 0 }
+        let policy = makeSessionPolicySnapshot(response)
+        let options = policy.options
         return VStack(alignment: .leading, spacing: 10) {
             if !options.isEmpty {
                 Menu {
@@ -3782,7 +3788,7 @@ struct DevicesView: View {
                             ProgressView()
                                 .tint(Color.smAccent)
                         } else {
-                            Text(sessionAutoLogoutLabel(response))
+                            Text(policy.currentLabel)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(Color.smAccent2)
                             Image(systemName: "chevron.up.chevron.down")
@@ -3795,7 +3801,7 @@ struct DevicesView: View {
                 .disabled(isMutating)
             }
 
-            Text(sessionPolicyText(response))
+            Text(sessionPolicyText(label: policy.currentLabel))
                 .font(.caption)
                 .foregroundStyle(Color.smMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -3803,6 +3809,26 @@ struct DevicesView: View {
         .padding(14)
         .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+    }
+
+    private func makeSessionPolicySnapshot(_ response: SessionDevicesResponse) -> SessionPolicySnapshot {
+        var options: [SessionAutoLogoutOption] = []
+        options.reserveCapacity(response.sessionAutoLogoutOptions.count)
+        var currentLabel: String?
+
+        for option in response.sessionAutoLogoutOptions {
+            if option.seconds == response.sessionAutoLogoutSeconds {
+                currentLabel = optionLabel(option)
+            }
+            if option.seconds > 0 {
+                options.append(option)
+            }
+        }
+
+        return SessionPolicySnapshot(
+            options: options,
+            currentLabel: currentLabel ?? formatDuration(response.sessionAutoLogoutSeconds)
+        )
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -3961,15 +3987,8 @@ struct DevicesView: View {
         return parts.joined(separator: " · ")
     }
 
-    private func sessionPolicyText(_ response: SessionDevicesResponse) -> String {
-        return "Неактивные устройства будут отключены через: \(sessionAutoLogoutLabel(response))."
-    }
-
-    private func sessionAutoLogoutLabel(_ response: SessionDevicesResponse) -> String {
-        let label = response.sessionAutoLogoutOptions
-            .first(where: { $0.seconds == response.sessionAutoLogoutSeconds })
-            .map(optionLabel)
-        return label ?? formatDuration(response.sessionAutoLogoutSeconds)
+    private func sessionPolicyText(label: String) -> String {
+        return "Неактивные устройства будут отключены через: \(label)."
     }
 
     private func optionMenuLabel(_ option: SessionAutoLogoutOption, currentSeconds: Int) -> String {
