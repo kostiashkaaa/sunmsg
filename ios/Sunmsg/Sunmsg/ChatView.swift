@@ -2763,7 +2763,6 @@ struct MessageBubbleView: View {
             .font(.system(size: fallbackBodyBaseSize * CGFloat(messageScale)))
             .foregroundStyle(bubbleTextColor)
             .lineSpacing(1)
-            .tracking(-0.15)
             .padding(.horizontal, 12)
             .padding(.top, 7)
             .padding(.bottom, 8)
