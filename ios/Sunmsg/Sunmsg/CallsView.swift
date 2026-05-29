@@ -36,7 +36,9 @@ struct CallsView: View {
                 } else {
                     List {
                         ForEach(calls) { call in
-                            CallRowView(call: call)
+                            CallRowView(call: call) {
+                                callBack(call)
+                            }
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.visible, edges: .bottom)
                                 .listRowSeparatorTint(Color.smBorderSoft)
@@ -67,6 +69,19 @@ struct CallsView: View {
         if let idx = session.callHistory.firstIndex(where: { $0.id == call.id }) {
             session.callHistory.remove(at: idx)
             session.saveCallHistory()
+        }
+    }
+
+    private func callBack(_ call: CallRecord) {
+        let chatId: String? = call.chatId
+            ?? session.contacts.first(where: { $0.displayName == call.name })?.chatId
+        if let chatId {
+            session.initiateCall(
+                chatId: chatId,
+                callType: call.callType == .video ? "video" : "audio"
+            )
+        } else {
+            session.selectedTab = 2
         }
     }
 
@@ -183,7 +198,7 @@ struct CallsView: View {
 
 struct CallRowView: View {
     let call: CallRecord
-    @EnvironmentObject var session: SessionStore
+    let onCallBack: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -217,18 +232,7 @@ struct CallRowView: View {
 
             VStack(alignment: .trailing, spacing: 6) {
                 // Call-back button — amber circle
-                Button(action: {
-                    let chatId: String? = call.chatId
-                        ?? session.contacts.first(where: { $0.displayName == call.name })?.chatId
-                    if let cid = chatId {
-                        session.initiateCall(
-                            chatId: cid,
-                            callType: call.callType == .video ? "video" : "audio"
-                        )
-                    } else {
-                        session.selectedTab = 2
-                    }
-                }) {
+                Button(action: onCallBack) {
                     Image(systemName: call.callType == .video ? "video.fill" : "phone.fill")
                         .font(.system(size: call.callType == .video ? 15 : 14, weight: .medium))
                         .foregroundStyle(Color.smAccent2)
