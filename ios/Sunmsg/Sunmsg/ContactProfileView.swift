@@ -127,7 +127,6 @@ struct ContactProfileView: View {
                 Text(contact.displayName)
                     .font(.title3.weight(.bold))
                     .foregroundStyle(Color.smText)
-                    .tracking(-0.6)
 
                 Text("@\(contact.username)")
                     .font(.subheadline.weight(.medium))
@@ -177,7 +176,6 @@ struct ContactProfileView: View {
                 Text(label)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color.smText)
-                    .tracking(-0.1)
             }
             .frame(maxWidth: .infinity)
         }
