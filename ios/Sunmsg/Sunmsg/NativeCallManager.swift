@@ -16,8 +16,7 @@ final class NativeCallManager: NSObject, ObservableObject {
     private var uuidByCallId: [String: UUID] = [:]
 
     private override init() {
-        let config = CXProviderConfiguration()
-        config.localizedName = "SUN Messenger"
+        let config = CXProviderConfiguration(localizedName: "SUN Messenger")
         config.supportsVideo = true
         config.maximumCallsPerCallGroup = 1
         config.maximumCallGroups = 1
