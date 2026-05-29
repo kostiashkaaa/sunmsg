@@ -2248,7 +2248,7 @@ enum SettingsClientPreferences {
     }
 }
 
-private enum SettingsScreenError: LocalizedError {
+private enum SettingsScreenError: LocalizedError, Sendable {
     case notificationDenied
     case notificationTokenTimeout
     case notificationRegistrationFailed(String)
@@ -2263,12 +2263,6 @@ private enum SettingsScreenError: LocalizedError {
             return message
         }
     }
-}
-
-private final class APNSTokenWaitState {
-    var completed = false
-    var tokenObserver: NSObjectProtocol?
-    var errorObserver: NSObjectProtocol?
 }
 
 struct NotificationSettingsView: View {
@@ -2389,33 +2383,36 @@ struct NotificationSettingsView: View {
         if let token = UserDefaults.standard.string(forKey: "sun_alert_apns_token_v1"), !token.isEmpty {
             return token
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            let state = APNSTokenWaitState()
-            let center = NotificationCenter.default
-
-            func finish(_ result: Result<String, Error>) {
-                guard !state.completed else { return }
-                state.completed = true
-                if let tokenObserver = state.tokenObserver { center.removeObserver(tokenObserver) }
-                if let errorObserver = state.errorObserver { center.removeObserver(errorObserver) }
-                continuation.resume(with: result)
+        return try await withThrowingTaskGroup(of: String.self) { group in
+            group.addTask {
+                for await note in NotificationCenter.default.notifications(named: .smDidRegisterAPNsAlertToken) {
+                    let token = (note.userInfo?["token"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !token.isEmpty else { throw SettingsScreenError.notificationTokenTimeout }
+                    return token
+                }
+                throw SettingsScreenError.notificationTokenTimeout
             }
-
-            state.tokenObserver = center.addObserver(forName: .smDidRegisterAPNsAlertToken, object: nil, queue: .main) { note in
-                let token = (note.userInfo?["token"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                finish(token.isEmpty ? .failure(SettingsScreenError.notificationTokenTimeout) : .success(token))
+            group.addTask {
+                for await note in NotificationCenter.default.notifications(named: .smDidFailToRegisterAPNsAlertToken) {
+                    let message = note.userInfo?["error"] as? String ?? "Не удалось зарегистрировать APNs-токен."
+                    throw SettingsScreenError.notificationRegistrationFailed(message)
+                }
+                throw SettingsScreenError.notificationTokenTimeout
             }
-            state.errorObserver = center.addObserver(forName: .smDidFailToRegisterAPNsAlertToken, object: nil, queue: .main) { note in
-                let message = note.userInfo?["error"] as? String ?? "Не удалось зарегистрировать APNs-токен."
-                finish(.failure(SettingsScreenError.notificationRegistrationFailed(message)))
+            group.addTask {
+                try await Task.sleep(nanoseconds: 15_000_000_000)
+                throw SettingsScreenError.notificationTokenTimeout
             }
+            defer { group.cancelAll() }
 
-            DispatchQueue.main.async {
+            await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-                finish(.failure(SettingsScreenError.notificationTokenTimeout))
+
+            guard let token = try await group.next() else {
+                throw SettingsScreenError.notificationTokenTimeout
             }
+            return token
         }
     }
 }
