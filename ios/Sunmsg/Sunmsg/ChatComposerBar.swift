@@ -30,12 +30,12 @@ struct ChatComposerBar: View {
     @State private var keyboardKeepAliveText = ""
 
     private enum Metrics {
-        static let controlSize: CGFloat = 52
-        static let inputRadius: CGFloat = 26
-        static let rowSpacing: CGFloat = 8
+        static let controlSize: CGFloat = 44
+        static let inputRadius: CGFloat = 22
+        static let rowSpacing: CGFloat = 7
         static let horizontalPadding: CGFloat = 12
-        static let iconSize: CGFloat = 25
-        static let innerButtonSize: CGFloat = 42
+        static let iconSize: CGFloat = 22
+        static let innerButtonSize: CGFloat = 36
     }
 
     private var trimmedText: String {
@@ -63,8 +63,8 @@ struct ChatComposerBar: View {
                 }
             }
             .padding(.horizontal, Metrics.horizontalPadding)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 6)
         }
         .background(Color.smBg.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) {
@@ -157,7 +157,7 @@ struct ChatComposerBar: View {
             ZStack(alignment: .leading) {
                 if composerText.isEmpty && !isUploadingMedia {
                     Text(placeholder)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Color.smFaint)
                         .allowsHitTesting(false)
                 }
@@ -167,7 +167,7 @@ struct ChatComposerBar: View {
                 } else {
                     TextField("", text: $composerText, axis: .vertical)
                         .focused(composerFocused)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Color.smText)
                         .tint(Color.smAccent)
                         .lineLimit(1...5)
@@ -193,7 +193,7 @@ struct ChatComposerBar: View {
         ZStack(alignment: .leading) {
             keyboardKeepAliveField
 
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(Color.red)
@@ -207,7 +207,7 @@ struct ChatComposerBar: View {
                         .onDisappear { recordingPulse = false }
 
                     Text(formatRecordingTime(recordingDuration))
-                        .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 16.5, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.smText)
                         .fixedSize(horizontal: true, vertical: false)
                 }
@@ -216,16 +216,16 @@ struct ChatComposerBar: View {
 
                 Button(action: onCancelRecording) {
                     Text("Отмена")
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.smAccent)
-                        .frame(minWidth: 88)
+                        .frame(minWidth: 76)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Отменить запись")
 
                 Spacer(minLength: 8)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 14)
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: Metrics.controlSize)
@@ -250,11 +250,11 @@ struct ChatComposerBar: View {
     private var recordingSendButton: some View {
         Button(action: onStopAndSendRecording) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 31, weight: .semibold))
+                .font(.system(size: 27, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
                 .frame(width: Metrics.controlSize, height: Metrics.controlSize)
                 .background(Color.smAccent, in: Circle())
-                .shadow(color: Color.smAccent.opacity(0.32), radius: 8, x: 0, y: 3)
+                .shadow(color: Color.smAccent.opacity(0.26), radius: 5, x: 0, y: 2)
         }
         .buttonStyle(PressableStyle(scale: 0.9))
         .accessibilityLabel("Отправить голосовое сообщение")
@@ -282,7 +282,7 @@ struct ChatComposerBar: View {
                 }
             } label: {
                 Image(systemName: "face.smiling")
-                    .font(.system(size: 24))
+                    .font(.system(size: 21))
                     .foregroundStyle(Color.smMuted)
                     .frame(width: Metrics.innerButtonSize, height: Metrics.innerButtonSize)
             }
@@ -330,7 +330,7 @@ struct ChatComposerBar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: systemName == "mic.fill" ? 30 : 24, weight: .semibold))
+                .font(.system(size: systemName == "mic.fill" ? 26 : 21, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
                 .frame(width: Metrics.controlSize, height: Metrics.controlSize)
                 .background(fill, in: Circle())
