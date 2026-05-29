@@ -283,7 +283,10 @@ struct ChatListView: View {
                     NavigationLink {
                         ChatView(contact: contact)
                     } label: {
-                        SidebarContactRow(contact: contact)
+                        SidebarContactRow(
+                            contact: contact,
+                            isSavedMessages: contact.userId != nil && contact.userId == session.bootstrap?.user.id
+                        )
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
@@ -612,10 +615,9 @@ extension Notification.Name {
 
 struct SidebarContactRow: View {
     let contact: Contact
-    @EnvironmentObject var session: SessionStore
+    let isSavedMessages: Bool
 
     var body: some View {
-        let isSavedMessages = contact.userId != nil && contact.userId == session.bootstrap?.user.id
         let displayName = isSavedMessages ? "Избранное" : contact.displayName
         let muted = contact.isMuted && !isSavedMessages
 
