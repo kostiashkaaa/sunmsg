@@ -138,7 +138,7 @@ struct ChatListView: View {
                 HStack(spacing: 7) {
                     SunMarkView(size: 18)
                     Text("sun")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.headline.weight(.bold))
                         .foregroundStyle(Color.smText)
                         .tracking(-0.4)
                 }
@@ -153,7 +153,7 @@ struct ChatListView: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.smMuted)
                     TextField("Поиск", text: $searchText)
-                        .font(.system(size: 14))
+                        .font(.body)
                         .foregroundStyle(Color.smText)
                         .tint(Color.smAccent)
                         .autocorrectionDisabled()
@@ -191,7 +191,7 @@ struct ChatListView: View {
                         let active = activeFilter == f.id
                         Button(action: { selectFilter(f.id) }) {
                             Text(f.label)
-                                .font(.system(size: 13, weight: active ? .semibold : .medium))
+                                .font(.caption.weight(active ? .semibold : .medium))
                                 .foregroundStyle(active ? Color.smBg : Color.smMuted)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
