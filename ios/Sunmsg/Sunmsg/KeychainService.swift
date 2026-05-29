@@ -55,6 +55,10 @@ struct KeychainService {
         loadRawKey(account: "sunmsg-x25519-identity-priv")
     }
 
+    static func deleteX25519PrivateKey() {
+        deleteRawKey(account: "sunmsg-x25519-identity-priv")
+    }
+
     // MARK: - Ed25519 signing key
 
     static func saveEd25519PrivateKey(_ rawBytes: Data) throws {
@@ -65,6 +69,10 @@ struct KeychainService {
         loadRawKey(account: "sunmsg-ed25519-signing-priv")
     }
 
+    static func deleteEd25519PrivateKey() {
+        deleteRawKey(account: "sunmsg-ed25519-signing-priv")
+    }
+
     // MARK: - Signed prekey private key
 
     static func saveSignedPrekeyPrivateKey(_ rawBytes: Data, id: Int) throws {
@@ -73,6 +81,10 @@ struct KeychainService {
 
     static func loadSignedPrekeyPrivateKey(id: Int) -> Data? {
         loadRawKey(account: "sunmsg-spk-priv-\(id)")
+    }
+
+    static func deleteSignedPrekeyPrivateKey(id: Int) {
+        deleteRawKey(account: "sunmsg-spk-priv-\(id)")
     }
 
     // MARK: - One-time prekey private key
@@ -128,5 +140,12 @@ struct KeychainService {
             kSecAttrAccount as String:  account,
         ]
         SecItemDelete(query as CFDictionary)
+    }
+
+    static func deleteAllLocalSecrets() {
+        deletePrivateKey()
+        deleteX25519PrivateKey()
+        deleteEd25519PrivateKey()
+        deleteSignedPrekeyPrivateKey(id: 1)
     }
 }

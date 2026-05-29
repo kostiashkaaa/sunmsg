@@ -68,11 +68,12 @@ struct BootstrapResponse: Decodable {
     let csrfToken: String
     let user: BootstrapUser
     let session: BootstrapSession
+    let crypto: BootstrapCrypto
     let contacts: [Contact]
     let hasMoreContacts: Bool
 
     enum CodingKeys: String, CodingKey {
-        case success, user, session, contacts
+        case success, user, session, crypto, contacts
         case csrfToken = "csrf_token"
         case hasMoreContacts = "has_more_contacts"
     }
@@ -83,6 +84,7 @@ struct BootstrapResponse: Decodable {
         csrfToken = (try? c.decodeIfPresent(String.self, forKey: .csrfToken)) ?? ""
         user = (try? c.decodeIfPresent(BootstrapUser.self, forKey: .user)) ?? BootstrapUser.empty
         session = (try? c.decodeIfPresent(BootstrapSession.self, forKey: .session)) ?? BootstrapSession.empty
+        crypto = (try? c.decodeIfPresent(BootstrapCrypto.self, forKey: .crypto)) ?? BootstrapCrypto.empty
         contacts = (try? c.decodeIfPresent(LossyArray<Contact>.self, forKey: .contacts)?.elements) ?? []
         hasMoreContacts = (try? c.decodeIfPresent(Bool.self, forKey: .hasMoreContacts)) ?? false
     }
@@ -153,6 +155,33 @@ struct BootstrapSession: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         autoLogoutSeconds = (try? c.decodeIfPresent(Int.self, forKey: .autoLogoutSeconds)) ?? 0
         expiresAt = (try? c.decodeIfPresent(Int.self, forKey: .expiresAt)) ?? 0
+    }
+}
+
+struct BootstrapCrypto: Decodable {
+    let x25519PublicKey: String
+    let ed25519PublicKey: String
+    let cryptoVersion: Int
+
+    static let empty = BootstrapCrypto(x25519PublicKey: "", ed25519PublicKey: "", cryptoVersion: 2)
+
+    enum CodingKeys: String, CodingKey {
+        case x25519PublicKey = "x25519_public_key"
+        case ed25519PublicKey = "ed25519_public_key"
+        case cryptoVersion = "crypto_version"
+    }
+
+    init(x25519PublicKey: String, ed25519PublicKey: String, cryptoVersion: Int) {
+        self.x25519PublicKey = x25519PublicKey
+        self.ed25519PublicKey = ed25519PublicKey
+        self.cryptoVersion = cryptoVersion
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        x25519PublicKey = (try? c.decodeIfPresent(String.self, forKey: .x25519PublicKey)) ?? ""
+        ed25519PublicKey = (try? c.decodeIfPresent(String.self, forKey: .ed25519PublicKey)) ?? ""
+        cryptoVersion = (try? c.decodeIfPresent(Int.self, forKey: .cryptoVersion)) ?? 2
     }
 }
 

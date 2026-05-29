@@ -12,6 +12,42 @@ class _FakeConn:
         self.closed = True
 
 
+class _FakeCursor:
+    def __init__(self, row=None):
+        self.row = row
+
+    def fetchone(self):
+        return self.row
+
+
+class _MobileSendConn:
+    def __init__(self):
+        self.closed = False
+        self.committed = False
+        self.rolled_back = False
+
+    def execute(self, sql, params=None):
+        normalized = ' '.join(sql.split())
+        if 'FROM contacts c' in normalized:
+            return _FakeCursor({'contact_id': 2, 'public_key': 'pk-2'})
+        if 'SELECT display_name, username FROM users' in normalized:
+            return _FakeCursor({'display_name': 'Alice', 'username': 'alice'})
+        if 'FROM messages WHERE sender_id' in normalized:
+            return _FakeCursor(None)
+        if 'INSERT INTO messages' in normalized:
+            return _FakeCursor({'id': 42, 'created_at': 123456.0, 'is_read': 0, 'is_delivered': 0})
+        raise AssertionError(f'unexpected SQL: {normalized}')
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        self.rolled_back = True
+
+    def close(self):
+        self.closed = True
+
+
 def _build_app(monkeypatch, *, conn=None, page_context=None, calls_enabled=False):
     app = Flask(__name__)
     app.secret_key = 'test-secret'
@@ -58,6 +94,9 @@ def test_mobile_bootstrap_returns_json_boot_payload(monkeypatch):
         'current_username': 'alice',
         'current_display_name': 'Alice',
         'current_public_key': 'pk-1',
+        'current_x25519_public_key': 'x25519-pk-1',
+        'current_ed25519_public_key': 'ed25519-pk-1',
+        'current_crypto_version': 3,
         'current_avatar_url': '/static/avatars/a.png',
         'ui_language': 'en',
         'mute_dialog_requests': True,
@@ -94,6 +133,11 @@ def test_mobile_bootstrap_returns_json_boot_payload(monkeypatch):
         'client_preferences': {'theme': 'dark'},
     }
     assert payload['session'] == {'auto_logout_seconds': 600, 'expires_at': 123456}
+    assert payload['crypto'] == {
+        'x25519_public_key': 'x25519-pk-1',
+        'ed25519_public_key': 'ed25519-pk-1',
+        'crypto_version': 3,
+    }
     assert payload['socketio'] == {
         'transports': ['websocket', 'polling'],
         'upgrade': True,
@@ -130,3 +174,50 @@ def test_mobile_bootstrap_clears_stale_session(monkeypatch):
     with client.session_transaction() as sess:
         assert 'user_id' not in sess
         assert 'public_key_pem' not in sess
+
+
+def test_mobile_send_uses_enveloped_emitter(monkeypatch):
+    app = Flask(__name__)
+    app.secret_key = 'test-secret'
+    app.config.update(TESTING=True, RATELIMIT_ENABLED=False, WTF_CSRF_ENABLED=False)
+    limiter.init_app(app)
+    conn = _MobileSendConn()
+    emitted = []
+
+    def _fake_emit(event_name, payload, *args, chat_id=None, request_id=None, **kwargs):
+        emitted.append({
+            'event_name': event_name,
+            'room': kwargs.get('room'),
+            'chat_id': chat_id,
+            'request_id': request_id,
+            'payload': payload,
+        })
+
+    monkeypatch.setattr(mobile_routes, 'get_db_connection', lambda: conn)
+    monkeypatch.setattr(mobile_routes, 'get_chat_type', lambda _conn, _chat_id: 'direct')
+    monkeypatch.setattr(mobile_routes, 'is_valid_chat_id', lambda _chat_id: True)
+    monkeypatch.setattr(mobile_routes, 'looks_like_ciphertext', lambda _message: True)
+    monkeypatch.setattr(mobile_routes, '_socket_emit_with_envelope', _fake_emit)
+    app.register_blueprint(mobile_routes.mobile_bp)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.post('/api/mobile/send', json={
+        'chat_id': 'chat-1',
+        'message': 'encrypted-payload',
+        'message_type': 'text',
+        'request_id': 'ios-req-1',
+    })
+
+    assert response.status_code == 200
+    assert conn.committed is True
+    assert conn.closed is True
+    assert [(item['event_name'], item['room']) for item in emitted] == [
+        ('receive_message', 'pk-2'),
+        ('message_sent', 'pk-1'),
+    ]
+    assert all(item['chat_id'] == 'chat-1' for item in emitted)
+    assert all(item['request_id'] == 'ios-req-1' for item in emitted)
+    assert all(item['payload']['id'] == 42 for item in emitted)

@@ -1,3 +1,4 @@
+import base64
 import sqlite3
 
 import pytest
@@ -109,6 +110,54 @@ def _client(monkeypatch, conn, user_id=1):
     with client.session_transaction() as flask_session:
         flask_session['user_id'] = user_id
     return client
+
+
+def _b64u(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode('ascii').rstrip('=')
+
+
+def test_publish_identity_keys_does_not_overwrite_existing_keys(monkeypatch, conn):
+    first_x25519 = _b64u(bytes([1]) * 32)
+    first_ed25519 = _b64u(bytes([2]) * 32)
+    second_x25519 = _b64u(bytes([3]) * 32)
+    second_ed25519 = _b64u(bytes([4]) * 32)
+    conn.execute(
+        "INSERT INTO users (id, public_key, username, display_name) VALUES (1, 'pk-1', 'alice', 'Alice')"
+    )
+    conn.commit()
+    monkeypatch.setattr(crypto_v2_routes, 'verify_ed25519_signature', lambda *_args, **_kwargs: True)
+
+    client = _client(monkeypatch, conn)
+    first_response = client.post('/api/crypto/keys', json={
+        'x25519_public_key': first_x25519,
+        'ed25519_public_key': first_ed25519,
+        'challenge': first_x25519,
+        'signature': 'sig',
+    })
+    same_response = client.post('/api/crypto/keys', json={
+        'x25519_public_key': first_x25519,
+        'ed25519_public_key': first_ed25519,
+        'challenge': first_x25519,
+        'signature': 'sig',
+    })
+    overwrite_response = client.post('/api/crypto/keys', json={
+        'x25519_public_key': second_x25519,
+        'ed25519_public_key': second_ed25519,
+        'challenge': second_x25519,
+        'signature': 'sig',
+    })
+
+    assert first_response.status_code == 200
+    assert same_response.status_code == 200
+    assert same_response.get_json()['already_registered'] is True
+    assert overwrite_response.status_code == 409
+    assert overwrite_response.get_json() == {'error': 'identity_keys_already_registered'}
+    row = conn.execute(
+        'SELECT x25519_public_key, ed25519_public_key, crypto_version FROM users WHERE id = 1'
+    ).fetchone()
+    assert row['x25519_public_key'] == first_x25519
+    assert row['ed25519_public_key'] == first_ed25519
+    assert row['crypto_version'] == 3
 
 
 def test_prekey_bundle_get_does_not_claim_one_time_prekey(monkeypatch, conn):

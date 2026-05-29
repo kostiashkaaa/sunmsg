@@ -38,7 +38,8 @@ def fetch_chat_page_context(
 ) -> dict | None:
     user_info = conn.execute(
         '''
-        SELECT username, display_name, public_key, avatar_url, language, mute_dialog_requests, client_preferences
+        SELECT username, display_name, public_key, avatar_url, language, mute_dialog_requests, client_preferences,
+               x25519_public_key, ed25519_public_key, crypto_version
         FROM users
         WHERE id = ?
         ''',
@@ -62,6 +63,9 @@ def fetch_chat_page_context(
         'current_display_name': user_info['display_name'],
         'current_username': user_info['username'],
         'current_public_key': user_info['public_key'],
+        'current_x25519_public_key': user_info['x25519_public_key'] if 'x25519_public_key' in user_info.keys() else '',
+        'current_ed25519_public_key': user_info['ed25519_public_key'] if 'ed25519_public_key' in user_info.keys() else '',
+        'current_crypto_version': int(user_info['crypto_version'] or 2) if 'crypto_version' in user_info.keys() else 2,
         'current_avatar_url': user_info['avatar_url'],
         'ui_language': ui_language,
         'mute_dialog_requests': bool(user_info['mute_dialog_requests']) if 'mute_dialog_requests' in user_info.keys() else False,

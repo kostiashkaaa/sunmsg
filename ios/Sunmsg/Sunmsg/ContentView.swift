@@ -73,6 +73,7 @@ final class SessionStore: ObservableObject {
     var activeChatId: String? = nil
 
     let api = APIClient.shared
+    private let syncEngine = ChatSyncEngine(api: APIClient.shared)
     private var cancellables = Set<AnyCancellable>()
     private var typingTimers: [String: Task<Void, Never>] = [:]
     private var presenceTimer: Timer?
@@ -82,7 +83,7 @@ final class SessionStore: ObservableObject {
         NotificationCenter.default.publisher(for: .smSocketMessage)
             .sink { [weak self] note in
                 guard let userInfo = note.userInfo else { return }
-                Task { @MainActor [weak self] in self?.handleSocketEvent(userInfo) }
+                Task { @MainActor [weak self] in await self?.handleSocketEvent(userInfo) }
             }
             .store(in: &cancellables)
 
@@ -99,6 +100,7 @@ final class SessionStore: ObservableObject {
                     self.connectSocket()
                     self.markActive()
                     await self.refreshContacts()
+                    await self.recoverActiveChatSync()
                 }
             }
             .store(in: &cancellables)
@@ -114,10 +116,35 @@ final class SessionStore: ObservableObject {
 
     // MARK: - Global socket event handler
 
-    private func handleSocketEvent(_ userInfo: [AnyHashable: Any]) {
+    private func handleSocketEvent(_ userInfo: [AnyHashable: Any]) async {
         guard let event = userInfo[SocketEventKey.eventName] as? String else { return }
         let payload = userInfo[SocketEventKey.data] as? [String: Any] ?? [:]
+        let isReplay = (userInfo[SocketEventKey.replay] as? Bool) == true
 
+        if !isReplay {
+            let sync = await syncEngine.prepareLiveEvent(eventName: event, payload: payload)
+            for replay in sync.replays {
+                postReplayEvent(replay)
+            }
+            guard sync.shouldApplyCurrent else { return }
+        }
+
+        applySocketEvent(event, payload: payload)
+    }
+
+    private func postReplayEvent(_ replay: SocketReplayEvent) {
+        NotificationCenter.default.post(
+            name: .smSocketMessage,
+            object: nil,
+            userInfo: [
+                SocketEventKey.eventName: replay.eventName,
+                SocketEventKey.data: replay.payload,
+                SocketEventKey.replay: true,
+            ]
+        )
+    }
+
+    private func applySocketEvent(_ event: String, payload: [String: Any]) {
         switch event {
         case "receive_message":
             guard let chatId = payload["chat_id"] as? String,
@@ -465,6 +492,7 @@ final class SessionStore: ObservableObject {
     func loadBootstrap() async {
         do {
             let data = try await api.bootstrap()
+            syncEngine.reset()
             bootstrap = data
             contacts = data.contacts
             decryptContactPreviews()
@@ -491,6 +519,9 @@ final class SessionStore: ObservableObject {
         // Skip if already registered (both keys in Keychain)
         guard KeychainService.loadX25519PrivateKey() == nil ||
               KeychainService.loadEd25519PrivateKey() == nil else { return }
+        let serverHasIdentityKeys = !(bootstrap?.crypto.x25519PublicKey ?? "").isEmpty ||
+            !(bootstrap?.crypto.ed25519PublicKey ?? "").isEmpty
+        guard !serverHasIdentityKeys else { return }
 
         let (ikPrivRaw, ikPubRaw)   = V3CryptoService.generateX25519KeyPair()
         let (edPrivRaw, edPubRaw)   = V3CryptoService.generateEd25519KeyPair()
@@ -557,7 +588,8 @@ final class SessionStore: ObservableObject {
     func logout() async {
         disconnectSocket()
         try? await api.logout()
-        KeychainService.deletePrivateKey()
+        KeychainService.deleteAllLocalSecrets()
+        syncEngine.reset()
         bootstrap = nil; contacts = []; pendingRequests = []; route = .login
     }
 
@@ -587,6 +619,7 @@ final class SessionStore: ObservableObject {
         try? await Task.sleep(nanoseconds: 350_000_000)
         connectSocket()
         await refreshContacts()
+        await recoverActiveChatSync()
     }
 
     private func handleSocketStateChanged() {
@@ -597,7 +630,10 @@ final class SessionStore: ObservableObject {
             // Reconcile call state with the server: if we still show a call the
             // server no longer knows about, call_sync tears our UI down.
             SocketClient.shared.emit("call_sync", ["csrf_token": api.csrfToken])
-            Task { await refreshContacts() }
+            Task {
+                await refreshContacts()
+                await recoverActiveChatSync()
+            }
         case .disconnected:
             stopPresenceTimer()
         case .connecting:
@@ -630,6 +666,22 @@ final class SessionStore: ObservableObject {
     private func stopPresenceTimer() {
         presenceTimer?.invalidate()
         presenceTimer = nil
+    }
+
+    func primeChatSync(chatId: String) async {
+        await syncEngine.prime(chatId: chatId)
+    }
+
+    func recoverChatSync(chatId: String) async {
+        let events = await syncEngine.recoverChat(chatId: chatId)
+        for event in events {
+            postReplayEvent(event)
+        }
+    }
+
+    private func recoverActiveChatSync() async {
+        guard let chatId = activeChatId else { return }
+        await recoverChatSync(chatId: chatId)
     }
 
     // MARK: - Incoming message from socket

@@ -12,6 +12,7 @@ extension Notification.Name {
 struct SocketEventKey {
     static let eventName = "event"   // String
     static let data      = "data"    // Any? (dict, array, etc.)
+    static let replay    = "replay"  // Bool
 }
 
 // MARK: - SocketClient

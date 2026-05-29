@@ -27,6 +27,7 @@
 		A10000000000000000000087 /* PrivacySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* PrivacySettingsView.swift */; };
 		A10000000000000000000089 /* V3CryptoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008A /* V3CryptoService.swift */; };
 		A1000000000000000000008B /* CallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008C /* CallView.swift */; };
+		A10000000000000000000090 /* ChatSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000091 /* ChatSyncEngine.swift */; };
 		A100000000000000000000F2 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A100000000000000000000F1 /* WebRTC */; };
 		A100000000000000000000F4 /* WebRTCService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000F3 /* WebRTCService.swift */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 		A10000000000000000000088 /* PrivacySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsView.swift; sourceTree = "<group>"; };
 		A1000000000000000000008A /* V3CryptoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V3CryptoService.swift; sourceTree = "<group>"; };
 		A1000000000000000000008C /* CallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallView.swift; sourceTree = "<group>"; };
+		A10000000000000000000091 /* ChatSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncEngine.swift; sourceTree = "<group>"; };
 		A100000000000000000000F3 /* WebRTCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,6 +100,7 @@
 				A10000000000000000000088 /* PrivacySettingsView.swift */,
 				A1000000000000000000008A /* V3CryptoService.swift */,
 				A1000000000000000000008C /* CallView.swift */,
+				A10000000000000000000091 /* ChatSyncEngine.swift */,
 				A100000000000000000000F3 /* WebRTCService.swift */,
 				A10000000000000000000019 /* Assets.xcassets */,
 				A1000000000000000000001A /* PrivacyInfo.xcprivacy */,
@@ -227,6 +230,7 @@
 				A10000000000000000000087 /* PrivacySettingsView.swift in Sources */,
 				A10000000000000000000089 /* V3CryptoService.swift in Sources */,
 				A1000000000000000000008B /* CallView.swift in Sources */,
+				A10000000000000000000090 /* ChatSyncEngine.swift in Sources */,
 				A100000000000000000000F4 /* WebRTCService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -366,6 +370,7 @@
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.sunmsg.ios.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUN_BASE_URL = "https://sun.445231.xyz";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -390,6 +395,7 @@
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.sunmsg.ios.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUN_BASE_URL = "https://sun.445231.xyz";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

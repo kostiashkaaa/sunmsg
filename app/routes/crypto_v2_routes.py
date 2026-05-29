@@ -110,6 +110,23 @@ def publish_identity_keys():
 
     conn = get_db_connection()
     try:
+        existing = conn.execute(
+            '''
+            SELECT x25519_public_key, ed25519_public_key
+            FROM users
+            WHERE id = ?
+            ''',
+            (uid,),
+        ).fetchone()
+        if existing and (existing['x25519_public_key'] or existing['ed25519_public_key']):
+            same_keys = (
+                str(existing['x25519_public_key'] or '').strip() == x25519_pub
+                and str(existing['ed25519_public_key'] or '').strip() == ed25519_pub
+            )
+            if same_keys:
+                return jsonify({'ok': True, 'crypto_version': 3, 'already_registered': True})
+            return jsonify({'error': 'identity_keys_already_registered'}), 409
+
         conn.execute(
             '''
             UPDATE users

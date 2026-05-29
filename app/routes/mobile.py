@@ -7,6 +7,7 @@ from app.database import get_db_connection
 from app.db_backend import IntegrityError
 from app.extensions import limiter, socketio
 from app.routes.contacts import fetch_contacts_for_user
+from app.routes.socket_emit import build_route_socket_emitter
 from app.services.call_feature_access import can_user_use_calls
 from app.services.chat_members import get_chat_type
 from app.services.chat_page_state import build_socketio_client_config, fetch_chat_page_context
@@ -17,6 +18,12 @@ from app.services.session_state import clear_invalid_session_user
 logger = logging.getLogger(__name__)
 
 mobile_bp = Blueprint('mobile', __name__, url_prefix='/api/mobile')
+
+_socket_emit_with_envelope = build_route_socket_emitter(
+    raw_emit_func=socketio.emit,
+    get_db_connection_func=get_db_connection,
+    logger=logger,
+)
 
 
 def _to_unix(ts) -> float:
@@ -107,6 +114,11 @@ def _build_mobile_bootstrap_payload(
         'session': {
             'auto_logout_seconds': int(session.get('session_auto_logout_seconds') or 2592000),
             'expires_at': int(session.get('session_expires_at') or 0),
+        },
+        'crypto': {
+            'x25519_public_key': str(page_context.get('current_x25519_public_key') or ''),
+            'ed25519_public_key': str(page_context.get('current_ed25519_public_key') or ''),
+            'crypto_version': int(page_context.get('current_crypto_version') or 2),
         },
         'socketio': socketio_config,
         'features': {
@@ -356,9 +368,21 @@ def mobile_send():
     if not duplicate:
         # Broadcast to the receiver's Socket.IO room (public key room)
         if receiver_pub:
-            socketio.emit('receive_message', payload, room=receiver_pub)
+            _socket_emit_with_envelope(
+                'receive_message',
+                payload,
+                room=receiver_pub,
+                chat_id=chat_id,
+                request_id=request_id,
+            )
         # Echo back to sender so other sessions update
         if sender_pub and sender_pub != receiver_pub:
-            socketio.emit('message_sent', payload, room=sender_pub)
+            _socket_emit_with_envelope(
+                'message_sent',
+                payload,
+                room=sender_pub,
+                chat_id=chat_id,
+                request_id=request_id,
+            )
 
     return jsonify({'success': True, 'message': payload})

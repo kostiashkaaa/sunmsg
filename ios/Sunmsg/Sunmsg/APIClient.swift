@@ -1,10 +1,22 @@
 import Foundation
 
-// Change this to your server address before running.
-// Simulator:   "http://127.0.0.1:5001"  ← use this, NOT "localhost" (IPv6 vs IPv4 issue)
-// Real device: use your Mac's local IP (e.g. "http://192.168.1.x:5001")
-// Production:  "https://your-domain.com"
-let kBaseURL = "https://sun.445231.xyz"
+enum SunAppConfig {
+    static var baseURLString: String {
+        let fallback = "https://sun.445231.xyz"
+        guard
+            let raw = Bundle.main.object(forInfoDictionaryKey: "SUN_BASE_URL") as? String
+        else { return fallback }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            !value.isEmpty,
+            !value.contains("$("),
+            URL(string: value)?.scheme != nil
+        else { return fallback }
+        return value
+    }
+}
+
+let kBaseURL = SunAppConfig.baseURLString
 
 enum APIError: Error, LocalizedError {
     case unauthorized
@@ -96,6 +108,37 @@ final class APIClient: ObservableObject {
         return try decode(ChatHistoryResponse.self, from: data).messages
     }
 
+    func getUpdatesState(chatId: String) async throws -> ChatUpdateState {
+        var comps = URLComponents(url: baseURL.appendingPathComponent("/updates/state"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "chat_id", value: chatId)]
+        let data = try await perform(URLRequest(url: comps.url!), expectedStatus: 200)
+        let object = try jsonObject(from: data)
+        return ChatUpdateState(
+            chatId: object["chat_id"] as? String ?? chatId,
+            chatPts: SunJSON.int(object["chat_pts"]) ?? 0
+        )
+    }
+
+    func getUpdatesDifference(chatId: String, fromPts: Int, limit: Int = 100) async throws -> ChatUpdateDifference {
+        var comps = URLComponents(url: baseURL.appendingPathComponent("/updates/difference"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [
+            URLQueryItem(name: "chat_id", value: chatId),
+            URLQueryItem(name: "from_pts", value: "\(max(0, fromPts))"),
+            URLQueryItem(name: "limit", value: "\(max(1, min(limit, 500)))"),
+        ]
+        let data = try await perform(URLRequest(url: comps.url!), expectedStatus: 200)
+        let object = try jsonObject(from: data)
+        let events = (object["events"] as? [[String: Any]] ?? []).compactMap { SocketReplayEvent(rawPayload: $0) }
+        return ChatUpdateDifference(
+            chatId: object["chat_id"] as? String ?? chatId,
+            fromPts: SunJSON.int(object["from_pts"]) ?? max(0, fromPts),
+            chatPts: SunJSON.int(object["chat_pts"]) ?? 0,
+            events: events,
+            hasMore: object["has_more"] as? Bool ?? false,
+            nextFromPts: SunJSON.int(object["next_from_pts"]) ?? max(0, fromPts)
+        )
+    }
+
     // MARK: - Read receipts
 
     func markMessagesRead(chatId: String, messageIds: [Int]) async throws {
@@ -144,6 +187,7 @@ final class APIClient: ObservableObject {
 
     func resetAuthSession() {
         csrfToken = ""
+        KeychainService.deleteAllLocalSecrets()
         guard let cookies = HTTPCookieStorage.shared.cookies(for: baseURL) else { return }
         for cookie in cookies {
             HTTPCookieStorage.shared.deleteCookie(cookie)
@@ -523,6 +567,13 @@ final class APIClient: ObservableObject {
             return "CSRF/session token mismatch. Please try again."
         }
         return trimmed.count > 180 ? String(trimmed.prefix(180)) : trimmed
+    }
+
+    private func jsonObject(from data: Data) throws -> [String: Any] {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError.decodingFailed(NSError(domain: "SUNmessenger.APIClient", code: 0))
+        }
+        return object
     }
 
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {

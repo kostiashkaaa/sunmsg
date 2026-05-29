@@ -869,6 +869,7 @@ struct ChatView: View {
             messages = try await APIClient.shared.getChatHistory(chatId: contact.chatId)
                 .map(normalizedMessage)
             hasOlderMessages = messages.count >= 40
+            await session.primeChatSync(chatId: contact.chatId)
             await markRead()
             await decryptMessages(messages)
         } catch { loadError = error.localizedDescription }
@@ -985,36 +986,14 @@ struct ChatView: View {
         ))
     }
 
-    // MARK: - 15-second fallback poll
+    // MARK: - 15-second fallback sync
 
     private func slowPollLoop() async {
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 15_000_000_000)
             guard !Task.isCancelled else { return }
-            await pollNewMessages()
+            await session.recoverChatSync(chatId: contact.chatId)
         }
-    }
-
-    private func pollNewMessages() async {
-        guard let lastId = messages.last?.id else { return }
-        do {
-            let fresh = try await APIClient.shared.getChatHistory(
-                chatId: contact.chatId, limit: 30, afterId: lastId
-            )
-            if !fresh.isEmpty {
-                let knownIds = Set(messages.map { $0.id })
-                let truly = fresh.filter { !knownIds.contains($0.id) }
-                guard !truly.isEmpty else { return }
-                let normalized = truly.map(normalizedMessage)
-                messages.append(contentsOf: normalized)
-                let newIds = truly.compactMap { $0.senderUserId != myId ? $0.id : nil }
-                if !newIds.isEmpty {
-                    try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: newIds)
-                }
-                await decryptMessages(normalized)
-            }
-        } catch APIError.unauthorized {
-        } catch { }
     }
 
     private func loadOlderMessages() async {
