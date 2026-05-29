@@ -65,11 +65,11 @@ struct NativeRegisterView: View {
             AmberOrb(size: 72)
             VStack(spacing: 4) {
                 Text("Создать аккаунт")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.title.weight(.bold))
                     .foregroundStyle(Color.smText)
                     .tracking(-0.8)
                 Text("настройте зашифрованную идентичность")
-                    .font(.system(size: 14).italic())
+                    .font(.subheadline.italic())
                     .foregroundStyle(Color.smMuted)
             }
         }
@@ -88,7 +88,7 @@ struct NativeRegisterView: View {
                     .textInputAutocapitalization(.never)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .displayName }
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(Color.smText)
                     .tint(Color.smAccent)
             }
@@ -101,7 +101,7 @@ struct NativeRegisterView: View {
                     .autocorrectionDisabled()
                     .submitLabel(.done)
                     .onSubmit { focusedField = nil }
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(Color.smText)
                     .tint(Color.smAccent)
             }
@@ -116,7 +116,7 @@ struct NativeRegisterView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
                     Text(msg)
-                        .font(.system(size: 13.5))
+                        .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(Color(hex: "#c0392b"))
@@ -129,7 +129,7 @@ struct NativeRegisterView: View {
                     Image(systemName: "person.badge.plus")
                         .font(.system(size: 16))
                     Text("Создать аккаунт")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .tracking(-0.2)
                 }
                 .frame(maxWidth: .infinity)
@@ -150,7 +150,7 @@ struct NativeRegisterView: View {
                 }
             }) {
                 Text("Уже есть аккаунт? Войти")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(Color.smMuted)
                     .underline()
             }
@@ -166,7 +166,7 @@ struct NativeRegisterView: View {
     private func fieldBlock<C: View>(label: String, icon: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(label, systemImage: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.smMuted)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -184,7 +184,7 @@ struct NativeRegisterView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label("Секретная фраза (24 слова)", systemImage: "key.fill")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smMuted)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -207,7 +207,7 @@ struct NativeRegisterView: View {
                     Image(systemName: mnemonicCopied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 13))
                     Text(mnemonicCopied ? "Скопировано!" : "Скопировать фразу")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.caption.weight(.medium))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
@@ -225,7 +225,7 @@ struct NativeRegisterView: View {
             .animation(.easeInOut(duration: 0.2), value: mnemonicCopied)
 
             Text("Эта фраза — единственный способ восстановить аккаунт. Сохраните её в надёжном месте — она никогда не отправляется на сервер.")
-                .font(.system(size: 12))
+                .font(.caption)
                 .foregroundStyle(Color.smFaint)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -238,11 +238,11 @@ struct NativeRegisterView: View {
             ForEach(Array(words.enumerated()), id: \.offset) { idx, word in
                 HStack(spacing: 4) {
                     Text("\(idx + 1)")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.system(.caption2, design: .monospaced).weight(.medium))
                         .foregroundStyle(Color.smFaint)
                         .frame(minWidth: 16, alignment: .trailing)
                     Text(word)
-                        .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced).weight(.medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -278,7 +278,7 @@ struct NativeRegisterView: View {
                     }
                 }
                 Text("Я сохранил секретную фразу в надёжном месте")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(Color.smText)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
@@ -293,7 +293,7 @@ struct NativeRegisterView: View {
         HStack(spacing: 5) {
             Image(systemName: "lock.fill").font(.system(size: 10))
             Text("Ключи генерируются на устройстве · фраза никогда не покидает устройство")
-                .font(.system(size: 11.5))
+                .font(.caption2)
                 .tracking(-0.1)
         }
         .foregroundStyle(Color.smFaint)
@@ -307,7 +307,7 @@ struct NativeRegisterView: View {
             VStack(spacing: 12) {
                 ProgressView().tint(Color.smAccent).scaleEffect(1.2)
                 Text("Создание аккаунта…")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smMuted)
             }
             .padding(28)
