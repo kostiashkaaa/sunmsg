@@ -712,10 +712,10 @@ struct BlockedUsersView: View {
                         .font(.system(size: 42))
                         .foregroundStyle(Color.smFaint)
                     Text("Нет заблокированных")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.smMuted)
                     Text("Заблокированные пользователи не смогут писать вам и звонить.")
-                        .font(.system(size: 13.5))
+                        .font(.footnote)
                         .foregroundStyle(Color.smFaint)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
@@ -747,23 +747,23 @@ struct BlockedUsersView: View {
             SmAvatarView(name: user.displayName, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.displayName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
                 Text("@\(user.username)")
-                    .font(.system(size: 12.5))
+                    .font(.footnote)
                     .foregroundStyle(Color.smMuted)
             }
             Spacer()
             Button(action: { unblock(user) }) {
                 if unblocking.contains(user.id) {
                     ProgressView().tint(Color.smAccent)
-                        .frame(width: 84, height: 30)
+                        .frame(minWidth: 84, minHeight: 30)
                 } else {
                     Text("Разблок.")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.smAccent2)
-                        .frame(width: 84, height: 30)
+                        .frame(minWidth: 84, minHeight: 30)
                         .background(Color.smAccent.opacity(0.12), in: Capsule())
                 }
             }
