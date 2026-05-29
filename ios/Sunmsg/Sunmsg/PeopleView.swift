@@ -2,6 +2,18 @@ import SwiftUI
 
 // MARK: - People (user search) tab
 
+private struct PeopleChatDestination: Hashable {
+    let contact: Contact
+
+    static func == (lhs: PeopleChatDestination, rhs: PeopleChatDestination) -> Bool {
+        lhs.contact.chatId == rhs.contact.chatId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(contact.chatId)
+    }
+}
+
 struct PeopleView: View {
     @EnvironmentObject var session: SessionStore
     @State private var query = ""
@@ -10,7 +22,7 @@ struct PeopleView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var searchSequence = 0
     @State private var requestSent: Set<Int> = []
-    @State private var navigateToContact: Contact? = nil
+    @State private var navigateToContact: PeopleChatDestination?
     @State private var showGroupCreate = false
     @State private var showUsernameAlert = false
     @FocusState private var searchFocused: Bool
@@ -43,17 +55,12 @@ struct PeopleView: View {
         .toolbar(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.interactively)
         .task { await session.refreshDialogRequests() }
-        .navigationDestination(isPresented: Binding(
-            get: { navigateToContact != nil },
-            set: { if !$0 { navigateToContact = nil } }
-        )) {
-            if let contact = navigateToContact {
-                ChatView(contact: contact)
-            }
+        .navigationDestination(item: $navigateToContact) { destination in
+            ChatView(contact: destination.contact)
         }
         .sheet(isPresented: $showGroupCreate) {
             GroupCreateView { contact in
-                navigateToContact = contact
+                navigateToContact = PeopleChatDestination(contact: contact)
             }
         }
         .onDisappear {
@@ -153,7 +160,7 @@ struct PeopleView: View {
                     // Contact rows
                     VStack(spacing: 0) {
                         ForEach(previewContacts) { contact in
-                            Button(action: { navigateToContact = contact }) {
+                            Button(action: { navigateToContact = PeopleChatDestination(contact: contact) }) {
                                 contactRow(contact)
                             }
                             .buttonStyle(.plain)
@@ -314,7 +321,7 @@ struct PeopleView: View {
             await session.refreshContacts()
             if req.isGroupInvite, let acceptedChatId,
                let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
-                navigateToContact = contact
+                navigateToContact = PeopleChatDestination(contact: contact)
             }
         }
     }
@@ -392,7 +399,7 @@ struct PeopleView: View {
                 isPinned: false,
                 isGroup: false
             )
-            navigateToContact = contact
+            navigateToContact = PeopleChatDestination(contact: contact)
         } else {
             handleAction(user)
         }
@@ -421,7 +428,7 @@ struct PeopleView: View {
                             isPinned: false,
                             isGroup: false
                         )
-                        navigateToContact = contact
+                        navigateToContact = PeopleChatDestination(contact: contact)
                     } else {
                         requestSent.insert(user.userId)
                     }
