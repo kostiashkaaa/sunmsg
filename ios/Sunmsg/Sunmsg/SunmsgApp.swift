@@ -37,15 +37,15 @@ struct SunmsgApp: App {
         UINavigationBar.appearance().compactAppearance = nav
         UINavigationBar.appearance().tintColor = UIColor(hex: "#c4943c")
 
-        // Tab bar — parchment background, amber tint
+        // Tab bar - follows the app colour scheme while keeping the amber tint.
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()
-        tab.backgroundColor = UIColor(hex: "#f3f0e8")
-        tab.shadowColor = UIColor(hex: "#d9d2bf")
+        tab.backgroundColor = adaptiveUIColor(light: "#f3f0e8", dark: "#1c1a14")
+        tab.shadowColor = adaptiveUIColor(light: "#d9d2bf", dark: "#332f24")
         let normal = UITabBarItemAppearance()
-        normal.normal.iconColor = UIColor(hex: "#aba493")
+        normal.normal.iconColor = adaptiveUIColor(light: "#aba493", dark: "#6f6a5b")
         normal.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(hex: "#aba493"),
+            .foregroundColor: adaptiveUIColor(light: "#aba493", dark: "#6f6a5b"),
             .font: UIFont.systemFont(ofSize: 10.5, weight: .medium),
         ]
         normal.selected.iconColor = UIColor(hex: "#c4943c")
@@ -59,5 +59,13 @@ struct SunmsgApp: App {
 
         // List
         UITableView.appearance().backgroundColor = .clear
+    }
+
+    private func adaptiveUIColor(light: String, dark: String) -> UIColor {
+        UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(hex: dark)
+                : UIColor(hex: light)
+        }
     }
 }
