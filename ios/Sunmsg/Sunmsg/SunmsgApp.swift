@@ -51,11 +51,11 @@ struct SunmsgApp: App {
         nav.backgroundColor = UIColor(hex: "#f3f0e8")
         nav.shadowColor = UIColor(hex: "#d9d2bf")
         nav.titleTextAttributes = [
-            .font: UIFont(name: "Inter-SemiBold", size: 17) ?? UIFont.systemFont(ofSize: 17, weight: .semibold),
+            .font: scaledFont(name: "Inter-SemiBold", size: 17, weight: .semibold, textStyle: .headline),
             .foregroundColor: UIColor(hex: "#15140e"),
         ]
         nav.largeTitleTextAttributes = [
-            .font: UIFont(name: "Inter-Bold", size: 34) ?? UIFont.systemFont(ofSize: 34, weight: .bold),
+            .font: scaledFont(name: "Inter-Bold", size: 34, weight: .bold, textStyle: .largeTitle),
             .foregroundColor: UIColor(hex: "#15140e"),
         ]
         UINavigationBar.appearance().standardAppearance = nav
@@ -72,12 +72,12 @@ struct SunmsgApp: App {
         normal.normal.iconColor = adaptiveUIColor(light: "#aba493", dark: "#6f6a5b")
         normal.normal.titleTextAttributes = [
             .foregroundColor: adaptiveUIColor(light: "#aba493", dark: "#6f6a5b"),
-            .font: UIFont.systemFont(ofSize: 10.5, weight: .medium),
+            .font: scaledFont(size: 10.5, weight: .medium, textStyle: .caption2),
         ]
         normal.selected.iconColor = UIColor(hex: "#c4943c")
         normal.selected.titleTextAttributes = [
             .foregroundColor: UIColor(hex: "#c4943c"),
-            .font: UIFont.systemFont(ofSize: 10.5, weight: .semibold),
+            .font: scaledFont(size: 10.5, weight: .semibold, textStyle: .caption2),
         ]
         tab.stackedLayoutAppearance = normal
         UITabBar.appearance().standardAppearance = tab
@@ -93,5 +93,16 @@ struct SunmsgApp: App {
                 ? UIColor(hex: dark)
                 : UIColor(hex: light)
         }
+    }
+
+    private func scaledFont(
+        name: String? = nil,
+        size: CGFloat,
+        weight: UIFont.Weight,
+        textStyle: UIFont.TextStyle
+    ) -> UIFont {
+        let baseFont = name.flatMap { UIFont(name: $0, size: size) }
+            ?? UIFont.systemFont(ofSize: size, weight: weight)
+        return UIFontMetrics(forTextStyle: textStyle).scaledFont(for: baseFont)
     }
 }
