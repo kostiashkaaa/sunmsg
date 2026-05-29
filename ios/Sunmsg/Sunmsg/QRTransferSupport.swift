@@ -1,6 +1,7 @@
 import CoreImage
 import CryptoKit
 import Foundation
+import Security
 import SwiftUI
 import UIKit
 
@@ -55,10 +56,25 @@ struct QRTransferCode {
            let username = firstCapture(in: url.path, pattern: "(?:^|/)u/([a-z0-9_]{1,50})/?$") {
             return QRTransferCode(kind: .profile, sessionId: "", username: username.lowercased())
         }
+        if let url = URL(string: text),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            if let sessionId = components.queryItems?.first(where: { $0.name == "kt" })?.value,
+               isSessionId(sessionId) {
+                return QRTransferCode(kind: .device, sessionId: sessionId, username: "")
+            }
+            let hash = (components.fragment ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if let sessionId = firstCapture(in: hash, pattern: "kt=([A-Za-z0-9_-]{16,128})") {
+                return QRTransferCode(kind: .device, sessionId: sessionId, username: "")
+            }
+        }
         if firstCapture(in: text, pattern: "^([A-Za-z0-9_-]{16,128})$") != nil {
             return QRTransferCode(kind: .device, sessionId: text, username: "")
         }
         return QRTransferCode(kind: .unknown, sessionId: "", username: "")
+    }
+
+    private static func isSessionId(_ value: String) -> Bool {
+        firstCapture(in: value, pattern: "^([A-Za-z0-9_-]{16,128})$") != nil
     }
 
     private static func firstCapture(in text: String, pattern: String) -> String? {
