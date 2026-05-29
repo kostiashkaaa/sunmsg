@@ -331,6 +331,7 @@ struct PeopleView: View {
     private func performSearch(_ q: String) {
         let trimmed = q.trimmingCharacters(in: .whitespacesAndNewlines)
         searchTask?.cancel()
+        searchTask = nil
         searchSequence += 1
         let sequence = searchSequence
 
