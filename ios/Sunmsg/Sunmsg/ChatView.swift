@@ -118,11 +118,9 @@ struct ChatView: View {
                     Button("Отмена", role: .cancel) { pendingDelete = nil }
                 }
             }
-            // Primary real-time delivery via SessionStore
-            .onChange(of: session.incomingMsgTick) { _, _ in
-                handleNewSessionMessage()
+            .onReceive(NotificationCenter.default.publisher(for: .smPreparedIncomingMessage)) { note in
+                handlePreparedIncomingMessage(note)
             }
-            // Secondary: direct socket notification (belt-and-suspenders)
             .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
                 handleSocketNotification(note)
             }
@@ -1010,11 +1008,12 @@ struct ChatView: View {
         try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: ids)
     }
 
-    // MARK: - New message from SessionStore (primary real-time path)
+    // MARK: - New message from SessionStore (gap-checked path)
 
-    private func handleNewSessionMessage() {
-        guard session.lastIncomingChatId == contact.chatId,
-              let msg = session.lastIncomingMsg,
+    private func handlePreparedIncomingMessage(_ notification: Notification) {
+        guard let chatId = notification.userInfo?[PreparedIncomingMessageKey.chatId] as? String,
+              chatId == contact.chatId,
+              let msg = notification.userInfo?[PreparedIncomingMessageKey.message] as? ChatMessage,
               !messages.contains(where: { $0.id == msg.id })
         else { return }
         let normalized = normalizedMessage(msg)
@@ -1859,7 +1858,9 @@ struct ChatView: View {
         sendError = nil
 
         do {
-            let data = try Data(contentsOf: url)
+            let data = try await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url)
+            }.value
             let uploadResult = try await APIClient.shared.uploadMedia(
                 data: data,
                 mimeType: "audio/mp4",
@@ -2070,35 +2071,41 @@ struct DateChipView: View {
 // MARK: - Typing bubble
 
 struct TypingBubbleView: View {
-    @State private var phase: Int = 0
-    private let timer = Timer.publish(every: 0.18, on: .main, in: .common).autoconnect()
+    private static let stepInterval: TimeInterval = 0.18
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(Color.smFaint)
-                        .frame(width: 6, height: 6)
-                        .scaleEffect(phase == i ? 1.25 : 0.85)
-                        .opacity(phase == i ? 1.0 : 0.4)
-                        .animation(.easeInOut(duration: 0.18), value: phase)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color.smBubbleIn)
-            .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
-                    .stroke(Color.smBorderSoft, lineWidth: 0.5)
-            )
-            .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
+        TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
+            let phase = Self.phase(for: timeline.date)
 
-            Spacer(minLength: 44)
+            HStack(alignment: .bottom, spacing: 0) {
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(Color.smFaint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(phase == i ? 1.25 : 0.85)
+                            .opacity(phase == i ? 1.0 : 0.4)
+                            .animation(.easeInOut(duration: Self.stepInterval), value: phase)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.smBubbleIn)
+                .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
+                        .stroke(Color.smBorderSoft, lineWidth: 0.5)
+                )
+                .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
+
+                Spacer(minLength: 44)
+            }
+            .padding(.vertical, 3)
         }
-        .padding(.vertical, 3)
-        .onReceive(timer) { _ in phase = (phase + 1) % 3 }
+    }
+
+    private static func phase(for date: Date) -> Int {
+        Int((date.timeIntervalSinceReferenceDate / stepInterval).rounded(.down)) % 3
     }
 }
 
