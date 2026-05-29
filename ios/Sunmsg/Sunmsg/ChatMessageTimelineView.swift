@@ -252,6 +252,101 @@ struct ChatMessageTimelineView: View {
     }
 }
 
+private struct DateChipView: View {
+    let timestamp: Double
+
+    private var label: String {
+        let date = Date(timeIntervalSince1970: timestamp)
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "Сегодня" }
+        if calendar.isDateInYesterday(date) { return "Вчера" }
+        return SunDateFormatters.ruDayMonth(from: date)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.smMuted)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(Color.smSurface.opacity(0.86), in: Capsule())
+                .overlay(Capsule().stroke(Color.smBorderSoft, lineWidth: 0.5))
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 5)
+    }
+}
+
+private struct TypingBubbleView: View {
+    private static let stepInterval: TimeInterval = 0.18
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
+            let phase = Self.phase(for: timeline.date)
+
+            HStack(alignment: .bottom, spacing: 0) {
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(Color.smFaint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(phase == i ? 1.25 : 0.85)
+                            .opacity(phase == i ? 1.0 : 0.4)
+                            .animation(.easeInOut(duration: Self.stepInterval), value: phase)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.smBubbleIn)
+                .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
+                        .stroke(Color.smBorderSoft, lineWidth: 0.5)
+                )
+                .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
+
+                Spacer(minLength: 44)
+            }
+            .padding(.vertical, 3)
+        }
+    }
+
+    private static func phase(for date: Date) -> Int {
+        Int((date.timeIntervalSinceReferenceDate / stepInterval).rounded(.down)) % 3
+    }
+}
+
+private extension RoundedRectangle {
+    func corners(bottomLeft: CGFloat = 18) -> some Shape {
+        BubbleBottomLeftShape(cornerRadius: 18, tailRadius: bottomLeft)
+    }
+}
+
+private struct BubbleBottomLeftShape: Shape {
+    let cornerRadius: CGFloat
+    let tailRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let radius = cornerRadius
+        let tail = tailRadius
+
+        path.move(to: CGPoint(x: rect.minX + radius, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + radius), control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - radius, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + tail, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - tail), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 private struct MessageViewportHeightKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
