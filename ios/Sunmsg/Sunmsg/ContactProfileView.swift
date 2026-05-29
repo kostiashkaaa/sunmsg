@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContactProfileView: View {
     let contact: Contact
+    private let keyFingerprint: String
     @EnvironmentObject var session: SessionStore
     @Environment(\.dismiss) private var dismiss
     @State private var showBlockAlert = false
@@ -26,9 +27,14 @@ struct ContactProfileView: View {
         )
     }
 
-    private var keyFingerprint: String {
-        guard !contact.publicKey.isEmpty else { return "—" }
-        let hash = contact.publicKey
+    init(contact: Contact) {
+        self.contact = contact
+        self.keyFingerprint = Self.makeKeyFingerprint(contact.publicKey)
+    }
+
+    private static func makeKeyFingerprint(_ publicKey: String) -> String {
+        guard !publicKey.isEmpty else { return "—" }
+        let hash = publicKey
             .components(separatedBy: .newlines)
             .filter { !$0.hasPrefix("-----") && !$0.isEmpty }
             .joined()
