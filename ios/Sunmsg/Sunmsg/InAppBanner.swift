@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Observation
 
 // MARK: - In-App Notification Banner
 //
@@ -15,11 +16,13 @@ struct InAppBannerData: Identifiable {
 }
 
 @MainActor
-final class InAppBannerController: ObservableObject {
+@Observable
+final class InAppBannerController {
     static let shared = InAppBannerController()
 
-    @Published var current: InAppBannerData? = nil
+    var current: InAppBannerData? = nil
 
+    @ObservationIgnored
     private var dismissTask: Task<Void, Never>?
 
     func show(_ data: InAppBannerData) {
@@ -112,7 +115,7 @@ struct InAppBannerView: View {
 // MARK: - View Modifier
 
 struct InAppBannerOverlay: ViewModifier {
-    @ObservedObject var ctrl = InAppBannerController.shared
+    private let ctrl = InAppBannerController.shared
     @EnvironmentObject var session: SessionStore
 
     func body(content: Content) -> some View {

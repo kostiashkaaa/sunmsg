@@ -48,7 +48,7 @@ private struct RefreshSessionResponse: Decodable {
     }
 }
 
-final class APIClient: ObservableObject {
+final class APIClient {
     static let shared = APIClient()
 
     let baseURL: URL

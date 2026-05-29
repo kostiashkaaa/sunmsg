@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 import PhotosUI
 import AVKit
 import AVFoundation
@@ -3369,7 +3369,7 @@ struct AudioBubbleView: View {
     let name: String
     let isFromMe: Bool
     let isTail: Bool
-    @StateObject private var player = AudioPlayerController()
+    @State private var player = AudioPlayerController()
     /// Effective playback URL — may be a local temp file if the source is
     /// a web-encrypted media file (sun_media_e2ee fragment).
     @State private var effectiveURL: URL?
@@ -3477,13 +3477,18 @@ struct AudioBubbleView: View {
 }
 
 @MainActor
-final class AudioPlayerController: ObservableObject {
-    @Published var isPlaying: Bool = false
-    @Published var elapsed: Double = 0
-    @Published var duration: Double = 0
+@Observable
+final class AudioPlayerController {
+    var isPlaying: Bool = false
+    var elapsed: Double = 0
+    var duration: Double = 0
+    @ObservationIgnored
     private var player: AVPlayer?
+    @ObservationIgnored
     private var timeObserver: Any?
+    @ObservationIgnored
     private var endObserver: NSObjectProtocol?
+    @ObservationIgnored
     private var preparedURL: URL?
 
     func prepareDuration(url: URL?) async {
