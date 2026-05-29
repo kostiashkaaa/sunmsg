@@ -323,6 +323,7 @@ struct QRLoginPanel: View {
     @State private var statusText = "Готовим QR..."
     @State private var errorText: String?
     @State private var pollTask: Task<Void, Never>?
+    @State private var pollSessionId: String?
     @State private var isPreparing = false
     @State private var isWaiting = false
     @State private var isCompleting = false
@@ -413,7 +414,7 @@ struct QRLoginPanel: View {
         .task { await startNewSession() }
         .onDisappear {
             if !isCompleting {
-                pollTask?.cancel()
+                cancelPolling()
             }
         }
     }
@@ -427,7 +428,7 @@ struct QRLoginPanel: View {
 
     @MainActor
     private func startNewSession() async {
-        pollTask?.cancel()
+        cancelPolling()
         qrImage = nil
         errorText = nil
         isPreparing = true
@@ -459,8 +460,16 @@ struct QRLoginPanel: View {
     }
 
     private func startPolling(sessionId: String, receiverPrivateKey: P256.KeyAgreement.PrivateKey) {
-        pollTask?.cancel()
+        cancelPolling()
+        pollSessionId = sessionId
         pollTask = Task {
+            defer {
+                Task { @MainActor in
+                    guard pollSessionId == sessionId else { return }
+                    pollTask = nil
+                    pollSessionId = nil
+                }
+            }
             var fastPollsLeft = 10
             while !Task.isCancelled {
                 let delay: UInt64 = fastPollsLeft > 0 ? 600_000_000 : 1_800_000_000
@@ -520,5 +529,11 @@ struct QRLoginPanel: View {
                 }
             }
         }
+    }
+
+    private func cancelPolling() {
+        pollTask?.cancel()
+        pollTask = nil
+        pollSessionId = nil
     }
 }
