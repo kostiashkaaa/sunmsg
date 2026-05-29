@@ -67,7 +67,7 @@ struct CallsView: View {
     private var headerRow: some View {
         HStack {
             Text("Звонки")
-                .font(.system(size: 22, weight: .bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(Color.smText)
                 .tracking(-0.6)
 
@@ -79,7 +79,7 @@ struct CallsView: View {
                     session.saveCallHistory()
                 }) {
                     Text("Очистить")
-                        .font(.system(size: 15))
+                        .font(.callout)
                         .foregroundStyle(Color.smAccent)
                 }
                 .buttonStyle(.plain)
@@ -117,11 +117,11 @@ struct CallsView: View {
         Button(action: { selectSegment(index) }) {
             HStack(spacing: 6) {
                 Text(label)
-                    .font(.system(size: 13, weight: selectedSegment == index ? .semibold : .medium))
+                    .font(.caption.weight(selectedSegment == index ? .semibold : .medium))
                     .foregroundStyle(selectedSegment == index ? Color.smText : Color.smMuted)
                 if let badge, badge > 0 {
                     Text("\(badge)")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -162,10 +162,10 @@ struct CallsView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Color.smFaint)
             Text("Нет звонков")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.headline)
                 .foregroundStyle(Color.smMuted)
             Text("Список ваших вызовов пуст")
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundStyle(Color.smFaint)
             Spacer()
         }
@@ -192,7 +192,7 @@ struct CallRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(call.name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(call.missed ? Color(hex: "#c14242") : Color.smText)
                     .lineLimit(1)
                     .tracking(-0.2)
@@ -200,7 +200,7 @@ struct CallRowView: View {
                 HStack(spacing: 5) {
                     callArrow
                     Text(callSubtitle)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(call.missed ? Color(hex: "#c14242").opacity(0.75) : Color.smMuted)
                         .lineLimit(1)
                 }
