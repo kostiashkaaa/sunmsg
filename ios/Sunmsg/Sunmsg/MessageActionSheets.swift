@@ -1,13 +1,21 @@
 import SwiftUI
 
 struct ForwardMessageSheet: View {
-    let contacts: [Contact]
     let currentChatId: String
     let onCancel: () -> Void
     let onSelect: (Contact) -> Void
+    private let targets: [Contact]
 
-    private var targets: [Contact] {
-        contacts
+    init(
+        contacts: [Contact],
+        currentChatId: String,
+        onCancel: @escaping () -> Void,
+        onSelect: @escaping (Contact) -> Void
+    ) {
+        self.currentChatId = currentChatId
+        self.onCancel = onCancel
+        self.onSelect = onSelect
+        self.targets = contacts
             .filter { !$0.chatId.isEmpty }
             .sorted {
                 if $0.isPinned != $1.isPinned { return $0.isPinned && !$1.isPinned }
