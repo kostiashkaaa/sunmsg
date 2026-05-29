@@ -168,6 +168,7 @@ struct ChatView: View {
                     session.activeChatId = nil
                 }
                 typingDebounceTask?.cancel()
+                typingDebounceTask = nil
                 draftSaveTask?.cancel()
                 deleteDialogTask?.cancel()
                 deleteDialogTask = nil
@@ -177,6 +178,7 @@ struct ChatView: View {
                 toastDismissTask = nil
                 flushDraftSave(force: true)
                 partnerStopTypingTask?.cancel()
+                partnerStopTypingTask = nil
                 if isRecording { cancelRecording() }
                 SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
             }
@@ -871,6 +873,7 @@ struct ChatView: View {
         case "partner_stop_typing":
             partnerIsTyping = false
             partnerStopTypingTask?.cancel()
+            partnerStopTypingTask = nil
 
         case "messages_read":
             var changed: [ChatMessage] = []
@@ -1769,6 +1772,7 @@ struct ChatView: View {
         composerText = ""
         clearDraftAfterSend()
         typingDebounceTask?.cancel()
+        typingDebounceTask = nil
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
         if contact.isGroup {
