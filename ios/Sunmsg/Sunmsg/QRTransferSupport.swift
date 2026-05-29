@@ -340,10 +340,10 @@ struct QRLoginPanel: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("QR вход")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(Color.smText)
                     Text("Как на вебе: сканируете с устройства, где уже вошли.")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color.smMuted)
                 }
                 Spacer()
@@ -383,7 +383,7 @@ struct QRLoginPanel: View {
                         .fill(statusDotColor)
                         .frame(width: 7, height: 7)
                     Text(errorText ?? statusText)
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(errorText == nil ? Color.smMuted : Color.smDanger)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
@@ -395,7 +395,7 @@ struct QRLoginPanel: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 12, weight: .semibold))
                         Text("Обновить QR")
-                            .font(.system(size: 12.5, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                     }
                     .foregroundStyle(Color.smAccent2)
                     .padding(.horizontal, 12)
