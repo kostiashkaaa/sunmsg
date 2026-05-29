@@ -2176,6 +2176,37 @@ struct MessageBubbleView: View {
     var isPreview: Bool = false
     var onToggleReaction: (String) -> Void = { _ in }
     var onRequestMenu: () -> Void = { }
+    private let resolvedBodyText: String
+    private let parsedSunfile: SunfileInfo?
+    private let resolvedMediaType: String?
+
+    init(
+        message: ChatMessage,
+        decryptedText: String? = nil,
+        isFromMe: Bool,
+        showSender: Bool,
+        isTail: Bool,
+        isPreview: Bool = false,
+        onToggleReaction: @escaping (String) -> Void = { _ in },
+        onRequestMenu: @escaping () -> Void = { }
+    ) {
+        self.message = message
+        self.decryptedText = decryptedText
+        self.isFromMe = isFromMe
+        self.showSender = showSender
+        self.isTail = isTail
+        self.isPreview = isPreview
+        self.onToggleReaction = onToggleReaction
+        self.onRequestMenu = onRequestMenu
+
+        let resolved = Self.resolveBodyText(message: message, decryptedText: decryptedText)
+        self.resolvedBodyText = resolved.text
+        self.parsedSunfile = resolved.sunfile
+        self.resolvedMediaType = Self.resolveMediaType(
+            messageType: message.messageType,
+            sunfile: resolved.sunfile
+        )
+    }
 
     /// Resolved display text. Three fallback layers:
     /// 1. Decrypted text from the chat view's decryption cache (preferred).
@@ -2184,33 +2215,14 @@ struct MessageBubbleView: View {
     /// 3. `message.displayText` which yields "🔐 Encrypted message" for encrypted
     ///    payloads or the plain text body otherwise.
     private var bodyText: String {
-        if let t = decryptedText, !t.isEmpty { return t }
-        if let raw = message.message,
-           raw.hasPrefix("{"),
-           parseSunfileRaw(raw) != nil {
-            return raw
-        }
-        return message.displayText
+        resolvedBodyText
     }
 
     /// Effective media type: prefer server-provided `messageType`, otherwise infer from
     /// `__sunfile` JSON payload (handles legacy/cross-client messages where the server
     /// sent `message_type: "text"` but the body contains a sunfile envelope).
     private var effectiveMediaType: String? {
-        if ["photo", "video", "audio", "file"].contains(message.messageType) {
-            // Server says it's media — but we still need a valid sunfile body to render.
-            if parseSunfileRaw(bodyText) != nil { return message.messageType }
-            return nil
-        }
-        guard let sf = parseSunfileRaw(bodyText) else { return nil }
-        let mime = sf.mime.lowercased()
-        if mime.hasPrefix("image/") { return "photo" }
-        if mime.hasPrefix("video/") { return "video" }
-        if mime.hasPrefix("audio/") { return "audio" }
-        if let mt = sf.mediaType, ["photo", "video", "audio", "file"].contains(mt) {
-            return mt
-        }
-        return "file"
+        resolvedMediaType
     }
 
     private var isMediaMessage: Bool { effectiveMediaType != nil }
@@ -2455,8 +2467,8 @@ struct MessageBubbleView: View {
 
     @ViewBuilder
     private var mediaContent: some View {
-        if let sunfile = parseSunfileRaw(bodyText) {
-            switch effectiveMediaType ?? "file" {
+        if let sunfile = parsedSunfile {
+            switch resolvedMediaType ?? "file" {
             case "photo":
                 PhotoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail)
             case "video":
@@ -2481,9 +2493,37 @@ struct MessageBubbleView: View {
         let mediaType: String?
     }
 
+    private static func resolveBodyText(message: ChatMessage, decryptedText: String?) -> (text: String, sunfile: SunfileInfo?) {
+        if let text = decryptedText, !text.isEmpty {
+            return (text, parseSunfileRaw(text))
+        }
+        if let raw = message.message,
+           raw.hasPrefix("{"),
+           let sunfile = parseSunfileRaw(raw) {
+            return (raw, sunfile)
+        }
+        return (message.displayText, nil)
+    }
+
+    private static func resolveMediaType(messageType: String, sunfile: SunfileInfo?) -> String? {
+        if ["photo", "video", "audio", "file"].contains(messageType) {
+            return sunfile == nil ? nil : messageType
+        }
+        guard let sunfile else { return nil }
+        let mime = sunfile.mime.lowercased()
+        if mime.hasPrefix("image/") { return "photo" }
+        if mime.hasPrefix("video/") { return "video" }
+        if mime.hasPrefix("audio/") { return "audio" }
+        if let mediaType = sunfile.mediaType,
+           ["photo", "video", "audio", "file"].contains(mediaType) {
+            return mediaType
+        }
+        return "file"
+    }
+
     /// Robust __sunfile JSON parser. Accepts both wrapped (`{"__sunfile": true, ...}`)
     /// and direct payload formats; resolves relative URLs against `kBaseURL`.
-    private func parseSunfileRaw(_ text: String) -> SunfileInfo? {
+    private static func parseSunfileRaw(_ text: String) -> SunfileInfo? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
