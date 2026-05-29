@@ -367,7 +367,8 @@ struct TotpSettingsView: View {
         .toolbarBackground(Color.smBg, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .task { await loadStatus() }
-        .task(id: status?.totpUri ?? "") { uri in
+        .task(id: status?.totpUri ?? "") {
+            let uri = status?.totpUri ?? ""
             setupQRImage = uri.isEmpty ? nil : generateQRCodeImage(from: uri)
         }
         .confirmationDialog(pendingAction?.title ?? "Подтвердите действие", isPresented: pendingActionBinding, titleVisibility: .visible) {
