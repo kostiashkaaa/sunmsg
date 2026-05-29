@@ -7,21 +7,29 @@ struct CallsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedSegment = 0
 
-    private var filteredCalls: [CallRecord] {
-        selectedSegment == 0 ? session.callHistory : session.callHistory.filter { $0.missed }
+    private struct CallListSnapshot {
+        let calls: [CallRecord]
+        let missedCount: Int
     }
 
-    private var missedCount: Int { session.callHistory.filter { $0.missed }.count }
+    private var callListSnapshot: CallListSnapshot {
+        let missedCalls = session.callHistory.filter { $0.missed }
+        return CallListSnapshot(
+            calls: selectedSegment == 0 ? session.callHistory : missedCalls,
+            missedCount: missedCalls.count
+        )
+    }
 
     var body: some View {
-        let calls = filteredCalls
+        let snapshot = callListSnapshot
+        let calls = snapshot.calls
 
         ZStack {
             Color.smBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 headerRow
-                segmentedControl
+                segmentedControl(missedCount: snapshot.missedCount)
 
                 if calls.isEmpty {
                     emptyState
@@ -101,7 +109,7 @@ struct CallsView: View {
 
     // MARK: - Segmented control (matches prototype exactly)
 
-    private var segmentedControl: some View {
+    private func segmentedControl(missedCount: Int) -> some View {
         HStack(spacing: 0) {
             segmentButton("Все", index: 0)
             segmentButton("Пропущенные", index: 1, badge: missedCount)
