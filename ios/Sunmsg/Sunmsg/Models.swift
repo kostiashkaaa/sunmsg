@@ -735,6 +735,32 @@ struct ChatHistoryResponse: Decodable {
     }
 }
 
+struct SharedContentCandidatesResponse: Decodable {
+    let success: Bool
+    let chatId: String
+    let type: String
+    let messages: [ChatMessage]
+    let hasMoreBefore: Bool
+    let nextBeforeId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case success, type, messages
+        case chatId = "chat_id"
+        case hasMoreBefore = "has_more_before"
+        case nextBeforeId = "next_before_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        chatId = (try? c.decodeIfPresent(String.self, forKey: .chatId)) ?? ""
+        type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? "all"
+        messages = (try? c.decodeIfPresent(LossyArray<ChatMessage>.self, forKey: .messages)?.elements) ?? []
+        hasMoreBefore = (try? c.decodeIfPresent(Bool.self, forKey: .hasMoreBefore)) ?? false
+        nextBeforeId = try? c.decodeIfPresent(Int.self, forKey: .nextBeforeId)
+    }
+}
+
 // MARK: - Dialog Request
 
 struct DialogRequest: Decodable, Identifiable {

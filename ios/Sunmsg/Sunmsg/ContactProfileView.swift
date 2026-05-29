@@ -7,6 +7,11 @@ struct ContactProfileView: View {
     @State private var showBlockAlert = false
     @State private var isBlocking = false
     @State private var blockError: String?
+    @State private var isLoadingSharedContent = false
+    @State private var sharedContentError: String?
+    @State private var sharedContentItems: [ProfileSharedContentItem] = []
+    @State private var selectedSharedContentKind: ProfileSharedContentKind = .media
+    @State private var sharedContentHasMore = false
 
     private var keyFingerprint: String {
         guard !contact.publicKey.isEmpty else { return "—" }
@@ -81,6 +86,9 @@ struct ContactProfileView: View {
         )) {
             Button("OK", role: .cancel) { blockError = nil }
         } message: { Text(blockError ?? "") }
+        .task(id: contact.chatId) {
+            await loadSharedContent()
+        }
     }
 
     private func performBlock() {
@@ -234,32 +242,193 @@ struct ContactProfileView: View {
         .padding(.vertical, 12)
     }
 
-    // MARK: - Shared media placeholder
+    // MARK: - Shared media
 
     private var mediaSection: some View {
+        let kinds = availableSharedContentKinds
+        let activeKind = kinds.contains(selectedSharedContentKind) ? selectedSharedContentKind : kinds.first
+        let visibleItems = activeKind.map { items(for: $0) } ?? []
+
         VStack(alignment: .leading, spacing: 8) {
-            Text("ОБЩИЕ МЕДИА")
+            Text("ОБЩИЙ КОНТЕНТ")
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Color.smFaint)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
 
             VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Color.smFaint)
-                    Text("Нет общих медиафайлов")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.smMuted)
-                    Spacer()
+                if isLoadingSharedContent {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .tint(Color.smAccent)
+                        Text("Ищем медиа и ссылки…")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.smMuted)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 16)
+                } else if let sharedContentError {
+                    sharedContentStateRow(
+                        icon: "exclamationmark.triangle.fill",
+                        text: sharedContentError,
+                        color: Color.smDanger
+                    )
+                } else if sharedContentItems.isEmpty {
+                    sharedContentStateRow(
+                        icon: "folder",
+                        text: "Здесь пока пусто",
+                        color: Color.smFaint
+                    )
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(kinds) { kind in
+                                sharedContentTab(kind, isActive: kind == activeKind)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+                    }
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(visibleItems.prefix(6).enumerated()), id: \.element.id) { index, item in
+                            if index > 0 {
+                                Divider().padding(.leading, 54).background(Color.smBorderSoft)
+                            }
+                            sharedContentRow(item)
+                        }
+                        if sharedContentHasMore {
+                            Divider().padding(.leading, 54).background(Color.smBorderSoft)
+                            HStack(spacing: 8) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.system(size: 12, weight: .medium))
+                                Text("Показаны последние элементы")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundStyle(Color.smFaint)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                        }
+                    }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 16)
             }
             .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
         }
+    }
+
+    private var availableSharedContentKinds: [ProfileSharedContentKind] {
+        ProfileSharedContentKind.allCases.filter { kind in
+            sharedContentItems.contains { $0.kind == kind }
+        }
+    }
+
+    private func items(for kind: ProfileSharedContentKind) -> [ProfileSharedContentItem] {
+        sharedContentItems.filter { $0.kind == kind }
+    }
+
+    private func sharedContentTab(_ kind: ProfileSharedContentKind, isActive: Bool) -> some View {
+        Button {
+            selectedSharedContentKind = kind
+        } label: {
+            HStack(spacing: 5) {
+                Text(kind.title)
+                Text("\(items(for: kind).count)")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(isActive ? Color.smAccent2 : Color.smFaint)
+            }
+            .font(.system(size: 12.5, weight: .semibold))
+            .foregroundStyle(isActive ? Color.smText : Color.smMuted)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(isActive ? Color.smAccent.opacity(0.13) : Color.smText.opacity(0.05), in: Capsule())
+            .overlay(Capsule().stroke(isActive ? Color.smAccent.opacity(0.28) : Color.smBorder, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sharedContentRow(_ item: ProfileSharedContentItem) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(item.color.opacity(0.12))
+                    .frame(width: 32, height: 32)
+                Image(systemName: item.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(item.color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 14.5, weight: .medium))
+                    .foregroundStyle(Color.smText)
+                    .lineLimit(1)
+                Text(item.subtitle)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Color.smMuted)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    private func sharedContentStateRow(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 21))
+                .foregroundStyle(color)
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 16)
+    }
+
+    @MainActor
+    private func loadSharedContent() async {
+        guard !isLoadingSharedContent else { return }
+        isLoadingSharedContent = true
+        sharedContentError = nil
+        do {
+            let page = try await session.api.getSharedContentCandidates(chatId: contact.chatId, limit: 80)
+            let privateKey = KeychainService.loadPrivateKey()
+            let myId = session.bootstrap?.user.id ?? 0
+            let items = page.messages.compactMap { message -> ProfileSharedContentItem? in
+                let body = sharedContentBody(for: message, privateKey: privateKey, myId: myId)
+                return ProfileSharedContentItem(message: message, body: body)
+            }
+            sharedContentItems = items
+            sharedContentHasMore = page.hasMoreBefore
+            let kinds = availableSharedContentKinds
+            if !kinds.contains(selectedSharedContentKind) {
+                selectedSharedContentKind = kinds.first ?? .media
+            }
+        } catch {
+            sharedContentItems = []
+            sharedContentHasMore = false
+            sharedContentError = error.localizedDescription
+        }
+        isLoadingSharedContent = false
+    }
+
+    private func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
+        let raw = message.message ?? ""
+        guard raw.hasPrefix("{"), let privateKey else { return raw }
+        if ProfileSharedContentItem.jsonObject(from: raw)?["__suncall"] != nil {
+            return raw
+        }
+        let decrypted = SunCrypto.decryptMessageForDisplay(
+            raw,
+            isSelf: message.senderUserId == myId,
+            privateKeyPEM: privateKey
+        )
+        return decrypted == "__v3__" ? raw : decrypted
     }
 
     // MARK: - Danger zone
@@ -288,6 +457,212 @@ struct ContactProfileView: View {
         }
         .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+    }
+}
+
+// MARK: - Shared content models
+
+private enum ProfileSharedContentKind: String, CaseIterable, Identifiable {
+    case media
+    case files
+    case audio
+    case voices
+    case calls
+    case links
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .media: return "Медиа"
+        case .files: return "Файлы"
+        case .audio: return "Аудио"
+        case .voices: return "Голосовые"
+        case .calls: return "Звонки"
+        case .links: return "Ссылки"
+        }
+    }
+}
+
+private struct ProfileSharedContentItem: Identifiable {
+    let id: Int
+    let kind: ProfileSharedContentKind
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+
+    init?(message: ChatMessage, body: String) {
+        let type = message.messageType.lowercased()
+        let json = Self.jsonObject(from: body)
+        let sender = Self.senderLabel(message)
+        let date = Self.formatDate(message.createdAt)
+        let baseSubtitle = [sender, date].filter { !$0.isEmpty }.joined(separator: " • ")
+
+        if type == "call" || json?["__suncall"] != nil {
+            let callType = (json?["call_type"] as? String ?? "audio").lowercased()
+            id = message.id
+            kind = .calls
+            title = callType == "video" ? "Видеозвонок" : "Звонок"
+            subtitle = baseSubtitle
+            icon = callType == "video" ? "video.fill" : "phone.fill"
+            color = Color.smAccent2
+            return
+        }
+
+        if type == "link" {
+            id = message.id
+            kind = .links
+            title = Self.firstURL(in: body) ?? "Ссылка"
+            subtitle = baseSubtitle
+            icon = "link"
+            color = Color.smAccent2
+            return
+        }
+
+        let payload = json ?? [:]
+        let mime = (payload["mime"] as? String ?? payload["mime_type"] as? String ?? "").lowercased()
+        let name = (payload["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let mediaType = (payload["media_type"] as? String ?? "").lowercased()
+        let resolvedKind = Self.resolveKind(messageType: type, mediaType: mediaType, mime: mime, name: name, payload: payload)
+        guard let resolvedKind else { return nil }
+
+        id = message.id
+        kind = resolvedKind
+        let fallbackTitle: String = {
+            switch resolvedKind {
+            case .media:
+                if type == "video" || mediaType == "video" || mime.hasPrefix("video/") { return "Видео" }
+                return "Фото"
+            case .files: return "Файл"
+            case .audio: return "Аудио"
+            case .voices: return "Голосовое сообщение"
+            case .calls: return "Звонок"
+            case .links: return "Ссылка"
+            }
+        }()
+        title = name.isEmpty || resolvedKind == .voices ? fallbackTitle : name
+
+        let details = [
+            Self.formatDuration(payload["duration_seconds"]),
+            Self.formatBytes(payload["size"]),
+        ].compactMap { $0 }.joined(separator: " • ")
+        subtitle = [baseSubtitle, details].filter { !$0.isEmpty }.joined(separator: " • ")
+        icon = Self.icon(for: resolvedKind, messageType: type, mediaType: mediaType, mime: mime)
+        color = Self.color(for: resolvedKind)
+    }
+
+    static func jsonObject(from text: String) -> [String: Any]? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{"),
+              let data = trimmed.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return object
+    }
+
+    private static func resolveKind(messageType: String, mediaType: String, mime: String, name: String, payload: [String: Any]) -> ProfileSharedContentKind? {
+        if messageType == "voice" || messageType == "voice_message" {
+            return .voices
+        }
+        if messageType == "photo" || messageType == "video" {
+            return .media
+        }
+        if messageType == "file" {
+            return .files
+        }
+        if messageType == "audio" {
+            return isVoicePayload(mime: mime, name: name, payload: payload) ? .voices : .audio
+        }
+        if mediaType == "photo" || mediaType == "image" || mediaType == "video" || mime.hasPrefix("image/") || mime.hasPrefix("video/") {
+            return .media
+        }
+        if mime.hasPrefix("audio/") {
+            return isVoicePayload(mime: mime, name: name, payload: payload) ? .voices : .audio
+        }
+        if payload["__sunfile"] != nil {
+            return .files
+        }
+        return nil
+    }
+
+    private static func isVoicePayload(mime: String, name: String, payload: [String: Any]) -> Bool {
+        let lowerName = name.lowercased()
+        if lowerName.hasPrefix("voice") || lowerName.hasPrefix("recording") || lowerName.hasPrefix("голос") {
+            return true
+        }
+        if (payload["waveform"] as? [Any])?.isEmpty == false, mime.hasPrefix("audio/") {
+            return true
+        }
+        return false
+    }
+
+    private static func firstURL(in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: #"https?://[^\s<>"']+"#) else { return nil }
+        let nsText = text as NSString
+        let range = NSRange(location: 0, length: nsText.length)
+        guard let match = regex.firstMatch(in: text, range: range) else { return nil }
+        return nsText.substring(with: match.range)
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".,);:!?"))
+    }
+
+    private static func senderLabel(_ message: ChatMessage) -> String {
+        let displayName = (message.senderDisplayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !displayName.isEmpty { return displayName }
+        let username = (message.senderUsername ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return username.isEmpty ? "" : "@\(username)"
+    }
+
+    private static func formatDate(_ timestamp: Double) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "dd.MM HH:mm"
+        return formatter.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+
+    private static func formatBytes(_ raw: Any?) -> String? {
+        guard let number = raw as? NSNumber else { return nil }
+        let bytes = number.doubleValue
+        guard bytes > 0 else { return nil }
+        if bytes < 1024 { return "\(Int(bytes)) B" }
+        if bytes < 1024 * 1024 { return String(format: "%.1f KB", bytes / 1024) }
+        return String(format: "%.1f MB", bytes / (1024 * 1024))
+    }
+
+    private static func formatDuration(_ raw: Any?) -> String? {
+        let seconds: Int?
+        if let number = raw as? NSNumber {
+            seconds = number.intValue
+        } else if let value = raw as? String, let parsed = Int(value) {
+            seconds = parsed
+        } else {
+            seconds = nil
+        }
+        guard let seconds, seconds > 0 else { return nil }
+        return String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private static func icon(for kind: ProfileSharedContentKind, messageType: String, mediaType: String, mime: String) -> String {
+        switch kind {
+        case .media:
+            return messageType == "video" || mediaType == "video" || mime.hasPrefix("video/") ? "play.rectangle.fill" : "photo.fill"
+        case .files: return "doc.fill"
+        case .audio: return "music.note"
+        case .voices: return "waveform"
+        case .calls: return "phone.fill"
+        case .links: return "link"
+        }
+    }
+
+    private static func color(for kind: ProfileSharedContentKind) -> Color {
+        switch kind {
+        case .media: return Color.smAccent2
+        case .files: return Color.smOnline
+        case .audio, .voices: return Color.smAccent
+        case .calls: return Color.smAccent2
+        case .links: return Color.smAccent2
+        }
     }
 }
 

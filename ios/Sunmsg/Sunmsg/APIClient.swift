@@ -118,6 +118,22 @@ final class APIClient: ObservableObject {
         return try decode(ChatHistoryResponse.self, from: data).messages
     }
 
+    func getSharedContentCandidates(chatId: String, limit: Int = 80, beforeId: Int? = nil) async throws -> SharedContentCandidatesResponse {
+        var comps = URLComponents(url: baseURL.appendingPathComponent("/api/chats/shared-content-candidates"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "chat_id", value: chatId),
+            URLQueryItem(name: "type", value: "all"),
+            URLQueryItem(name: "limit", value: "\(max(1, min(limit, 120)))"),
+        ]
+        if let beforeId {
+            items.append(URLQueryItem(name: "before_id", value: "\(beforeId)"))
+        }
+        comps.queryItems = items
+        let req = URLRequest(url: comps.url!)
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(SharedContentCandidatesResponse.self, from: data)
+    }
+
     func getUpdatesState(chatId: String) async throws -> ChatUpdateState {
         var comps = URLComponents(url: baseURL.appendingPathComponent("/updates/state"), resolvingAgainstBaseURL: false)!
         comps.queryItems = [URLQueryItem(name: "chat_id", value: chatId)]
