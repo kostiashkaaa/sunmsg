@@ -67,7 +67,6 @@ struct NativeRegisterView: View {
                 Text("Создать аккаунт")
                     .font(.title.weight(.bold))
                     .foregroundStyle(Color.smText)
-                    .tracking(-0.8)
                 Text("настройте зашифрованную идентичность")
                     .font(.subheadline.italic())
                     .foregroundStyle(Color.smMuted)
@@ -130,7 +129,6 @@ struct NativeRegisterView: View {
                         .font(.system(size: 16))
                     Text("Создать аккаунт")
                         .font(.headline)
-                        .tracking(-0.2)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -294,7 +292,6 @@ struct NativeRegisterView: View {
             Image(systemName: "lock.fill").font(.system(size: 10))
             Text("Ключи генерируются на устройстве · фраза никогда не покидает устройство")
                 .font(.caption2)
-                .tracking(-0.1)
         }
         .foregroundStyle(Color.smFaint)
         .multilineTextAlignment(.center)
