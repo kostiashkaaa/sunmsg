@@ -381,24 +381,10 @@ struct ChatView: View {
 
     private func actionMenu(_ actions: [MenuAction]) -> some View {
         VStack(spacing: 0) {
-            ForEach(Array(actions.enumerated()), id: \.element.id) { idx, action in
-                Button(action: action.perform) {
-                    HStack {
-                        Text(action.label)
-                            .font(.system(size: 15.5))
-                            .foregroundStyle(action.role == .destructive ? Color.smDanger : Color.smText)
-                        Spacer()
-                        Image(systemName: action.icon)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(action.role == .destructive ? Color.smDanger : Color.smText)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(MenuRowStyle())
-                if idx < actions.count - 1 {
-                    Rectangle().fill(Color.smBorderSoft).frame(height: 0.5)
+            ForEach(actions.indices, id: \.self) { index in
+                menuActionRow(actions[index])
+                if index < actions.count - 1 {
+                    menuDivider
                 }
             }
         }
@@ -406,6 +392,30 @@ struct ChatView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
         .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 8)
         .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func menuActionRow(_ action: MenuAction) -> some View {
+        let foregroundColor = action.role == .destructive ? Color.smDanger : Color.smText
+
+        return Button(action: action.perform) {
+            HStack {
+                Text(action.label)
+                    .font(.system(size: 15.5))
+                    .foregroundStyle(foregroundColor)
+                Spacer()
+                Image(systemName: action.icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(foregroundColor)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(MenuRowStyle())
+    }
+
+    private var menuDivider: some View {
+        Rectangle().fill(Color.smBorderSoft).frame(height: 0.5)
     }
 
     private func presentMenu(for messageId: Int) {
@@ -1566,6 +1576,7 @@ struct ChatView: View {
         isSending = true
         let requestId = UUID().uuidString
         composerText = ""
+        clearDraftAfterSend()
         typingDebounceTask?.cancel()
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
@@ -1612,6 +1623,7 @@ struct ChatView: View {
         isSending = true
         let requestId = UUID().uuidString
         composerText = ""
+        clearDraftAfterSend()
         typingDebounceTask?.cancel()
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
