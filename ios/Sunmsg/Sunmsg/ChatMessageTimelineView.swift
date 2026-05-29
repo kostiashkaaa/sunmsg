@@ -35,7 +35,52 @@ struct ChatMessageTimelineView: View {
         let showsDate: Bool
     }
 
-    private var rows: [MessageRenderRow] {
+    private let rows: [MessageRenderRow]
+
+    init(
+        messages: [ChatMessage],
+        decryptedTexts: [Int: String],
+        myId: Int,
+        isGroup: Bool,
+        hasOlderMessages: Bool,
+        isLoading: Bool,
+        isLoadingOlder: Bool,
+        partnerIsTyping: Bool,
+        menuTargetId: Int?,
+        scrollIntent: Binding<ChatScrollIntent>,
+        isPinnedToBottom: Binding<Bool>,
+        onLoadOlder: @escaping () -> Void,
+        onToggleReaction: @escaping (Int, String) -> Void,
+        onRequestMenu: @escaping (Int) -> Void
+    ) {
+        self.messages = messages
+        self.decryptedTexts = decryptedTexts
+        self.myId = myId
+        self.isGroup = isGroup
+        self.hasOlderMessages = hasOlderMessages
+        self.isLoading = isLoading
+        self.isLoadingOlder = isLoadingOlder
+        self.partnerIsTyping = partnerIsTyping
+        self.menuTargetId = menuTargetId
+        self._scrollIntent = scrollIntent
+        self._isPinnedToBottom = isPinnedToBottom
+        self.onLoadOlder = onLoadOlder
+        self.onToggleReaction = onToggleReaction
+        self.onRequestMenu = onRequestMenu
+        self.rows = Self.makeRows(
+            messages: messages,
+            decryptedTexts: decryptedTexts,
+            myId: myId,
+            isGroup: isGroup
+        )
+    }
+
+    private static func makeRows(
+        messages: [ChatMessage],
+        decryptedTexts: [Int: String],
+        myId: Int,
+        isGroup: Bool
+    ) -> [MessageRenderRow] {
         var result: [MessageRenderRow] = []
         result.reserveCapacity(messages.count)
 
@@ -51,8 +96,8 @@ struct ChatMessageTimelineView: View {
                     decryptedText: decryptedTexts[message.id],
                     isFromMe: isFromMe,
                     showSender: !isFromMe && isGroup,
-                    isTail: isTail(current: message, next: next, isFromMe: isFromMe),
-                    showsDate: shouldShowDate(current: message, previous: previous)
+                    isTail: Self.isTail(current: message, next: next, isFromMe: isFromMe, myId: myId),
+                    showsDate: Self.shouldShowDate(current: message, previous: previous)
                 )
             )
         }
@@ -191,7 +236,7 @@ struct ChatMessageTimelineView: View {
         }
     }
 
-    private func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
+    private static func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
         guard let previous else { return true }
         let calendar = Calendar.current
         return !calendar.isDate(
@@ -200,7 +245,7 @@ struct ChatMessageTimelineView: View {
         )
     }
 
-    private func isTail(current: ChatMessage, next: ChatMessage?, isFromMe: Bool) -> Bool {
+    private static func isTail(current: ChatMessage, next: ChatMessage?, isFromMe: Bool, myId: Int) -> Bool {
         guard let next else { return true }
         let nextIsMe = next.senderUserId == myId
         return nextIsMe != isFromMe || next.senderUserId != current.senderUserId
