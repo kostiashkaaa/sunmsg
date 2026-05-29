@@ -225,6 +225,14 @@ final class APIClient: ObservableObject {
         _ = try await perform(req, expectedStatus: 200)
     }
 
+    func getGroupInfo(chatId: String) async throws -> GroupProfileResponse {
+        var comps = URLComponents(url: baseURL.appendingPathComponent("/api/chats/group/info"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "chat_id", value: chatId)]
+        let req = URLRequest(url: comps.url!)
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(GroupProfileResponse.self, from: data)
+    }
+
     func createGroupChat(title: String, memberUserIds: [Int]) async throws -> GroupCreateResponse {
         let url = baseURL.appendingPathComponent("/api/chats/group/create")
         var req = URLRequest(url: url)

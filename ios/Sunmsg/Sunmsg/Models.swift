@@ -942,6 +942,52 @@ struct GroupCreateResponse: Decodable {
     }
 }
 
+struct GroupProfileResponse: Decodable {
+    let success: Bool
+    let chatId: String
+    let displayName: String
+    let members: [GroupProfileMember]
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case chatId = "chat_id"
+        case displayName = "display_name"
+        case members
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        chatId = (try? c.decodeIfPresent(String.self, forKey: .chatId)) ?? ""
+        displayName = (try? c.decodeIfPresent(String.self, forKey: .displayName)) ?? ""
+        members = (try? c.decodeIfPresent(LossyArray<GroupProfileMember>.self, forKey: .members)?.elements) ?? []
+    }
+}
+
+struct GroupProfileMember: Decodable, Identifiable {
+    let userId: Int
+    let username: String
+    let displayName: String
+    let publicKey: String
+
+    var id: Int { userId }
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case username
+        case displayName = "display_name"
+        case publicKey = "public_key"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        userId = (try? c.decodeIfPresent(Int.self, forKey: .userId)) ?? 0
+        username = (try? c.decodeIfPresent(String.self, forKey: .username)) ?? ""
+        displayName = (try? c.decodeIfPresent(String.self, forKey: .displayName)) ?? ""
+        publicKey = (try? c.decodeIfPresent(String.self, forKey: .publicKey)) ?? ""
+    }
+}
+
 struct StartChatContact: Decodable {
     let chatId: String
     let userId: Int

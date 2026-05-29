@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import Combine
 import PhotosUI
@@ -81,6 +82,12 @@ struct ChatView: View {
     private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
     private var canSendEncrypted: Bool {
         hasPrivateKey && !myPublicKey.isEmpty && !contact.publicKey.isEmpty && !contact.isGroup
+    }
+    private var canSendSecureMessage: Bool {
+        if contact.isGroup {
+            return hasPrivateKey && !myPublicKey.isEmpty
+        }
+        return canSendEncrypted
     }
 
     var body: some View {
@@ -783,14 +790,14 @@ struct ChatView: View {
                                 .foregroundStyle(Color.smBubbleOutText)
                                 .frame(width: 34, height: 34)
                                 .background(
-                                    canSendEncrypted ? Color.smAccent : Color.smFaint,
+                                    canSendSecureMessage ? Color.smAccent : Color.smFaint,
                                     in: Circle()
                                 )
                                 .shadow(color: Color.smAccent.opacity(0.35), radius: 4, x: 0, y: 2)
                         }
                     }
                     .buttonStyle(PressableStyle())
-                    .disabled(isSending || isUploadingMedia || (!canSendEncrypted && trimmed.isEmpty))
+                    .disabled(isSending || isUploadingMedia || (!canSendSecureMessage && trimmed.isEmpty))
                 }
             }
             .padding(.horizontal, 10)
@@ -801,7 +808,7 @@ struct ChatView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(Color.smBorderSoft).frame(height: 0.5)
         }
-        .opacity(isRecording ? 1 : (canSendEncrypted ? 1 : 0.65))
+        .opacity(isRecording ? 1 : (canSendSecureMessage ? 1 : 0.65))
     }
 
     private var composerPlaceholder: String {
@@ -1332,8 +1339,8 @@ struct ChatView: View {
         if editingMessageId != nil { saveEdit(); return }
         let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isSending else { return }
-        guard !contact.isGroup else {
-            sendError = "Групповые сообщения пока не поддерживаются."
+        if contact.isGroup {
+            sendGroupText(text)
             return
         }
         guard let privateKey = KeychainService.loadPrivateKey(), !contact.publicKey.isEmpty, !myPublicKey.isEmpty else {
@@ -1379,6 +1386,76 @@ struct ChatView: View {
                 }
             }
         }
+    }
+
+    private func sendGroupText(_ text: String) {
+        guard let privateKey = KeychainService.loadPrivateKey(), !myPublicKey.isEmpty else {
+            sendError = "Ключ шифрования не загружен. Войдите заново по секретной фразе."
+            return
+        }
+
+        isSending = true
+        let requestId = UUID().uuidString
+        composerText = ""
+        typingDebounceTask?.cancel()
+        SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
+
+        Task {
+            do {
+                let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
+                let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
+                guard !memberKeys.isEmpty else {
+                    throw NSError(domain: "sunmsg.group", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не найдены ключи участников группы."])
+                }
+                let encrypted = try SunCrypto.encryptMessageForRecipients(
+                    text,
+                    recipientPEMs: memberKeys,
+                    senderPEM: myPublicKey,
+                    privateKeyPEM: privateKey
+                )
+                let payload: [String: Any] = [
+                    "message": encrypted,
+                    "chat_id": contact.chatId,
+                    "message_type": "text",
+                    "client_id": requestId,
+                    "request_id": requestId,
+                    "mentioned_usernames": mentionedUsernames(in: text),
+                ]
+                await MainActor.run {
+                    if SocketClient.shared.state != .connected {
+                        sendError = "Нет соединения — сообщение будет отправлено после переподключения."
+                    } else {
+                        sendError = nil
+                    }
+                    SocketClient.shared.emit("send_message", payload)
+                    isSending = false
+                }
+            } catch {
+                await MainActor.run {
+                    composerText = text
+                    sendError = error.localizedDescription
+                    isSending = false
+                }
+            }
+        }
+    }
+
+    private func mentionedUsernames(in text: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: #"(^|[\s([{])@([A-Za-z0-9_.-]{1,64})"#) else {
+            return []
+        }
+        let nsText = text as NSString
+        let range = NSRange(location: 0, length: nsText.length)
+        var result: [String] = []
+        var seen = Set<String>()
+        regex.enumerateMatches(in: text, range: range) { match, _, _ in
+            guard let match, match.numberOfRanges > 2 else { return }
+            let username = nsText.substring(with: match.range(at: 2)).lowercased()
+            guard !seen.contains(username) else { return }
+            seen.insert(username)
+            result.append(username)
+        }
+        return result
     }
 
     // MARK: - Voice recording

@@ -333,6 +333,50 @@ struct SunCrypto {
         """
     }
 
+    static func encryptMessageForRecipients(
+        _ plaintext: String,
+        recipientPEMs: [String],
+        senderPEM: String,
+        privateKeyPEM: String
+    ) throws -> String {
+        var recipients: [String] = []
+        var seen = Set<String>()
+        for pem in recipientPEMs + [senderPEM] {
+            let normalized = pem.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalized.isEmpty, !seen.contains(normalized) else { continue }
+            recipients.append(normalized)
+            seen.insert(normalized)
+        }
+        guard !recipients.isEmpty else {
+            throw SunCryptoError.invalidPEM
+        }
+
+        let aesKey = SymmetricKey(size: .bits256)
+        let nonce = AES.GCM.Nonce()
+        let sealed = try AES.GCM.seal(Data(plaintext.utf8), using: aesKey, nonce: nonce)
+        let encMsg = (sealed.ciphertext + sealed.tag).base64EncodedString()
+        let ivB64 = Data(nonce).base64EncodedString()
+        let rawKey = aesKey.withUnsafeBytes { Data($0) }
+        let encKeys = try recipients.map {
+            try rsaEncrypt(rawKey, publicKeyPEM: $0).base64EncodedString()
+        }
+
+        let sigMsg = buildSignatureMessage(
+            v: 2,
+            encMsg: encMsg,
+            encKeyR: "",
+            encKeyS: "",
+            encKey: "",
+            encKeys: encKeys,
+            iv: ivB64
+        )
+        let sig = try rsaSign(sigMsg, privateKeyPEM: privateKeyPEM)
+        let keysJSON = "[" + encKeys.map { "\"\($0)\"" }.joined(separator: ",") + "]"
+        return """
+        {"v":2,"encrypted_message":"\(encMsg)","encrypted_key_receiver":"","encrypted_key_sender":"","encrypted_key":"","encrypted_keys":\(keysJSON),"iv":"\(ivB64)","signature":"\(sig)","signature_alg":"RSASSA-PKCS1-v1_5/SHA-256"}
+        """
+    }
+
     // Mirrors JS buildCiphertextSignatureMessage — key order must be identical.
     static func buildSignatureMessage(
         v: Int, encMsg: String, encKeyR: String,
