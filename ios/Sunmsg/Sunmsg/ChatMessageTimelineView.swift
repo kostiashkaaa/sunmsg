@@ -285,37 +285,44 @@ private struct DateChipView: View {
 }
 
 private struct TypingBubbleView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private static let stepInterval: TimeInterval = 0.18
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
-            let phase = Self.phase(for: timeline.date)
-
-            HStack(alignment: .bottom, spacing: 0) {
-                HStack(spacing: 4) {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle()
-                            .fill(Color.smFaint)
-                            .frame(width: 6, height: 6)
-                            .scaleEffect(phase == i ? 1.25 : 0.85)
-                            .opacity(phase == i ? 1.0 : 0.4)
-                            .animation(.easeInOut(duration: Self.stepInterval), value: phase)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color.smBubbleIn)
-                .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
-                        .stroke(Color.smBorderSoft, lineWidth: 0.5)
-                )
-                .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
-
-                Spacer(minLength: 44)
+        if reduceMotion {
+            bubble(phase: 1, animated: false)
+        } else {
+            TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
+                bubble(phase: Self.phase(for: timeline.date), animated: true)
             }
-            .padding(.vertical, 3)
         }
+    }
+
+    private func bubble(phase: Int, animated: Bool) -> some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(Color.smFaint)
+                        .frame(width: 6, height: 6)
+                        .scaleEffect(animated ? (phase == i ? 1.25 : 0.85) : 1.0)
+                        .opacity(animated ? (phase == i ? 1.0 : 0.4) : 1.0)
+                        .animation(animated ? .easeInOut(duration: Self.stepInterval) : nil, value: phase)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.smBubbleIn)
+            .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
+                    .stroke(Color.smBorderSoft, lineWidth: 0.5)
+            )
+            .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
+
+            Spacer(minLength: 44)
+        }
+        .padding(.vertical, 3)
     }
 
     private static func phase(for date: Date) -> Int {
