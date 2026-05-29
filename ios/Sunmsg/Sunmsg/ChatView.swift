@@ -50,7 +50,7 @@ struct ChatView: View {
     @State private var hasOlderMessages = true
     @State private var partnerIsTyping = false
     @State private var partnerTypingTimeoutToken = 0
-    @State private var typingDebounceTask: Task<Void, Never>? = nil
+    @State private var typingDebounceToken = 0
     @State private var showAttachmentPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var isUploadingMedia = false
@@ -184,8 +184,6 @@ struct ChatView: View {
                 if session.activeChatId == contact.chatId {
                     session.activeChatId = nil
                 }
-                typingDebounceTask?.cancel()
-                typingDebounceTask = nil
                 draftSaveTask?.cancel()
                 flushDraftSave(force: true)
                 if isRecording { cancelRecording() }
@@ -195,13 +193,7 @@ struct ChatView: View {
                 if !isApplyingDraftText {
                     scheduleDraftSave(text)
                 }
-                guard SocketClient.shared.state == .connected, !text.isEmpty else { return }
-                typingDebounceTask?.cancel()
-                typingDebounceTask = Task {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    guard !Task.isCancelled else { return }
-                    SocketClient.shared.emit("typing", ["chat_id": contact.chatId, "typing_kind": "text"])
-                }
+                typingDebounceToken += 1
             }
             .onChange(of: selectedPhotoItem) { _, item in
                 guard let item else { return }
@@ -216,6 +208,9 @@ struct ChatView: View {
             }
             .task(id: partnerTypingTimeoutToken) {
                 await clearPartnerTypingAfterDelay()
+            }
+            .task(id: typingDebounceToken) {
+                await emitTypingAfterDebounce()
             }
     }
 
@@ -457,6 +452,21 @@ struct ChatView: View {
             try await Task.sleep(nanoseconds: 6_000_000_000)
             try Task.checkCancellation()
             partnerIsTyping = false
+        } catch is CancellationError {
+            return
+        } catch {
+            return
+        }
+    }
+
+    @MainActor
+    private func emitTypingAfterDebounce() async {
+        guard SocketClient.shared.state == .connected, !composerText.isEmpty else { return }
+        do {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            try Task.checkCancellation()
+            guard SocketClient.shared.state == .connected, !composerText.isEmpty else { return }
+            SocketClient.shared.emit("typing", ["chat_id": contact.chatId, "typing_kind": "text"])
         } catch is CancellationError {
             return
         } catch {
@@ -1794,8 +1804,6 @@ struct ChatView: View {
         let replyToId = replyTarget?.id
         composerText = ""
         clearDraftAfterSend()
-        typingDebounceTask?.cancel()
-        typingDebounceTask = nil
         SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
 
         if contact.isGroup {
