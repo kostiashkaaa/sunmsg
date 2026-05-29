@@ -117,10 +117,10 @@ struct ChatComposerBar: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("Изменение сообщения")
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smAccent2)
                 Text(composerText)
-                    .font(.system(size: 12.5))
+                    .font(.caption)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
             }
@@ -149,11 +149,11 @@ struct ChatComposerBar: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(preview.senderName)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smAccent2)
                     .lineLimit(1)
                 Text(preview.text)
-                    .font(.system(size: 12.5))
+                    .font(.caption)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
             }
@@ -199,7 +199,7 @@ struct ChatComposerBar: View {
             ZStack(alignment: .leading) {
                 if composerText.isEmpty && !isUploadingMedia {
                     Text(placeholder)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(Color.smFaint)
                         .allowsHitTesting(false)
                 }
@@ -209,7 +209,7 @@ struct ChatComposerBar: View {
                 } else {
                     TextField("", text: $composerText, axis: .vertical)
                         .focused(composerFocused)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(Color.smText)
                         .tint(Color.smAccent)
                         .lineLimit(1...5)
@@ -249,7 +249,7 @@ struct ChatComposerBar: View {
                         .onDisappear { recordingPulse = false }
 
                     Text(formatRecordingTime(recordingDuration))
-                        .font(.system(size: 16.5, weight: .semibold, design: .monospaced))
+                        .font(.body.monospacedDigit().weight(.semibold))
                         .foregroundStyle(Color.smText)
                         .fixedSize(horizontal: true, vertical: false)
                 }
@@ -258,7 +258,7 @@ struct ChatComposerBar: View {
 
                 Button(action: onCancelRecording) {
                     Text("Отмена")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(Color.smAccent)
                         .frame(minWidth: 76)
                 }
@@ -308,7 +308,7 @@ struct ChatComposerBar: View {
                 .tint(Color.smAccent)
                 .scaleEffect(0.75)
             Text("Загрузка…")
-                .font(.system(size: 14))
+                .font(.callout)
                 .foregroundStyle(Color.smFaint)
         }
     }
@@ -393,7 +393,7 @@ private struct ComposerNoticeView: View {
             Image(systemName: iconName)
                 .font(.system(size: 12.5, weight: .semibold))
             Text(text)
-                .font(.system(size: 12.5))
+                .font(.caption)
                 .lineLimit(2)
             Spacer(minLength: 8)
             Button(action: onDismiss) {
