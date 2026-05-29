@@ -3598,6 +3598,11 @@ struct DevicesView: View {
     @State private var showRevokeOthersConfirm = false
     @State private var isMutating = false
 
+    private struct DeviceListSnapshot {
+        let current: SessionDevice?
+        let others: [SessionDevice]
+    }
+
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
@@ -3663,8 +3668,9 @@ struct DevicesView: View {
     }
 
     private func devicesContent(_ response: SessionDevicesResponse) -> some View {
-        let current = response.devices.first(where: { $0.isCurrent })
-        let others = response.devices.filter { !$0.isCurrent }
+        let snapshot = Self.makeDeviceListSnapshot(response.devices)
+        let current = snapshot.current
+        let others = snapshot.others
 
         return VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
@@ -3715,6 +3721,24 @@ struct DevicesView: View {
 
             Spacer().frame(height: 20)
         }
+    }
+
+    private static func makeDeviceListSnapshot(_ devices: [SessionDevice]) -> DeviceListSnapshot {
+        var current: SessionDevice?
+        var others: [SessionDevice] = []
+        others.reserveCapacity(devices.count)
+
+        for device in devices {
+            if device.isCurrent {
+                if current == nil {
+                    current = device
+                }
+            } else {
+                others.append(device)
+            }
+        }
+
+        return DeviceListSnapshot(current: current, others: others)
     }
 
     private func deviceErrorView(_ message: String) -> some View {
