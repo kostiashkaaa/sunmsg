@@ -133,7 +133,7 @@ struct IncomingCallView: View {
 struct InCallView: View {
     var providedCall: ActiveCallState?
     @ObservedObject var session: SessionStore
-    @StateObject private var webrtc = WebRTCService.shared
+    @ObservedObject private var webrtc = WebRTCService.shared
 
     private var call: ActiveCallState? { session.activeCall ?? providedCall }
 
