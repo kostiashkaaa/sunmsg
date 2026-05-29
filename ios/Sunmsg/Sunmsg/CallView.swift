@@ -386,7 +386,7 @@ private struct CallElapsedBadge: View {
 
     var body: some View {
         Text(Self.format(elapsed))
-            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+            .font(.subheadline.monospacedDigit().weight(.semibold))
             .foregroundStyle(Color(hex: "#fbf8f1"))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
