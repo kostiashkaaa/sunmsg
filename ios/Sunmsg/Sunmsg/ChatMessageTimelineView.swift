@@ -105,7 +105,12 @@ struct ChatMessageTimelineView: View, Equatable {
                     message: message,
                     decryptedText: decryptedTexts[message.id],
                     isFromMe: isFromMe,
-                    showSender: !isFromMe && isGroup,
+                    showSender: Self.shouldShowSender(
+                        current: message,
+                        previous: previous,
+                        isFromMe: isFromMe,
+                        isGroup: isGroup
+                    ),
                     isTail: Self.isTail(current: message, next: next, isFromMe: isFromMe, myId: myId),
                     showsDate: Self.shouldShowDate(current: message, previous: previous)
                 )
@@ -283,10 +288,24 @@ struct ChatMessageTimelineView: View, Equatable {
         )
     }
 
+    private static func shouldShowSender(
+        current: ChatMessage,
+        previous: ChatMessage?,
+        isFromMe: Bool,
+        isGroup: Bool
+    ) -> Bool {
+        guard isGroup, !isFromMe else { return false }
+        guard let previous else { return true }
+        return previous.senderUserId != current.senderUserId
+            || shouldShowDate(current: current, previous: previous)
+    }
+
     private static func isTail(current: ChatMessage, next: ChatMessage?, isFromMe: Bool, myId: Int) -> Bool {
         guard let next else { return true }
         let nextIsMe = next.senderUserId == myId
-        return nextIsMe != isFromMe || next.senderUserId != current.senderUserId
+        return nextIsMe != isFromMe
+            || next.senderUserId != current.senderUserId
+            || shouldShowDate(current: next, previous: current)
     }
 }
 
