@@ -40,7 +40,7 @@ struct PeopleView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.interactively)
         .task { await session.refreshDialogRequests() }
         .navigationDestination(isPresented: Binding(

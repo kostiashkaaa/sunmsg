@@ -52,7 +52,7 @@ struct CallsView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func deleteCall(_ call: CallRecord) {

@@ -50,7 +50,7 @@ struct NativeRegisterView: View {
                 loadingOverlay
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { generateInitialMnemonicIfNeeded() }
         .onDisappear {
             copyResetTask?.cancel()

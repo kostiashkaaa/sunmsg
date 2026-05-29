@@ -72,7 +72,7 @@ struct ChatListView: View {
                 profileFooter
             }
         }
-        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $showMnemonicUnlock) {
             MnemonicUnlockSheet()
