@@ -376,34 +376,34 @@ struct NativeRegisterView: View {
                 let csrf = try await api.getCsrfToken()
                 api.csrfToken = csrf
 
-                // 2. RSA-2048 key gen — run detached so it doesn't block cooperative pool;
-                //    awaiting .value resumes back on MainActor automatically.
-                let (privatePEM, publicPEM): (String, String) = try await Task.detached(priority: .userInitiated) {
-                    try SunCrypto.generateRSAKeyPair()
+                // 2. CPU-heavy key material and vault creation must stay off MainActor.
+                let keyMaterial: (privatePEM: String, publicPEM: String, vault: String) = try await Task.detached(priority: .userInitiated) {
+                    let (privatePEM, publicPEM) = try SunCrypto.generateRSAKeyPair()
+                    let pkcs8PEM = SunCrypto.convertToPKCS8PEM(privatePEM)
+                    let vault = try SunCrypto.encryptVault(privateKeyPEM: pkcs8PEM, mnemonic: phrase)
+                    return (privatePEM: privatePEM, publicPEM: publicPEM, vault: vault)
                 }.value
 
-                // 3. Vault stores PKCS#8 so the web client can also log in
-                let pkcs8PEM = SunCrypto.convertToPKCS8PEM(privatePEM)
-                let vault = try SunCrypto.encryptVault(privateKeyPEM: pkcs8PEM, mnemonic: phrase)
-
-                // 4. Get register challenge
+                // 3. Get register challenge
                 let challenge = try await api.getRegisterChallenge()
 
-                // 5. Sign challenge
-                let signature = try SunCrypto.rsaSign(challenge, privateKeyPEM: privatePEM)
+                // 4. Sign challenge off MainActor.
+                let signature = try await Task.detached(priority: .userInitiated) {
+                    try SunCrypto.rsaSign(challenge, privateKeyPEM: keyMaterial.privatePEM)
+                }.value
 
-                // 6. Register
+                // 5. Register
                 try await api.registerClient(
                     username: trimUser,
                     displayName: trimName,
-                    publicKeyPEM: publicPEM,
-                    loginVault: vault,
+                    publicKeyPEM: keyMaterial.publicPEM,
+                    loginVault: keyMaterial.vault,
                     challenge: challenge,
                     signature: signature
                 )
 
-                // 7. Store private key in Keychain, load session
-                try? KeychainService.savePrivateKey(privatePEM)
+                // 6. Store private key in Keychain, load session
+                try? KeychainService.savePrivateKey(keyMaterial.privatePEM)
                 await session.loadBootstrap()
 
             } catch let apiErr as APIError {
