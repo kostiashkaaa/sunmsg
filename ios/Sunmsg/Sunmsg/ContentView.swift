@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import PhotosUI
+import UniformTypeIdentifiers
+import UserNotifications
 
 // MARK: - Session store
 
@@ -1309,209 +1312,115 @@ struct SettingsView: View {
     private var user: BootstrapUser? { session.bootstrap?.user }
 
     var body: some View {
-        ZStack {
-            Color.smBg.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Header matching prototype: title + QR trailing
-                HStack {
-                    Text("Настройки")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.smText)
-                        .tracking(-0.6)
-                    Spacer()
-                    Button(action: { showQRSheet = true }) {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(Color.smAccent2)
-                            .frame(width: 36, height: 36)
-                            .background(Color.smAccent.opacity(0.10), in: Circle())
+        Form {
+            Section {
+                Button {
+                    showProfileSheet = true
+                } label: {
+                    HStack(spacing: 12) {
+                        SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 54)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(user?.displayName ?? "—")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("@\(user?.username ?? "—")")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 6)
+                .buttonStyle(.plain)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
-                        profileCard
-                            .padding(.top, 12)
+                Button {
+                    showQRSheet = true
+                } label: {
+                    Label("Мой QR-код и публичный ключ", systemImage: "qrcode")
+                }
+            }
 
-                        // Primary group — amber tints (key features)
-                        settingsGroup {
-                            settingsRow(
-                                icon: "key.fill",
-                                tint: .amber,
-                                label: "Приватность и безопасность",
-                                sub: "Ключи, устройства, блокировки",
-                                badge: hasPrivateKeyLoaded ? nil : "!",
-                                action: { navigateToPrivacy = true }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "bell.fill",
-                                tint: .amber,
-                                label: "Уведомления",
-                                sub: muteDialogRequests ? "Заглушены" : "Звуки, привью, тёплый режим",
-                                action: {
-                                    muteDialogRequests.toggle()
-                                    saveSettings(["mute_dialog_requests": muteDialogRequests])
-                                }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "paintpalette.fill",
-                                tint: .amber,
-                                label: "Внешний вид",
-                                sub: themeLabel,
-                                action: { navigateToAppearance = true }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "externaldrive.fill",
-                                tint: .amber,
-                                label: "Данные и память",
-                                sub: "\(session.contacts.count) диалогов",
-                                isLast: true,
-                                action: {
-                                    Task {
-                                        isSyncing = true
-                                        await session.loadBootstrap()
-                                        isSyncing = false
-                                    }
-                                }
-                            )
+            Section("Основные") {
+                NavigationLink { NotificationSettingsView() } label: {
+                    Label("Уведомления", systemImage: "bell")
+                }
+                NavigationLink { DataMemorySettingsView() } label: {
+                    Label("Данные и память", systemImage: "externaldrive")
+                }
+                NavigationLink { PrivacySettingsView() } label: {
+                    Label("Конфиденциальность", systemImage: "hand.raised")
+                }
+                NavigationLink { SecuritySettingsView() } label: {
+                    Label("Безопасность", systemImage: "lock.shield")
+                }
+            }
+
+            Section("Интерфейс") {
+                NavigationLink { AppearanceSettingsView() } label: {
+                    Label("Внешний вид и темы", systemImage: "paintpalette")
+                }
+                NavigationLink { LanguageSettingsView(selectedLanguage: selectedLanguage) } label: {
+                    Label {
+                        HStack {
+                            Text("Язык")
+                            Spacer()
+                            Text(languageLabel(selectedLanguage))
+                                .foregroundStyle(.secondary)
                         }
-
-                        // Neutral group
-                        settingsGroup {
-                            settingsRow(
-                                icon: "globe",
-                                tint: .neutral,
-                                label: "Язык",
-                                trail: languageLabel(selectedLanguage),
-                                action: { showLanguageDialog = true }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "iphone",
-                                tint: .neutral,
-                                label: "Устройства",
-                                trail: "1",
-                                action: { navigateToDevices = true }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "square.and.arrow.up",
-                                tint: .neutral,
-                                label: "Переподключить realtime",
-                                sub: socketStatusText,
-                                isLast: true,
-                                action: {
-                                    Task {
-                                        isSyncing = true
-                                        await session.reconnectRealtime()
-                                        isSyncing = false
-                                    }
-                                }
-                            )
-                        }
-
-                        // Privacy toggles
-                        settingsGroup {
-                            toggleSettingsRow(
-                                label: "Статус «в сети»",
-                                sub: showOnlineStatus ? "Видно контактам" : "Скрыт",
-                                isOn: Binding(
-                                    get: { showOnlineStatus },
-                                    set: { v in
-                                        showOnlineStatus = v
-                                        saveSettings([
-                                            "hide_online_status": !v,
-                                            "last_seen_visibility": v ? "contacts" : "nobody",
-                                        ], reconnect: true)
-                                    }
-                                )
-                            )
-                            divider
-                            toggleSettingsRow(
-                                label: "Индикатор набора",
-                                sub: shareTyping ? "Отправлять" : "Не отправлять",
-                                isOn: Binding(
-                                    get: { shareTyping },
-                                    set: { v in
-                                        shareTyping = v
-                                        saveSettings(["typing_privacy": v ? "contacts" : "nobody"])
-                                    }
-                                )
-                            )
-                            divider
-                            toggleSettingsRow(
-                                label: "Подтверждения прочтения",
-                                sub: sendReadReceipts ? "Включены" : "Скрыты",
-                                isOn: Binding(
-                                    get: { sendReadReceipts },
-                                    set: { v in
-                                        sendReadReceipts = v
-                                        saveSettings(["read_receipts_privacy": v ? "contacts" : "nobody"])
-                                    }
-                                ),
-                                isLast: true
-                            )
-                        }
-
-                        // Help + logout
-                        settingsGroup {
-                            settingsRow(
-                                icon: "questionmark.circle.fill",
-                                tint: .neutral,
-                                label: "Помощь",
-                                sub: "Открыть сайт поддержки",
-                                action: {
-                                    if let url = URL(string: kBaseURL) {
-                                        UIApplication.shared.open(url)
-                                    }
-                                }
-                            )
-                            divider
-                            settingsRow(
-                                icon: "rectangle.portrait.and.arrow.right",
-                                tint: .danger,
-                                label: "Выйти из аккаунта",
-                                isLast: true,
-                                action: { showLogoutConfirm = true }
-                            )
-                        }
-
-                        if let settingsError {
-                            Text(settingsError)
-                                .font(.system(size: 12.5))
-                                .foregroundStyle(Color.smDanger)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 18)
-                        }
-
-                        Text("sun · версия 1.0")
-                            .font(.system(size: 10.5))
-                            .foregroundStyle(Color.smFaint)
-                            .padding(.top, 6)
-                            .padding(.bottom, 28)
+                    } icon: {
+                        Image(systemName: "globe")
                     }
-                    .padding(.horizontal, 12)
+                }
+                NavigationLink { ChatBehaviorSettingsView() } label: {
+                    Label("Настройки чата", systemImage: "message")
+                }
+                NavigationLink { CallSettingsView() } label: {
+                    Label("Настройки звонков", systemImage: "phone")
+                }
+                NavigationLink { SidebarLabelSettingsView() } label: {
+                    Label("Метка и погода в списке", systemImage: "cloud.sun")
+                }
+            }
+
+            Section("Аккаунт") {
+                NavigationLink { DevicesView() } label: {
+                    Label("Устройства", systemImage: "iphone")
+                }
+                NavigationLink { SettingsTransferView() } label: {
+                    Label("Экспорт и импорт настроек", systemImage: "square.and.arrow.up")
+                }
+                NavigationLink { IntegrationsSettingsView() } label: {
+                    Label("Подключения", systemImage: "link")
+                }
+                NavigationLink { AccountSettingsView() } label: {
+                    Label("Аккаунт", systemImage: "person.crop.circle")
+                }
+            }
+
+            Section {
+                NavigationLink { SupportSettingsView() } label: {
+                    Label("Поддержка", systemImage: "questionmark.circle")
+                }
+                Button(role: .destructive) {
+                    showLogoutConfirm = true
+                } label: {
+                    Label("Выйти из аккаунта", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
+
+            if let settingsError {
+                Section {
+                    Text(settingsError)
+                        .font(.footnote)
+                        .foregroundStyle(Color.smDanger)
                 }
             }
         }
-        .navigationBarHidden(true)
-        .navigationDestination(isPresented: $navigateToPrivacy) {
-            PrivacySettingsView()
-        }
-        .navigationDestination(isPresented: $navigateToAppearance) {
-            AppearanceSettingsView()
-        }
-        .navigationDestination(isPresented: $navigateToDevices) {
-            DevicesView()
-        }
+        .navigationTitle("Настройки")
+        .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showProfileSheet) {
             ProfileSettingsView()
         }
@@ -1523,11 +1432,6 @@ struct SettingsView: View {
             Button("Отмена", role: .cancel) { }
         } message: {
             Text("Сообщения останутся зашифрованными на устройстве, пока вы снова не войдёте.")
-        }
-        .confirmationDialog("Язык интерфейса", isPresented: $showLanguageDialog, titleVisibility: .visible) {
-            Button("Русский") { setLanguage("ru") }
-            Button("English") { setLanguage("en") }
-            Button("Отмена", role: .cancel) { }
         }
         .task { await loadSettingsIfNeeded() }
         .onAppear {
@@ -1780,203 +1684,146 @@ struct ProfileSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var displayName = ""
     @State private var username = ""
+    @State private var statusText = ""
+    @State private var bio = ""
+    @State private var currentSettings: AppSettings?
+    @State private var selectedAvatarItem: PhotosPickerItem?
+    @State private var avatarEditorImage: UIImage?
+    @State private var isUploadingAvatar = false
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var showQRSheet = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
     private var trimmedDisplayName: String { displayName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedStatusText: String { statusText.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedBio: String { bio.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var normalizedUsername: String {
         var value = username.trimmingCharacters(in: .whitespacesAndNewlines)
         while value.hasPrefix("@") { value.removeFirst() }
         return value.lowercased()
     }
     private var canSaveProfile: Bool {
-        guard let user else { return false }
+        let baselineName = currentSettings?.displayName ?? user?.displayName ?? ""
+        let baselineUsername = currentSettings?.username ?? user?.username ?? ""
+        let baselineStatus = currentSettings?.statusText ?? ""
+        let baselineBio = currentSettings?.bio ?? ""
         return !isSaving
             && !trimmedDisplayName.isEmpty
             && !normalizedUsername.isEmpty
-            && (trimmedDisplayName != user.displayName || normalizedUsername != user.username)
+            && (
+                trimmedDisplayName != baselineName ||
+                normalizedUsername != baselineUsername ||
+                trimmedStatusText != baselineStatus ||
+                trimmedBio != baselineBio
+            )
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.smBg.ignoresSafeArea()
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // Avatar section
-                        VStack(spacing: 12) {
-                            ZStack(alignment: .bottomTrailing) {
-                                SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 80)
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.smAccent)
-                                        .frame(width: 26, height: 26)
-                                    Image(systemName: "camera.fill")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(Color(hex: "#15140e"))
-                                }
-                                .offset(x: 2, y: 2)
-                            }
+            Form {
+                Section {
+                    HStack(spacing: 16) {
+                        SmAvatarView(name: user?.displayName ?? "?", avatarUrl: user?.avatarUrl, size: 76)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(user?.displayName ?? "—")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(Color.smText)
-                                .tracking(-0.3)
+                                .font(.headline)
                             Text("@\(user?.username ?? "—")")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.smAccent2)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 20)
-
-                        // Info rows
-                        VStack(spacing: 0) {
-                            profileInfoRow(label: "Имя", value: user?.displayName ?? "—", icon: "person.fill")
-                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
-                            profileInfoRow(label: "Логин", value: "@\(user?.username ?? "—")", icon: "at")
-                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
-                            profileInfoRow(label: "Язык", value: user?.uiLanguage.uppercased() ?? "RU", icon: "globe")
-                        }
-                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-
-                        VStack(spacing: 0) {
-                            profileEditRow(label: "Имя", icon: "person.fill") {
-                                TextField("Имя", text: $displayName)
-                                    .textInputAutocapitalization(.words)
-                                    .autocorrectionDisabled(false)
-                                    .multilineTextAlignment(.trailing)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            if isUploadingAvatar {
+                                ProgressView()
+                                    .controlSize(.small)
                             }
-                            Rectangle().fill(Color.smBorderSoft).frame(height: 0.5).padding(.leading, 52)
-                            profileEditRow(label: "Логин", icon: "at") {
-                                TextField("username", text: $username)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled(true)
-                                    .textContentType(.username)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-
-                        // QR button
-                        Button(action: { showQRSheet = true }) {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.smAccent.opacity(0.10))
-                                        .frame(width: 32, height: 32)
-                                    Image(systemName: "qrcode")
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(Color.smAccent2)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Мой QR код")
-                                        .font(.system(size: 14.5, weight: .medium))
-                                        .foregroundStyle(Color.smText)
-                                    Text("Покажите другим пользователям")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(Color.smMuted)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.smFaint)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-                        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
-
-                        if let err = saveError {
-                            Text(err)
-                                .font(.system(size: 12.5))
-                                .foregroundStyle(Color.smDanger)
-                                .multilineTextAlignment(.center)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+
+                    PhotosPicker(selection: $selectedAvatarItem, matching: .images) {
+                        Label("Изменить фото профиля", systemImage: "camera")
+                    }
+                    .disabled(isUploadingAvatar)
                 }
-                .scrollDismissesKeyboard(.interactively)
+
+                Section("Профиль") {
+                    TextField("Имя", text: $displayName)
+                        .textInputAutocapitalization(.words)
+                        .textContentType(.name)
+                        .onChange(of: displayName) { _, value in
+                            if value.count > 50 { displayName = String(value.prefix(50)) }
+                        }
+
+                    TextField("username", text: $username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .textContentType(.username)
+                        .onChange(of: username) { _, value in
+                            username = normalizeHandleInput(value)
+                        }
+
+                    TextField("Статус", text: $statusText, axis: .vertical)
+                        .lineLimit(1...3)
+                        .onChange(of: statusText) { _, value in
+                            if value.count > 100 { statusText = String(value.prefix(100)) }
+                        }
+                    Text("\(statusText.count)/100")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    TextEditor(text: $bio)
+                        .frame(minHeight: 96)
+                        .onChange(of: bio) { _, value in
+                            if value.count > 280 { bio = String(value.prefix(280)) }
+                        }
+                    Text("\(bio.count)/280")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Button { showQRSheet = true } label: {
+                        Label("Мой QR-код", systemImage: "qrcode")
+                    }
+                }
+
+                if let err = saveError {
+                    Section {
+                        Text(err)
+                            .font(.footnote)
+                            .foregroundStyle(Color.smDanger)
+                    }
+                }
             }
             .navigationTitle("Профиль")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.smBg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Закрыть") { dismiss() }
-                        .foregroundStyle(Color.smMuted)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "Сохранение…" : "Сохранить") {
                         Task { await saveProfile() }
                     }
                     .disabled(!canSaveProfile)
-                    .foregroundStyle(canSaveProfile ? Color.smAccent2 : Color.smFaint)
                 }
             }
             .sheet(isPresented: $showQRSheet) {
                 UserQRSheet()
             }
-            .onAppear { hydrateFieldsFromUser() }
-        }
-    }
-
-    private func profileInfoRow(label: String, value: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.smAccent.opacity(0.10))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.smAccent2)
+            .sheet(isPresented: Binding(
+                get: { avatarEditorImage != nil },
+                set: { if !$0 { avatarEditorImage = nil } }
+            )) {
+                if let avatarEditorImage {
+                    AvatarEditorView(image: avatarEditorImage) { jpegData in
+                        await uploadAvatar(jpegData)
+                    }
+                }
             }
-            Text(label)
-                .font(.system(size: 14.5, weight: .medium))
-                .foregroundStyle(Color.smText)
-                .lineLimit(1)
-            Spacer(minLength: 12)
-            Text(value)
-                .font(.system(size: 14))
-                .foregroundStyle(Color.smMuted)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .multilineTextAlignment(.trailing)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-    }
-
-    private func profileEditRow<Content: View>(
-        label: String,
-        icon: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.smAccent.opacity(0.10))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.smAccent2)
+            .task { await loadProfileSettings() }
+            .onChange(of: selectedAvatarItem) { _, item in
+                Task { await prepareAvatarEditor(from: item) }
             }
-            Text(label)
-                .font(.system(size: 14.5, weight: .medium))
-                .foregroundStyle(Color.smText)
-            content()
-                .font(.system(size: 14))
-                .foregroundStyle(Color.smText)
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
     }
 
     private func hydrateFieldsFromUser() {
@@ -1984,9 +1831,33 @@ struct ProfileSettingsView: View {
         username = user?.username ?? ""
     }
 
+    private func loadProfileSettings() async {
+        do {
+            let settings = try await session.api.getSettings()
+            currentSettings = settings
+            displayName = settings.displayName
+            username = settings.username
+            statusText = settings.statusText
+            bio = settings.bio
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            hydrateFieldsFromUser()
+            saveError = error.localizedDescription
+        }
+    }
+
+    private func normalizeHandleInput(_ value: String) -> String {
+        let withoutAt = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
+        let allowed = withoutAt.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" }
+        return String(allowed.prefix(50))
+    }
+
     private func saveProfile() async {
         let name = trimmedDisplayName
         let handle = normalizedUsername
+        let status = trimmedStatusText
+        let about = trimmedBio
         guard !name.isEmpty else {
             saveError = "Имя не может быть пустым."
             return
@@ -1999,6 +1870,14 @@ struct ProfileSettingsView: View {
             saveError = "Логин может содержать только a-z, 0-9 и _."
             return
         }
+        guard status.count <= 100 else {
+            saveError = "Статус не должен превышать 100 символов."
+            return
+        }
+        guard about.count <= 280 else {
+            saveError = "Bio не должно превышать 280 символов."
+            return
+        }
 
         isSaving = true
         saveError = nil
@@ -2006,15 +1885,132 @@ struct ProfileSettingsView: View {
             try await session.api.saveSettings([
                 "display_name": name,
                 "username": handle,
+                "status_text": status,
+                "bio": about,
             ])
             await session.loadBootstrap()
-            hydrateFieldsFromUser()
+            await loadProfileSettings()
         } catch APIError.unauthorized {
             session.route = .login
         } catch {
             saveError = error.localizedDescription
         }
         isSaving = false
+    }
+
+    private func prepareAvatarEditor(from item: PhotosPickerItem?) async {
+        guard let item else { return }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                avatarEditorImage = image
+            }
+        } catch {
+            saveError = error.localizedDescription
+        }
+        selectedAvatarItem = nil
+    }
+
+    private func uploadAvatar(_ data: Data) async {
+        isUploadingAvatar = true
+        saveError = nil
+        do {
+            _ = try await session.api.uploadAvatar(data: data, mimeType: "image/jpeg")
+            await session.loadBootstrap()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            saveError = error.localizedDescription
+        }
+        isUploadingAvatar = false
+    }
+}
+
+private struct AvatarEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    let image: UIImage
+    let onSave: (Data) async -> Void
+
+    @State private var zoom = 1.0
+    @State private var rotation = 0.0
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ZStack {
+                        Color.black.opacity(0.92)
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .scaleEffect(zoom)
+                            .rotationEffect(.degrees(rotation))
+                            .frame(width: 260, height: 260)
+                            .clipShape(Rectangle())
+                            .overlay(Rectangle().stroke(.white.opacity(0.85), lineWidth: 1))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 300)
+                }
+
+                Section("Кадр") {
+                    HStack {
+                        Button { rotation -= 90 } label: {
+                            Label("Влево", systemImage: "rotate.left")
+                        }
+                        Spacer()
+                        Button { rotation += 90 } label: {
+                            Label("Вправо", systemImage: "rotate.right")
+                        }
+                    }
+                    Slider(value: $zoom, in: 1.0...3.0, step: 0.05) {
+                        Text("Масштаб")
+                    }
+                    Button("Сбросить") {
+                        zoom = 1
+                        rotation = 0
+                    }
+                }
+            }
+            .navigationTitle("Фото профиля")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Отмена") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Загрузка…" : "Готово") {
+                        save()
+                    }
+                    .disabled(isSaving)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        guard let data = renderCroppedJPEG() else { return }
+        isSaving = true
+        Task {
+            await onSave(data)
+            isSaving = false
+            dismiss()
+        }
+    }
+
+    private func renderCroppedJPEG() -> Data? {
+        let outputSize = CGSize(width: 768, height: 768)
+        let renderer = UIGraphicsImageRenderer(size: outputSize)
+        let rendered = renderer.image { context in
+            UIColor.clear.setFill()
+            context.fill(CGRect(origin: .zero, size: outputSize))
+            context.cgContext.translateBy(x: outputSize.width / 2, y: outputSize.height / 2)
+            context.cgContext.rotate(by: rotation * .pi / 180)
+            let base = max(outputSize.width / image.size.width, outputSize.height / image.size.height)
+            let fitted = CGSize(width: image.size.width * base * zoom, height: image.size.height * base * zoom)
+            image.draw(in: CGRect(x: -fitted.width / 2, y: -fitted.height / 2, width: fitted.width, height: fitted.height))
+        }
+        return rendered.jpegData(compressionQuality: 0.88)
     }
 }
 

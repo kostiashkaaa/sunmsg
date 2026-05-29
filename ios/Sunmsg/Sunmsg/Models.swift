@@ -512,31 +512,59 @@ struct AppSettings: Decodable {
     var displayName: String
     var username: String
     var isPublic: Bool
+    var autoDeclineRequests: Bool
     var muteDialogRequests: Bool
     var hideOnlineStatus: Bool
     var lastSeenVisibility: String
+    var avatarUrl: String?
+    var avatarVisibility: String
+    var bioVisibility: String
+    var forwardLinkPrivacy: String
     var typingPrivacy: String
     var readReceiptsPrivacy: String
     var messagePrivacy: String
     var groupInvitePrivacy: String
+    var voiceMessagePrivacy: String
+    var voiceListenedPrivacy: String
+    var callPrivacy: String
+    var publicKeySearchPrivacy: String
+    var bio: String
+    var statusText: String
     var online: Bool
     var lastSeen: Double?
     var language: String
+    var clientPreferences: [String: SettingsJSONValue]
+
+    var clientPreferencesObject: [String: Any] {
+        clientPreferences.mapValues { $0.anyValue }
+    }
 
     enum CodingKeys: String, CodingKey {
         case displayName = "display_name"
         case username
         case isPublic = "is_public"
+        case autoDeclineRequests = "auto_decline_requests"
         case muteDialogRequests = "mute_dialog_requests"
         case hideOnlineStatus = "hide_online_status"
         case lastSeenVisibility = "last_seen_visibility"
+        case avatarUrl = "avatar_url"
+        case avatarVisibility = "avatar_visibility"
+        case bioVisibility = "bio_visibility"
+        case forwardLinkPrivacy = "forward_link_privacy"
         case typingPrivacy = "typing_privacy"
         case readReceiptsPrivacy = "read_receipts_privacy"
         case messagePrivacy = "message_privacy"
         case groupInvitePrivacy = "group_invite_privacy"
+        case voiceMessagePrivacy = "voice_message_privacy"
+        case voiceListenedPrivacy = "voice_listened_privacy"
+        case callPrivacy = "call_privacy"
+        case publicKeySearchPrivacy = "public_key_search_privacy"
+        case bio
+        case statusText = "status_text"
         case online
         case lastSeen = "last_seen"
         case language
+        case clientPreferences = "client_preferences"
     }
 
     init(from decoder: Decoder) throws {
@@ -544,17 +572,128 @@ struct AppSettings: Decodable {
         displayName = (try? c.decodeIfPresent(String.self, forKey: .displayName)) ?? ""
         username = (try? c.decodeIfPresent(String.self, forKey: .username)) ?? ""
         isPublic = (try? c.decodeIfPresent(Bool.self, forKey: .isPublic)) ?? false
+        autoDeclineRequests = (try? c.decodeIfPresent(Bool.self, forKey: .autoDeclineRequests)) ?? false
         muteDialogRequests = (try? c.decodeIfPresent(Bool.self, forKey: .muteDialogRequests)) ?? false
         hideOnlineStatus = (try? c.decodeIfPresent(Bool.self, forKey: .hideOnlineStatus)) ?? false
         lastSeenVisibility = (try? c.decodeIfPresent(String.self, forKey: .lastSeenVisibility)) ?? (hideOnlineStatus ? "nobody" : "contacts")
+        avatarUrl = try? c.decodeIfPresent(String.self, forKey: .avatarUrl)
+        avatarVisibility = (try? c.decodeIfPresent(String.self, forKey: .avatarVisibility)) ?? "contacts"
+        bioVisibility = (try? c.decodeIfPresent(String.self, forKey: .bioVisibility)) ?? "contacts"
+        forwardLinkPrivacy = (try? c.decodeIfPresent(String.self, forKey: .forwardLinkPrivacy)) ?? "contacts"
         typingPrivacy = (try? c.decodeIfPresent(String.self, forKey: .typingPrivacy)) ?? "contacts"
         readReceiptsPrivacy = (try? c.decodeIfPresent(String.self, forKey: .readReceiptsPrivacy)) ?? "contacts"
         messagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .messagePrivacy)) ?? "contacts"
         groupInvitePrivacy = (try? c.decodeIfPresent(String.self, forKey: .groupInvitePrivacy)) ?? "contacts"
+        voiceMessagePrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceMessagePrivacy)) ?? "contacts"
+        voiceListenedPrivacy = (try? c.decodeIfPresent(String.self, forKey: .voiceListenedPrivacy)) ?? "contacts"
+        callPrivacy = (try? c.decodeIfPresent(String.self, forKey: .callPrivacy)) ?? "contacts"
+        publicKeySearchPrivacy = (try? c.decodeIfPresent(String.self, forKey: .publicKeySearchPrivacy)) ?? "contacts"
+        bio = (try? c.decodeIfPresent(String.self, forKey: .bio)) ?? ""
+        statusText = (try? c.decodeIfPresent(String.self, forKey: .statusText)) ?? ""
         online = (try? c.decodeIfPresent(Bool.self, forKey: .online)) ?? false
         lastSeen = SunDateParser.decodeTimestamp(c, forKey: .lastSeen)
         let rawLanguage = ((try? c.decodeIfPresent(String.self, forKey: .language)) ?? "ru").lowercased()
         language = rawLanguage == "en" ? "en" : "ru"
+        clientPreferences = (try? c.decodeIfPresent([String: SettingsJSONValue].self, forKey: .clientPreferences)) ?? [:]
+    }
+}
+
+enum SettingsJSONValue: Codable, Equatable {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case array([SettingsJSONValue])
+    case object([String: SettingsJSONValue])
+    case null
+
+    var anyValue: Any {
+        switch self {
+        case .string(let value): return value
+        case .int(let value): return value
+        case .double(let value): return value
+        case .bool(let value): return value
+        case .array(let values): return values.map(\.anyValue)
+        case .object(let values): return values.mapValues { $0.anyValue }
+        case .null: return NSNull()
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let single = try decoder.singleValueContainer()
+        if single.decodeNil() {
+            self = .null
+        } else if let value = try? single.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? single.decode(Int.self) {
+            self = .int(value)
+        } else if let value = try? single.decode(Double.self) {
+            self = .double(value)
+        } else if let value = try? single.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? single.decode([SettingsJSONValue].self) {
+            self = .array(value)
+        } else if let value = try? single.decode([String: SettingsJSONValue].self) {
+            self = .object(value)
+        } else {
+            throw DecodingError.dataCorruptedError(in: single, debugDescription: "Unsupported JSON value")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var single = encoder.singleValueContainer()
+        switch self {
+        case .string(let value): try single.encode(value)
+        case .int(let value): try single.encode(value)
+        case .double(let value): try single.encode(value)
+        case .bool(let value): try single.encode(value)
+        case .array(let values): try single.encode(values)
+        case .object(let values): try single.encode(values)
+        case .null: try single.encodeNil()
+        }
+    }
+}
+
+struct AvatarUploadResponse: Decodable {
+    let success: Bool
+    let avatarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case avatarUrl = "avatar_url"
+    }
+}
+
+struct SpotifyStatusResponse: Decodable {
+    let success: Bool
+    let configured: Bool
+    let connected: Bool
+    let spotifyPrivacy: String
+    let hideExplicit: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case success, configured, connected
+        case spotifyPrivacy = "spotify_privacy"
+        case hideExplicit = "hide_explicit"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        configured = (try? c.decodeIfPresent(Bool.self, forKey: .configured)) ?? false
+        connected = (try? c.decodeIfPresent(Bool.self, forKey: .connected)) ?? false
+        spotifyPrivacy = (try? c.decodeIfPresent(String.self, forKey: .spotifyPrivacy)) ?? "contacts"
+        hideExplicit = (try? c.decodeIfPresent(Bool.self, forKey: .hideExplicit)) ?? false
+    }
+}
+
+struct SupportRequestResponse: Decodable {
+    let success: Bool
+    let requestId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case requestId = "request_id"
     }
 }
 

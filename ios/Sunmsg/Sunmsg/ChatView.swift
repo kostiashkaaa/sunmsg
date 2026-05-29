@@ -1983,8 +1983,9 @@ struct ChatView: View {
         stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = recordingURL else { return }
+        let durationSeconds = max(1, Int(recordingDuration.rounded(.down)))
         recordingURL = nil
-        Task { await sendAudioMessage(url: url) }
+        Task { await sendAudioMessage(url: url, durationSeconds: durationSeconds) }
     }
 
     private func cancelRecording() {
@@ -2001,7 +2002,7 @@ struct ChatView: View {
         recordingURL = nil
     }
 
-    private func sendAudioMessage(url: URL) async {
+    private func sendAudioMessage(url: URL, durationSeconds: Int) async {
         defer { try? FileManager.default.removeItem(at: url) }
 
         isUploadingMedia = true
@@ -2036,17 +2037,20 @@ struct ChatView: View {
             let sunfilePayload: [String: Any] = [
                 "__sunfile": true,
                 "url": uploadResult.url,
+                "data": uploadResult.url,
                 "mime": uploadResult.mime,
                 "name": uploadResult.name,
                 "size": uploadResult.size,
-                "media_type": "audio",
+                "media_type": "voice",
+                "duration_seconds": durationSeconds,
+                "voice": true,
             ]
             let sunfileJSON = String(data: try JSONSerialization.data(withJSONObject: sunfilePayload), encoding: .utf8) ?? ""
 
             if isGroup {
                 try await emitEncryptedGroupPayload(
                     sunfileJSON,
-                    messageType: "audio",
+                    messageType: "voice",
                     requestId: UUID().uuidString,
                     privateKey: privateKey
                 )
@@ -2068,7 +2072,7 @@ struct ChatView: View {
             let sent = try await APIClient.shared.sendMessage(
                 chatId: chatId,
                 message: encrypted,
-                messageType: "audio",
+                messageType: "voice",
                 requestId: UUID().uuidString
             )
 
@@ -2144,6 +2148,7 @@ struct ChatView: View {
             let sunfilePayload: [String: Any] = [
                 "__sunfile": true,
                 "url": uploadResult.url,
+                "data": uploadResult.url,
                 "mime": uploadResult.mime,
                 "name": uploadResult.name,
                 "size": uploadResult.size,

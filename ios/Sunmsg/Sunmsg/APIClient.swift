@@ -279,7 +279,7 @@ final class APIClient: ObservableObject {
             "title": title,
             "member_user_ids": memberUserIds,
         ])
-        let data = try await perform(req, expectedStatus: 201)
+        let data = try await perform(req, expectedStatus: 200)
         return try decode(GroupCreateResponse.self, from: data)
     }
 
@@ -385,6 +385,54 @@ final class APIClient: ObservableObject {
         let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
         struct R: Decodable { let success: Bool }
         return try decode(R.self, from: data).success
+    }
+
+    func createKeyTransferLoginSession(receiverPublicJwk: KeyTransferJWK) async throws -> KeyTransferLoginSessionResponse {
+        let url = baseURL.appendingPathComponent("/api/key_transfer/login/sessions")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "receiver_public_jwk": receiverPublicJwk.jsonObject,
+        ])
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
+        return try decode(KeyTransferLoginSessionResponse.self, from: data)
+    }
+
+    func claimLoginKeyTransferSession(sessionId: String) async throws -> KeyTransferLoginClaimResponse {
+        let url = baseURL.appendingPathComponent("/api/key_transfer/login/sessions/\(sessionId)/claim")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
+        return try decode(KeyTransferLoginClaimResponse.self, from: data)
+    }
+
+    func getKeyTransferSessionDetails(sessionId: String, kind: QRTransferKind) async throws -> KeyTransferSessionDetailsResponse {
+        let basePath = kind == .login ? "/api/key_transfer/login/sessions" : "/api/key_transfer/sessions"
+        let url = baseURL.appendingPathComponent("\(basePath)/\(sessionId)")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        return try decode(KeyTransferSessionDetailsResponse.self, from: data)
+    }
+
+    func submitKeyTransferSession(
+        sessionId: String,
+        kind: QRTransferKind,
+        senderPublicJwk: KeyTransferJWK,
+        cipherText: String,
+        iv: String
+    ) async throws {
+        let basePath = kind == .login ? "/api/key_transfer/login/sessions" : "/api/key_transfer/sessions"
+        let url = baseURL.appendingPathComponent("\(basePath)/\(sessionId)/submit")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "sender_public_jwk": senderPublicJwk.jsonObject,
+            "cipher_text": cipherText,
+            "iv": iv,
+        ])
+        _ = try await perform(req, expectedStatus: 200)
     }
 
     func getTotpStatus() async throws -> TotpResponse {
@@ -548,6 +596,32 @@ final class APIClient: ObservableObject {
         return MediaUploadResult(url: r.url, mime: r.mime, mediaType: r.mediaType, name: r.name, size: r.size)
     }
 
+    func uploadAvatar(data: Data, mimeType: String) async throws -> AvatarUploadResponse {
+        let url = baseURL.appendingPathComponent("/upload_avatar")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+
+        let boundary = "SunAvatarBoundary\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.setValue(csrfToken, forHTTPHeaderField: "X-CSRFToken")
+        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
+        req.setValue(baseURL.absoluteString + "/", forHTTPHeaderField: "Referer")
+
+        let ext = mimeType.contains("png") ? "png" : "jpg"
+        let filename = "avatar_\(Int(Date().timeIntervalSince1970)).\(ext)"
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"avatar\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        req.httpBody = body
+
+        let responseData = try await perform(req, expectedStatus: 200)
+        return try decode(AvatarUploadResponse.self, from: responseData)
+    }
+
     // MARK: - Authenticated media fetching
 
     /// Fetch raw bytes from an authenticated media URL using the same session
@@ -597,6 +671,12 @@ final class APIClient: ObservableObject {
         return try decode(AppSettings.self, from: data)
     }
 
+    func getRawSettingsObject() async throws -> [String: Any] {
+        let url = baseURL.appendingPathComponent("/api/get_settings")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        return try jsonObject(from: data)
+    }
+
     func saveSettings(_ payload: [String: Any]) async throws {
         let url = baseURL.appendingPathComponent("/api/save_settings")
         var req = URLRequest(url: url)
@@ -604,6 +684,58 @@ final class APIClient: ObservableObject {
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func deleteAccount() async throws {
+        let url = baseURL.appendingPathComponent("/api/delete_account")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func getSpotifyStatus() async throws -> SpotifyStatusResponse {
+        let url = baseURL.appendingPathComponent("/spotify/status")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        return try decode(SpotifyStatusResponse.self, from: data)
+    }
+
+    func saveSpotifyPrivacy(privacy: String, hideExplicit: Bool) async throws {
+        let url = baseURL.appendingPathComponent("/spotify/privacy")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "spotify_privacy": privacy,
+            "hide_explicit": hideExplicit,
+        ])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func disconnectSpotify() async throws {
+        let url = baseURL.appendingPathComponent("/spotify/disconnect")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func submitSupportRequest(category: String, contactHandle: String, subject: String, message: String) async throws -> SupportRequestResponse {
+        let url = baseURL.appendingPathComponent("/api/support/requests")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "source_page": "settings",
+            "category": category,
+            "contact_handle": contactHandle,
+            "subject": subject,
+            "message": message,
+        ])
+        let data = try await perform(req, expectedStatus: 201)
+        return try decode(SupportRequestResponse.self, from: data)
     }
 
     // MARK: - Session devices
