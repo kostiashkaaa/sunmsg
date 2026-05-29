@@ -218,7 +218,12 @@ struct NativeLoginView: View {
             VStack(spacing: 0) {
                 // Back + logo
                 HStack {
-                    Button(action: { flow = .landing; username = ""; mnemonic = "" }) {
+                    Button(action: {
+                        focusedField = nil
+                        flow = .landing
+                        username = ""
+                        mnemonic = ""
+                    }) {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 14, weight: .semibold))
@@ -427,7 +432,11 @@ struct NativeLoginView: View {
                 .opacity(totpCode.count == 6 ? 1 : 0.55)
                 .padding(.horizontal, 28)
 
-                Button(action: { flow = .landing; totpCode = "" }) {
+                Button(action: {
+                    focusedField = nil
+                    flow = .landing
+                    totpCode = ""
+                }) {
                     Text("Использовать другой аккаунт")
                         .font(.system(size: 14))
                         .foregroundStyle(Color.smMuted)

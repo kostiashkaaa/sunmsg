@@ -319,6 +319,7 @@ struct TotpSettingsView: View {
     @State private var showRegenerateBackup = false
     @State private var newBackupCodes: [String] = []
     @State private var pendingAction: TotpPendingAction?
+    @State private var setupQRImage: UIImage?
     private static let enabledAtParser: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
@@ -366,6 +367,9 @@ struct TotpSettingsView: View {
         .toolbarBackground(Color.smBg, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .task { await loadStatus() }
+        .task(id: status?.totpUri ?? "") { uri in
+            setupQRImage = uri.isEmpty ? nil : generateQRCodeImage(from: uri)
+        }
         .confirmationDialog(pendingAction?.title ?? "Подтвердите действие", isPresented: pendingActionBinding, titleVisibility: .visible) {
             if let pendingAction {
                 Button(pendingAction.confirmTitle, role: .destructive) {
@@ -422,7 +426,7 @@ struct TotpSettingsView: View {
             sectionHeader("ПОДТВЕРЖДЕНИЕ НАСТРОЙКИ")
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 14) {
-                    qrCodeView(uri: status.totpUri)
+                    qrCodeView
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Секрет")
                             .font(.system(size: 12.5, weight: .semibold))
@@ -546,12 +550,12 @@ struct TotpSettingsView: View {
         .disabled(isWorking)
     }
 
-    private func qrCodeView(uri: String) -> some View {
+    private var qrCodeView: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color.white)
                 .frame(width: 150, height: 150)
-            if let qr = generateQRCodeImage(from: uri) {
+            if let qr = setupQRImage {
                 Image(uiImage: qr)
                     .interpolation(.none)
                     .resizable()

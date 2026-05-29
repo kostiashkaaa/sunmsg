@@ -399,8 +399,17 @@ struct ContactProfileView: View {
             let page = try await session.api.getSharedContentCandidates(chatId: contact.chatId, limit: 80)
             let privateKey = KeychainService.loadPrivateKey()
             let myId = session.bootstrap?.user.id ?? 0
-            let items = page.messages.compactMap { message -> ProfileSharedContentItem? in
-                let body = sharedContentBody(for: message, privateKey: privateKey, myId: myId)
+            let messages = page.messages
+            let sharedBodies = await Task.detached(priority: .userInitiated) {
+                var bodies: [Int: String] = [:]
+                bodies.reserveCapacity(messages.count)
+                for message in messages {
+                    bodies[message.id] = Self.sharedContentBody(for: message, privateKey: privateKey, myId: myId)
+                }
+                return bodies
+            }.value
+            let items = messages.compactMap { message -> ProfileSharedContentItem? in
+                let body = sharedBodies[message.id] ?? (message.message ?? "")
                 return ProfileSharedContentItem(message: message, body: body)
             }
             sharedContentItems = items
@@ -417,7 +426,7 @@ struct ContactProfileView: View {
         isLoadingSharedContent = false
     }
 
-    private func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
+    private static func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
         let raw = message.message ?? ""
         guard raw.hasPrefix("{"), let privateKey else { return raw }
         if ProfileSharedContentItem.jsonObject(from: raw)?["__suncall"] != nil {

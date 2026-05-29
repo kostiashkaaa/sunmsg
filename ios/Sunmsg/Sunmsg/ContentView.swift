@@ -1102,21 +1102,23 @@ struct SplashView: View {
 }
 
 private struct SplashLoadingDotsView: View {
-    @State private var dotPhase: Double = 0
-    private let timer = Timer.publish(every: 0.18, on: .main, in: .common).autoconnect()
+    private static let stepInterval: TimeInterval = 0.18
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<4, id: \.self) { i in
-                let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
-                Circle()
-                    .fill(Color.smAccent)
-                    .frame(width: 6, height: 6)
-                    .opacity(0.25 + phase * 0.75)
-                    .scaleEffect(0.85 + phase * 0.30)
+        TimelineView(.periodic(from: .now, by: Self.stepInterval)) { timeline in
+            let dotPhase = timeline.date.timeIntervalSinceReferenceDate / Self.stepInterval * 0.20
+
+            HStack(spacing: 8) {
+                ForEach(0..<4, id: \.self) { i in
+                    let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
+                    Circle()
+                        .fill(Color.smAccent)
+                        .frame(width: 6, height: 6)
+                        .opacity(0.25 + phase * 0.75)
+                        .scaleEffect(0.85 + phase * 0.30)
+                }
             }
         }
-        .onReceive(timer) { _ in dotPhase += 0.20 }
     }
 }
 

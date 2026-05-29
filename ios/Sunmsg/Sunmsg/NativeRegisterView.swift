@@ -144,6 +144,7 @@ struct NativeRegisterView: View {
 
             // Back to login
             Button(action: {
+                focusedField = nil
                 withAnimation(.easeInOut(duration: 0.22)) {
                     session.route = .login
                 }

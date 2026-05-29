@@ -1046,6 +1046,8 @@ struct SmBadge: View {
 
 // MARK: - QR code helper
 
+private let smQRCodeCIContext = CIContext()
+
 func generateQRCodeImage(from string: String) -> UIImage? {
     let data = Data(string.utf8)
     guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
@@ -1053,8 +1055,7 @@ func generateQRCodeImage(from string: String) -> UIImage? {
     filter.setValue("M", forKey: "inputCorrectionLevel")
     guard let output = filter.outputImage else { return nil }
     let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-    let context = CIContext()
-    guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+    guard let cgImage = smQRCodeCIContext.createCGImage(scaled, from: scaled.extent) else { return nil }
     return UIImage(cgImage: cgImage)
 }
 
@@ -1066,15 +1067,12 @@ struct UserQRSheet: View {
     @State private var selectedTab = 0
     @State private var scannedValue: String?
     @State private var showScannedAlert = false
+    @State private var qrImage: UIImage?
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
     private var qrContent: String {
         "@\(user?.username ?? "unknown")"
-    }
-
-    private var qrImage: UIImage? {
-        generateQRCodeImage(from: qrContent)
     }
 
     var body: some View {
@@ -1127,6 +1125,9 @@ struct UserQRSheet: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(scannedValue ?? "")
+            }
+            .task(id: qrContent) {
+                qrImage = generateQRCodeImage(from: qrContent)
             }
         }
     }
@@ -1300,6 +1301,10 @@ final class QRScannerViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        session?.stopRunning()
+        let runningSession = session
+        session = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            runningSession?.stopRunning()
+        }
     }
 }
