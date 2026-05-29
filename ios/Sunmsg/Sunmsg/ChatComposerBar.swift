@@ -126,7 +126,7 @@ struct ChatComposerBar: View {
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(PressableStyle(scale: 0.92))
-            .disabled(!canSendSecureMessage)
+            .disabled(!canSendSecureMessage || isSending || isUploadingMedia)
             .accessibilityLabel("Вложение")
         }
     }
@@ -216,6 +216,8 @@ struct ChatComposerBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Отменить запись")
+        } else if isUploadingMedia {
+            EmptyView()
         } else {
             Menu {
                 ForEach(emojiSuggestions, id: \.self) { emoji in
@@ -233,7 +235,12 @@ struct ChatComposerBar: View {
 
     private var actionButton: some View {
         Group {
-            if editingMessageId != nil {
+            if isSending || isUploadingMedia {
+                ProgressView()
+                    .tint(Color.smBubbleOutText)
+                    .frame(width: 36, height: 36)
+                    .background(Color.smAccent, in: Circle())
+            } else if editingMessageId != nil {
                 composerActionButton(
                     systemName: "checkmark",
                     fill: trimmedText.isEmpty ? Color.smFaint : Color.smAccent,
@@ -254,11 +261,6 @@ struct ChatComposerBar: View {
                     disabled: false,
                     action: onStopAndSendRecording
                 )
-            } else if isSending || isUploadingMedia {
-                ProgressView()
-                    .tint(Color.smBubbleOutText)
-                    .frame(width: 36, height: 36)
-                    .background(Color.smAccent, in: Circle())
             } else {
                 composerActionButton(
                     systemName: "arrow.up",

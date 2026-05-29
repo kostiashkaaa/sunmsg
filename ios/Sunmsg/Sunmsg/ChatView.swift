@@ -1126,31 +1126,43 @@ struct ChatView: View {
     private func encryptDraftForServer(_ draftText: String) async throws -> String {
         let normalized = normalizeDraftText(draftText)
         guard hasMeaningfulDraft(normalized) else { return "" }
-        guard let privateKey = KeychainService.loadPrivateKey(), !myPublicKey.isEmpty else {
-            throw NSError(domain: "sunmsg.draft", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing encryption key."])
-        }
-        if contact.isGroup {
-            let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
+        let chatId = contact.chatId
+        let isGroup = contact.isGroup
+        let receiverPEM = contact.publicKey
+        let senderPEM = myPublicKey
+        let privateKey = try await Task.detached(priority: .utility) { () throws -> String in
+            guard let privateKey = KeychainService.loadPrivateKey(), !senderPEM.isEmpty else {
+                throw NSError(domain: "sunmsg.draft", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing encryption key."])
+            }
+            return privateKey
+        }.value
+
+        if isGroup {
+            let profile = try await session.api.getGroupInfo(chatId: chatId)
             let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
             guard !memberKeys.isEmpty else {
                 throw NSError(domain: "sunmsg.draft", code: 2, userInfo: [NSLocalizedDescriptionKey: "No group recipient keys."])
             }
-            return try SunCrypto.encryptMessageForRecipients(
-                normalized,
-                recipientPEMs: memberKeys,
-                senderPEM: myPublicKey,
-                privateKeyPEM: privateKey
-            )
+            return try await Task.detached(priority: .utility) { () throws -> String in
+                try SunCrypto.encryptMessageForRecipients(
+                    normalized,
+                    recipientPEMs: memberKeys,
+                    senderPEM: senderPEM,
+                    privateKeyPEM: privateKey
+                )
+            }.value
         }
-        guard !contact.publicKey.isEmpty else {
+        guard !receiverPEM.isEmpty else {
             throw NSError(domain: "sunmsg.draft", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing recipient key."])
         }
-        return try SunCrypto.encryptMessage(
-            normalized,
-            receiverPEM: contact.publicKey,
-            senderPEM: myPublicKey,
-            privateKeyPEM: privateKey
-        )
+        return try await Task.detached(priority: .utility) { () throws -> String in
+            try SunCrypto.encryptMessage(
+                normalized,
+                receiverPEM: receiverPEM,
+                senderPEM: senderPEM,
+                privateKeyPEM: privateKey
+            )
+        }.value
     }
 
     private func decryptDraftForLocalDisplay(_ rawDraft: String) -> String {
@@ -1224,40 +1236,62 @@ struct ChatView: View {
     private func saveEdit() {
         guard let mid = editingMessageId else { return }
         let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        guard let privateKey = KeychainService.loadPrivateKey(),
-              !contact.publicKey.isEmpty, !myPublicKey.isEmpty else {
-            sendError = "Ключ шифрования не загружен."
-            return
-        }
-        if SocketClient.shared.state != .connected {
-            sendError = "Нет соединения — изменение будет отправлено после переподключения."
-        }
-        do {
-            let encrypted = try SunCrypto.encryptMessage(
-                text, receiverPEM: contact.publicKey,
-                senderPEM: myPublicKey, privateKeyPEM: privateKey
-            )
-            SocketClient.shared.emit("edit_message", [
-                "msg_id": mid,
-                "new_content": encrypted,
-                "chat_id": contact.chatId,
-                "message_type": "text",
-                "request_id": UUID().uuidString,
-            ])
-            // Optimistic local update.
-            if let i = messages.firstIndex(where: { $0.id == mid }) {
-                messages[i].message = encrypted
-                messages[i].isEdited = true
-                decryptedTexts[mid] = text
-                let updated = messages[i]
-                Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
+        guard !text.isEmpty, !isSending else { return }
+
+        isSending = true
+        let chatId = contact.chatId
+        let receiverPEM = contact.publicKey
+        let senderPEM = myPublicKey
+
+        Task {
+            do {
+                let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                    guard let privateKey = KeychainService.loadPrivateKey(),
+                          !receiverPEM.isEmpty,
+                          !senderPEM.isEmpty else {
+                        throw NSError(
+                            domain: "sunmsg.crypto",
+                            code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен."]
+                        )
+                    }
+                    return try SunCrypto.encryptMessage(
+                        text,
+                        receiverPEM: receiverPEM,
+                        senderPEM: senderPEM,
+                        privateKeyPEM: privateKey
+                    )
+                }.value
+
+                await MainActor.run {
+                    if SocketClient.shared.state != .connected {
+                        sendError = "Нет соединения — изменение будет отправлено после переподключения."
+                    }
+                    SocketClient.shared.emit("edit_message", [
+                        "msg_id": mid,
+                        "new_content": encrypted,
+                        "chat_id": chatId,
+                        "message_type": "text",
+                        "request_id": UUID().uuidString,
+                    ])
+                    // Optimistic local update.
+                    if let i = messages.firstIndex(where: { $0.id == mid }) {
+                        messages[i].message = encrypted
+                        messages[i].isEdited = true
+                        decryptedTexts[mid] = text
+                        let updated = messages[i]
+                        Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: chatId) }
+                    }
+                    isSending = false
+                    cancelEdit()
+                }
+            } catch {
+                await MainActor.run {
+                    sendError = error.localizedDescription
+                    isSending = false
+                }
             }
-        } catch {
-            sendError = error.localizedDescription
-            return
         }
-        cancelEdit()
     }
 
     private func deleteMessage(id: Int, mode: String) {
