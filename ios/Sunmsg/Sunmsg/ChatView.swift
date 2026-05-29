@@ -3564,10 +3564,8 @@ final class AudioPlayerController {
             : AuthenticatedAsset.make(url: url)
         do {
             let d = try await asset.load(.duration).seconds
-            await MainActor.run {
-                guard self.preparedURL == url else { return }
-                self.duration = d.isFinite ? d : 0
-            }
+            guard preparedURL == url else { return }
+            duration = d.isFinite ? d : 0
         } catch { }
     }
 
