@@ -1056,35 +1056,29 @@ struct SmBadge: View {
     }
 }
 
-// MARK: - QR code helper
-
-private let smQRCodeCIContext = CIContext()
-
-func generateQRCodeImage(from string: String) -> UIImage? {
-    let data = Data(string.utf8)
-    guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-    filter.setValue(data, forKey: "inputMessage")
-    filter.setValue("M", forKey: "inputCorrectionLevel")
-    guard let output = filter.outputImage else { return nil }
-    let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-    guard let cgImage = smQRCodeCIContext.createCGImage(scaled, from: scaled.extent) else { return nil }
-    return UIImage(cgImage: cgImage)
-}
-
 // MARK: - User QR sheet (show own QR + scanner)
 
 struct UserQRSheet: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab = 0
-    @State private var scannedValue: String?
-    @State private var showScannedAlert = false
     @State private var qrImage: UIImage?
+    @State private var scannerRestartId = UUID()
+    @State private var isHandlingScan = false
+    @State private var scanStatus = "Наведите камеру на QR профиля или QR-входа."
+    @State private var scanResultTitle = ""
+    @State private var scanResultMessage = ""
+    @State private var scanResultOpensPeople = false
+    @State private var showScanResult = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
-    private var qrContent: String {
+    private var displayHandle: String {
         "@\(user?.username ?? "unknown")"
+    }
+
+    private var qrContent: String {
+        "su:\(user?.username ?? "unknown")"
     }
 
     var body: some View {
@@ -1107,11 +1101,7 @@ struct UserQRSheet: View {
                     if selectedTab == 0 {
                         myQRView
                     } else {
-                        QRScannerView(onScanned: { value in
-                            scannedValue = value
-                            showScannedAlert = true
-                        })
-                        .ignoresSafeArea(edges: .bottom)
+                        scannerView
                     }
 
                     Spacer(minLength: 0)
@@ -1127,16 +1117,18 @@ struct UserQRSheet: View {
                         .foregroundStyle(Color.smMuted)
                 }
             }
-            .alert("QR код отсканирован", isPresented: $showScannedAlert) {
-                if let val = scannedValue, val.hasPrefix("@") {
-                    Button("Найти контакт") {
+            .alert(scanResultTitle, isPresented: $showScanResult) {
+                if scanResultOpensPeople {
+                    Button("Открыть контакты") {
                         session.selectedTab = 2
                         dismiss()
                     }
                 }
-                Button("OK", role: .cancel) {}
+                Button("OK", role: .cancel) {
+                    restartScanner()
+                }
             } message: {
-                Text(scannedValue ?? "")
+                Text(scanResultMessage)
             }
             .task(id: qrContent) {
                 qrImage = generateQRCodeImage(from: qrContent)
@@ -1169,7 +1161,7 @@ struct UserQRSheet: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Color.smText)
                             .tracking(-0.3)
-                        Text(qrContent)
+                        Text(displayHandle)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.smAccent2)
                     }
@@ -1177,7 +1169,7 @@ struct UserQRSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
 
-                Text("Покажите этот QR другому пользователю sun, чтобы он смог добавить вас в контакты")
+                Text("Покажите этот QR другому пользователю SUN: сканер откроет профиль и поможет начать чат.")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.smFaint)
                     .multilineTextAlignment(.center)
@@ -1185,11 +1177,63 @@ struct UserQRSheet: View {
 
                 HStack(spacing: 5) {
                     Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Color.smOnline)
-                    Text("Данные зашифрованы · sun")
+                    Text("QR содержит только публичный @username")
                         .font(.system(size: 11.5, weight: .medium))
                         .foregroundStyle(Color.smOnline)
                 }
                 .padding(.bottom, 24)
+            }
+        }
+    }
+
+    private var scannerView: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                QRScannerView(onScanned: handleScannedValue)
+                    .id(scannerRestartId)
+
+                QRScannerFrameOverlay(active: !isHandlingScan)
+
+                if isHandlingScan {
+                    Color.black.opacity(0.34)
+                    VStack(spacing: 10) {
+                        ProgressView()
+                            .tint(.white)
+                        Text(scanStatus)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+            .frame(height: 360)
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.smBorder, lineWidth: 0.5))
+            .padding(.horizontal, 18)
+
+            VStack(spacing: 6) {
+                Text(scanStatus)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(Color.smText)
+                    .multilineTextAlignment(.center)
+                Text("Поддерживаются QR профиля, QR-входа skl: и перенос ключа sun-key-transfer.")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Color.smFaint)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 28)
+
+            if isHandlingScan {
+                Button(action: restartScanner) {
+                    Text("Сканировать заново")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.smAccent2)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(Color.smAccent.opacity(0.10), in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -1212,9 +1256,117 @@ struct UserQRSheet: View {
         }
         .buttonStyle(.plain)
     }
+
+    private func handleScannedValue(_ rawValue: String) {
+        guard !isHandlingScan else { return }
+        let code = QRTransferCode.parse(rawValue)
+        switch code.kind {
+        case .profile:
+            handleProfileCode(code)
+        case .login, .device:
+            handleTransferCode(code)
+        case .unknown:
+            scanResultTitle = "QR не распознан"
+            scanResultMessage = "Этот код не похож на QR профиля или QR-входа SUN."
+            scanResultOpensPeople = false
+            showScanResult = true
+            isHandlingScan = true
+        }
+    }
+
+    private func handleProfileCode(_ code: QRTransferCode) {
+        guard !code.username.isEmpty else { return }
+        isHandlingScan = true
+        scanStatus = "Ищем @\(code.username)..."
+        let api = session.api
+        Task {
+            do {
+                let response = try await api.startChat(username: code.username)
+                await session.refreshContacts()
+                await MainActor.run {
+                    scanResultTitle = response.status == "existing" ? "Чат найден" : "Запрос отправлен"
+                    scanResultMessage = response.status == "existing"
+                        ? "Чат с @\(code.username) уже доступен в контактах."
+                        : "Мы отправили запрос @\(code.username). Ответ появится в разделе запросов."
+                    scanResultOpensPeople = true
+                    showScanResult = true
+                    isHandlingScan = false
+                }
+            } catch APIError.unauthorized {
+                await MainActor.run {
+                    dismiss()
+                    session.route = .login
+                }
+            } catch {
+                await MainActor.run {
+                    scanResultTitle = "Не удалось открыть профиль"
+                    scanResultMessage = error.localizedDescription
+                    scanResultOpensPeople = false
+                    showScanResult = true
+                    isHandlingScan = false
+                }
+            }
+        }
+    }
+
+    private func handleTransferCode(_ code: QRTransferCode) {
+        isHandlingScan = true
+        scanStatus = code.kind == .login ? "Подтверждаем QR-вход..." : "Передаем ключ на новое устройство..."
+        let api = session.api
+        Task {
+            do {
+                try await QRTransferService.submitLocalPrivateKey(for: code, api: api)
+                await MainActor.run {
+                    scanResultTitle = "Готово"
+                    scanResultMessage = code.kind == .login
+                        ? "QR-вход подтвержден. Второе устройство завершит вход автоматически."
+                        : "Ключ передан на новое устройство."
+                    scanResultOpensPeople = false
+                    showScanResult = true
+                    isHandlingScan = false
+                }
+            } catch APIError.unauthorized {
+                await MainActor.run {
+                    dismiss()
+                    session.route = .login
+                }
+            } catch {
+                await MainActor.run {
+                    scanResultTitle = "QR-вход не выполнен"
+                    scanResultMessage = error.localizedDescription
+                    scanResultOpensPeople = false
+                    showScanResult = true
+                    isHandlingScan = false
+                }
+            }
+        }
+    }
+
+    private func restartScanner() {
+        isHandlingScan = false
+        scanStatus = "Наведите камеру на QR профиля или QR-входа."
+        scannerRestartId = UUID()
+    }
 }
 
 // MARK: - QR scanner (AVFoundation-based)
+
+private struct QRScannerFrameOverlay: View {
+    let active: Bool
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.10)
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(active ? Color.white.opacity(0.92) : Color.white.opacity(0.45), lineWidth: 2)
+                .frame(width: 220, height: 220)
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.78))
+        }
+        .allowsHitTesting(false)
+    }
+}
 
 struct QRScannerView: UIViewControllerRepresentable {
     let onScanned: (String) -> Void

@@ -129,6 +129,17 @@ struct NativeLoginView: View {
                     }
                     .padding(.bottom, 20)
 
+                    QRLoginPanel { scannedUsername, privateKeyPEM in
+                        await MainActor.run { flow = .loading }
+                        do {
+                            try await completeLoginWithPrivateKey(username: scannedUsername, privateKeyPEM: privateKeyPEM)
+                        } catch {
+                            await MainActor.run { flow = .landing }
+                            throw error
+                        }
+                    }
+                    .padding(.bottom, 16)
+
                     // Primary: create new account (4-point sparkle, dark fill, matches prototype)
                     Button(action: openRegister) {
                         HStack(spacing: 8) {
@@ -535,6 +546,47 @@ struct NativeLoginView: View {
             } catch {
                 await MainActor.run { flow = .error(error.localizedDescription) }
             }
+        }
+    }
+
+    private func completeLoginWithPrivateKey(username rawUsername: String, privateKeyPEM: String) async throws {
+        let trimmedUser = rawUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        guard !trimmedUser.isEmpty else {
+            throw NSError(
+                domain: "SUNmessenger.NativeLogin",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Не удалось определить аккаунт для QR-входа."]
+            )
+        }
+
+        let api = APIClient.shared
+        if api.csrfToken.isEmpty {
+            api.csrfToken = try await api.getCsrfToken()
+        }
+        let csrfTok = api.csrfToken
+        let challengeResp = try await api.getChallenge(username: trimmedUser)
+        let signature = try await Task.detached(priority: .userInitiated) {
+            try SunCrypto.rsaSign(challengeResp.challenge, privateKeyPEM: privateKeyPEM)
+        }.value
+        let loginResp = try await api.loginChallenge(signature: signature)
+        if loginResp.requiresTotp {
+            await MainActor.run {
+                flow = .totp(csrfToken: loginResp.csrfToken ?? csrfTok, privateKeyPEM: privateKeyPEM)
+            }
+            return
+        }
+
+        try? KeychainService.savePrivateKey(privateKeyPEM)
+        await session.loadBootstrap()
+        if session.route != .main {
+            let message = session.errorMessage ?? "Не удалось загрузить сессию. Попробуйте ещё раз."
+            session.errorMessage = nil
+            throw NSError(
+                domain: "SUNmessenger.NativeLogin",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: message]
+            )
         }
     }
 

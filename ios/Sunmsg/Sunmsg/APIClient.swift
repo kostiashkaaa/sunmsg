@@ -322,6 +322,11 @@ final class APIClient: ObservableObject {
         csrfToken = ""
         KeychainService.deleteAllLocalSecrets()
         Task { await ChatLocalStore.shared.resetAll() }
+        clearSessionCookiesOnly()
+    }
+
+    func clearSessionCookiesOnly() {
+        csrfToken = ""
         guard let cookies = HTTPCookieStorage.shared.cookies(for: baseURL) else { return }
         for cookie in cookies {
             HTTPCookieStorage.shared.deleteCookie(cookie)
@@ -671,6 +676,21 @@ final class APIClient: ObservableObject {
         return try decode(AppSettings.self, from: data)
     }
 
+    func getLoginVault() async throws -> String {
+        let url = baseURL.appendingPathComponent("/api/get_login_vault")
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        struct R: Decodable {
+            let success: Bool
+            let loginVault: String
+
+            enum CodingKeys: String, CodingKey {
+                case success
+                case loginVault = "login_vault"
+            }
+        }
+        return try decode(R.self, from: data).loginVault
+    }
+
     func getRawSettingsObject() async throws -> [String: Any] {
         let url = baseURL.appendingPathComponent("/api/get_settings")
         let data = try await perform(URLRequest(url: url), expectedStatus: 200)
@@ -692,6 +712,20 @@ final class APIClient: ObservableObject {
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func rotateKeys(newPublicKey: String, signature: String, ts: Int, newLoginVault: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/keys/rotate")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "new_public_key": newPublicKey,
+            "signature": signature,
+            "ts": ts,
+            "new_login_vault": newLoginVault,
+        ])
         _ = try await perform(req, expectedStatus: 200)
     }
 
