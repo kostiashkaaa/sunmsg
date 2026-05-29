@@ -1479,6 +1479,25 @@ struct SettingsView: View {
 
 // MARK: - Profile Settings View
 
+private struct AvatarEditorDraft: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+private enum ProfileSettingsSheet: Identifiable {
+    case userQR
+    case avatarEditor(AvatarEditorDraft)
+
+    var id: String {
+        switch self {
+        case .userQR:
+            return "userQR"
+        case .avatarEditor(let draft):
+            return "avatarEditor-\(draft.id.uuidString)"
+        }
+    }
+}
+
 struct ProfileSettingsView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.dismiss) private var dismiss
@@ -1488,11 +1507,10 @@ struct ProfileSettingsView: View {
     @State private var bio = ""
     @State private var currentSettings: AppSettings?
     @State private var selectedAvatarItem: PhotosPickerItem?
-    @State private var avatarEditorImage: UIImage?
     @State private var isUploadingAvatar = false
     @State private var isSaving = false
     @State private var saveError: String?
-    @State private var showQRSheet = false
+    @State private var activeSheet: ProfileSettingsSheet?
 
     private var user: BootstrapUser? { session.bootstrap?.user }
     private var trimmedDisplayName: String { displayName.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1603,7 +1621,7 @@ struct ProfileSettingsView: View {
                 }
 
                 Section {
-                    Button { showQRSheet = true } label: {
+                    Button { activeSheet = .userQR } label: {
                         Label("Мой QR-код", systemImage: "qrcode")
                     }
                 }
@@ -1629,15 +1647,12 @@ struct ProfileSettingsView: View {
                     .disabled(!canSaveProfile)
                 }
             }
-            .sheet(isPresented: $showQRSheet) {
-                UserQRSheet()
-            }
-            .sheet(isPresented: Binding(
-                get: { avatarEditorImage != nil },
-                set: { if !$0 { avatarEditorImage = nil } }
-            )) {
-                if let avatarEditorImage {
-                    AvatarEditorView(image: avatarEditorImage) { jpegData in
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .userQR:
+                    UserQRSheet()
+                case .avatarEditor(let draft):
+                    AvatarEditorView(image: draft.image) { jpegData in
                         await uploadAvatar(jpegData)
                     }
                     .presentationBackground(Color.smBg)
@@ -1728,7 +1743,7 @@ struct ProfileSettingsView: View {
         do {
             if let data = try await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                avatarEditorImage = image
+                activeSheet = .avatarEditor(AvatarEditorDraft(image: image))
             }
         } catch {
             saveError = error.localizedDescription
