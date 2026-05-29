@@ -2967,7 +2967,7 @@ struct SettingsTransferView: View {
             let url = try result.get()
             let access = url.startAccessingSecurityScopedResource()
             defer { if access { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
+            let data = try await readImportData(from: url)
             guard
                 let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let server = object["serverSettings"] as? [String: Any]
@@ -2989,6 +2989,12 @@ struct SettingsTransferView: View {
             self.error = error.localizedDescription
         }
         isWorking = false
+    }
+
+    private func readImportData(from url: URL) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            try Data(contentsOf: url)
+        }.value
     }
 
     private func sanitizedImportPayload(server: [String: Any], clientPreferences: [String: Any]) -> [String: Any] {
