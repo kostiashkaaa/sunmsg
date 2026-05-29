@@ -485,6 +485,7 @@ struct GroupCreateView: View {
     @State private var query = ""
     @State private var remoteResults: [SearchUserResult] = []
     @State private var selected: [GroupMemberCandidate] = []
+    @State private var localCandidatesSnapshot: [GroupMemberCandidate] = []
     @State private var visibleCandidates: [GroupMemberCandidate]?
     @State private var searchSeq = 0
     @State private var searchTask: Task<Void, Never>?
@@ -492,14 +493,20 @@ struct GroupCreateView: View {
     @State private var isCreating = false
     @State private var error: String?
 
-    private func makeVisibleCandidates() -> [GroupMemberCandidate] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let selectedIds = Set(selected.map { $0.userId })
+    private func makeLocalCandidates() -> [GroupMemberCandidate] {
         let currentUserId = session.bootstrap?.user.id
-        let localCandidates = session.contacts
+        return session.contacts
             .compactMap(GroupMemberCandidate.from)
             .filter { $0.userId != currentUserId }
+            .sorted { $0.userId < $1.userId }
+    }
+
+    private func makeVisibleCandidates(localCandidates: [GroupMemberCandidate]? = nil) -> [GroupMemberCandidate] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedIds = Set(selected.map { $0.userId })
+        let localCandidates = localCandidates ?? makeLocalCandidates()
         let local = filter(candidates: localCandidates, query: trimmed)
+        let currentUserId = session.bootstrap?.user.id
         let remote = remoteResults
             .map(GroupMemberCandidate.from)
             .filter { $0.userId != currentUserId }
@@ -558,8 +565,8 @@ struct GroupCreateView: View {
                 searchTask?.cancel()
                 searchTask = nil
             }
-            .onAppear { rebuildVisibleCandidates() }
-            .onReceive(session.$contacts) { _ in rebuildVisibleCandidates() }
+            .onAppear { refreshVisibleCandidatesFromContacts(force: true) }
+            .onReceive(session.$contacts) { _ in refreshVisibleCandidatesFromContacts() }
         }
     }
 
@@ -822,8 +829,15 @@ struct GroupCreateView: View {
         }
     }
 
-    private func rebuildVisibleCandidates() {
-        let next = makeVisibleCandidates()
+    private func refreshVisibleCandidatesFromContacts(force: Bool = false) {
+        let localCandidates = makeLocalCandidates()
+        guard force || localCandidates != localCandidatesSnapshot else { return }
+        localCandidatesSnapshot = localCandidates
+        rebuildVisibleCandidates(localCandidates: localCandidates)
+    }
+
+    private func rebuildVisibleCandidates(localCandidates: [GroupMemberCandidate]? = nil) {
+        let next = makeVisibleCandidates(localCandidates: localCandidates)
         if visibleCandidates != next {
             visibleCandidates = next
         }
