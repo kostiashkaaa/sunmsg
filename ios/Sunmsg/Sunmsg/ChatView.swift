@@ -2698,10 +2698,11 @@ struct MessageBubbleView: View {
             ChatHaptics.lightImpact()
         }) {
             HStack(spacing: 3) {
-                Text(r.emoji).font(.system(size: 15.5))
+                Text(r.emoji)
+                    .font(.body)
                 if r.count > 1 {
                     Text("\(r.count)")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(countColor)
                 }
             }
