@@ -309,7 +309,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 } else {
                     Button(action: onLoadOlder) {
                         Text("Загрузить ранние сообщения")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.footnote.weight(.medium))
                             .foregroundStyle(Color.smAccent)
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
@@ -428,7 +428,7 @@ private struct DateChipView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(Color.smMuted)
                 .padding(.horizontal, 9)
                 .padding(.vertical, 3)
