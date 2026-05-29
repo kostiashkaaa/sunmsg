@@ -710,10 +710,10 @@ struct SunMarkView: View {
 // MARK: - Sync chip view
 
 struct SyncChipView: View {
-    @EnvironmentObject var session: SessionStore
+    @State private var socketState = SocketClient.shared.state
 
     var body: some View {
-        let state = session.socketState
+        let state = socketState
         let label = state == .connected ? "СИНХ" : (state == .connecting ? "ПОДКЛ" : "ОФФ")
         let color = state == .connected ? Color.smOnline : (state == .connecting ? Color.smAccent2 : Color.smMuted)
 
@@ -730,6 +730,12 @@ struct SyncChipView: View {
         .padding(.vertical, 2)
         .background(color.opacity(0.10), in: Capsule())
         .overlay(Capsule().stroke(color.opacity(0.22), lineWidth: 0.5))
+        .onAppear {
+            socketState = SocketClient.shared.state
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .smSocketStateChanged)) { _ in
+            socketState = SocketClient.shared.state
+        }
     }
 }
 

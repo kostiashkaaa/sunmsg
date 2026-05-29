@@ -50,8 +50,9 @@ final class SessionStore: ObservableObject {
     @Published var pendingRequests: [DialogRequest] = []
     @Published var errorMessage: String?
 
-    // Socket state
-    @Published var socketState: SocketClient.State = .disconnected
+    // Socket state is surfaced through smSocketStateChanged; publishing it here
+    // would invalidate every EnvironmentObject consumer on each reconnect.
+    var socketState: SocketClient.State = .disconnected
 
     // Call history
     @Published var callHistory: [CallRecord] = []
@@ -70,7 +71,7 @@ final class SessionStore: ObservableObject {
     let api = APIClient.shared
     private let syncEngine = ChatSyncEngine(api: APIClient.shared)
     private let mutedChatIdsDefaultsKey = "sun_chat_muted_v1"
-    @Published private var mutedChatIds: Set<String> = []
+    private var mutedChatIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
     private var typingTimers: [String: Task<Void, Never>] = [:]
     private var presenceTimer: Timer?
@@ -1042,9 +1043,6 @@ struct ContentView: View {
 // MARK: - Splash (matches prototype exactly)
 
 struct SplashView: View {
-    @State private var dotPhase: Double = 0
-    private let timer = Timer.publish(every: 0.18, on: .main, in: .common).autoconnect()
-
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
@@ -1089,18 +1087,26 @@ struct SplashView: View {
                 Spacer()
                 Spacer()
 
-                // Loading dots — 4 dots with sequential pulse
-                HStack(spacing: 8) {
-                    ForEach(0..<4, id: \.self) { i in
-                        let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
-                        Circle()
-                            .fill(Color.smAccent)
-                            .frame(width: 6, height: 6)
-                            .opacity(0.25 + phase * 0.75)
-                            .scaleEffect(0.85 + phase * 0.30)
-                    }
-                }
-                .padding(.bottom, 110)
+                SplashLoadingDotsView()
+                    .padding(.bottom, 110)
+            }
+        }
+    }
+}
+
+private struct SplashLoadingDotsView: View {
+    @State private var dotPhase: Double = 0
+    private let timer = Timer.publish(every: 0.18, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { i in
+                let phase = (sin(dotPhase + Double(i) * 0.7) + 1) / 2
+                Circle()
+                    .fill(Color.smAccent)
+                    .frame(width: 6, height: 6)
+                    .opacity(0.25 + phase * 0.75)
+                    .scaleEffect(0.85 + phase * 0.30)
             }
         }
         .onReceive(timer) { _ in dotPhase += 0.20 }
