@@ -1866,3 +1866,34 @@ def test_api_refresh_reestablishes_session_without_access_token(monkeypatch, tmp
         assert sess['user_id'] == 1
         assert sess['public_key_pem'] == 'pk-1'
         assert sess.permanent is True
+
+
+def test_api_refresh_allows_native_restore_without_csrf_header(monkeypatch, tmp_path):
+    db_path = tmp_path / 'auth-refresh-native-csrf.db'
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
+
+    app = create_app('testing', overrides={
+        'DATABASE_PATH': str(db_path),
+        'WTF_CSRF_ENABLED': True,
+    })
+
+    with _connect(db_path) as conn:
+        conn.execute(
+            '''
+            INSERT INTO users (id, public_key, username, display_name)
+            VALUES (1, 'pk-1', 'alice', 'Alice')
+            '''
+        )
+        conn.commit()
+
+    with app.test_request_context('/api/refresh', headers={'User-Agent': 'ios-native'}):
+        raw_token, _ = issue_refresh_token(1, family_id='family-native')
+
+    client = app.test_client()
+    client.set_cookie(REFRESH_COOKIE_NAME, raw_token)
+    response = client.post('/api/refresh')
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload['success'] is True
+    assert payload['csrf_token']

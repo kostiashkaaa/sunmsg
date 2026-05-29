@@ -106,6 +106,10 @@ final class SocketClient: NSObject, @unchecked Sendable {
         openSocket()
     }
 
+    func updateCsrfToken(_ csrfToken: String) {
+        self.csrfToken = csrfToken
+    }
+
     func disconnect() {
         reconnectTask?.cancel()
         reconnectTask = nil

@@ -603,7 +603,8 @@ final class SessionStore: ObservableObject {
     // MARK: - Socket lifecycle
 
     func connectSocket() {
-        guard let token = bootstrap?.csrfToken else { return }
+        let token = api.csrfToken.isEmpty ? (bootstrap?.csrfToken ?? "") : api.csrfToken
+        guard !token.isEmpty else { return }
         SocketClient.shared.connect(csrfToken: token)
         if SocketClient.shared.state == .connected {
             markActive()

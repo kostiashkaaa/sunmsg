@@ -38,6 +38,16 @@ enum APIError: Error, LocalizedError {
     }
 }
 
+private struct RefreshSessionResponse: Decodable {
+    let success: Bool
+    let csrfToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case csrfToken = "csrf_token"
+    }
+}
+
 final class APIClient: ObservableObject {
     static let shared = APIClient()
 
@@ -180,7 +190,7 @@ final class APIClient: ObservableObject {
 
     func getCsrfToken() async throws -> String {
         let url = baseURL.appendingPathComponent("/api/mobile/csrf")
-        let data = try await perform(URLRequest(url: url), expectedStatus: 200)
+        let data = try await perform(URLRequest(url: url), expectedStatus: 200, allowsRefresh: false)
         struct R: Decodable { let csrf_token: String }
         return try decode(R.self, from: data).csrf_token
     }
@@ -201,7 +211,7 @@ final class APIClient: ObservableObject {
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["username": username])
-        let data = try await perform(req, expectedStatus: 200)
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
         return try decode(ChallengeResponse.self, from: data)
     }
 
@@ -211,7 +221,7 @@ final class APIClient: ObservableObject {
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["signature": signature])
-        let data = try await perform(req, expectedStatus: 200)
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
         return try decode(LoginChallengeResponse.self, from: data)
     }
 
@@ -221,7 +231,7 @@ final class APIClient: ObservableObject {
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: [:])
-        let data = try await perform(req, expectedStatus: 200)
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
         struct R: Decodable { let success: Bool; let challenge: String }
         return try decode(R.self, from: data).challenge
     }
@@ -240,7 +250,7 @@ final class APIClient: ObservableObject {
             "register_challenge": challenge,
             "register_signature": signature,
         ])
-        _ = try await perform(req, expectedStatus: 200)
+        _ = try await perform(req, expectedStatus: 200, allowsRefresh: false)
     }
 
     func loginTOTP(code: String) async throws -> Bool {
@@ -249,9 +259,43 @@ final class APIClient: ObservableObject {
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["totp_code": code])
-        let data = try await perform(req, expectedStatus: 200)
+        let data = try await perform(req, expectedStatus: 200, allowsRefresh: false)
         struct R: Decodable { let success: Bool }
         return try decode(R.self, from: data).success
+    }
+
+    @discardableResult
+    func refreshSession() async throws -> String {
+        let url = baseURL.appendingPathComponent("/api/refresh")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
+        req.setValue(baseURL.absoluteString + "/", forHTTPHeaderField: "Referer")
+        if !csrfToken.isEmpty {
+            req.setValue(csrfToken, forHTTPHeaderField: "X-CSRFToken")
+        }
+        req.httpBody = Data("{}".utf8)
+
+        let data: Data
+        do {
+            data = try await send(req, expectedStatus: 200)
+        } catch let error as APIError {
+            if shouldAttemptSessionRefresh(for: error) {
+                csrfToken = ""
+                throw APIError.unauthorized
+            }
+            throw error
+        }
+        let decoded = try decode(RefreshSessionResponse.self, from: data)
+        guard decoded.success, !decoded.csrfToken.isEmpty else {
+            throw APIError.unauthorized
+        }
+        csrfToken = decoded.csrfToken
+        await MainActor.run {
+            SocketClient.shared.updateCsrfToken(decoded.csrfToken)
+        }
+        return decoded.csrfToken
     }
 
     // MARK: - Send message
@@ -529,27 +573,62 @@ final class APIClient: ObservableObject {
         return URL(string: value, relativeTo: baseURL)?.absoluteURL
     }
 
-    private func perform(_ request: URLRequest, expectedStatus: Int) async throws -> Data {
+    private func perform(_ request: URLRequest, expectedStatus: Int, allowsRefresh: Bool = true) async throws -> Data {
         var req = request
         if req.httpMethod == nil { req.httpMethod = "GET" }
         do {
-            let (data, response) = try await session.data(for: req)
-            guard let http = response as? HTTPURLResponse else { throw APIError.serverError(0, nil) }
-            if http.statusCode == 401 {
-                if let message = serverErrorMessage(from: data), !message.isEmpty {
-                    throw APIError.serverError(http.statusCode, message)
+            do {
+                return try await send(req, expectedStatus: expectedStatus)
+            } catch let error as APIError {
+                guard allowsRefresh, shouldAttemptSessionRefresh(for: error) else {
+                    throw error
                 }
-                throw APIError.unauthorized
+                try await refreshSession()
+                return try await send(requestByApplyingCurrentCsrf(to: req), expectedStatus: expectedStatus)
             }
-            if http.statusCode != expectedStatus {
-                throw APIError.serverError(http.statusCode, serverErrorMessage(from: data))
-            }
-            return data
         } catch let error as APIError {
             throw error
         } catch {
             throw APIError.networkError(error)
         }
+    }
+
+    private func send(_ request: URLRequest, expectedStatus: Int) async throws -> Data {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.serverError(0, nil) }
+        if http.statusCode == 401 {
+            if let message = serverErrorMessage(from: data), !message.isEmpty {
+                throw APIError.serverError(http.statusCode, message)
+            }
+            throw APIError.unauthorized
+        }
+        if http.statusCode != expectedStatus {
+            throw APIError.serverError(http.statusCode, serverErrorMessage(from: data))
+        }
+        return data
+    }
+
+    private func shouldAttemptSessionRefresh(for error: APIError) -> Bool {
+        switch error {
+        case .unauthorized:
+            return true
+        case .serverError(let code, let message):
+            if code == 401 { return true }
+            if code == 400, (message ?? "").localizedCaseInsensitiveContains("csrf") {
+                return true
+            }
+            return false
+        case .decodingFailed, .networkError:
+            return false
+        }
+    }
+
+    private func requestByApplyingCurrentCsrf(to request: URLRequest) -> URLRequest {
+        var req = request
+        if req.value(forHTTPHeaderField: "X-CSRFToken") != nil {
+            req.setValue(csrfToken, forHTTPHeaderField: "X-CSRFToken")
+        }
+        return req
     }
 
     private func serverErrorMessage(from data: Data) -> String? {

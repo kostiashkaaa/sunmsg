@@ -140,6 +140,7 @@ def create_app(config_name=None, overrides=None):
     csrf.init_app(app)
 
     app.register_blueprint(auth_bp)
+    csrf.exempt(app.view_functions['auth.api_refresh'])
     app.register_blueprint(call_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(contacts_bp)
