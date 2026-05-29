@@ -6,6 +6,18 @@ import AVKit
 import AVFoundation
 import ImageIO
 
+private struct ChatProfileDestination: Hashable {
+    let contact: Contact
+
+    static func == (lhs: ChatProfileDestination, rhs: ChatProfileDestination) -> Bool {
+        lhs.contact.chatId == rhs.contact.chatId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(contact.chatId)
+    }
+}
+
 struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
@@ -96,7 +108,7 @@ struct ChatView: View {
     }
 
     @FocusState private var composerFocused: Bool
-    @State private var showContactProfile = false
+    @State private var contactProfileDestination: ChatProfileDestination?
 
     private var myId: Int { session.bootstrap?.user.id ?? 0 }
     private var myPublicKey: String { session.bootstrap?.user.publicKey ?? "" }
@@ -133,8 +145,8 @@ struct ChatView: View {
             .toolbar(.hidden, for: .navigationBar)
             // The bottom tab bar must not show while a chat is open.
             .toolbar(.hidden, for: .tabBar)
-            .navigationDestination(isPresented: $showContactProfile) {
-                ContactProfileView(contact: liveContact)
+            .navigationDestination(item: $contactProfileDestination) { destination in
+                ContactProfileView(contact: destination.contact)
                     .toolbar(.visible, for: .navigationBar)
             }
             .confirmationDialog("Удалить сообщение?", isPresented: deleteDialogBinding, titleVisibility: .visible) {
@@ -336,7 +348,7 @@ struct ChatView: View {
             isSavedMessages: isSavedMessages,
             isTyping: partnerIsTyping || current.isTyping,
             onBack: { dismiss() },
-            onOpenProfile: { showContactProfile = true }
+            onOpenProfile: { contactProfileDestination = ChatProfileDestination(contact: liveContact) }
         )
     }
 
