@@ -258,6 +258,79 @@ enum SunDateParser {
     }
 }
 
+enum SunDateFormatters {
+    private static let lock = NSLock()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let ruTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter
+    }()
+
+    private static let ruDayMonthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMMM"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter
+    }()
+
+    private static let ruShortDateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM HH:mm"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter
+    }()
+
+    private static let weekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter
+    }()
+
+    private static let shortDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yy"
+        return formatter
+    }()
+
+    private static func string(_ formatter: DateFormatter, from date: Date) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return formatter.string(from: date)
+    }
+
+    static func time(from date: Date) -> String {
+        string(timeFormatter, from: date)
+    }
+
+    static func ruTime(from date: Date) -> String {
+        string(ruTimeFormatter, from: date)
+    }
+
+    static func ruDayMonth(from date: Date) -> String {
+        string(ruDayMonthFormatter, from: date)
+    }
+
+    static func ruShortDateTime(from date: Date) -> String {
+        string(ruShortDateTimeFormatter, from: date)
+    }
+
+    static func weekday(from date: Date) -> String {
+        string(weekdayFormatter, from: date)
+    }
+
+    static func shortDate(from date: Date) -> String {
+        string(shortDateFormatter, from: date)
+    }
+}
+
 func smFormatLastSeen(_ timestamp: Double?) -> String {
     guard let timestamp else { return "не в сети" }
     let date = Date(timeIntervalSince1970: timestamp)
@@ -270,21 +343,12 @@ func smFormatLastSeen(_ timestamp: Double?) -> String {
         return "был(а) в сети \(minutes) \(suffix) назад"
     }
     if Calendar.current.isDateInToday(date) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = Locale(identifier: "ru_RU")
-        return "был(а) в сети сегодня в \(formatter.string(from: date))"
+        return "был(а) в сети сегодня в \(SunDateFormatters.ruTime(from: date))"
     }
     if Calendar.current.isDateInYesterday(date) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = Locale(identifier: "ru_RU")
-        return "был(а) в сети вчера в \(formatter.string(from: date))"
+        return "был(а) в сети вчера в \(SunDateFormatters.ruTime(from: date))"
     }
-    let formatter = DateFormatter()
-    formatter.dateFormat = "dd.MM HH:mm"
-    formatter.locale = Locale(identifier: "ru_RU")
-    return "был(а) в сети \(formatter.string(from: date))"
+    return "был(а) в сети \(SunDateFormatters.ruShortDateTime(from: date))"
 }
 
 // MARK: - Contact
@@ -1119,12 +1183,12 @@ func smFormatTime(_ ts: Double) -> String {
     let date = Date(timeIntervalSince1970: ts)
     let cal = Calendar.current
     if cal.isDateInToday(date) {
-        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: date)
+        return SunDateFormatters.time(from: date)
     }
     if cal.isDateInYesterday(date) { return "Yesterday" }
     let days = cal.dateComponents([.day], from: date, to: .now).day ?? 0
-    if days < 7 { let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: date) }
-    let f = DateFormatter(); f.dateFormat = "dd.MM.yy"; return f.string(from: date)
+    if days < 7 { return SunDateFormatters.weekday(from: date) }
+    return SunDateFormatters.shortDate(from: date)
 }
 
 // MARK: - Call History Model

@@ -2021,10 +2021,7 @@ struct DateChipView: View {
         let cal = Calendar.current
         if cal.isDateInToday(date) { return "Сегодня" }
         if cal.isDateInYesterday(date) { return "Вчера" }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ru_RU")
-        f.dateFormat = "d MMMM"
-        return f.string(from: date)
+        return SunDateFormatters.ruDayMonth(from: date)
     }
 
     var body: some View {
@@ -2468,8 +2465,7 @@ struct MessageBubbleView: View {
     }
 
     private func formatBubbleTime(_ ts: Double) -> String {
-        let f = DateFormatter(); f.dateFormat = "HH:mm"
-        return f.string(from: Date(timeIntervalSince1970: ts))
+        SunDateFormatters.time(from: Date(timeIntervalSince1970: ts))
     }
 
     private func senderColor(_ name: String) -> Color {
