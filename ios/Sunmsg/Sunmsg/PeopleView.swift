@@ -25,8 +25,6 @@ struct PeopleView: View {
     @State private var query = ""
     @State private var results: [SearchUserResult] = []
     @State private var isSearching = false
-    @State private var searchTask: Task<Void, Never>?
-    @State private var searchSequence = 0
     @State private var requestSent: Set<Int> = []
     @State private var navigateToContact: PeopleChatDestination?
     @State private var activeSheet: PeopleSheetDestination?
@@ -61,6 +59,9 @@ struct PeopleView: View {
         .toolbar(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.interactively)
         .task { await session.refreshDialogRequests() }
+        .task(id: query) {
+            await performSearch(query)
+        }
         .navigationDestination(item: $navigateToContact) { destination in
             ChatView(contact: destination.contact)
         }
@@ -71,9 +72,6 @@ struct PeopleView: View {
                     navigateToContact = PeopleChatDestination(contact: contact)
                 }
             }
-        }
-        .onDisappear {
-            cancelSearch(clearResults: false)
         }
     }
 
@@ -106,12 +104,10 @@ struct PeopleView: View {
                 .tint(Color.smAccent)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-                .onChange(of: query) { _, q in performSearch(q) }
 
             if !query.isEmpty {
                 Button(action: {
                     query = ""
-                    cancelSearch(clearResults: true)
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15))
@@ -344,12 +340,9 @@ struct PeopleView: View {
 
     // MARK: - Actions
 
-    private func performSearch(_ q: String) {
+    @MainActor
+    private func performSearch(_ q: String) async {
         let trimmed = q.trimmingCharacters(in: .whitespacesAndNewlines)
-        searchTask?.cancel()
-        searchTask = nil
-        searchSequence += 1
-        let sequence = searchSequence
 
         guard trimmed.count >= 3 else {
             results = []
@@ -358,37 +351,21 @@ struct PeopleView: View {
         }
 
         isSearching = true
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 320_000_000)
-            guard !Task.isCancelled else { return }
-            do {
-                let found = try await APIClient.shared.searchUsers(query: trimmed)
-                await MainActor.run {
-                    guard sequence == searchSequence,
-                          query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed
-                    else { return }
-                    results = found
-                    isSearching = false
-                    searchTask = nil
-                }
-            } catch {
-                await MainActor.run {
-                    guard sequence == searchSequence else { return }
-                    isSearching = false
-                    searchTask = nil
-                }
+        do {
+            try await Task.sleep(nanoseconds: 320_000_000)
+            try Task.checkCancellation()
+            let found = try await APIClient.shared.searchUsers(query: trimmed)
+            try Task.checkCancellation()
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
+            results = found
+            isSearching = false
+        } catch is CancellationError {
+            if query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed {
+                isSearching = false
             }
+        } catch {
+            isSearching = false
         }
-    }
-
-    private func cancelSearch(clearResults: Bool) {
-        searchTask?.cancel()
-        searchTask = nil
-        searchSequence += 1
-        if clearResults {
-            results = []
-        }
-        isSearching = false
     }
 
     private func handleTap(_ user: SearchUserResult) {
