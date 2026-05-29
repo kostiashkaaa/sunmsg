@@ -113,9 +113,9 @@ struct MessageContextMenu<Preview: View>: View {
     private func actionList(maxHeight: CGFloat) -> some View {
         ScrollView(showsIndicators: actions.count > 8) {
             VStack(spacing: 0) {
-                ForEach(actions.indices, id: \.self) { index in
-                    actionRow(actions[index])
-                    if index < actions.count - 1 {
+                ForEach(actions) { action in
+                    actionRow(action)
+                    if action.id != actions.last?.id {
                         Rectangle()
                             .fill(Color.smBorderSoft)
                             .frame(height: 0.5)
