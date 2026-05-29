@@ -4,6 +4,7 @@ import SwiftUI
 
 struct CallsView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedSegment = 0
 
     private var filteredCalls: [CallRecord] {
@@ -113,7 +114,7 @@ struct CallsView: View {
     }
 
     private func segmentButton(_ label: String, index: Int, badge: Int? = nil) -> some View {
-        Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedSegment = index } }) {
+        Button(action: { selectSegment(index) }) {
             HStack(spacing: 6) {
                 Text(label)
                     .font(.system(size: 13, weight: selectedSegment == index ? .semibold : .medium))
@@ -139,6 +140,17 @@ struct CallsView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func selectSegment(_ index: Int) {
+        guard index != selectedSegment else { return }
+        guard !reduceMotion else {
+            selectedSegment = index
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            selectedSegment = index
+        }
     }
 
     // MARK: - Empty state
