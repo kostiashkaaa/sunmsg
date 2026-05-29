@@ -673,8 +673,9 @@ struct GroupCreateView: View {
     }
 
     private var candidateList: some View {
+        let candidates = visibleCandidates
         Group {
-            if visibleCandidates.isEmpty {
+            if candidates.isEmpty {
                 VStack(spacing: 10) {
                     Spacer()
                     Image(systemName: "person.2.slash")
@@ -689,9 +690,9 @@ struct GroupCreateView: View {
             } else {
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(visibleCandidates.enumerated()), id: \.element.id) { index, candidate in
+                        ForEach(Array(candidates.enumerated()), id: \.element.id) { index, candidate in
                             candidateRow(candidate)
-                            if index < visibleCandidates.count - 1 {
+                            if index < candidates.count - 1 {
                                 Divider().padding(.leading, 68).background(Color.smBorderSoft)
                             }
                         }

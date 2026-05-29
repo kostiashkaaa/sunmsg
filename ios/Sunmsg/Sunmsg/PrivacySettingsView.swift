@@ -319,6 +319,12 @@ struct TotpSettingsView: View {
     @State private var showRegenerateBackup = false
     @State private var newBackupCodes: [String] = []
     @State private var pendingAction: TotpPendingAction?
+    private static let enabledAtParser: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 
     var body: some View {
         ZStack {
@@ -721,12 +727,8 @@ struct TotpSettingsView: View {
     private func formatEnabledAt(_ raw: String) -> String {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return "неизвестно" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        if let date = formatter.date(from: value) {
-            formatter.dateFormat = "dd.MM.yyyy HH:mm"
-            return formatter.string(from: date)
+        if let date = Self.enabledAtParser.date(from: value) {
+            return SunDateFormatters.ruFullDateTime(from: date)
         }
         return value
     }

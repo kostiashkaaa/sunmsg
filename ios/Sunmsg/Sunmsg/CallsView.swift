@@ -13,6 +13,8 @@ struct CallsView: View {
     private var missedCount: Int { session.callHistory.filter { $0.missed }.count }
 
     var body: some View {
+        let calls = filteredCalls
+
         ZStack {
             Color.smBg.ignoresSafeArea()
 
@@ -20,11 +22,11 @@ struct CallsView: View {
                 headerRow
                 segmentedControl
 
-                if filteredCalls.isEmpty {
+                if calls.isEmpty {
                     emptyState
                 } else {
                     List {
-                        ForEach(filteredCalls) { call in
+                        ForEach(calls) { call in
                             CallRowView(call: call)
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.visible, edges: .bottom)

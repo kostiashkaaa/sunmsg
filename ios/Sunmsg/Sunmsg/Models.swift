@@ -303,6 +303,13 @@ enum SunDateFormatters {
         return formatter
     }()
 
+    private static let ruFullDateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy HH:mm"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter
+    }()
+
     private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
@@ -335,6 +342,10 @@ enum SunDateFormatters {
 
     static func ruShortDateTime(from date: Date) -> String {
         string(ruShortDateTimeFormatter, from: date)
+    }
+
+    static func ruFullDateTime(from date: Date) -> String {
+        string(ruFullDateTimeFormatter, from: date)
     }
 
     static func weekday(from date: Date) -> String {

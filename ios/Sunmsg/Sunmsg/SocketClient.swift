@@ -5,6 +5,8 @@ import Foundation
 extension Notification.Name {
     /// Fired when a Socket.IO event is received. UserInfo keys: SocketEventKey.*
     static let smSocketMessage       = Notification.Name("smSocketMessage")
+    /// Fired after SessionStore has normalized and gap-checked an incoming message.
+    static let smPreparedIncomingMessage = Notification.Name("smPreparedIncomingMessage")
     /// Fired when connection state changes (no extra payload — read SocketClient.shared.state).
     static let smSocketStateChanged  = Notification.Name("smSocketStateChanged")
 }
@@ -13,6 +15,11 @@ struct SocketEventKey {
     static let eventName = "event"   // String
     static let data      = "data"    // Any? (dict, array, etc.)
     static let replay    = "replay"  // Bool
+}
+
+struct PreparedIncomingMessageKey {
+    static let chatId  = "chat_id"  // String
+    static let message = "message"  // ChatMessage
 }
 
 // MARK: - SocketClient

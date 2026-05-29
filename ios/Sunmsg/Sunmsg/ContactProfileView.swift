@@ -615,10 +615,7 @@ private struct ProfileSharedContentItem: Identifiable {
     }
 
     private static func formatDate(_ timestamp: Double) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "dd.MM HH:mm"
-        return formatter.string(from: Date(timeIntervalSince1970: timestamp))
+        SunDateFormatters.ruShortDateTime(from: Date(timeIntervalSince1970: timestamp))
     }
 
     private static func formatBytes(_ raw: Any?) -> String? {

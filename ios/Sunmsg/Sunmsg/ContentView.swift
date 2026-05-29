@@ -50,11 +50,6 @@ final class SessionStore: ObservableObject {
     @Published var pendingRequests: [DialogRequest] = []
     @Published var errorMessage: String?
 
-    // Reliable real-time message delivery to ChatView
-    @Published var incomingMsgTick: Int = 0
-    private(set) var lastIncomingMsg: ChatMessage? = nil
-    private(set) var lastIncomingChatId: String = ""
-
     // Socket state
     @Published var socketState: SocketClient.State = .disconnected
 
@@ -154,7 +149,6 @@ final class SessionStore: ObservableObject {
                   let msgId  = payload["id"] as? Int else { return }
             // Update sidebar contact preview
             handleIncomingSocketMessage(payload)
-            // Store for ChatView to observe via incomingMsgTick
             let msg = ChatMessage(
                 id: msgId,
                 chatId: chatId,
@@ -166,9 +160,14 @@ final class SessionStore: ObservableObject {
                 senderDisplayName: payload["sender_display_name"] as? String,
                 senderUsername: payload["sender_username"] as? String
             )
-            lastIncomingMsg = msg
-            lastIncomingChatId = chatId
-            incomingMsgTick += 1
+            NotificationCenter.default.post(
+                name: .smPreparedIncomingMessage,
+                object: nil,
+                userInfo: [
+                    PreparedIncomingMessageKey.chatId: chatId,
+                    PreparedIncomingMessageKey.message: msg,
+                ]
+            )
 
         case "user_status":
             if let pubKey = payload["public_key"] as? String,
@@ -2470,10 +2469,7 @@ struct DevicesView: View {
 
     private func formatTimestamp(_ ts: Double) -> String {
         guard ts > 0 else { return "неизвестно" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "dd.MM.yyyy HH:mm"
-        return formatter.string(from: Date(timeIntervalSince1970: ts))
+        return SunDateFormatters.ruFullDateTime(from: Date(timeIntervalSince1970: ts))
     }
 
     private func formatRemaining(_ ts: Double) -> String {
