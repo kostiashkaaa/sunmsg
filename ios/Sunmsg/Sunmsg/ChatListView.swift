@@ -243,11 +243,11 @@ struct ChatListView: View {
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text("История заблокирована — нажмите для восстановления")
-                            .font(.system(size: 12.5, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.smText)
                             .tracking(-0.1)
                         Text("Введите 24 слова, чтобы расшифровать сообщения")
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundStyle(Color.smMuted)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
