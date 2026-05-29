@@ -357,7 +357,7 @@ struct ChatView: View {
                 .buttonStyle(PressableStyle(scale: 0.92))
 
                 Text("\(selectedMessageIds.count) выбрано")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
 
                 Spacer(minLength: 8)
@@ -401,7 +401,7 @@ struct ChatView: View {
     private var toastView: some View {
         if let toast {
             Text(toast)
-                .font(.system(size: 13, weight: .medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(Color.smText)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 9)
@@ -674,10 +674,10 @@ struct ChatView: View {
                 .font(.system(size: 42))
                 .foregroundStyle(Color.smFaint)
             Text("Нет сообщений")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(Color.smMuted)
             Text(contact.isGroup ? "Группа создана. Начните общение." : "Напишите первое сообщение.")
-                .font(.system(size: 13.5))
+                .font(.subheadline)
                 .foregroundStyle(Color.smFaint)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 34)
