@@ -101,12 +101,12 @@ struct NativeLoginView: View {
                 VStack(spacing: 0) {
                     AmberOrb(size: 56)
                     Text("sun")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.title.weight(.bold))
                         .foregroundStyle(Color.smText)
                         .tracking(-1.0)
                         .padding(.top, 14)
                     Text("добро пожаловать в мессенджер")
-                        .font(.custom("Georgia", size: 15).italic())
+                        .font(.custom("Georgia", size: 15, relativeTo: .subheadline).italic())
                         .foregroundStyle(Color.smMuted)
                         .padding(.top, 4)
                 }
@@ -118,11 +118,11 @@ struct NativeLoginView: View {
                     // Header
                     VStack(spacing: 4) {
                         Text("ВХОД В АККАУНТ")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.caption2.weight(.bold))
                             .foregroundStyle(Color.smMuted)
                             .tracking(0.6)
                         Text("аккаунт — это ваша 24-словная фраза. она хранится только на устройстве.")
-                            .font(.system(size: 12.5))
+                            .font(.caption)
                             .foregroundStyle(Color.smMuted)
                             .multilineTextAlignment(.center)
                             .lineSpacing(2)
@@ -146,7 +146,7 @@ struct NativeLoginView: View {
                             SparkleStar(size: 14)
                                 .foregroundStyle(Color(hex: "#fbf8f1"))
                             Text("Создать новый аккаунт")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .tracking(-0.2)
                         }
                         .frame(maxWidth: .infinity)
@@ -161,7 +161,7 @@ struct NativeLoginView: View {
                     HStack(spacing: 10) {
                         Rectangle().fill(Color.smBorder).frame(height: 1)
                         Text("или")
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color.smFaint)
                             .tracking(0.6)
                             .textCase(.uppercase)
@@ -182,10 +182,10 @@ struct NativeLoginView: View {
                             }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Восстановить по фразе")
-                                    .font(.system(size: 13.5, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Color.smText)
                                 Text("введите 24 слова")
-                                    .font(.system(size: 11))
+                                    .font(.caption2)
                                     .foregroundStyle(Color.smMuted)
                             }
                             Spacer()
@@ -205,7 +205,7 @@ struct NativeLoginView: View {
 
                     // Footer note
                     Text("продолжая, вы принимаете\nусловия использования и политику")
-                        .font(.system(size: 10.5))
+                        .font(.caption2)
                         .foregroundStyle(Color.smFaint)
                         .multilineTextAlignment(.center)
                         .padding(.top, 18)
@@ -241,7 +241,7 @@ struct NativeLoginView: View {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 14, weight: .semibold))
                             Text("Назад")
-                                .font(.system(size: 15))
+                                .font(.callout)
                         }
                         .foregroundStyle(Color.smAccent)
                     }
@@ -254,11 +254,11 @@ struct NativeLoginView: View {
                 VStack(spacing: 16) {
                     AmberOrb(size: 60)
                     Text("Восстановить аккаунт")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.title2.weight(.bold))
                         .foregroundStyle(Color.smText)
                         .tracking(-0.8)
                     Text("введите имя пользователя и 24 слова")
-                        .font(.system(size: 14).italic())
+                        .font(.subheadline.italic())
                         .foregroundStyle(Color.smMuted)
                 }
                 .padding(.top, 24)
@@ -268,7 +268,7 @@ struct NativeLoginView: View {
                     // Username
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Имя пользователя", systemImage: "person")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.smMuted)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -280,7 +280,7 @@ struct NativeLoginView: View {
                             .textInputAutocapitalization(.never)
                             .submitLabel(.next)
                             .onSubmit { focusedField = .mnemonic }
-                            .font(.system(size: 16))
+                            .font(.body)
                             .foregroundStyle(Color.smText)
                             .tint(Color.smAccent)
                             .padding(.horizontal, 14)
@@ -295,7 +295,7 @@ struct NativeLoginView: View {
                     // Mnemonic
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Секретная фраза (24 слова)", systemImage: "key")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Color.smMuted)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -303,7 +303,7 @@ struct NativeLoginView: View {
                         ZStack(alignment: .topLeading) {
                             if mnemonic.isEmpty {
                                 Text("слово1 слово2 слово3 … слово24")
-                                    .font(.system(size: 14, design: .monospaced))
+                                    .font(.system(.subheadline, design: .monospaced))
                                     .foregroundStyle(Color.smFaint)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 14)
@@ -311,7 +311,7 @@ struct NativeLoginView: View {
                             }
                             TextEditor(text: $mnemonic)
                                 .focused($focusedField, equals: .mnemonic)
-                                .font(.system(size: 14, design: .monospaced))
+                                .font(.system(.subheadline, design: .monospaced))
                                 .foregroundStyle(Color.smText)
                                 .tint(Color.smAccent)
                                 .autocorrectionDisabled()
@@ -332,7 +332,7 @@ struct NativeLoginView: View {
                                 .font(.system(size: 11))
                                 .foregroundStyle(Color.smAccent2)
                             Text("Вставить из буфера")
-                                .font(.system(size: 12))
+                                .font(.caption)
                                 .foregroundStyle(Color.smAccent2)
                         }
                         .onTapGesture {
@@ -344,7 +344,7 @@ struct NativeLoginView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.circle.fill")
                             Text(msg)
-                                .font(.system(size: 13.5))
+                                .font(.subheadline)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .foregroundStyle(Color.smDanger)
@@ -359,7 +359,7 @@ struct NativeLoginView: View {
                             Image(systemName: "arrow.right.circle.fill")
                                 .font(.system(size: 17))
                             Text("Войти")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.headline)
                                 .tracking(-0.2)
                         }
                         .frame(maxWidth: .infinity)
@@ -391,10 +391,10 @@ struct NativeLoginView: View {
                         .font(.system(size: 36))
                         .foregroundStyle(Color.smAccent)
                     Text("Двухфакторная аутентификация")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(Color.smText)
                     Text("Введите 6-значный код из приложения-аутентификатора.")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(Color.smMuted)
                         .multilineTextAlignment(.center)
                 }
@@ -405,7 +405,7 @@ struct NativeLoginView: View {
                     .focused($focusedField, equals: .totp)
                     .textContentType(.oneTimeCode)
                     .keyboardType(.numberPad)
-                    .font(.system(size: 28, weight: .light, design: .monospaced))
+                    .font(.system(.title, design: .monospaced).weight(.light))
                     .foregroundStyle(Color.smText)
                     .tint(Color.smAccent)
                     .multilineTextAlignment(.center)
@@ -425,7 +425,7 @@ struct NativeLoginView: View {
                 if let errMsg = totpError {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.circle.fill")
-                        Text(errMsg).font(.system(size: 13.5))
+                        Text(errMsg).font(.subheadline)
                     }
                     .foregroundStyle(Color.smDanger)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,7 +434,7 @@ struct NativeLoginView: View {
 
                 Button(action: handleTOTP) {
                     Text("Подтвердить")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .foregroundStyle(Color(hex: "#fbf8f1"))
@@ -451,7 +451,7 @@ struct NativeLoginView: View {
                     totpCode = ""
                 }) {
                     Text("Использовать другой аккаунт")
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .foregroundStyle(Color.smMuted)
                         .underline()
                 }
@@ -468,7 +468,7 @@ struct NativeLoginView: View {
         HStack(spacing: 5) {
             Image(systemName: "lock.fill").font(.system(size: 10))
             Text("Сквозное шифрование · фраза никогда не покидает устройство")
-                .font(.system(size: 11.5))
+                .font(.caption2)
                 .tracking(-0.1)
         }
         .foregroundStyle(Color.smFaint)
@@ -484,7 +484,7 @@ struct NativeLoginView: View {
             VStack(spacing: 12) {
                 ProgressView().tint(Color.smAccent).scaleEffect(1.2)
                 Text("Вход в аккаунт…")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smMuted)
             }
             .padding(28)
