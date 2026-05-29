@@ -220,34 +220,45 @@ def _emit_active_call_ended(conn, call: dict, call_id: str, user_id: int, reques
 def _send_incoming_call_push_if_needed(
     conn, *, call_id: str, chat_id: str, call_type: str, initiator: dict,
     receiver_user_id: int, count_active_func=None, send_call_incoming_push_func=None,
+    send_call_incoming_voip_push_func=None,
     logger=logger,
 ) -> None:
-    if not callable(send_call_incoming_push_func):
+    if not callable(send_call_incoming_push_func) and not callable(send_call_incoming_voip_push_func):
         return
     receiver = _user_identity(conn, receiver_user_id)
     receiver_public_key = str(receiver.get('public_key') or '').strip()
     if callable(count_active_func) and receiver_public_key and count_active_func(receiver_public_key) > 0:
         return
-    try:
-        send_call_incoming_push_func(
-            receiver_user_id=receiver_user_id,
-            initiator_user_id=int(initiator.get('user_id') or 0),
-            initiator_display_name=str(initiator.get('display_name') or ''),
-            initiator_username=str(initiator.get('username') or ''),
-            chat_id=chat_id,
-            call_id=call_id,
-            call_type=call_type,
-        )
-    except Exception:  # noqa: BLE001
-        logger.warning('Incoming call web push failed for receiver_id=%s', receiver_user_id)
-
+    payload = {
+        'receiver_user_id': receiver_user_id,
+        'initiator_user_id': int(initiator.get('user_id') or 0),
+        'initiator_display_name': str(initiator.get('display_name') or ''),
+        'initiator_username': str(initiator.get('username') or ''),
+        'chat_id': chat_id,
+        'call_id': call_id,
+        'call_type': call_type,
+    }
+    if callable(send_call_incoming_push_func):
+        try:
+            send_call_incoming_push_func(**payload)
+        except Exception:  # noqa: BLE001
+            logger.warning('Incoming call web push failed for receiver_id=%s', receiver_user_id)
+    if callable(send_call_incoming_voip_push_func):
+        try:
+            send_call_incoming_voip_push_func(
+                **payload,
+                initiator_avatar_url=str(initiator.get('avatar_url') or ''),
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning('Incoming call APNs VoIP push failed for receiver_id=%s', receiver_user_id)
 
 # ── Lifecycle handlers ────────────────────────────────────────────────────────
 
 def handle_call_initiate(
     data, *, session_store, require_payload_dict_func, socket_csrf_ok_func,
     socket_rate_ok_func, is_valid_chat_id_func, get_db_connection_func,
-    emit_func, count_active_func=None, send_call_incoming_push_func=None, logger=logger,
+    emit_func, count_active_func=None, send_call_incoming_push_func=None,
+    send_call_incoming_voip_push_func=None, logger=logger,
 ):
     user_id = session_store.get('user_id')
     if not require_payload_dict_func(data):
@@ -367,6 +378,7 @@ def handle_call_initiate(
                 receiver_user_id=pid,
                 count_active_func=count_active_func,
                 send_call_incoming_push_func=send_call_incoming_push_func,
+                send_call_incoming_voip_push_func=send_call_incoming_voip_push_func,
                 logger=logger,
             )
 

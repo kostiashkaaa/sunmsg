@@ -292,6 +292,32 @@ final class APIClient: ObservableObject {
         return try decode(R.self, from: data).csrf_token
     }
 
+    func registerAPNsToken(token: String, pushType: String, environment: String, deviceId: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/mobile/apns/register")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "token": token,
+            "push_type": pushType,
+            "environment": environment,
+            "device_id": deviceId,
+        ])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func unregisterAPNsToken(token: String, pushType: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/mobile/apns/unregister")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "token": token,
+            "push_type": pushType,
+        ])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
     func resetAuthSession() {
         csrfToken = ""
         KeychainService.deleteAllLocalSecrets()

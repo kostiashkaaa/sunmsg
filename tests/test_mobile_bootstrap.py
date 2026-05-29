@@ -48,6 +48,22 @@ class _MobileSendConn:
         self.closed = True
 
 
+class _APNSTokenConn:
+    def __init__(self):
+        self.closed = False
+        self.committed = False
+        self.rolled_back = False
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        self.rolled_back = True
+
+    def close(self):
+        self.closed = True
+
+
 def _build_app(monkeypatch, *, conn=None, page_context=None, calls_enabled=False):
     app = Flask(__name__)
     app.secret_key = 'test-secret'
@@ -157,6 +173,98 @@ def test_mobile_bootstrap_returns_json_boot_payload(monkeypatch):
     assert fake_conn.closed is True
     with client.session_transaction() as sess:
         assert sess['ui_language'] == 'en'
+
+
+def test_mobile_apns_register_stores_authenticated_token(monkeypatch):
+    conn = _APNSTokenConn()
+    app, _, _ = _build_app(monkeypatch, conn=conn)
+    saved = []
+
+    def _fake_save(conn_arg, **kwargs):
+        saved.append((conn_arg, kwargs))
+        return True
+
+    monkeypatch.setattr(mobile_routes, 'save_apns_device_token', _fake_save)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.post('/api/mobile/apns/register', json={
+        'token': 'aa' * 32,
+        'push_type': 'voip',
+        'environment': 'sandbox',
+        'device_id': 'device-1',
+    })
+
+    assert response.status_code == 200
+    assert response.get_json() == {'success': True, 'apns_enabled': False}
+    assert saved == [(
+        conn,
+        {
+            'user_id': 1,
+            'token': 'aa' * 32,
+            'push_type': 'voip',
+            'environment': 'sandbox',
+            'bundle_id': '',
+            'device_id': 'device-1',
+        },
+    )]
+    assert conn.committed is True
+    assert conn.rolled_back is False
+    assert conn.closed is True
+
+
+def test_mobile_apns_register_rejects_invalid_token(monkeypatch):
+    conn = _APNSTokenConn()
+    app, _, _ = _build_app(monkeypatch, conn=conn)
+    monkeypatch.setattr(mobile_routes, 'save_apns_device_token', lambda *_args, **_kwargs: False)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.post('/api/mobile/apns/register', json={'token': 'bad-token'})
+
+    assert response.status_code == 400
+    assert response.get_json() == {'success': False, 'error': 'invalid_apns_token'}
+    assert conn.committed is False
+    assert conn.closed is True
+
+
+def test_mobile_apns_unregister_deactivates_authenticated_token(monkeypatch):
+    conn = _APNSTokenConn()
+    app, _, _ = _build_app(monkeypatch, conn=conn)
+    removed = []
+
+    def _fake_deactivate(conn_arg, **kwargs):
+        removed.append((conn_arg, kwargs))
+        return 1
+
+    monkeypatch.setattr(mobile_routes, 'deactivate_apns_device_token', _fake_deactivate)
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['public_key_pem'] = 'pk-1'
+
+    response = client.post('/api/mobile/apns/unregister', json={
+        'token': 'bb' * 32,
+        'push_type': 'voip',
+    })
+
+    assert response.status_code == 200
+    assert response.get_json() == {'success': True}
+    assert removed == [(
+        conn,
+        {
+            'user_id': 1,
+            'token': 'bb' * 32,
+            'push_type': 'voip',
+        },
+    )]
+    assert conn.committed is True
+    assert conn.rolled_back is False
+    assert conn.closed is True
 
 
 def test_mobile_bootstrap_clears_stale_session(monkeypatch):

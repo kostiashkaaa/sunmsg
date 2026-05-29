@@ -20,6 +20,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>SUN_BASE_URL</key>
 	<string>$(SUN_BASE_URL)</string>
+	<key>SUN_ENABLE_VOIP_PUSH</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchScreen</key>

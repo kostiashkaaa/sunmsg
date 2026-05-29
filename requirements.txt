@@ -13,4 +13,5 @@ psycopg[binary]==3.2.13
 redis==5.2.1
 simple-websocket==1.1.0
 pywebpush==2.3.0
+httpx[http2]==0.28.1
 Pillow==12.2.0

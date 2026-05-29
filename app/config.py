@@ -124,6 +124,15 @@ class BaseConfig:
     WEB_PUSH_VAPID_PUBLIC_KEY = ''
     WEB_PUSH_VAPID_PRIVATE_KEY = ''
     WEB_PUSH_VAPID_SUBJECT = 'mailto:noreply@sunmessenger.local'
+    APNS_ENABLED = False
+    APNS_TEAM_ID = ''
+    APNS_KEY_ID = ''
+    APNS_BUNDLE_ID = ''
+    APNS_VOIP_TOPIC = ''
+    APNS_PRIVATE_KEY = ''
+    APNS_PRIVATE_KEY_PATH = ''
+    APNS_ENVIRONMENT = 'sandbox'
+    APNS_TIMEOUT_SECONDS = 5
     SPOTIFY_CLIENT_ID = ''
     SPOTIFY_CLIENT_SECRET = ''
     SPOTIFY_REDIRECT_URI = ''
@@ -443,6 +452,19 @@ class BaseConfig:
                 )
                 or ''
             ).strip(),
+            'APNS_ENABLED': _env_bool('APNS_ENABLED', cls.APNS_ENABLED),
+            'APNS_TEAM_ID': str(os.environ.get('APNS_TEAM_ID', cls.APNS_TEAM_ID) or '').strip(),
+            'APNS_KEY_ID': str(os.environ.get('APNS_KEY_ID', cls.APNS_KEY_ID) or '').strip(),
+            'APNS_BUNDLE_ID': str(os.environ.get('APNS_BUNDLE_ID', cls.APNS_BUNDLE_ID) or '').strip(),
+            'APNS_VOIP_TOPIC': str(os.environ.get('APNS_VOIP_TOPIC', cls.APNS_VOIP_TOPIC) or '').strip(),
+            'APNS_PRIVATE_KEY': str(os.environ.get('APNS_PRIVATE_KEY', cls.APNS_PRIVATE_KEY) or '').strip(),
+            'APNS_PRIVATE_KEY_PATH': str(
+                os.environ.get('APNS_PRIVATE_KEY_PATH', cls.APNS_PRIVATE_KEY_PATH) or ''
+            ).strip(),
+            'APNS_ENVIRONMENT': str(
+                os.environ.get('APNS_ENVIRONMENT', cls.APNS_ENVIRONMENT) or 'sandbox'
+            ).strip(),
+            'APNS_TIMEOUT_SECONDS': max(1, _env_int('APNS_TIMEOUT_SECONDS', cls.APNS_TIMEOUT_SECONDS)),
             'MODERATOR_USER_IDS': str(
                 os.environ.get(
                     'MODERATOR_USER_IDS',

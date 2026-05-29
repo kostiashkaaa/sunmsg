@@ -8,6 +8,11 @@ from app.db_backend import IntegrityError
 from app.extensions import limiter, socketio
 from app.routes.contacts import fetch_contacts_for_user
 from app.routes.socket_emit import build_route_socket_emitter
+from app.services.apns import (
+    apns_config,
+    deactivate_apns_device_token,
+    save_apns_device_token,
+)
 from app.services.call_feature_access import can_user_use_calls
 from app.services.chat_members import get_chat_type
 from app.services.chat_page_state import build_socketio_client_config, fetch_chat_page_context
@@ -125,7 +130,7 @@ def _build_mobile_bootstrap_payload(
             'calls': bool(calls_enabled),
             'groups': True,
             'media': True,
-            'push_apns': False,
+            'push_apns': bool(apns_config(current_app.config)['enabled']),
         },
         'contacts': page_context.get('initial_contacts') or [],
         'has_more_contacts': bool(page_context.get('has_more_initial_contacts')),
@@ -137,6 +142,75 @@ def _build_mobile_bootstrap_payload(
 def mobile_csrf():
     """Returns a CSRF token for use by the native app before login."""
     return jsonify({'csrf_token': generate_csrf()})
+
+
+@mobile_bp.route('/apns/register', methods=['POST'])
+@limiter.limit('60 per minute')
+def mobile_register_apns_token():
+    user_id = _session_user_id()
+    if user_id is None or not session.get('public_key_pem'):
+        clear_invalid_session_user(session)
+        return _unauthorized_response()
+
+    data = request.get_json(silent=True) or {}
+    token = str(data.get('token') or '').strip()
+    push_type = str(data.get('push_type') or 'voip').strip().lower()
+    environment = str(data.get('environment') or current_app.config.get('APNS_ENVIRONMENT') or 'sandbox')
+    device_id = str(data.get('device_id') or '').strip()
+    cfg = apns_config(current_app.config)
+    bundle_id = str(current_app.config.get('APNS_BUNDLE_ID') or '').strip()
+
+    conn = get_db_connection()
+    try:
+        if not save_apns_device_token(
+            conn,
+            user_id=user_id,
+            token=token,
+            push_type='voip' if push_type == 'voip' else 'alert',
+            environment=environment,
+            bundle_id=bundle_id,
+            device_id=device_id,
+        ):
+            return jsonify({'success': False, 'error': 'invalid_apns_token'}), 400
+        conn.commit()
+        return jsonify({'success': True, 'apns_enabled': bool(cfg['enabled'])})
+    except Exception:
+        conn.rollback()
+        logger.exception('mobile_register_apns_token error for user_id=%s', user_id)
+        return jsonify({'success': False, 'error': 'Failed to register APNs token.'}), 500
+    finally:
+        conn.close()
+
+
+@mobile_bp.route('/apns/unregister', methods=['POST'])
+@limiter.limit('60 per minute')
+def mobile_unregister_apns_token():
+    user_id = _session_user_id()
+    if user_id is None or not session.get('public_key_pem'):
+        clear_invalid_session_user(session)
+        return _unauthorized_response()
+
+    data = request.get_json(silent=True) or {}
+    token = str(data.get('token') or '').strip()
+    push_type = str(data.get('push_type') or 'voip').strip().lower()
+    conn = get_db_connection()
+    try:
+        removed = deactivate_apns_device_token(
+            conn,
+            user_id=user_id,
+            token=token,
+            push_type='voip' if push_type == 'voip' else 'alert',
+        )
+        if not removed:
+            return jsonify({'success': False, 'error': 'invalid_or_unknown_apns_token'}), 400
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception:
+        conn.rollback()
+        logger.exception('mobile_unregister_apns_token error for user_id=%s', user_id)
+        return jsonify({'success': False, 'error': 'Failed to unregister APNs token.'}), 500
+    finally:
+        conn.close()
 
 
 @mobile_bp.route('/bootstrap', methods=['GET'])

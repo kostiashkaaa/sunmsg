@@ -35,6 +35,7 @@
 		A10000000000000000000101 /* ChatComposerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* ChatComposerBar.swift */; };
 		A10000000000000000000102 /* ChatMessageTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000112 /* ChatMessageTimelineView.swift */; };
 		A10000000000000000000103 /* ChatButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000113 /* ChatButtonStyles.swift */; };
+		A10000000000000000000104 /* NativeCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000114 /* NativeCallManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -67,6 +68,7 @@
 		A10000000000000000000111 /* ChatComposerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerBar.swift; sourceTree = "<group>"; };
 		A10000000000000000000112 /* ChatMessageTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageTimelineView.swift; sourceTree = "<group>"; };
 		A10000000000000000000113 /* ChatButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatButtonStyles.swift; sourceTree = "<group>"; };
+		A10000000000000000000114 /* NativeCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCallManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +119,7 @@
 				A10000000000000000000091 /* ChatSyncEngine.swift */,
 				A10000000000000000000093 /* ChatLocalStore.swift */,
 				A100000000000000000000F3 /* WebRTCService.swift */,
+				A10000000000000000000114 /* NativeCallManager.swift */,
 				A10000000000000000000019 /* Assets.xcassets */,
 				A1000000000000000000001A /* PrivacyInfo.xcprivacy */,
 				A10000000000000000000016 /* Info.plist */,
@@ -252,6 +255,7 @@
 				A10000000000000000000090 /* ChatSyncEngine.swift in Sources */,
 				A10000000000000000000092 /* ChatLocalStore.swift in Sources */,
 				A100000000000000000000F4 /* WebRTCService.swift in Sources */,
+				A10000000000000000000104 /* NativeCallManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

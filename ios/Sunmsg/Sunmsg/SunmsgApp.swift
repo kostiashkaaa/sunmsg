@@ -4,13 +4,17 @@ import SwiftUI
 struct SunmsgApp: App {
     @StateObject private var session = SessionStore()
 
-    init() { setupAppearance() }
+    init() {
+        setupAppearance()
+        NativeCallManager.shared.configure()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .inAppBannerOverlay()
                 .environmentObject(session)
+                .onAppear { NativeCallManager.shared.bind(session: session) }
         }
     }
 

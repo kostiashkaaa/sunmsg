@@ -6,7 +6,7 @@ import Combine
 enum AppRoute: Hashable { case loading, login, register, main }
 
 // Call state models
-struct IncomingCallData: Equatable {
+struct IncomingCallData: Equatable, Sendable {
     let callId: String
     let chatId: String
     let callType: String    // "audio" | "video"
@@ -235,7 +235,7 @@ final class SessionStore: ObservableObject {
                   let callType = payload["call_type"] as? String,
                   let initiator = payload["initiator"] as? [String: Any]
             else { return }
-            incomingCall = IncomingCallData(
+            let incoming = IncomingCallData(
                 callId: callId,
                 chatId: chatId,
                 callType: callType,
@@ -243,6 +243,9 @@ final class SessionStore: ObservableObject {
                 callerAvatarUrl: initiator["avatar_url"] as? String,
                 callerUserId: initiator["user_id"] as? Int ?? 0
             )
+            NativeCallManager.shared.reportIncomingCall(incoming) { [weak self] fallback in
+                self?.incomingCall = fallback
+            }
 
         case "call_initiated":
             guard let callId   = payload["call_id"]   as? String,
@@ -284,6 +287,7 @@ final class SessionStore: ObservableObject {
         case "call_rejected":
             // Our outgoing call was declined by the callee.
             if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
+                NativeCallManager.shared.endSystemCall(callId: callId, reason: .declinedElsewhere)
                 if let call = activeCall {
                     addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: nil, chatId: call.chatId)
                 }
@@ -292,8 +296,17 @@ final class SessionStore: ObservableObject {
             incomingCall = nil
 
         case "call_cancelled":
+            let cancelledCallId = payload["call_id"] as? String
+            let systemIncoming = cancelledCallId.flatMap {
+                NativeCallManager.shared.pendingIncomingCall(callId: $0)
+            }
+            if let callId = cancelledCallId {
+                NativeCallManager.shared.endSystemCall(callId: callId, reason: .remoteEnded)
+            }
             // The caller hung up before we answered → missed incoming call.
-            if let inc = incomingCall, inc.callId == payload["call_id"] as? String {
+            if let inc = incomingCall ?? systemIncoming,
+               let cancelledCallId,
+               inc.callId == cancelledCallId {
                 addCallRecord(name: inc.callerName, callType: inc.callType, isOutgoing: false, missed: true, durationSec: nil, chatId: inc.chatId)
             }
             incomingCall = nil
@@ -305,6 +318,9 @@ final class SessionStore: ObservableObject {
             }
 
         case "call_ended":
+            if let callId = payload["call_id"] as? String {
+                NativeCallManager.shared.endSystemCall(callId: callId, reason: .remoteEnded)
+            }
             incomingCall = nil
             if let callId = payload["call_id"] as? String, activeCall?.callId == callId {
                 if let call = activeCall {
@@ -407,15 +423,16 @@ final class SessionStore: ObservableObject {
         ])
     }
 
-    func acceptCall(callId: String) {
-        guard SocketClient.shared.state == .connected else { return }
+    func acceptCall(callId: String, incomingOverride: IncomingCallData? = nil) {
+        connectSocket()
         let requestId = UUID().uuidString
         SocketClient.shared.emit("call_accept", [
             "call_id": callId,
             "request_id": requestId,
             "csrf_token": api.csrfToken,
         ])
-        if let incoming = incomingCall, incoming.callId == callId {
+        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
+        if let incoming, incoming.callId == callId {
             var state = ActiveCallState(
                 callId: callId,
                 chatId: incoming.chatId,
@@ -432,30 +449,33 @@ final class SessionStore: ObservableObject {
             activeCall = state
             // Prepare WebRTC as callee. Will create answer when offer arrives.
             WebRTCService.shared.startCall(callId: callId, callType: incoming.callType, isInitiator: false)
+            NativeCallManager.shared.markSystemCallConnected(callId: callId)
         }
         incomingCall = nil
     }
 
-    func rejectCall(callId: String) {
-        guard SocketClient.shared.state == .connected else { return }
+    func rejectCall(callId: String, incomingOverride: IncomingCallData? = nil) {
+        connectSocket()
         SocketClient.shared.emit("call_reject", ["call_id": callId, "csrf_token": api.csrfToken])
-        if let inc = incomingCall, inc.callId == callId {
+        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
+        if let inc = incoming, inc.callId == callId {
             addCallRecord(name: inc.callerName, callType: inc.callType, isOutgoing: false, missed: false, durationSec: nil, chatId: inc.chatId)
         }
+        NativeCallManager.shared.endSystemCall(callId: callId, reason: .declinedElsewhere)
         incomingCall = nil
     }
 
     func endCall() {
         guard let call = activeCall else { return }
-        if SocketClient.shared.state == .connected {
-            // Outgoing calls (we are the initiator) use call_cancel, which the
-            // server honours for both ringing AND active states. Incoming/answered
-            // calls must use call_end (only the non-initiator side). Sending the
-            // wrong event leaves the call ringing forever on the server and blocks
-            // the chat with `call_already_active`.
-            let event = call.isOutgoing ? "call_cancel" : "call_end"
-            SocketClient.shared.emit(event, ["call_id": call.callId, "csrf_token": api.csrfToken])
-        }
+        connectSocket()
+        // Outgoing calls (we are the initiator) use call_cancel, which the
+        // server honours for both ringing AND active states. Incoming/answered
+        // calls must use call_end (only the non-initiator side). Sending the
+        // wrong event leaves the call ringing forever on the server and blocks
+        // the chat with `call_already_active`.
+        let event = call.isOutgoing ? "call_cancel" : "call_end"
+        SocketClient.shared.emit(event, ["call_id": call.callId, "csrf_token": api.csrfToken])
+        NativeCallManager.shared.endSystemCall(callId: call.callId, reason: .remoteEnded)
         addCallRecord(name: call.partnerName, callType: call.callType, isOutgoing: call.isOutgoing, missed: false, durationSec: call.elapsedSeconds, chatId: call.chatId)
         teardownActiveCall()
     }
@@ -523,6 +543,7 @@ final class SessionStore: ObservableObject {
             if data.hasMoreContacts {
                 Task { await refreshContacts() }
             }
+            Task { await NativeCallManager.shared.registerCurrentVoipTokenIfPossible() }
             // Register iOS X25519/Ed25519 keys if not yet done (background, non-blocking)
             Task { await registerV3KeysIfNeeded() }
         } catch APIError.unauthorized {
@@ -618,6 +639,7 @@ final class SessionStore: ObservableObject {
     }
 
     func logout() async {
+        await NativeCallManager.shared.unregisterCurrentVoipToken()
         disconnectSocket()
         try? await api.logout()
         KeychainService.deleteAllLocalSecrets()

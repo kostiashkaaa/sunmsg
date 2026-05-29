@@ -15,6 +15,7 @@ from app.sockets.call_handlers import (
     handle_call_webrtc_signal,
 )
 from app.services.presence import count_active
+from app.services.apns import send_call_incoming_voip_push
 from app.services.web_push import send_call_incoming_push
 
 from . import context as ctx
@@ -40,6 +41,7 @@ def on_call_initiate(data):
         emit_func=ctx._emit_socket_event,
         count_active_func=count_active,
         send_call_incoming_push_func=send_call_incoming_push,
+        send_call_incoming_voip_push_func=send_call_incoming_voip_push,
         logger=ctx.logger,
     )
 
