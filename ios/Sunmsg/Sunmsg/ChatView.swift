@@ -1892,22 +1892,41 @@ struct MessageBubbleView: View {
     // MARK: - Inline reactions (inside the bubble)
 
     private var inlineReactions: some View {
-        HStack(spacing: 4) {
-            ForEach(message.reactions) { r in
-                reactionPill(r, onBubble: true)
-            }
+        ViewThatFits(in: .horizontal) {
+            reactionRow(onBubble: true)
+            reactionGrid(onBubble: true)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Reaction chips for media/call bubbles (rendered just under the bubble).
     private var reactionChips: some View {
+        ViewThatFits(in: .horizontal) {
+            reactionRow(onBubble: false)
+            reactionGrid(onBubble: false)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(isFromMe ? .trailing : .leading, 4)
+    }
+
+    private func reactionRow(onBubble: Bool) -> some View {
         HStack(spacing: 4) {
             ForEach(message.reactions) { r in
-                reactionPill(r, onBubble: false)
+                reactionPill(r, onBubble: onBubble)
             }
         }
-        .padding(isFromMe ? .trailing : .leading, 4)
+    }
+
+    private func reactionGrid(onBubble: Bool) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 42, maximum: 80), spacing: 4)],
+            alignment: stackAlignment,
+            spacing: 4
+        ) {
+            ForEach(message.reactions) { r in
+                reactionPill(r, onBubble: onBubble)
+            }
+        }
     }
 
     private func reactionPill(_ r: MessageReaction, onBubble: Bool) -> some View {
