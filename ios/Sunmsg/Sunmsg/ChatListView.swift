@@ -42,12 +42,17 @@ struct ChatListView: View {
 
     private var filteredContacts: [Contact] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if activeFilter == "requests" || activeFilter == "archive" {
+            return []
+        }
+        if activeFilter == "all" && query.isEmpty {
+            return session.contacts
+        }
+
         return session.contacts.filter { contact in
             switch activeFilter {
             case "groups":
                 guard contact.isGroup else { return false }
-            case "archive":
-                return false
             default:
                 break
             }
