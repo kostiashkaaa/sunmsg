@@ -13,6 +13,7 @@ struct ChatView: View {
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
+    @State private var timelineVersion = 0
     @State private var decryptionSummary: String?
     @State private var isLoading = true
     @State private var loadError: String?
@@ -529,6 +530,7 @@ struct ChatView: View {
             partnerIsTyping: partnerIsTyping,
             menuTargetId: menuTargetId,
             reduceMotion: reduceMotion,
+            timelineVersion: timelineVersion,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
             onLoadOlder: { Task { await loadOlderMessages() } },
@@ -540,6 +542,10 @@ struct ChatView: View {
 
     private func shouldAutoScroll(for msg: ChatMessage) -> Bool {
         msg.senderUserId == myId || isPinnedToBottom
+    }
+
+    private func invalidateTimeline() {
+        timelineVersion &+= 1
     }
 
     // MARK: - Composer bar
@@ -602,12 +608,14 @@ struct ChatView: View {
     private func loadMessages() async {
         isLoading = true; loadError = nil
         decryptedTexts = [:]
+        invalidateTimeline()
         decryptionSummary = nil
         let cached = await ChatLocalStore.shared.cachedMessages(chatId: contact.chatId)
             .map(normalizedMessage)
         if !cached.isEmpty {
             scrollIntent = .bottom(animated: false)
             messages = cached
+            invalidateTimeline()
             hasOlderMessages = cached.count >= 40
             isLoading = false
             await decryptMessages(cached)
@@ -618,6 +626,7 @@ struct ChatView: View {
                 .map(normalizedMessage)
             scrollIntent = .bottom(animated: false)
             messages = fresh
+            invalidateTimeline()
             hasOlderMessages = messages.count >= 40
             await ChatLocalStore.shared.mergeMessages(messages, chatId: contact.chatId)
             await markRead()
@@ -648,6 +657,7 @@ struct ChatView: View {
         let normalized = normalizedMessage(msg)
         scrollIntent = shouldAutoScroll(for: normalized) ? .bottom(animated: true) : .none
         messages.append(normalized)
+        invalidateTimeline()
         if msg.senderUserId != myId {
             Task { try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: [msg.id]) }
         }
@@ -683,6 +693,7 @@ struct ChatView: View {
             let msg = buildMessageFromPayload(payload, chatId: chatId)
             scrollIntent = shouldAutoScroll(for: msg) ? .bottom(animated: true) : .none
             messages.append(msg)
+            invalidateTimeline()
             Task {
                 await ChatLocalStore.shared.mergeMessages([msg], chatId: contact.chatId)
                 await decryptMessages([msg])
@@ -711,6 +722,7 @@ struct ChatView: View {
                 changed.append(messages[i])
             }
             if !changed.isEmpty {
+                invalidateTimeline()
                 Task { await ChatLocalStore.shared.mergeMessages(changed, chatId: contact.chatId) }
             }
 
@@ -720,6 +732,7 @@ struct ChatView: View {
             else { return }
             messages[i].reactions = parseReactions(payload["reactions"])
             let updated = messages[i]
+            invalidateTimeline()
             Task { await ChatLocalStore.shared.mergeMessages([updated], chatId: contact.chatId) }
 
         case "message_edited":
@@ -732,6 +745,7 @@ struct ChatView: View {
             messages[i].isEdited = true
             decryptedTexts[mid] = nil
             let edited = messages[i]
+            invalidateTimeline()
             Task {
                 await ChatLocalStore.shared.mergeMessages([edited], chatId: contact.chatId)
                 await decryptMessages([edited])
@@ -743,6 +757,7 @@ struct ChatView: View {
             scrollIntent = .none
             withAnimation(.easeInOut(duration: 0.22)) {
                 messages.removeAll { ids.contains($0.id) }
+                invalidateTimeline()
             }
             Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
@@ -818,6 +833,7 @@ struct ChatView: View {
                 let normalized = older.map(normalizedMessage)
                 scrollIntent = .preserve(id: firstId)
                 messages.insert(contentsOf: normalized, at: 0)
+                invalidateTimeline()
                 await ChatLocalStore.shared.mergeMessages(normalized, chatId: contact.chatId)
                 await decryptMessages(normalized)
             }
@@ -835,10 +851,15 @@ struct ChatView: View {
             // Mark every encrypted message with a clear sentinel so the UI never
             // gets stuck on the default "🔐 Encrypted message" placeholder.
             await MainActor.run {
+                var didUpdateTimeline = false
                 for msg in msgs where msg.isEncrypted {
                     if decryptedTexts[msg.id] == nil {
                         decryptedTexts[msg.id] = "🔒 Введите 24 слова для расшифровки"
+                        didUpdateTimeline = true
                     }
+                }
+                if didUpdateTimeline {
+                    invalidateTimeline()
                 }
                 decryptionSummary = "Ключ не загружен. Войдите заново по секретной фразе."
             }
@@ -898,6 +919,7 @@ struct ChatView: View {
         if !v2Result.updates.isEmpty {
             await MainActor.run {
                 decryptedTexts.merge(v2Result.updates) { _, new in new }
+                invalidateTimeline()
             }
         }
 
@@ -1002,6 +1024,7 @@ struct ChatView: View {
         if !decryptedUpdates.isEmpty {
             await MainActor.run {
                 decryptedTexts.merge(decryptedUpdates) { _, new in new }
+                invalidateTimeline()
             }
         }
         return failedCount
