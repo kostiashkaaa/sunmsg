@@ -103,7 +103,6 @@ struct NativeLoginView: View {
                     Text("sun")
                         .font(.title.weight(.bold))
                         .foregroundStyle(Color.smText)
-                        .tracking(-1.0)
                         .padding(.top, 14)
                     Text("добро пожаловать в мессенджер")
                         .font(.custom("Georgia", size: 15, relativeTo: .subheadline).italic())
@@ -147,7 +146,6 @@ struct NativeLoginView: View {
                                 .foregroundStyle(Color(hex: "#fbf8f1"))
                             Text("Создать новый аккаунт")
                                 .font(.subheadline.weight(.semibold))
-                                .tracking(-0.2)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
@@ -256,7 +254,6 @@ struct NativeLoginView: View {
                     Text("Восстановить аккаунт")
                         .font(.title2.weight(.bold))
                         .foregroundStyle(Color.smText)
-                        .tracking(-0.8)
                     Text("введите имя пользователя и 24 слова")
                         .font(.subheadline.italic())
                         .foregroundStyle(Color.smMuted)
@@ -360,7 +357,6 @@ struct NativeLoginView: View {
                                 .font(.system(size: 17))
                             Text("Войти")
                                 .font(.headline)
-                                .tracking(-0.2)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -469,7 +465,6 @@ struct NativeLoginView: View {
             Image(systemName: "lock.fill").font(.system(size: 10))
             Text("Сквозное шифрование · фраза никогда не покидает устройство")
                 .font(.caption2)
-                .tracking(-0.1)
         }
         .foregroundStyle(Color.smFaint)
         .multilineTextAlignment(.center)
