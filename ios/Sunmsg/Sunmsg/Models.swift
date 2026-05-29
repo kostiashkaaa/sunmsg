@@ -307,6 +307,9 @@ struct Contact: Decodable, Identifiable {
     let isPinned: Bool
     let isGroup: Bool
     var isMuted: Bool
+    var draftText: String?
+    var draftUpdatedAt: Double?
+    var hasDraft: Bool
 
     var id: String { chatId }
 
@@ -316,7 +319,7 @@ struct Contact: Decodable, Identifiable {
          initialLastMessagePreview: String?, lastSenderId: Int? = nil,
          unreadCount: Int, avatarUrl: String?,
          isOnline: Bool, lastSeen: Double? = nil, canGroupAddDirect: Bool = true, isPinned: Bool, isGroup: Bool,
-         isMuted: Bool = false) {
+         isMuted: Bool = false, draftText: String? = nil, draftUpdatedAt: Double? = nil, hasDraft: Bool = false) {
         self.userId = userId; self.chatId = chatId; self.displayName = displayName
         self.username = username; self.publicKey = publicKey; self.lastMessage = lastMessage
         self.lastMessageTime = lastMessageTime
@@ -325,15 +328,24 @@ struct Contact: Decodable, Identifiable {
         self.unreadCount = unreadCount; self.avatarUrl = avatarUrl
         self.isOnline = isOnline; self.lastSeen = lastSeen; self.canGroupAddDirect = canGroupAddDirect
         self.isPinned = isPinned; self.isGroup = isGroup; self.isMuted = isMuted
+        self.draftText = draftText; self.draftUpdatedAt = draftUpdatedAt; self.hasDraft = hasDraft
     }
     
     var lastMessagePreview: String {
+        if hasDraft, let draft = draftText?.trimmingCharacters(in: .whitespacesAndNewlines), !draft.isEmpty {
+            let preview = draft.hasPrefix("{") ? "🔐 Encrypted message" : draft
+            return "Черновик: \(preview)"
+        }
         let p = initialLastMessagePreview ?? ""
         if p == "__SUN_ENCRYPTED_LOADING__" { return "🔐 Encrypted message" }
         if !p.isEmpty { return p }
         let raw = lastMessage ?? ""
         if raw.hasPrefix("{") { return "🔐 Encrypted message" }
         return raw
+    }
+
+    var previewTimestamp: Double? {
+        hasDraft ? (draftUpdatedAt ?? lastMessageTime) : lastMessageTime
     }
 
     var isTyping: Bool = false
@@ -356,6 +368,9 @@ struct Contact: Decodable, Identifiable {
         case isPinned = "is_pinned"
         case isGroup = "is_group"
         case isMuted = "is_muted"
+        case draftText = "draft_text"
+        case draftUpdatedAt = "draft_updated_at"
+        case hasDraft = "has_draft"
     }
 
     // Custom Decodable init: server may omit some Bool fields — use safe defaults
@@ -378,6 +393,9 @@ struct Contact: Decodable, Identifiable {
         isPinned    = (try? c.decodeIfPresent(Bool.self, forKey: .isPinned))  ?? false
         isGroup     = (try? c.decodeIfPresent(Bool.self, forKey: .isGroup))   ?? false
         isMuted     = (try? c.decodeIfPresent(Bool.self, forKey: .isMuted))   ?? false
+        draftText   = try? c.decodeIfPresent(String.self, forKey: .draftText)
+        draftUpdatedAt = SunDateParser.decodeTimestamp(c, forKey: .draftUpdatedAt)
+        hasDraft    = (try? c.decodeIfPresent(Bool.self, forKey: .hasDraft)) ?? !(draftText ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         isTyping    = false
     }
 }
@@ -758,6 +776,31 @@ struct SharedContentCandidatesResponse: Decodable {
         messages = (try? c.decodeIfPresent(LossyArray<ChatMessage>.self, forKey: .messages)?.elements) ?? []
         hasMoreBefore = (try? c.decodeIfPresent(Bool.self, forKey: .hasMoreBefore)) ?? false
         nextBeforeId = try? c.decodeIfPresent(Int.self, forKey: .nextBeforeId)
+    }
+}
+
+struct ChatDraftResponse: Decodable {
+    let success: Bool
+    let chatId: String
+    let draftText: String
+    let updatedAt: String
+    let hasDraft: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case chatId = "chat_id"
+        case draftText = "draft_text"
+        case updatedAt = "updated_at"
+        case hasDraft = "has_draft"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        chatId = (try? c.decodeIfPresent(String.self, forKey: .chatId)) ?? ""
+        draftText = (try? c.decodeIfPresent(String.self, forKey: .draftText)) ?? ""
+        updatedAt = (try? c.decodeIfPresent(String.self, forKey: .updatedAt)) ?? ""
+        hasDraft = (try? c.decodeIfPresent(Bool.self, forKey: .hasDraft)) ?? !draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 

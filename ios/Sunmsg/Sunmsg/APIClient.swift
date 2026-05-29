@@ -134,6 +134,27 @@ final class APIClient: ObservableObject {
         return try decode(SharedContentCandidatesResponse.self, from: data)
     }
 
+    func getChatDraft(chatId: String) async throws -> ChatDraftResponse {
+        var comps = URLComponents(url: baseURL.appendingPathComponent("/get_chat_draft"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "chat_id", value: chatId)]
+        let req = URLRequest(url: comps.url!)
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(ChatDraftResponse.self, from: data)
+    }
+
+    func saveChatDraft(chatId: String, draftText: String) async throws -> ChatDraftResponse {
+        let url = baseURL.appendingPathComponent("/save_chat_draft")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "chat_id": chatId,
+            "draft_text": draftText,
+        ])
+        let data = try await perform(req, expectedStatus: 200)
+        return try decode(ChatDraftResponse.self, from: data)
+    }
+
     func getUpdatesState(chatId: String) async throws -> ChatUpdateState {
         var comps = URLComponents(url: baseURL.appendingPathComponent("/updates/state"), resolvingAgainstBaseURL: false)!
         comps.queryItems = [URLQueryItem(name: "chat_id", value: chatId)]

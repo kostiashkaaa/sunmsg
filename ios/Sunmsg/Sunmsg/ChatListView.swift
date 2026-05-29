@@ -537,7 +537,7 @@ struct SidebarContactRow: View {
                             .foregroundStyle(Color.smFaint)
                     }
                     Spacer(minLength: 4)
-                    if let ts = contact.lastMessageTime {
+                    if let ts = contact.previewTimestamp {
                         Text(smFormatTime(ts))
                             .font(.system(size: 11.5, weight: contact.unreadCount > 0 ? .semibold : .regular))
                             .foregroundStyle(contact.unreadCount > 0 && !muted ? Color.smAccent2 : Color.smFaint)

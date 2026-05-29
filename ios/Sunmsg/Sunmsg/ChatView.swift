@@ -39,6 +39,11 @@ struct ChatView: View {
     @State private var recordingPulse = false
     @State private var recordingTimerTask: Task<Void, Never>? = nil
     @State private var scrollIntent: MessageScrollIntent = .bottom(animated: false)
+    @State private var draftSaveTask: Task<Void, Never>? = nil
+    @State private var draftSaveSequence = 0
+    @State private var lastSavedDraftText = ""
+    @State private var lastDraftUpdatedAt: Double = 0
+    @State private var isApplyingDraftText = false
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -120,6 +125,7 @@ struct ChatView: View {
             }
             .task {
                 await loadMessages()
+                await loadDraft()
                 await slowPollLoop()
             }
             .onAppear {
@@ -131,11 +137,16 @@ struct ChatView: View {
                     session.activeChatId = nil
                 }
                 typingDebounceTask?.cancel()
+                draftSaveTask?.cancel()
+                flushDraftSave(force: true)
                 partnerStopTypingTask?.cancel()
                 if isRecording { cancelRecording() }
                 SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
             }
             .onChange(of: composerText) { _, text in
+                if !isApplyingDraftText {
+                    scheduleDraftSave(text)
+                }
                 guard SocketClient.shared.state == .connected, !text.isEmpty else { return }
                 typingDebounceTask?.cancel()
                 typingDebounceTask = Task {
@@ -1034,6 +1045,9 @@ struct ChatView: View {
             }
             Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
+        case "chat_draft_updated":
+            applyRealtimeDraft(payload)
+
         default:
             break
         }
@@ -1285,6 +1299,176 @@ struct ChatView: View {
             reactions: msg.reactions,
             isEdited: msg.isEdited
         )
+    }
+
+    // MARK: - Chat drafts
+
+    private func normalizeDraftText(_ value: String) -> String {
+        value.replacingOccurrences(of: "\r\n", with: "\n")
+    }
+
+    private func hasMeaningfulDraft(_ value: String) -> Bool {
+        !normalizeDraftText(value).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func scheduleDraftSave(_ text: String) {
+        guard editingMessageId == nil else { return }
+        let normalized = normalizeDraftText(text)
+        draftSaveTask?.cancel()
+        draftSaveTask = Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled else { return }
+            await saveDraft(normalized)
+        }
+    }
+
+    private func flushDraftSave(force: Bool = false) {
+        guard editingMessageId == nil else { return }
+        let normalized = normalizeDraftText(composerText)
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+        Task { await saveDraft(normalized, force: force) }
+    }
+
+    private func clearDraftAfterSend() {
+        draftSaveTask?.cancel()
+        draftSaveTask = nil
+        lastSavedDraftText = ""
+        session.applyDraftUpdate(
+            chatId: contact.chatId,
+            draftText: "",
+            updatedAtRaw: ISO8601DateFormatter().string(from: Date()),
+            hasDraft: false
+        )
+        Task { await saveDraft("", force: true) }
+    }
+
+    private func loadDraft() async {
+        guard editingMessageId == nil else { return }
+        let beforeLoadValue = normalizeDraftText(composerText)
+        do {
+            let response = try await session.api.getChatDraft(chatId: contact.chatId)
+            let draftText = response.hasDraft ? decryptDraftForLocalDisplay(response.draftText) : ""
+            guard normalizeDraftText(composerText) == beforeLoadValue || !composerFocused else { return }
+            lastSavedDraftText = draftText
+            lastDraftUpdatedAt = SunDateParser.timestamp(from: response.updatedAt) ?? lastDraftUpdatedAt
+            session.applyDraftUpdate(
+                chatId: contact.chatId,
+                draftText: draftText,
+                updatedAtRaw: response.updatedAt,
+                hasDraft: response.hasDraft
+            )
+            applyDraftText(draftText)
+        } catch {
+            let fallback = liveContact.hasDraft ? decryptDraftForLocalDisplay(liveContact.draftText ?? "") : ""
+            guard !fallback.isEmpty, normalizeDraftText(composerText) == beforeLoadValue || !composerFocused else { return }
+            lastSavedDraftText = fallback
+            applyDraftText(fallback)
+        }
+    }
+
+    private func saveDraft(_ text: String, force: Bool = false) async {
+        guard editingMessageId == nil else { return }
+        let normalized = normalizeDraftText(text)
+        let savedPlaintext = hasMeaningfulDraft(normalized) ? normalized : ""
+        if !force && savedPlaintext == lastSavedDraftText { return }
+
+        draftSaveSequence += 1
+        let sequence = draftSaveSequence
+        do {
+            let encryptedDraft = try await encryptDraftForServer(normalized)
+            guard sequence == draftSaveSequence else { return }
+            let response = try await session.api.saveChatDraft(chatId: contact.chatId, draftText: encryptedDraft)
+            guard sequence == draftSaveSequence else { return }
+            let serverDraft = response.hasDraft ? decryptDraftForLocalDisplay(response.draftText) : ""
+            lastSavedDraftText = serverDraft
+            lastDraftUpdatedAt = SunDateParser.timestamp(from: response.updatedAt) ?? lastDraftUpdatedAt
+            session.applyDraftUpdate(
+                chatId: contact.chatId,
+                draftText: serverDraft,
+                updatedAtRaw: response.updatedAt,
+                hasDraft: response.hasDraft
+            )
+        } catch {
+            // Draft sync is best-effort; the composer text stays local and will retry on the next change.
+        }
+    }
+
+    private func encryptDraftForServer(_ draftText: String) async throws -> String {
+        let normalized = normalizeDraftText(draftText)
+        guard hasMeaningfulDraft(normalized) else { return "" }
+        guard let privateKey = KeychainService.loadPrivateKey(), !myPublicKey.isEmpty else {
+            throw NSError(domain: "sunmsg.draft", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing encryption key."])
+        }
+        if contact.isGroup {
+            let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
+            let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
+            guard !memberKeys.isEmpty else {
+                throw NSError(domain: "sunmsg.draft", code: 2, userInfo: [NSLocalizedDescriptionKey: "No group recipient keys."])
+            }
+            return try SunCrypto.encryptMessageForRecipients(
+                normalized,
+                recipientPEMs: memberKeys,
+                senderPEM: myPublicKey,
+                privateKeyPEM: privateKey
+            )
+        }
+        guard !contact.publicKey.isEmpty else {
+            throw NSError(domain: "sunmsg.draft", code: 3, userInfo: [NSLocalizedDescriptionKey: "Missing recipient key."])
+        }
+        return try SunCrypto.encryptMessage(
+            normalized,
+            receiverPEM: contact.publicKey,
+            senderPEM: myPublicKey,
+            privateKeyPEM: privateKey
+        )
+    }
+
+    private func decryptDraftForLocalDisplay(_ rawDraft: String) -> String {
+        let normalized = normalizeDraftText(rawDraft)
+        guard !normalized.isEmpty else { return "" }
+        guard normalized.hasPrefix("{") else { return normalized }
+        guard let privateKey = KeychainService.loadPrivateKey() else { return "" }
+        let decrypted = SunCrypto.decryptMessageForDisplay(normalized, isSelf: true, privateKeyPEM: privateKey)
+        guard decrypted != "__v3__", !decrypted.hasPrefix("[") else { return "" }
+        return normalizeDraftText(decrypted)
+    }
+
+    private func applyRealtimeDraft(_ payload: [String: Any]) {
+        let hasDraft = (payload["has_draft"] as? Bool) ?? false
+        let rawDraft = (payload["draft_text"] as? String) ?? ""
+        let updatedAt = (payload["updated_at"] as? String) ?? ""
+        let draftText = hasDraft ? decryptDraftForLocalDisplay(rawDraft) : ""
+        guard shouldApplyDraftUpdate(updatedAt: updatedAt, draftText: draftText) else { return }
+
+        let previousSavedDraftText = lastSavedDraftText
+        lastSavedDraftText = draftText
+        lastDraftUpdatedAt = SunDateParser.timestamp(from: updatedAt) ?? lastDraftUpdatedAt
+        session.applyDraftUpdate(
+            chatId: contact.chatId,
+            draftText: draftText,
+            updatedAtRaw: updatedAt,
+            hasDraft: hasDraft
+        )
+
+        let currentValue = normalizeDraftText(composerText)
+        if composerFocused && currentValue != previousSavedDraftText { return }
+        applyDraftText(draftText)
+    }
+
+    private func shouldApplyDraftUpdate(updatedAt: String, draftText: String) -> Bool {
+        guard let nextTimestamp = SunDateParser.timestamp(from: updatedAt), nextTimestamp > 0 else {
+            return true
+        }
+        if nextTimestamp > lastDraftUpdatedAt { return true }
+        if nextTimestamp < lastDraftUpdatedAt { return false }
+        return normalizeDraftText(draftText) == lastSavedDraftText
+    }
+
+    private func applyDraftText(_ text: String) {
+        isApplyingDraftText = true
+        composerText = normalizeDraftText(text)
+        isApplyingDraftText = false
     }
 
     // MARK: - Edit & delete
@@ -2963,14 +3147,4 @@ struct PressableStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? scale : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.55), value: configuration.isPressed)
-    }
-}
-
-/// Full-width menu row that highlights its background while pressed.
-struct MenuRowStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? Color.smText.opacity(0.07) : Color.clear)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
+ 

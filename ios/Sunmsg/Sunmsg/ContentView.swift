@@ -214,6 +214,9 @@ final class SessionStore: ObservableObject {
                 typingTimers[chatId] = nil
             }
 
+        case "chat_draft_updated":
+            applyDraftUpdate(payload)
+
         case "dialog_request_updated":
             Task { await self.refreshDialogRequests() }
 
@@ -787,7 +790,7 @@ final class SessionStore: ObservableObject {
         // Re-sort: pinned first, then by lastMessageTime descending
         contacts.sort {
             if $0.isPinned != $1.isPinned { return $0.isPinned }
-            return ($0.lastMessageTime ?? 0) > ($1.lastMessageTime ?? 0)
+            return ($0.previewTimestamp ?? 0) > ($1.previewTimestamp ?? 0)
         }
     }
 
@@ -795,6 +798,37 @@ final class SessionStore: ObservableObject {
     func clearUnread(chatId: String) {
         guard let idx = contacts.firstIndex(where: { $0.chatId == chatId }) else { return }
         contacts[idx].unreadCount = 0
+    }
+
+    func applyDraftUpdate(chatId: String, draftText: String, updatedAtRaw: String, hasDraft: Bool) {
+        let targetChatId = normalizedChatId(chatId)
+        guard !targetChatId.isEmpty else { return }
+        guard let idx = contacts.firstIndex(where: { normalizedChatId($0.chatId) == targetChatId }) else {
+            Task { await refreshContacts() }
+            return
+        }
+        let normalizedDraft = draftText.replacingOccurrences(of: "\r\n", with: "\n")
+        let hasMeaningfulDraft = hasDraft && !normalizedDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        contacts[idx].draftText = hasMeaningfulDraft ? normalizedDraft : nil
+        contacts[idx].draftUpdatedAt = SunDateParser.timestamp(from: updatedAtRaw)
+        contacts[idx].hasDraft = hasMeaningfulDraft
+        contacts.sort {
+            if $0.isPinned != $1.isPinned { return $0.isPinned }
+            return ($0.previewTimestamp ?? 0) > ($1.previewTimestamp ?? 0)
+        }
+    }
+
+    private func applyDraftUpdate(_ payload: [String: Any]) {
+        let chatId = (payload["chat_id"] as? String) ?? ""
+        let hasDraft = (payload["has_draft"] as? Bool) ?? false
+        let rawDraft = (payload["draft_text"] as? String) ?? ""
+        let updatedAt = (payload["updated_at"] as? String) ?? ""
+        applyDraftUpdate(
+            chatId: chatId,
+            draftText: hasDraft ? draftPreviewText(rawDraft) : "",
+            updatedAtRaw: updatedAt,
+            hasDraft: hasDraft
+        )
     }
 
     private func normalizedChatId(_ chatId: String) -> String {
@@ -840,6 +874,9 @@ final class SessionStore: ObservableObject {
         let myId = bootstrap?.user.id ?? 0
         let hasPem = KeychainService.loadPrivateKey() != nil
         for index in contacts.indices {
+            if contacts[index].hasDraft, let draft = contacts[index].draftText, !draft.isEmpty {
+                contacts[index].draftText = draftPreviewText(draft)
+            }
             guard let raw = contacts[index].lastMessage, raw.hasPrefix("{") else { continue }
             // Call messages can be labelled without a decryption key
             if let data = raw.data(using: .utf8),
@@ -855,6 +892,12 @@ final class SessionStore: ObservableObject {
                 contacts[index].initialLastMessagePreview = text
             }
         }
+    }
+
+    private func draftPreviewText(_ raw: String) -> String {
+        let normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
+        guard normalized.hasPrefix("{") else { return normalized }
+        return decryptPreview(normalized, isSelf: true)
     }
 
     private func decryptPreview(_ raw: String, isSelf: Bool) -> String {
