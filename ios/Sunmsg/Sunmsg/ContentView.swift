@@ -2239,8 +2239,16 @@ struct NotificationSettingsView: View {
     var body: some View {
         Form {
             Section("Системные уведомления") {
-                LabeledContent("Разрешение iOS", value: permissionText)
-                LabeledContent("Подписка", value: alertToken.isEmpty ? "Не активна" : "Активна")
+                LabeledContent {
+                    Text(permissionText)
+                } label: {
+                    Text("Разрешение iOS")
+                }
+                LabeledContent {
+                    Text(alertToken.isEmpty ? "Не активна" : "Активна")
+                } label: {
+                    Text("Подписка")
+                }
                 Button {
                     Task { await enableNotifications() }
                 } label: {
@@ -2379,13 +2387,21 @@ struct DataMemorySettingsView: View {
                 Toggle("Фото", isOn: Binding(get: { autoDownloadPhotos }, set: { autoDownloadPhotos = $0; savePolicy() }))
                 Toggle("Видео", isOn: Binding(get: { autoDownloadVideos }, set: { autoDownloadVideos = $0; savePolicy() }))
                 VStack(alignment: .leading) {
-                    LabeledContent("Лимит файла", value: "\(filesLimitMb, specifier: "%.1f") MB")
+                    LabeledContent {
+                        Text("\(String(format: "%.1f", filesLimitMb)) MB")
+                    } label: {
+                        Text("Лимит файла")
+                    }
                     Slider(value: Binding(get: { filesLimitMb }, set: { filesLimitMb = $0; savePolicy() }), in: 0.1...50, step: 0.1)
                 }
             }
 
             Section("Хранилище") {
-                LabeledContent("Локальный кэш", value: ByteCountFormatter.string(fromByteCount: Int64(storageBytes), countStyle: .file))
+                LabeledContent {
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(storageBytes), countStyle: .file))
+                } label: {
+                    Text("Локальный кэш")
+                }
                 Button("Обновить размер") { Task { await refreshStorageUsage() } }
                 Button("Очистить кэш сообщений") { Task { await clearChatCache() } }
                 Button("Очистить файловый кэш") { Task { await clearURLCache() } }
@@ -2953,7 +2969,11 @@ struct SecuritySettingsView: View {
     var body: some View {
         Form {
             Section("Шифрование") {
-                LabeledContent("Приватный ключ", value: hasPrivateKey ? "В Keychain" : "Не загружен")
+                LabeledContent {
+                    Text(hasPrivateKey ? "В Keychain" : "Не загружен")
+                } label: {
+                    Text("Приватный ключ")
+                }
                 if let publicKey = session.bootstrap?.user.publicKey, !publicKey.isEmpty {
                     Button {
                         UIPasteboard.general.string = publicKey
@@ -3076,7 +3096,11 @@ struct MnemonicRestoreSettingsView: View {
     var body: some View {
         Form {
             Section("Состояние") {
-                LabeledContent("Приватный ключ", value: hasPrivateKey ? "Разблокирован" : "Заблокирован")
+                LabeledContent {
+                    Text(hasPrivateKey ? "Разблокирован" : "Заблокирован")
+                } label: {
+                    Text("Приватный ключ")
+                }
                 Button(role: .destructive) {
                     KeychainService.deletePrivateKey()
                     hasPrivateKey = false
@@ -3142,8 +3166,16 @@ struct IntegrationsSettingsView: View {
     var body: some View {
         Form {
             Section("Spotify") {
-                LabeledContent("Настроено на сервере", value: (status?.configured ?? false) ? "Да" : "Нет")
-                LabeledContent("Подключение", value: (status?.connected ?? false) ? "Активно" : "Не подключено")
+                LabeledContent {
+                    Text((status?.configured ?? false) ? "Да" : "Нет")
+                } label: {
+                    Text("Настроено на сервере")
+                }
+                LabeledContent {
+                    Text((status?.connected ?? false) ? "Активно" : "Не подключено")
+                } label: {
+                    Text("Подключение")
+                }
                 if status?.configured == true {
                     Button {
                         if let url = URL(string: "/spotify/connect", relativeTo: URL(string: kBaseURL))?.absoluteURL {
@@ -3221,8 +3253,16 @@ struct AccountSettingsView: View {
     var body: some View {
         Form {
             Section("Аккаунт") {
-                LabeledContent("Пользователь", value: "@\(session.bootstrap?.user.username ?? "—")")
-                LabeledContent("Имя", value: session.bootstrap?.user.displayName ?? "—")
+                LabeledContent {
+                    Text("@\(session.bootstrap?.user.username ?? "—")")
+                } label: {
+                    Text("Пользователь")
+                }
+                LabeledContent {
+                    Text(session.bootstrap?.user.displayName ?? "—")
+                } label: {
+                    Text("Имя")
+                }
                 Button("Выйти") { Task { await session.logout() } }
             }
             Section {
@@ -3497,7 +3537,11 @@ struct AppearanceSettingsView: View {
 
     private func settingsSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            LabeledContent(title, value: "\(value.wrappedValue, specifier: "%.2f")")
+            LabeledContent {
+                Text(String(format: "%.2f", value.wrappedValue))
+            } label: {
+                Text(title)
+            }
             Slider(value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0; saveAppearance() }), in: range)
         }
     }
