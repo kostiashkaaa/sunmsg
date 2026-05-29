@@ -93,6 +93,124 @@ if (!html.includes('data-src="https://sun.test/chat_media/photo.jpg"')) {{
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_ios_sunfile_payload_is_normalized_for_web_preview():
+    module_path = ROOT / 'static' / 'modules' / 'utils.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+Object.defineProperty(globalThis, 'window', {{
+  value: {{
+    location: {{ origin: 'https://sun.test' }},
+    SUN_I18N: {{ translateText: (value) => String(value) }},
+  }},
+  configurable: true,
+}});
+Object.defineProperty(globalThis, 'document', {{
+  value: {{ documentElement: {{ lang: 'ru' }} }},
+  configurable: true,
+}});
+
+const source = await readFile({str(module_path)!r}, 'utf8');
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const utils = await import(moduleUrl);
+const payload = JSON.stringify({{
+  __sunfile: true,
+  filename: 'ios-photo.jpg',
+  mime_type: 'IMAGE/JPEG',
+  url: '/chat_media/ios-photo.jpg',
+}});
+const parsed = utils.parseSunFilePayload(payload);
+
+if (!parsed || parsed.data !== '/chat_media/ios-photo.jpg') {{
+  throw new Error(`iOS url was not normalized to data: ${{JSON.stringify(parsed)}}`);
+}}
+if (parsed.mime !== 'image/jpeg' || parsed.name !== 'ios-photo.jpg') {{
+  throw new Error(`iOS mime/name were not normalized: ${{JSON.stringify(parsed)}}`);
+}}
+
+const direct = utils.parseSunFilePayload(JSON.stringify({{
+  url: '/chat_media/ios-document.pdf',
+  mime: 'application/pdf',
+}}));
+if (!direct?.__sunfile || direct.data !== '/chat_media/ios-document.pdf') {{
+  throw new Error(`direct iOS-style payload was not accepted: ${{JSON.stringify(direct)}}`);
+}}
+
+const html = utils.renderMessagePreviewHtml(payload, {{ isSelf: false, maxLen: 120 }});
+if (!html.includes('src="https://sun.test/chat_media/ios-photo.jpg"')) {{
+  throw new Error(`iOS image preview did not use normalized data src: ${{html}}`);
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_message_renderer_treats_explicit_ios_voice_payload_as_voice():
+    module_path = ROOT / 'static' / 'modules' / 'message-rendering.js'
+    node_harness = f"""
+import {{ readFile }} from 'node:fs/promises';
+
+let source = await readFile({str(module_path)!r}, 'utf8');
+source = source.replace(
+  /import\\s*\\{{[\\s\\S]*?\\}}\\s*from\\s*['"]\\.\\/utils\\.js['"];\\s*/,
+  `const escapeHtml = (value) => String(value ?? '');
+const sanitizeFileUri = (value) => String(value ?? '');
+const formatTime = () => '';
+const formatMediaDuration = (seconds) => String(seconds || 0);
+const formatFullTimestamp = () => '';
+const renderMessagePreviewHtml = () => '';
+const applyEmojiGraphics = () => {{}};
+const parseSunFilePayload = () => null;
+const parseSunCallPayload = () => null;
+const resolveMessageDisplayText = (value) => String(value ?? '');
+const tr = (value) => String(value ?? '');
+const activeLocale = () => 'ru';`
+);
+source = source.replace(
+  /import\\s*\\{{\\s*renderMessageLinkPreview\\s*\\}}\\s*from\\s*['"]\\.\\/message-link-preview\\.js['"];\\s*/,
+  'const renderMessageLinkPreview = () => {{}};'
+);
+source = source.replace(
+  /import\\s*\\{{[\\s\\S]*?STANDARD_DOUBLE_CHECK_TICK_HTML[\\s\\S]*?\\}}\\s*from\\s*['"]\\.\\/check-glyph\\.js['"];\\s*/,
+  `const STANDARD_SINGLE_CHECK_TICK_HTML = '';
+const STANDARD_DOUBLE_CHECK_TICK_HTML = '';`
+);
+source = source.replace(
+  /import\\s*\\{{\\s*buildGroupReadMetaHtml\\s*\\}}\\s*from\\s*['"]\\.\\/chat-group-read-receipts\\.js['"];\\s*/,
+  'const buildGroupReadMetaHtml = () => "";'
+);
+source = source.replace(
+  /import\\s*\\{{\\s*clampUploadProgress\\s*\\}}\\s*from\\s*['"]\\.\\/upload-progress\\.js['"];\\s*/,
+  'const clampUploadProgress = (value) => Math.max(0, Math.min(100, Number(value) || 0));'
+);
+const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(source, 'utf8').toString('base64');
+const moduleApi = await import(moduleUrl);
+
+if (!moduleApi.isLikelyVoiceAudioPayload({{
+  mime: 'audio/mp4',
+  name: 'media_123.mp4',
+  media_type: 'voice',
+}})) {{
+  throw new Error('explicit iOS voice payload was not treated as voice');
+}}
+if (!moduleApi.isLikelyVoiceAudioPayload({{
+  mime: 'audio/mp4',
+  name: 'media_124.mp4',
+  is_voice: true,
+}})) {{
+  throw new Error('is_voice iOS payload was not treated as voice');
+}}
+if (moduleApi.isLikelyVoiceAudioPayload({{
+  mime: 'audio/mp4',
+  name: 'track.mp4',
+}})) {{
+  throw new Error('generic audio file should not become a voice message');
+}}
+"""
+    result = _run_node_harness(node_harness)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_chat_media_runtime_hydrates_preview_thumb_with_media_resolver():
     module_path = ROOT / 'static' / 'modules' / 'chat-media-runtime.js'
     voice_module_path = ROOT / 'static' / 'modules' / 'mobile-voice-playback.js'

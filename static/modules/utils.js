@@ -456,15 +456,53 @@ export function formatSidebarTime(timestamp) {
     return d.toLocaleDateString(activeLocale());
 }
 
+function firstStringField(source, keys) {
+    for (const key of keys) {
+        const value = source?.[key];
+        if (typeof value !== 'string') continue;
+        const normalized = value.trim();
+        if (normalized) return normalized;
+    }
+    return '';
+}
+
+function normalizeSunFilePayload(parsed) {
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const data = firstStringField(parsed, ['data', 'url', 'file_url', 'src', 'href', 'download_url']);
+    const mime = firstStringField(parsed, ['mime', 'mime_type', 'content_type', 'type']).toLowerCase();
+    const name = firstStringField(parsed, ['name', 'filename', 'file_name']);
+    const hasSunFileEnvelope = Boolean(parsed.__sunfile);
+    if (!hasSunFileEnvelope && (!data || !mime)) return null;
+
+    return {
+        ...parsed,
+        __sunfile: true,
+        ...(data ? { data } : {}),
+        ...(mime ? { mime } : {}),
+        ...(name ? { name } : {}),
+    };
+}
+
 export function parseSunFilePayload(messageText) {
     if (!messageText || typeof messageText !== 'string') return null;
     const normalized = messageText.trim();
     if (!normalized) return null;
     // Fast path: avoid throw-heavy JSON.parse for plain chat text.
-    if (normalized.charCodeAt(0) !== 123 || !normalized.includes('__sunfile')) return null;
+    if (normalized.charCodeAt(0) !== 123) return null;
+    if (
+        !normalized.includes('__sunfile')
+        && !normalized.includes('"data"')
+        && !normalized.includes('"url"')
+        && !normalized.includes('"file_url"')
+        && !normalized.includes('"mime"')
+        && !normalized.includes('"mime_type"')
+    ) {
+        return null;
+    }
     try {
         const parsed = JSON.parse(normalized);
-        if (parsed && parsed.__sunfile) return parsed;
+        return normalizeSunFilePayload(parsed);
     } catch (_) {}
     return null;
 }

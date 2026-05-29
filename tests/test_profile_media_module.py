@@ -189,6 +189,79 @@ if (media.links.length || media.files.length || media.media.length) {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_profile_media_collects_ios_sunfile_payload_variants():
+    harness_body = """
+const makePayload = (payload) => JSON.stringify(payload);
+const media = moduleApi.collectMediaFromMessages([
+  {
+    id: 14,
+    message: makePayload({
+      __sunfile: true,
+      url: '/chat_media/ios-voice.mp4',
+      mime: 'audio/mp4',
+      name: 'media_14.mp4',
+      media_type: 'voice',
+      voice: true,
+      duration_seconds: 3,
+    }),
+    message_type: 'voice',
+    created_at: '2026-05-01T10:03:00Z',
+  },
+  {
+    id: 13,
+    message: makePayload({
+      __sunfile: true,
+      file_url: '/chat_media/ios-clip.mov',
+      mime: 'video/quicktime',
+      filename: 'ios-clip.mov',
+    }),
+    message_type: 'video',
+    created_at: '2026-05-01T10:02:00Z',
+  },
+  {
+    id: 12,
+    message: makePayload({
+      __sunfile: true,
+      url: '/chat_media/ios-photo.jpg',
+      mime_type: 'image/jpeg',
+      filename: 'ios-photo.jpg',
+    }),
+    message_type: 'photo',
+    created_at: '2026-05-01T10:01:00Z',
+  },
+  {
+    id: 11,
+    message: makePayload({
+      url: '/chat_media/ios-report.pdf',
+      mime: 'application/pdf',
+      filename: 'ios-report.pdf',
+      size: 2048,
+    }),
+    message_type: 'file',
+    created_at: '2026-05-01T10:00:00Z',
+  },
+]);
+
+if (media.voices.length !== 1 || media.voices[0].msgId !== 14) {
+  throw new Error(`expected one iOS voice entry, got ${JSON.stringify(media.voices)}`);
+}
+if (media.media.length !== 2 || media.media[0].msgId !== 13 || media.media[1].msgId !== 12) {
+  throw new Error(`expected iOS photo/video in media tab, got ${JSON.stringify(media.media)}`);
+}
+if (media.files.length !== 1 || media.files[0].payload.name !== 'ios-report.pdf') {
+  throw new Error(`expected iOS direct file in files tab, got ${JSON.stringify(media.files)}`);
+}
+if (media.media[1].payload.data !== '/chat_media/ios-photo.jpg') {
+  throw new Error(`expected normalized photo data, got ${JSON.stringify(media.media[1].payload)}`);
+}
+if (media.media[0].payload.data !== '/chat_media/ios-clip.mov') {
+  throw new Error(`expected normalized video data, got ${JSON.stringify(media.media[0].payload)}`);
+}
+"""
+    result = _run_profile_media_harness(harness_body)
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_profile_lightbox_proxy_uses_resolved_media_source():
     source = (ROOT / 'static' / 'modules' / 'chat-profile-media-panel.js').read_text(encoding='utf-8')
 

@@ -97,6 +97,14 @@ function buildWaveBarsHtml(values) {
 
 export function isLikelyVoiceAudioPayload(filePayload) {
     if (!filePayload || typeof filePayload !== 'object') return false;
+    const explicitType = String(
+        filePayload.media_type
+        || filePayload.message_type
+        || filePayload.kind
+        || '',
+    ).trim().toLowerCase();
+    if (explicitType === 'voice' || explicitType === 'voice_message') return true;
+    if (filePayload.voice === true || filePayload.is_voice === true) return true;
     const rawName = String(filePayload.name || '').trim().toLowerCase();
     if (!rawName) return false;
     const hasDuration = Number(filePayload.duration_seconds) > 0;

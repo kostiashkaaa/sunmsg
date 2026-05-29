@@ -36,13 +36,9 @@ export function createChatMessageMutations({
     function updateMessageContentUnstable(msgDiv, plainText, isRedecrypt = false) {
         if (!msgDiv) return;
 
-        let filePayload = null;
-        try {
-            const parsed = JSON.parse(plainText);
-            if (parsed && parsed.__sunfile) filePayload = parsed;
-        } catch (_error) {
-            filePayload = null;
-        }
+        const filePayload = typeof parseSunFilePayload === 'function'
+            ? parseSunFilePayload(plainText)
+            : null;
 
         if (filePayload) {
             const bubbleEl = msgDiv.querySelector('.bubble');

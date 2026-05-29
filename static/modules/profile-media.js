@@ -52,6 +52,14 @@ function isVoicePayload(payload, messageType = '') {
 
     const normalizedType = String(messageType || '').toLowerCase();
     if (normalizedType === 'voice' || normalizedType === 'voice_message') return true;
+    const explicitType = String(
+        payload.media_type
+        || payload.message_type
+        || payload.kind
+        || '',
+    ).trim().toLowerCase();
+    if (explicitType === 'voice' || explicitType === 'voice_message') return true;
+    if (payload.voice === true || payload.is_voice === true) return true;
 
     const mime = String(payload.mime || '').toLowerCase();
     const name = String(payload.name || '').toLowerCase();
