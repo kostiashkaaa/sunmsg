@@ -1572,26 +1572,35 @@ struct ChatView: View {
     }
 
     private func sendAudioMessage(url: URL) async {
-        guard let privateKey = KeychainService.loadPrivateKey(),
-              !myPublicKey.isEmpty,
-              (contact.isGroup || !contact.publicKey.isEmpty) else {
-            sendError = "Ключ шифрования не загружен."
-            try? FileManager.default.removeItem(at: url)
-            return
-        }
         defer { try? FileManager.default.removeItem(at: url) }
 
         isUploadingMedia = true
         sendError = nil
+        let chatId = contact.chatId
+        let isGroup = contact.isGroup
+        let receiverPEM = contact.publicKey
+        let senderPEM = myPublicKey
 
         do {
+            let privateKey = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                guard let privateKey = KeychainService.loadPrivateKey(),
+                      !senderPEM.isEmpty,
+                      (isGroup || !receiverPEM.isEmpty) else {
+                    throw NSError(
+                        domain: "sunmsg.crypto",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен."]
+                    )
+                }
+                return privateKey
+            }.value
             let data = try await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url)
             }.value
             let uploadResult = try await APIClient.shared.uploadMedia(
                 data: data,
                 mimeType: "audio/mp4",
-                chatId: contact.chatId
+                chatId: chatId
             )
 
             let sunfilePayload: [String: Any] = [
@@ -1604,7 +1613,7 @@ struct ChatView: View {
             ]
             let sunfileJSON = String(data: try JSONSerialization.data(withJSONObject: sunfilePayload), encoding: .utf8) ?? ""
 
-            if contact.isGroup {
+            if isGroup {
                 try await emitEncryptedGroupPayload(
                     sunfileJSON,
                     messageType: "audio",
@@ -1617,15 +1626,17 @@ struct ChatView: View {
                 return
             }
 
-            let encrypted = try SunCrypto.encryptMessage(
-                sunfileJSON,
-                receiverPEM: contact.publicKey,
-                senderPEM: myPublicKey,
-                privateKeyPEM: privateKey
-            )
+            let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                try SunCrypto.encryptMessage(
+                    sunfileJSON,
+                    receiverPEM: receiverPEM,
+                    senderPEM: senderPEM,
+                    privateKeyPEM: privateKey
+                )
+            }.value
 
             let sent = try await APIClient.shared.sendMessage(
-                chatId: contact.chatId,
+                chatId: chatId,
                 message: encrypted,
                 messageType: "audio",
                 requestId: UUID().uuidString
@@ -1658,25 +1669,35 @@ struct ChatView: View {
     // MARK: - Send media message
 
     private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
-        guard let privateKey = KeychainService.loadPrivateKey(),
-              !myPublicKey.isEmpty,
-              (contact.isGroup || !contact.publicKey.isEmpty) else {
-            sendError = "Ключ шифрования не загружен."
-            selectedPhotoItem = nil
-            return
-        }
-
         isUploadingMedia = true
         sendError = nil
         selectedPhotoItem = nil
+        let chatId = contact.chatId
+        let isGroup = contact.isGroup
+        let receiverPEM = contact.publicKey
+        let senderPEM = myPublicKey
 
         do {
+            let privateKey = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                guard let privateKey = KeychainService.loadPrivateKey(),
+                      !senderPEM.isEmpty,
+                      (isGroup || !receiverPEM.isEmpty) else {
+                    throw NSError(
+                        domain: "sunmsg.crypto",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "Ключ шифрования не загружен."]
+                    )
+                }
+                return privateKey
+            }.value
             // Load image data — convert to JPEG so the server always gets a known format
             // (raw PhotosPickerItem data may be HEIC which some server-side validators reject)
             guard let rawData = try await item.loadTransferable(type: Data.self) else {
                 throw NSError(domain: "media", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не удалось загрузить изображение"])
             }
-            let prepared = preparePhotoUpload(rawData)
+            let prepared = await Task.detached(priority: .userInitiated) {
+                Self.preparePhotoUpload(rawData)
+            }.value
             let uploadData = prepared.data
             let uploadMime = prepared.mime
 
@@ -1684,7 +1705,7 @@ struct ChatView: View {
             let uploadResult = try await APIClient.shared.uploadMedia(
                 data: uploadData,
                 mimeType: uploadMime,
-                chatId: contact.chatId
+                chatId: chatId
             )
 
             // Build encrypted sunfile payload
@@ -1698,7 +1719,7 @@ struct ChatView: View {
             ]
             let sunfileJSON = String(data: try JSONSerialization.data(withJSONObject: sunfilePayload), encoding: .utf8) ?? ""
 
-            if contact.isGroup {
+            if isGroup {
                 try await emitEncryptedGroupPayload(
                     sunfileJSON,
                     messageType: "photo",
@@ -1712,16 +1733,18 @@ struct ChatView: View {
             }
 
             // Encrypt the sunfile JSON like a regular message
-            let encrypted = try SunCrypto.encryptMessage(
-                sunfileJSON,
-                receiverPEM: contact.publicKey,
-                senderPEM: myPublicKey,
-                privateKeyPEM: privateKey
-            )
+            let encrypted = try await Task.detached(priority: .userInitiated) { () throws -> String in
+                try SunCrypto.encryptMessage(
+                    sunfileJSON,
+                    receiverPEM: receiverPEM,
+                    senderPEM: senderPEM,
+                    privateKeyPEM: privateKey
+                )
+            }.value
 
             let requestId = UUID().uuidString
             let sent = try await APIClient.shared.sendMessage(
-                chatId: contact.chatId,
+                chatId: chatId,
                 message: encrypted,
                 messageType: "photo",
                 requestId: requestId
@@ -1746,7 +1769,7 @@ struct ChatView: View {
         }
     }
 
-    private func preparePhotoUpload(_ rawData: Data) -> (data: Data, mime: String) {
+    private static func preparePhotoUpload(_ rawData: Data) -> (data: Data, mime: String) {
         let maxPixelSize = 2048
         guard let source = CGImageSourceCreateWithData(rawData as CFData, nil) else {
             return (rawData, "image/jpeg")
