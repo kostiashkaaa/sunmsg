@@ -48,7 +48,6 @@ struct IncomingCallView: View {
                     Text(call.callerName)
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.smText)
-                        .tracking(-0.5)
                         .padding(.top, 14)
 
                     Text(call.callType == "video" ? "Видеозвонок" : "Голосовой звонок")
@@ -269,14 +268,12 @@ struct InCallView: View {
                         Text(initials(call.partnerName))
                             .font(.system(size: 46, weight: .bold))
                             .foregroundStyle(Color(hex: "#15140e"))
-                            .tracking(-1)
                     }
                     .padding(.bottom, 22)
 
                     Text(call.partnerName)
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(Color(hex: "#fbf8f1"))
-                        .tracking(-0.6)
 
                     HStack(spacing: 6) {
                         Image(systemName: call.callType == "video" ? "video.fill" : "phone.fill")
@@ -473,7 +470,6 @@ struct CallControlBtn: View {
                 Text(label)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.85))
-                    .tracking(-0.05)
                     .lineLimit(1)
             }
         }
