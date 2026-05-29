@@ -1267,7 +1267,7 @@ struct MainTabView: View {
                                 .font(.system(size: 14))
                                 .foregroundStyle(Color.smDanger)
                             Text(err)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(Color.smText)
                                 .lineLimit(2)
                         }
