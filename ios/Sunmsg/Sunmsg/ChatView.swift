@@ -58,7 +58,6 @@ struct ChatView: View {
     @State private var audioRecorder: AVAudioRecorder? = nil
     @State private var recordingURL: URL? = nil
     @State private var recordingDuration: TimeInterval = 0
-    @State private var recordingTimerTask: Task<Void, Never>? = nil
     @State private var recordingStartToken = UUID()
     @State private var scrollIntent: ChatScrollIntent = .bottom(animated: false)
     @State private var isPinnedToBottom = true
@@ -211,6 +210,9 @@ struct ChatView: View {
             }
             .task(id: typingDebounceToken) {
                 await emitTypingAfterDebounce()
+            }
+            .task(id: isRecording) {
+                await updateRecordingDurationWhileRecording()
             }
     }
 
@@ -467,6 +469,24 @@ struct ChatView: View {
             try Task.checkCancellation()
             guard SocketClient.shared.state == .connected, !composerText.isEmpty else { return }
             SocketClient.shared.emit("typing", ["chat_id": contact.chatId, "typing_kind": "text"])
+        } catch is CancellationError {
+            return
+        } catch {
+            return
+        }
+    }
+
+    @MainActor
+    private func updateRecordingDurationWhileRecording() async {
+        guard isRecording else { return }
+        let startedAt = Date()
+        do {
+            while isRecording {
+                try await Task.sleep(nanoseconds: 100_000_000)
+                try Task.checkCancellation()
+                guard isRecording else { return }
+                recordingDuration = Date().timeIntervalSince(startedAt)
+            }
         } catch is CancellationError {
             return
         } catch {
@@ -1984,7 +2004,6 @@ struct ChatView: View {
         recordingDuration = 0
         composerFocused = true
         isRecording = true
-        startRecordingTimer()
 
         // AVAudioApplication.requestRecordPermission is the iOS 17+ API.
         AVAudioApplication.requestRecordPermission { granted in
@@ -2054,24 +2073,6 @@ struct ChatView: View {
         )
     }
 
-    private func startRecordingTimer() {
-        recordingTimerTask?.cancel()
-        let startedAt = Date()
-        recordingTimerTask = Task { @MainActor in
-            while isRecording && !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                if isRecording && !Task.isCancelled {
-                    recordingDuration = Date().timeIntervalSince(startedAt)
-                }
-            }
-        }
-    }
-
-    private func stopRecordingTimer() {
-        recordingTimerTask?.cancel()
-        recordingTimerTask = nil
-    }
-
     private func failRecordingStart(_ message: String) {
         recordingStartToken = UUID()
         audioRecorder?.stop()
@@ -2082,7 +2083,6 @@ struct ChatView: View {
         recordingURL = nil
         isRecording = false
         recordingDuration = 0
-        stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         sendError = message
     }
@@ -2092,7 +2092,6 @@ struct ChatView: View {
         audioRecorder?.stop()
         audioRecorder = nil
         isRecording = false
-        stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = recordingURL else { return }
         let durationSeconds = max(1, Int(recordingDuration.rounded(.down)))
@@ -2106,7 +2105,6 @@ struct ChatView: View {
         audioRecorder = nil
         isRecording = false
         recordingDuration = 0
-        stopRecordingTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         if let url = recordingURL {
             try? FileManager.default.removeItem(at: url)
