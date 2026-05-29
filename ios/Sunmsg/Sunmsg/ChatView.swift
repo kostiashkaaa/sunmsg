@@ -956,7 +956,15 @@ struct ChatView: View {
     private func handleSocketNotification(_ notification: Notification) {
         guard
             let event = notification.userInfo?[SocketEventKey.eventName] as? String,
-            let payload = notification.userInfo?[SocketEventKey.data] as? [String: Any],
+            let payload = notification.userInfo?[SocketEventKey.data] as? [String: Any]
+        else { return }
+
+        if event == "error" {
+            handleSocketError(payload)
+            return
+        }
+
+        guard
             let chatId = payload["chat_id"] as? String,
             chatId == contact.chatId
         else { return }
@@ -1028,6 +1036,29 @@ struct ChatView: View {
 
         default:
             break
+        }
+    }
+
+    private func handleSocketError(_ payload: [String: Any]) {
+        if let chatId = payload["chat_id"] as? String,
+           !chatId.isEmpty,
+           chatId != contact.chatId {
+            return
+        }
+        let code = (payload["code"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if code == "duplicate_request" { return }
+
+        let ignoredMessages = [
+            "Message not found.",
+            "Invalid reaction payload.",
+            "Failed to update reaction.",
+        ]
+        let message = (payload["message"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !message.isEmpty, !ignoredMessages.contains(message) else { return }
+        sendError = message
+        if payload["request_id"] != nil {
+            isSending = false
+            isUploadingMedia = false
         }
     }
 
