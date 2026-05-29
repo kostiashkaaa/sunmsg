@@ -66,7 +66,7 @@ struct ChatHeaderView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 4) {
                         Text(displayName)
-                            .font(.system(size: 16.5, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Color.smText)
                             .lineLimit(1)
                             .layoutPriority(1)
@@ -80,7 +80,7 @@ struct ChatHeaderView: View {
                     }
 
                     Text(statusText)
-                        .font(isTyping ? .system(size: 12).italic() : .system(size: 12))
+                        .font(isTyping ? .caption.italic() : .caption)
                         .foregroundStyle(statusColor)
                         .lineLimit(1)
                 }
