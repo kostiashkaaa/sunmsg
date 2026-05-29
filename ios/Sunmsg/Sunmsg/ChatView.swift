@@ -1433,34 +1433,14 @@ struct ChatView: View {
 
         Task {
             do {
-                let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
-                let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
-                guard !memberKeys.isEmpty else {
-                    throw NSError(domain: "sunmsg.group", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не найдены ключи участников группы."])
-                }
-                let encrypted = try SunCrypto.encryptMessageForRecipients(
+                try await emitEncryptedGroupPayload(
                     text,
-                    recipientPEMs: memberKeys,
-                    senderPEM: myPublicKey,
-                    privateKeyPEM: privateKey
+                    messageType: "text",
+                    requestId: requestId,
+                    privateKey: privateKey,
+                    mentionedUsernames: mentionedUsernames(in: text)
                 )
-                let payload: [String: Any] = [
-                    "message": encrypted,
-                    "chat_id": contact.chatId,
-                    "message_type": "text",
-                    "client_id": requestId,
-                    "request_id": requestId,
-                    "mentioned_usernames": mentionedUsernames(in: text),
-                ]
-                await MainActor.run {
-                    if SocketClient.shared.state != .connected {
-                        sendError = "Нет соединения — сообщение будет отправлено после переподключения."
-                    } else {
-                        sendError = nil
-                    }
-                    SocketClient.shared.emit("send_message", payload)
-                    isSending = false
-                }
+                await MainActor.run { isSending = false }
             } catch {
                 await MainActor.run {
                     composerText = text
@@ -1468,6 +1448,42 @@ struct ChatView: View {
                     isSending = false
                 }
             }
+        }
+    }
+
+    private func emitEncryptedGroupPayload(
+        _ plaintext: String,
+        messageType: String,
+        requestId: String,
+        privateKey: String,
+        mentionedUsernames: [String] = []
+    ) async throws {
+        let profile = try await session.api.getGroupInfo(chatId: contact.chatId)
+        let memberKeys = profile.members.map { $0.publicKey }.filter { !$0.isEmpty }
+        guard !memberKeys.isEmpty else {
+            throw NSError(domain: "sunmsg.group", code: 0, userInfo: [NSLocalizedDescriptionKey: "Не найдены ключи участников группы."])
+        }
+        let encrypted = try SunCrypto.encryptMessageForRecipients(
+            plaintext,
+            recipientPEMs: memberKeys,
+            senderPEM: myPublicKey,
+            privateKeyPEM: privateKey
+        )
+        let payload: [String: Any] = [
+            "message": encrypted,
+            "chat_id": contact.chatId,
+            "message_type": messageType,
+            "client_id": requestId,
+            "request_id": requestId,
+            "mentioned_usernames": mentionedUsernames,
+        ]
+        await MainActor.run {
+            if SocketClient.shared.state != .connected {
+                sendError = "Нет соединения — сообщение будет отправлено после переподключения."
+            } else {
+                sendError = nil
+            }
+            SocketClient.shared.emit("send_message", payload)
         }
     }
 
@@ -1639,13 +1655,9 @@ struct ChatView: View {
     // MARK: - Send media message
 
     private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
-        guard !contact.isGroup else {
-            sendError = "Медиа в группах пока не поддерживается."
-            selectedPhotoItem = nil
-            return
-        }
         guard let privateKey = KeychainService.loadPrivateKey(),
-              !contact.publicKey.isEmpty, !myPublicKey.isEmpty else {
+              !myPublicKey.isEmpty,
+              (contact.isGroup || !contact.publicKey.isEmpty) else {
             sendError = "Ключ шифрования не загружен."
             selectedPhotoItem = nil
             return
@@ -1682,6 +1694,19 @@ struct ChatView: View {
                 "media_type": uploadResult.mediaType,
             ]
             let sunfileJSON = String(data: try JSONSerialization.data(withJSONObject: sunfilePayload), encoding: .utf8) ?? ""
+
+            if contact.isGroup {
+                try await emitEncryptedGroupPayload(
+                    sunfileJSON,
+                    messageType: "photo",
+                    requestId: UUID().uuidString,
+                    privateKey: privateKey
+                )
+                await MainActor.run {
+                    isUploadingMedia = false
+                }
+                return
+            }
 
             // Encrypt the sunfile JSON like a regular message
             let encrypted = try SunCrypto.encryptMessage(
