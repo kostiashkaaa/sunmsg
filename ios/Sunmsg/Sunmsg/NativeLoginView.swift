@@ -124,7 +124,11 @@ struct NativeLoginView: View {
                     .padding(.bottom, 20)
 
                     // Primary: create new account (4-point sparkle, dark fill, matches prototype)
-                    Button(action: { session.route = .register }) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            session.route = .register
+                        }
+                    }) {
                         HStack(spacing: 8) {
                             SparkleStar(size: 14)
                                 .foregroundStyle(Color(hex: "#fbf8f1"))

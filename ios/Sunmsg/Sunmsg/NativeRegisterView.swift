@@ -143,7 +143,11 @@ struct NativeRegisterView: View {
             .animation(.easeInOut(duration: 0.15), value: isFormValid)
 
             // Back to login
-            Button(action: { session.route = .login }) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    session.route = .login
+                }
+            }) {
                 Text("Уже есть аккаунт? Войти")
                     .font(.system(size: 14))
                     .foregroundStyle(Color.smMuted)
