@@ -2949,7 +2949,7 @@ struct CallBubbleView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
                     .lineLimit(1)
                 if let dur = durationText {
@@ -2958,7 +2958,7 @@ struct CallBubbleView: View {
                             .font(.system(size: 9.5))
                             .foregroundStyle((isFromMe ? Color.smBubbleOutText : Color.smBubbleInText).opacity(0.55))
                         Text(dur)
-                            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                            .font(.caption2.monospacedDigit().weight(.medium))
                             .foregroundStyle((isFromMe ? Color.smBubbleOutText : Color.smBubbleInText).opacity(0.70))
                     }
                 }
