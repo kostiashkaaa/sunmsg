@@ -5,6 +5,7 @@ import AVFoundation
 
 struct ChatListView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var searchText = ""
     @State private var activeFilter = "all"
     @State private var showMnemonicUnlock = false
@@ -188,9 +189,7 @@ struct ChatListView: View {
                 HStack(spacing: 4) {
                     ForEach(filters, id: \.id) { f in
                         let active = activeFilter == f.id
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.14)) { activeFilter = f.id }
-                        }) {
+                        Button(action: { selectFilter(f.id) }) {
                             Text(f.label)
                                 .font(.system(size: 13, weight: active ? .semibold : .medium))
                                 .foregroundStyle(active ? Color.smBg : Color.smMuted)
@@ -217,6 +216,17 @@ struct ChatListView: View {
         .padding(.horizontal, 12)
         .padding(.top, 6)
         .padding(.bottom, 8)
+    }
+
+    private func selectFilter(_ id: String) {
+        guard id != activeFilter else { return }
+        guard !reduceMotion else {
+            activeFilter = id
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.14)) {
+            activeFilter = id
+        }
     }
 
     // MARK: - E2E lock banner
@@ -295,7 +305,7 @@ struct ChatListView: View {
     private var requestsList: some View {
         let pendingRequests = session.pendingRequests
 
-        Group {
+        return Group {
             if pendingRequests.isEmpty {
                 emptyRequests
             } else {
