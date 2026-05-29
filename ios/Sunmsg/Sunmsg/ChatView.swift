@@ -1580,17 +1580,14 @@ struct ChatView: View {
     }
 
     private func sendAudioMessage(url: URL) async {
-        guard !contact.isGroup else {
-            sendError = "Голосовые в группах пока не поддерживаются."
-            try? FileManager.default.removeItem(at: url)
-            return
-        }
         guard let privateKey = KeychainService.loadPrivateKey(),
-              !contact.publicKey.isEmpty, !myPublicKey.isEmpty else {
+              !myPublicKey.isEmpty,
+              (contact.isGroup || !contact.publicKey.isEmpty) else {
             sendError = "Ключ шифрования не загружен."
             try? FileManager.default.removeItem(at: url)
             return
         }
+        defer { try? FileManager.default.removeItem(at: url) }
 
         isUploadingMedia = true
         sendError = nil
@@ -1612,6 +1609,19 @@ struct ChatView: View {
                 "media_type": "audio",
             ]
             let sunfileJSON = String(data: try JSONSerialization.data(withJSONObject: sunfilePayload), encoding: .utf8) ?? ""
+
+            if contact.isGroup {
+                try await emitEncryptedGroupPayload(
+                    sunfileJSON,
+                    messageType: "audio",
+                    requestId: UUID().uuidString,
+                    privateKey: privateKey
+                )
+                await MainActor.run {
+                    isUploadingMedia = false
+                }
+                return
+            }
 
             let encrypted = try SunCrypto.encryptMessage(
                 sunfileJSON,
@@ -1643,7 +1653,6 @@ struct ChatView: View {
                 isUploadingMedia = false
             }
         }
-        try? FileManager.default.removeItem(at: url)
     }
 
     private func formatRecordingTime(_ t: TimeInterval) -> String {
