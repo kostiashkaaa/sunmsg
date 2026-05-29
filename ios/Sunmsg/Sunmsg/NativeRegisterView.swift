@@ -17,6 +17,7 @@ struct NativeRegisterView: View {
     @State private var displayName = ""
     @State private var mnemonic = ""
     @State private var mnemonicCopied = false
+    @State private var copyResetTask: Task<Void, Never>?
     @State private var savedConfirmed = false
     @State private var step: RegisterStep = .form
     @FocusState private var focusedField: Field?
@@ -49,7 +50,11 @@ struct NativeRegisterView: View {
             }
         }
         .navigationBarHidden(true)
-        .onAppear { generateMnemonic() }
+        .onAppear { generateInitialMnemonicIfNeeded() }
+        .onDisappear {
+            copyResetTask?.cancel()
+            copyResetTask = nil
+        }
     }
 
     // MARK: - Logo
@@ -315,8 +320,15 @@ struct NativeRegisterView: View {
 
     // MARK: - Actions
 
+    private func generateInitialMnemonicIfNeeded() {
+        guard mnemonic.isEmpty else { return }
+        generateMnemonic()
+    }
+
     private func generateMnemonic() {
         guard let phrase = try? SunCrypto.generateMnemonic() else { return }
+        copyResetTask?.cancel()
+        copyResetTask = nil
         mnemonic = phrase
         mnemonicCopied = false
         savedConfirmed = false
@@ -325,8 +337,15 @@ struct NativeRegisterView: View {
     private func copyMnemonic() {
         UIPasteboard.general.string = mnemonic
         mnemonicCopied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            mnemonicCopied = false
+        copyResetTask?.cancel()
+        copyResetTask = Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                copyResetTask = nil
+                mnemonicCopied = false
+            }
         }
     }
 
