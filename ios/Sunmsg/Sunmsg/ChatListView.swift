@@ -648,7 +648,7 @@ struct SidebarContactRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(displayName)
-                        .font(.system(size: 15, weight: contact.unreadCount > 0 ? .semibold : .medium))
+                        .font(.subheadline.weight(contact.unreadCount > 0 ? .semibold : .medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
                         .tracking(-0.2)
@@ -665,7 +665,7 @@ struct SidebarContactRow: View {
                     Spacer(minLength: 4)
                     if let ts = contact.previewTimestamp {
                         Text(smFormatTime(ts))
-                            .font(.system(size: 11.5, weight: contact.unreadCount > 0 ? .semibold : .regular))
+                            .font(.caption2.weight(contact.unreadCount > 0 ? .semibold : .regular))
                             .foregroundStyle(contact.unreadCount > 0 && !muted ? Color.smAccent2 : Color.smFaint)
                             .fixedSize(horizontal: true, vertical: false)
                     }
@@ -673,7 +673,7 @@ struct SidebarContactRow: View {
 
                 HStack(alignment: .center) {
                     Text(contact.lastMessagePreview)
-                        .font(contact.isTyping ? .system(size: 13.5).italic() : .system(size: 13.5))
+                        .font(contact.isTyping ? .caption.italic() : .caption)
                         .foregroundStyle(contact.isTyping ? Color.smAccent : Color.smMuted)
                         .lineLimit(1)
                         .tracking(-0.1)
@@ -1048,7 +1048,7 @@ struct SmBadge: View {
 
     var body: some View {
         Text(count > 99 ? "99+" : "\(count)")
-            .font(.system(size: 11.5, weight: .semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(Color(hex: "#fbf8f1"))
             .padding(.horizontal, 7)
             .padding(.vertical, 2.5)
