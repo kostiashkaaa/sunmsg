@@ -303,7 +303,7 @@ struct TotpSettingsView: View {
 
                     if let error {
                         Text(error)
-                            .font(.system(size: 12.5))
+                            .font(.footnote)
                             .foregroundStyle(Color.smDanger)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 8)
@@ -356,16 +356,16 @@ struct TotpSettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(enabled ? "TOTP включён" : pending ? "Ожидает подтверждения" : "TOTP выключен")
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smText)
                     Text(enabled ? "Подключено: \(formatEnabledAt(status.totpEnabledAt))" : "Authenticator-код не требуется при входе")
-                        .font(.system(size: 12.5))
+                        .font(.footnote)
                         .foregroundStyle(Color.smMuted)
                 }
                 Spacer()
             }
             Text("TOTP добавляет второй фактор к входу и работает с любым Authenticator-приложением.")
-                .font(.system(size: 12.5))
+                .font(.footnote)
                 .foregroundStyle(Color.smFaint)
         }
         .padding(14)
@@ -381,17 +381,17 @@ struct TotpSettingsView: View {
                     qrCodeView
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Секрет")
-                            .font(.system(size: 12.5, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(Color.smText)
                         Text(status.totpSecret)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(.footnote, design: .monospaced))
                             .foregroundStyle(Color.smMuted)
                             .textSelection(.enabled)
                             .lineLimit(4)
                         Button("Скопировать секрет") {
                             UIPasteboard.general.string = status.totpSecret
                         }
-                        .font(.system(size: 12.5, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.smAccent2)
                     }
                 }
@@ -412,7 +412,7 @@ struct TotpSettingsView: View {
             sectionHeader("РЕЗЕРВНЫЕ КОДЫ")
             VStack(alignment: .leading, spacing: 12) {
                 Text("Осталось неиспользованных: \(status.backupCodesRemaining) из 10")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(Color.smMuted)
 
                 if !newBackupCodes.isEmpty {
@@ -431,7 +431,7 @@ struct TotpSettingsView: View {
                     showRegenerateBackup.toggle()
                     regenerateCode = ""
                 }
-                .font(.system(size: 13.5, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.smAccent2)
 
                 if showRegenerateBackup {
@@ -482,7 +482,7 @@ struct TotpSettingsView: View {
                         .foregroundStyle(tint)
                 }
                 Text(title)
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(tint)
                 Spacer()
                 if isWorking {
@@ -515,7 +515,7 @@ struct TotpSettingsView: View {
                     .frame(width: 132, height: 132)
             } else {
                 Text("QR недоступен")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color.smMuted)
             }
         }
@@ -525,12 +525,12 @@ struct TotpSettingsView: View {
     private func codeInput(title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(Color.smText)
             TextField("000000", text: text)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
-                .font(.system(size: 20, weight: .semibold, design: .monospaced))
+                .font(.system(.title3, design: .monospaced, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Color.smText)
                 .padding(.vertical, 10)
@@ -550,7 +550,7 @@ struct TotpSettingsView: View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
             ForEach(codes, id: \.self) { code in
                 Text(code)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .font(.system(.footnote, design: .monospaced, weight: .semibold))
                     .foregroundStyle(Color.smText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -567,7 +567,7 @@ struct TotpSettingsView: View {
                     ProgressView().tint(.white)
                 } else {
                     Text(title)
-                        .font(.system(size: 14.5, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                 }
                 Spacer()
             }
@@ -582,7 +582,7 @@ struct TotpSettingsView: View {
     private func secondaryButton(title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13.5, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.smAccent2)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
@@ -593,7 +593,7 @@ struct TotpSettingsView: View {
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11.5, weight: .semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(Color.smFaint)
             .tracking(0.6)
             .padding(.horizontal, 4)
