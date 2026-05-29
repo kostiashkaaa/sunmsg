@@ -13,10 +13,32 @@ struct CallsView: View {
     }
 
     private var callListSnapshot: CallListSnapshot {
-        let missedCalls = session.callHistory.filter { $0.missed }
+        Self.makeCallListSnapshot(
+            callHistory: session.callHistory,
+            selectedSegment: selectedSegment
+        )
+    }
+
+    private static func makeCallListSnapshot(
+        callHistory: [CallRecord],
+        selectedSegment: Int
+    ) -> CallListSnapshot {
+        var missedCount = 0
+        var missedCalls: [CallRecord] = []
+        if selectedSegment != 0 {
+            missedCalls.reserveCapacity(callHistory.count)
+        }
+
+        for call in callHistory where call.missed {
+            missedCount += 1
+            if selectedSegment != 0 {
+                missedCalls.append(call)
+            }
+        }
+
         return CallListSnapshot(
-            calls: selectedSegment == 0 ? session.callHistory : missedCalls,
-            missedCount: missedCalls.count
+            calls: selectedSegment == 0 ? callHistory : missedCalls,
+            missedCount: missedCount
         )
     }
 
