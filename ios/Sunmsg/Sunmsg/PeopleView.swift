@@ -9,7 +9,7 @@ struct PeopleView: View {
     @State private var isSearching = false
     @State private var requestSent: Set<Int> = []
     @State private var navigateToContact: Contact? = nil
-    @State private var showGroupAlert = false
+    @State private var showGroupCreate = false
     @State private var showUsernameAlert = false
     @FocusState private var searchFocused: Bool
 
@@ -48,10 +48,10 @@ struct PeopleView: View {
                 ChatView(contact: contact)
             }
         }
-        .alert("Группы", isPresented: $showGroupAlert) {
-            Button("Понятно", role: .cancel) { }
-        } message: {
-            Text("Создание групп будет доступно в следующем обновлении.")
+        .sheet(isPresented: $showGroupCreate) {
+            GroupCreateView { contact in
+                navigateToContact = contact
+            }
         }
     }
 
@@ -110,7 +110,7 @@ struct PeopleView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 10) {
                 // Big action cards
-                Button(action: { showGroupAlert = true }) {
+                Button(action: { showGroupCreate = true }) {
                     actionCard(
                         icon: "person.3.fill",
                         title: "Новая группа",
@@ -297,15 +297,19 @@ struct PeopleView: View {
 
     private func acceptRequest(_ req: DialogRequest) {
         Task {
-            _ = try? await APIClient.shared.acceptDialogRequest(senderPublicKey: req.senderPublicKey)
+            let acceptedChatId = try? await APIClient.shared.acceptDialogRequest(req)
             await session.refreshDialogRequests()
             await session.refreshContacts()
+            if req.isGroupInvite, let acceptedChatId,
+               let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
+                navigateToContact = contact
+            }
         }
     }
 
     private func declineRequest(_ req: DialogRequest) {
         Task {
-            try? await APIClient.shared.declineDialogRequest(senderPublicKey: req.senderPublicKey)
+            try? await APIClient.shared.declineDialogRequest(req)
             await session.refreshDialogRequests()
         }
     }
@@ -389,6 +393,420 @@ struct PeopleView: View {
     }
 }
 
+private struct GroupMemberCandidate: Identifiable, Equatable {
+    let userId: Int
+    let displayName: String
+    let username: String
+    let avatarUrl: String?
+    let canGroupAddDirect: Bool
+    let groupInviteAction: String
+
+    var id: Int { userId }
+
+    var isDenied: Bool {
+        groupInviteAction == "deny"
+    }
+
+    var actionLabel: String {
+        if groupInviteAction == "deny" { return "Недоступно" }
+        if groupInviteAction == "request" || !canGroupAddDirect { return "Запрос" }
+        return "Добавить"
+    }
+
+    static func from(contact: Contact) -> GroupMemberCandidate? {
+        guard let userId = contact.userId, !contact.isGroup else { return nil }
+        return GroupMemberCandidate(
+            userId: userId,
+            displayName: contact.displayName,
+            username: contact.username,
+            avatarUrl: contact.avatarUrl,
+            canGroupAddDirect: contact.canGroupAddDirect,
+            groupInviteAction: contact.canGroupAddDirect ? "add" : "request"
+        )
+    }
+
+    static func from(searchResult: SearchUserResult) -> GroupMemberCandidate {
+        GroupMemberCandidate(
+            userId: searchResult.userId,
+            displayName: searchResult.displayName,
+            username: searchResult.username,
+            avatarUrl: searchResult.avatarUrl,
+            canGroupAddDirect: searchResult.canGroupAddDirect,
+            groupInviteAction: searchResult.groupInviteAction
+        )
+    }
+}
+
+struct GroupCreateView: View {
+    @EnvironmentObject var session: SessionStore
+    @Environment(\.dismiss) private var dismiss
+
+    let onCreated: (Contact) -> Void
+
+    @State private var title = ""
+    @State private var query = ""
+    @State private var remoteResults: [SearchUserResult] = []
+    @State private var selected: [GroupMemberCandidate] = []
+    @State private var searchSeq = 0
+    @State private var isSearching = false
+    @State private var isCreating = false
+    @State private var error: String?
+
+    private var selectedIds: Set<Int> {
+        Set(selected.map { $0.userId })
+    }
+
+    private var localCandidates: [GroupMemberCandidate] {
+        let currentUserId = session.bootstrap?.user.id
+        return session.contacts
+            .compactMap(GroupMemberCandidate.from)
+            .filter { $0.userId != currentUserId }
+    }
+
+    private var visibleCandidates: [GroupMemberCandidate] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = filter(candidates: localCandidates, query: trimmed)
+        let remote = remoteResults
+            .map(GroupMemberCandidate.from)
+            .filter { $0.userId != session.bootstrap?.user.id }
+
+        var merged: [Int: GroupMemberCandidate] = [:]
+        for candidate in local { merged[candidate.userId] = candidate }
+        for candidate in remote where merged[candidate.userId] == nil {
+            merged[candidate.userId] = candidate
+        }
+
+        return merged.values
+            .filter { !selectedIds.contains($0.userId) }
+            .sorted {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
+    }
+
+    private var canCreate: Bool {
+        let count = title.trimmingCharacters(in: .whitespacesAndNewlines).count
+        return selected.count > 0 && count >= 2 && count <= 120 && !isCreating
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.smBg.ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    formHeader
+                    selectedMembers
+                    searchBar
+                    candidateList
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Color.smDanger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                    }
+                    createButton
+                }
+            }
+            .navigationTitle("Новая группа")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Отмена") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var formHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("НАЗВАНИЕ")
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Color.smFaint)
+                .tracking(0.6)
+            TextField("Название группы", text: $title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Color.smText)
+                .tint(Color.smAccent)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smBorder, lineWidth: 0.5))
+                .onChange(of: title) { _, value in
+                    if value.count > 120 {
+                        title = String(value.prefix(120))
+                    }
+                }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 10)
+    }
+
+    private var selectedMembers: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("УЧАСТНИКИ · \(selected.count)")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Color.smFaint)
+                    .tracking(0.6)
+                Spacer()
+            }
+
+            if selected.isEmpty {
+                Text("Выберите хотя бы одного участника.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.smMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selected) { member in
+                            selectedChip(member)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+    }
+
+    private func selectedChip(_ member: GroupMemberCandidate) -> some View {
+        Button {
+            selected.removeAll { $0.userId == member.userId }
+        } label: {
+            HStack(spacing: 7) {
+                SmAvatarView(name: member.displayName, avatarUrl: member.avatarUrl, size: 24)
+                Text(member.displayName)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(Color.smText)
+                    .lineLimit(1)
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color.smFaint)
+            }
+            .padding(.leading, 4)
+            .padding(.trailing, 9)
+            .padding(.vertical, 4)
+            .background(Color.smSurface, in: Capsule())
+            .overlay(Capsule().stroke(Color.smBorder, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.smMuted)
+            TextField("Найти по имени или @username", text: $query)
+                .font(.system(size: 15))
+                .foregroundStyle(Color.smText)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .tint(Color.smAccent)
+                .onChange(of: query) { _, value in searchMembers(value) }
+            if isSearching {
+                ProgressView()
+                    .tint(Color.smAccent)
+            } else if !query.isEmpty {
+                Button {
+                    query = ""
+                    remoteResults = []
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.smFaint)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.smBorder, lineWidth: 0.5))
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+    }
+
+    private var candidateList: some View {
+        Group {
+            if visibleCandidates.isEmpty {
+                VStack(spacing: 10) {
+                    Spacer()
+                    Image(systemName: "person.2.slash")
+                        .font(.system(size: 34))
+                        .foregroundStyle(Color.smFaint)
+                    Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Нет доступных контактов" : "Пользователи не найдены")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.smMuted)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(visibleCandidates.enumerated()), id: \.element.id) { index, candidate in
+                            candidateRow(candidate)
+                            if index < visibleCandidates.count - 1 {
+                                Divider().padding(.leading, 68).background(Color.smBorderSoft)
+                            }
+                        }
+                    }
+                    .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func candidateRow(_ candidate: GroupMemberCandidate) -> some View {
+        Button {
+            guard !candidate.isDenied else { return }
+            selected.append(candidate)
+            error = nil
+        } label: {
+            HStack(spacing: 12) {
+                SmAvatarView(name: candidate.displayName, avatarUrl: candidate.avatarUrl, size: 42)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(candidate.displayName)
+                        .font(.system(size: 14.5, weight: .semibold))
+                        .foregroundStyle(Color.smText)
+                        .lineLimit(1)
+                    Text(candidate.username.isEmpty ? "@user" : "@\(candidate.username)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.smMuted)
+                }
+                Spacer()
+                Text(candidate.actionLabel)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(candidate.isDenied ? Color.smFaint : Color.smAccent2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background((candidate.isDenied ? Color.smBorder : Color.smAccent).opacity(0.12), in: Capsule())
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(candidate.isDenied)
+    }
+
+    private var createButton: some View {
+        Button {
+            Task { await createGroup() }
+        } label: {
+            HStack {
+                Spacer()
+                if isCreating {
+                    ProgressView().tint(.white)
+                } else {
+                    Text("Создать")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                Spacer()
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 13)
+            .background(canCreate ? Color.smAccent2 : Color.smFaint, in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canCreate)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func filter(candidates: [GroupMemberCandidate], query: String) -> [GroupMemberCandidate] {
+        guard !query.isEmpty else { return Array(candidates.prefix(80)) }
+        return candidates.filter {
+            $0.displayName.localizedCaseInsensitiveContains(query) ||
+            $0.username.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func searchMembers(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        error = nil
+        remoteResults = []
+        guard trimmed.count >= 3 else {
+            isSearching = false
+            return
+        }
+        isSearching = true
+        searchSeq += 1
+        let seq = searchSeq
+        Task {
+            do {
+                let found = try await session.api.searchUsers(query: trimmed, limit: 40)
+                await MainActor.run {
+                    guard seq == searchSeq else { return }
+                    remoteResults = found
+                    isSearching = false
+                }
+            } catch {
+                await MainActor.run {
+                    guard seq == searchSeq else { return }
+                    isSearching = false
+                }
+            }
+        }
+    }
+
+    private func createGroup() async {
+        let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard selected.count > 0 else {
+            error = "Добавьте хотя бы одного участника."
+            return
+        }
+        guard normalizedTitle.count >= 2, normalizedTitle.count <= 120 else {
+            error = "Название группы должно быть от 2 до 120 символов."
+            return
+        }
+
+        isCreating = true
+        error = nil
+        defer { isCreating = false }
+
+        do {
+            let response = try await session.api.createGroupChat(
+                title: normalizedTitle,
+                memberUserIds: selected.map { $0.userId }
+            )
+            await session.refreshContacts()
+            let created = session.contacts.first(where: { $0.chatId == response.chatId }) ?? Contact(
+                userId: nil,
+                chatId: response.chatId,
+                displayName: response.chatName.isEmpty ? normalizedTitle : response.chatName,
+                username: "",
+                publicKey: "",
+                lastMessage: nil,
+                lastMessageTime: nil,
+                initialLastMessagePreview: nil,
+                unreadCount: 0,
+                avatarUrl: response.chatAvatarUrl.isEmpty ? nil : response.chatAvatarUrl,
+                isOnline: false,
+                isPinned: false,
+                isGroup: true
+            )
+            onCreated(created)
+            dismiss()
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
 // MARK: - Dialog request row
 
 struct DialogRequestRow: View {
@@ -399,14 +817,19 @@ struct DialogRequestRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SmAvatarView(name: request.senderDisplayName, size: 44)
+            SmAvatarView(
+                name: request.isGroupInvite ? requestTitle : request.senderDisplayName,
+                avatarUrl: request.isGroupInvite ? request.chatAvatarUrl : request.senderAvatar,
+                isGroup: request.isGroupInvite,
+                size: 44
+            )
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(request.senderDisplayName)
+                Text(requestTitle)
                     .font(.system(size: 15.5, weight: .medium))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
-                Text("@\(request.senderUsername)")
+                Text(requestSubtitle)
                     .font(.system(size: 13))
                     .foregroundStyle(Color.smAccent)
                     .lineLimit(1)
@@ -440,6 +863,24 @@ struct DialogRequestRow: View {
         .padding(.vertical, 11)
         .background(Color.smSurface)
         .contentShape(Rectangle())
+    }
+
+    private var requestTitle: String {
+        if request.isGroupInvite {
+            if let chatName = request.chatName, !chatName.isEmpty {
+                return chatName
+            }
+            return "Группа"
+        }
+        return request.senderDisplayName
+    }
+
+    private var requestSubtitle: String {
+        let username = request.senderUsername.isEmpty ? "user" : request.senderUsername
+        if request.isGroupInvite {
+            return "приглашение от @\(username)"
+        }
+        return "@\(username)"
     }
 }
 

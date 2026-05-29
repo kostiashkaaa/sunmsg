@@ -303,6 +303,7 @@ struct Contact: Decodable, Identifiable {
     var avatarUrl: String?
     var isOnline: Bool
     var lastSeen: Double?
+    let canGroupAddDirect: Bool
     let isPinned: Bool
     let isGroup: Bool
 
@@ -313,14 +314,15 @@ struct Contact: Decodable, Identifiable {
          publicKey: String, lastMessage: String?, lastMessageTime: Double?,
          initialLastMessagePreview: String?, lastSenderId: Int? = nil,
          unreadCount: Int, avatarUrl: String?,
-         isOnline: Bool, lastSeen: Double? = nil, isPinned: Bool, isGroup: Bool) {
+         isOnline: Bool, lastSeen: Double? = nil, canGroupAddDirect: Bool = true, isPinned: Bool, isGroup: Bool) {
         self.userId = userId; self.chatId = chatId; self.displayName = displayName
         self.username = username; self.publicKey = publicKey; self.lastMessage = lastMessage
         self.lastMessageTime = lastMessageTime
         self.initialLastMessagePreview = initialLastMessagePreview
         self.lastSenderId = lastSenderId
         self.unreadCount = unreadCount; self.avatarUrl = avatarUrl
-        self.isOnline = isOnline; self.lastSeen = lastSeen; self.isPinned = isPinned; self.isGroup = isGroup
+        self.isOnline = isOnline; self.lastSeen = lastSeen; self.canGroupAddDirect = canGroupAddDirect
+        self.isPinned = isPinned; self.isGroup = isGroup
     }
     
     var lastMessagePreview: String {
@@ -348,6 +350,7 @@ struct Contact: Decodable, Identifiable {
         case avatarUrl = "avatar_url"
         case isOnline = "is_online"
         case lastSeen = "last_seen"
+        case canGroupAddDirect = "can_group_add_direct"
         case isPinned = "is_pinned"
         case isGroup = "is_group"
     }
@@ -368,6 +371,7 @@ struct Contact: Decodable, Identifiable {
         avatarUrl   = try? c.decodeIfPresent(String.self, forKey: .avatarUrl)
         isOnline    = (try? c.decodeIfPresent(Bool.self, forKey: .isOnline))  ?? false
         lastSeen    = SunDateParser.decodeTimestamp(c, forKey: .lastSeen)
+        canGroupAddDirect = (try? c.decodeIfPresent(Bool.self, forKey: .canGroupAddDirect)) ?? true
         isPinned    = (try? c.decodeIfPresent(Bool.self, forKey: .isPinned))  ?? false
         isGroup     = (try? c.decodeIfPresent(Bool.self, forKey: .isGroup))   ?? false
         isTyping    = false
@@ -722,23 +726,47 @@ struct ChatHistoryResponse: Decodable {
 // MARK: - Dialog Request
 
 struct DialogRequest: Decodable, Identifiable {
+    let requestKind: String
+    let requestId: Int?
+    let chatId: String?
+    let chatName: String?
+    let chatAvatarUrl: String?
     let senderPublicKey: String
     let senderUsername: String
     let senderDisplayName: String
+    let senderAvatar: String?
 
-    var id: String { senderPublicKey }
+    var id: String {
+        isGroupInvite ? "group-invite-\(requestId ?? 0)" : senderPublicKey
+    }
+
+    var isGroupInvite: Bool {
+        requestKind == "group_invite"
+    }
 
     enum CodingKeys: String, CodingKey {
+        case requestKind = "request_kind"
+        case requestId = "request_id"
+        case chatId = "chat_id"
+        case chatName = "chat_name"
+        case chatAvatarUrl = "chat_avatar_url"
         case senderPublicKey  = "sender_public_key"
         case senderUsername   = "sender_username"
         case senderDisplayName = "sender_display_name"
+        case senderAvatar = "sender_avatar"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        requestKind = (try? c.decodeIfPresent(String.self, forKey: .requestKind)) ?? "direct"
+        requestId = try? c.decodeIfPresent(Int.self, forKey: .requestId)
+        chatId = try? c.decodeIfPresent(String.self, forKey: .chatId)
+        chatName = try? c.decodeIfPresent(String.self, forKey: .chatName)
+        chatAvatarUrl = try? c.decodeIfPresent(String.self, forKey: .chatAvatarUrl)
         senderPublicKey   = (try? c.decodeIfPresent(String.self, forKey: .senderPublicKey))   ?? ""
         senderUsername    = (try? c.decodeIfPresent(String.self, forKey: .senderUsername))    ?? ""
         senderDisplayName = (try? c.decodeIfPresent(String.self, forKey: .senderDisplayName)) ?? ""
+        senderAvatar = try? c.decodeIfPresent(String.self, forKey: .senderAvatar)
     }
 }
 
@@ -791,6 +819,8 @@ struct SearchUserResult: Decodable, Identifiable {
     let username: String
     let displayName: String
     let avatarUrl: String?
+    let canGroupAddDirect: Bool
+    let groupInviteAction: String
     let isContact: Bool
     let chatId: String?
     let relationshipStatus: String
@@ -805,6 +835,8 @@ struct SearchUserResult: Decodable, Identifiable {
         case username
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
+        case canGroupAddDirect = "can_group_add_direct"
+        case groupInviteAction = "group_invite_action"
         case isContact = "is_contact"
         case chatId = "chat_id"
         case relationshipStatus = "relationship_status"
@@ -819,6 +851,8 @@ struct SearchUserResult: Decodable, Identifiable {
         username = try c.decode(String.self, forKey: .username)
         displayName = (try? c.decodeIfPresent(String.self, forKey: .displayName)) ?? username
         avatarUrl = try? c.decodeIfPresent(String.self, forKey: .avatarUrl)
+        canGroupAddDirect = (try? c.decodeIfPresent(Bool.self, forKey: .canGroupAddDirect)) ?? true
+        groupInviteAction = (try? c.decodeIfPresent(String.self, forKey: .groupInviteAction)) ?? (canGroupAddDirect ? "add" : "request")
         isContact = (try? c.decodeIfPresent(Bool.self, forKey: .isContact)) ?? false
         chatId = try? c.decodeIfPresent(String.self, forKey: .chatId)
         relationshipStatus = (try? c.decodeIfPresent(String.self, forKey: .relationshipStatus)) ?? "none"
@@ -864,6 +898,43 @@ struct StartChatResponse: Decodable {
         status = (try? c.decodeIfPresent(String.self, forKey: .status)) ?? ""
         chatId = try? c.decodeIfPresent(String.self, forKey: .chatId)
         contact = try? c.decodeIfPresent(StartChatContact.self, forKey: .contact)
+    }
+}
+
+struct GroupCreateResponse: Decodable {
+    let success: Bool
+    let chatId: String
+    let chatName: String
+    let chatDescription: String
+    let chatAvatarUrl: String
+    let chatType: String
+    let membersCount: Int
+    let requestedMemberIds: [Int]
+    let deniedMemberIds: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case chatId = "chat_id"
+        case chatName = "chat_name"
+        case chatDescription = "chat_description"
+        case chatAvatarUrl = "chat_avatar_url"
+        case chatType = "chat_type"
+        case membersCount = "members_count"
+        case requestedMemberIds = "requested_member_ids"
+        case deniedMemberIds = "denied_member_ids"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decodeIfPresent(Bool.self, forKey: .success)) ?? false
+        chatId = (try? c.decodeIfPresent(String.self, forKey: .chatId)) ?? ""
+        chatName = (try? c.decodeIfPresent(String.self, forKey: .chatName)) ?? ""
+        chatDescription = (try? c.decodeIfPresent(String.self, forKey: .chatDescription)) ?? ""
+        chatAvatarUrl = (try? c.decodeIfPresent(String.self, forKey: .chatAvatarUrl)) ?? ""
+        chatType = (try? c.decodeIfPresent(String.self, forKey: .chatType)) ?? ""
+        membersCount = (try? c.decodeIfPresent(Int.self, forKey: .membersCount)) ?? 0
+        requestedMemberIds = (try? c.decodeIfPresent([Int].self, forKey: .requestedMemberIds)) ?? []
+        deniedMemberIds = (try? c.decodeIfPresent([Int].self, forKey: .deniedMemberIds)) ?? []
     }
 }
 

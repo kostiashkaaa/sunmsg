@@ -214,6 +214,12 @@ final class SessionStore: ObservableObject {
         case "dialog_request_updated":
             Task { await self.refreshDialogRequests() }
 
+        case "group_chat_created":
+            Task { await self.refreshContacts() }
+
+        case "new_group_invite_request":
+            Task { await self.refreshDialogRequests() }
+
         // MARK: - Call signaling
 
         case "call_incoming":

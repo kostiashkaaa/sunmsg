@@ -186,6 +186,19 @@ final class APIClient: ObservableObject {
         return try decode(StartChatResponse.self, from: data)
     }
 
+    func createGroupChat(title: String, memberUserIds: [Int]) async throws -> GroupCreateResponse {
+        let url = baseURL.appendingPathComponent("/api/chats/group/create")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "title": title,
+            "member_user_ids": memberUserIds,
+        ])
+        let data = try await perform(req, expectedStatus: 201)
+        return try decode(GroupCreateResponse.self, from: data)
+    }
+
     // MARK: - Auth
 
     func getCsrfToken() async throws -> String {
@@ -523,12 +536,51 @@ final class APIClient: ObservableObject {
         return try decode(R.self, from: data).chatId
     }
 
+    func acceptDialogRequest(_ request: DialogRequest) async throws -> String? {
+        let url = baseURL.appendingPathComponent("/accept_request")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        let payload: [String: Any]
+        if request.isGroupInvite {
+            payload = [
+                "request_kind": "group_invite",
+                "request_id": request.requestId ?? 0,
+            ]
+        } else {
+            payload = ["sender_public_key": request.senderPublicKey]
+        }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        let data = try await perform(req, expectedStatus: 200)
+        struct R: Decodable { let success: Bool; let chatId: String?
+            enum CodingKeys: String, CodingKey { case success; case chatId = "chat_id" } }
+        return try decode(R.self, from: data).chatId
+    }
+
     func declineDialogRequest(senderPublicKey: String) async throws {
         let url = baseURL.appendingPathComponent("/decline_request")
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["sender_public_key": senderPublicKey])
+        _ = try await perform(req, expectedStatus: 200)
+    }
+
+    func declineDialogRequest(_ request: DialogRequest) async throws {
+        let url = baseURL.appendingPathComponent("/decline_request")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        applyJSONPostHeaders(to: &req, csrfToken: csrfToken)
+        let payload: [String: Any]
+        if request.isGroupInvite {
+            payload = [
+                "request_kind": "group_invite",
+                "request_id": request.requestId ?? 0,
+            ]
+        } else {
+            payload = ["sender_public_key": request.senderPublicKey]
+        }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         _ = try await perform(req, expectedStatus: 200)
     }
 
