@@ -49,8 +49,8 @@ struct ChatView: View {
     @State private var isLoadingOlder = false
     @State private var hasOlderMessages = true
     @State private var partnerIsTyping = false
+    @State private var partnerTypingTimeoutToken = 0
     @State private var typingDebounceTask: Task<Void, Never>? = nil
-    @State private var partnerStopTypingTask: Task<Void, Never>? = nil
     @State private var showAttachmentPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var isUploadingMedia = false
@@ -188,8 +188,6 @@ struct ChatView: View {
                 typingDebounceTask = nil
                 draftSaveTask?.cancel()
                 flushDraftSave(force: true)
-                partnerStopTypingTask?.cancel()
-                partnerStopTypingTask = nil
                 if isRecording { cancelRecording() }
                 SocketClient.shared.emit("stop_typing", ["chat_id": contact.chatId])
             }
@@ -215,6 +213,9 @@ struct ChatView: View {
             }
             .task(id: toastDismissToken) {
                 await dismissToastAfterDelay()
+            }
+            .task(id: partnerTypingTimeoutToken) {
+                await clearPartnerTypingAfterDelay()
             }
     }
 
@@ -442,6 +443,20 @@ struct ChatView: View {
             try await Task.sleep(nanoseconds: 1_600_000_000)
             try Task.checkCancellation()
             updateWithMotion(.easeOut(duration: 0.25)) { toast = nil }
+        } catch is CancellationError {
+            return
+        } catch {
+            return
+        }
+    }
+
+    @MainActor
+    private func clearPartnerTypingAfterDelay() async {
+        guard partnerIsTyping else { return }
+        do {
+            try await Task.sleep(nanoseconds: 6_000_000_000)
+            try Task.checkCancellation()
+            partnerIsTyping = false
         } catch is CancellationError {
             return
         } catch {
@@ -881,20 +896,11 @@ struct ChatView: View {
 
         case "partner_typing":
             partnerIsTyping = true
-            partnerStopTypingTask?.cancel()
-            partnerStopTypingTask = Task {
-                try? await Task.sleep(nanoseconds: 6_000_000_000)
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    guard !Task.isCancelled else { return }
-                    partnerIsTyping = false
-                }
-            }
+            partnerTypingTimeoutToken += 1
 
         case "partner_stop_typing":
             partnerIsTyping = false
-            partnerStopTypingTask?.cancel()
-            partnerStopTypingTask = nil
+            partnerTypingTimeoutToken += 1
 
         case "messages_read":
             var changed: [ChatMessage] = []
