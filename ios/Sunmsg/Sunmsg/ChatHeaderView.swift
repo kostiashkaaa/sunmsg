@@ -28,6 +28,7 @@ struct ChatHeaderView: View {
                             .font(.system(size: 16.5, weight: .semibold))
                             .foregroundStyle(Color.smText)
                             .lineLimit(1)
+                            .layoutPriority(1)
 
                         if !contact.isGroup && !isSavedMessages {
                             Image(systemName: "lock.fill")
@@ -51,8 +52,9 @@ struct ChatHeaderView: View {
                             .lineLimit(1)
                     }
                 }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: 230, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
