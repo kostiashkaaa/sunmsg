@@ -23,8 +23,6 @@ struct ChatMessageTimelineView: View {
     let onToggleReaction: (Int, String) -> Void
     let onRequestMenu: (Int) -> Void
 
-    @State private var viewportHeight: CGFloat = 0
-
     private struct MessageRenderRow: Identifiable {
         let id: Int
         let message: ChatMessage
@@ -106,75 +104,71 @@ struct ChatMessageTimelineView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    olderMessagesControl
+        GeometryReader { viewportProxy in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        olderMessagesControl
 
-                    ForEach(rows) { row in
-                        if row.showsDate {
-                            DateChipView(timestamp: row.message.createdAt)
+                        ForEach(rows) { row in
+                            if row.showsDate {
+                                DateChipView(timestamp: row.message.createdAt)
+                            }
+
+                            MessageBubbleView(
+                                message: row.message,
+                                decryptedText: row.decryptedText,
+                                isFromMe: row.isFromMe,
+                                showSender: row.showSender,
+                                isTail: row.isTail,
+                                maxBubbleWidth: Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width),
+                                onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
+                                onRequestMenu: { onRequestMenu(row.id) }
+                            )
+                            .id(row.id)
+                            .opacity(menuTargetId == row.id ? 0 : 1)
                         }
 
-                        MessageBubbleView(
-                            message: row.message,
-                            decryptedText: row.decryptedText,
-                            isFromMe: row.isFromMe,
-                            showSender: row.showSender,
-                            isTail: row.isTail,
-                            onToggleReaction: { emoji in onToggleReaction(row.id, emoji) },
-                            onRequestMenu: { onRequestMenu(row.id) }
-                        )
-                        .id(row.id)
-                        .opacity(menuTargetId == row.id ? 0 : 1)
-                    }
+                        if partnerIsTyping {
+                            TypingBubbleView()
+                                .id("typing")
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
 
-                    if partnerIsTyping {
-                        TypingBubbleView()
-                            .id("typing")
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        Color.clear
+                            .frame(height: 1)
+                            .id("bottom_anchor")
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: MessageBottomOffsetKey.self,
+                                        value: proxy.frame(in: .named("message_scroll")).maxY
+                                    )
+                                }
+                            )
                     }
-
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom_anchor")
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: MessageBottomOffsetKey.self,
-                                    value: proxy.frame(in: .named("message_scroll")).maxY
-                                )
-                            }
-                        )
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-            }
-            .coordinateSpace(name: "message_scroll")
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: MessageViewportHeightKey.self, value: proxy.size.height)
+                .coordinateSpace(name: "message_scroll")
+                .scrollIndicators(.hidden)
+                .defaultScrollAnchor(.bottom)
+                .scrollDismissesKeyboard(.interactively)
+                .onAppear { scrollToBottom(proxy, animated: false) }
+                .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
+                    updatePinnedToBottom(
+                        bottomY: bottomY,
+                        viewportHeight: viewportProxy.size.height
+                    )
                 }
-            )
-            .scrollIndicators(.hidden)
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
-            .onAppear { scrollToBottom(proxy, animated: false) }
-            .onPreferenceChange(MessageViewportHeightKey.self) { height in
-                let changed = abs(viewportHeight - height) > 0.5
-                guard changed else { return }
-                viewportHeight = height
-            }
-            .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
-                updatePinnedToBottom(bottomY: bottomY)
-            }
-            .onChange(of: messages.count) { _, _ in
-                applyScrollIntent(proxy)
-            }
-            .onChange(of: partnerIsTyping) { _, typing in
-                if typing && isPinnedToBottom {
-                    withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
+                .onChange(of: messages.count) { _, _ in
+                    applyScrollIntent(proxy)
+                }
+                .onChange(of: partnerIsTyping) { _, typing in
+                    if typing && isPinnedToBottom {
+                        withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
+                    }
                 }
             }
         }
@@ -228,12 +222,18 @@ struct ChatMessageTimelineView: View {
         isPinnedToBottom = true
     }
 
-    private func updatePinnedToBottom(bottomY: CGFloat) {
+    private func updatePinnedToBottom(bottomY: CGFloat, viewportHeight: CGFloat) {
         guard viewportHeight > 0, bottomY > 0 else { return }
         let pinned = bottomY <= viewportHeight + 72
         if pinned != isPinnedToBottom {
             isPinnedToBottom = pinned
         }
+    }
+
+    private static func messageMaxBubbleWidth(forViewportWidth width: CGFloat) -> CGFloat {
+        let columnWidth = max(0, width - 28)
+        guard columnWidth > 0 else { return 306 }
+        return min(306, max(0, columnWidth - 46))
     }
 
     private static func shouldShowDate(current: ChatMessage, previous: ChatMessage?) -> Bool {
@@ -344,13 +344,6 @@ private struct BubbleBottomLeftShape: Shape {
         path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
         path.closeSubpath()
         return path
-    }
-}
-
-private struct MessageViewportHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 

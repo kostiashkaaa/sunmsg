@@ -1683,6 +1683,7 @@ struct MessageBubbleView: View {
     let isFromMe: Bool
     let showSender: Bool
     let isTail: Bool
+    let maxBubbleWidth: CGFloat
     /// When true, this is a lifted copy shown inside the context-menu overlay:
     /// it neither publishes its anchor nor reacts to long-press.
     var isPreview: Bool = false
@@ -1699,6 +1700,7 @@ struct MessageBubbleView: View {
         isFromMe: Bool,
         showSender: Bool,
         isTail: Bool,
+        maxBubbleWidth: CGFloat = 306,
         isPreview: Bool = false,
         onToggleReaction: @escaping (String) -> Void = { _ in },
         onRequestMenu: @escaping () -> Void = { }
@@ -1708,6 +1710,7 @@ struct MessageBubbleView: View {
         self.isFromMe = isFromMe
         self.showSender = showSender
         self.isTail = isTail
+        self.maxBubbleWidth = maxBubbleWidth
         self.isPreview = isPreview
         self.onToggleReaction = onToggleReaction
         self.onRequestMenu = onRequestMenu
@@ -1780,7 +1783,7 @@ struct MessageBubbleView: View {
                     }
                 }
             }
-            .frame(maxWidth: 306, alignment: bubbleAlignment)
+            .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
 
             if !isFromMe { Spacer(minLength: 46) }
         }
