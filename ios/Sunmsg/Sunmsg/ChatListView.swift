@@ -784,11 +784,11 @@ struct MnemonicUnlockSheet: View {
                             }
 
                             Text("Введите 24 слова")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.title2.weight(.bold))
                                 .foregroundStyle(Color.smText)
 
                             Text("восстановите доступ к зашифрованным сообщениям")
-                                .font(.system(size: 15).italic())
+                                .font(.subheadline.italic())
                                 .foregroundStyle(Color.smMuted)
                                 .multilineTextAlignment(.center)
                         }
@@ -797,14 +797,14 @@ struct MnemonicUnlockSheet: View {
                         // Username field
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Имя пользователя")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(Color.smMuted)
                                 .textCase(.uppercase)
                                 .tracking(0.5)
                             TextField("@username", text: $username)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
-                                .font(.system(size: 15))
+                                .font(.body)
                                 .foregroundStyle(Color.smText)
                                 .tint(Color.smAccent)
                                 .padding(.horizontal, 14)
@@ -819,7 +819,7 @@ struct MnemonicUnlockSheet: View {
                         // Mnemonic field
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Секретная фраза (24 слова)")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(Color.smMuted)
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -827,7 +827,7 @@ struct MnemonicUnlockSheet: View {
                             ZStack(alignment: .topLeading) {
                                 if mnemonic.isEmpty {
                                     Text("слово1 слово2 слово3 … слово24")
-                                        .font(.system(size: 14, design: .monospaced))
+                                        .font(.system(.subheadline, design: .monospaced))
                                         .foregroundStyle(Color.smFaint)
                                         .padding(.horizontal, 16)
                                         .padding(.top, 14)
@@ -835,7 +835,7 @@ struct MnemonicUnlockSheet: View {
                                 }
                                 TextEditor(text: $mnemonic)
                                     .focused($focused)
-                                    .font(.system(size: 14, design: .monospaced))
+                                    .font(.system(.subheadline, design: .monospaced))
                                     .foregroundStyle(Color.smText)
                                     .tint(Color.smAccent)
                                     .autocorrectionDisabled()
@@ -856,7 +856,7 @@ struct MnemonicUnlockSheet: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(Color.smAccent2)
                                 Text("Вставить все слова из буфера")
-                                    .font(.system(size: 12))
+                                    .font(.caption)
                                     .foregroundStyle(Color.smAccent2)
                             }
                             .onTapGesture {
@@ -867,7 +867,7 @@ struct MnemonicUnlockSheet: View {
                         if let err = errorMsg {
                             HStack(spacing: 6) {
                                 Image(systemName: "exclamationmark.circle.fill")
-                                Text(err).font(.system(size: 13.5)).fixedSize(horizontal: false, vertical: true)
+                                Text(err).font(.subheadline).fixedSize(horizontal: false, vertical: true)
                             }
                             .foregroundStyle(Color.smDanger)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -882,7 +882,7 @@ struct MnemonicUnlockSheet: View {
                                     Image(systemName: "lock.open.fill").font(.system(size: 15))
                                 }
                                 Text(isLoading ? "Разблокировка…" : "Разблокировать · нужно ещё \(24 - wordCount)")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -894,7 +894,7 @@ struct MnemonicUnlockSheet: View {
                         .disabled(!isReady || isLoading)
 
                         Text("ключи никогда не покидают устройство · sun не имеет доступа к вашей фразе")
-                            .font(.system(size: 11))
+                            .font(.caption2)
                             .foregroundStyle(Color.smFaint)
                             .multilineTextAlignment(.center)
                             .padding(.bottom, 20)
