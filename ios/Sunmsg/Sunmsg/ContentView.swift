@@ -251,6 +251,7 @@ final class SessionStore: ObservableObject {
                 callerAvatarUrl: initiator["avatar_url"] as? String,
                 callerUserId: initiator["user_id"] as? Int ?? 0
             )
+            incomingCall = incoming
             NativeCallManager.shared.reportIncomingCall(incoming) { [weak self] fallback in
                 self?.incomingCall = fallback
             }
