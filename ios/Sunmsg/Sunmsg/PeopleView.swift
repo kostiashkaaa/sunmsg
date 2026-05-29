@@ -280,7 +280,7 @@ struct PeopleView: View {
     private var requestsSection: some View {
         let pendingRequests = session.pendingRequests
 
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             Text("ЗАПРОСЫ")
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Color.smFaint)
