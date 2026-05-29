@@ -260,6 +260,7 @@ struct ChatView: View {
             let rect = geo[anchor]
             let isFromMe = msg.senderUserId == myId
             let actions = menuActions(for: msg, isFromMe: isFromMe)
+            let previewGrouping = messagePreviewGrouping(for: msg, isFromMe: isFromMe)
 
             // Layout geometry
             let topInset = geo.safeAreaInsets.top + 8
@@ -304,8 +305,8 @@ struct ChatView: View {
                     message: msg,
                     decryptedText: decryptedTexts[msg.id],
                     isFromMe: isFromMe,
-                    showSender: !isFromMe && contact.isGroup,
-                    isTail: true,
+                    showSender: previewGrouping.showSender,
+                    isTail: previewGrouping.isTail,
                     maxBubbleWidth: rect.width,
                     isPreview: true
                 )
@@ -324,6 +325,37 @@ struct ChatView: View {
             }
             .transition(.opacity)
         }
+    }
+
+    private func messagePreviewGrouping(
+        for message: ChatMessage,
+        isFromMe: Bool
+    ) -> (showSender: Bool, isTail: Bool) {
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else {
+            return (showSender: !isFromMe && contact.isGroup, isTail: true)
+        }
+
+        let previous = index > messages.startIndex ? messages[messages.index(before: index)] : nil
+        let next = index < messages.index(before: messages.endIndex) ? messages[messages.index(after: index)] : nil
+        let showSender = contact.isGroup
+            && !isFromMe
+            && (previous == nil
+                || previous?.senderUserId != message.senderUserId
+                || isDifferentMessageDay(current: message, previous: previous))
+        let isTail = next == nil
+            || next?.senderUserId != message.senderUserId
+            || (next?.senderUserId == myId) != isFromMe
+            || isDifferentMessageDay(current: next, previous: message)
+
+        return (showSender: showSender, isTail: isTail)
+    }
+
+    private func isDifferentMessageDay(current: ChatMessage?, previous: ChatMessage?) -> Bool {
+        guard let current, let previous else { return false }
+        return !Calendar.current.isDate(
+            Date(timeIntervalSince1970: current.createdAt),
+            inSameDayAs: Date(timeIntervalSince1970: previous.createdAt)
+        )
     }
 
     private func clamp(_ v: CGFloat, min lo: CGFloat, max hi: CGFloat) -> CGFloat {
