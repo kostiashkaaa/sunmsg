@@ -76,13 +76,11 @@ struct InAppBannerView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
-                    .tracking(-0.2)
 
                 Text(data.preview)
                     .font(.footnote)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
-                    .tracking(-0.1)
             }
 
             Spacer(minLength: 0)
