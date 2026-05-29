@@ -5,13 +5,27 @@ struct ReactionPicker: View {
 
     let primaryReactions: [String]
     let additionalReactions: [String]
-    let currentReactions: [MessageReaction]
     let onSelect: (String) -> Void
+    private let expandedReactions: [String]
+    private let reactedByMeEmojis: Set<String>
 
     @State private var showsAdditionalReactions = false
 
+    init(
+        primaryReactions: [String],
+        additionalReactions: [String],
+        currentReactions: [MessageReaction],
+        onSelect: @escaping (String) -> Void
+    ) {
+        self.primaryReactions = primaryReactions
+        self.additionalReactions = additionalReactions
+        self.onSelect = onSelect
+        self.expandedReactions = primaryReactions + additionalReactions
+        self.reactedByMeEmojis = Set(currentReactions.filter { $0.reactedByMe }.map(\.emoji))
+    }
+
     private var visibleReactions: [String] {
-        showsAdditionalReactions ? primaryReactions + additionalReactions : primaryReactions
+        showsAdditionalReactions ? expandedReactions : primaryReactions
     }
 
     var body: some View {
@@ -43,7 +57,7 @@ struct ReactionPicker: View {
     }
 
     private func reactionButton(_ emoji: String) -> some View {
-        let isActive = currentReactions.contains { $0.emoji == emoji && $0.reactedByMe }
+        let isActive = reactedByMeEmojis.contains(emoji)
 
         return Button(action: {
             ChatHaptics.lightImpact()
