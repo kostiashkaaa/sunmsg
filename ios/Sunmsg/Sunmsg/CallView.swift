@@ -242,6 +242,7 @@ struct InCallView: View {
                     Spacer()
 
                     CallElapsedBadge(connectionState: webrtc.connectionState)
+                        .id(call.callId)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, callTopPadding(geo))
