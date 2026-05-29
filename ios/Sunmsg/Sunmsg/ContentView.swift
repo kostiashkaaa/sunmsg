@@ -3038,6 +3038,7 @@ struct MnemonicRestoreSettingsView: View {
 
 struct IntegrationsSettingsView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.openURL) private var openURL
     @State private var status: SpotifyStatusResponse?
     @State private var privacy = "contacts"
     @State private var hideExplicit = false
@@ -3060,7 +3061,7 @@ struct IntegrationsSettingsView: View {
                 if status?.configured == true {
                     Button {
                         if let url = URL(string: "/spotify/connect", relativeTo: URL(string: kBaseURL))?.absoluteURL {
-                            UIApplication.shared.open(url)
+                            openURL(url)
                         }
                     } label: {
                         Label("Подключить Spotify", systemImage: "music.note")
