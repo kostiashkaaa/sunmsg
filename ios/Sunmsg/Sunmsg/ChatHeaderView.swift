@@ -38,19 +38,10 @@ struct ChatHeaderView: View {
                         }
                     }
 
-                    HStack(spacing: 5) {
-                        if contact.isOnline && !isTyping && !isSavedMessages {
-                            Circle()
-                                .fill(Color.smOnline)
-                                .frame(width: 6, height: 6)
-                                .accessibilityHidden(true)
-                        }
-
-                        Text(statusText)
-                            .font(isTyping ? .system(size: 12).italic() : .system(size: 12))
-                            .foregroundStyle(statusColor)
-                            .lineLimit(1)
-                    }
+                    Text(statusText)
+                        .font(isTyping ? .system(size: 12).italic() : .system(size: 12))
+                        .foregroundStyle(statusColor)
+                        .lineLimit(1)
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
