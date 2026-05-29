@@ -46,6 +46,7 @@ struct ChatView: View {
     @State private var lastSavedDraftText = ""
     @State private var lastDraftUpdatedAt: Double = 0
     @State private var isApplyingDraftText = false
+    @State private var hasPrivateKeyLoaded = false
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -86,7 +87,7 @@ struct ChatView: View {
         if current.isGroup { return "групповой чат" }
         return smFormatLastSeen(current.lastSeen)
     }
-    private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
+    private var hasPrivateKey: Bool { hasPrivateKeyLoaded }
     private var canSendEncrypted: Bool {
         hasPrivateKey && !myPublicKey.isEmpty && !contact.publicKey.isEmpty && !contact.isGroup
     }
@@ -131,6 +132,7 @@ struct ChatView: View {
                 await slowPollLoop()
             }
             .onAppear {
+                refreshPrivateKeyState()
                 session.activeChatId = contact.chatId
                 session.clearUnread(chatId: contact.chatId)
             }
@@ -160,6 +162,9 @@ struct ChatView: View {
             .onChange(of: selectedPhotoItem) { _, item in
                 guard let item else { return }
                 Task { await handleSelectedPhoto(item) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                refreshPrivateKeyState()
             }
     }
 
@@ -582,8 +587,12 @@ struct ChatView: View {
             .scrollIndicators(.hidden)
             .onAppear { scrollToBottom(proxy, animated: false) }
             .onPreferenceChange(MessageViewportHeightKey.self) { height in
-                if abs(messageViewportHeight - height) > 0.5 {
-                    messageViewportHeight = height
+                let changed = abs(messageViewportHeight - height) > 0.5
+                guard changed else { return }
+                let wasPinnedToBottom = isPinnedToBottom
+                messageViewportHeight = height
+                if wasPinnedToBottom {
+                    scrollToBottom(proxy, animated: false)
                 }
             }
             .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
@@ -881,6 +890,10 @@ struct ChatView: View {
         if !hasPrivateKey { return "Войдите для расшифровки ключа" }
         if contact.publicKey.isEmpty { return "Ключ получателя не найден" }
         return "Сообщение…"
+    }
+
+    private func refreshPrivateKeyState() {
+        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
     }
 
     // MARK: - Toolbar
@@ -1196,6 +1209,7 @@ struct ChatView: View {
         }
         var unresolvedCount = 0
         var v3Msgs: [ChatMessage] = []
+        var decryptedUpdates: [Int: String] = [:]
 
         for msg in msgs where msg.isEncrypted {
             guard decryptedTexts[msg.id] == nil, let json = msg.message else { continue }
@@ -1210,7 +1224,7 @@ struct ChatView: View {
             // default "🔐 Encrypted message" fallback.
             if text.isEmpty {
                 // Decryption returned nothing — write an unambiguous placeholder.
-                await MainActor.run { decryptedTexts[id] = "[пустое сообщение]" }
+                decryptedUpdates[id] = "[пустое сообщение]"
                 unresolvedCount += 1
             } else if text == json {
                 // Payload didn't match v2 schema and isn't v3. Common causes:
@@ -1218,14 +1232,20 @@ struct ChatView: View {
                 // that happens to start with `{`. Show the raw content if it parses
                 // as a sunfile, otherwise mark as unrecognized.
                 if let _ = parseLegacySunfileMarker(json) {
-                    await MainActor.run { decryptedTexts[id] = json }
+                    decryptedUpdates[id] = json
                 } else {
-                    await MainActor.run { decryptedTexts[id] = "[неизвестный формат]" }
+                    decryptedUpdates[id] = "[неизвестный формат]"
                     unresolvedCount += 1
                 }
             } else {
                 if text.hasPrefix("[") { unresolvedCount += 1 }
-                await MainActor.run { decryptedTexts[id] = text }
+                decryptedUpdates[id] = text
+            }
+        }
+
+        if !decryptedUpdates.isEmpty {
+            await MainActor.run {
+                decryptedTexts.merge(decryptedUpdates) { _, new in new }
             }
         }
 
@@ -1261,13 +1281,16 @@ struct ChatView: View {
         let iosIkPriv  = KeychainService.loadX25519PrivateKey()
         var failedCount = 0
         let sorted = msgs.sorted { $0.id < $1.id }
+        var decryptedUpdates: [Int: String] = [:]
 
         if let sj = sessionJSON, var drState = try? V3CryptoService.parseDRState(sj) {
             var stateChanged = false
             var unhandled: [ChatMessage] = []
 
             for msg in sorted {
-                guard decryptedTexts[msg.id] == nil, let json = msg.message else { continue }
+                guard decryptedTexts[msg.id] == nil,
+                      decryptedUpdates[msg.id] == nil,
+                      let json = msg.message else { continue }
                 let proto = V3CryptoService.v3Proto(json)
 
                 if proto == "dr" {
@@ -1275,7 +1298,7 @@ struct ChatView: View {
                         let plaintext = try V3CryptoService.decryptDR(json: json, state: &drState)
                         stateChanged = true
                         let id = msg.id
-                        await MainActor.run { decryptedTexts[id] = plaintext }
+                        decryptedUpdates[id] = plaintext
                     } catch {
                         unhandled.append(msg)
                     }
@@ -1294,37 +1317,40 @@ struct ChatView: View {
                 let proto = V3CryptoService.v3Proto(json)
                 if proto == "x3dh", let ikPriv = iosIkPriv {
                     if let spkId = x3dhSpkId(from: json),
-                       let spkPriv = KeychainService.loadSignedPrekeyPrivateKey(id: spkId),
-                       let plaintext = try? V3CryptoService.decryptX3DH(json: json, ikPrivRaw: ikPriv, spkPrivRaw: spkPriv) {
+                        let spkPriv = KeychainService.loadSignedPrekeyPrivateKey(id: spkId),
+                        let plaintext = try? V3CryptoService.decryptX3DH(json: json, ikPrivRaw: ikPriv, spkPrivRaw: spkPriv) {
                         let id = msg.id
-                        await MainActor.run { decryptedTexts[id] = plaintext }
+                        decryptedUpdates[id] = plaintext
                         continue
                     }
                 }
                 failedCount += 1
                 let id = msg.id
-                await MainActor.run {
-                    decryptedTexts[id] = proto == "mls" ? "[групповое шифрование v3]" : "[зашифровано · откройте в браузере]"
-                }
+                decryptedUpdates[id] = proto == "mls" ? "[групповое шифрование v3]" : "[зашифровано · откройте в браузере]"
             }
         } else {
             for msg in sorted {
-                guard decryptedTexts[msg.id] == nil, let json = msg.message else { continue }
+                guard decryptedTexts[msg.id] == nil,
+                      decryptedUpdates[msg.id] == nil,
+                      let json = msg.message else { continue }
                 let proto = V3CryptoService.v3Proto(json)
                 if proto == "x3dh", let ikPriv = iosIkPriv {
                     if let spkId = x3dhSpkId(from: json),
                        let spkPriv = KeychainService.loadSignedPrekeyPrivateKey(id: spkId),
                        let plaintext = try? V3CryptoService.decryptX3DH(json: json, ikPrivRaw: ikPriv, spkPrivRaw: spkPriv) {
                         let id = msg.id
-                        await MainActor.run { decryptedTexts[id] = plaintext }
+                        decryptedUpdates[id] = plaintext
                         continue
                     }
                 }
                 failedCount += 1
                 let id = msg.id
-                await MainActor.run {
-                    decryptedTexts[id] = proto == "mls" ? "[групповое шифрование v3]" : "[зашифровано · откройте в браузере]"
-                }
+                decryptedUpdates[id] = proto == "mls" ? "[групповое шифрование v3]" : "[зашифровано · откройте в браузере]"
+            }
+        }
+        if !decryptedUpdates.isEmpty {
+            await MainActor.run {
+                decryptedTexts.merge(decryptedUpdates) { _, new in new }
             }
         }
         return failedCount

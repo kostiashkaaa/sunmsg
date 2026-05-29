@@ -14,8 +14,9 @@ struct ChatListView: View {
     @State private var removingChatIds: Set<String> = []
     @State private var handlingRequestIds: Set<String> = []
     @State private var removalError: String?
+    @State private var hasPrivateKeyLoaded = false
 
-    private var hasPrivateKey: Bool { KeychainService.loadPrivateKey() != nil }
+    private var hasPrivateKey: Bool { hasPrivateKeyLoaded }
 
     private var filters: [(id: String, label: String)] {
         let reqCount = session.pendingRequests.count
@@ -74,8 +75,16 @@ struct ChatListView: View {
         .sheet(isPresented: $showMnemonicUnlock) {
             MnemonicUnlockSheet()
         }
+        .onChange(of: showMnemonicUnlock) { _, isPresented in
+            if !isPresented {
+                refreshPrivateKeyState()
+            }
+        }
         .sheet(isPresented: $showQRSheet) {
             UserQRSheet()
+        }
+        .onAppear {
+            refreshPrivateKeyState()
         }
         .refreshable { await refreshSidebarData() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -112,6 +121,10 @@ struct ChatListView: View {
                 await refreshSidebarData()
             }
         }
+    }
+
+    private func refreshPrivateKeyState() {
+        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
     }
 
     // MARK: - Top card: brand + search + tabs

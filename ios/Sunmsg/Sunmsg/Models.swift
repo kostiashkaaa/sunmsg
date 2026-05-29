@@ -207,6 +207,32 @@ struct LossyArray<Element: Decodable>: Decodable {
 private struct DiscardedValue: Decodable {}
 
 enum SunDateParser {
+    private static let lock = NSLock()
+    private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private static let isoInternetDateTime: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+    private static let fallbackDateFormatters: [DateFormatter] = [
+        "yyyy-MM-dd HH:mm:ss.SSSSSSZ",
+        "yyyy-MM-dd HH:mm:ssZ",
+        "yyyy-MM-dd HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
+        "yyyy-MM-dd'T'HH:mm:ssZ",
+    ].map { format in
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = format
+        return formatter
+    }
+
     static func decodeTimestamp<K: CodingKey>(_ container: KeyedDecodingContainer<K>, forKey key: K) -> Double? {
         if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
             return value
@@ -225,24 +251,13 @@ enum SunDateParser {
         guard !value.isEmpty else { return nil }
         if let numeric = Double(value) { return numeric }
 
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = iso.date(from: value) { return date.timeIntervalSince1970 }
-        iso.formatOptions = [.withInternetDateTime]
-        if let date = iso.date(from: value) { return date.timeIntervalSince1970 }
+        lock.lock()
+        defer { lock.unlock() }
 
-        for format in [
-            "yyyy-MM-dd HH:mm:ss.SSSSSSZ",
-            "yyyy-MM-dd HH:mm:ssZ",
-            "yyyy-MM-dd HH:mm:ss.SSSSSS",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-        ] {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.dateFormat = format
+        if let date = isoWithFractionalSeconds.date(from: value) { return date.timeIntervalSince1970 }
+        if let date = isoInternetDateTime.date(from: value) { return date.timeIntervalSince1970 }
+
+        for formatter in fallbackDateFormatters {
             if let date = formatter.date(from: value) {
                 return date.timeIntervalSince1970
             }

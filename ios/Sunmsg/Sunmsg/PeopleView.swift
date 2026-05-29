@@ -7,6 +7,8 @@ struct PeopleView: View {
     @State private var query = ""
     @State private var results: [SearchUserResult] = []
     @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var searchSequence = 0
     @State private var requestSent: Set<Int> = []
     @State private var navigateToContact: Contact? = nil
     @State private var showGroupCreate = false
@@ -53,6 +55,9 @@ struct PeopleView: View {
                 navigateToContact = contact
             }
         }
+        .onDisappear {
+            cancelSearch(clearResults: false)
+        }
     }
 
     // MARK: - Header (matches "Новый чат" prototype: Cancel · Title · Create in amber)
@@ -88,7 +93,10 @@ struct PeopleView: View {
                 .onChange(of: query) { _, q in performSearch(q) }
 
             if !query.isEmpty {
-                Button(action: { query = ""; results = [] }) {
+                Button(action: {
+                    query = ""
+                    cancelSearch(clearResults: true)
+                }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(Color.smFaint)
@@ -317,24 +325,49 @@ struct PeopleView: View {
     // MARK: - Actions
 
     private func performSearch(_ q: String) {
-        let trimmed = q.trimmingCharacters(in: .whitespaces)
+        let trimmed = q.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchTask?.cancel()
+        searchSequence += 1
+        let sequence = searchSequence
+
         guard trimmed.count >= 3 else {
             results = []
             isSearching = false
             return
         }
+
         isSearching = true
-        Task {
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            guard !Task.isCancelled else { return }
             do {
                 let found = try await APIClient.shared.searchUsers(query: trimmed)
                 await MainActor.run {
+                    guard sequence == searchSequence,
+                          query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed
+                    else { return }
                     results = found
                     isSearching = false
+                    searchTask = nil
                 }
             } catch {
-                await MainActor.run { isSearching = false }
+                await MainActor.run {
+                    guard sequence == searchSequence else { return }
+                    isSearching = false
+                    searchTask = nil
+                }
             }
         }
+    }
+
+    private func cancelSearch(clearResults: Bool) {
+        searchTask?.cancel()
+        searchTask = nil
+        searchSequence += 1
+        if clearResults {
+            results = []
+        }
+        isSearching = false
     }
 
     private func handleTap(_ user: SearchUserResult) {
@@ -448,6 +481,7 @@ struct GroupCreateView: View {
     @State private var remoteResults: [SearchUserResult] = []
     @State private var selected: [GroupMemberCandidate] = []
     @State private var searchSeq = 0
+    @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var isCreating = false
     @State private var error: String?
@@ -515,6 +549,10 @@ struct GroupCreateView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Отмена") { dismiss() }
                 }
+            }
+            .onDisappear {
+                searchTask?.cancel()
+                searchTask = nil
             }
         }
     }
@@ -735,27 +773,35 @@ struct GroupCreateView: View {
 
     private func searchMembers(_ raw: String) {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchTask?.cancel()
         error = nil
-        remoteResults = []
         guard trimmed.count >= 3 else {
+            remoteResults = []
             isSearching = false
+            searchTask = nil
             return
         }
         isSearching = true
         searchSeq += 1
         let seq = searchSeq
-        Task {
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            guard !Task.isCancelled else { return }
             do {
                 let found = try await session.api.searchUsers(query: trimmed, limit: 40)
                 await MainActor.run {
-                    guard seq == searchSeq else { return }
+                    guard seq == searchSeq,
+                          query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed
+                    else { return }
                     remoteResults = found
                     isSearching = false
+                    searchTask = nil
                 }
             } catch {
                 await MainActor.run {
                     guard seq == searchSeq else { return }
                     isSearching = false
+                    searchTask = nil
                 }
             }
         }

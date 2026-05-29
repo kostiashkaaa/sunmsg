@@ -14,8 +14,9 @@ struct PrivacySettingsView: View {
     @State private var navigateToDevices = false
     @State private var navigateToTotp = false
     @State private var showMnemonicInfo = false
+    @State private var hasPrivateKeyLoaded = false
 
-    private var hasKey: Bool { KeychainService.loadPrivateKey() != nil }
+    private var hasKey: Bool { hasPrivateKeyLoaded }
 
     private var keyStatusText: String {
         hasKey ? "Сохранён в Keychain · RSA-2048" : "Не загружен — войдите заново"
@@ -55,6 +56,9 @@ struct PrivacySettingsView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .task { await loadSettings() }
         .task { await loadBlockedCount() }
+        .onAppear {
+            refreshPrivateKeyState()
+        }
         .navigationDestination(isPresented: $navigateToBlocked) { BlockedUsersView() }
         .navigationDestination(isPresented: $navigateToDevices) { DevicesView() }
         .navigationDestination(isPresented: $navigateToTotp) { TotpSettingsView() }
@@ -63,6 +67,10 @@ struct PrivacySettingsView: View {
         } message: {
             Text("Ваши 24 слова показываются один раз при создании аккаунта и нигде не сохраняются. Храните их в надёжном месте — это единственный способ восстановить доступ.")
         }
+    }
+
+    private func refreshPrivateKeyState() {
+        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
     }
 
     // MARK: - Encryption status card

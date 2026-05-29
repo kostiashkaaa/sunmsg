@@ -133,6 +133,16 @@ struct KeychainService {
         return String(data: data, encoding: .utf8)
     }
 
+    static func hasPrivateKey() -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String:       kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecMatchLimit as String:  kSecMatchLimitOne,
+        ]
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
+
     static func deletePrivateKey() {
         let query: [String: Any] = [
             kSecClass as String:        kSecClassGenericPassword,

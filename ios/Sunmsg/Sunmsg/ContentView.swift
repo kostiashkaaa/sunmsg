@@ -872,10 +872,10 @@ final class SessionStore: ObservableObject {
 
     private func decryptContactPreviews() {
         let myId = bootstrap?.user.id ?? 0
-        let hasPem = KeychainService.loadPrivateKey() != nil
+        let privateKeyPEM = KeychainService.loadPrivateKey()
         for index in contacts.indices {
             if contacts[index].hasDraft, let draft = contacts[index].draftText, !draft.isEmpty {
-                contacts[index].draftText = draftPreviewText(draft)
+                contacts[index].draftText = draftPreviewText(draft, privateKeyPEM: privateKeyPEM)
             }
             guard let raw = contacts[index].lastMessage, raw.hasPrefix("{") else { continue }
             // Call messages can be labelled without a decryption key
@@ -886,25 +886,25 @@ final class SessionStore: ObservableObject {
                 contacts[index].initialLastMessagePreview = ct == "video" ? "📹 Видеозвонок" : "📞 Звонок"
                 continue
             }
-            guard hasPem else { continue }
-            let text = decryptPreview(raw, isSelf: contacts[index].lastSenderId == myId)
+            guard let privateKeyPEM else { continue }
+            let text = decryptPreview(raw, isSelf: contacts[index].lastSenderId == myId, privateKeyPEM: privateKeyPEM)
             if !text.isEmpty, text != raw {
                 contacts[index].initialLastMessagePreview = text
             }
         }
     }
 
-    private func draftPreviewText(_ raw: String) -> String {
+    private func draftPreviewText(_ raw: String, privateKeyPEM: String? = nil) -> String {
         let normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
         guard normalized.hasPrefix("{") else { return normalized }
-        return decryptPreview(normalized, isSelf: true)
+        return decryptPreview(normalized, isSelf: true, privateKeyPEM: privateKeyPEM)
     }
 
-    private func decryptPreview(_ raw: String, isSelf: Bool) -> String {
+    private func decryptPreview(_ raw: String, isSelf: Bool, privateKeyPEM: String? = nil) -> String {
         guard raw.hasPrefix("{") else { return raw }
         // Unencrypted call/media envelopes can be labelled without a key.
         if let label = mediaPreviewLabel(raw) { return label }
-        guard let pem = KeychainService.loadPrivateKey() else { return "🔐 Зашифровано" }
+        guard let pem = privateKeyPEM ?? KeychainService.loadPrivateKey() else { return "🔐 Зашифровано" }
         let result = SunCrypto.decryptMessageForDisplay(raw, isSelf: isSelf, privateKeyPEM: pem)
         if result == "__v3__" { return "🔐 Зашифровано" }
         // Decrypted payloads are often media/call envelopes — show a friendly
@@ -1194,7 +1194,7 @@ struct MainTabView: View {
             // Incoming call overlay (top of stack)
             if let incoming = session.incomingCall {
                 IncomingCallView(call: incoming, session: session)
-                    .transition(.opacity)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.25)))
                     .zIndex(10)
             }
 
@@ -1219,12 +1219,10 @@ struct MainTabView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 90)
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(.move(edge: .bottom).combined(with: .opacity).animation(.spring(duration: 0.35)))
                 .zIndex(5)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: session.incomingCall != nil)
-        .animation(.spring(duration: 0.35), value: session.callError)
     }
 }
 
@@ -1252,6 +1250,7 @@ struct SettingsView: View {
     @State private var showLogoutConfirm = false
     @State private var showLanguageDialog = false
     @State private var showThemeSheet = false
+    @State private var hasPrivateKeyLoaded = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
@@ -1292,7 +1291,7 @@ struct SettingsView: View {
                                 tint: .amber,
                                 label: "Приватность и безопасность",
                                 sub: "Ключи, устройства, блокировки",
-                                badge: KeychainService.loadPrivateKey() == nil ? "!" : nil,
+                                badge: hasPrivateKeyLoaded ? nil : "!",
                                 action: { navigateToPrivacy = true }
                             )
                             divider
@@ -1477,7 +1476,18 @@ struct SettingsView: View {
             Button("Отмена", role: .cancel) { }
         }
         .task { await loadSettingsIfNeeded() }
-        .onAppear { socketState = SocketClient.shared.state }
+        .onAppear {
+            socketState = SocketClient.shared.state
+            refreshPrivateKeyState()
+        }
+        .onChange(of: navigateToPrivacy) { _, isPresented in
+            if !isPresented {
+                refreshPrivateKeyState()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            refreshPrivateKeyState()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .smSocketStateChanged)) { _ in
             socketState = SocketClient.shared.state
         }
@@ -1489,6 +1499,10 @@ struct SettingsView: View {
 
     private func languageLabel(_ language: String) -> String {
         language == "en" ? "English" : "Русский"
+    }
+
+    private func refreshPrivateKeyState() {
+        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
     }
 
     private var divider: some View {
