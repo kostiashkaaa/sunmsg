@@ -1462,7 +1462,8 @@ final class QRScannerViewController: UIViewController {
         label.textColor = .white
         label.numberOfLines = 0
         label.textAlignment = .center
-        label.font = .systemFont(ofSize: 15)
+        label.font = .preferredFont(forTextStyle: .body)
+        label.adjustsFontForContentSizeCategory = true
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
         NSLayoutConstraint.activate([
