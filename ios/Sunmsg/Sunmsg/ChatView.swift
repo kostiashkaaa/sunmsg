@@ -2440,7 +2440,7 @@ struct MessageBubbleView: View {
         VStack(alignment: stackAlignment, spacing: 3) {
             if showSender, let name = message.senderDisplayName, !name.isEmpty {
                 Text(name)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(senderColor(name))
                     .padding(.leading, 4)
             }
@@ -2494,7 +2494,7 @@ struct MessageBubbleView: View {
             Image(systemName: "arrowshape.turn.up.forward.fill")
                 .font(.system(size: 10, weight: .semibold))
             Text("Переслано от \(name)")
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .lineLimit(1)
         }
         .foregroundStyle(Color.smAccent2)
@@ -2506,7 +2506,7 @@ struct MessageBubbleView: View {
             Image(systemName: "pin.fill")
                 .font(.system(size: 9.5, weight: .semibold))
             Text("Закреплено")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
         }
         .foregroundStyle(Color.smFaint)
         .padding(isFromMe ? .trailing : .leading, 4)
@@ -2518,14 +2518,13 @@ struct MessageBubbleView: View {
         HStack(spacing: 3) {
             if message.isEdited {
                 Text("изменено")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(Color.smFaint)
                     .italic()
             }
             Text(formatBubbleTime(message.createdAt))
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.caption2.monospacedDigit().weight(.medium))
                 .foregroundStyle(Color.smFaint)
-                .fontDesign(.monospaced)
             if isFromMe {
                 Image(systemName: deliveryIconName)
                     .font(.system(size: 10, weight: .medium))
@@ -2608,7 +2607,7 @@ struct MessageBubbleView: View {
                 .frame(width: 3)
                 .clipShape(Capsule())
             Text(text)
-                .font(.system(size: 12, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(isFromMe ? bubbleTextColor.opacity(0.76) : Color.smMuted)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -2624,13 +2623,12 @@ struct MessageBubbleView: View {
         HStack(spacing: 3) {
             if message.isEdited {
                 Text("изменено")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .italic()
                     .foregroundStyle((isFromMe ? bubbleTextColor : Color.smFaint).opacity(isFromMe ? 0.55 : 1))
             }
             Text(formatBubbleTime(message.createdAt))
-                .font(.system(size: 10.5, weight: .medium))
-                .fontDesign(.monospaced)
+                .font(.caption2.monospacedDigit().weight(.medium))
                 .foregroundStyle(isFromMe ? bubbleTextColor.opacity(0.6) : Color.smFaint)
             if isFromMe {
                 Image(systemName: deliveryIconName)
