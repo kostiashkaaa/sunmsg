@@ -3675,9 +3675,8 @@ struct DevicesView: View {
                     if let current {
                         deviceRow(current)
                     }
-                    ForEach(others.indices, id: \.self) { index in
-                        let device = others[index]
-                        if current != nil || index > 0 {
+                    ForEach(others) { device in
+                        if current != nil || device.id != others.first?.id {
                             Divider().padding(.leading, 58).background(Color.smBorderSoft)
                         }
                         deviceRow(device)
