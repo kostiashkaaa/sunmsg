@@ -1148,10 +1148,10 @@ struct UserQRSheet: View {
 
                     VStack(spacing: 4) {
                         Text(user?.displayName ?? "—")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundStyle(Color.smText)
                         Text(displayHandle)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(Color.smAccent2)
                     }
                 }
@@ -1159,7 +1159,7 @@ struct UserQRSheet: View {
                 .padding(.top, 8)
 
                 Text("Покажите этот QR другому пользователю SUN: сканер откроет профиль и поможет начать чат.")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(Color.smFaint)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -1167,7 +1167,7 @@ struct UserQRSheet: View {
                 HStack(spacing: 5) {
                     Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Color.smOnline)
                     Text("QR содержит только публичный @username")
-                        .font(.system(size: 11.5, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(Color.smOnline)
                 }
                 .padding(.bottom, 24)
@@ -1189,7 +1189,7 @@ struct UserQRSheet: View {
                         ProgressView()
                             .tint(.white)
                         Text(scanStatus)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.footnote.weight(.medium))
                             .foregroundStyle(.white)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
@@ -1203,11 +1203,11 @@ struct UserQRSheet: View {
 
             VStack(spacing: 6) {
                 Text(scanStatus)
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(.footnote.weight(.medium))
                     .foregroundStyle(Color.smText)
                     .multilineTextAlignment(.center)
                 Text("Поддерживаются QR профиля, QR-входа skl: и перенос ключа sun-key-transfer.")
-                    .font(.system(size: 11.5))
+                    .font(.caption2)
                     .foregroundStyle(Color.smFaint)
                     .multilineTextAlignment(.center)
             }
@@ -1216,7 +1216,7 @@ struct UserQRSheet: View {
             if isHandlingScan {
                 Button(action: restartScanner) {
                     Text("Сканировать заново")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.smAccent2)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
@@ -1230,7 +1230,7 @@ struct UserQRSheet: View {
     private func tabButton(_ label: String, index: Int) -> some View {
         Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = index } }) {
             Text(label)
-                .font(.system(size: 13, weight: selectedTab == index ? .semibold : .medium))
+                .font(.subheadline.weight(selectedTab == index ? .semibold : .medium))
                 .foregroundStyle(selectedTab == index ? Color.smText : Color.smMuted)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
