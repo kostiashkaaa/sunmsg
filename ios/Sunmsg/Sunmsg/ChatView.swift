@@ -3190,12 +3190,17 @@ struct FullscreenImageView: View {
 
 // MARK: - Video bubble (tap to play in full-screen AVPlayer)
 
+private struct VideoPlayerDraft: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 struct VideoBubbleView: View {
     let url: URL?
     let isFromMe: Bool
     let isTail: Bool
     let maxWidth: CGFloat
-    @State private var showPlayer = false
+    @State private var playerDraft: VideoPlayerDraft?
     @State private var thumbnail: UIImage?
     /// Resolved playback URL (may be a local temp file if web-encrypted).
     @State private var effectiveURL: URL?
@@ -3206,7 +3211,11 @@ struct VideoBubbleView: View {
     }
 
     var body: some View {
-        Button(action: { if effectiveURL != nil { showPlayer = true } }) {
+        Button(action: {
+            if let effectiveURL {
+                playerDraft = VideoPlayerDraft(url: effectiveURL)
+            }
+        }) {
             ZStack {
                 if let thumb = thumbnail {
                     Image(uiImage: thumb)
@@ -3238,10 +3247,11 @@ struct VideoBubbleView: View {
         .buttonStyle(.plain)
         .task(id: url) { await resolveAndLoadThumbnail() }
         .onDisappear { removeDecryptedTempFile() }
-        .fullScreenCover(isPresented: $showPlayer) {
-            if let eu = effectiveURL {
-                VideoPlayerSheet(url: eu, isPresented: $showPlayer)
-            }
+        .fullScreenCover(item: $playerDraft) { draft in
+            VideoPlayerSheet(
+                url: draft.url,
+                onDismiss: { playerDraft = nil }
+            )
         }
     }
 
@@ -3346,7 +3356,7 @@ enum AuthenticatedAsset {
 
 struct VideoPlayerSheet: View {
     let url: URL
-    @Binding var isPresented: Bool
+    let onDismiss: () -> Void
     // Hold a single AVPlayer instance — a computed property would rebuild it on
     // every body evaluation, resetting playback.
     @State private var player: AVPlayer?
@@ -3363,7 +3373,7 @@ struct VideoPlayerSheet: View {
             VStack {
                 HStack {
                     Spacer()
-                    Button(action: { isPresented = false }) {
+                    Button(action: onDismiss) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.white)
