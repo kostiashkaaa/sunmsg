@@ -385,7 +385,6 @@ struct PeopleView: View {
         }
 
         actionError = nil
-        results = []
         isSearching = true
         do {
             try await Task.sleep(nanoseconds: 320_000_000)
