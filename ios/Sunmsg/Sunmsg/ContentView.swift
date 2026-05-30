@@ -3411,13 +3411,13 @@ struct SecuritySettingsView: View {
             let signature = try await Task.detached(priority: .userInitiated) {
                 try SunCrypto.rsaSign(canonical, privateKeyPEM: oldPrivateKey)
             }.value
-            try KeychainService.savePrivateKey(material.privatePEM)
             try await session.api.rotateKeys(
                 newPublicKey: stripPEM(material.publicPEM),
                 signature: signature,
                 ts: ts,
                 newLoginVault: material.loginVault
             )
+            try KeychainService.savePrivateKey(material.privatePEM)
             session.api.clearSessionCookiesOnly()
             session.bootstrap = nil
             session.contacts = []
