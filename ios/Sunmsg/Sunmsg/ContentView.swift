@@ -2950,7 +2950,12 @@ struct CallSettingsView: View {
             guard callPrivacy == snapshot else { return }
             callPrivacy = value
         }
-        catch { self.error = error.localizedDescription }
+        catch APIError.unauthorized {
+            session.route = .login
+        }
+        catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func saveCallPrivacy(_ value: String, previous: String) {
