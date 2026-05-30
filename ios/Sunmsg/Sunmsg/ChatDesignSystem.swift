@@ -45,6 +45,7 @@ enum ChatDesignMetrics {
         static let reactionHorizontalPadding: CGFloat = 7
         static let reactionVerticalPadding: CGFloat = 3
         static let reactionMinHeight: CGFloat = 22
+        static let reactionEdgeInset: CGFloat = 4
         static let fallbackHorizontalPadding: CGFloat = 12
         static let fallbackTopPadding: CGFloat = 7
         static let fallbackBottomPadding: CGFloat = 8

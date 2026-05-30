@@ -2959,12 +2959,12 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: false)
         }
         .fixedSize(horizontal: false, vertical: true)
+        .padding(isFromMe ? .trailing : .leading, Metrics.reactionEdgeInset)
         .frame(width: nonTextBlockWidth, alignment: isFromMe ? .trailing : .leading)
-        .padding(isFromMe ? .trailing : .leading, 4)
     }
 
     private func reactionRow(onBubble: Bool) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Metrics.reactionSpacing) {
             ForEach(message.reactions) { r in
                 reactionPill(r, onBubble: onBubble)
             }
