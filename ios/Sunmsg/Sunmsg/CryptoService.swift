@@ -514,7 +514,7 @@ struct SunCrypto {
 // The encrypted file on the server starts with the magic header "SUNENC1\n"
 // (8 bytes) followed by the AES-GCM ciphertext+tag.
 
-struct SunMediaE2EE {
+struct SunMediaE2EE: Sendable {
 
     let fetchURL: URL   // URL without the fragment (ready to fetch)
     let key: Data       // raw 32-byte AES-256 key
@@ -623,12 +623,14 @@ struct SunMediaE2EE {
               !rawData.isEmpty else {
             throw URLError(.badServerResponse)
         }
-        let decrypted = try decrypt(rawData)
-        let tmpURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension(fileExtension)
-        try decrypted.write(to: tmpURL)
-        return tmpURL
+        return try await Task.detached(priority: .utility) {
+            let decrypted = try decrypt(rawData)
+            let tmpURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension(fileExtension)
+            try decrypted.write(to: tmpURL)
+            return tmpURL
+        }.value
     }
 
     /// Fetch and decrypt directly into memory (for images).
@@ -637,6 +639,8 @@ struct SunMediaE2EE {
               !rawData.isEmpty else {
             throw URLError(.badServerResponse)
         }
-        return try decrypt(rawData)
+        return try await Task.detached(priority: .utility) {
+            try decrypt(rawData)
+        }.value
     }
 }
