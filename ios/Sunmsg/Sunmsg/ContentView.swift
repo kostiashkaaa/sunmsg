@@ -3660,6 +3660,7 @@ struct AppearanceSettingsView: View {
     @State private var selectedBackgroundItem: PhotosPickerItem?
     @State private var error: String?
     @State private var hexSaveTask: Task<Void, Never>?
+    @State private var backgroundImportToken = UUID()
 
     private struct AppearanceSnapshot: Equatable {
         let schemePref: String
@@ -3996,19 +3997,27 @@ struct AppearanceSettingsView: View {
 
     private func importBackground(_ item: PhotosPickerItem?) async {
         guard let item else { return }
+        let token = UUID()
+        backgroundImportToken = token
+        defer {
+            if backgroundImportToken == token {
+                selectedBackgroundItem = nil
+            }
+        }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else { return }
             let jpegData = await Task.detached(priority: .userInitiated, operation: { () -> Data? in
                 Self.resizedJPEGData(from: data, maxDimension: 1440)
             }).value
+            guard backgroundImportToken == token else { return }
             guard let jpeg = jpegData else { return }
             backgroundImageDataURL = "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
             chatMode = "custom"
             saveAppearance()
         } catch {
+            guard backgroundImportToken == token else { return }
             self.error = error.localizedDescription
         }
-        selectedBackgroundItem = nil
     }
 
     private static func resizedJPEGData(from data: Data, maxDimension: CGFloat) -> Data? {
