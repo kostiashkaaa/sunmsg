@@ -138,6 +138,7 @@ struct ChatView: View {
         "\u{1F60A}", "\u{1F60D}", "\u{1F914}", "\u{1F44D}",
         "\u{2764}\u{FE0F}", "\u{1F525}", "\u{1F389}", "\u{2600}\u{FE0F}",
     ]
+    private typealias SelectionMetrics = ChatDesignMetrics.SelectionToolbar
 
     struct PendingDelete: Identifiable {
         let id: Int
@@ -440,14 +441,16 @@ struct ChatView: View {
     @ViewBuilder
     private var selectionToolbar: some View {
         if isSelectionMode {
-            HStack(spacing: 12) {
+            HStack(spacing: SelectionMetrics.spacing) {
                 Button(action: clearSelection) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: SelectionMetrics.closeIconSize, weight: .semibold))
                         .foregroundStyle(Color.smText)
-                        .frame(width: 34, height: 34)
+                        .frame(width: SelectionMetrics.controlSize, height: SelectionMetrics.controlSize)
                         .background(Color.smSurface, in: Circle())
-                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: SelectionMetrics.strokeWidth))
+                        .frame(width: SelectionMetrics.touchSize, height: SelectionMetrics.touchSize)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(PressableStyle(scale: 0.92))
 
@@ -459,28 +462,32 @@ struct ChatView: View {
 
                 Button(action: forwardSelectedMessages) {
                     Image(systemName: "arrowshape.turn.up.forward")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: SelectionMetrics.iconSize, weight: .semibold))
                         .foregroundStyle(selectedMessageIds.count == 1 ? Color.smText : Color.smFaint)
-                        .frame(width: 34, height: 34)
+                        .frame(width: SelectionMetrics.controlSize, height: SelectionMetrics.controlSize)
                         .background(Color.smSurface, in: Circle())
-                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: SelectionMetrics.strokeWidth))
+                        .frame(width: SelectionMetrics.touchSize, height: SelectionMetrics.touchSize)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(PressableStyle(scale: 0.92))
                 .disabled(selectedMessageIds.count != 1)
 
                 Button(role: .destructive, action: deleteSelectedMessages) {
                     Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: SelectionMetrics.iconSize, weight: .semibold))
                         .foregroundStyle(selectedMessageIds.isEmpty ? Color.smFaint : Color.smDanger)
-                        .frame(width: 34, height: 34)
+                        .frame(width: SelectionMetrics.controlSize, height: SelectionMetrics.controlSize)
                         .background(Color.smSurface, in: Circle())
-                        .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.6))
+                        .overlay(Circle().stroke(Color.smBorder, lineWidth: SelectionMetrics.strokeWidth))
+                        .frame(width: SelectionMetrics.touchSize, height: SelectionMetrics.touchSize)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(PressableStyle(scale: 0.92))
                 .disabled(selectedMessageIds.isEmpty)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, SelectionMetrics.horizontalPadding)
+            .padding(.vertical, SelectionMetrics.verticalPadding)
             .background(Color.smBg)
             .overlay(alignment: .bottom) {
                 Rectangle()

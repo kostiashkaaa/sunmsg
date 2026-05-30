@@ -117,6 +117,17 @@ enum ChatDesignMetrics {
         static let minReactionWidth: CGFloat = 232
     }
 
+    enum SelectionToolbar {
+        static let spacing: CGFloat = 8
+        static let horizontalPadding: CGFloat = 10
+        static let verticalPadding: CGFloat = 4
+        static let touchSize: CGFloat = 44
+        static let controlSize: CGFloat = 36
+        static let iconSize: CGFloat = 16
+        static let closeIconSize: CGFloat = 15
+        static let strokeWidth: CGFloat = 0.6
+    }
+
     enum Composer {
         static let sideButtonSize: CGFloat = 38
         static let sendButtonSize: CGFloat = 34
