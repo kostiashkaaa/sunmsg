@@ -3076,6 +3076,7 @@ struct SecuritySettingsView: View {
     }
 
     private func rotateKey() async {
+        guard !isRotating else { return }
         let phrase = recoveryPhrase.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
         guard !phrase.isEmpty else { return }
         guard let oldPrivateKey = KeychainService.loadPrivateKey() else {
@@ -3091,7 +3092,9 @@ struct SecuritySettingsView: View {
         error = nil
         do {
             let currentVault = try await session.api.getLoginVault()
-            let decryptedCurrent = try SunCrypto.decryptVault(currentVault, mnemonic: phrase)
+            let decryptedCurrent = try await Task.detached(priority: .userInitiated) {
+                try SunCrypto.decryptVault(currentVault, mnemonic: phrase)
+            }.value
             let oldPKCS8 = SunCrypto.convertToPKCS8PEM(oldPrivateKey)
             guard stripPEM(decryptedCurrent) == stripPEM(oldPKCS8) || stripPEM(decryptedCurrent) == stripPEM(oldPrivateKey) else {
                 throw APIError.serverError(0, "Recovery-фраза не соответствует текущему ключу.")
@@ -3106,7 +3109,9 @@ struct SecuritySettingsView: View {
 
             let ts = Int(Date().timeIntervalSince1970)
             let canonical = rotationPayload(oldPublicKey: oldPublicKey, newPublicKey: material.publicPEM, ts: ts)
-            let signature = try SunCrypto.rsaSign(canonical, privateKeyPEM: oldPrivateKey)
+            let signature = try await Task.detached(priority: .userInitiated) {
+                try SunCrypto.rsaSign(canonical, privateKeyPEM: oldPrivateKey)
+            }.value
             try KeychainService.savePrivateKey(material.privatePEM)
             try await session.api.rotateKeys(
                 newPublicKey: stripPEM(material.publicPEM),
