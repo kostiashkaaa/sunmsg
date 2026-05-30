@@ -3530,8 +3530,9 @@ struct IntegrationsSettingsView: View {
                     }
                     Picker("Кто видит статус", selection: Binding(get: { privacy }, set: { value in
                         guard !isSaving else { return }
+                        let previous = spotifySettingsSnapshot
                         privacy = value
-                        savePrivacy()
+                        savePrivacy(previous: previous)
                     })) {
                         Text("Все").tag("all")
                         Text("Контакты").tag("contacts")
@@ -3540,8 +3541,9 @@ struct IntegrationsSettingsView: View {
                     .disabled(isSaving)
                     Toggle("Скрывать explicit-треки", isOn: Binding(get: { hideExplicit }, set: { value in
                         guard !isSaving else { return }
+                        let previous = spotifySettingsSnapshot
                         hideExplicit = value
-                        savePrivacy()
+                        savePrivacy(previous: previous)
                     }))
                     .disabled(isSaving)
                     Button(role: .destructive) {
@@ -3573,7 +3575,7 @@ struct IntegrationsSettingsView: View {
         } catch { self.error = error.localizedDescription }
     }
 
-    private func savePrivacy() {
+    private func savePrivacy(previous: SpotifySettingsSnapshot) {
         guard !isSaving else { return }
         isSaving = true
         Task {
@@ -3583,6 +3585,8 @@ struct IntegrationsSettingsView: View {
             } catch APIError.unauthorized {
                 session.route = .login
             } catch {
+                privacy = previous.privacy
+                hideExplicit = previous.hideExplicit
                 self.error = error.localizedDescription
             }
             isSaving = false
