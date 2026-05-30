@@ -191,6 +191,12 @@ enum ChatDesignMetrics {
         static let bannerCloseButtonSize: CGFloat = 28
         static let bannerCloseIconSize: CGFloat = 12
         static let bannerCloseBackgroundOpacity: Double = 0.06
+        static let noticeStackSpacing: CGFloat = 4
+        static let noticeContentSpacing: CGFloat = 7
+        static let noticeIconSize: CGFloat = 12.5
+        static let noticeTrailingSpacing: CGFloat = 8
+        static let noticeCloseButtonSize: CGFloat = 24
+        static let noticeCloseIconSize: CGFloat = 11
         static var inputColumnHorizontalInset: CGFloat {
             horizontalPadding + sideButtonSize + rowSpacing
         }

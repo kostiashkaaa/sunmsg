@@ -78,7 +78,7 @@ struct ChatComposerBar: View {
     }
 
     private var composerNotices: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Metrics.noticeStackSpacing) {
             if let sendError {
                 ComposerNoticeView(
                     iconName: "exclamationmark.circle.fill",
@@ -97,8 +97,8 @@ struct ChatComposerBar: View {
                 )
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 7)
+        .padding(.horizontal, Metrics.horizontalPadding)
+        .padding(.top, Metrics.topPadding)
     }
 
     private var editingBanner: some View {
@@ -408,18 +408,20 @@ private struct ComposerNoticeView: View {
     let tint: Color
     let onDismiss: () -> Void
 
+    private typealias Metrics = ChatDesignMetrics.Composer
+
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: Metrics.noticeContentSpacing) {
             Image(systemName: iconName)
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(.system(size: Metrics.noticeIconSize, weight: .semibold))
             Text(text)
                 .font(.caption)
                 .lineLimit(2)
-            Spacer(minLength: 8)
+            Spacer(minLength: Metrics.noticeTrailingSpacing)
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 24, height: 24)
+                    .font(.system(size: Metrics.noticeCloseIconSize, weight: .semibold))
+                    .frame(width: Metrics.noticeCloseButtonSize, height: Metrics.noticeCloseButtonSize)
             }
             .buttonStyle(.plain)
         }
