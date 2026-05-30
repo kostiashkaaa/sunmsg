@@ -233,7 +233,13 @@ struct PrivacySettingsView: View {
     // MARK: - API
 
     private func loadBlockedCount() async {
-        blockedCount = (try? await session.api.getBlockedUsers().count) ?? blockedCount
+        do {
+            blockedCount = try await session.api.getBlockedUsers().count
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func loadSettings() async {
