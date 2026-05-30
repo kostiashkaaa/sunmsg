@@ -312,6 +312,10 @@ struct ChatMessageTimelineView: View, Equatable {
                 .onChange(of: rows.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
+                .onChange(of: scrollIntentSnapshot) { _, intent in
+                    guard intent != .none else { return }
+                    applyScrollIntent(proxy)
+                }
                 .onChange(of: layoutRevision) { previous, current in
                     if previous.rowCount == current.rowCount, isPinnedToBottom {
                         scrollToBottom(proxy, animated: false)
