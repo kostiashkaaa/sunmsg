@@ -46,6 +46,20 @@ struct ActiveCallState: Equatable, Identifiable {
     }
 }
 
+private struct ContactPreviewWorkItem: Sendable {
+    let chatId: String
+    let hasDraft: Bool
+    let draftText: String?
+    let lastMessage: String?
+    let lastSenderId: Int?
+}
+
+private struct ContactPreviewResult: Sendable {
+    let chatId: String
+    let draftText: String?
+    let initialLastMessagePreview: String?
+}
+
 @MainActor
 final class SessionStore: ObservableObject {
     @Published var route: AppRoute = .loading
@@ -531,7 +545,7 @@ final class SessionStore: ObservableObject {
             syncEngine.reset()
             bootstrap = data
             contacts = applyStoredMuteState(to: data.contacts)
-            decryptContactPreviews()
+            await decryptContactPreviews()
             route = .main
             connectSocket()
             Task { await refreshDialogRequests() }
@@ -616,7 +630,7 @@ final class SessionStore: ObservableObject {
     func refreshContacts() async {
         do {
             contacts = applyStoredMuteState(to: try await api.getContacts())
-            decryptContactPreviews()
+            await decryptContactPreviews()
         }
         catch APIError.unauthorized { route = .login }
         catch { errorMessage = error.localizedDescription }
@@ -831,7 +845,7 @@ final class SessionStore: ObservableObject {
         contacts[idx].lastSenderId = payload["sender_user_id"] as? Int
 
         if let rawMessage = payload["message"] as? String {
-            contacts[idx].initialLastMessagePreview = decryptPreview(
+            contacts[idx].initialLastMessagePreview = Self.decryptPreview(
                 rawMessage,
                 isSelf: (payload["sender_user_id"] as? Int) == bootstrap?.user.id
             )
@@ -880,7 +894,7 @@ final class SessionStore: ObservableObject {
         let updatedAt = (payload["updated_at"] as? String) ?? ""
         applyDraftUpdate(
             chatId: chatId,
-            draftText: hasDraft ? draftPreviewText(rawDraft) : "",
+            draftText: hasDraft ? Self.draftPreviewText(rawDraft) : "",
             updatedAtRaw: updatedAt,
             hasDraft: hasDraft
         )
@@ -925,37 +939,65 @@ final class SessionStore: ObservableObject {
         UserDefaults.standard.set(raw, forKey: mutedChatIdsDefaultsKey)
     }
 
-    private func decryptContactPreviews() {
+    private func decryptContactPreviews() async {
         let myId = bootstrap?.user.id ?? 0
-        let privateKeyPEM = KeychainService.loadPrivateKey()
-        for index in contacts.indices {
-            if contacts[index].hasDraft, let draft = contacts[index].draftText, !draft.isEmpty {
-                contacts[index].draftText = draftPreviewText(draft, privateKeyPEM: privateKeyPEM)
+        let workItems = contacts.indices.map { index in
+            ContactPreviewWorkItem(
+                chatId: contacts[index].chatId,
+                hasDraft: contacts[index].hasDraft,
+                draftText: contacts[index].draftText,
+                lastMessage: contacts[index].lastMessage,
+                lastSenderId: contacts[index].lastSenderId
+            )
+        }
+        let results = await Task.detached(priority: .userInitiated) {
+            let privateKeyPEM = KeychainService.loadPrivateKey()
+            return workItems.compactMap { item in
+                Self.contactPreviewResult(for: item, myId: myId, privateKeyPEM: privateKeyPEM)
             }
-            guard let raw = contacts[index].lastMessage, raw.hasPrefix("{") else { continue }
-            // Call messages can be labelled without a decryption key
-            if let data = raw.data(using: .utf8),
-               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               obj["__suncall"] != nil {
-                let ct = obj["call_type"] as? String ?? "audio"
-                contacts[index].initialLastMessagePreview = ct == "video" ? "📹 Видеозвонок" : "📞 Звонок"
-                continue
+        }.value
+        for result in results {
+            guard let index = contacts.firstIndex(where: { $0.chatId == result.chatId }) else { continue }
+            if let draftText = result.draftText {
+                contacts[index].draftText = draftText
             }
-            guard let privateKeyPEM else { continue }
-            let text = decryptPreview(raw, isSelf: contacts[index].lastSenderId == myId, privateKeyPEM: privateKeyPEM)
-            if !text.isEmpty, text != raw {
-                contacts[index].initialLastMessagePreview = text
+            if let preview = result.initialLastMessagePreview {
+                contacts[index].initialLastMessagePreview = preview
             }
         }
     }
 
-    private func draftPreviewText(_ raw: String, privateKeyPEM: String? = nil) -> String {
+    nonisolated private static func contactPreviewResult(
+        for item: ContactPreviewWorkItem,
+        myId: Int,
+        privateKeyPEM: String?
+    ) -> ContactPreviewResult? {
+        var draftText: String?
+        var preview: String?
+        if item.hasDraft, let draft = item.draftText, !draft.isEmpty {
+            draftText = draftPreviewText(draft, privateKeyPEM: privateKeyPEM)
+        }
+        if let raw = item.lastMessage, raw.hasPrefix("{") {
+            if let label = mediaPreviewLabel(raw) {
+                preview = label
+            } else if let privateKeyPEM {
+                let text = decryptPreview(raw, isSelf: item.lastSenderId == myId, privateKeyPEM: privateKeyPEM)
+                if !text.isEmpty, text != raw {
+                    preview = text
+                }
+            }
+        }
+        guard draftText != nil || preview != nil else { return nil }
+        return ContactPreviewResult(chatId: item.chatId, draftText: draftText, initialLastMessagePreview: preview)
+    }
+
+    nonisolated private static func draftPreviewText(_ raw: String, privateKeyPEM: String? = nil) -> String {
         let normalized = raw.replacingOccurrences(of: "\r\n", with: "\n")
         guard normalized.hasPrefix("{") else { return normalized }
         return decryptPreview(normalized, isSelf: true, privateKeyPEM: privateKeyPEM)
     }
 
-    private func decryptPreview(_ raw: String, isSelf: Bool, privateKeyPEM: String? = nil) -> String {
+    nonisolated private static func decryptPreview(_ raw: String, isSelf: Bool, privateKeyPEM: String? = nil) -> String {
         guard raw.hasPrefix("{") else { return raw }
         // Unencrypted call/media envelopes can be labelled without a key.
         if let label = mediaPreviewLabel(raw) { return label }
@@ -973,7 +1015,7 @@ final class SessionStore: ObservableObject {
     /// Returns nil for anything that isn't a recognised media/call envelope
     /// (e.g. encrypted v2 ciphertext or plain text), so it's safe to call on
     /// both raw and decrypted strings.
-    private func mediaPreviewLabel(_ text: String) -> String? {
+    nonisolated private static func mediaPreviewLabel(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
