@@ -2071,6 +2071,7 @@ private struct AvatarEditorView: View {
                 } header: {
                     Text("Кадр")
                 }
+                .disabled(isSaving)
 
                 if let saveError {
                     Section {
