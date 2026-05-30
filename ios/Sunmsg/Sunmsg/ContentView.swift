@@ -2513,25 +2513,28 @@ struct DataMemorySettingsView: View {
     }
 
     private func clearChatCache() async {
+        guard !isWorking else { return }
         isWorking = true
+        defer { isWorking = false }
         await ChatLocalStore.shared.resetAll()
         await refreshStorageUsage()
-        isWorking = false
     }
 
     private func clearURLCache() async {
+        guard !isWorking else { return }
         isWorking = true
+        defer { isWorking = false }
         URLCache.shared.removeAllCachedResponses()
         await refreshStorageUsage()
-        isWorking = false
     }
 
     private func clearAllCaches() async {
+        guard !isWorking else { return }
         isWorking = true
+        defer { isWorking = false }
         await ChatLocalStore.shared.resetAll()
         URLCache.shared.removeAllCachedResponses()
         await refreshStorageUsage()
-        isWorking = false
     }
 
 }
