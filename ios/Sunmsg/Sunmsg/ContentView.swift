@@ -3426,7 +3426,10 @@ struct SecuritySettingsView: View {
         guard !isRotating else { return }
         let phrase = recoveryPhrase.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
         guard !phrase.isEmpty else { return }
-        guard let oldPrivateKey = KeychainService.loadPrivateKey() else {
+        let oldPrivateKey = await Task.detached(priority: .userInitiated) {
+            KeychainService.loadPrivateKey()
+        }.value
+        guard let oldPrivateKey else {
             error = "Текущий приватный ключ не найден в Keychain."
             return
         }
@@ -3465,7 +3468,9 @@ struct SecuritySettingsView: View {
                 ts: ts,
                 newLoginVault: material.loginVault
             )
-            try KeychainService.savePrivateKey(material.privatePEM)
+            try await Task.detached(priority: .userInitiated) {
+                try KeychainService.savePrivateKey(material.privatePEM)
+            }.value
             session.api.clearSessionCookiesOnly()
             session.bootstrap = nil
             session.contacts = []
