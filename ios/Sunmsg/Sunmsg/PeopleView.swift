@@ -919,6 +919,7 @@ struct GroupCreateView: View {
     }
 
     private func createGroup() async {
+        guard !isCreating else { return }
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard selected.count > 0 else {
             error = "Добавьте хотя бы одного участника."
