@@ -218,10 +218,10 @@ struct ChatView: View {
                 handleSocketNotification(note)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
-                keyboardAnimation = ChatKeyboardAnimation(notification: note)
+                updateKeyboardAnimation(from: note)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
-                keyboardAnimation = ChatKeyboardAnimation(notification: note)
+                updateKeyboardAnimation(from: note)
             }
             .task {
                 await loadMessages()
@@ -570,6 +570,12 @@ struct ChatView: View {
         } else {
             withAnimation(animation, updates)
         }
+    }
+
+    private func updateKeyboardAnimation(from notification: Notification) {
+        let next = ChatKeyboardAnimation(notification: notification)
+        guard next != keyboardAnimation else { return }
+        keyboardAnimation = next
     }
 
     // MARK: - Context menu (long-press) overlay — reaction bar + actions
