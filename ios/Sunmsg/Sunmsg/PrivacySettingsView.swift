@@ -768,6 +768,8 @@ struct BlockedUsersView: View {
                 Text("@\(user.username)")
                     .font(.footnote)
                     .foregroundStyle(Color.smMuted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             Spacer()
             Button(action: { unblock(user) }) {
