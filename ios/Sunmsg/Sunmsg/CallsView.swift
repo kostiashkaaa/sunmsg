@@ -202,15 +202,16 @@ struct CallsView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        let missedOnly = selectedSegment != 0
+        return VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "phone.slash")
+            Image(systemName: missedOnly ? "phone.down.circle" : "phone.slash")
                 .font(.system(size: 44))
                 .foregroundStyle(Color.smFaint)
-            Text("Нет звонков")
+            Text(missedOnly ? "Нет пропущенных" : "Нет звонков")
                 .font(.headline)
                 .foregroundStyle(Color.smMuted)
-            Text("Список ваших вызовов пуст")
+            Text(missedOnly ? "Пропущенные вызовы появятся здесь." : "Список ваших вызовов пуст")
                 .font(.subheadline)
                 .foregroundStyle(Color.smFaint)
             Spacer()
