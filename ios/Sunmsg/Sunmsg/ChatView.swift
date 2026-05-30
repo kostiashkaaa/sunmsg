@@ -3324,7 +3324,12 @@ struct FullscreenImageView: View {
     let image: UIImage
     let onDismiss: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var scale: CGFloat = 1
+    @State private var committedScale: CGFloat = 1
+    @State private var gestureScale: CGFloat = 1
+
+    private var currentScale: CGFloat {
+        Self.clampedScale(committedScale * gestureScale)
+    }
 
     var body: some View {
         ZStack {
@@ -3332,15 +3337,21 @@ struct FullscreenImageView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .scaleEffect(scale)
+                .scaleEffect(currentScale)
                 .gesture(
                     MagnifyGesture()
-                        .onChanged { value in scale = max(1, min(4, value.magnification)) }
-                        .onEnded { _ in
+                        .onChanged { value in
+                            gestureScale = value.magnification
+                        }
+                        .onEnded { value in
+                            let nextScale = Self.clampedScale(committedScale * value.magnification)
+                            gestureScale = 1
                             if reduceMotion {
-                                scale = 1
+                                committedScale = nextScale
                             } else {
-                                withAnimation { scale = 1 }
+                                withAnimation(.easeOut(duration: 0.16)) {
+                                    committedScale = nextScale
+                                }
                             }
                         }
                 )
@@ -3361,6 +3372,10 @@ struct FullscreenImageView: View {
                 Spacer()
             }
         }
+    }
+
+    private static func clampedScale(_ scale: CGFloat) -> CGFloat {
+        max(1, min(4, scale))
     }
 }
 
