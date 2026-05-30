@@ -26,6 +26,7 @@ struct PeopleView: View {
     @State private var results: [SearchUserResult] = []
     @State private var isSearching = false
     @State private var requestSent: Set<Int> = []
+    @State private var handlingRequestIds: Set<String> = []
     @State private var navigateToContact: PeopleChatDestination?
     @State private var activeSheet: PeopleSheetDestination?
     @State private var showUsernameAlert = false
@@ -303,6 +304,7 @@ struct PeopleView: View {
                 ForEach(pendingRequests) { req in
                     DialogRequestRow(
                         request: req,
+                        isActing: handlingRequestIds.contains(req.id),
                         onAccept: { acceptRequest(req) },
                         onDecline: { declineRequest(req) }
                     )
@@ -320,6 +322,8 @@ struct PeopleView: View {
     }
 
     private func acceptRequest(_ req: DialogRequest) {
+        guard !handlingRequestIds.contains(req.id) else { return }
+        handlingRequestIds.insert(req.id)
         Task {
             let acceptedChatId = try? await APIClient.shared.acceptDialogRequest(req)
             await session.refreshDialogRequests()
@@ -328,13 +332,17 @@ struct PeopleView: View {
                let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
                 navigateToContact = PeopleChatDestination(contact: contact)
             }
+            handlingRequestIds.remove(req.id)
         }
     }
 
     private func declineRequest(_ req: DialogRequest) {
+        guard !handlingRequestIds.contains(req.id) else { return }
+        handlingRequestIds.insert(req.id)
         Task {
             try? await APIClient.shared.declineDialogRequest(req)
             await session.refreshDialogRequests()
+            handlingRequestIds.remove(req.id)
         }
     }
 
@@ -876,9 +884,9 @@ struct GroupCreateView: View {
 
 struct DialogRequestRow: View {
     let request: DialogRequest
+    let isActing: Bool
     let onAccept: () -> Void
     let onDecline: () -> Void
-    @State private var isActing = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -904,7 +912,7 @@ struct DialogRequestRow: View {
             Spacer()
 
             HStack(spacing: 8) {
-                Button(action: { isActing = true; onDecline() }) {
+                Button(action: { onDecline() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color.smMuted)
@@ -914,7 +922,7 @@ struct DialogRequestRow: View {
                 .buttonStyle(.plain)
                 .disabled(isActing)
 
-                Button(action: { isActing = true; onAccept() }) {
+                Button(action: { onAccept() }) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color(hex: "#fbf8f1"))

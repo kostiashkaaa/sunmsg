@@ -334,6 +334,7 @@ struct ChatListView: View {
                         ForEach(pendingRequests) { request in
                             DialogRequestRow(
                                 request: request,
+                                isActing: handlingRequestIds.contains(request.id),
                                 onAccept: { acceptRequest(request) },
                                 onDecline: { declineRequest(request) }
                             )
