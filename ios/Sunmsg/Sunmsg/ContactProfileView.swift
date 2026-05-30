@@ -9,6 +9,7 @@ struct ContactProfileView: View {
     @State private var isBlocking = false
     @State private var blockError: String?
     @State private var isLoadingSharedContent = false
+    @State private var sharedContentLoadingChatId: String?
     @State private var sharedContentError: String?
     @State private var sharedContentSnapshot = ProfileSharedContentSnapshot.empty
     @State private var selectedSharedContentKind: ProfileSharedContentKind = .media
@@ -407,11 +408,19 @@ struct ContactProfileView: View {
 
     @MainActor
     private func loadSharedContent() async {
-        guard !isLoadingSharedContent else { return }
+        let chatId = contact.chatId
+        guard sharedContentLoadingChatId != chatId else { return }
+        sharedContentLoadingChatId = chatId
         isLoadingSharedContent = true
         sharedContentError = nil
+        defer {
+            if sharedContentLoadingChatId == chatId {
+                isLoadingSharedContent = false
+                sharedContentLoadingChatId = nil
+            }
+        }
         do {
-            let page = try await session.api.getSharedContentCandidates(chatId: contact.chatId, limit: 80)
+            let page = try await session.api.getSharedContentCandidates(chatId: chatId, limit: 80)
             let privateKey = KeychainService.loadPrivateKey()
             let myId = session.bootstrap?.user.id ?? 0
             let messages = page.messages
@@ -429,6 +438,7 @@ struct ContactProfileView: View {
             }
             let itemsByKind = Dictionary(grouping: items, by: \.kind)
             let kinds = ProfileSharedContentKind.allCases.filter { !(itemsByKind[$0]?.isEmpty ?? true) }
+            guard !Task.isCancelled, contact.chatId == chatId, sharedContentLoadingChatId == chatId else { return }
             sharedContentSnapshot = ProfileSharedContentSnapshot(
                 items: items,
                 itemsByKind: itemsByKind,
@@ -439,10 +449,10 @@ struct ContactProfileView: View {
                 selectedSharedContentKind = kinds.first ?? .media
             }
         } catch {
+            guard !Task.isCancelled, contact.chatId == chatId, sharedContentLoadingChatId == chatId else { return }
             sharedContentSnapshot = .empty
             sharedContentError = error.localizedDescription
         }
-        isLoadingSharedContent = false
     }
 
     private nonisolated static func sharedContentBody(for message: ChatMessage, privateKey: String?, myId: Int) -> String {
