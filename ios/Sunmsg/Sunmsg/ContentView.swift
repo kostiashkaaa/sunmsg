@@ -703,7 +703,14 @@ final class SessionStore: ObservableObject {
 
     func reconnectRealtime() async {
         SocketClient.shared.disconnect()
-        try? await Task.sleep(nanoseconds: 350_000_000)
+        do {
+            try await Task.sleep(nanoseconds: 350_000_000)
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            return
+        } catch {
+            return
+        }
         connectSocket()
         await refreshContacts()
         await recoverActiveChatSync()
