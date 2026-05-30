@@ -578,9 +578,10 @@ struct GroupCreateView: View {
         let localCandidates = localCandidates ?? makeLocalCandidates()
         let local = filter(candidates: localCandidates, query: trimmed)
         let currentUserId = session.bootstrap?.user.id
-        let remote = remoteResults
+        let remoteCandidates = remoteResults
             .map(GroupMemberCandidate.from)
             .filter { $0.userId != currentUserId }
+        let remote = filter(candidates: remoteCandidates, query: trimmed)
 
         var merged: [Int: GroupMemberCandidate] = [:]
         for candidate in local { merged[candidate.userId] = candidate }
@@ -871,7 +872,6 @@ struct GroupCreateView: View {
             rebuildVisibleCandidates()
             return
         }
-        remoteResults = []
         isSearching = true
         rebuildVisibleCandidates()
         do {
