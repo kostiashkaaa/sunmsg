@@ -948,7 +948,7 @@ struct MnemonicUnlockSheet: View {
                                 } else {
                                     Image(systemName: "lock.open.fill").font(.system(size: 15))
                                 }
-                                Text(isLoading ? "Разблокировка…" : "Разблокировать · нужно ещё \(24 - wordCount)")
+                                Text(unlockButtonTitle)
                                     .font(.subheadline.weight(.semibold))
                             }
                             .frame(maxWidth: .infinity)
@@ -990,6 +990,13 @@ struct MnemonicUnlockSheet: View {
     private var isReady: Bool {
         let u = username.trimmingCharacters(in: .whitespaces)
         return !u.isEmpty && wordCount == 24 && !isLoading
+    }
+
+    private var unlockButtonTitle: String {
+        if isLoading { return "Разблокировка…" }
+        if wordCount < 24 { return "Разблокировать · нужно ещё \(24 - wordCount)" }
+        if wordCount > 24 { return "Удалите лишние слова · \(wordCount - 24)" }
+        return "Разблокировать"
     }
 
     private func handleUnlock() {
