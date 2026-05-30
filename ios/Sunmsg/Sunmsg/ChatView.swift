@@ -3924,6 +3924,7 @@ struct FileBubbleView: View {
 
     private func resolveForShare(url: URL) async {
         guard self.url == url else { return }
+        guard !isDownloading else { return }
         guard let e2ee = SunMediaE2EE.parse(url: url) else {
             resolvedURL = url
             shareDraft = ShareFileDraft(url: url)
