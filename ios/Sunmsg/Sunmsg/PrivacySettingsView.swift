@@ -27,7 +27,46 @@ struct PrivacySettingsView: View {
     @State private var queuedSettingsPayload: [String: Any]?
     @State private var queuedSettingsReconnect = false
 
+    private struct PrivacySettingsSnapshot: Equatable {
+        let isPublic: Bool
+        let autoDeclineRequests: Bool
+        let muteDialogRequests: Bool
+        let hideOnlineStatus: Bool
+        let lastSeenVisibility: String
+        let avatarVisibility: String
+        let bioVisibility: String
+        let forwardLinkPrivacy: String
+        let groupInvitePrivacy: String
+        let voiceMessagePrivacy: String
+        let messagePrivacy: String
+        let readReceiptsPrivacy: String
+        let typingPrivacy: String
+        let voiceListenedPrivacy: String
+        let callPrivacy: String
+        let publicKeySearchPrivacy: String
+    }
+
     private var hasKey: Bool { hasPrivateKeyLoaded }
+    private var privacySettingsSnapshot: PrivacySettingsSnapshot {
+        PrivacySettingsSnapshot(
+            isPublic: isPublic,
+            autoDeclineRequests: autoDeclineRequests,
+            muteDialogRequests: muteDialogRequests,
+            hideOnlineStatus: hideOnlineStatus,
+            lastSeenVisibility: lastSeenVisibility,
+            avatarVisibility: avatarVisibility,
+            bioVisibility: bioVisibility,
+            forwardLinkPrivacy: forwardLinkPrivacy,
+            groupInvitePrivacy: groupInvitePrivacy,
+            voiceMessagePrivacy: voiceMessagePrivacy,
+            messagePrivacy: messagePrivacy,
+            readReceiptsPrivacy: readReceiptsPrivacy,
+            typingPrivacy: typingPrivacy,
+            voiceListenedPrivacy: voiceListenedPrivacy,
+            callPrivacy: callPrivacy,
+            publicKeySearchPrivacy: publicKeySearchPrivacy
+        )
+    }
 
     private var keyStatusText: String {
         hasKey ? "Сохранён в Keychain · RSA-2048" : "Не загружен — войдите заново"
@@ -185,9 +224,12 @@ struct PrivacySettingsView: View {
     }
 
     private func loadSettings() async {
+        let snapshot = privacySettingsSnapshot
         isLoading = true
+        defer { isLoading = false }
         do {
             let s = try await session.api.getSettings()
+            guard privacySettingsSnapshot == snapshot else { return }
             isPublic = s.isPublic
             autoDeclineRequests = s.autoDeclineRequests
             muteDialogRequests = s.muteDialogRequests
@@ -205,7 +247,6 @@ struct PrivacySettingsView: View {
             callPrivacy = s.callPrivacy
             publicKeySearchPrivacy = s.publicKeySearchPrivacy
         } catch { self.error = error.localizedDescription }
-        isLoading = false
     }
 
     private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
