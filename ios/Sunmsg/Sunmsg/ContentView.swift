@@ -2478,6 +2478,7 @@ struct LanguageSettingsView: View {
                     Text("English").tag("en")
                 }
                 .pickerStyle(.inline)
+                .disabled(isSaving)
             } footer: {
                 Text("Используется то же поле language, что и в веб-настройках.")
             }
@@ -2497,6 +2498,7 @@ struct LanguageSettingsView: View {
     }
 
     private func setLanguage(_ value: String) {
+        guard !isSaving else { return }
         let normalized = value == "en" ? "en" : "ru"
         guard language != normalized else { return }
         language = normalized
