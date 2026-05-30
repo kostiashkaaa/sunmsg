@@ -1125,8 +1125,7 @@ struct ChatView: View {
             let ids = parseDeletedIds(payload)
             guard !ids.isEmpty else { return }
             scrollIntent = .none
-            messages.removeAll { ids.contains($0.id) }
-            invalidateTimeline()
+            removeMessagesFromTimeline(ids: ids)
             Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
         case "chat_draft_updated":
@@ -1726,8 +1725,7 @@ struct ChatView: View {
             "request_id": UUID().uuidString,
         ])
         scrollIntent = .none
-        messages.removeAll { ids.contains($0.id) }
-        invalidateTimeline()
+        removeMessagesFromTimeline(ids: ids)
         Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
         clearSelection()
     }
@@ -1992,10 +1990,19 @@ struct ChatView: View {
         ])
         // Optimistic local removal.
         scrollIntent = .none
-        messages.removeAll { $0.id == id }
-        invalidateTimeline()
+        removeMessagesFromTimeline(ids: [id])
         Task { await ChatLocalStore.shared.deleteMessages(ids: [id], chatId: contact.chatId) }
         pendingDelete = nil
+    }
+
+    private func removeMessagesFromTimeline(ids: [Int]) {
+        let idSet = Set(ids)
+        guard !idSet.isEmpty else { return }
+        if let menuTargetId, idSet.contains(menuTargetId) {
+            self.menuTargetId = nil
+        }
+        messages.removeAll { idSet.contains($0.id) }
+        invalidateTimeline()
     }
 
     // MARK: - Send text message
