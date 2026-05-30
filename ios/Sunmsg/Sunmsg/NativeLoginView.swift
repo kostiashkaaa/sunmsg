@@ -365,8 +365,8 @@ struct NativeLoginView: View {
                         .shadow(color: Color.smAccent.opacity(0.35), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
-                    .disabled(username.trimmingCharacters(in: .whitespaces).isEmpty || mnemonic.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .opacity(username.isEmpty || mnemonic.isEmpty ? 0.55 : 1)
+                    .disabled(isLoading || username.trimmingCharacters(in: .whitespaces).isEmpty || mnemonic.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .opacity(isLoading || username.isEmpty || mnemonic.isEmpty ? 0.55 : 1)
 
                     encryptionBadge
                 }
@@ -502,6 +502,7 @@ struct NativeLoginView: View {
     }
 
     private func handleSignIn() {
+        guard !isLoading else { return }
         focusedField = nil
         let trimmedUser = username.trimmingCharacters(in: .whitespaces).lowercased()
             .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
