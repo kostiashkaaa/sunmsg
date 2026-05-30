@@ -1072,6 +1072,7 @@ struct SmBadge: View {
 struct UserQRSheet: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedTab = 0
     @State private var qrImage: UIImage?
     @State private var scannerRestartId = UUID()
@@ -1249,7 +1250,13 @@ struct UserQRSheet: View {
     }
 
     private func tabButton(_ label: String, index: Int) -> some View {
-        Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = index } }) {
+        Button(action: {
+            if reduceMotion {
+                selectedTab = index
+            } else {
+                withAnimation(.easeInOut(duration: 0.18)) { selectedTab = index }
+            }
+        }) {
             Text(label)
                 .font(.subheadline.weight(selectedTab == index ? .semibold : .medium))
                 .foregroundStyle(selectedTab == index ? Color.smText : Color.smMuted)
