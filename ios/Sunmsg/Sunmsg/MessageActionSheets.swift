@@ -43,7 +43,7 @@ struct ForwardMessageSheet: View {
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(Color.smText)
                                     .lineLimit(1)
-                                Text(contact.chatId == currentChatId ? "текущий чат" : (contact.isGroup ? "группа" : "@\(contact.username)"))
+                                Text(subtitle(for: contact))
                                     .font(.caption)
                                     .foregroundStyle(Color.smFaint)
                                     .lineLimit(1)
@@ -74,6 +74,12 @@ struct ForwardMessageSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private func subtitle(for contact: Contact) -> String {
+        if contact.chatId == currentChatId { return "текущий чат" }
+        if contact.isGroup { return "группа" }
+        return contact.username.isEmpty ? "пользователь" : "@\(contact.username)"
     }
 }
 
