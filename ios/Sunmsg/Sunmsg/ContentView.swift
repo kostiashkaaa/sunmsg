@@ -1950,6 +1950,7 @@ struct ProfileSettingsView: View {
 
     private func prepareAvatarEditor(from item: PhotosPickerItem?) async {
         guard let item else { return }
+        saveError = nil
         let token = UUID()
         avatarEditorLoadToken = token
         defer {
@@ -1958,11 +1959,16 @@ struct ProfileSettingsView: View {
             }
         }
         do {
-            if let data = try await item.loadTransferable(type: Data.self),
-               let image = await Self.makeAvatarEditorImage(from: data) {
-                guard avatarEditorLoadToken == token else { return }
-                activeSheet = .avatarEditor(AvatarEditorDraft(image: image))
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                saveError = "Не удалось загрузить изображение профиля."
+                return
             }
+            guard let image = await Self.makeAvatarEditorImage(from: data) else {
+                saveError = "Не удалось обработать изображение профиля."
+                return
+            }
+            guard avatarEditorLoadToken == token else { return }
+            activeSheet = .avatarEditor(AvatarEditorDraft(image: image))
         } catch {
             guard avatarEditorLoadToken == token else { return }
             saveError = error.localizedDescription
