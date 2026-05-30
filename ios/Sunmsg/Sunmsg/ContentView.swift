@@ -3243,10 +3243,15 @@ struct SettingsTransferView: View {
                 ?? ((object["localAppearance"] as? [String: Any]) ?? [:])
             let payload = sanitizedImportPayload(server: server, clientPreferences: client)
             try await session.api.saveSettings(payload)
+            await session.loadBootstrap()
+            guard session.route == .main else {
+                self.error = session.errorMessage ?? "Не удалось загрузить импортированные настройки. Попробуйте ещё раз."
+                session.errorMessage = nil
+                return
+            }
             if let prefs = payload["client_preferences"] as? [String: Any] {
                 SettingsClientPreferences.apply(prefs)
             }
-            await session.loadBootstrap()
             status = "Настройки импортированы."
         } catch APIError.unauthorized {
             session.route = .login
