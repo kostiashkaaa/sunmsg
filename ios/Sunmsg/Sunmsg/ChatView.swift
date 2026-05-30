@@ -1953,6 +1953,8 @@ struct ChatView: View {
                 await MainActor.run {
                     if SocketClient.shared.state != .connected {
                         sendError = "Нет соединения — изменение будет отправлено после переподключения."
+                    } else {
+                        sendError = nil
                     }
                     SocketClient.shared.emit("edit_message", [
                         "msg_id": mid,
