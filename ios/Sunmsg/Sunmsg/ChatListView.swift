@@ -1145,7 +1145,10 @@ struct UserQRSheet: View {
                 Text(scanResultMessage)
             }
             .task(id: qrContent) {
-                qrImage = generateQRCodeImage(from: qrContent)
+                let content = qrContent
+                qrImage = await Task.detached(priority: .userInitiated) {
+                    generateQRCodeImage(from: content)
+                }.value
             }
         }
     }

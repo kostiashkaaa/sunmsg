@@ -456,7 +456,10 @@ struct QRLoginPanel: View {
             guard response.success, !response.sessionId.isEmpty, !response.qrText.isEmpty else {
                 throw QRTransferCryptoError.invalidCiphertext
             }
-            qrImage = generateQRCodeImage(from: response.qrText)
+            let qrText = response.qrText
+            qrImage = await Task.detached(priority: .userInitiated) {
+                generateQRCodeImage(from: qrText)
+            }.value
             statusText = "Откройте SUN на другом устройстве и отсканируйте этот код."
             isPreparing = false
             isWaiting = true
