@@ -621,10 +621,17 @@ final class SessionStore: ObservableObject {
         callErrorClearTask?.cancel()
         callError = message
         callErrorClearTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            guard !Task.isCancelled, self?.callError == message else { return }
-            self?.callErrorClearTask = nil
-            self?.callError = nil
+            do {
+                try await Task.sleep(nanoseconds: 4_000_000_000)
+                try Task.checkCancellation()
+                guard self?.callError == message else { return }
+                self?.callErrorClearTask = nil
+                self?.callError = nil
+            } catch is CancellationError {
+                return
+            } catch {
+                return
+            }
         }
     }
 
