@@ -3508,6 +3508,7 @@ struct VideoBubbleView: View {
     /// Resolved playback URL (may be a local temp file if web-encrypted).
     @State private var effectiveURL: URL?
     @State private var decryptedTempURL: URL?
+    @State private var loadFailed = false
 
     private var mediaWidth: CGFloat {
         min(260, max(0, maxWidth))
@@ -3526,19 +3527,21 @@ struct VideoBubbleView: View {
                         .scaledToFill()
                 } else {
                     Color.smBorderSoft
-                    Image(systemName: "video.fill")
+                    Image(systemName: loadFailed ? "exclamationmark.triangle" : "video.fill")
                         .font(.system(size: 32))
                         .foregroundStyle(Color.smMuted)
                 }
-                Circle()
-                    .fill(Color.black.opacity(0.55))
-                    .frame(width: 48, height: 48)
-                    .overlay(
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.white)
-                            .offset(x: 2)
-                    )
+                if effectiveURL != nil {
+                    Circle()
+                        .fill(Color.black.opacity(0.55))
+                        .frame(width: 48, height: 48)
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.white)
+                                .offset(x: 2)
+                        )
+                }
             }
             .frame(width: mediaWidth, height: mediaWidth * 0.727)
             .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
@@ -3563,14 +3566,20 @@ struct VideoBubbleView: View {
         guard let url else {
             effectiveURL = nil
             thumbnail = nil
+            loadFailed = true
             return
         }
         effectiveURL = nil
         thumbnail = nil
+        loadFailed = false
         // If the media is web-encrypted, decrypt to a temp file first so
         // both the thumbnail generator and the full-screen player can use it.
-        if let e2ee = SunMediaE2EE.parse(url: url),
-           let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
+        if let e2ee = SunMediaE2EE.parse(url: url) {
+            guard let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() else {
+                guard !Task.isCancelled, self.url == url else { return }
+                loadFailed = true
+                return
+            }
             guard !Task.isCancelled, self.url == url else {
                 if tmpURL.isFileURL {
                     try? FileManager.default.removeItem(at: tmpURL)
@@ -3580,11 +3589,12 @@ struct VideoBubbleView: View {
             decryptedTempURL = tmpURL
             effectiveURL = tmpURL
             await generateThumbnail(from: AVURLAsset(url: tmpURL), expectedURL: url)
-        } else {
-            guard !Task.isCancelled, self.url == url else { return }
-            effectiveURL = url
-            await generateThumbnail(from: AuthenticatedAsset.make(url: url), expectedURL: url)
+            return
         }
+
+        guard !Task.isCancelled, self.url == url else { return }
+        effectiveURL = url
+        await generateThumbnail(from: AuthenticatedAsset.make(url: url), expectedURL: url)
     }
 
     private func removeDecryptedTempFile() {
