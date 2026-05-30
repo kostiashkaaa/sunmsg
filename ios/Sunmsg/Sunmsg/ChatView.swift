@@ -2676,6 +2676,9 @@ struct MessageBubbleView: View {
         )
     }
     private var nonTextBlockWidth: CGFloat {
+        if message.messageType == "call" {
+            return min(ChatDesignMetrics.Bubble.callMaxWidth, clampedMaxBubbleWidth)
+        }
         switch effectiveMediaType {
         case "photo", "video":
             return min(ChatDesignMetrics.Bubble.mediaMaxWidth, clampedMaxBubbleWidth)
@@ -3068,7 +3071,7 @@ struct MessageBubbleView: View {
                 durationSec: call.durationSec,
                 isFromMe: isFromMe,
                 isTail: isTail,
-                maxWidth: maxBubbleWidth,
+                maxWidth: nonTextBlockWidth,
                 bubbleFill: bubbleFill,
                 bubbleTextColor: bubbleTextColor
             )
