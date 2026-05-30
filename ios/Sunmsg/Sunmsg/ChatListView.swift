@@ -495,6 +495,8 @@ struct ChatListView: View {
                             Text("@\(user?.username ?? "—")")
                                 .font(.caption)
                                 .foregroundStyle(Color.smAccent)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                             SyncChipView()
                         }
                     }
