@@ -109,6 +109,7 @@ struct ChatView: View {
     @State private var lastDraftUpdatedAt: Double = 0
     @State private var isApplyingDraftText = false
     @State private var hasPrivateKeyLoaded = false
+    @State private var privateKeyRefreshTask: Task<Void, Never>?
 
     // Long-press context menu (Telegram-style: reaction bar + actions).
     @State private var menuTargetId: Int? = nil
@@ -238,6 +239,8 @@ struct ChatView: View {
                 if session.activeChatId == contact.chatId {
                     session.activeChatId = nil
                 }
+                privateKeyRefreshTask?.cancel()
+                privateKeyRefreshTask = nil
                 draftSaveTask?.cancel()
                 flushDraftSave(force: true)
                 if isRecording { cancelRecording() }
@@ -930,7 +933,15 @@ struct ChatView: View {
     }
 
     private func refreshPrivateKeyState() {
-        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
+        privateKeyRefreshTask?.cancel()
+        privateKeyRefreshTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                KeychainService.hasPrivateKey()
+            }.value
+            guard !Task.isCancelled else { return }
+            hasPrivateKeyLoaded = loaded
+            privateKeyRefreshTask = nil
+        }
     }
 
     // MARK: - Data loading
