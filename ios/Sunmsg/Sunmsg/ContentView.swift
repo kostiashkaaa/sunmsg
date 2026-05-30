@@ -2716,6 +2716,7 @@ struct LanguageSettingsView: View {
         guard !isSaving else { return }
         let normalized = value == "en" ? "en" : "ru"
         guard language != normalized else { return }
+        let previous = language
         language = normalized
         isSaving = true
         UserDefaults.standard.set(normalized, forKey: "sun_ui_language")
@@ -2728,6 +2729,8 @@ struct LanguageSettingsView: View {
             } catch APIError.unauthorized {
                 session.route = .login
             } catch {
+                language = previous
+                UserDefaults.standard.set(previous, forKey: "sun_ui_language")
                 self.error = error.localizedDescription
             }
             isSaving = false
