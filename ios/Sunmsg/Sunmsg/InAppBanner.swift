@@ -28,17 +28,23 @@ final class InAppBannerController {
     func show(_ data: InAppBannerData) {
         dismissTask?.cancel()
         updateCurrent(data, animation: .spring(response: 0.35, dampingFraction: 0.78))
-        dismissTask = Task {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self.updateCurrent(nil, animation: .easeInOut(duration: 0.25))
+        dismissTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 4_000_000_000)
+                try Task.checkCancellation()
+                updateCurrent(nil, animation: .easeInOut(duration: 0.25))
+                dismissTask = nil
+            } catch is CancellationError {
+                return
+            } catch {
+                return
             }
         }
     }
 
     func dismiss() {
         dismissTask?.cancel()
+        dismissTask = nil
         updateCurrent(nil, animation: .easeInOut(duration: 0.2))
     }
 
