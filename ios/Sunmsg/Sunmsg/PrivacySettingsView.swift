@@ -377,22 +377,15 @@ struct TotpSettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader("ПОДТВЕРЖДЕНИЕ НАСТРОЙКИ")
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 14) {
-                    qrCodeView
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Секрет")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Color.smText)
-                        Text(status.totpSecret)
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(Color.smMuted)
-                            .textSelection(.enabled)
-                            .lineLimit(4)
-                        Button("Скопировать секрет") {
-                            UIPasteboard.general.string = status.totpSecret
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Color.smAccent2)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 14) {
+                        qrCodeView
+                        totpSecretBlock(status)
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        qrCodeView
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        totpSecretBlock(status)
                     }
                 }
 
@@ -404,6 +397,24 @@ struct TotpSettingsView: View {
             .padding(14)
             .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
+        }
+    }
+
+    private func totpSecretBlock(_ status: TotpResponse) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Секрет")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.smText)
+            Text(status.totpSecret)
+                .font(.system(.footnote, design: .monospaced))
+                .foregroundStyle(Color.smMuted)
+                .textSelection(.enabled)
+                .lineLimit(4)
+            Button("Скопировать секрет") {
+                UIPasteboard.general.string = status.totpSecret
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Color.smAccent2)
         }
     }
 
