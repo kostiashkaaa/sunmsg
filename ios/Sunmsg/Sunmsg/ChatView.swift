@@ -764,6 +764,8 @@ struct ChatView: View {
     private func toggleReaction(messageId: Int, emoji: String) {
         if SocketClient.shared.state != .connected {
             sendError = "Нет соединения — реакция будет отправлена после переподключения."
+        } else {
+            sendError = nil
         }
         // Optimistic local update so the reaction appears instantly.
         if let i = messages.firstIndex(where: { $0.id == messageId }) {
