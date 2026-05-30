@@ -3219,7 +3219,10 @@ struct SettingsTransferView: View {
         .navigationTitle("Экспорт и импорт")
         .smSettingsScreenStyle()
         .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: .json, defaultFilename: exportFilename) { result in
-            if case .failure(let error) = result { self.error = error.localizedDescription }
+            if case .failure(let error) = result {
+                status = nil
+                self.error = error.localizedDescription
+            }
         }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
             Task { await importSettings(result) }
