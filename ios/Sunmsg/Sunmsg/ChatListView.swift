@@ -949,6 +949,7 @@ struct MnemonicUnlockSheet: View {
     }
 
     private func handleUnlock() {
+        guard !isLoading else { return }
         let trimmedUser = username.trimmingCharacters(in: .whitespaces).lowercased()
             .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
         let trimmedMnemonic = mnemonic.trimmingCharacters(in: .whitespacesAndNewlines)
