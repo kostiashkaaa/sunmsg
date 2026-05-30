@@ -129,8 +129,9 @@ struct ChatComposerBar: View {
             }
             .buttonStyle(PressableStyle(scale: 0.94))
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 7)
+        .padding(.leading, Metrics.inputColumnHorizontalInset)
+        .padding(.trailing, Metrics.inputColumnHorizontalInset)
+        .padding(.top, Metrics.bannerTopPadding)
     }
 
     private func replyBanner(_ preview: ComposerReplyPreview) -> some View {
@@ -162,8 +163,9 @@ struct ChatComposerBar: View {
             }
             .buttonStyle(PressableStyle(scale: 0.94))
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 7)
+        .padding(.leading, Metrics.inputColumnHorizontalInset)
+        .padding(.trailing, Metrics.inputColumnHorizontalInset)
+        .padding(.top, Metrics.bannerTopPadding)
     }
 
     @ViewBuilder
