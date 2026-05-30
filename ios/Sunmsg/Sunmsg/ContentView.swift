@@ -2597,6 +2597,7 @@ struct SidebarLabelSettingsView: View {
     @State private var metrics = Set(SettingsClientPreferences.localWeatherMetrics())
     @State private var clientPreferences: [String: Any] = [:]
     @State private var error: String?
+    @State private var citySaveTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -2607,7 +2608,10 @@ struct SidebarLabelSettingsView: View {
                     Text("Город").tag("city")
                 }
                 if source == "city" {
-                    TextField("Город", text: Binding(get: { city }, set: { city = String($0.prefix(80)); save() }))
+                    TextField("Город", text: Binding(get: { city }, set: { value in
+                        city = String(value.prefix(80))
+                        scheduleCitySave()
+                    }))
                 }
                 Picker("Ротация", selection: Binding(get: { rotateSeconds }, set: { rotateSeconds = $0; save() })) {
                     Text("30 секунд").tag(30)
@@ -2635,6 +2639,7 @@ struct SidebarLabelSettingsView: View {
         .navigationTitle("Метка и погода")
         .smSettingsScreenStyle()
         .task { await load() }
+        .onDisappear { flushPendingCitySave() }
     }
 
     private func load() async {
@@ -2663,6 +2668,26 @@ struct SidebarLabelSettingsView: View {
             catch APIError.unauthorized { session.route = .login }
             catch { self.error = error.localizedDescription }
         }
+    }
+
+    private func scheduleCitySave() {
+        citySaveTask?.cancel()
+        citySaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 450_000_000)
+            } catch {
+                return
+            }
+            citySaveTask = nil
+            save()
+        }
+    }
+
+    private func flushPendingCitySave() {
+        guard citySaveTask != nil else { return }
+        citySaveTask?.cancel()
+        citySaveTask = nil
+        save()
     }
 
     private func weatherMetricLabel(_ key: String) -> String {
