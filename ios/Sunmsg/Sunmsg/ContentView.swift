@@ -1861,28 +1861,37 @@ private struct AvatarEditorView: View {
     }
 
     private func save() {
-        guard let data = renderCroppedJPEG() else { return }
+        guard !isSaving else { return }
         isSaving = true
-        Task {
+        Task { @MainActor in
+            guard let data = await renderCroppedJPEG() else {
+                isSaving = false
+                return
+            }
             await onSave(data)
             isSaving = false
             dismiss()
         }
     }
 
-    private func renderCroppedJPEG() -> Data? {
-        let outputSize = CGSize(width: 768, height: 768)
-        let renderer = UIGraphicsImageRenderer(size: outputSize)
-        let rendered = renderer.image { context in
-            UIColor.clear.setFill()
-            context.fill(CGRect(origin: .zero, size: outputSize))
-            context.cgContext.translateBy(x: outputSize.width / 2, y: outputSize.height / 2)
-            context.cgContext.rotate(by: rotation * .pi / 180)
-            let base = max(outputSize.width / image.size.width, outputSize.height / image.size.height)
-            let fitted = CGSize(width: image.size.width * base * zoom, height: image.size.height * base * zoom)
-            image.draw(in: CGRect(x: -fitted.width / 2, y: -fitted.height / 2, width: fitted.width, height: fitted.height))
-        }
-        return rendered.jpegData(compressionQuality: 0.88)
+    private func renderCroppedJPEG() async -> Data? {
+        let sourceImage = image
+        let currentZoom = zoom
+        let currentRotation = rotation
+        return await Task.detached(priority: .userInitiated) {
+            let outputSize = CGSize(width: 768, height: 768)
+            let renderer = UIGraphicsImageRenderer(size: outputSize)
+            let rendered = renderer.image { context in
+                UIColor.clear.setFill()
+                context.fill(CGRect(origin: .zero, size: outputSize))
+                context.cgContext.translateBy(x: outputSize.width / 2, y: outputSize.height / 2)
+                context.cgContext.rotate(by: currentRotation * .pi / 180)
+                let base = max(outputSize.width / sourceImage.size.width, outputSize.height / sourceImage.size.height)
+                let fitted = CGSize(width: sourceImage.size.width * base * currentZoom, height: sourceImage.size.height * base * currentZoom)
+                sourceImage.draw(in: CGRect(x: -fitted.width / 2, y: -fitted.height / 2, width: fitted.width, height: fitted.height))
+            }
+            return rendered.jpegData(compressionQuality: 0.88)
+        }.value
     }
 }
 
