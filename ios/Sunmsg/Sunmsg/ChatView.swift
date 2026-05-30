@@ -303,10 +303,12 @@ struct ChatView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            composerBar
-                .transaction { transaction in
-                    transaction.animation = keyboardAnimation.swiftUIAnimation(reduceMotion: reduceMotion)
-                }
+            if !isLoading && loadError == nil {
+                composerBar
+                    .transaction { transaction in
+                        transaction.animation = keyboardAnimation.swiftUIAnimation(reduceMotion: reduceMotion)
+                    }
+            }
         }
         .overlayPreferenceValue(BubbleAnchorKey.self) { anchors in
             if menuTargetId != nil {
