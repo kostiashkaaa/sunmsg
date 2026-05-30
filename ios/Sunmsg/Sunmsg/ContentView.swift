@@ -1606,6 +1606,7 @@ struct ProfileSettingsView: View {
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var activeSheet: ProfileSettingsSheet?
+    @State private var avatarEditorLoadToken = UUID()
 
     private struct ProfileFieldsSnapshot: Equatable {
         let displayName: String
@@ -1859,15 +1860,23 @@ struct ProfileSettingsView: View {
 
     private func prepareAvatarEditor(from item: PhotosPickerItem?) async {
         guard let item else { return }
+        let token = UUID()
+        avatarEditorLoadToken = token
+        defer {
+            if avatarEditorLoadToken == token {
+                selectedAvatarItem = nil
+            }
+        }
         do {
             if let data = try await item.loadTransferable(type: Data.self),
                let image = await Self.makeAvatarEditorImage(from: data) {
+                guard avatarEditorLoadToken == token else { return }
                 activeSheet = .avatarEditor(AvatarEditorDraft(image: image))
             }
         } catch {
+            guard avatarEditorLoadToken == token else { return }
             saveError = error.localizedDescription
         }
-        selectedAvatarItem = nil
     }
 
     private static func makeAvatarEditorImage(from data: Data) async -> UIImage? {
