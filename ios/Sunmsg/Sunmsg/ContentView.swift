@@ -3057,7 +3057,11 @@ struct SidebarLabelSettingsView: View {
             guard sidebarLabelSnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
             metrics = Set(SettingsClientPreferences.localWeatherMetrics())
-        } catch { self.error = error.localizedDescription }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func save() {
