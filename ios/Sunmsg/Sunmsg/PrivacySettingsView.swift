@@ -356,6 +356,7 @@ struct TotpSettingsView: View {
     @State private var newBackupCodes: [String] = []
     @State private var pendingAction: TotpPendingAction?
     @State private var setupQRImage: UIImage?
+    @State private var isGeneratingSetupQR = false
     @State private var statusLoadToken: UUID?
     private static let enabledAtParser: DateFormatter = {
         let formatter = DateFormatter()
@@ -406,13 +407,17 @@ struct TotpSettingsView: View {
             let uri = status?.totpUri ?? ""
             guard !uri.isEmpty else {
                 setupQRImage = nil
+                isGeneratingSetupQR = false
                 return
             }
+            setupQRImage = nil
+            isGeneratingSetupQR = true
             let image = await Task.detached(priority: .userInitiated) {
                 generateQRCodeImage(from: uri)
             }.value
             guard !Task.isCancelled, status?.totpUri == uri else { return }
             setupQRImage = image
+            isGeneratingSetupQR = false
         }
         .confirmationDialog(pendingAction?.title ?? "Подтвердите действие", isPresented: pendingActionBinding, titleVisibility: .visible) {
             if let pendingAction {
@@ -616,6 +621,9 @@ struct TotpSettingsView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 132, height: 132)
+            } else if isGeneratingSetupQR {
+                ProgressView()
+                    .tint(Color.smAccent)
             } else {
                 Text("QR недоступен")
                     .font(.caption)
