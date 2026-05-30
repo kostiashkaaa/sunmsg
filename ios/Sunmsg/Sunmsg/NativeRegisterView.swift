@@ -52,7 +52,9 @@ struct NativeRegisterView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { generateInitialMnemonicIfNeeded() }
+        .task {
+            await generateInitialMnemonicIfNeeded()
+        }
         .task(id: mnemonicCopyResetToken) {
             await resetMnemonicCopiedAfterDelay()
         }
@@ -191,7 +193,7 @@ struct NativeRegisterView: View {
                     .textCase(.uppercase)
                     .tracking(0.5)
                 Spacer()
-                Button(action: generateMnemonic) {
+                Button(action: { Task { await generateMnemonic() } }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.smAccent)
@@ -327,13 +329,17 @@ struct NativeRegisterView: View {
 
     // MARK: - Actions
 
-    private func generateInitialMnemonicIfNeeded() {
+    private func generateInitialMnemonicIfNeeded() async {
         guard mnemonic.isEmpty else { return }
-        generateMnemonic()
+        await generateMnemonic(onlyIfEmpty: true)
     }
 
-    private func generateMnemonic() {
-        guard let phrase = try? SunCrypto.generateMnemonic() else { return }
+    private func generateMnemonic(onlyIfEmpty: Bool = false) async {
+        let phrase = await Task.detached(priority: .userInitiated) {
+            try? SunCrypto.generateMnemonic()
+        }.value
+        guard let phrase else { return }
+        guard !onlyIfEmpty || mnemonic.isEmpty else { return }
         mnemonicCopyResetToken += 1
         mnemonic = phrase
         mnemonicCopied = false
