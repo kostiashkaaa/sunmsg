@@ -128,10 +128,16 @@ struct ChatListView: View {
             Text(removalError ?? "")
         }
         .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
-                guard !Task.isCancelled else { return }
-                await refreshSidebarData()
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(nanoseconds: 30_000_000_000)
+                    try Task.checkCancellation()
+                    await refreshSidebarData()
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                return
             }
         }
     }
