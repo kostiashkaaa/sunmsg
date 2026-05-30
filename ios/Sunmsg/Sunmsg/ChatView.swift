@@ -1087,7 +1087,12 @@ struct ChatView: View {
             Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
         case "chat_draft_updated":
-            applyRealtimeDraft(payload)
+            let hasDraft = (payload["has_draft"] as? Bool) ?? false
+            let rawDraft = (payload["draft_text"] as? String) ?? ""
+            let updatedAt = (payload["updated_at"] as? String) ?? ""
+            Task {
+                await applyRealtimeDraft(hasDraft: hasDraft, rawDraft: rawDraft, updatedAt: updatedAt)
+            }
 
         default:
             break
@@ -1449,7 +1454,7 @@ struct ChatView: View {
         let beforeLoadValue = normalizeDraftText(composerText)
         do {
             let response = try await session.api.getChatDraft(chatId: contact.chatId)
-            let draftText = response.hasDraft ? decryptDraftForLocalDisplay(response.draftText) : ""
+            let draftText = response.hasDraft ? await decryptDraftForLocalDisplay(response.draftText) : ""
             guard normalizeDraftText(composerText) == beforeLoadValue || !composerFocused else { return }
             lastSavedDraftText = draftText
             lastDraftUpdatedAt = SunDateParser.timestamp(from: response.updatedAt) ?? lastDraftUpdatedAt
@@ -1461,7 +1466,7 @@ struct ChatView: View {
             )
             applyDraftText(draftText)
         } catch {
-            let fallback = liveContact.hasDraft ? decryptDraftForLocalDisplay(liveContact.draftText ?? "") : ""
+            let fallback = liveContact.hasDraft ? await decryptDraftForLocalDisplay(liveContact.draftText ?? "") : ""
             guard !fallback.isEmpty, normalizeDraftText(composerText) == beforeLoadValue || !composerFocused else { return }
             lastSavedDraftText = fallback
             applyDraftText(fallback)
@@ -1481,7 +1486,7 @@ struct ChatView: View {
             guard sequence == draftSaveSequence else { return }
             let response = try await session.api.saveChatDraft(chatId: contact.chatId, draftText: encryptedDraft)
             guard sequence == draftSaveSequence else { return }
-            let serverDraft = response.hasDraft ? decryptDraftForLocalDisplay(response.draftText) : ""
+            let serverDraft = response.hasDraft ? await decryptDraftForLocalDisplay(response.draftText) : ""
             lastSavedDraftText = serverDraft
             lastDraftUpdatedAt = SunDateParser.timestamp(from: response.updatedAt) ?? lastDraftUpdatedAt
             session.applyDraftUpdate(
@@ -1537,21 +1542,20 @@ struct ChatView: View {
         }.value
     }
 
-    private func decryptDraftForLocalDisplay(_ rawDraft: String) -> String {
+    private func decryptDraftForLocalDisplay(_ rawDraft: String) async -> String {
         let normalized = normalizeDraftText(rawDraft)
         guard !normalized.isEmpty else { return "" }
         guard normalized.hasPrefix("{") else { return normalized }
-        guard let privateKey = KeychainService.loadPrivateKey() else { return "" }
-        let decrypted = SunCrypto.decryptMessageForDisplay(normalized, isSelf: true, privateKeyPEM: privateKey)
+        let decrypted = await Task.detached(priority: .utility) {
+            guard let privateKey = KeychainService.loadPrivateKey() else { return "" }
+            return SunCrypto.decryptMessageForDisplay(normalized, isSelf: true, privateKeyPEM: privateKey)
+        }.value
         guard decrypted != "__v3__", !decrypted.hasPrefix("[") else { return "" }
         return normalizeDraftText(decrypted)
     }
 
-    private func applyRealtimeDraft(_ payload: [String: Any]) {
-        let hasDraft = (payload["has_draft"] as? Bool) ?? false
-        let rawDraft = (payload["draft_text"] as? String) ?? ""
-        let updatedAt = (payload["updated_at"] as? String) ?? ""
-        let draftText = hasDraft ? decryptDraftForLocalDisplay(rawDraft) : ""
+    private func applyRealtimeDraft(hasDraft: Bool, rawDraft: String, updatedAt: String) async {
+        let draftText = hasDraft ? await decryptDraftForLocalDisplay(rawDraft) : ""
         guard shouldApplyDraftUpdate(updatedAt: updatedAt, draftText: draftText) else { return }
 
         let previousSavedDraftText = lastSavedDraftText
