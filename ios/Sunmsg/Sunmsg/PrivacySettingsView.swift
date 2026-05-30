@@ -652,6 +652,9 @@ struct TotpSettingsView: View {
                     if clean != value {
                         text.wrappedValue = clean
                     }
+                    if error != nil {
+                        error = nil
+                    }
                 }
                 .disabled(isWorking)
         }
