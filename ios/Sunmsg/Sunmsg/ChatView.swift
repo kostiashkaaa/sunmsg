@@ -1315,9 +1315,15 @@ struct ChatView: View {
         let normalized = normalizeDraftText(text)
         draftSaveTask?.cancel()
         draftSaveTask = Task {
-            try? await Task.sleep(nanoseconds: 700_000_000)
-            guard !Task.isCancelled else { return }
-            await saveDraft(normalized)
+            do {
+                try await Task.sleep(nanoseconds: 700_000_000)
+                try Task.checkCancellation()
+                await saveDraft(normalized)
+            } catch is CancellationError {
+                return
+            } catch {
+                return
+            }
         }
     }
 
