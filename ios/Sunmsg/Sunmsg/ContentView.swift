@@ -3761,6 +3761,8 @@ struct AppearanceSettingsView: View {
     @State private var clientPreferences: [String: Any] = [:]
     @State private var selectedBackgroundItem: PhotosPickerItem?
     @State private var error: String?
+    @State private var saveTask: Task<Void, Never>?
+    @State private var saveToken = UUID()
     @State private var hexSaveTask: Task<Void, Never>?
     @State private var backgroundImportToken = UUID()
 
@@ -4019,10 +4021,27 @@ struct AppearanceSettingsView: View {
     private func saveAppearance() {
         let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: [:])
         clientPreferences = payload
-        Task {
-            do { try await session.api.saveSettings(["client_preferences": payload]) }
-            catch APIError.unauthorized { session.route = .login }
-            catch { self.error = error.localizedDescription }
+        let token = UUID()
+        saveTask?.cancel()
+        saveToken = token
+        saveTask = Task { @MainActor in
+            do {
+                try Task.checkCancellation()
+                try await session.api.saveSettings(["client_preferences": payload])
+                guard !Task.isCancelled, saveToken == token else { return }
+                saveTask = nil
+            } catch is CancellationError {
+                guard saveToken == token else { return }
+                saveTask = nil
+            } catch APIError.unauthorized {
+                guard !Task.isCancelled, saveToken == token else { return }
+                saveTask = nil
+                session.route = .login
+            } catch {
+                guard !Task.isCancelled, saveToken == token else { return }
+                saveTask = nil
+                self.error = error.localizedDescription
+            }
         }
     }
 
