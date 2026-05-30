@@ -96,7 +96,7 @@ struct ChatHeaderView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.86)
                 }
-                .frame(minWidth: 0, maxWidth: 210, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 6)
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .center)
