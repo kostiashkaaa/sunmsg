@@ -1012,7 +1012,7 @@ struct MnemonicUnlockSheet: View {
                     return (pem, sig)
                 }.value
                 _ = try await api.loginChallenge(signature: signature)
-                try? KeychainService.savePrivateKey(privateKeyPEM)
+                try await AuthKeychainPersistence.savePrivateKey(privateKeyPEM)
                 await session.loadBootstrap()
                 await MainActor.run {
                     guard session.route == .main else {
