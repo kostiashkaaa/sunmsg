@@ -481,6 +481,7 @@ struct CallControlBtn: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Color(hex: "#fbf8f1").opacity(0.85))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.72)
             }
         }
         .buttonStyle(.plain)
