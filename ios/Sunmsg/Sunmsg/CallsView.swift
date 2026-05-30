@@ -6,6 +6,7 @@ struct CallsView: View {
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedSegment = 0
+    @State private var showClearConfirm = false
 
     private struct CallListSnapshot {
         let calls: [CallRecord]
@@ -85,6 +86,15 @@ struct CallsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog("Очистить журнал звонков?", isPresented: $showClearConfirm, titleVisibility: .visible) {
+            Button("Очистить", role: .destructive) {
+                session.callHistory.removeAll()
+                session.saveCallHistory()
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Все записи звонков будут удалены с этого устройства.")
+        }
     }
 
     private func deleteCall(_ call: CallRecord) {
@@ -118,10 +128,7 @@ struct CallsView: View {
             Spacer()
 
             if !session.callHistory.isEmpty {
-                Button(action: {
-                    session.callHistory.removeAll()
-                    session.saveCallHistory()
-                }) {
+                Button(action: { showClearConfirm = true }) {
                     Text("Очистить")
                         .font(.callout)
                         .foregroundStyle(Color.smAccent)
