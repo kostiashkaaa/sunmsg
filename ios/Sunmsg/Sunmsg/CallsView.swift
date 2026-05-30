@@ -163,6 +163,8 @@ struct CallsView: View {
                 Text(label)
                     .font(.caption.weight(selectedSegment == index ? .semibold : .medium))
                     .foregroundStyle(selectedSegment == index ? Color.smText : Color.smMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                 if let badge, badge > 0 {
                     Text("\(badge)")
                         .font(.caption2.weight(.bold))
