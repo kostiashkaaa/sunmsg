@@ -2990,6 +2990,7 @@ struct CallSettingsView: View {
 
     private func saveCallPrivacy(_ value: String, previous: String) {
         guard !isSaving else { return }
+        error = nil
         isSaving = true
         Task {
             do { try await session.api.saveSettings(["call_privacy": value]) }
