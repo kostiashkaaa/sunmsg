@@ -706,7 +706,7 @@ struct ChatView: View {
                 infoTargetMessage = msg
             })
 
-            items.append(MessageContextMenuAction(id: "delivery", title: "Статус доставки", subtitle: msg.isDelivered ? "Доставлено" : "Отправляется", systemImage: "checkmark.circle") {
+            items.append(MessageContextMenuAction(id: "delivery", title: "Статус доставки", subtitle: msg.isDelivered ? "Доставлено" : "Отправлено", systemImage: "checkmark.circle") {
                 dismissMenu()
                 infoTargetMessage = msg
             })
@@ -2877,7 +2877,7 @@ struct MessageBubbleView: View {
     private var deliveryIconName: String {
         if message.isRead { return "checkmark.circle.fill" }
         if message.isDelivered { return "checkmark.circle" }
-        return "clock"
+        return "checkmark"
     }
 
     // MARK: - Call bubble content

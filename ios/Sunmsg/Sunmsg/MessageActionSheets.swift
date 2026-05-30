@@ -98,7 +98,7 @@ struct MessageInfoSheet: View {
 
                 if isFromMe {
                     Section {
-                        infoRow("Доставка", value: message.isDelivered ? "Доставлено" : "Отправляется", icon: "checkmark.circle")
+                        infoRow("Доставка", value: message.isDelivered ? "Доставлено" : "Отправлено", icon: "checkmark.circle")
                         infoRow("Прочтение", value: message.isRead ? "Прочитано" : "Не прочитано", icon: "checkmark.circle.fill")
                     } header: {
                         Text("Статусы")
