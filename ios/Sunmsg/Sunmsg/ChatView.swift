@@ -3769,12 +3769,12 @@ struct AudioBubbleView: View {
             // Web-encrypted file: fetch, decrypt, save to temp file
             isResolving = true
             defer {
-                if self.url == url {
+                if !Task.isCancelled, self.url == url {
                     isResolving = false
                 }
             }
             if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
-                guard self.url == url else {
+                guard !Task.isCancelled, self.url == url else {
                     if tmpURL.isFileURL {
                         try? FileManager.default.removeItem(at: tmpURL)
                     }
@@ -3785,7 +3785,7 @@ struct AudioBubbleView: View {
                 await player.prepareDuration(url: tmpURL)
             }
         } else {
-            guard self.url == url else { return }
+            guard !Task.isCancelled, self.url == url else { return }
             effectiveURL = url
             await player.prepareDuration(url: url)
         }
