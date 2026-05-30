@@ -273,7 +273,10 @@ enum QRTransferCrypto {
 enum QRTransferService {
     static func submitLocalPrivateKey(for code: QRTransferCode, api: APIClient = .shared) async throws {
         guard code.kind == .login || code.kind == .device else { throw QRTransferCryptoError.invalidCiphertext }
-        guard let privateKeyPem = KeychainService.loadPrivateKey() else {
+        let privateKeyPem = await Task.detached(priority: .userInitiated) {
+            KeychainService.loadPrivateKey()
+        }.value
+        guard let privateKeyPem else {
             throw QRTransferCryptoError.missingLocalPrivateKey
         }
         let validatedPrivateKeyPem = try await Task.detached(priority: .userInitiated) {
