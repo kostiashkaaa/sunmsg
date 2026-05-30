@@ -391,6 +391,7 @@ struct ChatListView: View {
             } catch APIError.unauthorized {
                 session.route = .login
             } catch {
+                removalError = error.localizedDescription
                 await session.refreshContacts()
             }
             pinningChatIds.remove(contact.chatId)
