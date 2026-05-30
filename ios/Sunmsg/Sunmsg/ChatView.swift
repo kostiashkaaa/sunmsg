@@ -2845,10 +2845,14 @@ struct MessageBubbleView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             timeRow
-                .padding(.vertical, 2)
-                .background(.thinMaterial, in: Capsule())
-                .background(Color.smSurface.opacity(0.62), in: Capsule())
-                .overlay(Capsule().stroke(Color.smBorderSoft.opacity(0.85), lineWidth: 0.5))
+                .padding(.vertical, Metrics.outsideMetaVerticalPadding)
+                .background(Color.smSurface.opacity(Metrics.outsideMetaSurfaceOpacity), in: Capsule())
+                .overlay(
+                    Capsule().stroke(
+                        Color.smBorderSoft.opacity(Metrics.outsideMetaStrokeOpacity),
+                        lineWidth: 0.5
+                    )
+                )
         }
         .frame(width: nonTextBlockWidth, alignment: .trailing)
     }

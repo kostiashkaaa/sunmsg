@@ -40,6 +40,9 @@ enum ChatDesignMetrics {
         static let contentSpacing: CGFloat = 5
         static let metaSpacing: CGFloat = 3
         static let metaHorizontalPadding: CGFloat = 4
+        static let outsideMetaVerticalPadding: CGFloat = 2
+        static let outsideMetaSurfaceOpacity: Double = 0.74
+        static let outsideMetaStrokeOpacity: Double = 0.72
         static let replyHorizontalPadding: CGFloat = 8
         static let replyVerticalPadding: CGFloat = 6
         static let replyRadius: CGFloat = 9
