@@ -3778,13 +3778,16 @@ struct AppearanceSettingsView: View {
     }
 
     private static func resizedJPEGData(from data: Data, maxDimension: CGFloat) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
-        let maxSide = max(image.size.width, image.size.height)
-        let scale = maxSide > maxDimension ? maxDimension / maxSide : 1
-        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let rendered = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-        return rendered.jpegData(compressionQuality: 0.82)
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxDimension),
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions) else { return nil }
+        return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.82)
     }
 
     private func normalizeHex(_ raw: String) -> String {
