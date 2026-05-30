@@ -609,15 +609,27 @@ struct ChatView: View {
 
         let previous = index > messages.startIndex ? messages[messages.index(before: index)] : nil
         let next = index < messages.index(before: messages.endIndex) ? messages[messages.index(after: index)] : nil
+        let startsCurrentGroup = previous.map {
+            ChatMessageGrouping.startsNewVisualGroup(
+                current: message,
+                previous: $0,
+                startsNewDay: isDifferentMessageDay(current: message, previous: $0)
+            )
+        } ?? true
+        let nextStartsGroup = next.map {
+            ChatMessageGrouping.startsNewVisualGroup(
+                current: $0,
+                previous: message,
+                startsNewDay: isDifferentMessageDay(current: $0, previous: message)
+            )
+        } ?? true
         let showSender = contact.isGroup
             && !isFromMe
-            && (previous == nil
-                || previous?.senderUserId != message.senderUserId
-                || isDifferentMessageDay(current: message, previous: previous))
+            && (startsCurrentGroup || previous?.senderUserId != message.senderUserId)
         let isTail = next == nil
             || next?.senderUserId != message.senderUserId
             || (next?.senderUserId == myId) != isFromMe
-            || isDifferentMessageDay(current: next, previous: message)
+            || nextStartsGroup
 
         return (showSender: showSender, isTail: isTail)
     }

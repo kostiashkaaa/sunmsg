@@ -39,9 +39,19 @@ struct ChatTimelineRow: Identifiable, Equatable {
     }
 }
 
-struct ChatMessageTimelineView: View, Equatable {
-    private static let messageGroupGap: TimeInterval = 5 * 60
+enum ChatMessageGrouping {
+    static let messageGroupGap: TimeInterval = 5 * 60
 
+    static func startsNewVisualGroup(
+        current: ChatMessage,
+        previous: ChatMessage,
+        startsNewDay: Bool
+    ) -> Bool {
+        startsNewDay || current.createdAt - previous.createdAt > messageGroupGap
+    }
+}
+
+struct ChatMessageTimelineView: View, Equatable {
     let rows: [ChatTimelineRow]
     let hasOlderMessages: Bool
     let isLoading: Bool
@@ -195,7 +205,7 @@ struct ChatMessageTimelineView: View, Equatable {
                     previous: message,
                     calendar: calendar
                 )
-                return Self.startsNewVisualGroup(
+                return ChatMessageGrouping.startsNewVisualGroup(
                     current: $0,
                     previous: message,
                     startsNewDay: nextStartsNewDay
@@ -407,7 +417,7 @@ struct ChatMessageTimelineView: View, Equatable {
         guard isGroup, !isFromMe else { return false }
         guard let previous else { return true }
         return previous.senderUserId != current.senderUserId
-            || startsNewVisualGroup(
+            || ChatMessageGrouping.startsNewVisualGroup(
                 current: current,
                 previous: previous,
                 startsNewDay: startsNewDay
@@ -428,13 +438,6 @@ struct ChatMessageTimelineView: View, Equatable {
             || nextStartsNewGroup
     }
 
-    private static func startsNewVisualGroup(
-        current: ChatMessage,
-        previous: ChatMessage,
-        startsNewDay: Bool
-    ) -> Bool {
-        startsNewDay || current.createdAt - previous.createdAt > messageGroupGap
-    }
 }
 
 private struct DateChipView: View {
