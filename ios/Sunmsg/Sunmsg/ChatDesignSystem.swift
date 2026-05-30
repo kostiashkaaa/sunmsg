@@ -6,8 +6,14 @@ enum ChatDesignMetrics {
         static let sideWidth: CGFloat = 52
         static let backTouchSize: CGFloat = 44
         static let avatarSize: CGFloat = 36
+        static let savedAvatarIconSize: CGFloat = 14
+        static let privacyIconSize: CGFloat = 9
+        static let onlineBadgeSize: CGFloat = 10
+        static let onlineBadgeStrokeWidth: CGFloat = 2
         static let headerHeight: CGFloat = 48
         static let contentHorizontalPadding: CGFloat = 4
+        static let avatarTitleSpacing: CGFloat = 9
+        static let titleIconSpacing: CGFloat = 4
         static let titleStatusSpacing: CGFloat = 1
     }
 

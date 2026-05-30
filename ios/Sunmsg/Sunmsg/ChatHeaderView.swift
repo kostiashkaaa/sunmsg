@@ -54,6 +54,8 @@ struct ChatHeaderView: View {
     let isTyping: Bool
     let onOpenProfile: () -> Void
 
+    private typealias Metrics = ChatDesignMetrics.TopBar
+
     private var displayName: String {
         isSavedMessages ? "Избранное" : contact.displayName
     }
@@ -66,11 +68,11 @@ struct ChatHeaderView: View {
 
     var body: some View {
         Button(action: onOpenProfile) {
-            HStack(spacing: 9) {
+            HStack(spacing: Metrics.avatarTitleSpacing) {
                 avatar
 
                 VStack(alignment: .leading, spacing: ChatDesignMetrics.TopBar.titleStatusSpacing) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Metrics.titleIconSpacing) {
                         Text(displayName)
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(Color.smText)
@@ -80,7 +82,7 @@ struct ChatHeaderView: View {
 
                         if !contact.isGroup && !isSavedMessages {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 9, weight: .medium))
+                                .font(.system(size: Metrics.privacyIconSize, weight: .medium))
                                 .foregroundStyle(Color.smOnline.opacity(0.85))
                                 .accessibilityHidden(true)
                         }
@@ -112,24 +114,24 @@ struct ChatHeaderView: View {
                     Circle()
                         .fill(Color.smAccent)
                     Image(systemName: "bookmark.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: Metrics.savedAvatarIconSize, weight: .semibold))
                         .foregroundStyle(Color.smSurface)
                 }
-                .frame(width: ChatDesignMetrics.TopBar.avatarSize, height: ChatDesignMetrics.TopBar.avatarSize)
+                .frame(width: Metrics.avatarSize, height: Metrics.avatarSize)
             } else {
                 SmAvatarView(
                     name: contact.displayName,
                     avatarUrl: contact.avatarUrl,
                     isGroup: contact.isGroup,
-                    size: ChatDesignMetrics.TopBar.avatarSize
+                    size: Metrics.avatarSize
                 )
             }
 
             if contact.isOnline && !isSavedMessages {
                 Circle()
                     .fill(Color.smOnline)
-                    .frame(width: 10, height: 10)
-                    .overlay(Circle().stroke(Color.smBg, lineWidth: 2))
+                    .frame(width: Metrics.onlineBadgeSize, height: Metrics.onlineBadgeSize)
+                    .overlay(Circle().stroke(Color.smBg, lineWidth: Metrics.onlineBadgeStrokeWidth))
                     .accessibilityHidden(true)
             }
         }
