@@ -363,17 +363,26 @@ final class SessionStore: ObservableObject {
         // ── WebRTC SDP / ICE relay ──────────────────────────────────────────
 
         case "call_offer":
-            guard let sdp = payload["sdp"] as? [String: Any],
+            guard let callId = payload["call_id"] as? String,
+                  activeCall?.callId == callId,
+                  WebRTCService.shared.currentCallId == callId,
+                  let sdp = payload["sdp"] as? [String: Any],
                   let sdpText = sdp["sdp"] as? String else { break }
             WebRTCService.shared.handleRemoteOffer(sdpText)
 
         case "call_answer":
-            guard let sdp = payload["sdp"] as? [String: Any],
+            guard let callId = payload["call_id"] as? String,
+                  activeCall?.callId == callId,
+                  WebRTCService.shared.currentCallId == callId,
+                  let sdp = payload["sdp"] as? [String: Any],
                   let sdpText = sdp["sdp"] as? String else { break }
             WebRTCService.shared.handleRemoteAnswer(sdpText)
 
         case "call_ice_candidate":
-            if let cand = payload["candidate"] as? [String: Any] {
+            if let callId = payload["call_id"] as? String,
+               activeCall?.callId == callId,
+               WebRTCService.shared.currentCallId == callId,
+               let cand = payload["candidate"] as? [String: Any] {
                 WebRTCService.shared.handleRemoteCandidate(cand)
             }
 
