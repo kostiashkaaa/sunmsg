@@ -3493,7 +3493,7 @@ struct SecuritySettingsView: View {
 struct MnemonicRestoreSettingsView: View {
     @EnvironmentObject var session: SessionStore
     @State private var phrase = ""
-    @State private var hasPrivateKey = KeychainService.hasPrivateKey()
+    @State private var hasPrivateKey = false
     @State private var isWorking = false
     @State private var error: String?
     @State private var status: String?
@@ -3541,6 +3541,15 @@ struct MnemonicRestoreSettingsView: View {
         }
         .navigationTitle("Секретная фраза")
         .smSettingsScreenStyle()
+        .task { await refreshPrivateKeyState() }
+    }
+
+    private func refreshPrivateKeyState() async {
+        let loaded = await Task.detached(priority: .userInitiated) {
+            KeychainService.hasPrivateKey()
+        }.value
+        guard !Task.isCancelled else { return }
+        hasPrivateKey = loaded
     }
 
     private func unlockVault() async {
