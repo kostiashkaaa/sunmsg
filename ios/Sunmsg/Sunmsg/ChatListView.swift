@@ -475,6 +475,7 @@ struct ChatListView: View {
 
     private var profileFooter: some View {
         let user = session.bootstrap?.user
+        let username = (user?.username ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(spacing: 0) {
             Button(action: { activeSheet = .userQR }) {
                 HStack(spacing: 12) {
@@ -493,7 +494,7 @@ struct ChatListView: View {
                             .foregroundStyle(Color.smText)
                             .lineLimit(1)
                         HStack(spacing: 6) {
-                            Text("@\(user?.username ?? "—")")
+                            Text(username.isEmpty ? "пользователь" : "@\(username)")
                                 .font(.caption)
                                 .foregroundStyle(Color.smAccent)
                                 .lineLimit(1)
@@ -1097,12 +1098,16 @@ struct UserQRSheet: View {
 
     private var user: BootstrapUser? { session.bootstrap?.user }
 
+    private var username: String {
+        (user?.username ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var displayHandle: String {
-        "@\(user?.username ?? "unknown")"
+        username.isEmpty ? "пользователь" : "@\(username)"
     }
 
     private var qrContent: String {
-        "su:\(user?.username ?? "unknown")"
+        username.isEmpty ? "" : "su:\(username)"
     }
 
     var body: some View {
@@ -1156,6 +1161,10 @@ struct UserQRSheet: View {
             }
             .task(id: qrContent) {
                 let content = qrContent
+                guard !content.isEmpty else {
+                    qrImage = nil
+                    return
+                }
                 let image = await Task.detached(priority: .userInitiated) {
                     generateQRCodeImage(from: content)
                 }.value
