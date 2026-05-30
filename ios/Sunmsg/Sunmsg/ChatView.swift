@@ -3851,6 +3851,8 @@ struct AudioBubbleView: View {
 @MainActor
 @Observable
 final class AudioPlayerController {
+    private static let visibleProgressSteps = 20
+
     var isPlaying: Bool = false
     var elapsed: Double = 0
     var duration: Double = 0
@@ -3899,7 +3901,7 @@ final class AudioPlayerController {
             ) { [weak self] t in
                 // The callback is already on main queue — `assumeIsolated` avoids
                 // Sendable warnings without spawning a new Task.
-                MainActor.assumeIsolated { self?.elapsed = CMTimeGetSeconds(t) }
+                MainActor.assumeIsolated { self?.publishElapsedIfVisibleChange(CMTimeGetSeconds(t)) }
             }
             endObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
@@ -3914,6 +3916,22 @@ final class AudioPlayerController {
         }
         if isPlaying { player?.pause(); isPlaying = false }
         else { player?.play(); isPlaying = true }
+    }
+
+    private func publishElapsedIfVisibleChange(_ nextElapsed: Double) {
+        guard nextElapsed.isFinite, nextElapsed >= 0 else { return }
+        let oldSecond = Int(elapsed)
+        let newSecond = Int(nextElapsed)
+        let oldProgressStep = visualProgressStep(for: elapsed)
+        let newProgressStep = visualProgressStep(for: nextElapsed)
+        guard oldSecond != newSecond || oldProgressStep != newProgressStep else { return }
+        elapsed = nextElapsed
+    }
+
+    private func visualProgressStep(for elapsed: Double) -> Int {
+        guard duration.isFinite, duration > 0 else { return 0 }
+        let rawStep = Int((elapsed / duration) * Double(Self.visibleProgressSteps))
+        return max(0, min(Self.visibleProgressSteps, rawStep))
     }
 
     func stop() {
