@@ -863,6 +863,18 @@ struct BlockedUsersView: View {
                 }
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let error {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(Color.smDanger)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.smBg)
+            }
+        }
         .navigationTitle("Заблокированные")
         .smSettingsScreenStyle()
         .task { await load() }
