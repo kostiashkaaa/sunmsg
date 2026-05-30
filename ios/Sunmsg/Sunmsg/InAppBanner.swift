@@ -126,16 +126,20 @@ struct InAppBannerOverlay: ViewModifier {
         ZStack(alignment: .top) {
             content
 
-            if let data = ctrl.current {
-                InAppBannerView(data: data) { _ in
-                    // Tapping opens the chat — for now just dismiss
-                    // (full navigation would require a NavigationPath in SessionStore)
-                    ctrl.dismiss()
+            GeometryReader { proxy in
+                if let data = ctrl.current {
+                    InAppBannerView(data: data) { _ in
+                        // Tapping opens the chat — for now just dismiss
+                        // (full navigation would require a NavigationPath in SessionStore)
+                        ctrl.dismiss()
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(999)
+                    .padding(.top, proxy.safeAreaInsets.top + 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(999)
-                .padding(.top, 8)
             }
+            .allowsHitTesting(ctrl.current != nil)
         }
         .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
             handleSocketNote(note)
