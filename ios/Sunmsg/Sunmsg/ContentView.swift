@@ -844,11 +844,16 @@ final class SessionStore: ObservableObject {
         contacts[idx].initialLastMessagePreview = preview
         contacts[idx].lastSenderId = payload["sender_user_id"] as? Int
 
-        if let rawMessage = payload["message"] as? String {
-            contacts[idx].initialLastMessagePreview = Self.decryptPreview(
-                rawMessage,
-                isSelf: (payload["sender_user_id"] as? Int) == bootstrap?.user.id
-            )
+        if let rawMessage = payload["message"] as? String, rawMessage.hasPrefix("{") {
+            let isSelf = (payload["sender_user_id"] as? Int) == bootstrap?.user.id
+            Task { [chatId, rawMessage, isSelf, ts] in
+                let decryptedPreview = await Task.detached(priority: .userInitiated) {
+                    Self.decryptPreview(rawMessage, isSelf: isSelf)
+                }.value
+                guard let index = contacts.firstIndex(where: { $0.chatId == chatId }),
+                      contacts[index].lastMessageTime == ts else { return }
+                contacts[index].initialLastMessagePreview = decryptedPreview
+            }
         }
 
         // Only bump unread when this chat is not currently open
