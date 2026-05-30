@@ -2875,7 +2875,8 @@ struct MessageBubbleView: View {
                 status: call.status,
                 durationSec: call.durationSec,
                 isFromMe: isFromMe,
-                isTail: isTail
+                isTail: isTail,
+                maxWidth: maxBubbleWidth
             )
         } else {
             textContent
@@ -3029,6 +3030,7 @@ struct CallBubbleView: View {
     let durationSec: Int?
     let isFromMe: Bool
     let isTail: Bool
+    let maxWidth: CGFloat
 
     private var iconName: String { callType == "video" ? "video.fill" : "phone.fill" }
 
@@ -3084,6 +3086,7 @@ struct CallBubbleView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 if let dur = durationText {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
@@ -3095,9 +3098,11 @@ struct CallBubbleView: View {
                     }
                 }
             }
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .frame(minWidth: min(164, maxWidth), maxWidth: maxWidth, alignment: .leading)
         .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
         .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
         .overlay(
