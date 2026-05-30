@@ -1016,7 +1016,7 @@ struct UserResultRow: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
-                    Text("@\(user.username)")
+                    Text(user.username.isEmpty ? "пользователь" : "@\(user.username)")
                         .font(.caption)
                         .foregroundStyle(Color.smAccent)
                         .lineLimit(1)
