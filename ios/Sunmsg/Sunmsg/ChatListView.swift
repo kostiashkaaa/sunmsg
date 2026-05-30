@@ -1130,6 +1130,7 @@ struct UserQRSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedTab = 0
     @State private var qrImage: UIImage?
+    @State private var qrError: String?
     @State private var scannerRestartId = UUID()
     @State private var isHandlingScan = false
     @State private var scanStatus = "Наведите камеру на QR профиля или QR-входа."
@@ -1205,13 +1206,20 @@ struct UserQRSheet: View {
                 let content = qrContent
                 guard !content.isEmpty else {
                     qrImage = nil
+                    qrError = nil
                     return
                 }
                 let image = await Task.detached(priority: .userInitiated) {
                     generateQRCodeImage(from: content)
                 }.value
                 guard !Task.isCancelled, qrContent == content else { return }
-                qrImage = image
+                if let image {
+                    qrImage = image
+                    qrError = nil
+                } else {
+                    qrImage = nil
+                    qrError = "Не удалось сгенерировать QR-код."
+                }
             }
         }
     }
@@ -1230,6 +1238,19 @@ struct UserQRSheet: View {
                             .padding(20)
                             .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
                             .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.smBorder, lineWidth: 0.5))
+                    } else if let qrError {
+                        VStack(spacing: 10) {
+                            Image(systemName: "qrcode")
+                                .font(.system(size: 34, weight: .semibold))
+                                .foregroundStyle(Color.smMuted)
+                            Text(qrError)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(Color.smMuted)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                        }
+                        .frame(width: 260, height: 260)
+                        .background(Color.smBorder.opacity(0.18), in: RoundedRectangle(cornerRadius: 18))
                     } else {
                         RoundedRectangle(cornerRadius: 18)
                             .fill(Color.smBorder.opacity(0.3))
