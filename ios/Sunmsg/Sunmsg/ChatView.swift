@@ -3035,9 +3035,9 @@ struct MessageBubbleView: View {
             onToggleReaction(r.emoji)
             ChatHaptics.lightImpact()
         }) {
-            HStack(spacing: 3) {
+            HStack(spacing: Metrics.reactionContentSpacing) {
                 Text(r.emoji)
-                    .font(.system(size: 15))
+                    .font(.system(size: Metrics.reactionEmojiSize))
                 if r.count > 1 {
                     Text("\(r.count)")
                         .font(.caption2.weight(.semibold))
@@ -3048,7 +3048,7 @@ struct MessageBubbleView: View {
             .padding(.horizontal, Metrics.reactionHorizontalPadding)
             .padding(.vertical, Metrics.reactionVerticalPadding)
             .background(bg, in: Capsule())
-            .overlay(Capsule().stroke(stroke, lineWidth: 0.5))
+            .overlay(Capsule().stroke(stroke, lineWidth: Metrics.reactionStrokeWidth))
         }
         .buttonStyle(PressableStyle())
         .fixedSize()
