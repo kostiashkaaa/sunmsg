@@ -947,13 +947,14 @@ struct ChatView: View {
             await session.primeChatSync(chatId: contact.chatId)
             let fresh = try await APIClient.shared.getChatHistory(chatId: contact.chatId)
                 .map(normalizedMessage)
+            let merged = mergedCurrentMessages(with: fresh)
             scrollIntent = .bottom(animated: false)
-            messages = fresh
+            messages = merged
             invalidateTimeline()
-            hasOlderMessages = messages.count >= 40
-            await ChatLocalStore.shared.mergeMessages(messages, chatId: contact.chatId)
+            hasOlderMessages = fresh.count >= 40
+            await ChatLocalStore.shared.mergeMessages(merged, chatId: contact.chatId)
             await markRead()
-            await decryptMessages(messages)
+            await decryptMessages(merged)
             await session.recoverChatSync(chatId: contact.chatId)
         } catch {
             if messages.isEmpty {
@@ -961,6 +962,20 @@ struct ChatView: View {
             }
         }
         isLoading = false
+    }
+
+    private func mergedCurrentMessages(with incoming: [ChatMessage]) -> [ChatMessage] {
+        var byId: [Int: ChatMessage] = [:]
+        for message in messages {
+            byId[message.id] = message
+        }
+        for message in incoming {
+            byId[message.id] = message
+        }
+        return byId.values.sorted {
+            if $0.createdAt == $1.createdAt { return $0.id < $1.id }
+            return $0.createdAt < $1.createdAt
+        }
     }
 
     private func markRead() async {
