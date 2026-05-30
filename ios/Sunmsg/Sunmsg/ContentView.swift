@@ -2174,6 +2174,7 @@ struct NotificationSettingsView: View {
     }
 
     private func enableNotifications() async {
+        guard !isSaving else { return }
         isSaving = true
         error = nil
         do {
@@ -2198,6 +2199,7 @@ struct NotificationSettingsView: View {
     }
 
     private func disableNotifications() async {
+        guard !isSaving else { return }
         guard !alertToken.isEmpty else { return }
         isSaving = true
         error = nil
