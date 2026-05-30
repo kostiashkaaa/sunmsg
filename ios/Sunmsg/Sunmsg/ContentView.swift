@@ -3020,7 +3020,9 @@ struct SettingsTransferView: View {
     }
 
     private func exportSettings() async {
+        guard !isWorking else { return }
         isWorking = true
+        defer { isWorking = false }
         error = nil
         status = nil
         do {
@@ -3057,11 +3059,12 @@ struct SettingsTransferView: View {
         } catch {
             self.error = error.localizedDescription
         }
-        isWorking = false
     }
 
     private func importSettings(_ result: Result<URL, Error>) async {
+        guard !isWorking else { return }
         isWorking = true
+        defer { isWorking = false }
         error = nil
         status = nil
         do {
@@ -3089,7 +3092,6 @@ struct SettingsTransferView: View {
         } catch {
             self.error = error.localizedDescription
         }
-        isWorking = false
     }
 
     private func readImportData(from url: URL) async throws -> Data {
