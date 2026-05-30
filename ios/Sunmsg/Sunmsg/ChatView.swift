@@ -2682,6 +2682,8 @@ struct MessageBubbleView: View {
         switch effectiveMediaType {
         case "photo", "video":
             return min(ChatDesignMetrics.Bubble.mediaMaxWidth, clampedMaxBubbleWidth)
+        case "audio", "file":
+            return min(ChatDesignMetrics.Bubble.attachmentMaxWidth, clampedMaxBubbleWidth)
         default:
             return clampedMaxBubbleWidth
         }
@@ -3109,7 +3111,7 @@ struct MessageBubbleView: View {
                     name: sunfile.name,
                     isFromMe: isFromMe,
                     isTail: isTail,
-                    maxWidth: maxBubbleWidth,
+                    maxWidth: nonTextBlockWidth,
                     bubbleFill: bubbleFill,
                     bubbleTextColor: bubbleTextColor
                 )
@@ -3120,7 +3122,7 @@ struct MessageBubbleView: View {
                     size: sunfile.size,
                     isFromMe: isFromMe,
                     isTail: isTail,
-                    maxWidth: maxBubbleWidth,
+                    maxWidth: nonTextBlockWidth,
                     bubbleFill: bubbleFill,
                     bubbleTextColor: bubbleTextColor
                 )

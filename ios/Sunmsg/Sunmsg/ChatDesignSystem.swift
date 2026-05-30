@@ -57,6 +57,7 @@ enum ChatDesignMetrics {
         static let fileIconSize: CGFloat = 36
         static let mediaMaxWidth: CGFloat = 268
         static let callMaxWidth: CGFloat = 228
+        static let attachmentMaxWidth: CGFloat = 284
         static let mediaAspectRatio: CGFloat = 0.727
         static let audioMinWidth: CGFloat = 152
         static let fileMinWidth: CGFloat = 184
