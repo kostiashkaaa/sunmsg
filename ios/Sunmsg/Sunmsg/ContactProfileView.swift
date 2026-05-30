@@ -146,10 +146,14 @@ struct ContactProfileView: View {
                 Text(contact.displayName)
                     .font(.title3.weight(.bold))
                     .foregroundStyle(Color.smText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
 
                 Text("@\(contact.username)")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.smAccent2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
 
                 if contact.isOnline {
                     HStack(spacing: 5) {
@@ -195,6 +199,8 @@ struct ContactProfileView: View {
                 Text(label)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Color.smText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
             }
             .frame(maxWidth: .infinity)
         }
