@@ -431,7 +431,7 @@ struct ChatMessageTimelineView: View, Equatable {
         forViewportWidth width: CGFloat,
         isSelectionMode: Bool
     ) -> CGFloat {
-        let selectionReserve: CGFloat = isSelectionMode ? ChatDesignMetrics.Timeline.selectionReserve : 0
+        let selectionReserve: CGFloat = isSelectionMode ? ChatDesignMetrics.Bubble.selectionReserve : 0
         let columnWidth = max(0, width - horizontalContentPadding * 2 - selectionReserve)
         guard columnWidth > 0 else { return 0 }
         return min(

@@ -15,7 +15,6 @@ enum ChatDesignMetrics {
         static let horizontalPadding: CGFloat = 10
         static let topPadding: CGFloat = 6
         static let bottomPadding: CGFloat = 5
-        static let selectionReserve: CGFloat = 36
         static let maxBubbleWidth: CGFloat = 340
         static let maxBubbleFraction: CGFloat = 0.80
         static let bottomPinTolerance: CGFloat = 72
@@ -31,6 +30,11 @@ enum ChatDesignMetrics {
         static let cornerRadius: CGFloat = 18
         static let tailRadius: CGFloat = 6
         static let sideGutter: CGFloat = 44
+        static let selectionIndicatorSize: CGFloat = 28
+        static let selectionIndicatorGap: CGFloat = 8
+        static var selectionReserve: CGFloat {
+            selectionIndicatorSize + selectionIndicatorGap
+        }
         static let rowVerticalPadding: CGFloat = 1.5
         static let tailRowVerticalPadding: CGFloat = 3
         static let textHorizontalPadding: CGFloat = 12

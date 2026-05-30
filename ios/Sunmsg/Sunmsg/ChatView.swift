@@ -2711,7 +2711,7 @@ struct MessageBubbleView: View {
                 HStack(alignment: .bottom, spacing: 0) {
                     if isSelectionMode && !isFromMe {
                         selectionIndicator
-                            .padding(.trailing, 8)
+                            .padding(.trailing, Metrics.selectionIndicatorGap)
                     }
 
                     if isFromMe { Spacer(minLength: Metrics.sideGutter) }
@@ -2726,7 +2726,7 @@ struct MessageBubbleView: View {
 
                     if isSelectionMode && isFromMe {
                         selectionIndicator
-                            .padding(.leading, 8)
+                            .padding(.leading, Metrics.selectionIndicatorGap)
                     }
                 }
             }
@@ -2789,7 +2789,7 @@ struct MessageBubbleView: View {
         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
             .font(.system(size: 22, weight: .semibold))
             .foregroundStyle(isSelected ? Color.smAccent : Color.smFaint)
-            .frame(width: 28, height: 28)
+            .frame(width: Metrics.selectionIndicatorSize, height: Metrics.selectionIndicatorSize)
             .contentShape(Circle())
     }
 
