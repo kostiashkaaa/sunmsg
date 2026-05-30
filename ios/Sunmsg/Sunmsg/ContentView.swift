@@ -4116,6 +4116,7 @@ struct DevicesView: View {
     }
 
     private func revoke(_ device: SessionDevice) async {
+        guard !isMutating else { return }
         isMutating = true
         pendingRevokeDevice = nil
         defer { isMutating = false }
@@ -4140,6 +4141,7 @@ struct DevicesView: View {
     }
 
     private func revokeOthers() async {
+        guard !isMutating else { return }
         isMutating = true
         showRevokeOthersConfirm = false
         defer { isMutating = false }
@@ -4154,6 +4156,7 @@ struct DevicesView: View {
     }
 
     private func updateSessionAutoLogout(seconds: Int) async {
+        guard !isMutating else { return }
         guard seconds > 0, seconds != devicesResponse?.sessionAutoLogoutSeconds else { return }
         isMutating = true
         errorMessage = nil
