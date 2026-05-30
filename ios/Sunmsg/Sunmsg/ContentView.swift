@@ -2045,6 +2045,7 @@ private struct AvatarEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "Загрузка…" : "Готово") {
@@ -2054,6 +2055,7 @@ private struct AvatarEditorView: View {
                 }
             }
         }
+        .interactiveDismissDisabled(isSaving)
     }
 
     private func save() {
