@@ -183,15 +183,19 @@ final class SessionStore: ObservableObject {
                let idx = contacts.firstIndex(where: { $0.chatId == chatId }) {
                 contacts[idx].isTyping = true
                 typingTimers[chatId]?.cancel()
-                typingTimers[chatId] = Task { [weak self] in
-                    try? await Task.sleep(nanoseconds: 6_000_000_000)
-                    guard !Task.isCancelled else { return }
-                    await MainActor.run { [weak self] in
+                typingTimers[chatId] = Task { @MainActor [weak self] in
+                    do {
+                        try await Task.sleep(nanoseconds: 6_000_000_000)
+                        try Task.checkCancellation()
                         guard let self,
                               let i = self.contacts.firstIndex(where: { $0.chatId == chatId })
                         else { return }
                         self.contacts[i].isTyping = false
                         self.typingTimers[chatId] = nil
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        return
                     }
                 }
             }
