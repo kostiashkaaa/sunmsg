@@ -3658,6 +3658,7 @@ struct IntegrationsSettingsView: View {
 
     private func load() async {
         let snapshot = spotifySettingsSnapshot
+        error = nil
         do {
             let response = try await session.api.getSpotifyStatus()
             status = response
@@ -3674,6 +3675,7 @@ struct IntegrationsSettingsView: View {
     private func savePrivacy(previous: SpotifySettingsSnapshot) {
         guard !isSaving else { return }
         isSaving = true
+        error = nil
         Task {
             do {
                 try await session.api.saveSpotifyPrivacy(privacy: privacy, hideExplicit: hideExplicit)
@@ -3692,6 +3694,7 @@ struct IntegrationsSettingsView: View {
     private func disconnect() async {
         guard !isSaving else { return }
         isSaving = true
+        error = nil
         do {
             try await session.api.disconnectSpotify()
             await load()
