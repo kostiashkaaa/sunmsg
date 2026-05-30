@@ -3242,18 +3242,28 @@ struct IntegrationsSettingsView: View {
                     } label: {
                         Label("Подключить Spotify", systemImage: "music.note")
                     }
-                    Picker("Кто видит статус", selection: Binding(get: { privacy }, set: { privacy = $0; savePrivacy() })) {
+                    Picker("Кто видит статус", selection: Binding(get: { privacy }, set: { value in
+                        guard !isSaving else { return }
+                        privacy = value
+                        savePrivacy()
+                    })) {
                         Text("Все").tag("all")
                         Text("Контакты").tag("contacts")
                         Text("Никто").tag("nobody")
                     }
-                    Toggle("Скрывать explicit-треки", isOn: Binding(get: { hideExplicit }, set: { hideExplicit = $0; savePrivacy() }))
+                    .disabled(isSaving)
+                    Toggle("Скрывать explicit-треки", isOn: Binding(get: { hideExplicit }, set: { value in
+                        guard !isSaving else { return }
+                        hideExplicit = value
+                        savePrivacy()
+                    }))
+                    .disabled(isSaving)
                     Button(role: .destructive) {
                         Task { await disconnect() }
                     } label: {
                         Label("Отключить Spotify", systemImage: "xmark.circle")
                     }
-                    .disabled(!(status?.connected ?? false))
+                    .disabled(isSaving || !(status?.connected ?? false))
                 }
             } header: {
                 Text("Spotify")
@@ -3276,6 +3286,7 @@ struct IntegrationsSettingsView: View {
     }
 
     private func savePrivacy() {
+        guard !isSaving else { return }
         isSaving = true
         Task {
             do {
@@ -3291,6 +3302,7 @@ struct IntegrationsSettingsView: View {
     }
 
     private func disconnect() async {
+        guard !isSaving else { return }
         isSaving = true
         do {
             try await session.api.disconnectSpotify()
