@@ -433,6 +433,8 @@ final class SessionStore: ObservableObject {
     }
 
     func acceptCall(callId: String, incomingOverride: IncomingCallData? = nil) {
+        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
+        guard let incoming, incoming.callId == callId else { return }
         connectSocket()
         let requestId = UUID().uuidString
         SocketClient.shared.emit("call_accept", [
@@ -440,36 +442,32 @@ final class SessionStore: ObservableObject {
             "request_id": requestId,
             "csrf_token": api.csrfToken,
         ])
-        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
-        if let incoming, incoming.callId == callId {
-            var state = ActiveCallState(
-                callId: callId,
-                chatId: incoming.chatId,
-                callType: incoming.callType,
-                partnerName: incoming.callerName,
-                partnerAvatarUrl: incoming.callerAvatarUrl,
-                partnerUserId: incoming.callerUserId,
-                isOutgoing: false
-            )
-            // We answered, so the call is active from our perspective.
-            state.isActive = true
-            state.startedAt = Date()
-            state.isCameraOff = (incoming.callType != "video")  // audio calls start camera-off
-            activeCall = state
-            // Prepare WebRTC as callee. Will create answer when offer arrives.
-            WebRTCService.shared.startCall(callId: callId, callType: incoming.callType, isInitiator: false)
-            NativeCallManager.shared.markSystemCallConnected(callId: callId)
-        }
+        var state = ActiveCallState(
+            callId: callId,
+            chatId: incoming.chatId,
+            callType: incoming.callType,
+            partnerName: incoming.callerName,
+            partnerAvatarUrl: incoming.callerAvatarUrl,
+            partnerUserId: incoming.callerUserId,
+            isOutgoing: false
+        )
+        // We answered, so the call is active from our perspective.
+        state.isActive = true
+        state.startedAt = Date()
+        state.isCameraOff = (incoming.callType != "video")  // audio calls start camera-off
+        activeCall = state
+        // Prepare WebRTC as callee. Will create answer when offer arrives.
+        WebRTCService.shared.startCall(callId: callId, callType: incoming.callType, isInitiator: false)
+        NativeCallManager.shared.markSystemCallConnected(callId: callId)
         incomingCall = nil
     }
 
     func rejectCall(callId: String, incomingOverride: IncomingCallData? = nil) {
+        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
+        guard let incoming, incoming.callId == callId else { return }
         connectSocket()
         SocketClient.shared.emit("call_reject", ["call_id": callId, "csrf_token": api.csrfToken])
-        let incoming = incomingOverride?.callId == callId ? incomingOverride : incomingCall
-        if let inc = incoming, inc.callId == callId {
-            addCallRecord(name: inc.callerName, callType: inc.callType, isOutgoing: false, missed: false, durationSec: nil, chatId: inc.chatId)
-        }
+        addCallRecord(name: incoming.callerName, callType: incoming.callType, isOutgoing: false, missed: false, durationSec: nil, chatId: incoming.chatId)
         NativeCallManager.shared.endSystemCall(callId: callId, reason: .declinedElsewhere)
         incomingCall = nil
     }
