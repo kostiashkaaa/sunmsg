@@ -162,6 +162,12 @@ struct ChatView: View {
     private var liveContact: Contact {
         session.contacts.first(where: { $0.chatId == contact.chatId }) ?? contact
     }
+    private var recipientPublicKey: String {
+        if isSavedMessages { return myPublicKey }
+        let liveKey = liveContact.publicKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !liveKey.isEmpty { return liveKey }
+        return contact.publicKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     /// True for the "Saved Messages" self-chat — calls make no sense there.
     private var isSavedMessages: Bool {
         let uid = liveContact.userId ?? contact.userId
@@ -178,7 +184,7 @@ struct ChatView: View {
     }
     private var hasPrivateKey: Bool { hasPrivateKeyLoaded }
     private var canSendEncrypted: Bool {
-        hasPrivateKey && !myPublicKey.isEmpty && !contact.publicKey.isEmpty && !contact.isGroup
+        hasPrivateKey && !myPublicKey.isEmpty && !recipientPublicKey.isEmpty && !contact.isGroup
     }
     private var canSendSecureMessage: Bool {
         if contact.isGroup {
@@ -883,7 +889,7 @@ struct ChatView: View {
     private var composerPlaceholder: String {
         if contact.isGroup { return "Групповые сообщения" }
         if !hasPrivateKey { return "Войдите для расшифровки ключа" }
-        if contact.publicKey.isEmpty { return "Ключ получателя не найден" }
+        if recipientPublicKey.isEmpty { return "Ключ получателя не найден" }
         return "Сообщение…"
     }
 
@@ -1465,7 +1471,7 @@ struct ChatView: View {
         guard hasMeaningfulDraft(normalized) else { return "" }
         let chatId = contact.chatId
         let isGroup = contact.isGroup
-        let receiverPEM = contact.publicKey
+        let receiverPEM = recipientPublicKey
         let senderPEM = myPublicKey
         let privateKey = try await Task.detached(priority: .utility) { () throws -> String in
             guard let privateKey = KeychainService.loadPrivateKey(), !senderPEM.isEmpty else {
@@ -1808,7 +1814,7 @@ struct ChatView: View {
 
         isSending = true
         let chatId = contact.chatId
-        let receiverPEM = contact.publicKey
+        let receiverPEM = recipientPublicKey
         let senderPEM = myPublicKey
 
         Task {
@@ -1901,7 +1907,7 @@ struct ChatView: View {
         }
 
         let chatId = contact.chatId
-        let receiverPEM = contact.publicKey
+        let receiverPEM = recipientPublicKey
         let senderPEM = myPublicKey
 
         Task {
@@ -2188,7 +2194,7 @@ struct ChatView: View {
         sendError = nil
         let chatId = contact.chatId
         let isGroup = contact.isGroup
-        let receiverPEM = contact.publicKey
+        let receiverPEM = recipientPublicKey
         let senderPEM = myPublicKey
 
         do {
@@ -2289,7 +2295,7 @@ struct ChatView: View {
         selectedPhotoItem = nil
         let chatId = contact.chatId
         let isGroup = contact.isGroup
-        let receiverPEM = contact.publicKey
+        let receiverPEM = recipientPublicKey
         let senderPEM = myPublicKey
 
         do {
