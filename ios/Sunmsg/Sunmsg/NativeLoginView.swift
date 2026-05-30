@@ -60,6 +60,19 @@ struct NativeLoginView: View {
         flow == .loading
     }
 
+    private var normalizedUsername: String {
+        username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+    }
+
+    private var normalizedMnemonic: String {
+        mnemonic.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSubmitRestore: Bool {
+        !isLoading && !normalizedUsername.isEmpty && !normalizedMnemonic.isEmpty
+    }
+
     private var contentTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .trailing))
     }
@@ -373,8 +386,8 @@ struct NativeLoginView: View {
                         .shadow(color: Color.smAccent.opacity(0.35), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
-                    .disabled(isLoading || username.trimmingCharacters(in: .whitespaces).isEmpty || mnemonic.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .opacity(isLoading || username.isEmpty || mnemonic.isEmpty ? 0.55 : 1)
+                    .disabled(!canSubmitRestore)
+                    .opacity(canSubmitRestore ? 1 : 0.55)
 
                     encryptionBadge
                 }
@@ -512,9 +525,8 @@ struct NativeLoginView: View {
     private func handleSignIn() {
         guard !isLoading else { return }
         focusedField = nil
-        let trimmedUser = username.trimmingCharacters(in: .whitespaces).lowercased()
-            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
-        let trimmedMnemonic = mnemonic.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUser = normalizedUsername
+        let trimmedMnemonic = normalizedMnemonic
         guard !trimmedUser.isEmpty, !trimmedMnemonic.isEmpty else { return }
         flow = .loading
 
