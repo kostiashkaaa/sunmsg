@@ -385,10 +385,11 @@ struct PeopleView: View {
         }
 
         actionError = nil
+        results = []
+        isSearching = true
         do {
             try await Task.sleep(nanoseconds: 320_000_000)
             try Task.checkCancellation()
-            isSearching = true
             let found = try await APIClient.shared.searchUsers(query: trimmed)
             try Task.checkCancellation()
             guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
