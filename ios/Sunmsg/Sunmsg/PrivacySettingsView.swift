@@ -278,6 +278,7 @@ struct PrivacySettingsView: View {
             queuedSettingsReconnect = queuedSettingsReconnect || reconnect
             return
         }
+        error = nil
         isSaving = true
         Task {
             do {
