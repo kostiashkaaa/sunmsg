@@ -21,6 +21,7 @@ struct NativeRegisterView: View {
     @State private var mnemonicCopyResetToken = 0
     @State private var savedConfirmed = false
     @State private var step: RegisterStep = .form
+    @State private var mnemonicGenerationToken = UUID()
     @FocusState private var focusedField: Field?
 
     private enum Field { case username, displayName }
@@ -335,9 +336,12 @@ struct NativeRegisterView: View {
     }
 
     private func generateMnemonic(onlyIfEmpty: Bool = false) async {
+        let token = UUID()
+        mnemonicGenerationToken = token
         let phrase = await Task.detached(priority: .userInitiated) {
             try? SunCrypto.generateMnemonic()
         }.value
+        guard mnemonicGenerationToken == token else { return }
         guard let phrase else { return }
         guard !onlyIfEmpty || mnemonic.isEmpty else { return }
         mnemonicCopyResetToken += 1
