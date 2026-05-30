@@ -2187,7 +2187,7 @@ struct ChatView: View {
         audioRecorder = nil
         recordingURL = nil
         recordingDuration = 0
-        composerFocused = true
+        composerFocused = false
         isRecording = true
 
         // AVAudioApplication.requestRecordPermission is the iOS 17+ API.
