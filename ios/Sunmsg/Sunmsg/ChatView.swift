@@ -1219,6 +1219,7 @@ struct ChatView: View {
             await MainActor.run {
                 var didUpdateTimeline = false
                 for msg in msgs where msg.isEncrypted {
+                    guard currentMessageContentMatches(id: msg.id, source: msg.message) else { continue }
                     if decryptedTexts[msg.id] == nil {
                         decryptedTexts[msg.id] = "🔒 Введите 24 слова для расшифровки"
                         didUpdateTimeline = true
@@ -1242,6 +1243,10 @@ struct ChatView: View {
                 continue
             }
             pendingV2.append((id: msg.id, json: json, isSelf: msg.senderUserId == myId))
+        }
+        var pendingV2SourceById: [Int: String] = [:]
+        for item in pendingV2 {
+            pendingV2SourceById[item.id] = item.json
         }
 
         let v2Result = await Task.detached(priority: .userInitiated) {
@@ -1284,7 +1289,15 @@ struct ChatView: View {
 
         if !v2Result.updates.isEmpty {
             await MainActor.run {
-                decryptedTexts.merge(v2Result.updates) { _, new in new }
+                var currentUpdates: [Int: String] = [:]
+                for (id, text) in v2Result.updates {
+                    guard let source = pendingV2SourceById[id],
+                          currentMessageContentMatches(id: id, source: source)
+                    else { continue }
+                    currentUpdates[id] = text
+                }
+                guard !currentUpdates.isEmpty else { return }
+                decryptedTexts.merge(currentUpdates) { _, new in new }
                 invalidateTimeline()
             }
         }
@@ -1312,6 +1325,11 @@ struct ChatView: View {
         if obj["url"] is String, obj["mime"] is String { return true }
         return nil
     }
+
+    private func currentMessageContentMatches(id: Int, source: String?) -> Bool {
+        messages.first(where: { $0.id == id })?.message == source
+    }
+
     private func decryptV3Messages(_ msgs: [ChatMessage], chatId: String, peerUserId: Int?) async -> Int {
         let sessionJSON: String?
         do { sessionJSON = try await session.api.getDRSession(chatId: chatId) }
@@ -1321,6 +1339,10 @@ struct ChatView: View {
         var failedCount = 0
         let sorted = msgs.sorted { $0.id < $1.id }
         var decryptedUpdates: [Int: String] = [:]
+        var sourceById: [Int: String] = [:]
+        for msg in sorted {
+            sourceById[msg.id] = msg.message
+        }
 
         if let sj = sessionJSON, var drState = try? V3CryptoService.parseDRState(sj) {
             var stateChanged = false
@@ -1389,7 +1411,15 @@ struct ChatView: View {
         }
         if !decryptedUpdates.isEmpty {
             await MainActor.run {
-                decryptedTexts.merge(decryptedUpdates) { _, new in new }
+                var currentUpdates: [Int: String] = [:]
+                for (id, text) in decryptedUpdates {
+                    guard let source = sourceById[id],
+                          currentMessageContentMatches(id: id, source: source)
+                    else { continue }
+                    currentUpdates[id] = text
+                }
+                guard !currentUpdates.isEmpty else { return }
+                decryptedTexts.merge(currentUpdates) { _, new in new }
                 invalidateTimeline()
             }
         }
