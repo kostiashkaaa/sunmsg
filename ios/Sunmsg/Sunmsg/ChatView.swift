@@ -2675,6 +2675,14 @@ struct MessageBubbleView: View {
             clampedMaxBubbleWidth
         )
     }
+    private var nonTextBlockWidth: CGFloat {
+        switch effectiveMediaType {
+        case "photo", "video":
+            return min(ChatDesignMetrics.Bubble.mediaMaxWidth, clampedMaxBubbleWidth)
+        default:
+            return clampedMaxBubbleWidth
+        }
+    }
 
     var body: some View {
         Group {
@@ -2823,7 +2831,7 @@ struct MessageBubbleView: View {
                 .background(Color.smSurface.opacity(0.62), in: Capsule())
                 .overlay(Capsule().stroke(Color.smBorderSoft.opacity(0.85), lineWidth: 0.5))
         }
-        .frame(maxWidth: clampedMaxBubbleWidth, alignment: .trailing)
+        .frame(width: nonTextBlockWidth, alignment: .trailing)
     }
 
     // MARK: - Text bubble (reactions + time live INSIDE the bubble)
@@ -2951,7 +2959,7 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: false)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: maxBubbleWidth, alignment: isFromMe ? .trailing : .leading)
+        .frame(width: nonTextBlockWidth, alignment: isFromMe ? .trailing : .leading)
         .padding(isFromMe ? .trailing : .leading, 4)
     }
 
