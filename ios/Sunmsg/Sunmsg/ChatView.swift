@@ -3866,6 +3866,7 @@ struct FileBubbleView: View {
     /// Resolved URL (local temp file for web-encrypted files, original URL otherwise).
     @State private var resolvedURL: URL?
     @State private var decryptedTempURL: URL?
+    @State private var downloadToken: UUID?
 
     private var sizeText: String {
         if size <= 0 { return "" }
@@ -3932,6 +3933,8 @@ struct FileBubbleView: View {
         .task(id: url) {
             // Pre-resolve plain (non-encrypted) URLs immediately; encrypted files
             // are resolved on demand when the user taps.
+            downloadToken = nil
+            isDownloading = false
             removeDecryptedTempFile()
             resolvedURL = nil
             guard let url else { return }
@@ -3955,15 +3958,18 @@ struct FileBubbleView: View {
             shareDraft = ShareFileDraft(url: url)
             return
         }
+        let token = UUID()
+        downloadToken = token
         removeDecryptedTempFile()
         isDownloading = true
         defer {
-            if self.url == url {
+            if downloadToken == token {
                 isDownloading = false
+                downloadToken = nil
             }
         }
         if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
-            guard self.url == url else {
+            guard !Task.isCancelled, self.url == url, downloadToken == token else {
                 if tmpURL.isFileURL {
                     try? FileManager.default.removeItem(at: tmpURL)
                 }
