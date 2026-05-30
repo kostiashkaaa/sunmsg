@@ -51,15 +51,22 @@ struct ChatMessageTimelineView: View, Equatable {
     let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
     let timelineVersion: Int
-    let decryptedTextCount: Int
     private let scrollIntentSnapshot: ChatScrollIntent
     private let isPinnedToBottomSnapshot: Bool
+    private var layoutRevision: TimelineLayoutRevision {
+        TimelineLayoutRevision(version: timelineVersion, rowCount: rows.count)
+    }
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
     let onToggleReaction: (Int, String) -> Void
     let onRequestMenu: (Int) -> Void
     let onToggleSelection: (Int) -> Void
+
+    private struct TimelineLayoutRevision: Equatable {
+        let version: Int
+        let rowCount: Int
+    }
 
     private struct TimelineMessageRowView: View, Equatable {
         let row: ChatTimelineRow
@@ -117,7 +124,6 @@ struct ChatMessageTimelineView: View, Equatable {
         pinnedMessageIds: Set<Int>,
         reduceMotion: Bool,
         timelineVersion: Int,
-        decryptedTextCount: Int,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
         onLoadOlder: @escaping () -> Void,
@@ -136,7 +142,6 @@ struct ChatMessageTimelineView: View, Equatable {
         self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
-        self.decryptedTextCount = decryptedTextCount
         self.scrollIntentSnapshot = scrollIntent.wrappedValue
         self.isPinnedToBottomSnapshot = isPinnedToBottom.wrappedValue
         self._scrollIntent = scrollIntent
@@ -158,7 +163,6 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.pinnedMessageIds == rhs.pinnedMessageIds
             && lhs.reduceMotion == rhs.reduceMotion
             && lhs.timelineVersion == rhs.timelineVersion
-            && lhs.decryptedTextCount == rhs.decryptedTextCount
             && lhs.scrollIntentSnapshot == rhs.scrollIntentSnapshot
             && lhs.isPinnedToBottomSnapshot == rhs.isPinnedToBottomSnapshot
     }
@@ -277,8 +281,8 @@ struct ChatMessageTimelineView: View, Equatable {
                 .onChange(of: rows.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
-                .onChange(of: decryptedTextCount) { _, _ in
-                    if isPinnedToBottom {
+                .onChange(of: layoutRevision) { previous, current in
+                    if previous.rowCount == current.rowCount, isPinnedToBottom {
                         scrollToBottom(proxy, animated: false)
                     }
                 }

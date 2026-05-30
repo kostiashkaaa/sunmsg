@@ -816,7 +816,6 @@ struct ChatView: View {
             pinnedMessageIds: pinnedMessageIds,
             reduceMotion: reduceMotion,
             timelineVersion: timelineVersion,
-            decryptedTextCount: decryptedTexts.count,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
             onLoadOlder: { Task { await loadOlderMessages() } },
