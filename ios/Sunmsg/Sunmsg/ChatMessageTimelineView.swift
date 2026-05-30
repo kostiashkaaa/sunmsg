@@ -64,6 +64,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let isSelectionMode: Bool
     let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
+    let keyboardAnimation: ChatKeyboardAnimation
     let timelineVersion: Int
     private let scrollIntentSnapshot: ChatScrollIntent
     private let isPinnedToBottomSnapshot: Bool
@@ -137,6 +138,7 @@ struct ChatMessageTimelineView: View, Equatable {
         isSelectionMode: Bool,
         pinnedMessageIds: Set<Int>,
         reduceMotion: Bool,
+        keyboardAnimation: ChatKeyboardAnimation,
         timelineVersion: Int,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
@@ -155,6 +157,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.isSelectionMode = isSelectionMode
         self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
+        self.keyboardAnimation = keyboardAnimation
         self.timelineVersion = timelineVersion
         self.scrollIntentSnapshot = scrollIntent.wrappedValue
         self.isPinnedToBottomSnapshot = isPinnedToBottom.wrappedValue
@@ -176,6 +179,7 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.isSelectionMode == rhs.isSelectionMode
             && lhs.pinnedMessageIds == rhs.pinnedMessageIds
             && lhs.reduceMotion == rhs.reduceMotion
+            && lhs.keyboardAnimation == rhs.keyboardAnimation
             && lhs.timelineVersion == rhs.timelineVersion
             && lhs.scrollIntentSnapshot == rhs.scrollIntentSnapshot
             && lhs.isPinnedToBottomSnapshot == rhs.isPinnedToBottomSnapshot
@@ -303,7 +307,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 }
                 .onChange(of: viewportProxy.size.height) { _, _ in
                     guard isPinnedToBottom else { return }
-                    scrollToBottom(proxy, animated: false)
+                    scrollToBottomWithKeyboard(proxy)
                 }
                 .onChange(of: rows.count) { _, _ in
                     applyScrollIntent(proxy)
@@ -315,7 +319,12 @@ struct ChatMessageTimelineView: View, Equatable {
                 }
                 .onChange(of: partnerIsTyping) { _, typing in
                     if typing && isPinnedToBottom {
-                        performScroll(proxy, target: "typing", anchor: .bottom, animated: true)
+                        performScroll(
+                            proxy,
+                            target: "typing",
+                            anchor: .bottom,
+                            animation: reduceMotion ? nil : .easeOut(duration: 0.22)
+                        )
                     }
                 }
             }
@@ -358,13 +367,36 @@ struct ChatMessageTimelineView: View, Equatable {
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
         if partnerIsTyping {
-            performScroll(proxy, target: "typing", anchor: .bottom, animated: animated)
+            performScroll(
+                proxy,
+                target: "typing",
+                anchor: .bottom,
+                animation: animated && !reduceMotion ? .easeOut(duration: 0.22) : nil
+            )
             isPinnedToBottom = true
             return
         }
 
         guard let last = rows.last else { return }
-        performScroll(proxy, target: last.id, anchor: .bottom, animated: animated)
+        performScroll(
+            proxy,
+            target: last.id,
+            anchor: .bottom,
+            animation: animated && !reduceMotion ? .easeOut(duration: 0.22) : nil
+        )
+        isPinnedToBottom = true
+    }
+
+    private func scrollToBottomWithKeyboard(_ proxy: ScrollViewProxy) {
+        let animation = keyboardAnimation.swiftUIAnimation(reduceMotion: reduceMotion)
+        if partnerIsTyping {
+            performScroll(proxy, target: "typing", anchor: .bottom, animation: animation)
+            isPinnedToBottom = true
+            return
+        }
+
+        guard let last = rows.last else { return }
+        performScroll(proxy, target: last.id, anchor: .bottom, animation: animation)
         isPinnedToBottom = true
     }
 
@@ -372,13 +404,13 @@ struct ChatMessageTimelineView: View, Equatable {
         _ proxy: ScrollViewProxy,
         target: ID,
         anchor: UnitPoint,
-        animated: Bool
+        animation: Animation?
     ) {
-        guard animated, !reduceMotion else {
+        guard let animation else {
             proxy.scrollTo(target, anchor: anchor)
             return
         }
-        withAnimation(.easeOut(duration: 0.22)) {
+        withAnimation(animation) {
             proxy.scrollTo(target, anchor: anchor)
         }
     }

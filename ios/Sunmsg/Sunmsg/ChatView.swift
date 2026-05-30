@@ -19,7 +19,7 @@ private struct ChatProfileDestination: Hashable {
     }
 }
 
-private struct ChatKeyboardAnimation: Equatable {
+struct ChatKeyboardAnimation: Equatable {
     static let `default` = ChatKeyboardAnimation(
         duration: 0.25,
         curveRawValue: UIView.AnimationCurve.easeInOut.rawValue
@@ -848,6 +848,7 @@ struct ChatView: View {
             isSelectionMode: isSelectionMode,
             pinnedMessageIds: pinnedMessageIds,
             reduceMotion: reduceMotion,
+            keyboardAnimation: keyboardAnimation,
             timelineVersion: timelineVersion,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
