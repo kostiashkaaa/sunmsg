@@ -395,7 +395,20 @@ struct ChatView: View {
         guard !trimmed.isEmpty else { return nil }
         let base64 = trimmed.components(separatedBy: ",").last ?? trimmed
         guard let data = Data(base64Encoded: base64) else { return nil }
-        return UIImage(data: data)
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, options) else {
+            return UIImage(data: data)
+        }
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1600,
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions) else {
+            return UIImage(data: data)
+        }
+        return UIImage(cgImage: cgImage)
     }
 
     private var chatTopBar: some View {
