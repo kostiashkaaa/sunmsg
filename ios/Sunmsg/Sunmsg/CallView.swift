@@ -390,10 +390,16 @@ private struct CallElapsedBadge: View {
             .background(Color.black.opacity(0.20), in: Capsule())
             .task(id: isRunning) {
                 guard isRunning else { return }
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    guard !Task.isCancelled else { return }
-                    elapsed += 1
+                do {
+                    while !Task.isCancelled {
+                        try await Task.sleep(nanoseconds: 1_000_000_000)
+                        try Task.checkCancellation()
+                        elapsed += 1
+                    }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    return
                 }
             }
     }
