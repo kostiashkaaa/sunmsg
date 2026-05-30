@@ -52,15 +52,15 @@ struct SunmsgApp: App {
         // Navigation bar — parchment background
         let nav = UINavigationBarAppearance()
         nav.configureWithOpaqueBackground()
-        nav.backgroundColor = UIColor(hex: "#f3f0e8")
-        nav.shadowColor = UIColor(hex: "#d9d2bf")
+        nav.backgroundColor = adaptiveUIColor(light: "#f3f0e8", dark: "#1c1a14")
+        nav.shadowColor = adaptiveUIColor(light: "#d9d2bf", dark: "#332f24")
         nav.titleTextAttributes = [
             .font: scaledFont(name: "Inter-SemiBold", size: 17, weight: .semibold, textStyle: .headline),
-            .foregroundColor: UIColor(hex: "#15140e"),
+            .foregroundColor: adaptiveUIColor(light: "#15140e", dark: "#f5f0e4"),
         ]
         nav.largeTitleTextAttributes = [
             .font: scaledFont(name: "Inter-Bold", size: 34, weight: .bold, textStyle: .largeTitle),
-            .foregroundColor: UIColor(hex: "#15140e"),
+            .foregroundColor: adaptiveUIColor(light: "#15140e", dark: "#f5f0e4"),
         ]
         UINavigationBar.appearance().standardAppearance = nav
         UINavigationBar.appearance().scrollEdgeAppearance = nav
