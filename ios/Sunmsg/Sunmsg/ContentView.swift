@@ -3884,6 +3884,7 @@ struct DevicesView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                     if device.isCurrent {
                         Text("Текущая")
                             .font(.caption2.weight(.semibold))
@@ -3898,6 +3899,7 @@ struct DevicesView: View {
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(2)
             }
+            .layoutPriority(1)
 
             Spacer()
 
@@ -3907,6 +3909,7 @@ struct DevicesView: View {
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.smDanger)
+                .frame(minWidth: 68, alignment: .trailing)
                 .disabled(isMutating)
             }
         }
