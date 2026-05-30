@@ -3139,7 +3139,7 @@ struct PhotoBubbleView: View {
     @State private var fullscreenPhoto: FullscreenPhotoDraft?
 
     private var mediaWidth: CGFloat {
-        min(260, max(120, maxWidth))
+        min(260, max(0, maxWidth))
     }
 
     var body: some View {
@@ -3347,7 +3347,7 @@ struct VideoBubbleView: View {
     @State private var decryptedTempURL: URL?
 
     private var mediaWidth: CGFloat {
-        min(260, max(120, maxWidth))
+        min(260, max(0, maxWidth))
     }
 
     var body: some View {
