@@ -3607,6 +3607,7 @@ struct IntegrationsSettingsView: View {
     @State private var hideExplicit = false
     @State private var isSaving = false
     @State private var error: String?
+    @State private var showDisconnectConfirm = false
 
     private struct SpotifySettingsSnapshot: Equatable {
         let privacy: String
@@ -3657,7 +3658,7 @@ struct IntegrationsSettingsView: View {
                     }))
                     .disabled(isSaving)
                     Button(role: .destructive) {
-                        Task { await disconnect() }
+                        showDisconnectConfirm = true
                     } label: {
                         Label("Отключить Spotify", systemImage: "xmark.circle")
                     }
@@ -3672,6 +3673,14 @@ struct IntegrationsSettingsView: View {
         .navigationTitle("Подключения")
         .smSettingsScreenStyle()
         .task { await load() }
+        .confirmationDialog("Отключить Spotify?", isPresented: $showDisconnectConfirm, titleVisibility: .visible) {
+            Button("Отключить", role: .destructive) {
+                Task { await disconnect() }
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Музыкальный статус перестанет синхронизироваться с аккаунтом.")
+        }
     }
 
     private func load() async {
