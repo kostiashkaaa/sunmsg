@@ -765,12 +765,14 @@ struct BlockedUsersView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.smText)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Text("@\(user.username)")
                     .font(.footnote)
                     .foregroundStyle(Color.smMuted)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            .layoutPriority(1)
             Spacer()
             Button(action: { unblock(user) }) {
                 if unblocking.contains(user.id) {
