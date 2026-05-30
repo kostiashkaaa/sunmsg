@@ -1646,6 +1646,8 @@ struct SettingsView: View {
         do {
             let current = try await session.api.getSettings()
             selectedLanguage = current.language
+        } catch APIError.unauthorized {
+            session.route = .login
         } catch {
             settingsError = error.localizedDescription
         }
