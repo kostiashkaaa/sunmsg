@@ -21,6 +21,10 @@ enum ChatDesignMetrics {
         static let bottomPinTolerance: CGFloat = 72
         static let dateTopPadding: CGFloat = 10
         static let dateBottomPadding: CGFloat = 5
+        static let dateChipHorizontalPadding: CGFloat = 10
+        static let dateChipVerticalPadding: CGFloat = 4
+        static let dateChipSurfaceOpacity: Double = 0.82
+        static let dateChipStrokeOpacity: Double = 0.72
     }
 
     enum Bubble {

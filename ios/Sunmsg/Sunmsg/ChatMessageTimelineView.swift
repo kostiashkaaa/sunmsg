@@ -502,11 +502,18 @@ private struct DateChipView: View {
             Text(label)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.smMuted)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(.thinMaterial, in: Capsule())
-                .background(Color.smSurface.opacity(0.72), in: Capsule())
-                .overlay(Capsule().stroke(Color.smBorderSoft, lineWidth: 0.5))
+                .padding(.horizontal, ChatDesignMetrics.Timeline.dateChipHorizontalPadding)
+                .padding(.vertical, ChatDesignMetrics.Timeline.dateChipVerticalPadding)
+                .background(
+                    Color.smSurface.opacity(ChatDesignMetrics.Timeline.dateChipSurfaceOpacity),
+                    in: Capsule()
+                )
+                .overlay(
+                    Capsule().stroke(
+                        Color.smBorderSoft.opacity(ChatDesignMetrics.Timeline.dateChipStrokeOpacity),
+                        lineWidth: 0.5
+                    )
+                )
             Spacer(minLength: 0)
         }
         .padding(.top, ChatDesignMetrics.Timeline.dateTopPadding)
