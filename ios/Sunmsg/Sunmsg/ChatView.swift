@@ -3607,6 +3607,7 @@ struct VideoBubbleView: View {
     private func removeDecryptedTempFile() {
         guard let url = decryptedTempURL else { return }
         decryptedTempURL = nil
+        if effectiveURL == url { effectiveURL = nil }
         if url.isFileURL {
             try? FileManager.default.removeItem(at: url)
         }
@@ -3843,6 +3844,7 @@ struct AudioBubbleView: View {
     private func removeDecryptedTempFile() {
         guard let url = decryptedTempURL else { return }
         decryptedTempURL = nil
+        if effectiveURL == url { effectiveURL = nil }
         if url.isFileURL {
             try? FileManager.default.removeItem(at: url)
         }
