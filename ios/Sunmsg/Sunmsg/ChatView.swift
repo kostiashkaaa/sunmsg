@@ -963,6 +963,8 @@ struct ChatView: View {
             await markRead()
             await decryptMessages(merged)
             await session.recoverChatSync(chatId: contact.chatId)
+        } catch APIError.unauthorized {
+            session.route = .login
         } catch {
             if messages.isEmpty {
                 loadError = error.localizedDescription
