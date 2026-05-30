@@ -2599,6 +2599,8 @@ struct DataMemorySettingsView: View {
             clientPreferences = settings.clientPreferencesObject
             guard dataMemorySnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
+        } catch APIError.unauthorized {
+            session.route = .login
         } catch {
             self.error = error.localizedDescription
         }
