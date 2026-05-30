@@ -47,6 +47,8 @@ struct IncomingCallView: View {
                     Text(call.callerName)
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.smText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                         .padding(.top, 14)
 
                     Text(call.callType == "video" ? "Видеозвонок" : "Голосовой звонок")
@@ -278,6 +280,8 @@ struct InCallView: View {
                     Text(call.partnerName)
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(Color(hex: "#fbf8f1"))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
 
                     HStack(spacing: 6) {
                         Image(systemName: call.callType == "video" ? "video.fill" : "phone.fill")
