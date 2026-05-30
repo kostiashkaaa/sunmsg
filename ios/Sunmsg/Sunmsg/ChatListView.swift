@@ -75,12 +75,16 @@ struct ChatListView: View {
                 lockBanner
                 if activeFilter == "requests" {
                     requestsList
+                } else if contacts.isEmpty && activeFilter == "archive" {
+                    emptyFilteredContacts
                 } else if contacts.isEmpty && hasSearchQuery {
                     emptySearch
-                } else if session.contacts.isEmpty {
-                    emptyContacts
                 } else if contacts.isEmpty {
-                    emptyFilteredContacts
+                    if activeFilter == "all" {
+                        emptyContacts
+                    } else {
+                        emptyFilteredContacts
+                    }
                 } else {
                     contactList(contacts)
                 }
