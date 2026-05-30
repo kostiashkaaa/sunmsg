@@ -338,8 +338,8 @@ struct ChatComposerBar: View {
             } else if editingMessageId != nil {
                 composerActionButton(
                     systemName: "checkmark",
-                    fill: trimmedText.isEmpty ? Color.smFaint : Color.smAccent,
-                    disabled: trimmedText.isEmpty,
+                    fill: canSendSecureMessage && !trimmedText.isEmpty ? Color.smAccent : Color.smFaint,
+                    disabled: !canSendSecureMessage || trimmedText.isEmpty,
                     action: onSend
                 )
             } else if trimmedText.isEmpty && !isUploadingMedia && !isRecording {
