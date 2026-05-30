@@ -457,6 +457,9 @@ struct ContactProfileView: View {
             if !kinds.contains(selectedSharedContentKind) {
                 selectedSharedContentKind = kinds.first ?? .media
             }
+        } catch APIError.unauthorized {
+            guard !Task.isCancelled, contact.chatId == chatId, sharedContentLoadingChatId == chatId else { return }
+            session.route = .login
         } catch {
             guard !Task.isCancelled, contact.chatId == chatId, sharedContentLoadingChatId == chatId else { return }
             sharedContentSnapshot = .empty
