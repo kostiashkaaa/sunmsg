@@ -1719,6 +1719,7 @@ struct ProfileSettingsView: View {
     }
 
     private func saveProfile() async {
+        guard !isSaving else { return }
         let name = trimmedDisplayName
         let handle = normalizedUsername
         let status = trimmedStatusText
