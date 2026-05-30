@@ -1488,6 +1488,10 @@ struct SettingsView: View {
     @State private var showLogoutConfirm = false
 
     private var user: BootstrapUser? { session.bootstrap?.user }
+    private var userHandleLabel: String {
+        let username = (user?.username ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return username.isEmpty ? "пользователь" : "@\(username)"
+    }
 
     var body: some View {
         Form {
@@ -1503,7 +1507,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
-                            Text("@\(user?.username ?? "—")")
+                            Text(userHandleLabel)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -1694,6 +1698,10 @@ struct ProfileSettingsView: View {
     }
 
     private var user: BootstrapUser? { session.bootstrap?.user }
+    private var userHandleLabel: String {
+        let username = (user?.username ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return username.isEmpty ? "пользователь" : "@\(username)"
+    }
     private var profileFieldsSnapshot: ProfileFieldsSnapshot {
         ProfileFieldsSnapshot(
             displayName: displayName,
@@ -1737,7 +1745,7 @@ struct ProfileSettingsView: View {
                                 .font(.headline)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
-                            Text("@\(user?.username ?? "—")")
+                            Text(userHandleLabel)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
