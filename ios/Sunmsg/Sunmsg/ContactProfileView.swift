@@ -49,6 +49,13 @@ struct ContactProfileView: View {
         session.isChatMuted(contact.chatId)
     }
 
+    private var identitySubtitle: String? {
+        if !contact.username.isEmpty {
+            return "@\(contact.username)"
+        }
+        return contact.isGroup ? "Группа" : nil
+    }
+
     var body: some View {
         ZStack {
             Color.smBg.ignoresSafeArea()
@@ -150,11 +157,13 @@ struct ContactProfileView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
-                Text("@\(contact.username)")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.smAccent2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                if let identitySubtitle {
+                    Text(identitySubtitle)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.smAccent2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
 
                 if contact.isOnline {
                     HStack(spacing: 5) {
