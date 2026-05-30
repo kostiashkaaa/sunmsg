@@ -3342,6 +3342,7 @@ struct SecuritySettingsView: View {
     @State private var showRotateConfirm = false
     @State private var isRotating = false
     @State private var error: String?
+    @State private var privateKeyRefreshTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -3396,12 +3397,28 @@ struct SecuritySettingsView: View {
         }
         .navigationTitle("Безопасность")
         .smSettingsScreenStyle()
-        .onAppear { hasPrivateKey = KeychainService.hasPrivateKey() }
+        .onAppear { refreshPrivateKeyState() }
+        .onDisappear {
+            privateKeyRefreshTask?.cancel()
+            privateKeyRefreshTask = nil
+        }
         .confirmationDialog("Перевыпустить ключ?", isPresented: $showRotateConfirm, titleVisibility: .visible) {
             Button("Перевыпустить", role: .destructive) { Task { await rotateKey() } }
             Button("Отмена", role: .cancel) {}
         } message: {
             Text("Все устройства выйдут из аккаунта. Войти обратно можно будет с текущими словами восстановления.")
+        }
+    }
+
+    private func refreshPrivateKeyState() {
+        privateKeyRefreshTask?.cancel()
+        privateKeyRefreshTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                KeychainService.hasPrivateKey()
+            }.value
+            guard !Task.isCancelled else { return }
+            hasPrivateKey = loaded
+            privateKeyRefreshTask = nil
         }
     }
 
