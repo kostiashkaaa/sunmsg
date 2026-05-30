@@ -4062,6 +4062,7 @@ struct DevicesView: View {
     @State private var pendingRevokeDevice: SessionDevice?
     @State private var showRevokeOthersConfirm = false
     @State private var isMutating = false
+    @State private var devicesLoadToken: UUID?
 
     private struct DeviceListSnapshot {
         let current: SessionDevice?
@@ -4355,16 +4356,27 @@ struct DevicesView: View {
     }
 
     private func loadDevices() async {
+        let loadToken = UUID()
+        devicesLoadToken = loadToken
         isLoading = devicesResponse == nil
         errorMessage = nil
+        defer {
+            if devicesLoadToken == loadToken {
+                isLoading = false
+                devicesLoadToken = nil
+            }
+        }
         do {
-            devicesResponse = try await session.api.getSessionDevices()
+            let response = try await session.api.getSessionDevices()
+            guard !Task.isCancelled, devicesLoadToken == loadToken else { return }
+            devicesResponse = response
         } catch APIError.unauthorized {
+            guard !Task.isCancelled, devicesLoadToken == loadToken else { return }
             session.route = .login
         } catch {
+            guard !Task.isCancelled, devicesLoadToken == loadToken else { return }
             errorMessage = error.localizedDescription
         }
-        isLoading = false
     }
 
     private func revoke(_ device: SessionDevice) async {
