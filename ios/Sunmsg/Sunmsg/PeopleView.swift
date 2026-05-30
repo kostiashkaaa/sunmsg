@@ -970,7 +970,13 @@ struct UserResultRow: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            if user.chatId != nil || user.isContact {
+                onTap()
+            } else if !(requestSent || user.pendingOutgoingRequest) {
+                onAction()
+            }
+        }) {
             HStack(spacing: 12) {
                 SmAvatarView(name: user.displayName, avatarUrl: user.avatarUrl, size: 44)
 
@@ -993,22 +999,18 @@ struct UserResultRow: View {
                         .font(.system(size: 17))
                         .foregroundStyle(Color.smAccent)
                 } else {
-                    Button(action: onAction) {
-                        Text(statusLabel)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(requestSent || user.pendingOutgoingRequest ? Color.smFaint : Color(hex: "#fbf8f1"))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .background(
-                                requestSent || user.pendingOutgoingRequest
-                                    ? Color.smBorder.opacity(0.5)
-                                    : Color.smAccent,
-                                in: Capsule()
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(requestSent || user.pendingOutgoingRequest)
+                    Text(statusLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(requestSent || user.pendingOutgoingRequest ? Color.smFaint : Color(hex: "#fbf8f1"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .background(
+                            requestSent || user.pendingOutgoingRequest
+                                ? Color.smBorder.opacity(0.5)
+                                : Color.smAccent,
+                            in: Capsule()
+                        )
                 }
             }
             .padding(.horizontal, 14)
