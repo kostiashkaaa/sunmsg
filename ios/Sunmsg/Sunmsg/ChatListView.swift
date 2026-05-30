@@ -1148,9 +1148,11 @@ struct UserQRSheet: View {
             }
             .task(id: qrContent) {
                 let content = qrContent
-                qrImage = await Task.detached(priority: .userInitiated) {
+                let image = await Task.detached(priority: .userInitiated) {
                     generateQRCodeImage(from: content)
                 }.value
+                guard !Task.isCancelled, qrContent == content else { return }
+                qrImage = image
             }
         }
     }
