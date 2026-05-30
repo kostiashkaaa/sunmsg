@@ -2532,6 +2532,17 @@ struct MessageBubbleView: View {
     private var bubbleTextColor: Color {
         isFromMe ? Color(hex: bubbleOutTextHex) : Color(hex: bubbleInTextHex)
     }
+    private var clampedMaxBubbleWidth: CGFloat {
+        max(0, maxBubbleWidth)
+    }
+    private var textBubbleMinWidth: CGFloat {
+        min(
+            message.reactions.isEmpty
+                ? Metrics.minTextBubbleWidth
+                : Metrics.minReactedTextBubbleWidth,
+            clampedMaxBubbleWidth
+        )
+    }
 
     var body: some View {
         Group {
@@ -2691,9 +2702,8 @@ struct MessageBubbleView: View {
         .padding(.top, Metrics.textVerticalPadding)
         .padding(.bottom, Metrics.textVerticalPadding)
         .frame(
-            minWidth: message.reactions.isEmpty
-                ? Metrics.minTextBubbleWidth
-                : Metrics.minReactedTextBubbleWidth,
+            minWidth: textBubbleMinWidth,
+            maxWidth: clampedMaxBubbleWidth,
             alignment: .leading
         )
         .background(bubbleFill)
