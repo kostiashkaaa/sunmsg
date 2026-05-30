@@ -409,6 +409,7 @@ struct ChatListView: View {
             } catch APIError.unauthorized {
                 session.route = .login
             } catch {
+                removalError = error.localizedDescription
                 await session.refreshDialogRequests()
             }
             handlingRequestIds.remove(request.id)
@@ -425,6 +426,7 @@ struct ChatListView: View {
             } catch APIError.unauthorized {
                 session.route = .login
             } catch {
+                removalError = error.localizedDescription
                 await session.refreshDialogRequests()
             }
             handlingRequestIds.remove(request.id)
