@@ -384,6 +384,7 @@ struct PeopleView: View {
             return
         }
 
+        actionError = nil
         results = []
         isSearching = true
         do {
@@ -398,9 +399,15 @@ struct PeopleView: View {
             if query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed {
                 isSearching = false
             }
+        } catch APIError.unauthorized {
+            if query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed {
+                isSearching = false
+                session.route = .login
+            }
         } catch {
             if query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed {
                 isSearching = false
+                actionError = error.localizedDescription
             }
         }
     }
