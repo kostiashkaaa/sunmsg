@@ -2623,12 +2623,14 @@ struct ChatBehaviorSettingsView: View {
 struct CallSettingsView: View {
     @EnvironmentObject var session: SessionStore
     @State private var callPrivacy = "contacts"
+    @State private var isSaving = false
     @State private var error: String?
 
     var body: some View {
         Form {
             Section {
                 Picker("Кто может звонить", selection: Binding(get: { callPrivacy }, set: { value in
+                    guard !isSaving else { return }
                     callPrivacy = value
                     saveCallPrivacy(value)
                 })) {
@@ -2636,6 +2638,7 @@ struct CallSettingsView: View {
                     Text("Контакты").tag("contacts")
                     Text("Никто").tag("nobody")
                 }
+                .disabled(isSaving)
             } header: {
                 Text("Входящие звонки")
             } footer: {
@@ -2660,10 +2663,13 @@ struct CallSettingsView: View {
     }
 
     private func saveCallPrivacy(_ value: String) {
+        guard !isSaving else { return }
+        isSaving = true
         Task {
             do { try await session.api.saveSettings(["call_privacy": value]) }
             catch APIError.unauthorized { session.route = .login }
             catch { self.error = error.localizedDescription }
+            isSaving = false
         }
     }
 }
