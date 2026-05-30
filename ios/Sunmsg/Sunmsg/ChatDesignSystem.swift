@@ -121,9 +121,13 @@ enum ChatDesignMetrics {
         static let rowHeight: CGFloat = 46
         static let menuWidth: CGFloat = 304
         static let menuCornerRadius: CGFloat = 16
+        static let dividerHeight: CGFloat = 0.5
         static let dividerLeadingPadding: CGFloat = 16
+        static let rowContentSpacing: CGFloat = 12
         static let rowHorizontalPadding: CGFloat = 16
+        static let rowTrailingSpacing: CGFloat = 12
         static let rowIconWidth: CGFloat = 24
+        static let rowIconSize: CGFloat = 18
         static let maxDisabledOpacity: Double = 0.42
         static let backdropOpacity: Double = 0.10
         static let previewShadowOpacity: Double = 0.14

@@ -123,7 +123,7 @@ struct MessageContextMenu<Preview: View>: View {
                     if action.id != actions.last?.id {
                         Rectangle()
                             .fill(Color.smBorderSoft)
-                            .frame(height: 0.5)
+                            .frame(height: Metrics.dividerHeight)
                             .padding(.leading, Metrics.dividerLeadingPadding)
                     }
                 }
@@ -151,7 +151,7 @@ struct MessageContextMenu<Preview: View>: View {
             ChatHaptics.lightImpact()
             action.perform()
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: Metrics.rowContentSpacing) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(action.title)
                         .font(.body.weight(.medium))
@@ -166,10 +166,10 @@ struct MessageContextMenu<Preview: View>: View {
                     }
                 }
 
-                Spacer(minLength: 12)
+                Spacer(minLength: Metrics.rowTrailingSpacing)
 
                 Image(systemName: action.systemImage)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: Metrics.rowIconSize, weight: .medium))
                     .foregroundStyle(foreground)
                     .frame(width: Metrics.rowIconWidth)
             }
