@@ -52,6 +52,8 @@ enum ChatMessageGrouping {
 }
 
 struct ChatMessageTimelineView: View, Equatable {
+    private static let horizontalContentPadding: CGFloat = 14
+
     let rows: [ChatTimelineRow]
     let hasOlderMessages: Bool
     let isLoading: Bool
@@ -284,7 +286,7 @@ struct ChatMessageTimelineView: View, Equatable {
                                 }
                             )
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, Self.horizontalContentPadding)
                     .padding(.top, 8)
                     .padding(.bottom, 6)
                 }
@@ -390,7 +392,7 @@ struct ChatMessageTimelineView: View, Equatable {
         isSelectionMode: Bool
     ) -> CGFloat {
         let selectionReserve: CGFloat = isSelectionMode ? 36 : 0
-        let columnWidth = max(0, width - 24 - selectionReserve)
+        let columnWidth = max(0, width - horizontalContentPadding * 2 - selectionReserve)
         guard columnWidth > 0 else { return 0 }
         return min(330, max(0, columnWidth * 0.78))
     }
