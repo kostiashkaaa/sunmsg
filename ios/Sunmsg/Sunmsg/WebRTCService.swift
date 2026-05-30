@@ -51,8 +51,15 @@ final class WebRTCService: NSObject, ObservableObject {
     private var peerConnection: RTCPeerConnection?
     private var localAudioTrack: RTCAudioTrack?
     private var localVideoCapturer: RTCCameraVideoCapturer?
+    private var videoCaptureSettingsCache: [AVCaptureDevice.Position: VideoCaptureSettings] = [:]
     @Published private(set) var isUsingFrontCamera = true
     private var audioSession: RTCAudioSession { RTCAudioSession.sharedInstance() }
+
+    private struct VideoCaptureSettings {
+        let device: AVCaptureDevice
+        let format: AVCaptureDevice.Format
+        let fps: Int
+    }
 
     /// Shared media constraints (offer/answer)
     private let mediaConstraints = RTCMediaConstraints(
@@ -292,10 +299,19 @@ final class WebRTCService: NSObject, ObservableObject {
     }
 
     private func startVideoCapture(capturer: RTCCameraVideoCapturer, position: AVCaptureDevice.Position) {
-        guard let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == position })
-                ?? RTCCameraVideoCapturer.captureDevices().first else { return }
+        guard let settings = preferredVideoCaptureSettings(for: position) else { return }
+        capturer.startCapture(with: settings.device, format: settings.format, fps: settings.fps) { _ in }
+    }
+
+    private func preferredVideoCaptureSettings(for position: AVCaptureDevice.Position) -> VideoCaptureSettings? {
+        if let cached = videoCaptureSettingsCache[position] {
+            return cached
+        }
+
+        let devices = RTCCameraVideoCapturer.captureDevices()
+        guard let device = devices.first(where: { $0.position == position }) ?? devices.first else { return nil }
         let formats = RTCCameraVideoCapturer.supportedFormats(for: device)
-        
+
         let targetWidth: Int32 = 640
         let targetHeight: Int32 = 480
         let format = formats.min { f1, f2 in
@@ -305,10 +321,12 @@ final class WebRTCService: NSObject, ObservableObject {
             let diff2 = abs(d2.width - targetWidth) + abs(d2.height - targetHeight)
             return diff1 < diff2
         } ?? formats.first
-        
-        guard let fmt = format else { return }
+
+        guard let fmt = format else { return nil }
         let fps = (fmt.videoSupportedFrameRateRanges.first?.maxFrameRate ?? 30).clamped(0, 30)
-        capturer.startCapture(with: device, format: fmt, fps: Int(fps)) { _ in }
+        let settings = VideoCaptureSettings(device: device, format: fmt, fps: Int(fps))
+        videoCaptureSettingsCache[position] = settings
+        return settings
     }
 
     private func configureAudioSession() {
