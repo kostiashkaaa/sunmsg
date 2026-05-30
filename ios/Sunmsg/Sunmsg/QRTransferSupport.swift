@@ -88,7 +88,7 @@ struct QRTransferCode {
     }
 }
 
-struct KeyTransferJWK: Codable {
+struct KeyTransferJWK: Codable, Sendable {
     let kty: String
     let crv: String
     let x: String
@@ -183,7 +183,7 @@ enum QRTransferCryptoError: LocalizedError {
     }
 }
 
-struct QRTransferEncryptedPayload {
+struct QRTransferEncryptedPayload: Sendable {
     let cipherText: String
     let iv: String
 }
@@ -276,24 +276,30 @@ enum QRTransferService {
         guard let privateKeyPem = KeychainService.loadPrivateKey() else {
             throw QRTransferCryptoError.missingLocalPrivateKey
         }
-        let validatedPrivateKeyPem = try QRTransferCrypto.validatedPrivateKeyPem(privateKeyPem, error: .invalidLocalPrivateKey)
+        let validatedPrivateKeyPem = try await Task.detached(priority: .userInitiated) {
+            try QRTransferCrypto.validatedPrivateKeyPem(privateKeyPem, error: .invalidLocalPrivateKey)
+        }.value
         if api.csrfToken.isEmpty {
             api.csrfToken = try await api.getCsrfToken()
         }
 
-        let details = try await api.getKeyTransferSessionDetails(sessionId: code.sessionId, kind: code.kind)
+        let sessionId = code.sessionId
+        let details = try await api.getKeyTransferSessionDetails(sessionId: sessionId, kind: code.kind)
         guard details.success, let receiverPublicJwk = details.receiverPublicJwk else { throw QRTransferCryptoError.invalidJWK }
 
-        let senderPrivateKey = P256.KeyAgreement.PrivateKey()
-        let senderPublicJwk = try QRTransferCrypto.makePublicJWK(from: senderPrivateKey.publicKey)
-        let aesKey = try QRTransferCrypto.deriveKey(
-            privateKey: senderPrivateKey,
-            peerPublicJwk: receiverPublicJwk,
-            sessionId: code.sessionId
-        )
-        let encrypted = try QRTransferCrypto.encryptPrivateKeyPem(validatedPrivateKeyPem, using: aesKey)
+        let (senderPublicJwk, encrypted) = try await Task.detached(priority: .userInitiated) {
+            let senderPrivateKey = P256.KeyAgreement.PrivateKey()
+            let senderPublicJwk = try QRTransferCrypto.makePublicJWK(from: senderPrivateKey.publicKey)
+            let aesKey = try QRTransferCrypto.deriveKey(
+                privateKey: senderPrivateKey,
+                peerPublicJwk: receiverPublicJwk,
+                sessionId: sessionId
+            )
+            let encrypted = try QRTransferCrypto.encryptPrivateKeyPem(validatedPrivateKeyPem, using: aesKey)
+            return (senderPublicJwk, encrypted)
+        }.value
         try await api.submitKeyTransferSession(
-            sessionId: code.sessionId,
+            sessionId: sessionId,
             kind: code.kind,
             senderPublicJwk: senderPublicJwk,
             cipherText: encrypted.cipherText,
@@ -499,16 +505,18 @@ struct QRLoginPanel: View {
                           !username.isEmpty
                     else { throw QRTransferCryptoError.invalidCiphertext }
 
-                    let aesKey = try QRTransferCrypto.deriveKey(
-                        privateKey: receiverPrivateKey,
-                        peerPublicJwk: senderPublicJwk,
-                        sessionId: sessionId
-                    )
-                    let privateKeyPem = try QRTransferCrypto.decryptPrivateKeyPem(
-                        cipherText: cipherText,
-                        iv: iv,
-                        using: aesKey
-                    )
+                    let privateKeyPem = try await Task.detached(priority: .userInitiated) {
+                        let aesKey = try QRTransferCrypto.deriveKey(
+                            privateKey: receiverPrivateKey,
+                            peerPublicJwk: senderPublicJwk,
+                            sessionId: sessionId
+                        )
+                        return try QRTransferCrypto.decryptPrivateKeyPem(
+                            cipherText: cipherText,
+                            iv: iv,
+                            using: aesKey
+                        )
+                    }.value
 
                     await MainActor.run {
                         isWaiting = false
