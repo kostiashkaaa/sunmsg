@@ -3648,7 +3648,7 @@ struct AccountSettingsView: View {
         Form {
             Section {
                 LabeledContent {
-                    Text("@\(session.bootstrap?.user.username ?? "—")")
+                    Text(accountUsernameLabel)
                 } label: {
                     Text("Пользователь")
                 }
@@ -3682,6 +3682,11 @@ struct AccountSettingsView: View {
         } message: {
             Text("Действие необратимо и удалит аккаунт, сессии и данные на сервере.")
         }
+    }
+
+    private var accountUsernameLabel: String {
+        let username = (session.bootstrap?.user.username ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return username.isEmpty ? "пользователь" : "@\(username)"
     }
 
     private func deleteAccount() async {
