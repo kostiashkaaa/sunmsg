@@ -448,6 +448,26 @@ struct PeopleView: View {
         Task {
             defer { pendingRequestUserIds.remove(user.userId) }
             do {
+                if user.pendingIncomingRequest {
+                    let senderPublicKey = (user.publicKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !senderPublicKey.isEmpty else {
+                        throw NSError(
+                            domain: "SUNmessenger.PeopleView",
+                            code: 0,
+                            userInfo: [NSLocalizedDescriptionKey: "Не удалось принять запрос: ключ отправителя не найден."]
+                        )
+                    }
+                    let acceptedChatId = try await APIClient.shared.acceptDialogRequest(senderPublicKey: senderPublicKey)
+                    await session.refreshDialogRequests()
+                    await session.refreshContacts()
+                    await MainActor.run {
+                        if let acceptedChatId,
+                           let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
+                            navigateToContact = PeopleChatDestination(contact: contact)
+                        }
+                    }
+                    return
+                }
                 let resp = try await APIClient.shared.startChat(username: username)
                 await MainActor.run {
                     if resp.status == "existing", let sc = resp.contact {
