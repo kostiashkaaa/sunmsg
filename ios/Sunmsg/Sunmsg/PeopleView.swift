@@ -866,6 +866,12 @@ struct GroupCreateView: View {
             rebuildVisibleCandidates()
         } catch is CancellationError {
             return
+        } catch APIError.unauthorized {
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else {
+                return
+            }
+            isSearching = false
+            session.route = .login
         } catch {
             guard !Task.isCancelled else {
                 return
@@ -874,6 +880,7 @@ struct GroupCreateView: View {
                 return
             }
             isSearching = false
+            self.error = error.localizedDescription
             rebuildVisibleCandidates()
         }
     }
