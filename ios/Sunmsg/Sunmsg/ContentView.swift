@@ -1780,6 +1780,7 @@ struct ProfileSettingsView: View {
                             .textContentType(.name)
                             .onChange(of: displayName) { _, value in
                                 if value.count > 50 { displayName = String(value.prefix(50)) }
+                                clearProfileSaveErrorAfterEdit()
                             }
                     } label: {
                         Text("Имя")
@@ -1793,6 +1794,7 @@ struct ProfileSettingsView: View {
                             .textContentType(.username)
                             .onChange(of: username) { _, value in
                                 username = normalizeHandleInput(value)
+                                clearProfileSaveErrorAfterEdit()
                             }
                     } label: {
                         Text("Username")
@@ -1806,6 +1808,7 @@ struct ProfileSettingsView: View {
                             .lineLimit(1...3)
                             .onChange(of: statusText) { _, value in
                                 if value.count > 100 { statusText = String(value.prefix(100)) }
+                                clearProfileSaveErrorAfterEdit()
                             }
                         Text("\(statusText.count)/100")
                             .font(.caption)
@@ -1821,6 +1824,7 @@ struct ProfileSettingsView: View {
                             .scrollContentBackground(.hidden)
                             .onChange(of: bio) { _, value in
                                 if value.count > 280 { bio = String(value.prefix(280)) }
+                                clearProfileSaveErrorAfterEdit()
                             }
                         Text("\(bio.count)/280")
                             .font(.caption)
@@ -1874,6 +1878,11 @@ struct ProfileSettingsView: View {
                 Task { await prepareAvatarEditor(from: item) }
             }
         }
+    }
+
+    private func clearProfileSaveErrorAfterEdit() {
+        guard !isSaving, saveError != nil else { return }
+        saveError = nil
     }
 
     private func hydrateFieldsFromUser(ifUnchangedFrom snapshot: ProfileFieldsSnapshot) {
