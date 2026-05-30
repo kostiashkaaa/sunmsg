@@ -2748,7 +2748,11 @@ struct LanguageSettingsView: View {
             let settings = try await session.api.getSettings()
             guard language == snapshot else { return }
             language = settings.language == "en" ? "en" : "ru"
-        } catch { self.error = error.localizedDescription }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func setLanguage(_ value: String) {
