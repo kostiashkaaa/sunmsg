@@ -3471,7 +3471,11 @@ struct AppearanceSettingsView: View {
             } label: {
                 Text(title)
             }
-            Slider(value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0; saveAppearance() }), in: range)
+            Slider(value: value, in: range) { editing in
+                if !editing {
+                    saveAppearance()
+                }
+            }
         }
     }
 
