@@ -794,7 +794,8 @@ struct GroupCreateView: View {
 
     private func candidateRow(_ candidate: GroupMemberCandidate) -> some View {
         Button {
-            guard !candidate.isDenied else { return }
+            guard !candidate.isDenied,
+                  !selected.contains(where: { $0.userId == candidate.userId }) else { return }
             selected.append(candidate)
             rebuildVisibleCandidates()
             error = nil
