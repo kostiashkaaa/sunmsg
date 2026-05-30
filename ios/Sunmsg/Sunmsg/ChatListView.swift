@@ -23,6 +23,7 @@ struct ChatListView: View {
     @State private var handlingRequestIds: Set<String> = []
     @State private var removalError: String?
     @State private var hasPrivateKeyLoaded = false
+    @State private var privateKeyRefreshTask: Task<Void, Never>?
 
     private var hasPrivateKey: Bool { hasPrivateKeyLoaded }
 
@@ -98,6 +99,10 @@ struct ChatListView: View {
         .onAppear {
             refreshPrivateKeyState()
         }
+        .onDisappear {
+            privateKeyRefreshTask?.cancel()
+            privateKeyRefreshTask = nil
+        }
         .refreshable { await refreshSidebarData() }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -143,7 +148,15 @@ struct ChatListView: View {
     }
 
     private func refreshPrivateKeyState() {
-        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
+        privateKeyRefreshTask?.cancel()
+        privateKeyRefreshTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                KeychainService.hasPrivateKey()
+            }.value
+            guard !Task.isCancelled else { return }
+            hasPrivateKeyLoaded = loaded
+            privateKeyRefreshTask = nil
+        }
     }
 
     // MARK: - Top card: brand + search + tabs
