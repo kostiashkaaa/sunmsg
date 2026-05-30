@@ -1985,6 +1985,8 @@ struct ChatView: View {
     private func deleteMessage(id: Int, mode: String) {
         if SocketClient.shared.state != .connected {
             sendError = "Нет соединения — удаление будет отправлено после переподключения."
+        } else {
+            sendError = nil
         }
         SocketClient.shared.emit("delete_messages", [
             "msg_ids": [id],
