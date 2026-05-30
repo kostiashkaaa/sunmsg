@@ -1794,6 +1794,7 @@ struct ChatView: View {
                 }
                 await MainActor.run {
                     clearSelection()
+                    sendError = nil
                     showToast("Переслано")
                 }
             } catch {
