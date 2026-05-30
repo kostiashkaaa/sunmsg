@@ -218,6 +218,10 @@ struct ChatComposerBar: View {
                         .tint(Color.smAccent)
                         .lineLimit(1...5)
                         .submitLabel(.send)
+                        .onSubmit {
+                            guard canSendSecureMessage, !isSending, !isUploadingMedia, !trimmedText.isEmpty else { return }
+                            onSend()
+                        }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
