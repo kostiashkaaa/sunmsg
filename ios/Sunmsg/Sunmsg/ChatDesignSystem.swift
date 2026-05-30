@@ -76,6 +76,15 @@ enum ChatDesignMetrics {
         static let mediaShadowRadius: CGFloat = 2
     }
 
+    enum Typing {
+        static let dotSize: CGFloat = 6
+        static let dotSpacing: CGFloat = 4
+        static let activeDotScale: CGFloat = 1.25
+        static let idleDotScale: CGFloat = 0.85
+        static let idleDotOpacity: Double = 0.4
+        static let bubbleOpacity: Double = 0.96
+    }
+
     enum Reaction {
         static let pickerHeight: CGFloat = 50
         static let pickerHorizontalPadding: CGFloat = 7

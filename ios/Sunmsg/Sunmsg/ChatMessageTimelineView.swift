@@ -524,6 +524,7 @@ private struct DateChipView: View {
 private struct TypingBubbleView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private static let stepInterval: TimeInterval = 0.18
+    private typealias Metrics = ChatDesignMetrics.Typing
 
     var body: some View {
         if reduceMotion {
@@ -537,13 +538,13 @@ private struct TypingBubbleView: View {
 
     private func bubble(phase: Int, animated: Bool) -> some View {
         HStack(alignment: .bottom, spacing: 0) {
-            HStack(spacing: 4) {
+            HStack(spacing: Metrics.dotSpacing) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle()
                         .fill(Color.smFaint)
-                        .frame(width: 6, height: 6)
-                        .scaleEffect(animated ? (phase == i ? 1.25 : 0.85) : 1.0)
-                        .opacity(animated ? (phase == i ? 1.0 : 0.4) : 1.0)
+                        .frame(width: Metrics.dotSize, height: Metrics.dotSize)
+                        .scaleEffect(animated ? (phase == i ? Metrics.activeDotScale : Metrics.idleDotScale) : 1.0)
+                        .opacity(animated ? (phase == i ? 1.0 : Metrics.idleDotOpacity) : 1.0)
                         .animation(animated ? .easeInOut(duration: Self.stepInterval) : nil, value: phase)
                 }
             }
@@ -552,14 +553,14 @@ private struct TypingBubbleView: View {
             .chatBubbleChrome(
                 isFromMe: false,
                 isTail: true,
-                fill: Color.smSurface.opacity(0.96),
+                fill: Color.smSurface.opacity(Metrics.bubbleOpacity),
                 outgoingShadowOpacity: ChatDesignMetrics.Bubble.incomingShadowOpacity,
                 incomingShadowOpacity: ChatDesignMetrics.Bubble.incomingShadowOpacity
             )
 
-            Spacer(minLength: 44)
+            Spacer(minLength: ChatDesignMetrics.Bubble.sideGutter)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, ChatDesignMetrics.Bubble.tailRowVerticalPadding)
     }
 
     private static func phase(for date: Date) -> Int {
