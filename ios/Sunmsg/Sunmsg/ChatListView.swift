@@ -1457,26 +1457,37 @@ final class QRScannerViewController: UIViewController {
     }
 
     private func setupCamera() {
-        let session = AVCaptureSession()
-        if session.canSetSessionPreset(.high) {
-            session.sessionPreset = .high
+        let metadataDelegate = delegate
+        sessionQueue.async { [weak self] in
+            let session = AVCaptureSession()
+            if session.canSetSessionPreset(.high) {
+                session.sessionPreset = .high
+            }
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+                    ?? AVCaptureDevice.default(for: .video),
+                  let input = try? AVCaptureDeviceInput(device: device),
+                  session.canAddInput(input) else {
+                DispatchQueue.main.async { self?.showPermissionDenied() }
+                return
+            }
+            session.addInput(input)
+            let output = AVCaptureMetadataOutput()
+            guard session.canAddOutput(output) else { return }
+            session.addOutput(output)
+            output.setMetadataObjectsDelegate(metadataDelegate, queue: .main)
+            output.metadataObjectTypes = [.qr]
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let preview = AVCaptureVideoPreviewLayer(session: session)
+                preview.videoGravity = .resizeAspectFill
+                preview.frame = self.view.bounds
+                self.view.layer.addSublayer(preview)
+                self.previewLayer = preview
+                self.session = session
+                self.sessionQueue.async { session.startRunning() }
+            }
         }
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
-                ?? AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else { showPermissionDenied(); return }
-        session.addInput(input)
-        let output = AVCaptureMetadataOutput()
-        guard session.canAddOutput(output) else { return }
-        session.addOutput(output)
-        output.setMetadataObjectsDelegate(delegate, queue: .main)
-        output.metadataObjectTypes = [.qr]
-        let preview = AVCaptureVideoPreviewLayer(session: session)
-        preview.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(preview)
-        previewLayer = preview
-        self.session = session
-        sessionQueue.async { session.startRunning() }
     }
 
     private func showPermissionDenied() {
