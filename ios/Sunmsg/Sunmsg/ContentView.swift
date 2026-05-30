@@ -3552,6 +3552,9 @@ struct MnemonicRestoreSettingsView: View {
                     .frame(minHeight: 120)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
+                    .onChange(of: phrase) { _, value in
+                        clearFeedback(forEditedPhrase: value)
+                    }
                 Button {
                     Task { await unlockVault() }
                 } label: {
@@ -3579,6 +3582,14 @@ struct MnemonicRestoreSettingsView: View {
         }.value
         guard !Task.isCancelled else { return }
         hasPrivateKey = loaded
+    }
+
+    private func clearFeedback(forEditedPhrase value: String) {
+        guard !isWorking,
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              (status != nil || error != nil) else { return }
+        status = nil
+        error = nil
     }
 
     private func unlockVault() async {
