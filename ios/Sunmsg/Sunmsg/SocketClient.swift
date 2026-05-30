@@ -346,12 +346,12 @@ final class SocketClient: NSObject, @unchecked Sendable {
 
     private func startPingTask() {
         pingTask?.cancel()
-        pingTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 20_000_000_000)
-                guard !Task.isCancelled else { return }
-                let didPing = await MainActor.run { () -> Bool in
-                    guard let self, self.state == .connected, let webSocketTask = self.webSocketTask else { return false }
+        pingTask = Task { @MainActor [weak self] in
+            while true {
+                do {
+                    try await Task.sleep(nanoseconds: 20_000_000_000)
+                    try Task.checkCancellation()
+                    guard let self, self.state == .connected, let webSocketTask = self.webSocketTask else { return }
                     webSocketTask.sendPing { [weak self] error in
                         guard error != nil else { return }
                         Task { @MainActor [weak self] in
@@ -359,9 +359,11 @@ final class SocketClient: NSObject, @unchecked Sendable {
                             self.closeSocket(reconnect: true)
                         }
                     }
-                    return true
+                } catch is CancellationError {
+                    return
+                } catch {
+                    return
                 }
-                guard didPing else { return }
             }
         }
     }
