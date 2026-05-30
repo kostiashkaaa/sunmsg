@@ -75,7 +75,7 @@ struct PeopleView: View {
                 }
             }
         }
-        .alert("Не удалось начать чат", isPresented: Binding(
+        .alert("Не удалось выполнить действие", isPresented: Binding(
             get: { actionError != nil },
             set: { isPresented in
                 if !isPresented { actionError = nil }
@@ -337,14 +337,21 @@ struct PeopleView: View {
         guard !handlingRequestIds.contains(req.id) else { return }
         handlingRequestIds.insert(req.id)
         Task {
-            let acceptedChatId = try? await APIClient.shared.acceptDialogRequest(req)
-            await session.refreshDialogRequests()
-            await session.refreshContacts()
-            if req.isGroupInvite, let acceptedChatId,
-               let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
-                navigateToContact = PeopleChatDestination(contact: contact)
+            defer { handlingRequestIds.remove(req.id) }
+            do {
+                let acceptedChatId = try await APIClient.shared.acceptDialogRequest(req)
+                await session.refreshDialogRequests()
+                await session.refreshContacts()
+                if req.isGroupInvite,
+                   let contact = session.contacts.first(where: { $0.chatId == acceptedChatId }) {
+                    navigateToContact = PeopleChatDestination(contact: contact)
+                }
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                actionError = error.localizedDescription
+                await session.refreshDialogRequests()
             }
-            handlingRequestIds.remove(req.id)
         }
     }
 
@@ -352,9 +359,16 @@ struct PeopleView: View {
         guard !handlingRequestIds.contains(req.id) else { return }
         handlingRequestIds.insert(req.id)
         Task {
-            try? await APIClient.shared.declineDialogRequest(req)
-            await session.refreshDialogRequests()
-            handlingRequestIds.remove(req.id)
+            defer { handlingRequestIds.remove(req.id) }
+            do {
+                try await APIClient.shared.declineDialogRequest(req)
+                await session.refreshDialogRequests()
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                actionError = error.localizedDescription
+                await session.refreshDialogRequests()
+            }
         }
     }
 
