@@ -278,11 +278,19 @@ struct ChatComposerBar: View {
     private var recordingSendButton: some View {
         Button(action: onStopAndSendRecording) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
                 .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
-                .background(Color.smAccent, in: Circle())
-                .shadow(color: Color.smAccent.opacity(0.26), radius: 5, x: 0, y: 2)
+                .background {
+                    Circle()
+                        .fill(Color.smAccent)
+                        .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                }
+                .overlay {
+                    Circle()
+                        .stroke(Color.smAccent.opacity(0.18), lineWidth: 0.5)
+                        .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                }
         }
         .buttonStyle(PressableStyle(scale: 0.9))
         .accessibilityLabel("Отправить голосовое сообщение")
@@ -327,7 +335,16 @@ struct ChatComposerBar: View {
                 ProgressView()
                     .tint(Color.smBubbleOutText)
                     .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
-                    .background(Color.smAccent, in: Circle())
+                    .background {
+                        Circle()
+                            .fill(Color.smAccent)
+                            .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                    }
+                    .overlay {
+                        Circle()
+                            .stroke(Color.smAccent.opacity(0.18), lineWidth: 0.5)
+                            .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                    }
             } else if editingMessageId != nil {
                 composerActionButton(
                     systemName: "checkmark",
