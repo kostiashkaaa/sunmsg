@@ -40,6 +40,8 @@ struct ChatTimelineRow: Identifiable, Equatable {
 }
 
 struct ChatMessageTimelineView: View, Equatable {
+    private static let messageGroupGap: TimeInterval = 5 * 60
+
     let rows: [ChatTimelineRow]
     let hasOlderMessages: Bool
     let isLoading: Bool
@@ -187,8 +189,17 @@ struct ChatMessageTimelineView: View, Equatable {
                 previous: previous,
                 calendar: calendar
             )
-            let nextStartsNewDay = next.map {
-                Self.shouldShowDate(current: $0, previous: message, calendar: calendar)
+            let nextStartsNewGroup = next.map {
+                let nextStartsNewDay = Self.shouldShowDate(
+                    current: $0,
+                    previous: message,
+                    calendar: calendar
+                )
+                return Self.startsNewVisualGroup(
+                    current: $0,
+                    previous: message,
+                    startsNewDay: nextStartsNewDay
+                )
             } ?? false
             result.append(
                 ChatTimelineRow(
@@ -208,7 +219,7 @@ struct ChatMessageTimelineView: View, Equatable {
                         next: next,
                         isFromMe: isFromMe,
                         myId: myId,
-                        nextStartsNewDay: nextStartsNewDay
+                        nextStartsNewGroup: nextStartsNewGroup
                     ),
                     showsDate: startsNewDay
                 )
@@ -396,7 +407,11 @@ struct ChatMessageTimelineView: View, Equatable {
         guard isGroup, !isFromMe else { return false }
         guard let previous else { return true }
         return previous.senderUserId != current.senderUserId
-            || startsNewDay
+            || startsNewVisualGroup(
+                current: current,
+                previous: previous,
+                startsNewDay: startsNewDay
+            )
     }
 
     private static func isTail(
@@ -404,13 +419,21 @@ struct ChatMessageTimelineView: View, Equatable {
         next: ChatMessage?,
         isFromMe: Bool,
         myId: Int,
-        nextStartsNewDay: Bool
+        nextStartsNewGroup: Bool
     ) -> Bool {
         guard let next else { return true }
         let nextIsMe = next.senderUserId == myId
         return nextIsMe != isFromMe
             || next.senderUserId != current.senderUserId
-            || nextStartsNewDay
+            || nextStartsNewGroup
+    }
+
+    private static func startsNewVisualGroup(
+        current: ChatMessage,
+        previous: ChatMessage,
+        startsNewDay: Bool
+    ) -> Bool {
+        startsNewDay || current.createdAt - previous.createdAt > messageGroupGap
     }
 }
 
