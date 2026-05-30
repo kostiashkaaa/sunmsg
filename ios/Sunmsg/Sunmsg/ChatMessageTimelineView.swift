@@ -301,6 +301,10 @@ struct ChatMessageTimelineView: View, Equatable {
                         viewportHeight: viewportProxy.size.height
                     )
                 }
+                .onChange(of: viewportProxy.size.height) { _, _ in
+                    guard isPinnedToBottom else { return }
+                    scrollToBottom(proxy, animated: true)
+                }
                 .onChange(of: rows.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
