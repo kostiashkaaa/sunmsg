@@ -3945,6 +3945,7 @@ struct FileBubbleView: View {
     @State private var resolvedURL: URL?
     @State private var decryptedTempURL: URL?
     @State private var downloadToken: UUID?
+    @State private var downloadFailed = false
 
     private var sizeText: String {
         if size <= 0 { return "" }
@@ -3972,7 +3973,7 @@ struct FileBubbleView: View {
                         ProgressView().tint(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
                             .scaleEffect(0.7)
                     } else {
-                        Image(systemName: "doc.fill")
+                        Image(systemName: downloadFailed ? "exclamationmark.triangle.fill" : "doc.fill")
                             .font(.system(size: 16))
                             .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
                     }
@@ -4013,6 +4014,7 @@ struct FileBubbleView: View {
             // are resolved on demand when the user taps.
             downloadToken = nil
             isDownloading = false
+            downloadFailed = false
             removeDecryptedTempFile()
             resolvedURL = nil
             guard let url else { return }
@@ -4040,23 +4042,27 @@ struct FileBubbleView: View {
         downloadToken = token
         removeDecryptedTempFile()
         isDownloading = true
+        downloadFailed = false
         defer {
             if downloadToken == token {
                 isDownloading = false
                 downloadToken = nil
             }
         }
-        if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
-            guard !Task.isCancelled, self.url == url, downloadToken == token else {
-                if tmpURL.isFileURL {
-                    try? FileManager.default.removeItem(at: tmpURL)
-                }
-                return
-            }
-            decryptedTempURL = tmpURL
-            resolvedURL = tmpURL
-            shareDraft = ShareFileDraft(url: tmpURL)
+        guard let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() else {
+            guard !Task.isCancelled, self.url == url, downloadToken == token else { return }
+            downloadFailed = true
+            return
         }
+        guard !Task.isCancelled, self.url == url, downloadToken == token else {
+            if tmpURL.isFileURL {
+                try? FileManager.default.removeItem(at: tmpURL)
+            }
+            return
+        }
+        decryptedTempURL = tmpURL
+        resolvedURL = tmpURL
+        shareDraft = ShareFileDraft(url: tmpURL)
     }
 
     private func removeDecryptedTempFile() {
