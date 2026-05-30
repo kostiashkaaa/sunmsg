@@ -2645,9 +2645,11 @@ struct MessageBubbleView: View {
             Text("Переслано от \(name)")
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
+                .truncationMode(.tail)
         }
         .foregroundStyle(Color.smAccent2)
         .padding(isFromMe ? .trailing : .leading, 4)
+        .frame(maxWidth: clampedMaxBubbleWidth, alignment: isFromMe ? .trailing : .leading)
     }
 
     private var pinnedLabel: some View {
