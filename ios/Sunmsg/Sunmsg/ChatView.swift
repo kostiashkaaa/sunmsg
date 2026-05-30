@@ -1219,8 +1219,8 @@ struct ChatView: View {
                 let normalized = older.map(normalizedMessage)
                 if upsertTimelineMessages(normalized) {
                     scrollIntent = .preserve(id: firstId)
-                    invalidateTimeline()
                 }
+                invalidateTimeline()
                 await ChatLocalStore.shared.mergeMessages(normalized, chatId: contact.chatId)
                 await decryptMessages(normalized)
             }
