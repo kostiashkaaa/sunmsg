@@ -3723,6 +3723,7 @@ struct AudioBubbleView: View {
     @State private var effectiveURL: URL?
     @State private var decryptedTempURL: URL?
     @State private var isResolving = false
+    @State private var resolveFailed = false
 
     private var bubbleMaxWidth: CGFloat {
         max(0, maxWidth)
@@ -3734,11 +3735,21 @@ struct AudioBubbleView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button(action: { player.toggle(url: effectiveURL) }) {
+            Button(action: {
+                if resolveFailed {
+                    Task { await resolveAndPrepare() }
+                } else {
+                    player.toggle(url: effectiveURL)
+                }
+            }) {
                 ZStack {
                     if isResolving {
                         ProgressView().tint(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
                             .scaleEffect(0.7)
+                    } else if resolveFailed {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 15))
+                            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
                     } else {
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 16))
@@ -3751,7 +3762,7 @@ struct AudioBubbleView: View {
                 )
             }
             .buttonStyle(.plain)
-            .disabled(effectiveURL == nil || isResolving)
+            .disabled(url == nil || (effectiveURL == nil && !resolveFailed) || isResolving)
 
             VStack(alignment: .leading, spacing: 3) {
                 // Waveform: animated when playing
@@ -3791,6 +3802,7 @@ struct AudioBubbleView: View {
         removeDecryptedTempFile()
         effectiveURL = nil
         isResolving = false
+        resolveFailed = false
         guard let url else { return }
         if let e2ee = SunMediaE2EE.parse(url: url) {
             // Web-encrypted file: fetch, decrypt, save to temp file
@@ -3800,17 +3812,20 @@ struct AudioBubbleView: View {
                     isResolving = false
                 }
             }
-            if let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
-                guard !Task.isCancelled, self.url == url else {
-                    if tmpURL.isFileURL {
-                        try? FileManager.default.removeItem(at: tmpURL)
-                    }
-                    return
-                }
-                decryptedTempURL = tmpURL
-                effectiveURL = tmpURL
-                await player.prepareDuration(url: tmpURL)
+            guard let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() else {
+                guard !Task.isCancelled, self.url == url else { return }
+                resolveFailed = true
+                return
             }
+            guard !Task.isCancelled, self.url == url else {
+                if tmpURL.isFileURL {
+                    try? FileManager.default.removeItem(at: tmpURL)
+                }
+                return
+            }
+            decryptedTempURL = tmpURL
+            effectiveURL = tmpURL
+            await player.prepareDuration(url: tmpURL)
         } else {
             guard !Task.isCancelled, self.url == url else { return }
             effectiveURL = url
