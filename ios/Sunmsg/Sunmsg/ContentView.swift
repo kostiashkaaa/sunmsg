@@ -3918,6 +3918,7 @@ struct AppearanceSettingsView: View {
     @State private var saveToken = UUID()
     @State private var hexSaveTask: Task<Void, Never>?
     @State private var backgroundImportToken = UUID()
+    @State private var showResetAppearanceConfirm = false
 
     private struct AppearanceSnapshot: Equatable {
         let schemePref: String
@@ -4053,7 +4054,7 @@ struct AppearanceSettingsView: View {
                     resetColors()
                 }
                 Button(role: .destructive) {
-                    resetAppearance()
+                    showResetAppearanceConfirm = true
                 } label: {
                     Text("Сбросить внешний вид")
                 }
@@ -4072,6 +4073,14 @@ struct AppearanceSettingsView: View {
             Task { await importBackground(item) }
         }
         .onDisappear { flushPendingHexSave() }
+        .confirmationDialog("Сбросить внешний вид?", isPresented: $showResetAppearanceConfirm, titleVisibility: .visible) {
+            Button("Сбросить", role: .destructive) {
+                resetAppearance()
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Тема, фон чата, масштаб сообщений и цвета пузырей вернутся к значениям по умолчанию.")
+        }
     }
 
     private func schemeRussian(_ scheme: AppColorScheme) -> String {
