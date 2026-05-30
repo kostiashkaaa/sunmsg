@@ -26,6 +26,7 @@ struct PeopleView: View {
     @State private var results: [SearchUserResult] = []
     @State private var isSearching = false
     @State private var requestSent: Set<Int> = []
+    @State private var pendingRequestUserIds: Set<Int> = []
     @State private var handlingRequestIds: Set<String> = []
     @State private var navigateToContact: PeopleChatDestination?
     @State private var activeSheet: PeopleSheetDestination?
@@ -267,6 +268,7 @@ struct PeopleView: View {
                     UserResultRow(
                         user: user,
                         requestSent: requestSent.contains(user.userId),
+                        requestInFlight: pendingRequestUserIds.contains(user.userId),
                         onTap: { handleTap(user) },
                         onAction: { handleAction(user) }
                     )
@@ -400,8 +402,12 @@ struct PeopleView: View {
     }
 
     private func handleAction(_ user: SearchUserResult) {
-        guard user.chatId == nil, !requestSent.contains(user.userId) else { return }
+        guard user.chatId == nil,
+              !requestSent.contains(user.userId),
+              !pendingRequestUserIds.contains(user.userId) else { return }
+        pendingRequestUserIds.insert(user.userId)
         Task {
+            defer { pendingRequestUserIds.remove(user.userId) }
             do {
                 let resp = try await APIClient.shared.startChat(username: user.username)
                 await MainActor.run {
@@ -963,11 +969,17 @@ struct DialogRequestRow: View {
 struct UserResultRow: View {
     let user: SearchUserResult
     let requestSent: Bool
+    let requestInFlight: Bool
     let onTap: () -> Void
     let onAction: () -> Void
 
+    private var requestUnavailable: Bool {
+        requestInFlight || requestSent || user.pendingOutgoingRequest
+    }
+
     private var statusLabel: String {
         if user.chatId != nil { return "Написать" }
+        if requestInFlight { return "Отправка…" }
         if requestSent || user.pendingOutgoingRequest { return "Отправлено" }
         if user.pendingIncomingRequest { return "Принять" }
         if user.isContact { return "Написать" }
@@ -975,7 +987,7 @@ struct UserResultRow: View {
     }
 
     private var statusColor: Color {
-        if requestSent || user.pendingOutgoingRequest { return Color.smFaint }
+        if requestUnavailable { return Color.smFaint }
         return Color.smAccent
     }
 
@@ -983,7 +995,7 @@ struct UserResultRow: View {
         Button(action: {
             if user.chatId != nil || user.isContact {
                 onTap()
-            } else if !(requestSent || user.pendingOutgoingRequest) {
+            } else if !requestUnavailable {
                 onAction()
             }
         }) {
@@ -1011,12 +1023,12 @@ struct UserResultRow: View {
                 } else {
                     Text(statusLabel)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(requestSent || user.pendingOutgoingRequest ? Color.smFaint : Color(hex: "#fbf8f1"))
+                        .foregroundStyle(requestUnavailable ? Color.smFaint : Color(hex: "#fbf8f1"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .fixedSize(horizontal: true, vertical: false)
                         .background(
-                            requestSent || user.pendingOutgoingRequest
+                            requestUnavailable
                                 ? Color.smBorder.opacity(0.5)
                                 : Color.smAccent,
                             in: Capsule()
