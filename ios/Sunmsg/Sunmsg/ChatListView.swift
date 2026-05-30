@@ -1177,9 +1177,13 @@ struct UserQRSheet: View {
                         Text(user?.displayName ?? "—")
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(Color.smText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
                         Text(displayHandle)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(Color.smAccent2)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                 }
                 .padding(.horizontal, 24)
