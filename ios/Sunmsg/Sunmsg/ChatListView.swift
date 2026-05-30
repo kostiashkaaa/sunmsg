@@ -974,7 +974,15 @@ struct MnemonicUnlockSheet: View {
                 _ = try await api.loginChallenge(signature: signature)
                 try? KeychainService.savePrivateKey(privateKeyPEM)
                 await session.loadBootstrap()
-                await MainActor.run { dismiss() }
+                await MainActor.run {
+                    guard session.route == .main else {
+                        errorMsg = session.errorMessage ?? "Не удалось загрузить сессию. Попробуйте ещё раз."
+                        session.errorMessage = nil
+                        isLoading = false
+                        return
+                    }
+                    dismiss()
+                }
             } catch SunCryptoError.noDecryptionKey {
                 await MainActor.run {
                     errorMsg = "Неверная фраза — не удалось расшифровать хранилище."
