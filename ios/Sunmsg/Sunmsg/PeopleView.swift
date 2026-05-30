@@ -385,10 +385,10 @@ struct PeopleView: View {
         }
 
         actionError = nil
-        isSearching = true
         do {
             try await Task.sleep(nanoseconds: 320_000_000)
             try Task.checkCancellation()
+            isSearching = true
             let found = try await APIClient.shared.searchUsers(query: trimmed)
             try Task.checkCancellation()
             guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
@@ -873,11 +873,11 @@ struct GroupCreateView: View {
             rebuildVisibleCandidates()
             return
         }
-        isSearching = true
-        rebuildVisibleCandidates()
         do {
             try await Task.sleep(nanoseconds: 320_000_000)
             try Task.checkCancellation()
+            isSearching = true
+            rebuildVisibleCandidates()
             let found = try await session.api.searchUsers(query: trimmed, limit: 40)
             try Task.checkCancellation()
             guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
