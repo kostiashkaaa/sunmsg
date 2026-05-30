@@ -451,7 +451,9 @@ final class SessionStore: ObservableObject {
             do {
                 try await Task.sleep(nanoseconds: 12_000_000_000)
                 try Task.checkCancellation()
-                self?.finishPendingCallRequest(requestId: requestId)
+                guard let self, self.pendingCallRequestsById[requestId] != nil else { return }
+                self.finishPendingCallRequest(requestId: requestId)
+                self.showCallError("Не удалось начать звонок. Проверьте соединение и попробуйте ещё раз.")
             } catch {
                 return
             }
