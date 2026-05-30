@@ -182,6 +182,12 @@ enum ChatDesignMetrics {
         static let inputLeadingPadding: CGFloat = 14
         static let inputTrailingPadding: CGFloat = 4
         static let inputVerticalPadding: CGFloat = 5
+        static let recordingContentSpacing: CGFloat = 12
+        static let recordingTimerSpacing: CGFloat = 8
+        static let recordingDotSize: CGFloat = 8
+        static let recordingTrailingSpacing: CGFloat = 8
+        static let recordingCancelMinWidth: CGFloat = 76
+        static let recordingSendIconSize: CGFloat = 18
         static let bannerTopPadding: CGFloat = 7
         static let bannerContentSpacing: CGFloat = 10
         static let bannerTextSpacing: CGFloat = 1

@@ -233,11 +233,11 @@ struct ChatComposerBar: View {
     }
 
     private var recordingCapsule: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
+        HStack(spacing: Metrics.recordingContentSpacing) {
+            HStack(spacing: Metrics.recordingTimerSpacing) {
                 Circle()
                     .fill(Color.red)
-                    .frame(width: 8, height: 8)
+                    .frame(width: Metrics.recordingDotSize, height: Metrics.recordingDotSize)
                     .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
                     .animation(
                         reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
@@ -252,18 +252,18 @@ struct ChatComposerBar: View {
                     .fixedSize(horizontal: true, vertical: false)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: Metrics.recordingTrailingSpacing)
 
             Button(action: onCancelRecording) {
                 Text("Отмена")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Color.smAccent)
-                    .frame(minWidth: 76)
+                    .frame(minWidth: Metrics.recordingCancelMinWidth)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Отменить запись")
 
-            Spacer(minLength: 8)
+            Spacer(minLength: Metrics.recordingTrailingSpacing)
         }
         .padding(.horizontal, Metrics.inputLeadingPadding)
         .frame(maxWidth: .infinity)
@@ -278,7 +278,7 @@ struct ChatComposerBar: View {
     private var recordingSendButton: some View {
         Button(action: onStopAndSendRecording) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: Metrics.recordingSendIconSize, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
                 .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
                 .background {
