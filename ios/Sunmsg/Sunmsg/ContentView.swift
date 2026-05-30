@@ -2855,7 +2855,11 @@ struct ChatBehaviorSettingsView: View {
             clientPreferences = settings.clientPreferencesObject
             guard chatBehaviorSnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
-        } catch { self.error = error.localizedDescription }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func save() {
