@@ -3192,13 +3192,16 @@ struct MnemonicRestoreSettingsView: View {
     }
 
     private func unlockVault() async {
+        guard !isWorking else { return }
         isWorking = true
         error = nil
         status = nil
         do {
             let normalized = phrase.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             let vault = try await session.api.getLoginVault()
-            let privateKey = try SunCrypto.decryptVault(vault, mnemonic: normalized)
+            let privateKey = try await Task.detached(priority: .userInitiated) {
+                try SunCrypto.decryptVault(vault, mnemonic: normalized)
+            }.value
             try KeychainService.savePrivateKey(privateKey)
             hasPrivateKey = true
             phrase = ""
