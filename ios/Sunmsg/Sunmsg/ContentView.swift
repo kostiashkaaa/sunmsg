@@ -1417,6 +1417,7 @@ struct MainTabView: View {
             // teardown happens exactly once.
             .fullScreenCover(item: $session.activeCall) { callItem in
                 InCallView(providedCall: callItem, session: session)
+                    .interactiveDismissDisabled(true)
             }
 
             Group {
