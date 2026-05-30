@@ -324,7 +324,7 @@ struct NativeRegisterView: View {
     private var isFormValid: Bool {
         let u = username.trimmingCharacters(in: .whitespaces)
         let d = displayName.trimmingCharacters(in: .whitespaces)
-        return u.count >= 2 && !d.isEmpty && savedConfirmed && mnemonic.components(separatedBy: " ").count == 24
+        return step != .loading && u.count >= 2 && !d.isEmpty && savedConfirmed && mnemonic.components(separatedBy: " ").count == 24
     }
 
     // MARK: - Actions
@@ -367,6 +367,7 @@ struct NativeRegisterView: View {
     }
 
     private func handleRegister() {
+        guard step != .loading else { return }
         focusedField = nil
         let trimUser = username.trimmingCharacters(in: .whitespaces).lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "@"))
         let trimName = displayName.trimmingCharacters(in: .whitespaces)
