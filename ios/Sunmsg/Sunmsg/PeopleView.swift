@@ -964,11 +964,12 @@ struct DialogRequestRow: View {
     }
 
     private var requestSubtitle: String {
-        let username = request.senderUsername.isEmpty ? "user" : request.senderUsername
+        let username = request.senderUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        let senderLabel = username.isEmpty ? "пользователя" : "@\(username)"
         if request.isGroupInvite {
-            return "приглашение от @\(username)"
+            return "приглашение от \(senderLabel)"
         }
-        return "@\(username)"
+        return username.isEmpty ? "пользователь" : "@\(username)"
     }
 }
 
