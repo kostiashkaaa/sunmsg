@@ -94,6 +94,9 @@ final class SessionStore: ObservableObject {
     private var typingTimers: [String: Task<Void, Never>] = [:]
     private var callErrorClearTask: Task<Void, Never>?
     private var presenceTask: Task<Void, Never>?
+    private var pendingCallRequestsById: [String: String] = [:]
+    private var pendingCallRequestChatIds: Set<String> = []
+    private var pendingCallRequestTimeouts: [String: Task<Void, Never>] = [:]
 
     init() {
         loadCallHistory()
@@ -261,6 +264,7 @@ final class SessionStore: ObservableObject {
                   let chatId   = payload["chat_id"]   as? String,
                   let callType = payload["call_type"] as? String
             else { return }
+            finishPendingCallRequest(requestId: payload["request_id"] as? String)
             // Find contact for this chat
             let contact = contacts.first(where: { $0.chatId == chatId })
             var state = ActiveCallState(
@@ -372,6 +376,7 @@ final class SessionStore: ObservableObject {
             }
 
         case "call_error":
+            finishPendingCallRequest(requestId: payload["request_id"] as? String)
             let code = payload["error"] as? String ?? "server_error"
             let messages: [String: String] = [
                 "user_busy":                    "Вы уже в другом звонке.",
@@ -419,17 +424,41 @@ final class SessionStore: ObservableObject {
     // MARK: - Call actions
 
     func initiateCall(chatId: String, callType: String) {
+        let chatId = normalizedChatId(chatId)
+        guard !chatId.isEmpty else { return }
+        guard activeCall == nil, incomingCall == nil else { return }
+        guard pendingCallRequestsById.isEmpty,
+              !pendingCallRequestChatIds.contains(chatId) else { return }
         guard SocketClient.shared.state == .connected else {
             showCallError("Нет соединения с сервером. Проверьте интернет и попробуйте переподключиться.")
             return
         }
         let requestId = UUID().uuidString
+        pendingCallRequestsById[requestId] = chatId
+        pendingCallRequestChatIds.insert(chatId)
+        pendingCallRequestTimeouts[requestId] = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 12_000_000_000)
+                try Task.checkCancellation()
+                self?.finishPendingCallRequest(requestId: requestId)
+            } catch {
+                return
+            }
+        }
         SocketClient.shared.emit("call_initiate", [
             "chat_id": chatId,
             "call_type": callType,
             "request_id": requestId,
             "csrf_token": api.csrfToken,
         ])
+    }
+
+    private func finishPendingCallRequest(requestId: String?) {
+        guard let requestId,
+              let chatId = pendingCallRequestsById.removeValue(forKey: requestId) else { return }
+        pendingCallRequestChatIds.remove(chatId)
+        pendingCallRequestTimeouts[requestId]?.cancel()
+        pendingCallRequestTimeouts[requestId] = nil
     }
 
     func acceptCall(callId: String, incomingOverride: IncomingCallData? = nil) {
