@@ -3285,6 +3285,7 @@ struct AccountSettingsView: View {
     }
 
     private func deleteAccount() async {
+        guard !isDeleting else { return }
         isDeleting = true
         error = nil
         do {
