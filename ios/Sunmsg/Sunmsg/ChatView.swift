@@ -3321,6 +3321,7 @@ private enum SunPhotoCache {
 struct FullscreenImageView: View {
     let image: UIImage
     let onDismiss: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scale: CGFloat = 1
 
     var body: some View {
@@ -3333,7 +3334,13 @@ struct FullscreenImageView: View {
                 .gesture(
                     MagnifyGesture()
                         .onChanged { value in scale = max(1, min(4, value.magnification)) }
-                        .onEnded { _ in withAnimation { scale = 1 } }
+                        .onEnded { _ in
+                            if reduceMotion {
+                                scale = 1
+                            } else {
+                                withAnimation { scale = 1 }
+                            }
+                        }
                 )
                 .ignoresSafeArea()
             VStack {
