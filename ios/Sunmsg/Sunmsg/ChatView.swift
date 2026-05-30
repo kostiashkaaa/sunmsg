@@ -978,6 +978,14 @@ struct ChatView: View {
         }
     }
 
+    @discardableResult
+    private func upsertTimelineMessages(_ incoming: [ChatMessage]) -> Bool {
+        guard !incoming.isEmpty else { return false }
+        let existingIds = Set(messages.map(\.id))
+        messages = mergedCurrentMessages(with: incoming)
+        return incoming.contains { !existingIds.contains($0.id) }
+    }
+
     private func markRead() async {
         let ids = messages.compactMap { $0.senderUserId != myId ? $0.id : nil }
         guard !ids.isEmpty else { return }
@@ -994,7 +1002,7 @@ struct ChatView: View {
         else { return }
         let normalized = normalizedMessage(msg)
         scrollIntent = shouldAutoScroll(for: normalized) ? .bottom(animated: true) : .none
-        messages.append(normalized)
+        upsertTimelineMessages([normalized])
         invalidateTimeline()
         if msg.senderUserId != myId {
             Task { try? await APIClient.shared.markMessagesRead(chatId: contact.chatId, messageIds: [msg.id]) }
@@ -1030,7 +1038,7 @@ struct ChatView: View {
             if messages.contains(where: { $0.id == msgId }) { return }
             let msg = buildMessageFromPayload(payload, chatId: chatId)
             scrollIntent = shouldAutoScroll(for: msg) ? .bottom(animated: true) : .none
-            messages.append(msg)
+            upsertTimelineMessages([msg])
             invalidateTimeline()
             Task {
                 await ChatLocalStore.shared.mergeMessages([msg], chatId: contact.chatId)
@@ -1187,9 +1195,10 @@ struct ChatView: View {
             if older.count < 30 { hasOlderMessages = false }
             if !older.isEmpty {
                 let normalized = older.map(normalizedMessage)
-                scrollIntent = .preserve(id: firstId)
-                messages.insert(contentsOf: normalized, at: 0)
-                invalidateTimeline()
+                if upsertTimelineMessages(normalized) {
+                    scrollIntent = .preserve(id: firstId)
+                    invalidateTimeline()
+                }
                 await ChatLocalStore.shared.mergeMessages(normalized, chatId: contact.chatId)
                 await decryptMessages(normalized)
             }
@@ -1985,9 +1994,8 @@ struct ChatView: View {
                 )
                 await MainActor.run {
                     let normalized = normalizedMessage(sent)
-                    if !messages.contains(where: { $0.id == sent.id }) {
+                    if upsertTimelineMessages([normalized]) {
                         scrollIntent = .bottom(animated: true)
-                        messages.append(normalized)
                     }
                     decryptedTexts[sent.id] = text
                     invalidateTimeline()
@@ -2311,9 +2319,8 @@ struct ChatView: View {
 
             await MainActor.run {
                 let normalized = normalizedMessage(sent)
-                if !messages.contains(where: { $0.id == sent.id }) {
+                if upsertTimelineMessages([normalized]) {
                     scrollIntent = .bottom(animated: true)
-                    messages.append(normalized)
                 }
                 decryptedTexts[sent.id] = sunfileJSON
                 invalidateTimeline()
@@ -2426,9 +2433,8 @@ struct ChatView: View {
 
             await MainActor.run {
                 let normalized = normalizedMessage(sent)
-                if !messages.contains(where: { $0.id == sent.id }) {
+                if upsertTimelineMessages([normalized]) {
                     scrollIntent = .bottom(animated: true)
-                    messages.append(normalized)
                 }
                 // Store the decrypted sunfile JSON so the bubble renders it
                 decryptedTexts[sent.id] = sunfileJSON
