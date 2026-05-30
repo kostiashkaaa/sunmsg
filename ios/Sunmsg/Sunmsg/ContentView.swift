@@ -3664,7 +3664,11 @@ struct IntegrationsSettingsView: View {
             guard spotifySettingsSnapshot == snapshot else { return }
             privacy = response.spotifyPrivacy
             hideExplicit = response.hideExplicit
-        } catch { self.error = error.localizedDescription }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func savePrivacy(previous: SpotifySettingsSnapshot) {
