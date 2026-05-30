@@ -360,6 +360,7 @@ struct PeopleView: View {
             return
         }
 
+        results = []
         isSearching = true
         do {
             try await Task.sleep(nanoseconds: 320_000_000)
@@ -374,7 +375,9 @@ struct PeopleView: View {
                 isSearching = false
             }
         } catch {
-            isSearching = false
+            if query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed {
+                isSearching = false
+            }
         }
     }
 
@@ -805,6 +808,7 @@ struct GroupCreateView: View {
             rebuildVisibleCandidates()
             return
         }
+        remoteResults = []
         isSearching = true
         rebuildVisibleCandidates()
         do {
@@ -822,7 +826,11 @@ struct GroupCreateView: View {
             guard !Task.isCancelled else {
                 return
             }
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else {
+                return
+            }
             isSearching = false
+            rebuildVisibleCandidates()
         }
     }
 
