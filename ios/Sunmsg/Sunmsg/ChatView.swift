@@ -2588,7 +2588,10 @@ struct MessageBubbleView: View {
                 Text(name)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(senderColor(name))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .padding(.leading, 4)
+                    .frame(maxWidth: clampedMaxBubbleWidth, alignment: .leading)
             }
 
             if let forwardFromName = message.forwardFromName?.trimmingCharacters(in: .whitespacesAndNewlines),
