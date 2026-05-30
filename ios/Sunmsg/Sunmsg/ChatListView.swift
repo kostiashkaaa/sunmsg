@@ -1435,6 +1435,7 @@ final class QRScannerViewController: UIViewController {
     private let sessionQueue = DispatchQueue(label: "sunmsg.qrscanner.session", qos: .userInitiated)
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var permissionDeniedLabel: UILabel?
+    private var isTearingDown = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1447,16 +1448,22 @@ final class QRScannerViewController: UIViewController {
         previewLayer?.frame = view.bounds
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        isTearingDown = false
+    }
+
     private func checkPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: setupCamera()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
                 Task { @MainActor [weak self] in
+                    guard let self, !self.isTearingDown else { return }
                     if granted {
-                        self?.setupCamera()
+                        self.setupCamera()
                     } else {
-                        self?.showPermissionDenied()
+                        self.showPermissionDenied()
                     }
                 }
             }
@@ -1486,7 +1493,7 @@ final class QRScannerViewController: UIViewController {
             output.metadataObjectTypes = [.qr]
 
             DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
+                guard let self, !self.isTearingDown else { return }
                 let preview = AVCaptureVideoPreviewLayer(session: session)
                 preview.videoGravity = .resizeAspectFill
                 preview.frame = self.view.bounds
@@ -1499,6 +1506,7 @@ final class QRScannerViewController: UIViewController {
     }
 
     private func showPermissionDenied() {
+        guard !isTearingDown, permissionDeniedLabel == nil else { return }
         let label = UILabel()
         label.text = "Нет доступа к камере.\nРазрешите доступ в Настройках."
         label.textColor = .white
@@ -1514,10 +1522,12 @@ final class QRScannerViewController: UIViewController {
             label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
             label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
         ])
+        permissionDeniedLabel = label
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        isTearingDown = true
         let runningSession = session
         session = nil
         sessionQueue.async {
