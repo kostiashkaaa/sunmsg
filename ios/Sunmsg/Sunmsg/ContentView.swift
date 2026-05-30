@@ -2866,8 +2866,9 @@ struct CallSettingsView: View {
             Section {
                 Picker("Кто может звонить", selection: Binding(get: { callPrivacy }, set: { value in
                     guard !isSaving else { return }
+                    let previous = callPrivacy
                     callPrivacy = value
-                    saveCallPrivacy(value)
+                    saveCallPrivacy(value, previous: previous)
                 })) {
                     Text("Все").tag("all")
                     Text("Контакты").tag("contacts")
@@ -2902,13 +2903,16 @@ struct CallSettingsView: View {
         catch { self.error = error.localizedDescription }
     }
 
-    private func saveCallPrivacy(_ value: String) {
+    private func saveCallPrivacy(_ value: String, previous: String) {
         guard !isSaving else { return }
         isSaving = true
         Task {
             do { try await session.api.saveSettings(["call_privacy": value]) }
             catch APIError.unauthorized { session.route = .login }
-            catch { self.error = error.localizedDescription }
+            catch {
+                callPrivacy = previous
+                self.error = error.localizedDescription
+            }
             isSaving = false
         }
     }
