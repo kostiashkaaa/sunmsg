@@ -1227,6 +1227,7 @@ struct AmberOrb: View {
 
 struct MainTabView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -1269,7 +1270,7 @@ struct MainTabView: View {
                         .zIndex(10)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: session.incomingCall)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.incomingCall)
 
             Group {
                 // Call error toast
@@ -1297,7 +1298,7 @@ struct MainTabView: View {
                     .zIndex(5)
                 }
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.86), value: session.callError)
+            .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86), value: session.callError)
         }
     }
 }
