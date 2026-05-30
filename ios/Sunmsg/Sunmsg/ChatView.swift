@@ -1197,6 +1197,7 @@ struct ChatView: View {
     private func loadOlderMessages() async {
         guard hasOlderMessages, !isLoadingOlder, let firstId = messages.first?.id else { return }
         isLoadingOlder = true
+        defer { isLoadingOlder = false }
         do {
             let older = try await APIClient.shared.getChatHistory(chatId: contact.chatId, limit: 30, beforeId: firstId)
             if older.count < 30 { hasOlderMessages = false }
@@ -1209,8 +1210,11 @@ struct ChatView: View {
                 await ChatLocalStore.shared.mergeMessages(normalized, chatId: contact.chatId)
                 await decryptMessages(normalized)
             }
-        } catch { }
-        isLoadingOlder = false
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            sendError = error.localizedDescription
+        }
     }
 
     // MARK: - Decryption
