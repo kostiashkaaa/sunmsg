@@ -667,7 +667,8 @@ final class SessionStore: ObservableObject {
         do {
             let response = try await api.getContacts()
             guard !Task.isCancelled, contactsRefreshToken == refreshToken else { return }
-            contacts = applyStoredMuteState(to: response)
+            let refreshed = applyStoredMuteState(to: response)
+            contacts = sortContactsForSidebar(mergeContactsForRefresh(refreshed))
             await decryptContactPreviews(expectedRefreshToken: refreshToken)
         }
         catch APIError.unauthorized {
@@ -677,6 +678,40 @@ final class SessionStore: ObservableObject {
         catch {
             guard !Task.isCancelled, contactsRefreshToken == refreshToken else { return }
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func mergeContactsForRefresh(_ refreshed: [Contact]) -> [Contact] {
+        var currentByChatId: [String: Contact] = [:]
+        for contact in contacts {
+            currentByChatId[contact.chatId] = contact
+        }
+        return refreshed.map { incoming in
+            guard let current = currentByChatId[incoming.chatId] else { return incoming }
+            var merged = incoming
+            merged.isTyping = current.isTyping
+
+            if (current.previewTimestamp ?? 0) > (incoming.previewTimestamp ?? 0) {
+                merged.lastMessage = current.lastMessage
+                merged.lastMessageTime = current.lastMessageTime
+                merged.initialLastMessagePreview = current.initialLastMessagePreview
+                merged.lastSenderId = current.lastSenderId
+                merged.draftText = current.draftText
+                merged.draftUpdatedAt = current.draftUpdatedAt
+                merged.hasDraft = current.hasDraft
+            }
+
+            merged.unreadCount = activeChatId == incoming.chatId
+                ? 0
+                : max(current.unreadCount, incoming.unreadCount)
+            return merged
+        }
+    }
+
+    private func sortContactsForSidebar(_ contacts: [Contact]) -> [Contact] {
+        contacts.sorted {
+            if $0.isPinned != $1.isPinned { return $0.isPinned }
+            return ($0.previewTimestamp ?? 0) > ($1.previewTimestamp ?? 0)
         }
     }
 
