@@ -3,6 +3,7 @@ import Combine
 import PhotosUI
 import UniformTypeIdentifiers
 import UserNotifications
+import ImageIO
 
 // MARK: - Session store
 
@@ -1777,7 +1778,21 @@ struct ProfileSettingsView: View {
 
     private static func makeAvatarEditorImage(from data: Data) async -> UIImage? {
         await Task.detached(priority: .userInitiated) {
-            UIImage(data: data)
+            let maxPixelSize = 1600
+            let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+            guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+                return UIImage(data: data)
+            }
+            let thumbnailOptions = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            ] as CFDictionary
+            guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions) else {
+                return UIImage(data: data)
+            }
+            return UIImage(cgImage: cgImage)
         }.value
     }
 
