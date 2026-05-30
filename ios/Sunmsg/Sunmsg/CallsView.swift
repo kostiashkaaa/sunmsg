@@ -106,7 +106,7 @@ struct CallsView: View {
 
     private func callBack(_ call: CallRecord) {
         let chatId: String? = call.chatId
-            ?? session.contacts.first(where: { $0.displayName == call.name })?.chatId
+            ?? uniqueContactChatId(displayName: call.name)
         if let chatId {
             session.initiateCall(
                 chatId: chatId,
@@ -115,6 +115,15 @@ struct CallsView: View {
         } else {
             session.selectedTab = 2
         }
+    }
+
+    private func uniqueContactChatId(displayName: String) -> String? {
+        var match: Contact?
+        for contact in session.contacts where contact.displayName == displayName {
+            if match != nil { return nil }
+            match = contact
+        }
+        return match?.chatId
     }
 
     // MARK: - Header
