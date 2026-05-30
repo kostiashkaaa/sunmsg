@@ -2269,7 +2269,11 @@ struct DataMemorySettingsView: View {
                     } label: {
                         Text("Лимит файла")
                     }
-                    Slider(value: Binding(get: { filesLimitMb }, set: { filesLimitMb = $0; savePolicy() }), in: 0.1...50, step: 0.1)
+                    Slider(value: $filesLimitMb, in: 0.1...50, step: 0.1) { editing in
+                        if !editing {
+                            savePolicy()
+                        }
+                    }
                 }
             } header: {
                 Text("Автозагрузка")
