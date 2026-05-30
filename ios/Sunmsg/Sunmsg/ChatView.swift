@@ -2686,6 +2686,9 @@ struct MessageBubbleView: View {
     private var messageBlockWidth: CGFloat {
         isTextBubble ? clampedMaxBubbleWidth : nonTextBlockWidth
     }
+    private var rowVerticalPadding: CGFloat {
+        isPreview ? 0 : (isTail ? Metrics.tailRowVerticalPadding : Metrics.rowVerticalPadding)
+    }
 
     var body: some View {
         Group {
@@ -2716,7 +2719,7 @@ struct MessageBubbleView: View {
                 }
             }
         }
-        .padding(.vertical, isTail ? Metrics.tailRowVerticalPadding : Metrics.rowVerticalPadding)
+        .padding(.vertical, rowVerticalPadding)
         .contentShape(Rectangle())
         .onTapGesture {
             if isSelectionMode && !isPreview {
