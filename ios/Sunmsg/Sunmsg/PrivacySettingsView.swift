@@ -24,6 +24,7 @@ struct PrivacySettingsView: View {
     @State private var blockedCount = 0
     @State private var showMnemonicInfo = false
     @State private var hasPrivateKeyLoaded = false
+    @State private var privateKeyRefreshTask: Task<Void, Never>?
     @State private var queuedSettingsPayload: [String: Any]?
     @State private var queuedSettingsReconnect = false
 
@@ -185,6 +186,10 @@ struct PrivacySettingsView: View {
         .onAppear {
             refreshPrivateKeyState()
         }
+        .onDisappear {
+            privateKeyRefreshTask?.cancel()
+            privateKeyRefreshTask = nil
+        }
         .alert("Секретная фраза", isPresented: $showMnemonicInfo) {
             Button("Понятно", role: .cancel) {}
         } message: {
@@ -193,7 +198,15 @@ struct PrivacySettingsView: View {
     }
 
     private func refreshPrivateKeyState() {
-        hasPrivateKeyLoaded = KeychainService.hasPrivateKey()
+        privateKeyRefreshTask?.cancel()
+        privateKeyRefreshTask = Task { @MainActor in
+            let loaded = await Task.detached(priority: .userInitiated) {
+                KeychainService.hasPrivateKey()
+            }.value
+            guard !Task.isCancelled else { return }
+            hasPrivateKeyLoaded = loaded
+            privateKeyRefreshTask = nil
+        }
     }
 
     private func privacyPicker(_ title: String, selection: Binding<String>, key: String, reconnect: Bool = false) -> some View {
