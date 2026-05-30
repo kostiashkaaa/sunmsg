@@ -1348,9 +1348,13 @@ struct SettingsView: View {
                             Text(user?.displayName ?? "—")
                                 .font(.headline)
                                 .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
                             Text("@\(user?.username ?? "—")")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -1562,9 +1566,13 @@ struct ProfileSettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(user?.displayName ?? "—")
                                 .font(.headline)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
                             Text("@\(user?.username ?? "—")")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
                             if isUploadingAvatar {
                                 ProgressView()
                                     .controlSize(.small)
