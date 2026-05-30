@@ -4664,6 +4664,7 @@ struct DevicesView: View {
         guard !isMutating else { return }
         isMutating = true
         pendingRevokeDevice = nil
+        errorMessage = nil
         defer { isMutating = false }
         guard !device.familyId.isEmpty else {
             if device.isCurrent {
@@ -4689,6 +4690,7 @@ struct DevicesView: View {
         guard !isMutating else { return }
         isMutating = true
         showRevokeOthersConfirm = false
+        errorMessage = nil
         defer { isMutating = false }
         do {
             _ = try await session.api.revokeOtherSessionDevices()
