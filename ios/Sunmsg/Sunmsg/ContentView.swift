@@ -2529,6 +2529,7 @@ struct ChatBehaviorSettingsView: View {
     @AppStorage(SettingsClientPreferences.motionLevelKey) private var motionLevel = "auto"
     @State private var clientPreferences: [String: Any] = [:]
     @State private var error: String?
+    @State private var saveTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -2565,6 +2566,7 @@ struct ChatBehaviorSettingsView: View {
         .navigationTitle("Настройки чата")
         .smSettingsScreenStyle()
         .task { await load() }
+        .onDisappear { flushPendingSave() }
     }
 
     private func load() async {
@@ -2584,10 +2586,36 @@ struct ChatBehaviorSettingsView: View {
         ]
         let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: updates)
         clientPreferences = payload
-        Task {
-            do { try await session.api.saveSettings(["client_preferences": payload]) }
-            catch APIError.unauthorized { session.route = .login }
-            catch { self.error = error.localizedDescription }
+        scheduleSave(payload)
+    }
+
+    private func scheduleSave(_ payload: [String: Any]) {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            saveTask = nil
+            await persist(payload)
+        }
+    }
+
+    private func flushPendingSave() {
+        guard let task = saveTask else { return }
+        task.cancel()
+        saveTask = nil
+        Task { await persist(clientPreferences) }
+    }
+
+    private func persist(_ payload: [String: Any]) async {
+        do {
+            try await session.api.saveSettings(["client_preferences": payload])
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 }
