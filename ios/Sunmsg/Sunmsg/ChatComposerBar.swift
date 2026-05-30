@@ -305,7 +305,9 @@ struct ChatComposerBar: View {
     @ViewBuilder
     private var trailingInputButton: some View {
         if isUploadingMedia {
-            EmptyView()
+            Color.clear
+                .frame(width: Metrics.innerButtonSize, height: Metrics.innerButtonSize)
+                .accessibilityHidden(true)
         } else {
             Menu {
                 ForEach(emojiSuggestions, id: \.self) { emoji in
