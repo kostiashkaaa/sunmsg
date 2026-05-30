@@ -3567,6 +3567,58 @@ struct AppearanceSettingsView: View {
     @State private var error: String?
     @State private var hexSaveTask: Task<Void, Never>?
 
+    private struct AppearanceSnapshot: Equatable {
+        let schemePref: String
+        let themePreset: String
+        let accentColor: String
+        let surfaceMode: String
+        let chatMode: String
+        let chatBackgroundColor: String
+        let gradientA: String
+        let gradientB: String
+        let backgroundImageDataURL: String
+        let imageDarken: Double
+        let imageBlur: Double
+        let imageOpacity: Double
+        let imageScale: Double
+        let imagePositionX: Double
+        let imagePositionY: Double
+        let imageRepeat: Bool
+        let bubbleOut: String
+        let bubbleIn: String
+        let bubbleOutText: String
+        let bubbleInText: String
+        let bubbleOpacity: Double
+        let messageScale: Double
+    }
+
+    private var appearanceSnapshot: AppearanceSnapshot {
+        AppearanceSnapshot(
+            schemePref: schemePref,
+            themePreset: themePreset,
+            accentColor: accentColor,
+            surfaceMode: surfaceMode,
+            chatMode: chatMode,
+            chatBackgroundColor: chatBackgroundColor,
+            gradientA: gradientA,
+            gradientB: gradientB,
+            backgroundImageDataURL: backgroundImageDataURL,
+            imageDarken: imageDarken,
+            imageBlur: imageBlur,
+            imageOpacity: imageOpacity,
+            imageScale: imageScale,
+            imagePositionX: imagePositionX,
+            imagePositionY: imagePositionY,
+            imageRepeat: imageRepeat,
+            bubbleOut: bubbleOut,
+            bubbleIn: bubbleIn,
+            bubbleOutText: bubbleOutText,
+            bubbleInText: bubbleInText,
+            bubbleOpacity: bubbleOpacity,
+            messageScale: messageScale
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -3756,9 +3808,11 @@ struct AppearanceSettingsView: View {
     }
 
     private func loadAppearance() async {
+        let snapshot = appearanceSnapshot
         do {
             let settings = try await session.api.getSettings()
             clientPreferences = settings.clientPreferencesObject
+            guard appearanceSnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
         } catch {
             self.error = error.localizedDescription
