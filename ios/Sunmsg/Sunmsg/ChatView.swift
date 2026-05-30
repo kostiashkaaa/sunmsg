@@ -2917,7 +2917,14 @@ struct MessageBubbleView: View {
             case "audio":
                 AudioBubbleView(url: sunfile.fullURL, name: sunfile.name, isFromMe: isFromMe, isTail: isTail)
             case "file":
-                FileBubbleView(url: sunfile.fullURL, name: sunfile.name, size: sunfile.size, isFromMe: isFromMe, isTail: isTail)
+                FileBubbleView(
+                    url: sunfile.fullURL,
+                    name: sunfile.name,
+                    size: sunfile.size,
+                    isFromMe: isFromMe,
+                    isTail: isTail,
+                    maxWidth: maxBubbleWidth
+                )
             default:
                 textContent
             }
@@ -3736,6 +3743,7 @@ struct FileBubbleView: View {
     let size: Int
     let isFromMe: Bool
     let isTail: Bool
+    let maxWidth: CGFloat
     @State private var shareDraft: ShareFileDraft?
     @State private var isDownloading = false
     /// Resolved URL (local temp file for web-encrypted files, original URL otherwise).
@@ -3782,16 +3790,18 @@ struct FileBubbleView: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smText)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                     if !sizeText.isEmpty {
                         Text(sizeText)
                             .font(.caption2)
                             .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
                     }
                 }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .frame(minWidth: 180)
+            .frame(minWidth: min(180, maxWidth), maxWidth: maxWidth, alignment: .leading)
             .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
             .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
             .overlay(
