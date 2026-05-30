@@ -78,9 +78,11 @@ struct ContactProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 20)
 
-                    dangerGroup
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 40)
+                    if !contact.isGroup {
+                        dangerGroup
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 40)
+                    }
                 }
             }
         }
@@ -89,15 +91,17 @@ struct ContactProfileView: View {
         .toolbarBackground(Color.smBg, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(role: .destructive, action: { showBlockAlert = true }) {
-                        Label("Заблокировать", systemImage: "hand.raised")
+            if !contact.isGroup {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(role: .destructive, action: { showBlockAlert = true }) {
+                            Label("Заблокировать", systemImage: "hand.raised")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(Color.smAccent)
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.smAccent)
                 }
             }
         }
