@@ -338,16 +338,21 @@ struct NativeRegisterView: View {
     private func generateMnemonic(onlyIfEmpty: Bool = false) async {
         let token = UUID()
         mnemonicGenerationToken = token
-        let phrase = await Task.detached(priority: .userInitiated) {
-            try? SunCrypto.generateMnemonic()
+        let result = await Task.detached(priority: .userInitiated) {
+            Result { try SunCrypto.generateMnemonic() }
         }.value
         guard mnemonicGenerationToken == token else { return }
-        guard let phrase else { return }
-        guard !onlyIfEmpty || mnemonic.isEmpty else { return }
-        mnemonicCopyResetToken += 1
-        mnemonic = phrase
-        mnemonicCopied = false
-        savedConfirmed = false
+        switch result {
+        case .success(let phrase):
+            guard !onlyIfEmpty || mnemonic.isEmpty else { return }
+            mnemonicCopyResetToken += 1
+            mnemonic = phrase
+            mnemonicCopied = false
+            savedConfirmed = false
+        case .failure(let error):
+            guard !onlyIfEmpty || mnemonic.isEmpty else { return }
+            step = .error(error.localizedDescription)
+        }
     }
 
     private func copyMnemonic() {
