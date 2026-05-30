@@ -243,10 +243,21 @@ enum QRTransferCrypto {
         let tag = Data(cipherAll.suffix(16))
         let sealed = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: ivData), ciphertext: ciphertext, tag: tag)
         let plaintext = try AES.GCM.open(sealed, using: key)
-        guard let pem = String(data: plaintext, encoding: .utf8),
-              pem.contains("PRIVATE KEY")
-        else { throw QRTransferCryptoError.invalidPrivateKeyPayload }
-        return pem
+        guard let pem = String(data: plaintext, encoding: .utf8) else {
+            throw QRTransferCryptoError.invalidPrivateKeyPayload
+        }
+        return try validatedPrivateKeyPem(pem, error: .invalidPrivateKeyPayload)
+    }
+
+    static func validatedPrivateKeyPem(_ privateKeyPem: String, error mappedError: QRTransferCryptoError) throws -> String {
+        let trimmed = privateKeyPem.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw mappedError }
+        do {
+            _ = try SunCrypto.importPrivateKey(trimmed)
+            return trimmed
+        } catch {
+            throw mappedError
+        }
     }
 
     private static func randomBytes(count: Int) throws -> Data {
@@ -265,9 +276,7 @@ enum QRTransferService {
         guard let privateKeyPem = KeychainService.loadPrivateKey() else {
             throw QRTransferCryptoError.missingLocalPrivateKey
         }
-        guard privateKeyPem.contains("PRIVATE KEY") else {
-            throw QRTransferCryptoError.invalidLocalPrivateKey
-        }
+        let validatedPrivateKeyPem = try QRTransferCrypto.validatedPrivateKeyPem(privateKeyPem, error: .invalidLocalPrivateKey)
         if api.csrfToken.isEmpty {
             api.csrfToken = try await api.getCsrfToken()
         }
@@ -282,7 +291,7 @@ enum QRTransferService {
             peerPublicJwk: receiverPublicJwk,
             sessionId: code.sessionId
         )
-        let encrypted = try QRTransferCrypto.encryptPrivateKeyPem(privateKeyPem, using: aesKey)
+        let encrypted = try QRTransferCrypto.encryptPrivateKeyPem(validatedPrivateKeyPem, using: aesKey)
         try await api.submitKeyTransferSession(
             sessionId: code.sessionId,
             kind: code.kind,

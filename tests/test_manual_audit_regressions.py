@@ -29,6 +29,14 @@ def test_key_transfer_claim_routes_require_post(tmp_path, monkeypatch):
     assert client.post(login_claim_url).status_code == 404
 
 
+def test_ios_qr_transfer_accepts_web_vault_private_key_format():
+    support = Path('ios/Sunmsg/Sunmsg/QRTransferSupport.swift').read_text(encoding='utf-8')
+
+    assert 'contains("PRIVATE KEY")' not in support
+    assert 'validatedPrivateKeyPem' in support
+    assert 'SunCrypto.importPrivateKey(trimmed)' in support
+
+
 def test_get_safe_avatar_url_shows_own_avatar_even_when_is_contact_false():
     user_payload = {
         'id': 42,
