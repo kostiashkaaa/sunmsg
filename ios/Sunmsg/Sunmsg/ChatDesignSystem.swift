@@ -79,6 +79,17 @@ enum ChatDesignMetrics {
         static let shadowOpacity: Double = 0.13
         static let shadowRadius: CGFloat = 12
         static let shadowY: CGFloat = 6
+
+        static func pickerWidth(reactionCount: Int) -> CGFloat {
+            let reactionCount = max(0, reactionCount)
+            let reactionSpacing = CGFloat(max(0, reactionCount - 1)) * spacing
+            let toggleSpacing = reactionCount > 0 ? spacing : 0
+            return CGFloat(reactionCount) * buttonSize
+                + reactionSpacing
+                + toggleSpacing
+                + toggleSize
+                + pickerHorizontalPadding * 2
+        }
     }
 
     enum ContextMenu {

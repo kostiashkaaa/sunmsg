@@ -202,8 +202,7 @@ struct MessageContextMenu<Preview: View>: View {
             availableWidth,
             max(
                 Metrics.minReactionWidth,
-                CGFloat(primaryReactions.count + 1) * ChatDesignMetrics.Reaction.buttonSize
-                    + ChatDesignMetrics.Reaction.pickerHorizontalPadding * 2
+                ChatDesignMetrics.Reaction.pickerWidth(reactionCount: primaryReactions.count)
             )
         )
         let menuWidth = min(availableWidth, Metrics.menuWidth)
