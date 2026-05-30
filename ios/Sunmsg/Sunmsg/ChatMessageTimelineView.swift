@@ -21,7 +21,10 @@ struct ChatMessageTimelineView: View, Equatable {
     let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
     let timelineVersion: Int
+    private let decryptedTexts: [Int: String]
     private let decryptedTextCount: Int
+    private let scrollIntentSnapshot: ChatScrollIntent
+    private let isPinnedToBottomSnapshot: Bool
     @Binding var scrollIntent: ChatScrollIntent
     @Binding var isPinnedToBottom: Bool
     let onLoadOlder: () -> Void
@@ -72,7 +75,7 @@ struct ChatMessageTimelineView: View, Equatable {
         let onRequestMenu: (Int) -> Void
         let onToggleSelection: (Int) -> Void
 
-        static func == (lhs: TimelineMessageRowView, rhs: TimelineMessageRowView) -> Bool {
+        nonisolated static func == (lhs: TimelineMessageRowView, rhs: TimelineMessageRowView) -> Bool {
             lhs.row == rhs.row
                 && lhs.maxBubbleWidth == rhs.maxBubbleWidth
                 && lhs.isPinned == rhs.isPinned
@@ -140,7 +143,10 @@ struct ChatMessageTimelineView: View, Equatable {
         self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
+        self.decryptedTexts = decryptedTexts
         self.decryptedTextCount = decryptedTexts.count
+        self.scrollIntentSnapshot = scrollIntent.wrappedValue
+        self.isPinnedToBottomSnapshot = isPinnedToBottom.wrappedValue
         self._scrollIntent = scrollIntent
         self._isPinnedToBottom = isPinnedToBottom
         self.onLoadOlder = onLoadOlder
@@ -149,7 +155,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.onToggleSelection = onToggleSelection
     }
 
-    static func == (lhs: ChatMessageTimelineView, rhs: ChatMessageTimelineView) -> Bool {
+    nonisolated static func == (lhs: ChatMessageTimelineView, rhs: ChatMessageTimelineView) -> Bool {
         lhs.myId == rhs.myId
             && lhs.isGroup == rhs.isGroup
             && lhs.hasOlderMessages == rhs.hasOlderMessages
@@ -163,8 +169,8 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.reduceMotion == rhs.reduceMotion
             && lhs.timelineVersion == rhs.timelineVersion
             && lhs.decryptedTextCount == rhs.decryptedTextCount
-            && lhs.scrollIntent == rhs.scrollIntent
-            && lhs.isPinnedToBottom == rhs.isPinnedToBottom
+            && lhs.scrollIntentSnapshot == rhs.scrollIntentSnapshot
+            && lhs.isPinnedToBottomSnapshot == rhs.isPinnedToBottomSnapshot
     }
 
     private static func makeRows(
