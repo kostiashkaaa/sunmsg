@@ -3554,7 +3554,7 @@ struct VideoBubbleView: View {
         // both the thumbnail generator and the full-screen player can use it.
         if let e2ee = SunMediaE2EE.parse(url: url),
            let tmpURL = try? await e2ee.fetchAndDecryptToTempFile() {
-            guard self.url == url else {
+            guard !Task.isCancelled, self.url == url else {
                 if tmpURL.isFileURL {
                     try? FileManager.default.removeItem(at: tmpURL)
                 }
@@ -3564,7 +3564,7 @@ struct VideoBubbleView: View {
             effectiveURL = tmpURL
             await generateThumbnail(from: AVURLAsset(url: tmpURL), expectedURL: url)
         } else {
-            guard self.url == url else { return }
+            guard !Task.isCancelled, self.url == url else { return }
             effectiveURL = url
             await generateThumbnail(from: AuthenticatedAsset.make(url: url), expectedURL: url)
         }
@@ -3581,7 +3581,7 @@ struct VideoBubbleView: View {
     private func generateThumbnail(from asset: AVAsset, expectedURL: URL) async {
         if let cached = SunVideoThumbnailCache.image(for: expectedURL) {
             await MainActor.run {
-                guard self.url == expectedURL else { return }
+                guard !Task.isCancelled, self.url == expectedURL else { return }
                 self.thumbnail = cached
             }
             return
@@ -3595,7 +3595,7 @@ struct VideoBubbleView: View {
             let image = UIImage(cgImage: cg)
             SunVideoThumbnailCache.store(image, for: expectedURL)
             await MainActor.run {
-                guard self.url == expectedURL else { return }
+                guard !Task.isCancelled, self.url == expectedURL else { return }
                 self.thumbnail = image
             }
         } catch { }
