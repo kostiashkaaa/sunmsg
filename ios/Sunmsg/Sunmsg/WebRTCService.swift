@@ -160,18 +160,30 @@ final class WebRTCService: NSObject, ObservableObject {
         // Capture constraints as a local so the Sendable closure doesn't
         // reference the @MainActor-isolated property directly.
         let constraints = mediaConstraints
-        pc.offer(for: constraints) { sdp, _ in
+        pc.offer(for: constraints) { [weak self] sdp, _ in
             guard let sdp else { return }
-            pc.setLocalDescription(sdp) { _ in
-                Task { @MainActor in
-                    SocketClient.shared.emit("call_offer", [
-                        "call_id": callId,
-                        "sdp": ["type": "offer", "sdp": sdp.sdp],
-                        "csrf_token": APIClient.shared.csrfToken,
-                    ])
+            Task { @MainActor [weak self] in
+                guard let self, self.isCurrentConnection(pc, callId: callId) else { return }
+                pc.setLocalDescription(sdp) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isCurrentConnection(pc, callId: callId) else { return }
+                        SocketClient.shared.emit("call_offer", [
+                            "call_id": callId,
+                            "sdp": ["type": "offer", "sdp": sdp.sdp],
+                            "csrf_token": APIClient.shared.csrfToken,
+                        ])
+                    }
                 }
             }
         }
+    }
+
+    private func isCurrentConnection(_ pc: RTCPeerConnection, callId: String? = nil) -> Bool {
+        guard peerConnection === pc else { return false }
+        if let callId {
+            return currentCallId == callId
+        }
+        return true
     }
 
     /// Callee side — apply incoming offer, generate answer, emit `call_answer`.
@@ -181,17 +193,23 @@ final class WebRTCService: NSObject, ObservableObject {
         let constraints = mediaConstraints   // capture before entering Sendable closure
         pc.setRemoteDescription(remote) { [weak self] err in
             if err != nil { return }
-            // drainPendingCandidates is @MainActor — hop there explicitly.
-            Task { @MainActor [weak self] in self?.drainPendingCandidates() }
-            pc.answer(for: constraints) { sdp, _ in
-                guard let sdp else { return }
-                pc.setLocalDescription(sdp) { _ in
-                    Task { @MainActor in
-                        SocketClient.shared.emit("call_answer", [
-                            "call_id": callId,
-                            "sdp": ["type": "answer", "sdp": sdp.sdp],
-                            "csrf_token": APIClient.shared.csrfToken,
-                        ])
+            Task { @MainActor [weak self] in
+                guard let self, self.isCurrentConnection(pc, callId: callId) else { return }
+                self.drainPendingCandidates()
+                pc.answer(for: constraints) { [weak self] sdp, _ in
+                    guard let sdp else { return }
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isCurrentConnection(pc, callId: callId) else { return }
+                        pc.setLocalDescription(sdp) { [weak self] _ in
+                            Task { @MainActor [weak self] in
+                                guard let self, self.isCurrentConnection(pc, callId: callId) else { return }
+                                SocketClient.shared.emit("call_answer", [
+                                    "call_id": callId,
+                                    "sdp": ["type": "answer", "sdp": sdp.sdp],
+                                    "csrf_token": APIClient.shared.csrfToken,
+                                ])
+                            }
+                        }
                     }
                 }
             }
@@ -203,7 +221,10 @@ final class WebRTCService: NSObject, ObservableObject {
         guard let pc = peerConnection else { return }
         let remote = RTCSessionDescription(type: .answer, sdp: sdpText)
         pc.setRemoteDescription(remote) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.drainPendingCandidates() }
+            Task { @MainActor [weak self] in
+                guard let self, self.isCurrentConnection(pc) else { return }
+                self.drainPendingCandidates()
+            }
         }
     }
 
@@ -423,6 +444,7 @@ extension WebRTCService: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection,
                                     didChange newState: RTCIceConnectionState) {
         Task { @MainActor in
+            guard self.isCurrentConnection(peerConnection) else { return }
             self.connectionState = newState
             if newState == .connected || newState == .completed {
                 self.refreshVerificationCode()
@@ -436,7 +458,8 @@ extension WebRTCService: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection,
                                     didGenerate candidate: RTCIceCandidate) {
         Task { @MainActor in
-            guard let callId = self.currentCallId else { return }
+            guard self.isCurrentConnection(peerConnection),
+                  let callId = self.currentCallId else { return }
             SocketClient.shared.emit("call_ice_candidate", [
                 "call_id": callId,
                 "candidate": [
@@ -459,14 +482,19 @@ extension WebRTCService: RTCPeerConnectionDelegate {
                                     didAdd rtpReceiver: RTCRtpReceiver,
                                     streams mediaStreams: [RTCMediaStream]) {
         if let videoTrack = rtpReceiver.track as? RTCVideoTrack {
-            Task { @MainActor in self.remoteVideoTrack = videoTrack }
+            Task { @MainActor in
+                guard self.isCurrentConnection(peerConnection) else { return }
+                self.remoteVideoTrack = videoTrack
+            }
         }
         if rtpReceiver.track is RTCAudioTrack {
-            Task { @MainActor in self.remoteAudioActive = true }
+            Task { @MainActor in
+                guard self.isCurrentConnection(peerConnection) else { return }
+                self.remoteAudioActive = true
+            }
         }
     }
 }
-
 // MARK: - Helpers
 
 private extension Comparable {
