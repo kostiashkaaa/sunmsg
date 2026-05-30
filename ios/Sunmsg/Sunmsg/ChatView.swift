@@ -3470,6 +3470,7 @@ struct VideoBubbleView: View {
 
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
+        gen.maximumSize = CGSize(width: 900, height: 900)
         do {
             let cg = try await gen.image(at: CMTime(seconds: 0.5, preferredTimescale: 600)).image
             let image = UIImage(cgImage: cg)
