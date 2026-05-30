@@ -473,6 +473,13 @@ struct QRLoginPanel: View {
                 generateQRCodeImage(from: qrText)
             }.value
             guard !Task.isCancelled, sessionRequestToken == requestToken else { return }
+            guard let image else {
+                throw NSError(
+                    domain: "SUNmessenger.QRLoginPanel",
+                    code: 0,
+                    userInfo: [NSLocalizedDescriptionKey: "Не удалось сгенерировать QR-код."]
+                )
+            }
             qrImage = image
             statusText = "Откройте SUN на другом устройстве и отсканируйте этот код."
             isPreparing = false
