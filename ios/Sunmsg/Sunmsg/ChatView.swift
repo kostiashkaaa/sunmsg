@@ -2503,6 +2503,8 @@ struct ChatView: View {
 // MARK: - Message bubble
 
 struct MessageBubbleView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let message: ChatMessage
     var decryptedText: String? = nil
     let isFromMe: Bool
@@ -2604,10 +2606,22 @@ struct MessageBubbleView: View {
     private var bubbleAlignment: Alignment { isFromMe ? .trailing : .leading }
     private var stackAlignment: HorizontalAlignment { isFromMe ? .trailing : .leading }
     private var bubbleFill: Color {
-        (isFromMe ? Color(hex: bubbleOutHex) : Color(hex: bubbleInHex)).opacity(bubbleOpacity)
+        (isFromMe ? Color(hex: bubbleOutHex) : Color(hex: resolvedBubbleInHex)).opacity(bubbleOpacity)
     }
     private var bubbleTextColor: Color {
-        isFromMe ? Color(hex: bubbleOutTextHex) : Color(hex: bubbleInTextHex)
+        isFromMe ? Color(hex: bubbleOutTextHex) : Color(hex: resolvedBubbleInTextHex)
+    }
+    private var resolvedBubbleInHex: String {
+        guard UserDefaults.standard.object(forKey: SettingsClientPreferences.bubbleInKey) == nil else {
+            return bubbleInHex
+        }
+        return colorScheme == .dark ? "#221f17" : "#ffffff"
+    }
+    private var resolvedBubbleInTextHex: String {
+        guard UserDefaults.standard.object(forKey: SettingsClientPreferences.bubbleInTextKey) == nil else {
+            return bubbleInTextHex
+        }
+        return colorScheme == .dark ? "#ece6d5" : "#1f1b14"
     }
     private var clampedMaxBubbleWidth: CGFloat {
         max(0, maxBubbleWidth)
