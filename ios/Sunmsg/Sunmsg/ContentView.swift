@@ -88,6 +88,8 @@ final class SessionStore: ObservableObject {
 
     let api = APIClient.shared
     private let syncEngine = ChatSyncEngine(api: APIClient.shared)
+    private var contactsRefreshToken: UUID?
+    private var dialogRequestsRefreshToken: UUID?
     private let mutedChatIdsDefaultsKey = "sun_chat_muted_v1"
     private var mutedChatIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
@@ -655,12 +657,27 @@ final class SessionStore: ObservableObject {
     }
 
     func refreshContacts() async {
-        do {
-            contacts = applyStoredMuteState(to: try await api.getContacts())
-            await decryptContactPreviews()
+        let refreshToken = UUID()
+        contactsRefreshToken = refreshToken
+        defer {
+            if contactsRefreshToken == refreshToken {
+                contactsRefreshToken = nil
+            }
         }
-        catch APIError.unauthorized { route = .login }
-        catch { errorMessage = error.localizedDescription }
+        do {
+            let response = try await api.getContacts()
+            guard !Task.isCancelled, contactsRefreshToken == refreshToken else { return }
+            contacts = applyStoredMuteState(to: response)
+            await decryptContactPreviews(expectedRefreshToken: refreshToken)
+        }
+        catch APIError.unauthorized {
+            guard !Task.isCancelled, contactsRefreshToken == refreshToken else { return }
+            route = .login
+        }
+        catch {
+            guard !Task.isCancelled, contactsRefreshToken == refreshToken else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func showCallError(_ message: String) {
@@ -722,8 +739,22 @@ final class SessionStore: ObservableObject {
     }
 
     func refreshDialogRequests() async {
-        do { pendingRequests = try await api.getDialogRequests() }
-        catch APIError.unauthorized { route = .login }
+        let refreshToken = UUID()
+        dialogRequestsRefreshToken = refreshToken
+        defer {
+            if dialogRequestsRefreshToken == refreshToken {
+                dialogRequestsRefreshToken = nil
+            }
+        }
+        do {
+            let response = try await api.getDialogRequests()
+            guard !Task.isCancelled, dialogRequestsRefreshToken == refreshToken else { return }
+            pendingRequests = response
+        }
+        catch APIError.unauthorized {
+            guard !Task.isCancelled, dialogRequestsRefreshToken == refreshToken else { return }
+            route = .login
+        }
         catch { }
     }
 
@@ -971,7 +1002,7 @@ final class SessionStore: ObservableObject {
         UserDefaults.standard.set(raw, forKey: mutedChatIdsDefaultsKey)
     }
 
-    private func decryptContactPreviews() async {
+    private func decryptContactPreviews(expectedRefreshToken: UUID? = nil) async {
         let myId = bootstrap?.user.id ?? 0
         let workItems = contacts.indices.map { index in
             ContactPreviewWorkItem(
@@ -988,6 +1019,9 @@ final class SessionStore: ObservableObject {
                 Self.contactPreviewResult(for: item, myId: myId, privateKeyPEM: privateKeyPEM)
             }
         }.value
+        if let expectedRefreshToken {
+            guard contactsRefreshToken == expectedRefreshToken else { return }
+        }
         for result in results {
             guard let index = contacts.firstIndex(where: { $0.chatId == result.chatId }) else { continue }
             if let draftText = result.draftText {
