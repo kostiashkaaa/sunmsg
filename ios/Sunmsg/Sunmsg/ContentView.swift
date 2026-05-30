@@ -4241,6 +4241,7 @@ struct AppearanceSettingsView: View {
 
     private func importBackground(_ item: PhotosPickerItem?) async {
         guard let item else { return }
+        error = nil
         let token = UUID()
         backgroundImportToken = token
         defer {
@@ -4249,12 +4250,18 @@ struct AppearanceSettingsView: View {
             }
         }
         do {
-            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                self.error = "Не удалось загрузить изображение."
+                return
+            }
             let jpegData = await Task.detached(priority: .userInitiated, operation: { () -> Data? in
                 Self.resizedJPEGData(from: data, maxDimension: 1440)
             }).value
             guard backgroundImportToken == token else { return }
-            guard let jpeg = jpegData else { return }
+            guard let jpeg = jpegData else {
+                self.error = "Не удалось обработать изображение."
+                return
+            }
             backgroundImageDataURL = "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
             chatMode = "custom"
             saveAppearance()
